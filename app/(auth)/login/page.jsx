@@ -46,7 +46,8 @@ export default function LoginPage() {
             if (res.error) {
                 console.error("=> Login Error:", res.error);
                 // Handle the case where error is the string "undefined" or null
-                const displayError = (res.error === "undefined" || !res.error)
+                // Also handle "CredentialsSignin" which is the default NextAuth error for auth failure
+                const displayError = (res.error === "undefined" || !res.error || res.error === "CredentialsSignin")
                     ? "Invalid email or password"
                     : res.error;
 

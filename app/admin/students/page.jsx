@@ -36,7 +36,7 @@ export default function StudentsPage() {
     const [filters, setFilters] = useState({
         batchId: "",
         courseId: "",
-        isActive: ""
+        isActive: "true"
     });
 
     // Form State
@@ -100,7 +100,8 @@ export default function StudentsPage() {
             });
 
             const res = await fetch(`/api/v1/students?${queryParams.toString()}`, {
-                signal: window.fetchController.signal
+                signal: window.fetchController.signal,
+                cache: 'no-store'
             });
             const data = await res.json();
             setStudents(data.students || []);

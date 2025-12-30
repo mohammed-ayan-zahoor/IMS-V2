@@ -6,7 +6,7 @@ const UserSchema = new Schema({
     email: {
         type: String,
         required: true,
-        unique: true,
+        // unique: true, // Moved to index with partialFilterExpression
         lowercase: true,
         index: true,
         match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
@@ -42,7 +42,7 @@ const UserSchema = new Schema({
     enrollmentNumber: {
         type: String,
         sparse: true,
-        unique: true,
+        // unique: true, // Moved to index with partialFilterExpression
         uppercase: true
     },
     guardianDetails: {
@@ -68,6 +68,10 @@ const UserSchema = new Schema({
 UserSchema.index({ role: 1, deletedAt: 1 });
 UserSchema.index({ 'profile.firstName': 'text', 'profile.lastName': 'text' });
 
+// Partial unique indexes to allow reusing email/enrollmentNumber if previous one is deleted
+UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
+UserSchema.index({ enrollmentNumber: 1 }, { unique: true, partialFilterExpression: { deletedAt: null, enrollmentNumber: { $exists: true } } });
+
 // Virtual for full name
 UserSchema.virtual('fullName').get(function () {
     if (!this.profile || !this.profile.firstName || !this.profile.lastName) {
@@ -76,25 +80,34 @@ UserSchema.virtual('fullName').get(function () {
     return `${this.profile.firstName} ${this.profile.lastName}`;
 });
 
+// Virtual for active status
+UserSchema.virtual('isActive').get(function () {
+    return !this.deletedAt;
+});
+
 // Pre-save hook to ensure enrollment number for students
-UserSchema.pre('save', function (next) {
+UserSchema.pre('save', async function () {
     if (this.isNew && this.role === 'student' && !this.enrollmentNumber) {
-        const year = new Date().getFullYear();
-        // Use this.constructor since models might not be fully available in some contexts
-        mongoose.model('Counter').findByIdAndUpdate(
-            `student_enrollment_${year}`,
-            { $inc: { seq: 1 } },
-            { new: true, upsert: true }
-        )
-            .then(counter => {
-                if (!counter) return next(new Error('Failed to generate sequence'));
-                this.enrollmentNumber = `STU${year}${String(counter.seq).padStart(4, '0')}`;
-                next();
-            })
-            .catch(err => next(err));
-    } else {
-        next();
+        try {
+            const year = new Date().getFullYear();
+            const counter = await mongoose.model('Counter').findByIdAndUpdate(
+                `student_enrollment_${year}`,
+                { $inc: { seq: 1 } },
+                { new: true, upsert: true }
+            );
+
+            if (!counter) throw new Error('Failed to generate sequence');
+            this.enrollmentNumber = `STU${year}${String(counter.seq).padStart(4, '0')}`;
+        } catch (err) {
+            console.error("Enrollment ID Gen Error:", err);
+            throw err;
+        }
     }
 });
+
+// Force re-compilation of model to ensure virtuals and hooks are updated in Dev
+// if (mongoose.models.User) {
+//    delete mongoose.models.User;
+// }
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

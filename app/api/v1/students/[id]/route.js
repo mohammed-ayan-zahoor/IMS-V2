@@ -11,7 +11,7 @@ export async function GET(req, { params }) {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const { id } = params;
+        const { id } = await params;
 
         // Students can only access their own profile
         if (session.user.role === "student" && session.user.id !== id) {
@@ -41,7 +41,7 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         const body = await req.json();
 
         await connectDB();
@@ -54,7 +54,9 @@ export async function PATCH(req, { params }) {
         const updateableFields = {
             firstName: "profile.firstName",
             lastName: "profile.lastName",
-            phone: "profile.phone"
+            phone: "profile.phone",
+            dateOfBirth: "profile.dateOfBirth",
+            address: "profile.address"
         };
 
         Object.entries(updateableFields).forEach(([key, path]) => {
@@ -111,31 +113,15 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         await connectDB();
 
-        const student = await User.findOneAndUpdate(
-            { _id: id, role: "student", deletedAt: null },
-            {
-                deletedAt: new Date(),
-                deletedBy: session.user.id
-            },
-            { new: true }
-        );
+        // Perform hard delete via service
+        await StudentService.deleteStudent(id, session.user.id);
 
-        if (!student) return NextResponse.json({ error: "Student not found" }, { status: 404 });
-
-        await createAuditLog({
-            req,
-            actor: session.user.id,
-            action: "student.delete",
-            resource: { type: "Student", id },
-            details: { name: student.fullName }
-        });
-
-        return NextResponse.json({ message: "Student deactivated successfully" });
+        return NextResponse.json({ message: "Student deleted successfully" });
     } catch (error) {
         console.error("API Error [Student DELETE]:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
     }
 }

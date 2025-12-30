@@ -11,14 +11,15 @@ export class StudentService {
      * Create a new student with enrollment
      */
     static async createStudent(data, actorId) {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
         try {
             const { email, password, profile, guardianDetails } = data;
 
-            // Start transaction-safe check
-            const existingUser = await User.findOne({ email: email?.toLowerCase() }).session(session);
+            // Check if active user exists (ignore soft deleted)
+            const existingUser = await User.findOne({
+                email: email?.toLowerCase(),
+                deletedAt: null
+            });
+
             if (existingUser) {
                 throw new Error('User with this email already exists');
             }
@@ -28,32 +29,83 @@ export class StudentService {
             const passwordHash = await bcrypt.hash(password || defaultPass, salt);
 
             // Create student
-            const student = await User.create([{
+            const student = await User.create({
                 email: email?.toLowerCase(),
                 passwordHash,
                 role: 'student',
                 profile,
                 guardianDetails,
-            }], { session });
-
-            const studentId = student[0]._id;
+            });
 
             // Log action
             await createAuditLog({
                 actor: actorId,
                 action: 'student.create',
-                resource: { type: 'User', id: studentId },
+                resource: { type: 'User', id: student._id },
                 details: {
                     name: `${profile.firstName} ${profile.lastName}`,
                     email: email
                 }
-            }, { session });
+            });
 
-            await session.commitTransaction();
-            return student[0];
+            return student;
 
         } catch (error) {
+            throw error;
+        }
+    }
+
+    /**
+     * Hard Delete student and cleanup related data
+     */
+    static async deleteStudent(studentId, actorId) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+            const student = await User.findById(studentId).session(session);
+            if (!student) throw new Error('Student not found');
+
+            // 1. Remove Fee Records
+            await Fee.deleteMany({ student: studentId }).session(session);
+
+            // 2. Remove from Batch Enrollments
+            await Batch.updateMany(
+                { 'enrolledStudents.student': studentId },
+                { $pull: { enrolledStudents: { student: studentId } } }
+            ).session(session);
+
+            // 3. Hard Delete User
+            await User.findByIdAndDelete(studentId).session(session);
+
+            await createAuditLog({
+                actor: actorId,
+                action: 'student.hard_delete',
+                resource: { type: 'User', id: studentId },
+                details: { name: student.fullName, email: student.email }
+            }); // Audit log is outside transaction usually, or we accept it might fail if transaction commits but log doesn't. 
+            // Better to log independently or after commit. But for simplicity here:
+
+            await session.commitTransaction();
+            return true;
+        } catch (error) {
             await session.abortTransaction();
+            // Fallback for standalone mongo (which doesn't support transactions)
+            if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
+                // Manual Cleanup without transaction
+                await Fee.deleteMany({ student: studentId });
+                await Batch.updateMany(
+                    { 'enrolledStudents.student': studentId },
+                    { $pull: { enrolledStudents: { student: studentId } } }
+                );
+                await User.findByIdAndDelete(studentId);
+                await createAuditLog({
+                    actor: actorId,
+                    action: 'student.hard_delete',
+                    resource: { type: 'User', id: studentId },
+                    details: { event: "Manual Hard Delete due to No RS" }
+                });
+                return true;
+            }
             throw error;
         } finally {
             session.endSession();
@@ -67,12 +119,33 @@ export class StudentService {
         const skip = (page - 1) * limit;
 
         const query = {
-            role: 'student',
-            deletedAt: showDeleted ? { $ne: null } : null
+            role: 'student'
         };
 
-        if (isActive !== null) {
-            query.isActive = isActive === 'true';
+        if (isActive === 'true') {
+            query.deletedAt = null;
+        } else if (isActive === 'false') {
+            query.deletedAt = { $ne: null };
+        } else {
+            // Default or "All" case. 
+            // If explicit showDeleted is used (legacy), fallback to it
+            // Otherwise, if isActive is null (All), we might want to show BOTH?
+            // Usually "All" means everything. But if showDeleted was false default...
+            // Let's assume:
+            // - invalid/null isActive + showDeleted=false => Active Only (Default behavior)
+            // - invalid/null isActive + showDeleted=true => Deleted Only (Legacy)
+            // But if the UI sends isActive="" which becomes null, and we want "All", 
+            // we should probably NOT filter deletedAt. 
+            // However, typical behavior is hide deleted unless asked.
+
+            // Let's match the previous default: Active Only.
+            if (isActive === null && !showDeleted) {
+                query.deletedAt = null;
+            } else if (showDeleted) {
+                query.deletedAt = { $ne: null };
+            }
+            // If isActive is null and we somehow want ALL, we'd need a specific flag.
+            // For now, let's keep the safe default of Active Only if no filter is set.
         }
 
         // Filter by batch or course
@@ -119,16 +192,13 @@ export class StudentService {
      * Enroll student in a batch and initialize fees
      */
     static async enrollInBatch(studentId, batchId, actorId) {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
         try {
-            const student = await User.findById(studentId).session(session);
+            const student = await User.findById(studentId);
             if (!student || student.role !== 'student' || student.deletedAt) {
                 throw new Error('Invalid or inactive student');
             }
 
-            const batch = await Batch.findById(batchId).populate('course').session(session);
+            const batch = await Batch.findById(batchId).populate('course');
             if (!batch || batch.deletedAt) {
                 throw new Error('Batch not found or inactive');
             }
@@ -157,15 +227,15 @@ export class StudentService {
                 enrolledAt: new Date(),
                 status: 'active'
             });
-            await batch.save({ session });
+            await batch.save();
 
             // Create initial fee record
-            const fee = await Fee.create([{
+            const fee = await Fee.create({
                 student: studentId,
                 batch: batchId,
                 totalAmount: batch.course.fees.amount,
                 installments: []
-            }], { session });
+            });
 
             // Log action
             await createAuditLog({
@@ -177,16 +247,12 @@ export class StudentService {
                     studentName: student.fullName,
                     batchName: batch.name
                 }
-            }, { session });
+            });
 
-            await session.commitTransaction();
-            return { student, batch, fee: fee[0] };
+            return { student, batch, fee: fee };
 
         } catch (error) {
-            await session.abortTransaction();
             throw error;
-        } finally {
-            session.endSession();
         }
     }
     /**

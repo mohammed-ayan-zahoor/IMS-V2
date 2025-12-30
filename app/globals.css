@@ -65,9 +65,10 @@
   color: #2563eb;
 }
 
-.bg-soft-green-bar {
-  background-color: #10b981;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--glass-hover);
 }
+
 
 .bg-soft-blue-bar {
   background-color: #3b82f6;

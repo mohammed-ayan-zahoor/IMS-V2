@@ -11,26 +11,43 @@ import {
     Calendar,
     BookOpen,
     CreditCard,
-    Clock,
     ArrowLeft,
     Shield,
-    FileText
+    Trash2,
+    Edit
 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Card, { CardHeader, CardContent } from "@/components/ui/Card";
+import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import Modal from "@/components/ui/Modal";
+import Input from "@/components/ui/Input";
 
 export default function StudentDetailsPage({ params }) {
     const router = useRouter();
-    // Unwrap params using React.use() for Next.js 15+ compatibility if needed, 
-    // but standard props work in 14. safe to treat as promise in newer versions.
-    // For now assuming standard pattern.
     const { id } = use(params);
 
     const [studentData, setStudentData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState("profile"); // profile, academic, financial
+    const [activeTab, setActiveTab] = useState("profile");
+
+    // Edit Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [formData, setFormData] = useState({
+        profile: {
+            firstName: "",
+            lastName: "",
+            phone: "",
+            dateOfBirth: "",
+            address: { street: "", city: "", state: "", pincode: "" }
+        },
+        guardianDetails: {
+            name: "",
+            relation: "",
+            phone: ""
+        }
+    });
 
     useEffect(() => {
         fetchStudentDetails();
@@ -43,6 +60,28 @@ export default function StudentDetailsPage({ params }) {
             if (res.ok) {
                 const data = await res.json();
                 setStudentData(data);
+                // Initialize form data
+                if (data.student) {
+                    setFormData({
+                        profile: {
+                            firstName: data.student.profile?.firstName || "",
+                            lastName: data.student.profile?.lastName || "",
+                            phone: data.student.profile?.phone || "",
+                            dateOfBirth: data.student.profile?.dateOfBirth ? data.student.profile.dateOfBirth.split('T')[0] : "",
+                            address: {
+                                street: data.student.profile?.address?.street || "",
+                                city: data.student.profile?.address?.city || "",
+                                state: data.student.profile?.address?.state || "",
+                                pincode: data.student.profile?.address?.pincode || ""
+                            }
+                        },
+                        guardianDetails: {
+                            name: data.student.guardianDetails?.name || "",
+                            relation: data.student.guardianDetails?.relation || "",
+                            phone: data.student.guardianDetails?.phone || ""
+                        }
+                    });
+                }
             } else {
                 console.error("Failed to fetch student");
             }
@@ -50,6 +89,59 @@ export default function StudentDetailsPage({ params }) {
             console.error(error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdateStudent = async (e) => {
+        e.preventDefault();
+        try {
+            // Sanitize payload
+            const payload = { ...formData };
+            if (!payload.profile.dateOfBirth) delete payload.profile.dateOfBirth;
+            // Ensure relation is lowercase (though select handles this, extra safety)
+            if (payload.guardianDetails?.relation) {
+                payload.guardianDetails.relation = payload.guardianDetails.relation.toLowerCase();
+            }
+
+            const res = await fetch(`/api/v1/students/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                setIsEditModalOpen(false);
+                fetchStudentDetails();
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to update profile");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("An error occurred");
+        }
+    };
+
+    const handleDeleteStudent = async () => {
+        if (!confirm("Are you sure you want to deactivate this student? This action cannot be easily undone.")) return;
+
+        try {
+            setIsDeleting(true);
+            const res = await fetch(`/api/v1/students/${id}`, {
+                method: "DELETE"
+            });
+
+            if (res.ok) {
+                router.push("/admin/students");
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to delete student");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Failed to delete student");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -61,11 +153,31 @@ export default function StudentDetailsPage({ params }) {
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
             {/* Header */}
-            <div className="flex items-center gap-4 mb-6">
+            <div className="flex items-center justify-between mb-6">
                 <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-slate-400 hover:text-slate-600">
                     <ArrowLeft size={18} />
                     <span className="ml-2">Back</span>
                 </Button>
+
+                <div className="flex gap-3">
+                    <Button
+                        variant="soft"
+                        size="sm"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={handleDeleteStudent}
+                        disabled={isDeleting}
+                    >
+                        <Trash2 size={16} className="mr-2" />
+                        {isDeleting ? "Deleting..." : "Delete Student"}
+                    </Button>
+                    <Button
+                        size="sm"
+                        onClick={() => setIsEditModalOpen(true)}
+                    >
+                        <Edit size={16} className="mr-2" />
+                        Edit Profile
+                    </Button>
+                </div>
             </div>
 
             {/* Profile Header Card */}
@@ -92,7 +204,7 @@ export default function StudentDetailsPage({ params }) {
                             </div>
                             <div className="flex items-center gap-2">
                                 <Calendar size={14} />
-                                <span>Joined {format(new Date(student.createdAt), "MMM yyyy")}</span>
+                                <span>Joined {student.createdAt ? format(new Date(student.createdAt), "MMM yyyy") : "N/A"}</span>
                             </div>
                         </div>
                     </div>
@@ -105,8 +217,8 @@ export default function StudentDetailsPage({ params }) {
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-6 py-4 text-sm font-bold uppercase tracking-wide border-b-2 transition-all ${activeTab === tab
-                                    ? "border-premium-blue text-premium-blue"
-                                    : "border-transparent text-slate-400 hover:text-slate-600"
+                                ? "border-premium-blue text-premium-blue"
+                                : "border-transparent text-slate-400 hover:text-slate-600"
                                 }`}
                         >
                             {tab}
@@ -206,6 +318,118 @@ export default function StudentDetailsPage({ params }) {
                     </div>
                 )}
             </div>
+
+            {/* Edit Modal */}
+            <Modal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                title="Edit Student Profile"
+            >
+                <form onSubmit={handleUpdateStudent} className="space-y-6">
+                    {/* Personal Info */}
+                    <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Personal Details</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                id="firstName"
+                                label="First Name"
+                                value={formData.profile.firstName}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, firstName: e.target.value } })}
+                                required
+                            />
+                            <Input
+                                id="lastName"
+                                label="Last Name"
+                                value={formData.profile.lastName}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, lastName: e.target.value } })}
+                                required
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                id="phone"
+                                label="Phone Number"
+                                value={formData.profile.phone}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, phone: e.target.value } })}
+                            />
+                            <Input
+                                id="dob"
+                                label="Date of Birth"
+                                type="date"
+                                value={formData.profile.dateOfBirth}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, dateOfBirth: e.target.value } })}
+                            />
+                        </div>
+
+                        <div className="space-y-3 pt-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Address</label>
+                            <div className="grid grid-cols-1 gap-3">
+                                <Input
+                                    placeholder="Street Address"
+                                    value={formData.profile.address.street}
+                                    onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, street: e.target.value } } })}
+                                />
+                                <div className="grid grid-cols-3 gap-3">
+                                    <Input
+                                        placeholder="City"
+                                        value={formData.profile.address.city}
+                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, city: e.target.value } } })}
+                                    />
+                                    <Input
+                                        placeholder="State"
+                                        value={formData.profile.address.state}
+                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, state: e.target.value } } })}
+                                    />
+                                    <Input
+                                        placeholder="Zip/Pin"
+                                        value={formData.profile.address.pincode}
+                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, pincode: e.target.value } } })}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Guardian Info */}
+                    <div className="space-y-4 pt-2 border-t border-slate-50">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mt-2">Guardian Details</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                id="guardianName"
+                                label="Guardian Name"
+                                value={formData.guardianDetails.name}
+                                onChange={(e) => setFormData({ ...formData, guardianDetails: { ...formData.guardianDetails, name: e.target.value } })}
+                            />
+                            <div className="space-y-1">
+                                <label htmlFor="guardianRelation" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Relation</label>
+                                <select
+                                    id="guardianRelation"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700"
+                                    value={formData.guardianDetails.relation}
+                                    onChange={(e) => setFormData({ ...formData, guardianDetails: { ...formData.guardianDetails, relation: e.target.value } })}
+                                >
+                                    <option value="">Select Relation</option>
+                                    <option value="father">Father</option>
+                                    <option value="mother">Mother</option>
+                                    <option value="guardian">Guardian</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <Input
+                            id="guardianPhone"
+                            label="Guardian Contact"
+                            value={formData.guardianDetails.phone}
+                            onChange={(e) => setFormData({ ...formData, guardianDetails: { ...formData.guardianDetails, phone: e.target.value } })}
+                        />
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
+                        <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+                        <Button type="submit">Save Changes</Button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }

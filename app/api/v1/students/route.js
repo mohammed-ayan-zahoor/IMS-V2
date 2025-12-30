@@ -61,7 +61,7 @@ export async function POST(req) {
     } catch (error) {
         console.error("API Error [Students POST]:", error);
         // Be careful with error messages, but return validation errors if needed
-        const message = error.name === 'ValidationError' ? error.message : "Failed to create student";
+        const message = error.message || "Failed to create student";
         return NextResponse.json({ error: message }, { status: 400 });
     }
 }
