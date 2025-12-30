@@ -48,7 +48,11 @@ const BatchSchema = new Schema({
     instructor: { type: Schema.Types.ObjectId, ref: 'User' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     deletedAt: { type: Date, index: true }
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
 
 BatchSchema.index({ course: 1, deletedAt: 1 });
 BatchSchema.index({ 'schedule.startDate': 1 });

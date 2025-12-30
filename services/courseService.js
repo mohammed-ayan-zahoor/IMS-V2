@@ -55,10 +55,12 @@ export class BatchService {
             if (allowedFilters.includes(key)) safeFilters[key] = filters[key];
         });
 
-        return await Batch.find({ deletedAt: null, ...safeFilters })
+        const batches = await Batch.find({ deletedAt: null, ...safeFilters })
             .populate('course')
             .populate('instructor', 'profile.firstName profile.lastName')
             .sort({ 'schedule.startDate': -1 });
+
+        return batches.map(b => b.toObject({ virtuals: true }));
     }
 
     static async updateBatch(id, data, actorId) {
