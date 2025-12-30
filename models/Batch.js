@@ -12,6 +12,7 @@ const BatchSchema = new Schema({
     schedule: {
         startDate: { type: Date, required: true },
         endDate: Date,
+        description: String,
         daysOfWeek: [{
             type: Number,
             min: 0,

@@ -7,7 +7,7 @@ import { authOptions } from "@/lib/auth";
 export async function GET() {
     try {
         const courses = await CourseService.getCourses();
-        return NextResponse.json(courses);
+        return NextResponse.json({ courses });
     } catch (error) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }

@@ -9,7 +9,9 @@ import {
     Users,
     BookOpen,
     Clock,
-    Filter
+    Filter,
+    Edit,
+    Trash2
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
@@ -25,7 +27,9 @@ export default function BatchesPage() {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [editingBatch, setEditingBatch] = useState(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -57,25 +61,62 @@ export default function BatchesPage() {
         }
     };
 
-    const handleAddBatch = async (e) => {
-        e.preventDefault();
+
+
+    const handleDeleteBatch = async (id) => {
+        if (!confirm("Are you sure you want to delete this batch?")) return;
         try {
-            const res = await fetch("/api/v1/batches", {
-                method: "POST",
+            const res = await fetch(`/api/v1/batches/${id}`, { method: "DELETE" });
+            if (res.ok) {
+                fetchInitialData();
+            } else {
+                alert("Failed to delete batch");
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleEditBatch = (batch) => {
+        setEditingBatch(batch);
+        setFormData({
+            name: batch.name,
+            course: batch.course?._id,
+            capacity: batch.capacity,
+            schedule: batch.schedule?.description || "",
+            startDate: batch.schedule?.startDate ? new Date(batch.schedule.startDate).toISOString().split('T')[0] : ""
+        });
+        setIsAddModalOpen(true);
+    };
+
+    const handleFormSubmit = async (e) => {
+        e.preventDefault();
+        const url = editingBatch ? `/api/v1/batches/${editingBatch._id}` : "/api/v1/batches";
+        const method = editingBatch ? "PATCH" : "POST";
+
+        try {
+            const res = await fetch(url, {
+                method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    ...formData,
-                    capacity: parseInt(formData.capacity)
+                    name: formData.name,
+                    course: formData.course,
+                    capacity: parseInt(formData.capacity),
+                    schedule: {
+                        startDate: formData.startDate,
+                        description: formData.schedule
+                    }
                 }),
             });
 
             if (res.ok) {
                 setIsAddModalOpen(false);
+                setEditingBatch(null);
                 setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
-                fetchInitialData(); // Refresh list to get new batch
+                fetchInitialData();
             } else {
                 const error = await res.json();
-                alert(error.error || "Failed to create batch");
+                alert(error.error || "Operation failed");
             }
         } catch (err) {
             console.error(err);
@@ -138,7 +179,9 @@ export default function BatchesPage() {
                                                     </div>
                                                     <div>
                                                         <p className="text-sm font-bold text-slate-900">{batch.name}</p>
-                                                        <p className="text-[11px] font-medium text-slate-400">Starts {format(new Date(batch.startDate), "MMM d, yyyy")}</p>
+                                                        <p className="text-[11px] font-medium text-slate-400">
+                                                            Starts {batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), "MMM d, yyyy") : "TBD"}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </td>
@@ -151,7 +194,7 @@ export default function BatchesPage() {
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2 text-slate-600 text-xs font-bold">
                                                     <Clock size={14} className="text-slate-400" />
-                                                    <span>{batch.schedule}</span>
+                                                    <span>{batch.schedule?.description || "N/A"}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
@@ -168,9 +211,20 @@ export default function BatchesPage() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button className="p-2 hover:bg-white rounded-lg text-slate-300 hover:text-premium-blue hover:shadow-sm border border-transparent hover:border-slate-100 transition-all">
-                                                    <MoreVertical size={16} />
-                                                </button>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => handleEditBatch(batch)}
+                                                        className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-premium-blue transition-colors"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteBatch(batch._id)}
+                                                        className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -191,11 +245,15 @@ export default function BatchesPage() {
 
             <Modal
                 isOpen={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
-                title="Schedule New Batch"
+                onClose={() => {
+                    setIsAddModalOpen(false);
+                    setEditingBatch(null);
+                    setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
+                }}
+                title={editingBatch ? "Edit Batch" : "Schedule New Batch"}
             >
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">Batch Configuration</div>
-                <form onSubmit={handleAddBatch} className="space-y-5">
+                <form onSubmit={handleFormSubmit} className="space-y-5">
                     <div className="space-y-1.5">
                         <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Select Course</label>
                         <select
@@ -251,8 +309,12 @@ export default function BatchesPage() {
                     </div>
 
                     <div className="pt-4 flex gap-3">
-                        <Button type="button" variant="outline" className="flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
-                        <Button type="submit" className="flex-1">Create Batch</Button>
+                        <Button type="button" variant="outline" className="flex-1" onClick={() => {
+                            setIsAddModalOpen(false);
+                            setEditingBatch(null);
+                            setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
+                        }}>Cancel</Button>
+                        <Button type="submit" className="flex-1">{editingBatch ? "Update Batch" : "Create Batch"}</Button>
                     </div>
                 </form>
             </Modal>

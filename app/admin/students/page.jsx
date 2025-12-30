@@ -194,7 +194,7 @@ export default function StudentsPage() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => setFilters({ batchId: "", courseId: "", isActive: "" })}
+                                onClick={() => setFilters({ batchId: "", courseId: "", isActive: "true" })}
                                 className="text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-red-500"
                             >
                                 Reset

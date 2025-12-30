@@ -60,4 +60,44 @@ export class BatchService {
             .populate('instructor', 'profile.firstName profile.lastName')
             .sort({ 'schedule.startDate': -1 });
     }
+
+    static async updateBatch(id, data, actorId) {
+        await connectDB();
+        const batch = await Batch.findOneAndUpdate(
+            { _id: id, deletedAt: null },
+            { $set: data },
+            { new: true }
+        );
+
+        if (!batch) throw new Error("Batch not found using id " + id);
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'batch.update',
+            resource: { type: 'Batch', id: batch._id },
+            details: { updates: Object.keys(data) }
+        });
+
+        return batch;
+    }
+
+    static async deleteBatch(id, actorId) {
+        await connectDB();
+        const batch = await Batch.findOneAndUpdate(
+            { _id: id, deletedAt: null },
+            { deletedAt: new Date() },
+            { new: true }
+        );
+
+        if (!batch) throw new Error("Batch not found");
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'batch.delete',
+            resource: { type: 'Batch', id: batch._id },
+            details: { name: batch.name }
+        });
+
+        return true;
+    }
 }

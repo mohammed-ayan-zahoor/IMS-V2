@@ -4,10 +4,16 @@ import { BatchService } from "@/services/courseService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req) {
     try {
-        const batches = await BatchService.getBatches();
-        return NextResponse.json(batches);
+        const { searchParams } = new URL(req.url);
+        const courseId = searchParams.get('courseId');
+
+        const filters = {};
+        if (courseId) filters.course = courseId;
+
+        const batches = await BatchService.getBatches(filters);
+        return NextResponse.json({ batches });
     } catch (error) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }

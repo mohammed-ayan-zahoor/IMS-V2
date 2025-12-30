@@ -13,8 +13,14 @@ import {
     CreditCard,
     ArrowLeft,
     Shield,
-    Trash2,
-    Edit
+    CheckCircle,
+    XCircle,
+    Clock,
+    AlertCircle,
+    ChevronLeft,
+    ChevronRight,
+    Edit,
+    Trash2
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -31,59 +37,94 @@ export default function StudentDetailsPage({ params }) {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("profile");
 
-    // Edit Modal State
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [formData, setFormData] = useState({
-        profile: {
-            firstName: "",
-            lastName: "",
-            phone: "",
-            dateOfBirth: "",
-            address: { street: "", city: "", state: "", pincode: "" }
-        },
-        guardianDetails: {
-            name: "",
-            relation: "",
-            phone: ""
-        }
+
+    // Enrollment Modal State
+    const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+    const [courses, setCourses] = useState([]);
+    const [selectedCourse, setSelectedCourse] = useState("");
+    const [courseBatches, setCourseBatches] = useState([]);
+    const [selectedBatch, setSelectedBatch] = useState("");
+
+    // Payment Modal State
+    const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+    const [selectedFee, setSelectedFee] = useState(null);
+    const [paymentData, setPaymentData] = useState({
+        amount: "",
+        method: "cash",
+        reference: "",
+        notes: ""
     });
 
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [formData, setFormData] = useState({
+        email: "",
+        profile: { firstName: "", lastName: "", phone: "", dateOfBirth: "", address: {} },
+        guardianDetails: { name: "", relation: "", phone: "" }
+    });
+
+
+    // Attendance State
+    const [attendanceData, setAttendanceData] = useState([]);
+    const [attendanceStats, setAttendanceStats] = useState(null);
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+
     useEffect(() => {
-        fetchStudentDetails();
-    }, [id]);
+        if (activeTab === "attendance") {
+            fetchAttendance();
+        }
+    }, [activeTab, currentMonth]);
+
+    const fetchAttendance = async () => {
+        try {
+            const month = currentMonth.getMonth() + 1;
+            const year = currentMonth.getFullYear();
+            const res = await fetch(`/api/v1/attendance/students/${id}?month=${month}&year=${year}`);
+            const data = await res.json();
+            setAttendanceData(data.attendance || []);
+            setAttendanceStats(data.stats || null);
+        } catch (error) {
+            console.error("Failed to fetch attendance", error);
+        }
+    };
+
+    const handleMonthChange = (direction) => {
+        setCurrentMonth(prev => {
+            const newDate = new Date(prev);
+            newDate.setMonth(prev.getMonth() + direction);
+            return newDate;
+        });
+    };
+
+    useEffect(() => {
+        if (isEnrollModalOpen && courses.length === 0) {
+            fetchCourses();
+        }
+    }, [isEnrollModalOpen]);
+
+    useEffect(() => {
+        if (selectedCourse) {
+            fetchBatchesForCourse(selectedCourse);
+        } else {
+            setCourseBatches([]);
+        }
+    }, [selectedCourse]);
 
     const fetchStudentDetails = async () => {
         try {
             setLoading(true);
             const res = await fetch(`/api/v1/students/${id}`);
-            if (res.ok) {
-                const data = await res.json();
-                setStudentData(data);
-                // Initialize form data
-                if (data.student) {
-                    setFormData({
-                        profile: {
-                            firstName: data.student.profile?.firstName || "",
-                            lastName: data.student.profile?.lastName || "",
-                            phone: data.student.profile?.phone || "",
-                            dateOfBirth: data.student.profile?.dateOfBirth ? data.student.profile.dateOfBirth.split('T')[0] : "",
-                            address: {
-                                street: data.student.profile?.address?.street || "",
-                                city: data.student.profile?.address?.city || "",
-                                state: data.student.profile?.address?.state || "",
-                                pincode: data.student.profile?.address?.pincode || ""
-                            }
-                        },
-                        guardianDetails: {
-                            name: data.student.guardianDetails?.name || "",
-                            relation: data.student.guardianDetails?.relation || "",
-                            phone: data.student.guardianDetails?.phone || ""
-                        }
-                    });
-                }
-            } else {
-                console.error("Failed to fetch student");
+            if (!res.ok) throw new Error("Failed to fetch student");
+            const data = await res.json();
+            setStudentData(data);
+
+            // Populate form data for editing
+            if (data.student) {
+                setFormData({
+                    email: data.student.email,
+                    profile: { ...data.student.profile, address: data.student.profile?.address || {} },
+                    guardianDetails: data.student.guardianDetails || { name: "", relation: "", phone: "" }
+                });
             }
         } catch (error) {
             console.error(error);
@@ -92,38 +133,94 @@ export default function StudentDetailsPage({ params }) {
         }
     };
 
-    const handleUpdateStudent = async (e) => {
-        e.preventDefault();
+    useEffect(() => {
+        fetchStudentDetails();
+    }, [id]);
+
+    const fetchCourses = async () => {
         try {
-            // Sanitize payload
-            const payload = { ...formData };
-            if (!payload.profile.dateOfBirth) delete payload.profile.dateOfBirth;
-            // Ensure relation is lowercase (though select handles this, extra safety)
-            if (payload.guardianDetails?.relation) {
-                payload.guardianDetails.relation = payload.guardianDetails.relation.toLowerCase();
-            }
-
-            const res = await fetch(`/api/v1/students/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                setIsEditModalOpen(false);
-                fetchStudentDetails();
-            } else {
-                const err = await res.json();
-                alert(err.error || "Failed to update profile");
-            }
+            const res = await fetch("/api/v1/courses");
+            const data = await res.json();
+            setCourses(data.courses || []);
         } catch (error) {
-            console.error(error);
-            alert("An error occurred");
+            console.error("Failed to fetch courses", error);
         }
     };
 
+    const fetchBatchesForCourse = async (courseId) => {
+        try {
+            const res = await fetch(`/api/v1/batches?courseId=${courseId}`);
+            const data = await res.json();
+            setCourseBatches(data.batches || []);
+        } catch (error) {
+            console.error("Failed to fetch batches", error);
+        }
+    };
+
+    const handleEnrollStudent = async (e) => {
+        e.preventDefault();
+        if (!selectedBatch) return;
+
+        try {
+            const res = await fetch(`/api/v1/students/${id}/enroll`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ batchId: selectedBatch })
+            });
+
+            if (res.ok) {
+                setIsEnrollModalOpen(false);
+                setSelectedBatch("");
+                setSelectedCourse("");
+                fetchStudentDetails();
+                alert("Student enrolled successfully!");
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to enroll student");
+            }
+        } catch (error) {
+            alert("Enrollment failed");
+        }
+    };
+
+    const openPaymentModal = (fee) => {
+        setSelectedFee(fee);
+        setPaymentData({
+            amount: (fee.totalAmount - (fee.paidAmount || 0)).toString(), // Default to remaining amount
+            method: "cash",
+            reference: "",
+            notes: ""
+        });
+        setIsPayModalOpen(true);
+    };
+
+    const handleRecordPayment = async (e) => {
+        e.preventDefault();
+        if (!selectedFee) return;
+
+        try {
+            const res = await fetch(`/api/v1/fees/${selectedFee._id}/payment`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(paymentData)
+            });
+
+            if (res.ok) {
+                setIsPayModalOpen(false);
+                fetchStudentDetails();
+                alert("Payment recorded successfully!");
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to record payment");
+            }
+        } catch (error) {
+            alert("Payment failed");
+        }
+    };
+
+
     const handleDeleteStudent = async () => {
-        if (!confirm("Are you sure you want to deactivate this student? This action cannot be easily undone.")) return;
+        if (!confirm("Are you sure you want to permanently delete this student? This action cannot be undone.")) return;
 
         try {
             setIsDeleting(true);
@@ -132,6 +229,7 @@ export default function StudentDetailsPage({ params }) {
             });
 
             if (res.ok) {
+                alert("Student deleted successfully");
                 router.push("/admin/students");
             } else {
                 const err = await res.json();
@@ -142,6 +240,28 @@ export default function StudentDetailsPage({ params }) {
             alert("Failed to delete student");
         } finally {
             setIsDeleting(false);
+        }
+    };
+
+    const handleUpdateStudent = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch(`/api/v1/students/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData)
+            });
+
+            if (res.ok) {
+                setIsEditModalOpen(false);
+                fetchStudentDetails();
+                alert("Student profile updated successfully!");
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to update profile");
+            }
+        } catch (error) {
+            alert("Update failed");
         }
     };
 
@@ -211,8 +331,9 @@ export default function StudentDetailsPage({ params }) {
                 </div>
 
                 {/* Tabs */}
+                {/* ... existing tabs code ... */}
                 <div className="flex border-t border-slate-100 px-6">
-                    {["profile", "academic", "financial"].map((tab) => (
+                    {["profile", "academic", "financial", "attendance"].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -250,7 +371,13 @@ export default function StudentDetailsPage({ params }) {
 
                 {activeTab === "academic" && (
                     <div className="space-y-6">
-                        <h3 className="text-lg font-bold text-slate-900 px-1">Enrolled Batches</h3>
+                        <div className="flex justify-between items-center px-1">
+                            <h3 className="text-lg font-bold text-slate-900">Enrolled Batches</h3>
+                            <Button size="sm" onClick={() => setIsEnrollModalOpen(true)}>
+                                <BookOpen size={16} className="mr-2" />
+                                Enroll New Course
+                            </Button>
+                        </div>
                         {batches.length > 0 ? (
                             <div className="grid gap-4">
                                 {batches.map(batch => (
@@ -276,6 +403,7 @@ export default function StudentDetailsPage({ params }) {
                         ) : (
                             <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                                 <p className="text-slate-400 font-medium">No active enrollments found.</p>
+                                <Button variant="link" className="mt-2 text-premium-blue" onClick={() => setIsEnrollModalOpen(true)}>Enroll in a course</Button>
                             </div>
                         )}
                     </div>
@@ -297,14 +425,21 @@ export default function StudentDetailsPage({ params }) {
                                                 <p className="text-xs text-slate-500">Total: ₹{fee.totalAmount?.toLocaleString()}</p>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-xl font-black text-slate-900">
-                                                ₹{((fee.paidAmount || 0)).toLocaleString()}
-                                                <span className="text-xs text-slate-400 font-medium ml-1">/ {fee.totalAmount?.toLocaleString()}</span>
+                                        <div className="flex items-center gap-6">
+                                            <div className="text-right">
+                                                <div className="text-xl font-black text-slate-900">
+                                                    ₹{((fee.paidAmount || 0)).toLocaleString()}
+                                                    <span className="text-xs text-slate-400 font-medium ml-1">/ {fee.totalAmount?.toLocaleString()}</span>
+                                                </div>
+                                                <p className={`text-xs font-bold ${fee.status === 'paid' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                    {fee.status === 'paid' ? 'Fully Paid' : `Pending: ₹${(fee.totalAmount - (fee.paidAmount || 0)).toLocaleString()}`}
+                                                </p>
                                             </div>
-                                            <p className={`text-xs font-bold ${fee.status === 'paid' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                                {fee.status === 'paid' ? 'Fully Paid' : `Pending: ₹${(fee.totalAmount - (fee.paidAmount || 0)).toLocaleString()}`}
-                                            </p>
+                                            {fee.status !== 'paid' && (
+                                                <Button size="sm" variant="outline" onClick={() => openPaymentModal(fee)}>
+                                                    Pay Fee
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
                                 </Card>
@@ -319,12 +454,13 @@ export default function StudentDetailsPage({ params }) {
                 )}
             </div>
 
-            {/* Edit Modal */}
+            {/* Existing Edit Modal */}
             <Modal
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
                 title="Edit Student Profile"
             >
+                {/* ... existing form ... */}
                 <form onSubmit={handleUpdateStudent} className="space-y-6">
                     {/* Personal Info */}
                     <div className="space-y-4">
@@ -430,6 +566,112 @@ export default function StudentDetailsPage({ params }) {
                     </div>
                 </form>
             </Modal>
+
+            {/* Enrollment Modal */}
+            <Modal
+                isOpen={isEnrollModalOpen}
+                onClose={() => setIsEnrollModalOpen(false)}
+                title="Enroll in New Course"
+            >
+                <form onSubmit={handleEnrollStudent} className="space-y-6">
+                    <div className="space-y-4">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Select Course</label>
+                            <select
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700"
+                                value={selectedCourse}
+                                onChange={(e) => setSelectedCourse(e.target.value)}
+                                required
+                            >
+                                <option value="">-- Choose a Course --</option>
+                                {courses.map(course => (
+                                    <option key={course._id} value={course._id}>
+                                        {course.name} ({course.code})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {selectedCourse && (
+                            <div className="space-y-1 animate-fade-in">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Select Batch</label>
+                                <select
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700"
+                                    value={selectedBatch}
+                                    onChange={(e) => setSelectedBatch(e.target.value)}
+                                    required
+                                >
+                                    <option value="">-- Choose a Batch --</option>
+                                    {courseBatches.map(batch => (
+                                        <option key={batch._id} value={batch._id}>
+                                            {batch.name} (Starts: {format(new Date(batch.schedule.startDate), "MMM d")})
+                                        </option>
+                                    ))}
+                                </select>
+                                {courseBatches.length === 0 && (
+                                    <p className="text-xs text-amber-500 font-medium px-1">No active batches for this course.</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
+                        <Button type="button" variant="ghost" onClick={() => setIsEnrollModalOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={!selectedBatch}>Enroll Student</Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Payment Modal */}
+            <Modal
+                isOpen={isPayModalOpen}
+                onClose={() => setIsPayModalOpen(false)}
+                title="Record Fee Payment"
+            >
+                <form onSubmit={handleRecordPayment} className="space-y-6">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Payment For</p>
+                        <p className="text-sm font-bold text-slate-900">{selectedFee?.batch?.name}</p>
+                        <p className="text-xs text-slate-500">Total Due: ₹{((selectedFee?.totalAmount || 0) - (selectedFee?.paidAmount || 0)).toLocaleString()}</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <Input
+                            label="Payment Amount (₹)"
+                            type="number"
+                            value={paymentData.amount}
+                            onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
+                            required
+                            min="1"
+                        />
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Payment Method</label>
+                            <select
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700"
+                                value={paymentData.method}
+                                onChange={(e) => setPaymentData({ ...paymentData, method: e.target.value })}
+                            >
+                                <option value="cash">Cash</option>
+                                <option value="upi">UPI / Online</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="cheque">Cheque</option>
+                            </select>
+                        </div>
+
+                        <Input
+                            label="Transaction Ref / Note (Optional)"
+                            placeholder="e.g. UPI ID or Cheque No."
+                            value={paymentData.reference}
+                            onChange={(e) => setPaymentData({ ...paymentData, reference: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
+                        <Button type="button" variant="ghost" onClick={() => setIsPayModalOpen(false)}>Cancel</Button>
+                        <Button type="submit">Record Payment</Button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }
@@ -448,8 +690,26 @@ function InfoRow({ label, value, icon: Icon }) {
     );
 }
 
+
+function StatsBadge({ label, value, total, color }) {
+    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+    const colors = {
+        emerald: "bg-emerald-50 text-emerald-600 border-emerald-200",
+        red: "bg-red-50 text-red-600 border-red-200",
+        amber: "bg-amber-50 text-amber-600 border-amber-200",
+    };
+
+    return (
+        <div className={`px-4 py-2 rounded-xl border ${colors[color]} flex flex-col items-center min-w-[80px]`}>
+            <span className="text-xl font-black">{value}</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</span>
+        </div>
+    );
+}
+
 function formatAddress(addr) {
     if (!addr) return null;
     const parts = [addr.street, addr.city, addr.state, addr.pincode].filter(Boolean);
     return parts.length > 0 ? parts.join(", ") : null;
 }
+

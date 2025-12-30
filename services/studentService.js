@@ -192,13 +192,16 @@ export class StudentService {
      * Enroll student in a batch and initialize fees
      */
     static async enrollInBatch(studentId, batchId, actorId) {
+        const session = await mongoose.startSession();
         try {
-            const student = await User.findById(studentId);
+            session.startTransaction();
+
+            const student = await User.findById(studentId).session(session);
             if (!student || student.role !== 'student' || student.deletedAt) {
                 throw new Error('Invalid or inactive student');
             }
 
-            const batch = await Batch.findById(batchId).populate('course');
+            const batch = await Batch.findById(batchId).populate('course').session(session);
             if (!batch || batch.deletedAt) {
                 throw new Error('Batch not found or inactive');
             }
@@ -208,34 +211,41 @@ export class StudentService {
             }
 
             // Check if already enrolled
-            const alreadyEnrolled = batch.enrolledStudents.some(
+            const existingEnrollment = batch.enrolledStudents.find(
                 e => e.student.toString() === studentId && e.status === 'active'
             );
 
-            if (alreadyEnrolled) {
-                throw new Error('Student already enrolled in this batch');
-            }
+            if (existingEnrollment) {
+                // Check if fee record exists
+                const existingFee = await Fee.findOne({ student: studentId, batch: batchId }).session(session);
+                if (existingFee) {
+                    await session.abortTransaction();
+                    throw new Error('Student already enrolled in this batch');
+                }
+                // If enrolled but no Fee, we proceed to create Fee (Fix consistency)
+            } else {
+                // Check capacity
+                if (batch.activeEnrollmentCount >= batch.capacity) {
+                    throw new Error('Batch has reached its maximum capacity');
+                }
 
-            // Check capacity
-            if (batch.activeEnrollmentCount >= batch.capacity) {
-                throw new Error('Batch has reached its maximum capacity');
+                // Add to batch
+                batch.enrolledStudents.push({
+                    student: studentId,
+                    enrolledAt: new Date(),
+                    status: 'active'
+                });
+                await batch.save({ session });
             }
-
-            // Add to batch
-            batch.enrolledStudents.push({
-                student: studentId,
-                enrolledAt: new Date(),
-                status: 'active'
-            });
-            await batch.save();
 
             // Create initial fee record
-            const fee = await Fee.create({
+            const fee = await Fee.create([{
                 student: studentId,
                 batch: batchId,
                 totalAmount: batch.course.fees.amount,
-                installments: []
-            });
+                installments: [],
+                status: 'not_started' // Default status
+            }], { session });
 
             // Log action
             await createAuditLog({
@@ -245,15 +255,69 @@ export class StudentService {
                 details: {
                     studentId,
                     studentName: student.fullName,
-                    batchName: batch.name
+                    batchName: batch.name,
+                    event: existingEnrollment ? "Fee Recovery for existing enrollment" : "New Enrollment"
                 }
             });
 
-            return { student, batch, fee: fee };
+            await session.commitTransaction();
+            return { student, batch, fee: fee[0] };
 
         } catch (error) {
+            await session.abortTransaction();
+            // Fallback for standalone mongo (Replica Set required for transactions)
+            if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
+                return this.enrollInBatchStandalone(studentId, batchId, actorId);
+            }
             throw error;
+        } finally {
+            session.endSession();
         }
+    }
+
+    // Fallback for standalone DB without transactions
+    static async enrollInBatchStandalone(studentId, batchId, actorId) {
+        const student = await User.findById(studentId);
+        if (!student || student.role !== 'student' || student.deletedAt) throw new Error('Invalid or inactive student');
+
+        const batch = await Batch.findById(batchId).populate('course');
+        if (!batch || batch.deletedAt) throw new Error('Batch not found or inactive');
+        if (!batch.course?.fees?.amount) throw new Error('Course fee information is missing');
+
+        const existingEnrollment = batch.enrolledStudents.find(
+            e => e.student.toString() === studentId && e.status === 'active'
+        );
+
+        if (existingEnrollment) {
+            const existingFee = await Fee.findOne({ student: studentId, batch: batchId });
+            if (existingFee) throw new Error('Student already enrolled in this batch');
+            // Proceed to create Fee
+        } else {
+            if (batch.activeEnrollmentCount >= batch.capacity) throw new Error('Batch has reached its maximum capacity');
+            batch.enrolledStudents.push({
+                student: studentId,
+                enrolledAt: new Date(),
+                status: 'active'
+            });
+            await batch.save();
+        }
+
+        const fee = await Fee.create({
+            student: studentId,
+            batch: batchId,
+            totalAmount: batch.course.fees.amount,
+            installments: [],
+            status: 'not_started'
+        });
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'batch.enroll',
+            resource: { type: 'Batch', id: batchId },
+            details: { studentName: student.fullName, batchName: batch.name }
+        });
+
+        return { student, batch, fee };
     }
     /**
      * Get full student profile with batches and fees

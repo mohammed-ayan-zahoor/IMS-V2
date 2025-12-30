@@ -51,21 +51,21 @@ const FeeSchema = new Schema({
 FeeSchema.index({ student: 1, batch: 1 }, { unique: true });
 
 // Pre-save hook to calculate balances
-FeeSchema.pre('save', function (next) {
+FeeSchema.pre('save', async function () {
     // Validate installment amounts sum
-    if (this.installments.length > 0) {
+    if (this.installments && this.installments.length > 0) {
         const installmentsTotal = this.installments.reduce((sum, i) => sum + i.amount, 0);
         const expectedTotal = this.totalAmount - (this.discount?.amount || 0);
         const EPSILON = 0.01; // 1 cent tolerance
 
         if (Math.abs(installmentsTotal - expectedTotal) > EPSILON) {
-            return next(new Error(
+            throw new Error(
                 `Installments total (${installmentsTotal}) must equal fee amount after discount (${expectedTotal})`
-            ));
+            );
         }
     }
 
-    this.paidAmount = this.installments
+    this.paidAmount = (this.installments || [])
         .filter(i => i.status === 'paid')
         .reduce((sum, i) => sum + i.amount, 0);
 
@@ -77,12 +77,11 @@ FeeSchema.pre('save', function (next) {
         this.status = 'not_started';
     } else if (this.balanceAmount < 0.01) {
         this.status = 'paid';
-    } else if (this.installments.some(i => i.status === 'overdue')) {
+    } else if (this.installments && this.installments.some(i => i.status === 'overdue')) {
         this.status = 'overdue';
     } else {
         this.status = 'partial';
     }
-    next();
 });
 
 export default mongoose.models.Fee || mongoose.model('Fee', FeeSchema);
