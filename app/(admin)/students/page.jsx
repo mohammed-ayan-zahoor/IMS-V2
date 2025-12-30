@@ -18,7 +18,8 @@ import {
     UserPlus,
     Mail,
     Phone,
-    Fingerprint
+    Fingerprint,
+    Users
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -40,13 +41,16 @@ export default function StudentsPage() {
     });
 
     useEffect(() => {
-        fetchStudents();
+        const timer = setTimeout(() => {
+            fetchStudents();
+        }, 500); // 500ms debounce
+        return () => clearTimeout(timer);
     }, [search]);
 
     const fetchStudents = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/v1/students?search=${search}`);
+            const res = await fetch(`/api/v1/students?search=${encodeURIComponent(search)}`);
             const data = await res.json();
             setStudents(data.students || []);
         } catch (error) {

@@ -79,13 +79,18 @@ UserSchema.virtual('fullName').get(function () {
 // Pre-save hook to ensure enrollment number for students
 UserSchema.pre('save', async function (next) {
     if (this.isNew && this.role === 'student' && !this.enrollmentNumber) {
-        const year = new Date().getFullYear();
-        const counter = await Counter.findByIdAndUpdate(
-            `student_enrollment_${year}`,
-            { $inc: { seq: 1 } },
-            { new: true, upsert: true }
-        );
-        this.enrollmentNumber = `STU${year}${String(counter.seq).padStart(4, '0')}`;
+        try {
+            const year = new Date().getFullYear();
+            const counter = await Counter.findByIdAndUpdate(
+                `student_enrollment_${year}`,
+                { $inc: { seq: 1 } },
+                { new: true, upsert: true }
+            );
+            if (!counter) throw new Error('Failed to generate sequence');
+            this.enrollmentNumber = `STU${year}${String(counter.seq).padStart(4, '0')}`;
+        } catch (error) {
+            return next(error);
+        }
     }
     next();
 });

@@ -68,9 +68,13 @@ export default function StudentLayout({ children }) {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <button className="w-10 h-10 rounded-xl hover:bg-white/5 flex items-center justify-center text-foreground/40 hover:text-foreground transition-colors relative">
+                    <button
+                        aria-label="View notifications"
+                        onClick={() => { }}
+                        className="w-10 h-10 rounded-xl hover:bg-white/5 flex items-center justify-center text-foreground/40 hover:text-foreground transition-colors relative"
+                    >
                         <Bell size={20} />
-                        <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-background" />
+                        <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-background" aria-hidden="true" />
                     </button>
 
                     <div className="h-8 w-[1px] bg-glass-border mx-2" />

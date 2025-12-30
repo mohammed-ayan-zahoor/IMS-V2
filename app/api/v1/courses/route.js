@@ -5,15 +5,29 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
 export async function GET() {
-    const courses = await CourseService.getCourses();
-    return NextResponse.json(courses);
+    try {
+        const courses = await CourseService.getCourses();
+        return NextResponse.json(courses);
+    } catch (error) {
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
 }
 
 export async function POST(req) {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role === "student") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !["admin", "super_admin"].includes(session.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
-    const body = await req.json();
-    const course = await CourseService.createCourse(body, session.user.id);
-    return NextResponse.json(course, { status: 201 });
+        const body = await req.json();
+        if (!body.name || !body.code) {
+            return NextResponse.json({ error: "Name and code are required" }, { status: 400 });
+        }
+
+        const course = await CourseService.createCourse(body, session.user.id);
+        return NextResponse.json(course, { status: 201 });
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 }

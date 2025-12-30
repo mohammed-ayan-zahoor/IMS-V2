@@ -14,42 +14,60 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
+// Adding a basic Counter schema and model to support the new seed function's Counter.deleteMany() call
+const CounterSchema = new mongoose.Schema({
+    _id: { type: String, required: true },
+    seq: { type: Number, default: 0 }
+});
+const Counter = mongoose.models.Counter || mongoose.model('Counter', CounterSchema);
+
 async function seed() {
-    const uri = process.env.MONGODB_URI;
-    if (!uri) {
-        console.error("MONGODB_URI not found in .env.local");
+    if (process.env.NODE_ENV === 'production') {
+        console.error("Cowardly refusing to seed in production!");
         process.exit(1);
     }
 
-    await mongoose.connect(uri);
-    console.log("Connected to MongoDB for seeding...");
+    try {
+        const MONGODB_URI = process.env.MONGODB_URI;
+        if (!MONGODB_URI) throw new Error("MONGODB_URI is not defined");
 
-    const salt = await bcrypt.genSalt(10);
-    const adminPassword = await bcrypt.hash('Admin@123', salt);
-    const studentPassword = await bcrypt.hash('Student@123', salt);
+        await mongoose.connect(MONGODB_URI);
+        console.log('Connected to MongoDB');
 
-    await User.deleteMany({}); // Warning: Clear existing users
+        // Clear existing data
+        await User.deleteMany({});
+        await Counter.deleteMany({});
+        console.log('Cleared existing users and counters');
 
-    await User.create([
-        {
+        const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@123';
+        const studentPassword = process.env.SEED_STUDENT_PASSWORD || 'Student@123';
+
+        // Create Admin
+        const adminSalt = await bcrypt.genSalt(10);
+        const adminHash = await bcrypt.hash(adminPassword, adminSalt);
+        await User.create({
             email: 'admin@ims.com',
-            passwordHash: adminPassword,
-            role: 'admin',
-            profile: { firstName: 'System', lastName: 'Administrator' }
-        },
-        {
+            passwordHash: adminHash,
+            role: 'super_admin',
+            profile: { firstName: 'System', lastName: 'Admin' }
+        });
+
+        // Create Student
+        const studentSalt = await bcrypt.genSalt(10);
+        const studentHash = await bcrypt.hash(studentPassword, studentSalt);
+        await User.create({
             email: 'student@ims.com',
-            passwordHash: studentPassword,
+            passwordHash: studentHash,
             role: 'student',
-            profile: { firstName: 'John', lastName: 'Doe' }
-        }
-    ]);
+            profile: { firstName: 'Test', lastName: 'Student' }
+        });
 
-    console.log("Seed data created successfully!");
-    console.log("Admin: admin@ims.com / Admin@123");
-    console.log("Student: student@ims.com / Student@123");
-
-    await mongoose.disconnect();
+        console.log('Seed completed successfully');
+        process.exit(0);
+    } catch (error) {
+        console.error('Seed error:', error);
+        process.exit(1);
+    }
 }
 
 seed().catch(err => {

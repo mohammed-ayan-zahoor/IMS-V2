@@ -64,6 +64,7 @@ export default function AdminLayout({ children }) {
             {/* Mobile Menu Toggle */}
             <button
                 onClick={() => setIsSidebarOpen(true)}
+                aria-label="Open navigation menu"
                 className="lg:hidden fixed top-4 left-4 z-40 w-10 h-10 glass rounded-xl flex items-center justify-center text-foreground/60"
             >
                 <Menu size={20} />
@@ -74,6 +75,7 @@ export default function AdminLayout({ children }) {
                 <div
                     onClick={() => setIsSidebarOpen(false)}
                     className="lg:hidden fixed inset-0 bg-background/60 backdrop-blur-sm z-[60]"
+                    aria-hidden="true"
                 />
             )}
 
@@ -89,6 +91,7 @@ export default function AdminLayout({ children }) {
                     </div>
                     <button
                         onClick={() => setIsSidebarOpen(false)}
+                        aria-label="Close navigation menu"
                         className="lg:hidden w-8 h-8 hover:bg-white/5 rounded-lg flex items-center justify-center text-foreground/40"
                     >
                         <X size={18} />

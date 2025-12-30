@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
+const cn = (...classes) => classes.filter(Boolean).join(" ");
+
 const StatCard = ({ title, value, icon: Icon, trend, color }) => (
     <Card className="hover:scale-[1.02] transition-transform cursor-default">
         <div className="flex justify-between items-start">

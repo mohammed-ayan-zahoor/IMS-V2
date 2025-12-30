@@ -67,7 +67,8 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--glass-hover);
+  background: var(--foreground);
+  opacity: 0.2;
 }
 
 /* Animations */

@@ -18,7 +18,7 @@ export default function EmptyState({
                 {description}
             </p>
             {actionLabel && (
-                <Button onClick={onAction} variant="outline" size="sm">
+                <Button onClick={onAction} variant="outline" size="sm" type="button">
                     {actionLabel}
                 </Button>
             )}

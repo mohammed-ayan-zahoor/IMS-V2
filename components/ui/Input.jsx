@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 export default function Input({ className, label, error, id, ...props }) {
     return (
         <div className="w-full space-y-1.5">
-            {label && id && (
+            {label && (
                 <label
                     htmlFor={id}
                     className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1"
