@@ -3,6 +3,19 @@ import { BatchService } from "@/services/courseService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
+export async function GET(req, { params }) {
+    try {
+        const { id } = await params;
+        const batch = await BatchService.getBatchById(id);
+        if (!batch) {
+            return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+        }
+        return NextResponse.json(batch);
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
 export async function DELETE(req, { params }) {
     try {
         const session = await getServerSession(authOptions);

@@ -63,6 +63,16 @@ export class BatchService {
         return batches.map(b => b.toObject({ virtuals: true }));
     }
 
+    static async getBatchById(id) {
+        await connectDB();
+        const batch = await Batch.findOne({ _id: id, deletedAt: null })
+            .populate('course')
+            .populate('enrolledStudents.student', 'profile.firstName profile.lastName enrollmentNumber');
+
+        if (!batch) return null;
+        return batch.toObject({ virtuals: true });
+    }
+
     static async updateBatch(id, data, actorId) {
         await connectDB();
         const batch = await Batch.findOneAndUpdate(
