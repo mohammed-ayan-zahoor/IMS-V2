@@ -10,7 +10,7 @@ export async function POST(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = params; // Fee ID
+        const { id } = await params; // Fee ID
         const body = await req.json();
         const { installmentId, ...paymentDetails } = body;
 

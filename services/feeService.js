@@ -60,19 +60,121 @@ export class FeeService {
         const fee = await FeeDb.findById(feeId);
         if (!fee) throw new Error("Fee record not found");
 
-        const installment = fee.installments.id(installmentId);
-        if (!installment) throw new Error("Installment not found");
+        let savedAmount = 0;
+        let details = {};
 
-        if (installment.status === 'paid') {
-            throw new Error("Installment is already paid");
+        // 1. Direct Installment Payment
+        if (installmentId) {
+            const installment = fee.installments.id(installmentId);
+            if (!installment) throw new Error("Installment not found");
+            if (installment.status === 'paid') throw new Error("Installment is already paid");
+
+            installment.status = 'paid';
+            installment.paidDate = new Date();
+            installment.paymentMethod = paymentDetails.method;
+            installment.transactionId = paymentDetails.transactionId;
+            installment.notes = paymentDetails.notes;
+
+            savedAmount = installment.amount;
+            details = { installmentId, amount: savedAmount };
         }
+        // 2. Ad-hoc Payment (Waterfall or New)
+        else {
+            const amountToPay = parseFloat(paymentDetails.amount);
+            if (isNaN(amountToPay) || amountToPay <= 0) throw new Error("Invalid payment amount");
 
-        // Update installment
-        installment.status = 'paid';
-        installment.paidDate = new Date();
-        installment.paymentMethod = paymentDetails.method;
-        installment.transactionId = paymentDetails.transactionId;
-        installment.notes = paymentDetails.notes;
+            savedAmount = amountToPay;
+
+            // Simple logic for now: 
+            // If No Installments -> Create Paid Installment + Recurring Pending if needed?
+            // BUT Fee model enforces installSum == total.
+            // Best approach: "Pay" implies fulfilling an obligation.
+
+            // If we have 0 installments (Initial state):
+            if (!fee.installments || fee.installments.length === 0) {
+                // Create one PAID installment for this amount
+                fee.installments.push({
+                    amount: amountToPay,
+                    dueDate: new Date(),
+                    status: 'paid',
+                    paidDate: new Date(),
+                    paymentMethod: paymentDetails.method,
+                    transactionId: paymentDetails.transactionId,
+                    notes: paymentDetails.notes
+                });
+
+                // And if there is remaining balance, create a pending installment for it?
+                // Fee validation requires sum to match Total.
+                // So yes, we MUST create the balance installment.
+                const balance = fee.totalAmount - (fee.discount?.amount || 0) - amountToPay;
+                if (balance > 0.1) {
+                    fee.installments.push({
+                        amount: balance,
+                        dueDate: new Date(new Date().setMonth(new Date().getMonth() + 1)), // Default 1 month later
+                        status: 'pending'
+                    });
+                }
+                details = { type: 'ad-hoc', amount: amountToPay, balanceCreated: balance };
+            }
+            // If we HAVE installments -> Waterfall
+            else {
+                let remaining = amountToPay;
+                const pendingInstallments = fee.installments.filter(i => i.status !== 'paid');
+
+                if (pendingInstallments.length === 0) throw new Error("No pending installments to pay");
+
+                // We only support clearing EXACT installments or splitting the FIRST one for now to avoid complexity?
+                // Actually, let's just create a new 'paid' installment and reduce the pending one?
+                // No, that changes the number of installments.
+
+                // Let's go with: Apply to first pending.
+                const current = pendingInstallments[0];
+
+                if (Math.abs(current.amount - remaining) < 1.0) {
+                    // Exact match
+                    current.status = 'paid';
+                    current.paidDate = new Date();
+                    current.paymentMethod = paymentDetails.method;
+                    current.transactionId = paymentDetails.transactionId;
+                    current.notes = paymentDetails.notes;
+                    remaining = 0;
+                } else if (remaining < current.amount) {
+                    // Partial payment of installment
+                    // Split current into Paid (remaining) + Pending (current - remaining)
+                    const originalAmount = current.amount;
+                    const paidPart = remaining;
+                    const balancePart = originalAmount - remaining;
+
+                    // Update current to be the Balance (Pending)
+                    current.amount = balancePart;
+
+                    // Insert new Paid installment BEFORE current
+                    // Mongoose array manipulation
+                    const idx = fee.installments.indexOf(current);
+                    fee.installments.splice(idx, 0, {
+                        amount: paidPart,
+                        dueDate: current.dueDate,
+                        status: 'paid',
+                        paidDate: new Date(),
+                        paymentMethod: paymentDetails.method,
+                        transactionId: paymentDetails.transactionId,
+                        notes: paymentDetails.notes
+                    });
+                    remaining = 0;
+                } else {
+                    // Overpayment of single installment (Waterfall to next)
+                    // For safety, let's BLOCK overpayment for now or just handle single installment.
+                    // The UI sends "Remaining Balance" by default.
+
+                    // If user tries to pay 4000 but installment is 2000.
+                    // We pay 2000. Remaining 2000 goes to next.
+                    // Implementation of full waterfall is complex and risky for now.
+                    // Let's throw if amount > 1st pending installment + epsilon
+                    throw new Error(`Payment amount (${amountToPay}) exceeds current pending installment (${current.amount}). Please pay installments sequentially.`);
+                }
+                details = { type: 'waterfall', amount: amountToPay };
+            }
+        }
 
         // Save triggers the pre-save hook to recalculate totals/status
         await fee.save();
@@ -81,7 +183,7 @@ export class FeeService {
             actor: actorId,
             action: 'fee.payment',
             resource: { type: 'Fee', id: fee._id },
-            details: { installmentId, amount: installment.amount }
+            details
         });
 
         return fee;
