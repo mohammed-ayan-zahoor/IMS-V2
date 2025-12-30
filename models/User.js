@@ -77,22 +77,24 @@ UserSchema.virtual('fullName').get(function () {
 });
 
 // Pre-save hook to ensure enrollment number for students
-UserSchema.pre('save', async function (next) {
+UserSchema.pre('save', function (next) {
     if (this.isNew && this.role === 'student' && !this.enrollmentNumber) {
-        try {
-            const year = new Date().getFullYear();
-            const counter = await Counter.findByIdAndUpdate(
-                `student_enrollment_${year}`,
-                { $inc: { seq: 1 } },
-                { new: true, upsert: true }
-            );
-            if (!counter) throw new Error('Failed to generate sequence');
-            this.enrollmentNumber = `STU${year}${String(counter.seq).padStart(4, '0')}`;
-        } catch (error) {
-            return next(error);
-        }
+        const year = new Date().getFullYear();
+        // Use this.constructor since models might not be fully available in some contexts
+        mongoose.model('Counter').findByIdAndUpdate(
+            `student_enrollment_${year}`,
+            { $inc: { seq: 1 } },
+            { new: true, upsert: true }
+        )
+            .then(counter => {
+                if (!counter) return next(new Error('Failed to generate sequence'));
+                this.enrollmentNumber = `STU${year}${String(counter.seq).padStart(4, '0')}`;
+                next();
+            })
+            .catch(err => next(err));
+    } else {
+        next();
     }
-    next();
 });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

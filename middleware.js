@@ -6,12 +6,16 @@ export default withAuth(
         const token = req.nextauth.token;
         const path = req.nextUrl.pathname;
 
-        // Direct dashboard access
-        if (path === "/dashboard") {
+        // Direct dashboard or root access
+        if (path === "/dashboard" || path === "/") {
             if (token?.role === "student") {
                 return NextResponse.redirect(new URL("/student/dashboard", req.url));
             }
-            return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+            if (token?.role === "admin" || token?.role === "super_admin") {
+                return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+            }
+            // If at root and no token, allow client-side handling or redirect to login
+            if (path === "/") return NextResponse.redirect(new URL("/login", req.url));
         }
 
         // Protection for admin routes
@@ -39,6 +43,7 @@ export default withAuth(
 
 export const config = {
     matcher: [
+        "/",
         "/dashboard/:path*",
         "/admin/:path*",
         "/student/:path*",

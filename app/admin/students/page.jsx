@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -40,21 +40,40 @@ export default function StudentsPage() {
         }
     });
 
+    // Use a ref to track if it's the first render
+    const isFirstRender = useRef(true);
+
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            fetchStudents();
+            return;
+        }
+
         const timer = setTimeout(() => {
             fetchStudents();
-        }, 500); // 500ms debounce
+        }, 500);
         return () => clearTimeout(timer);
     }, [search]);
 
     const fetchStudents = async () => {
+        // Cancellation logic
+        if (window.fetchController) {
+            window.fetchController.abort();
+        }
+        window.fetchController = new AbortController();
+
         try {
             setLoading(true);
-            const res = await fetch(`/api/v1/students?search=${encodeURIComponent(search)}`);
+            const res = await fetch(`/api/v1/students?search=${encodeURIComponent(search)}`, {
+                signal: window.fetchController.signal
+            });
             const data = await res.json();
             setStudents(data.students || []);
         } catch (error) {
-            console.error("Failed to fetch students", error);
+            if (error.name !== 'AbortError') {
+                console.error("Failed to fetch students", error);
+            }
         } finally {
             setLoading(false);
         }

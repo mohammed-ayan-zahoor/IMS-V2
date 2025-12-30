@@ -14,8 +14,8 @@ export default function Input({ className, label, error, id, ...props }) {
             <input
                 id={id}
                 className={cn(
-                    "w-full bg-white/5 border border-glass-border rounded-lg px-4 py-2.5 outline-none transition-all duration-200 focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 placeholder:text-foreground/30 text-sm backdrop-blur-md",
-                    error && "border-red-500/50 focus:border-red-500/50 focus:ring-red-500/10",
+                    "w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none transition-all duration-200 focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 placeholder:text-slate-400 text-sm",
+                    error && "border-red-500 focus:border-red-500 focus:ring-red-500/10",
                     className
                 )}
                 {...props}

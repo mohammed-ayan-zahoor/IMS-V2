@@ -28,8 +28,29 @@ export default function LoginPage() {
                 redirect: false,
             });
 
+            console.log("=> Login Response:", res);
+
+            if (!res) {
+                setError("No response from authentication server");
+                setLoading(false);
+                return;
+            }
+
+            // If NextAuth says ok, we ignore the error string and proceed
+            if (res.ok) {
+                console.log("=> Login OK! Proceeding to dashboard...");
+                router.push("/dashboard");
+                return;
+            }
+
             if (res.error) {
-                setError(res.error);
+                console.error("=> Login Error:", res.error);
+                // Handle the case where error is the string "undefined" or null
+                const displayError = (res.error === "undefined" || !res.error)
+                    ? "Invalid email or password"
+                    : res.error;
+
+                setError(displayError);
                 setLoading(false);
                 return;
             }
@@ -37,6 +58,7 @@ export default function LoginPage() {
             // Successful login - route based on session (middleware will handle this too)
             router.push("/dashboard");
         } catch (err) {
+            console.error("Login Client Error:", err);
             setError("An unexpected error occurred");
             setLoading(false);
         }
@@ -44,25 +66,25 @@ export default function LoginPage() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.3 }}
         >
-            <Card className="border-white/10 shadow-2xl">
-                <div className="absolute top-0 right-0 p-4">
-                    <div className="w-12 h-12 bg-premium-blue/10 rounded-full flex items-center justify-center border border-premium-blue/20">
-                        <ShieldCheck className="text-premium-blue" size={24} />
+            <Card className="border-border shadow-sm bg-white overflow-visible">
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2">
+                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm border border-border">
+                        <GraduationCap className="text-premium-blue" size={24} />
                     </div>
                 </div>
 
                 <CardHeader
                     title="IMS-v2"
                     subtitle="Enterprise Institute Management System"
-                    className="text-center mb-8"
+                    className="text-center mb-10 pt-4"
                 />
 
                 <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         <Input
                             label="Email Address"
                             type="email"
@@ -84,9 +106,9 @@ export default function LoginPage() {
                         />
 
                         {error && (
-                            <p className="text-xs text-red-500 bg-red-500/10 p-3 rounded-lg border border-red-500/20 text-center">
+                            <div className="text-xs text-red-600 bg-red-50 p-4 rounded-lg border border-red-100 font-medium animate-fade-in">
                                 {error}
-                            </p>
+                            </div>
                         )}
 
                         <Button
@@ -106,14 +128,14 @@ export default function LoginPage() {
                         </Button>
                     </form>
 
-                    <div className="mt-8 pt-6 border-t border-glass-border flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-foreground/40">
-                        <div className="flex items-center gap-1.5">
+                    <div className="mt-10 pt-6 border-t border-slate-100 flex justify-center items-center gap-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                        <div className="flex items-center gap-1.5 opacity-60">
                             <ShieldCheck size={12} />
-                            <span>Admin Access</span>
+                            <span>Authorized Access</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 opacity-60">
                             <GraduationCap size={12} />
-                            <span>Student Portal</span>
+                            <span>Academic Portal</span>
                         </div>
                     </div>
                 </CardContent>

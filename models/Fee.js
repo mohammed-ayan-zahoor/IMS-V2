@@ -73,17 +73,15 @@ FeeSchema.pre('save', function (next) {
     this.balanceAmount = Math.max(0, finalAmount - this.paidAmount);
 
     // Update status
-    const EPSILON = 0.01;
-    if (this.paidAmount < EPSILON) {
+    if (this.paidAmount < 0.01) {
         this.status = 'not_started';
-    } else if (this.balanceAmount < EPSILON) {
+    } else if (this.balanceAmount < 0.01) {
         this.status = 'paid';
     } else if (this.installments.some(i => i.status === 'overdue')) {
         this.status = 'overdue';
     } else {
         this.status = 'partial';
     }
-
     next();
 });
 
