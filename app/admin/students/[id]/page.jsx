@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import {
     User,
     Mail,
@@ -452,7 +452,103 @@ export default function StudentDetailsPage({ params }) {
                         </div>
                     </div>
                 )}
+
+                {activeTab === "attendance" && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between px-1">
+                            <h3 className="text-lg font-bold text-slate-900">Attendance History</h3>
+                            <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+                                <button onClick={() => handleMonthChange(-1)} className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-500">
+                                    <ChevronLeft size={18} />
+                                </button>
+                                <span className="text-sm font-bold text-slate-700 min-w-[100px] text-center">
+                                    {format(currentMonth, "MMMM yyyy")}
+                                </span>
+                                <button onClick={() => handleMonthChange(1)} className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-500">
+                                    <ChevronRight size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Stats Overview */}
+                        {attendanceStats && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <StatsBadge label="Present" value={attendanceStats.present} total={attendanceStats.total} color="emerald" />
+                                <StatsBadge label="Absent" value={attendanceStats.absent} total={attendanceStats.total} color="red" />
+                                <StatsBadge label="Late" value={attendanceStats.late} total={attendanceStats.total} color="amber" />
+                                <div className="px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center">
+                                    <span className="text-xl font-black text-slate-700">
+                                        {attendanceStats.total > 0
+                                            ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
+                                            : 0}%
+                                    </span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Attendance Rate</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Calendar Grid */}
+                        <Card className="p-6">
+                            <div className="grid grid-cols-7 gap-1 mb-2">
+                                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
+                                    <div key={day} className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest py-2">
+                                        {day}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-7 gap-1">
+                                {eachDayOfInterval({
+                                    start: startOfWeek(startOfMonth(currentMonth)),
+                                    end: endOfWeek(endOfMonth(currentMonth))
+                                }).map((day, idx) => {
+                                    // Find record for this day
+                                    const record = attendanceData.find(a => isSameDay(new Date(a.date), day));
+                                    const isCurrentMonth = isSameMonth(day, currentMonth);
+
+                                    let statusColor = "bg-slate-50 text-slate-300";
+                                    let icon = null;
+
+                                    if (record) {
+                                        if (record.status === 'present') {
+                                            statusColor = "bg-emerald-100 text-emerald-600 border border-emerald-200";
+                                            icon = <CheckCircle size={14} />;
+                                        } else if (record.status === 'absent') {
+                                            statusColor = "bg-rose-100 text-rose-600 border border-rose-200";
+                                            icon = <XCircle size={14} />;
+                                        } else if (record.status === 'late') {
+                                            statusColor = "bg-amber-100 text-amber-600 border border-amber-200";
+                                            icon = <Clock size={14} />;
+                                        } else if (record.status === 'excused') {
+                                            statusColor = "bg-blue-100 text-blue-600 border border-blue-200";
+                                            icon = <AlertCircle size={14} />;
+                                        }
+                                    }
+
+                                    return (
+                                        <div
+                                            key={idx}
+                                            className={`
+                                                min-h-[80px] p-2 rounded-lg flex flex-col items-start justify-between transition-all
+                                                ${isCurrentMonth ? statusColor : "opacity-30 bg-slate-50"}
+                                            `}
+                                        >
+                                            <span className={`text-xs font-bold ${isCurrentMonth ? "text-slate-700" : "text-slate-300"}`}>
+                                                {format(day, "d")}
+                                            </span>
+                                            {isCurrentMonth && record && (
+                                                <div className="self-end" title={record.remarks || record.status}>
+                                                    {icon}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </Card>
+                    </div>
+                )}
             </div>
+
 
             {/* Existing Edit Modal */}
             <Modal
