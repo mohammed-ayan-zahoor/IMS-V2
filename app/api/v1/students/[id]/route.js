@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
+import { StudentService } from "@/services/studentService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { createAuditLog } from "@/services/auditService";
@@ -18,17 +19,14 @@ export async function GET(req, { params }) {
         }
 
         await connectDB();
-        const student = await User.findOne({
-            _id: id,
-            role: "student",
-            deletedAt: null
-        }).select("-passwordHash -passwordResetToken -passwordResetExpires");
 
-        if (!student) {
+        const data = await StudentService.getStudentProfile(id);
+
+        if (!data) {
             return NextResponse.json({ error: "Student not found" }, { status: 404 });
         }
 
-        return NextResponse.json(student);
+        return NextResponse.json(data);
     } catch (error) {
         console.error("API Error [Student GET]:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

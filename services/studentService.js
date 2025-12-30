@@ -63,13 +63,29 @@ export class StudentService {
     /**
      * Get all students with pagination and filters
      */
-    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false }) {
+    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null }) {
         const skip = (page - 1) * limit;
 
         const query = {
             role: 'student',
             deletedAt: showDeleted ? { $ne: null } : null
         };
+
+        if (isActive !== null) {
+            query.isActive = isActive === 'true';
+        }
+
+        // Filter by batch or course
+        if (batchId || courseId) {
+            const batchQuery = { deletedAt: null };
+            if (batchId) batchQuery._id = batchId;
+            if (courseId) batchQuery.course = courseId;
+
+            const batches = await Batch.find(batchQuery).select('enrolledStudents.student');
+            const studentIds = batches.flatMap(b => b.enrolledStudents.map(e => e.student));
+
+            query._id = { $in: studentIds };
+        }
 
         if (search) {
             const escapedSearch = escapeRegExp(search);
@@ -172,5 +188,37 @@ export class StudentService {
         } finally {
             session.endSession();
         }
+    }
+    /**
+     * Get full student profile with batches and fees
+     */
+    static async getStudentProfile(studentId) {
+        const student = await User.findOne({ _id: studentId, role: 'student', deletedAt: null })
+            .select('-passwordHash -passwordResetToken -passwordResetExpires');
+
+        if (!student) return null;
+
+        // Get batches
+        const batches = await Batch.find({
+            'enrolledStudents.student': studentId,
+            deletedAt: null
+        }).populate('course', 'name code duration fees');
+
+        // Get fees
+        const fees = await Fee.find({
+            student: studentId
+        }).populate('batch', 'name');
+
+        return {
+            student,
+            batches: batches.map(b => ({
+                _id: b._id,
+                name: b.name,
+                course: b.course,
+                enrollment: b.enrolledStudents.find(e => e.student.toString() === studentId),
+                schedule: b.schedule
+            })),
+            fees
+        };
     }
 }

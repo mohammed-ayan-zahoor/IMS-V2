@@ -18,8 +18,19 @@ export async function GET(req) {
         const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit")) || 10));
         const search = searchParams.get("search") || "";
         const showDeleted = searchParams.get("showDeleted") === "true";
+        const batchId = searchParams.get("batchId");
+        const courseId = searchParams.get("courseId");
+        const isActive = searchParams.get("isActive");
 
-        const data = await StudentService.getStudents({ page, limit, search, showDeleted });
+        const data = await StudentService.getStudents({
+            page,
+            limit,
+            search,
+            showDeleted,
+            batchId,
+            courseId,
+            isActive
+        });
 
         return NextResponse.json(data);
     } catch (error) {

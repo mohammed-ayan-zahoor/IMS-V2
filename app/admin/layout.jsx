@@ -27,7 +27,7 @@ export default function AdminLayout({ children }) {
     const { data: session, status } = useSession();
     const pathname = usePathname();
     const router = useRouter();
-    const [expandedGroups, setExpandedGroups] = useState(["Academic", "Learning", "Administration"]);
+    const [expandedGroup, setExpandedGroup] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // Redirect if not authenticated or not admin
@@ -78,11 +78,7 @@ export default function AdminLayout({ children }) {
     }
 
     const toggleGroup = (groupLabel) => {
-        setExpandedGroups(prev =>
-            prev.includes(groupLabel)
-                ? prev.filter(g => g !== groupLabel)
-                : [...prev, groupLabel]
-        );
+        setExpandedGroup(prev => prev === groupLabel ? null : groupLabel);
     };
 
     return (
@@ -145,11 +141,11 @@ export default function AdminLayout({ children }) {
                                 <span>{group.label}</span>
                                 <ChevronRight
                                     size={10}
-                                    className={cn("transition-transform duration-200", expandedGroups.includes(group.label) && "rotate-90")}
+                                    className={cn("transition-transform duration-200", expandedGroup === group.label && "rotate-90")}
                                 />
                             </button>
 
-                            {expandedGroups.includes(group.label) && (
+                            {expandedGroup === group.label && (
                                 <div className="space-y-1 animate-fade-in">
                                     {group.items.map((item) => {
                                         const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
