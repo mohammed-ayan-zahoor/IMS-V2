@@ -20,8 +20,12 @@ export async function GET(req) {
 
         // 1. Get Enrolled Batches
         const studentBatches = await Batch.find({
-            "enrolledStudents.student": studentId,
-            "enrolledStudents.status": "active",
+            "enrolledStudents": {
+                $elemMatch: {
+                    student: studentId,
+                    status: "active"
+                }
+            },
             deletedAt: null
         }).select("course _id");
 
@@ -38,92 +42,86 @@ export async function GET(req) {
             });
         }
 
-        // 2. Attendance Stats
-        // Find total days vs present days in user's batches
-        // Keep it simple: Find all attendance records where this student is marked present
-        // Total possible attendance is harder without master schedule, 
-        // so we'll approximate: All attendance records created for my batches
+        // 2. Prepare Filters & Variables
+        const now = new Date();
+        const materialFilter = {
+            deletedAt: null,
+            visibleToStudents: true,
+            course: { $in: courseIds },
+            $or: [
+                { batches: { $in: batchIds } },
+                { batches: { $size: 0 } },
+                { batches: { $exists: false } }
+            ]
+        };
 
-        // This is expensive: Find all attendance docs for my batches
-        // Optimized: Just count docs
-        const totalAttendanceSessions = await Attendance.countDocuments({
-            batch: { $in: batchIds },
-            date: { $lte: new Date() },
-            status: 'completed'
-        });
+        // 3. fetch Exam Submissions first to exclude them from upcoming
+        const submittedExams = await ExamSubmission.find({
+            student: studentId,
+            status: { $in: ['completed', 'submitted'] }
+        }).select('exam');
+        const submittedExamIds = submittedExams.map(s => s.exam);
 
-        // Find how many I was present in
-        // record.records { student: ID, status: 'present' }
-        const presentCount = await Attendance.countDocuments({
-            batch: { $in: batchIds },
-            status: 'completed',
-            records: {
-                $elemMatch: { student: studentId, status: 'present' }
-            }
-        });
+        // 4. Run Independent Queries in Parallel
+        const [
+            totalAttendanceSessions,
+            presentCount,
+            examsTakenCount,
+            upcomingExams,
+            recentMaterials,
+            materialsDetailsCount
+        ] = await Promise.all([
+            // Attendance Total
+            Attendance.countDocuments({
+                batch: { $in: batchIds },
+                date: { $lte: now }
+            }),
+            // Attendance Present
+            Attendance.countDocuments({
+                batch: { $in: batchIds },
+                records: {
+                    $elemMatch: { student: studentId, status: 'present' }
+                }
+            }),
+            // Exams Taken Count
+            ExamSubmission.countDocuments({
+                student: studentId,
+                status: { $ne: 'in-progress' }
+            }),
+            // Upcoming Exams (Advanced logic: Not taken yet)
+            Exam.find({
+                course: { $in: courseIds },
+                deletedAt: null,
+                status: 'published',
+                scheduledAt: { $gt: now },
+                _id: { $nin: submittedExamIds }
+            })
+                .sort({ scheduledAt: 1 })
+                .limit(2)
+                .select('title scheduledAt duration passingMarks'),
+            // Recent Materials
+            Material.find(materialFilter)
+                .sort({ createdAt: -1 })
+                .limit(3)
+                .populate('course', 'name'),
+            // Total Materials Count
+            Material.countDocuments(materialFilter)
+        ]);
 
         const attendancePercentage = totalAttendanceSessions > 0
             ? Math.round((presentCount / totalAttendanceSessions) * 100)
             : 0;
 
-        // 3. Exams Taken
-        const examsTaken = await ExamSubmission.countDocuments({
-            student: studentId,
-            status: { $ne: 'in-progress' }
-        });
-
-        // 4. Upcoming Exams
-        const now = new Date();
-        const upcomingExams = await Exam.find({
-            course: { $in: courseIds },
-            deletedAt: null,
-            status: 'published',
-            // Exam not taken yet? Too complex query, just show available future exams
-            scheduledAt: { $gt: now }
-        })
-            .sort({ scheduledAt: 1 })
-            .limit(2)
-            .select('title scheduledAt duration passingMarks');
-
-        // 5. Recent Materials
-        const recentMaterials = await Material.find({
-            deletedAt: null,
-            visibleToStudents: true,
-            course: { $in: courseIds },
-            $or: [
-                { batches: { $in: batchIds } },
-                { batches: { $size: 0 } },
-                { batches: { $exists: false } }
-            ]
-        })
-            .sort({ createdAt: -1 })
-            .limit(3)
-            .populate('course', 'name');
-
-        // 6. Total Materials
-        // Reuse query logic
-        const materialsCount = await Material.countDocuments({
-            deletedAt: null,
-            visibleToStudents: true,
-            course: { $in: courseIds },
-            $or: [
-                { batches: { $in: batchIds } },
-                { batches: { $size: 0 } },
-                { batches: { $exists: false } }
-            ]
-        });
-
-
         return NextResponse.json({
             attendance: attendancePercentage,
-            examsTaken,
-            materialsCount,
+            examsTaken: examsTakenCount,
+            materialsCount: materialsDetailsCount,
             upcomingExams,
             recentMaterials
         });
 
     } catch (error) {
         console.error("Dashboard Stats Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock } from "lucide-react";
-import Button from "@/components/ui/Button";
+import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle } from "lucide-react";
+
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -14,15 +14,20 @@ export default function StudentMaterialsPage() {
     const [search, setSearch] = useState("");
     const [activeType, setActiveType] = useState("all"); // all, pdf, video
     const [selectedVideo, setSelectedVideo] = useState(null);
+    const [videoError, setVideoError] = useState(false);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchMaterials = async () => {
             try {
                 const res = await fetch("/api/v1/student/materials");
+                if (!res.ok) throw new Error("Failed to load materials");
                 const data = await res.json();
                 setMaterials(data.materials || []);
+                setError(null);
             } catch (error) {
-                console.error(error);
+                console.error("Fetch materials error:", error);
+                setError("Unable to load materials. Please try again later.");
             } finally {
                 setLoading(false);
             }
@@ -156,17 +161,49 @@ export default function StudentMaterialsPage() {
                             </button>
                         </div>
 
-                        <div className="aspect-video bg-black flex items-center justify-center">
-                            {(selectedVideo.file?.url.includes('youtube.com') || selectedVideo.file?.url.includes('youtu.be')) ? (
+                        <div className="aspect-video bg-black flex items-center justify-center relative">
+                            {videoError ? (
+                                <div className="text-center p-6 space-y-4">
+                                    <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-500">
+                                        <AlertTriangle size={32} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-white font-bold">Video Unavailable</h3>
+                                        <p className="text-slate-400 text-sm">The video could not be loaded.</p>
+                                    </div>
+                                    <div className="flex gap-3 justify-center">
+                                        <button
+                                            onClick={() => setVideoError(false)} // Simple retry
+                                            className="px-4 py-2 bg-white/10 text-white rounded-lg text-xs font-bold hover:bg-white/20"
+                                        >
+                                            Retry
+                                        </button>
+                                        <a
+                                            href={selectedVideo.file?.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-4 py-2 bg-premium-blue text-white rounded-lg text-xs font-bold hover:bg-premium-blue/90"
+                                        >
+                                            Open Directly
+                                        </a>
+                                    </div>
+                                </div>
+                            ) : (selectedVideo.file?.url.includes('youtube.com') || selectedVideo.file?.url.includes('youtu.be')) ? (
                                 <iframe
                                     src={getEmbedUrl(selectedVideo.file.url)}
                                     title={selectedVideo.title}
                                     className="w-full h-full"
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                     allowFullScreen
+                                    onError={() => setVideoError(true)}
                                 />
                             ) : (
-                                <video controls autoPlay className="w-full h-full max-h-[80vh]">
+                                <video
+                                    controls
+                                    autoPlay
+                                    className="w-full h-full max-h-[80vh]"
+                                    onError={() => setVideoError(true)}
+                                >
                                     <source src={selectedVideo.file?.url} type="video/mp4" />
                                     Your browser does not support the video tag.
                                 </video>
@@ -180,27 +217,33 @@ export default function StudentMaterialsPage() {
 }
 
 // Helper to extract video ID and format as embed URL
-function getEmbedUrl(url) {
-    if (!url) return "";
+function getEmbedUrl(sourceUrl) {
+    if (!sourceUrl) return "";
 
-    let videoId = "";
+    try {
+        const url = new URL(sourceUrl);
+        const hostname = url.hostname;
+        let videoId = "";
 
-    if (url.includes("youtu.be")) {
-        // Handle short URL: https://youtu.be/VIDEO_ID
-        videoId = url.split("youtu.be/")[1]?.split("?")[0];
-    } else if (url.includes("watch?v=")) {
-        // Handle standard URL: https://www.youtube.com/watch?v=VIDEO_ID
-        videoId = url.split("watch?v=")[1]?.split("&")[0];
-    } else if (url.includes("embed/")) {
-        // Already an embed URL
-        return url;
+        if (hostname.includes("youtu.be")) {
+            // https://youtu.be/ID
+            videoId = url.pathname.slice(1);
+        } else if (hostname.includes("youtube.com")) {
+            // https://youtube.com/watch?v=ID or /embed/ID
+            if (url.pathname.includes("/embed/")) {
+                return sourceUrl;
+            }
+            videoId = url.searchParams.get("v");
+        }
+
+        if (videoId) {
+            return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+        }
+        return sourceUrl;
+
+    } catch (e) {
+        return ""; // Fallback for invalid URLs
     }
-
-    if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-    }
-
-    return url; // Fallback
 }
 
-import { X, PlayCircle } from "lucide-react"; // Import X and PlayCircle for modal
+

@@ -28,7 +28,7 @@ const MaterialSchema = new Schema({
     deletedAt: { type: Date, index: true }
 }, { timestamps: true });
 
-MaterialSchema.index({ course: 1, visibleToStudents: 1 });
+MaterialSchema.index({ course: 1, batches: 1, visibleToStudents: 1 });
 MaterialSchema.index({ title: 'text', description: 'text' });
 
 export default mongoose.models.Material || mongoose.model('Material', MaterialSchema);

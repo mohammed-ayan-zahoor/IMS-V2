@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Material from "@/models/Material";
+import Batch from "@/models/Batch";
 
 export async function GET(req) {
     try {
@@ -19,20 +20,44 @@ export async function GET(req) {
 
         const query = { deletedAt: null };
 
-        // Admin sees all, Student/Instructor sees filtered
+        // Check permissions
         if (session.user.role === 'student') {
             query.visibleToStudents = true;
-            // Student filtering logic (usually handled by a specific student route, but basic filtering here)
-            if (!courseId) {
-                // If no course specified, technically we should filter by student's enrollment
-                // But typically the frontend calls this with context. 
-                // We'll let the specific /api/v1/student/materials route handle strict enrollment filtering if needed.
-                // For now, open read if they know the course ID.
+
+            // Verify student enrollment if courseId is provided
+            if (courseId) {
+                const enrollment = await Batch.findOne({
+                    course: courseId,
+                    "enrolledStudents": {
+                        $elemMatch: {
+                            student: session.user.id,
+                            status: "active"
+                        }
+                    }
+                });
+
+                if (!enrollment) {
+                    return NextResponse.json({ error: "Not enrolled in this course" }, { status: 403 });
+                }
+            } else {
+                // If checking globally, only show materials from their active batches
+                const myBatches = await Batch.find({
+                    "enrolledStudents": {
+                        $elemMatch: {
+                            student: session.user.id,
+                            status: "active"
+                        }
+                    }
+                }).select('_id');
+                const batchIds = myBatches.map(b => b._id);
+                // Matched materials must be linked to one of my batches
+                // Note: Materials have `batches` array.
+                query.batches = { $in: batchIds };
             }
         }
 
         if (courseId) query.course = courseId;
-        if (batchId) query.batches = batchId; // Matches if batchId is in the array
+        if (batchId) query.batches = batchId;
         if (search) {
             query.$text = { $search: search };
         }
@@ -47,7 +72,7 @@ export async function GET(req) {
 
     } catch (error) {
         console.error("Fetch Materials Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
 
@@ -66,8 +91,26 @@ export async function POST(req) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
+        // Prevent mass assignment by picking allowed fields
+        const safeBody = {
+            title: body.title,
+            description: body.description,
+            type: body.type, // 'video', 'document', 'link'
+            category: body.category,
+            file: {
+                url: body.file.url,
+                fileId: body.file.fileId,
+                type: body.file.type,
+                size: body.file.size
+            },
+            course: body.course,
+            batches: body.batches, // Array of IDs
+            visibleToStudents: !!body.visibleToStudents,
+            tags: Array.isArray(body.tags) ? body.tags : []
+        };
+
         const material = await Material.create({
-            ...body,
+            ...safeBody,
             uploadedBy: session.user.id
         });
 
@@ -75,6 +118,6 @@ export async function POST(req) {
 
     } catch (error) {
         console.error("Create Material Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

@@ -7,7 +7,6 @@ import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import Modal from "@/components/ui/Modal"; // Assuming we have a Generic Modal or I'll make a custom one inline
 
 export default function MaterialsPage() {
     const [materials, setMaterials] = useState([]);
@@ -80,12 +79,27 @@ export default function MaterialsPage() {
 
     const handleSave = async (e) => {
         e.preventDefault();
+
+        // Validation
+        if (!formData.title?.trim()) {
+            alert("Title is required");
+            return;
+        }
+        if (!formData.course) {
+            alert("Course is required");
+            return;
+        }
+        if (!formData.fileUrl?.trim()) {
+            alert("File URL or upload is required");
+            return;
+        }
+
         setSaving(true);
 
         try {
             const payload = {
-                title: formData.title,
-                description: formData.description,
+                title: formData.title.trim(),
+                description: formData.description?.trim(),
                 course: formData.course,
                 batches: formData.batches,
                 category: formData.category,
@@ -112,10 +126,12 @@ export default function MaterialsPage() {
                 setFormData(initialFormState());
                 fetchMaterials();
             } else {
-                alert("Failed to save material");
+                const err = await res.json();
+                alert(err.error || "Failed to save material");
             }
         } catch (error) {
             console.error(error);
+            alert("Network error");
         } finally {
             setSaving(false);
         }
@@ -124,10 +140,16 @@ export default function MaterialsPage() {
     const handleDelete = async (id) => {
         if (!confirm("Delete this material?")) return;
         try {
-            await fetch(`/api/v1/materials/${id}`, { method: "DELETE" });
+            const res = await fetch(`/api/v1/materials/${id}`, { method: "DELETE" });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.error || "Failed to delete");
+                return;
+            }
             fetchMaterials();
         } catch (error) {
             console.error(error);
+            alert("Network error during delete");
         }
     };
 
@@ -219,9 +241,15 @@ export default function MaterialsPage() {
                                     <Button size="sm" variant="ghost" className="text-red-400 hover:bg-red-50 hover:text-red-600" onClick={() => handleDelete(mat._id)}>
                                         <Trash2 size={16} />
                                     </Button>
-                                    <a href={mat.file?.url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">
-                                        <Download size={16} />
-                                    </a>
+                                    {mat.file?.url ? (
+                                        <a href={mat.file?.url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">
+                                            <Download size={16} />
+                                        </a>
+                                    ) : (
+                                        <div className="p-2 rounded-lg bg-slate-50 text-slate-300 cursor-not-allowed" aria-disabled="true">
+                                            <Download size={16} />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </Card>
@@ -236,11 +264,25 @@ export default function MaterialsPage() {
 
             {/* Create/Edit Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="modal-title"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') setIsModalOpen(false);
+                    }}
+                >
+                    <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h2 className="text-lg font-bold text-slate-900">{editingId ? "Edit Material" : "Add New Material"}</h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-700">
+                            <h2 id="modal-title" className="text-lg font-bold text-slate-900">{editingId ? "Edit Material" : "Add New Material"}</h2>
+                            <button
+                                type="button"
+                                onClick={() => setIsModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-700"
+                                aria-label="Close modal"
+                                autoFocus
+                            >
                                 <X size={20} />
                             </button>
                         </div>
@@ -252,6 +294,11 @@ export default function MaterialsPage() {
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                 required
                             />
+                            {/* ... Fields ... */}
+                            {/* Re-use existing inputs logic implicitly by not changing internal block structure too much if possible, 
+                                but here I must provide the block content for replace_file_content.
+                                I will replicate the content.
+                            */}
                             <div className="space-y-1">
                                 <label className="text-xs font-bold text-slate-500 uppercase">Description</label>
                                 <textarea
@@ -293,9 +340,9 @@ export default function MaterialsPage() {
                             <div className="space-y-4 border p-4 rounded-xl bg-slate-50/50">
                                 <label className="text-xs font-bold text-slate-500 uppercase">Resource Source</label>
 
-                                {/* Upload Mode Toggle */}
                                 <div className="flex gap-2">
                                     <button
+                                        type="button"
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${!formData.isUpload ? 'bg-white border-slate-200 shadow-sm text-slate-700' : 'text-slate-400 border-transparent hover:bg-slate-100'
                                             }`}
                                         onClick={() => setFormData({ ...formData, isUpload: false })}
@@ -303,6 +350,7 @@ export default function MaterialsPage() {
                                         <LinkIcon size={14} className="inline mr-1" /> External Link / Embed
                                     </button>
                                     <button
+                                        type="button"
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${formData.isUpload ? 'bg-white border-slate-200 shadow-sm text-slate-700' : 'text-slate-400 border-transparent hover:bg-slate-100'
                                             }`}
                                         onClick={() => setFormData({ ...formData, isUpload: true })}
@@ -320,24 +368,22 @@ export default function MaterialsPage() {
                                                 const file = e.target.files[0];
                                                 if (!file) return;
 
-                                                // Upload Logic
+                                                const computedType = file.type.includes('pdf') ? 'pdf' :
+                                                    file.type.includes('image') ? 'image' :
+                                                        file.type.includes('video') ? 'video' : formData.fileType;
+
                                                 const data = new FormData();
                                                 data.append("file", file);
 
-                                                // Optimistic UI could go here (loading state)
-                                                // Simple fetch for now
                                                 try {
                                                     const res = await fetch("/api/upload", { method: "POST", body: data });
                                                     if (res.ok) {
                                                         const json = await res.json();
-                                                        setFormData({
-                                                            ...formData,
+                                                        setFormData(prev => ({
+                                                            ...prev,
                                                             fileUrl: json.url,
-                                                            // Auto-detect type if generic
-                                                            fileType: file.type.includes('pdf') ? 'pdf' :
-                                                                file.type.includes('image') ? 'image' :
-                                                                    file.type.includes('video') ? 'video' : formData.fileType
-                                                        });
+                                                            fileType: computedType
+                                                        }));
                                                     } else {
                                                         alert("Upload failed");
                                                     }
@@ -355,7 +401,7 @@ export default function MaterialsPage() {
                                         placeholder={formData.fileType === 'video' ? "https://youtube.com/watch?v=..." : "https://docs.google.com/..."}
                                         value={formData.fileUrl}
                                         onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value })}
-                                        required={!formData.isUpload} // Only required if not uploading (or check below)
+                                        required={!formData.isUpload}
                                     />
                                 )}
                             </div>
@@ -409,12 +455,12 @@ export default function MaterialsPage() {
 
                         </div>
                         <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                            <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                            <Button onClick={handleSave} disabled={saving}>
+                            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={saving}>
                                 {saving ? "Saving..." : editingId ? "Save Changes" : "Create Material"}
                             </Button>
                         </div>
-                    </div>
+                    </form>
                 </div>
             )}
         </div>

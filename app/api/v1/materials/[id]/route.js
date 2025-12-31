@@ -7,7 +7,9 @@ import Material from "@/models/Material";
 export async function GET(req, { params }) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
         await connectDB();
         const { id } = await params;
@@ -22,15 +24,19 @@ export async function GET(req, { params }) {
         return NextResponse.json({ material });
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("GET Material Error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
 
 export async function PATCH(req, { params }) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !["admin", "super_admin", "instructor"].includes(session.user.role)) {
+        if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!["admin", "super_admin", "instructor"].includes(session.user.role)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         await connectDB();
@@ -39,9 +45,10 @@ export async function PATCH(req, { params }) {
 
         delete body.uploadedBy; // Prevent changing owner
         delete body.createdAt;
+        delete body.deletedAt; // Prevent manual restoration
 
-        const material = await Material.findByIdAndUpdate(
-            id,
+        const material = await Material.findOneAndUpdate(
+            { _id: id, deletedAt: null },
             { $set: body },
             { new: true, runValidators: true }
         );
@@ -51,15 +58,19 @@ export async function PATCH(req, { params }) {
         return NextResponse.json({ success: true, material });
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("Update Material Error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
 
 export async function DELETE(req, { params }) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !["admin", "super_admin"].includes(session.user.role)) {
+        if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!["admin", "super_admin"].includes(session.user.role)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         await connectDB();
@@ -76,6 +87,7 @@ export async function DELETE(req, { params }) {
         return NextResponse.json({ success: true, message: "Material deleted" });
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("Delete Material Error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

@@ -7,23 +7,28 @@ import Batch from "@/models/Batch";
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || session.user.role !== 'student') {
+        if (!session?.user || session.user.role !== 'student') {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         await connectDB();
 
         const batches = await Batch.find({
-            "enrolledStudents.student": session.user.id,
-            "enrolledStudents.status": "active",
+            enrolledStudents: {
+                $elemMatch: {
+                    student: session.user.id,
+                    status: "active"
+                }
+            },
             deletedAt: null
         })
             .populate("course", "name code")
-            .select("name schedule startDate endDate room");
+            .select("name schedule instructor"); // Select entire schedule object
 
         return NextResponse.json({ batches });
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("Fetch Student Batches Error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

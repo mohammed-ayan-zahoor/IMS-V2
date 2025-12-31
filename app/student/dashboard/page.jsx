@@ -43,6 +43,7 @@ export default function StudentDashboard() {
         recentMaterials: []
     });
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const { data: session } = useSession();
 
     useEffect(() => {
@@ -55,20 +56,66 @@ export default function StudentDashboard() {
             if (res.ok) {
                 const json = await res.json();
                 setData(json);
+                setError(null);
+            } else {
+                const err = await res.json();
+                // setError(err.error || "Failed to load dashboard data");
+                // Don't show hard error screen for generic fetch fail, just log it.
+                // Or better, set error state for retry UI.
+                console.error("Dashboard Fetch Error:", err);
+                setError("Failed to load dashboard data. Please try again.");
             }
         } catch (error) {
-            console.error("Failed to load dashboard", error);
+            console.error("Dashboard Network Error:", error);
+            setError("Network error. Please try refreshing.");
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading) return <div>Loading...</div>; // Ideally a skeleton
+    if (loading) return (
+        <div className="space-y-10 animate-pulse">
+            {/* Header Skeleton */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="space-y-2">
+                    <div className="h-8 w-48 bg-slate-200 rounded-lg"></div>
+                    <div className="h-4 w-64 bg-slate-100 rounded-lg"></div>
+                </div>
+                <div className="h-9 w-32 bg-slate-200 rounded-lg"></div>
+            </div>
+
+            {/* Stats Grid Skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-32 bg-slate-50 rounded-2xl border border-slate-100"></div>
+                ))}
+            </div>
+
+            {/* Content Grid Skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 h-96 bg-slate-50 rounded-2xl border border-slate-100"></div>
+                <div className="space-y-8">
+                    <div className="h-64 bg-slate-50 rounded-2xl border border-slate-100"></div>
+                    <div className="h-32 bg-slate-800/10 rounded-xl"></div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Retry UI if critical error
+    if (error && !data.upcomingExams) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 space-y-4">
+                <p className="text-red-500 font-medium">{error}</p>
+                <Button onClick={fetchDashboardData} size="sm">Retry</Button>
+            </div>
+        );
+    }
 
     const stats = [
         { title: "Attendance", value: `${data.attendance}%`, label: "Presence", icon: CheckCircle2, softColor: "bg-emerald-50 text-emerald-600" },
-        { title: "Exams Taken", value: data.examsTaken.toString().padStart(2, '0'), label: "Completed", icon: Trophy, softColor: "bg-purple-50 text-purple-600" },
-        { title: "Resources", value: data.materialsCount.toString(), label: "Available", icon: BookOpen, softColor: "bg-blue-50 text-blue-600" },
+        { title: "Exams Taken", value: (data.examsTaken || 0).toString().padStart(2, '0'), label: "Completed", icon: Trophy, softColor: "bg-purple-50 text-purple-600" },
+        { title: "Resources", value: (data.materialsCount || 0).toString(), label: "Available", icon: BookOpen, softColor: "bg-blue-50 text-blue-600" },
         { title: "Study Hours", value: "124", label: "This Month", icon: Clock, softColor: "bg-yellow-50 text-amber-600" }, // Mock for now
     ];
 
@@ -111,29 +158,34 @@ export default function StudentDashboard() {
                         subtitle="Marks will be auto-calculated upon submission"
                     />
                     <CardContent className="space-y-4">
-                        {data.upcomingExams.length > 0 ? data.upcomingExams.map((exam) => (
-                            <div key={exam._id} className="flex items-center gap-6 p-4 rounded-xl bg-blue-50/50 border border-blue-100/30 group hover:border-premium-blue transition-all">
-                                <div className="flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-white border border-blue-100 text-premium-blue shadow-sm">
-                                    <span className="text-[10px] font-black uppercase tracking-tighter">
-                                        {new Date(exam.scheduledAt).toLocaleString('default', { month: 'short' })}
-                                    </span>
-                                    <span className="text-lg font-black">{new Date(exam.scheduledAt).getDate()}</span>
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-slate-900">{exam.title}</h4>
-                                    <div className="flex items-center gap-4 mt-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                        <span className="flex items-center gap-1">
-                                            <Clock size={12} />
-                                            {new Date(exam.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {data.upcomingExams && data.upcomingExams.length > 0 ? data.upcomingExams.map((exam) => {
+                            const examDate = exam.scheduledAt ? new Date(exam.scheduledAt) : null;
+                            const isValidDate = examDate && !isNaN(examDate.getTime());
+
+                            return (
+                                <div key={exam._id} className="flex items-center gap-6 p-4 rounded-xl bg-blue-50/50 border border-blue-100/30 group hover:border-premium-blue transition-all">
+                                    <div className="flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-white border border-blue-100 text-premium-blue shadow-sm">
+                                        <span className="text-[10px] font-black uppercase tracking-tighter">
+                                            {isValidDate ? examDate.toLocaleString('default', { month: 'short' }) : '--'}
                                         </span>
-                                        <span className="flex items-center gap-1"><Trophy size={12} /> {exam.passingMarks} Pass Marks</span>
+                                        <span className="text-lg font-black">{isValidDate ? examDate.getDate() : '--'}</span>
                                     </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-slate-900">{exam.title}</h4>
+                                        <div className="flex items-center gap-4 mt-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                            <span className="flex items-center gap-1">
+                                                <Clock size={12} />
+                                                {isValidDate ? examDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                            </span>
+                                            <span className="flex items-center gap-1"><Trophy size={12} /> {exam.passingMarks || 0} Pass Marks</span>
+                                        </div>
+                                    </div>
+                                    <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform">
+                                        <ArrowRight size={18} />
+                                    </Button>
                                 </div>
-                                <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform">
-                                    <ArrowRight size={18} />
-                                </Button>
-                            </div>
-                        )) : (
+                            );
+                        }) : (
                             <p className="text-sm text-slate-400 italic text-center py-4">No upcoming exams scheduled.</p>
                         )}
                         <button onClick={() => window.location.href = '/student/exams'} className="w-full py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-premium-blue transition-colors">
@@ -147,22 +199,29 @@ export default function StudentDashboard() {
                     <Card className="border-border shadow-sm border-t-4 border-t-amber-500">
                         <CardHeader title="Latest Resources" />
                         <CardContent className="space-y-4">
-                            {data.recentMaterials.length > 0 ? data.recentMaterials.map((file) => (
+                            {data.recentMaterials && data.recentMaterials.length > 0 ? data.recentMaterials.map((file) => (
                                 <div key={file._id} className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors group">
                                     <div className="flex items-center gap-3">
                                         <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100">
                                             <BookOpen size={16} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-slate-900 truncate max-w-[120px]">{file.title}</p>
+                                            <p className="text-sm font-bold text-slate-900 truncate max-w-[120px]">{file.title || "Untitled"}</p>
                                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                                                {file.category} • {new Date(file.createdAt).toLocaleDateString()}
+                                                {file.category || "General"} • {file.createdAt ? new Date(file.createdAt).toLocaleDateString() : 'Date N/A'}
                                             </p>
                                         </div>
                                     </div>
-                                    <a href={file.file?.url} target="_blank" className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-slate-400 hover:text-premium-blue">
-                                        <Download size={14} />
-                                    </a>
+                                    {file.file?.url && (
+                                        <a
+                                            href={file.file.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-slate-400 hover:text-premium-blue"
+                                        >
+                                            <Download size={14} />
+                                        </a>
+                                    )}
                                 </div>
                             )) : (
                                 <p className="text-sm text-slate-400 italic text-center py-4">No new materials.</p>

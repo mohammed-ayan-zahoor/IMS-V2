@@ -18,8 +18,12 @@ export async function GET(req) {
 
         // 1. Find Student's Batches & Courses
         const studentBatches = await Batch.find({
-            "enrolledStudents.student": session.user.id,
-            "enrolledStudents.status": "active",
+            "enrolledStudents": {
+                $elemMatch: {
+                    student: session.user.id,
+                    status: "active"
+                }
+            },
             deletedAt: null
         }).select("course _id");
 
@@ -42,18 +46,38 @@ export async function GET(req) {
             ]
         };
 
+        // Read pagination params
+        let page = parseInt(searchParams.get("page")) || 1;
+        let limit = parseInt(searchParams.get("limit")) || 20;
+        if (limit > 100) limit = 100; // Cap limit
+        if (page < 1) page = 1;
+        const skip = (page - 1) * limit;
+
         if (type) {
             query['file.type'] = type;
         }
 
-        const materials = await Material.find(query)
-            .populate("course", "name")
-            .sort({ createdAt: -1 });
+        const [materials, totalCount] = await Promise.all([
+            Material.find(query)
+                .populate("course", "name")
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            Material.countDocuments(query)
+        ]);
 
-        return NextResponse.json({ materials });
+        return NextResponse.json({
+            materials,
+            pagination: {
+                page,
+                limit,
+                totalCount,
+                totalPages: Math.ceil(totalCount / limit)
+            }
+        });
 
     } catch (error) {
         console.error("Student Materials Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
