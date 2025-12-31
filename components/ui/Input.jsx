@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export default function Input({ className, label, error, id, ...props }) {
+export default function Input({ className, label, error, helperText, id, ...props }) {
     return (
         <div className="w-full space-y-1.5">
             {label && (
@@ -20,6 +20,7 @@ export default function Input({ className, label, error, id, ...props }) {
                 )}
                 {...props}
             />
+            {helperText && <p className="text-[10px] text-slate-500 ml-1">{helperText}</p>}
             {error && <p className="text-[10px] text-red-500 ml-1 font-medium">{error}</p>}
         </div>
     );

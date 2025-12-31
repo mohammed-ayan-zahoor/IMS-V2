@@ -59,6 +59,7 @@ BatchSchema.index({ 'schedule.startDate': 1 });
 
 // Virtual for active enrollment count
 BatchSchema.virtual('activeEnrollmentCount').get(function () {
+    if (!this.enrolledStudents || !Array.isArray(this.enrolledStudents)) return 0;
     return this.enrolledStudents.filter(e => e.status === 'active').length;
 });
 

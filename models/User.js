@@ -8,7 +8,7 @@ const UserSchema = new Schema({
         required: true,
         // unique: true, // Moved to index with partialFilterExpression
         lowercase: true,
-        index: true,
+        // index: true, // Removed to avoid duplicate index warning
         match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
     },
     passwordHash: {
@@ -41,7 +41,7 @@ const UserSchema = new Schema({
     // Student-specific fields
     enrollmentNumber: {
         type: String,
-        sparse: true,
+        // sparse: true, // Removed to avoid duplicate index warning (covered by partial index below)
         // unique: true, // Moved to index with partialFilterExpression
         uppercase: true
     },

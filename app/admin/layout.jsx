@@ -54,7 +54,8 @@ export default function AdminLayout({ children }) {
             icon: FileSignature,
             items: [
                 { label: "Attendance", icon: Calendar, href: "/admin/attendance" },
-                { label: "Exams", icon: FileSignature, href: "/admin/exams" },
+                { label: "Online Exams", icon: FileSignature, href: "/admin/exams" },
+                { label: "Question Bank", icon: BookOpen, href: "/admin/question-bank" },
                 { label: "Materials", icon: FileText, href: "/admin/materials" },
             ]
         },

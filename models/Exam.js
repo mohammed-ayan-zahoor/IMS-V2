@@ -1,69 +1,96 @@
-import mongoose from 'mongoose';
-const { Schema } = mongoose;
+import mongoose from "mongoose";
 
-const QuestionSchema = new Schema({
-    questionText: { type: String, required: true },
-    type: {
+// ExamSchema definition (QuestionSchema removed)
+const ExamSchema = new mongoose.Schema({
+    title: {
         type: String,
-        enum: ['mcq', 'true_false', 'short_answer'],
-        default: 'mcq'
+        required: [true, "Exam title is required"],
+        trim: true
     },
-    options: [{ type: String, trim: true }], // For MCQ only
-    correctAnswer: {
-        type: mongoose.Schema.Types.Mixed,
-        required: true
-    }, // Number index (0-3) for MCQ, String for others
-    marks: { type: Number, default: 1, min: 0 },
-    explanation: { type: String, maxlength: 1000 }
-});
-
-// Add validation for question types
-QuestionSchema.pre('validate', function (next) {
-    if (this.type === 'mcq') {
-        if (!this.options || this.options.length !== 4) {
-            return next(new Error('MCQ questions must have exactly 4 options'));
-        }
-        const answerIndex = Number(this.correctAnswer);
-        if (!Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex > 3) {
-            return next(new Error('MCQ correctAnswer must be a valid index (0-3)'));
-        }
-    } else if (this.type === 'true_false') {
-        if (this.correctAnswer !== 'true' && this.correctAnswer !== 'false') {
-            return next(new Error('True/False correctAnswer must be "true" or "false"'));
-        }
-    }
-    next();
-});
-
-const ExamSchema = new Schema({
-    title: { type: String, required: true, trim: true },
-    course: { type: Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
-    batch: { type: Schema.Types.ObjectId, ref: 'Batch', required: true, index: true },
-    duration: { type: Number, required: true, min: 1 }, // minutes
-    totalMarks: { type: Number, required: true, min: 1 },
-    passingMarks: { type: Number, required: true, min: 0 },
-    questions: [QuestionSchema],
-    schedule: {
-        startTime: { type: Date, required: true },
-        endTime: { type: Date, required: true }
+    description: {
+        type: String,
+        trim: true
     },
-    instructions: { type: String, maxlength: 2000 },
-    isPublished: { type: Boolean, default: false, index: true },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+    course: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Course",
+        required: [true, "Course is required"]
+    },
+    batches: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Batch"
+    }],
+    duration: {
+        type: Number, // in minutes
+        required: [true, "Duration is required"],
+        min: 1
+    },
+    totalMarks: {
+        type: Number,
+        default: 0
+    },
+    passingMarks: {
+        type: Number,
+        required: [true, "Passing marks is required"]
+    },
+    scheduledAt: {
+        type: Date,
+        required: [true, "Schedule date is required"]
+    },
+    endTime: {
+        type: Date,
+        // Optional: If not set, strictly scheduledAt + duration
+    },
+    status: {
+        type: String,
+        enum: ["draft", "published", "completed"],
+        default: "draft"
+    },
+    // Updated: Reference to Question Bank
+    questions: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Question"
+    }],
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    },
+    deletedAt: {
+        type: Date,
+        default: null
+    },
+
+    // Security Configuration
+    securityConfig: {
+        enforceFullscreen: { type: Boolean, default: true },
+        allowTabSwitch: { type: Boolean, default: false },
+        maxTabSwitches: { type: Number, default: 3 },
+        preventCopyPaste: { type: Boolean, default: true },
+        preventRightClick: { type: Boolean, default: true },
+        randomizeQuestions: { type: Boolean, default: false },
+        randomizeOptions: { type: Boolean, default: false }
+    },
+
+    // Results Control
+    resultsPublished: { type: Boolean, default: false },
+    resultsPublishedAt: Date,
+    showCorrectAnswers: { type: Boolean, default: true },
+    showExplanations: { type: Boolean, default: true },
+
+    // Grading Configuration
+    negativeMarking: { type: Boolean, default: false },
+    negativeMarkingPercentage: { type: Number, default: 0, min: 0, max: 100 }
 }, { timestamps: true });
 
-ExamSchema.index({ batch: 1, isPublished: 1 });
-ExamSchema.index({ 'schedule.startTime': 1 });
-
-// Validation: endTime must be after startTime
-ExamSchema.pre('save', function (next) {
-    if (this.schedule.endTime <= this.schedule.startTime) {
-        return next(new Error('End time must be after start time'));
-    }
-    if (this.passingMarks > this.totalMarks) {
-        return next(new Error('Passing marks cannot exceed total marks'));
-    }
+// Auto-calculate total marks before save
+// Note: This logic now requires population or explicit totalMarks setting since questions are references
+ExamSchema.pre('save', async function (next) {
+    // If questions are modified, we might want to recalculate totalMarks
+    // but we can't easily do sync populate here. 
+    // It's better to handle calculation at the Controller level when adding questions.
     next();
 });
 
-export default mongoose.models.Exam || mongoose.model('Exam', ExamSchema);
+// Safe export for Next.js hot reloading
+if (process.env.NODE_ENV !== 'production') delete mongoose.models.Exam;
+export default mongoose.models.Exam || mongoose.model("Exam", ExamSchema);
