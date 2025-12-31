@@ -21,14 +21,14 @@ const MaterialSchema = new Schema({
         default: 'lecture'
     },
     course: { type: Schema.Types.ObjectId, ref: 'Course', index: true },
-    batch: { type: Schema.Types.ObjectId, ref: 'Batch', index: true },
+    batches: [{ type: Schema.Types.ObjectId, ref: 'Batch' }], // Changed from single batch to array
     visibleToStudents: { type: Boolean, default: true, index: true },
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     downloadCount: { type: Number, default: 0 },
     deletedAt: { type: Date, index: true }
 }, { timestamps: true });
 
-MaterialSchema.index({ course: 1, batch: 1, visibleToStudents: 1 });
+MaterialSchema.index({ course: 1, visibleToStudents: 1 });
 MaterialSchema.index({ title: 'text', description: 'text' });
 
 export default mongoose.models.Material || mongoose.model('Material', MaterialSchema);

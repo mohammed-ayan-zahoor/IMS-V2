@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import {
     BookOpen,
@@ -33,22 +35,41 @@ const QuickStat = ({ title, value, label, icon: Icon, softColor }) => (
 );
 
 export default function StudentDashboard() {
+    const [data, setData] = useState({
+        attendance: 0,
+        examsTaken: 0,
+        materialsCount: 0,
+        upcomingExams: [],
+        recentMaterials: []
+    });
+    const [loading, setLoading] = useState(true);
+    const { data: session } = useSession();
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            const res = await fetch("/api/v1/student/dashboard");
+            if (res.ok) {
+                const json = await res.json();
+                setData(json);
+            }
+        } catch (error) {
+            console.error("Failed to load dashboard", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) return <div>Loading...</div>; // Ideally a skeleton
+
     const stats = [
-        { title: "Attendance", value: "92%", label: "Presence", icon: CheckCircle2, softColor: "bg-soft-emerald" },
-        { title: "Exams Taken", value: "08", label: "Completed", icon: Trophy, softColor: "bg-soft-purple" },
-        { title: "Study Hours", value: "124", label: "This Month", icon: Clock, softColor: "bg-soft-blue" },
-        { title: "Resources", value: "32", label: "Downloaded", icon: BookOpen, softColor: "bg-soft-yellow" },
-    ];
-
-    const upcomingExams = [
-        { title: "Advanced React Patterns", date: "Jan 05, 2026", time: "10:00 AM", marks: 100 },
-        { title: "System Design 101", date: "Jan 12, 2026", time: "02:00 PM", marks: 50 },
-    ];
-
-    const recentMaterials = [
-        { title: "Introduction to Next.js 14", type: "PDF", date: "Today" },
-        { title: "Authentication Flow Diagram", type: "IMAGE", date: "Yesterday" },
-        { title: "Backend Architecture Guide", type: "DOCX", date: "Dec 27" },
+        { title: "Attendance", value: `${data.attendance}%`, label: "Presence", icon: CheckCircle2, softColor: "bg-emerald-50 text-emerald-600" },
+        { title: "Exams Taken", value: data.examsTaken.toString().padStart(2, '0'), label: "Completed", icon: Trophy, softColor: "bg-purple-50 text-purple-600" },
+        { title: "Resources", value: data.materialsCount.toString(), label: "Available", icon: BookOpen, softColor: "bg-blue-50 text-blue-600" },
+        { title: "Study Hours", value: "124", label: "This Month", icon: Clock, softColor: "bg-yellow-50 text-amber-600" }, // Mock for now
     ];
 
     return (
@@ -57,13 +78,13 @@ export default function StudentDashboard() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
                     <h1 className="text-3xl font-black tracking-tight text-slate-900 text-center md:text-left">Academic Overview</h1>
-                    <p className="text-slate-500 mt-1 font-medium italic text-center md:text-left">Keep pushing your boundaries, John.</p>
+                    <p className="text-slate-500 mt-1 font-medium italic text-center md:text-left">
+                        Keep pushing your boundaries, {session?.user?.name?.split(' ')[0] || "Student"}.
+                    </p>
                 </div>
                 <div className="flex gap-3 justify-center">
-                    <Button variant="outline" size="sm">Download Report</Button>
                     <Button size="sm" className="flex items-center gap-2">
-                        <span>Join Class</span>
-                        <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        <span>My Batches</span>
                     </Button>
                 </div>
             </div>
@@ -90,25 +111,32 @@ export default function StudentDashboard() {
                         subtitle="Marks will be auto-calculated upon submission"
                     />
                     <CardContent className="space-y-4">
-                        {upcomingExams.map((exam) => (
-                            <div key={exam.title} className="flex items-center gap-6 p-4 rounded-xl bg-soft-blue/20 border border-blue-100/30 group hover:border-premium-blue transition-all">
+                        {data.upcomingExams.length > 0 ? data.upcomingExams.map((exam) => (
+                            <div key={exam._id} className="flex items-center gap-6 p-4 rounded-xl bg-blue-50/50 border border-blue-100/30 group hover:border-premium-blue transition-all">
                                 <div className="flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-white border border-blue-100 text-premium-blue shadow-sm">
-                                    <span className="text-[10px] font-black uppercase tracking-tighter">{exam.date.split(' ')[0]}</span>
-                                    <span className="text-lg font-black">{exam.date.split(' ')[1].replace(',', '')}</span>
+                                    <span className="text-[10px] font-black uppercase tracking-tighter">
+                                        {new Date(exam.scheduledAt).toLocaleString('default', { month: 'short' })}
+                                    </span>
+                                    <span className="text-lg font-black">{new Date(exam.scheduledAt).getDate()}</span>
                                 </div>
                                 <div className="flex-1">
                                     <h4 className="font-bold text-slate-900">{exam.title}</h4>
                                     <div className="flex items-center gap-4 mt-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                        <span className="flex items-center gap-1"><Clock size={12} /> {exam.time}</span>
-                                        <span className="flex items-center gap-1"><Trophy size={12} /> {exam.marks} Marks</span>
+                                        <span className="flex items-center gap-1">
+                                            <Clock size={12} />
+                                            {new Date(exam.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                        <span className="flex items-center gap-1"><Trophy size={12} /> {exam.passingMarks} Pass Marks</span>
                                     </div>
                                 </div>
                                 <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform">
                                     <ArrowRight size={18} />
                                 </Button>
                             </div>
-                        ))}
-                        <button className="w-full py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-premium-blue transition-colors">
+                        )) : (
+                            <p className="text-sm text-slate-400 italic text-center py-4">No upcoming exams scheduled.</p>
+                        )}
+                        <button onClick={() => window.location.href = '/student/exams'} className="w-full py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-premium-blue transition-colors">
                             View All Registered Exams
                         </button>
                     </CardContent>
@@ -119,22 +147,26 @@ export default function StudentDashboard() {
                     <Card className="border-border shadow-sm border-t-4 border-t-amber-500">
                         <CardHeader title="Latest Resources" />
                         <CardContent className="space-y-4">
-                            {recentMaterials.map((file) => (
-                                <div key={file.title} className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors group">
+                            {data.recentMaterials.length > 0 ? data.recentMaterials.map((file) => (
+                                <div key={file._id} className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors group">
                                     <div className="flex items-center gap-3">
                                         <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100">
                                             <BookOpen size={16} />
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-slate-900 truncate max-w-[120px]">{file.title}</p>
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{file.type} • {file.date}</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                                                {file.category} • {new Date(file.createdAt).toLocaleDateString()}
+                                            </p>
                                         </div>
                                     </div>
-                                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <a href={file.file?.url} target="_blank" className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-slate-400 hover:text-premium-blue">
                                         <Download size={14} />
-                                    </Button>
+                                    </a>
                                 </div>
-                            ))}
+                            )) : (
+                                <p className="text-sm text-slate-400 italic text-center py-4">No new materials.</p>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -144,8 +176,9 @@ export default function StudentDashboard() {
                                 <AlertCircle size={14} />
                                 <span>Notice Board</span>
                             </div>
-                            <p className="text-xs font-medium leading-relaxed text-slate-100 opacity-90">The main laboratory will be closed for maintenance tomorrow between 09:00 - 14:00.</p>
-                            <button className="mt-5 text-[10px] font-bold hover:underline uppercase tracking-widest text-white/60 hover:text-white transition-colors">Read full circular →</button>
+                            <p className="text-xs font-medium leading-relaxed text-slate-100 opacity-90">
+                                Welcome to the new IMS student portal. Check your exam schedule regularly.
+                            </p>
                         </div>
                     </Card>
                 </div>
