@@ -44,8 +44,10 @@ QuestionSchema.pre('validate', function (next) {
     if (this.type === 'mcq') {
         if (!this.options || this.options.length < 2) {
             this.invalidate('options', 'MCQ must have at least 2 options');
+            // If invalid options, we can't reliably validate answer index, so we return early to avoid crash
+            return;
         }
-        const index = parseInt(this.correctAnswer);
+        const index = parseInt(this.correctAnswer, 10);
         if (isNaN(index) || index < 0 || index >= this.options.length) {
             this.invalidate('correctAnswer', 'MCQ correct answer must be a valid option index');
         }

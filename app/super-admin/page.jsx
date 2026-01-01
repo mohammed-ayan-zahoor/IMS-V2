@@ -11,10 +11,13 @@ export default function SuperAdminDashboard() {
         activeSubscriptions: 0
     });
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const controller = new AbortController();
         const fetchStats = async () => {
+            setLoading(true); // Ensure loading is true on start (though init is true)
+            setError(null);
             try {
                 const res = await fetch("/api/admin/stats", { signal: controller.signal });
                 if (!res.ok) throw new Error("Failed to load stats");
@@ -27,7 +30,8 @@ export default function SuperAdminDashboard() {
             } catch (error) {
                 if (error.name !== "AbortError") {
                     console.error("Stats fetch error:", error);
-                    // toast.error("Failed to load dashboard stats"); // Optional: fail silently or show error
+                    setError("Failed to load dashboard stats. Please try again.");
+                    // toast.error("Failed to load dashboard stats");
                 }
             } finally {
                 setLoading(false);
@@ -37,6 +41,24 @@ export default function SuperAdminDashboard() {
         fetchStats();
         return () => controller.abort();
     }, []);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="p-6 bg-red-50 text-red-700 rounded-lg flex items-center gap-3">
+                <span className="text-xl">⚠️</span>
+                <p>{error}</p>
+                <button onClick={() => window.location.reload()} className="underline ml-auto">Retry</button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

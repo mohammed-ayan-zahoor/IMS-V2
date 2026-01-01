@@ -7,10 +7,11 @@ import { getInstituteScope } from "@/middleware/instituteScope";
 export async function GET(req) {
     try {
         const scope = await getInstituteScope(req);
-        if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        if (!scope || !scope.instituteId) {
+            return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
+        }
 
-        const courses = await CourseService.getCourses({}, scope.instituteId);
-        return NextResponse.json({ courses });
+        const courses = await CourseService.getCourses({}, scope.instituteId); return NextResponse.json({ courses });
     } catch (error) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }

@@ -56,7 +56,7 @@ export default function InstitutesPage() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {!loading && institutes.length === 0 && (
+                        {institutes.length === 0 && (
                             <tr>
                                 <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
                                     <div className="flex flex-col items-center justify-center">

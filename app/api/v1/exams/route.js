@@ -62,7 +62,7 @@ export async function POST(req) {
         const allowedFields = {
             title: body.title,
             course: body.course,
-            batch: body.batch,
+            batches: body.batches,
             questions: body.questions || [],
             duration: body.duration,
             totalMarks: body.totalMarks,
@@ -78,7 +78,6 @@ export async function POST(req) {
             negativeMarking: body.negativeMarking,
             negativeMarkingPercentage: body.negativeMarkingPercentage
         };
-
         const exam = await Exam.create({
             ...allowedFields,
             institute: scope.instituteId, // Set Institute

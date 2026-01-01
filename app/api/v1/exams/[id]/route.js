@@ -93,9 +93,11 @@ export async function PATCH(req, { params }) {
             if (startTime && endTime && startTime >= endTime) {
                 return NextResponse.json({ error: "Schedule start time must be before end time" }, { status: 400 });
             }
-            exam.schedule = body.schedule;
+            exam.schedule = {
+                ...(exam.schedule?.toObject ? exam.schedule.toObject() : exam.schedule || {}),
+                ...body.schedule
+            };
         }
-
         // 2. Auto-update status based on schedule (only if status is NOT explicitly set in body)
         if (body.status === undefined && exam.status === 'published' && exam.schedule?.startTime && exam.schedule?.endTime) {
             const now = new Date();
@@ -160,7 +162,7 @@ export async function DELETE(req, { params }) {
 
         // Fetch first to validate scope
         const exam = await Exam.findById(id);
-        if (!exam) {
+        if (!exam || exam.deletedAt) {
             return NextResponse.json({ error: "Exam not found" }, { status: 404 });
         }
 

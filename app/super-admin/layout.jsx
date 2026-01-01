@@ -46,17 +46,16 @@ export default function SuperAdminLayout({ children }) {
                 <div className="p-4 border-t border-gray-800">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-bold">
-                            {session.user.name?.[0]}
+                            {session.user.name?.[0] || session.user.email?.[0] || 'SA'}
                         </div>
                         {isSidebarOpen && (
                             <div className="overflow-hidden">
-                                <p className="text-sm font-medium truncate">{session.user.name}</p>
+                                <p className="text-sm font-medium truncate">{session.user.name || session.user.email || 'Super Admin'}</p>
                                 <p className="text-xs text-gray-400 truncate">Super Admin</p>
                             </div>
                         )}
                     </div>
-                </div>
-            </aside>
+                </div>            </aside>
 
             {/* Main Content */}
             <main className="flex-1 overflow-auto">

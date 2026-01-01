@@ -93,8 +93,9 @@ export async function POST(req) {
         }
 
         // Prevent privilege escalation
-        if (body.role === "super_admin" && scope.user.role !== "super_admin") {
-            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+        // Only super_admin can create 'admin' or 'super_admin' users
+        if (["admin", "super_admin"].includes(body.role) && scope.user.role !== "super_admin") {
+            return NextResponse.json({ error: "Insufficient permissions to create admin/super_admin users" }, { status: 403 });
         }
 
         const userPayload = {

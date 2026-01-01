@@ -5,7 +5,6 @@ const CourseSchema = new Schema({
     institute: {
         type: Schema.Types.ObjectId,
         ref: 'Institute',
-        required: true,
         index: true
     },
     name: { type: String, required: true, trim: true },
@@ -36,6 +35,8 @@ const CourseSchema = new Schema({
 }, { timestamps: true });
 
 CourseSchema.index({ name: 'text', code: 'text' });
-CourseSchema.index({ institute: 1, code: 1 }, { unique: true }); // Code unique per institute
-
+CourseSchema.index(
+    { institute: 1, code: 1 },
+    { unique: true, partialFilterExpression: { deletedAt: { $exists: false } } }
+); // Code unique per institute (excluding soft-deleted)
 export default mongoose.models.Course || mongoose.model('Course', CourseSchema);

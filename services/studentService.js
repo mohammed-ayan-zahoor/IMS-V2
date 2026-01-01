@@ -5,6 +5,7 @@ import { createAuditLog } from './auditService';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { escapeRegExp } from 'lodash';
+import crypto from 'crypto';
 
 export class StudentService {
     /**
@@ -32,9 +33,8 @@ export class StudentService {
             const salt = await bcrypt.genSalt(10);
 
             // Random password if env var is missing, for security
-            const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+            const randomPassword = crypto.randomBytes(16).toString('base64url');
             const defaultPass = process.env.DEFAULT_STUDENT_PASSWORD || randomPassword;
-
             const passwordHash = await bcrypt.hash(password || defaultPass, salt);
 
             // Create student
@@ -84,9 +84,6 @@ export class StudentService {
                 { 'enrolledStudents.student': studentId },
                 { $pull: { enrolledStudents: { student: studentId } } }
             ).session(session);
-
-            // 3. Hard Delete User
-            await User.findByIdAndDelete(studentId).session(session);
 
             // 3. Hard Delete User
             await User.findByIdAndDelete(studentId).session(session);
@@ -244,7 +241,7 @@ export class StudentService {
                         if (existingFee) {
                             throw new Error('Student already enrolled in this batch');
                         }
-                        // If enrolled but no Fee, we proceed to create Fee (Fix consistency)                // If enrolled but no Fee, we proceed to create Fee (Fix consistency)
+                        // If enrolled but no Fee, we proceed to create Fee (Fix consistency)
                     } else {
                         // Check capacity
                         if (batch.activeEnrollmentCount >= batch.capacity) {

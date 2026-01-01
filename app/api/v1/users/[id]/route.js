@@ -109,9 +109,9 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        // Prevent deleting super_admin if not super_admin
-        if (user.role === "super_admin" && session.user.role !== "super_admin") {
-            return NextResponse.json({ error: "Insufficient permissions to delete super_admin" }, { status: 403 });
+        // Prevent deleting super_admin (Even by other super_admins, for safety, or at least redundant check)
+        if (user.role === "super_admin") {
+            return NextResponse.json({ error: "Cannot delete a super_admin account" }, { status: 403 });
         }
 
         // Special handling for Students: Hard Delete via Service

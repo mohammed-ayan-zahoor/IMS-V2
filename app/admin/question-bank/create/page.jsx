@@ -108,7 +108,6 @@ export default function CreateQuestionPage() {
         } catch (error) {
             console.error(error);
             toast.error("Error creating question");
-        } finally {
             setLoading(false);
         }
     };

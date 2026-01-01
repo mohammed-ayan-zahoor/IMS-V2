@@ -82,16 +82,28 @@ async function migrate() {
             { name: 'AuditLog', model: AuditLog }
         ];
 
-        for (const { name, model } of models) {
-            // Find records that DO NOT have an institute field
-            const result = await model.updateMany(
-                { institute: { $exists: false } },
-                { $set: { institute: instituteId } }
-            );
+        const session = await mongoose.startSession();
+        session.startTransaction();
 
-            console.log(`✅ Updated ${result.modifiedCount} ${name} records to Institute: ${instituteId}`);
+        try {
+            for (const { name, model } of models) {
+                // Find records that DO NOT have an institute field
+                const result = await model.updateMany(
+                    { institute: { $exists: false } },
+                    { $set: { institute: instituteId } },
+                    { session }
+                );
+
+                console.log(`✅ Updated ${result.modifiedCount} ${name} records to Institute: ${instituteId}`);
+            }
+
+            await session.commitTransaction();
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
         }
-
         // Step 3: Update usage statistics
         await defaultInstitute.updateUsage();
         console.log('✅ Updated institute usage statistics');
@@ -110,6 +122,9 @@ async function migrate() {
     } finally {
         await mongoose.disconnect();
         console.log('Disconnected from MongoDB');
+        if (process.exitCode === 1) {
+            process.exit(1);
+        }
     }
 }
 

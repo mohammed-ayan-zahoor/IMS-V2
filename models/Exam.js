@@ -20,13 +20,9 @@ const ExamSchema = new Schema({
     // Scheduling
     scheduledAt: { type: Date }, // DEPRECATED: Use schedule.startTime. Kept for legacy queries.
     schedule: {
-        type: {
-            startTime: { type: Date, required: true },
-            endTime: { type: Date, required: true }
-        },
-        required: true
+        startTime: { type: Date, required: true },
+        endTime: { type: Date, required: true }
     },
-
     // Status - USE ENUM INSTEAD OF BOOLEAN
     status: {
         type: String,
@@ -106,25 +102,58 @@ ExamSchema.pre('save', function (next) {
 
 ExamSchema.pre(['findOneAndUpdate', 'updateOne'], async function (next) {
     try {
+        const query = this.getQuery();
         const update = this.getUpdate();
-        const set = update.$set || update;
 
-        // Optimistic check: if update has all fields
-        const newStatus = set.status;
-        const newTotal = set.totalMarks;
-        const newPassing = set.passingMarks;
+        // 1. Fetch the document being updated
+        const doc = await this.model.findOne(query);
 
-        if (newStatus === 'published' || (newTotal !== undefined) || (newPassing !== undefined)) {
-            const doc = await this.model.findOne(this.getQuery());
-            if (!doc) return next();
-
-            const finalStatus = newStatus !== undefined ? newStatus : doc.status;
-            const finalTotal = newTotal !== undefined ? newTotal : doc.totalMarks;
-            const finalPassing = newPassing !== undefined ? newPassing : doc.passingMarks;
-
-            validateTotalMarks(finalStatus, finalTotal);
-            validatePassingMarks(finalPassing, finalTotal);
+        // If document not found, we should fail unless it's an upsert (which we assume false for safety or check options)
+        if (!doc) {
+            // If we want to be strict:
+            return next(new Error("Exam not found for update"));
         }
+
+        // 2. Compute effective values after update
+        // We only care about fields that affect validation: status, totalMarks, passingMarks
+        let finalStatus = doc.status;
+        let finalTotal = doc.totalMarks;
+        let finalPassing = doc.passingMarks;
+
+        // Helper to apply operators
+        const applyUpdate = (operator, field, value) => {
+            if (operator === '$set') {
+                if (field === 'status') finalStatus = value;
+                if (field === 'totalMarks') finalTotal = value;
+                if (field === 'passingMarks') finalPassing = value;
+            } else if (operator === '$inc') {
+                if (field === 'totalMarks') finalTotal = (finalTotal || 0) + value;
+                if (field === 'passingMarks') finalPassing = (finalPassing || 0) + value;
+            } else if (operator === '$unset') {
+                if (field === 'status') finalStatus = undefined; // Should fallback to default? Schema default doesn't apply to unset.
+                if (field === 'totalMarks') finalTotal = undefined;
+                if (field === 'passingMarks') finalPassing = undefined;
+            }
+        };
+
+        // Iterate over update object keys
+        for (const key in update) {
+            if (key.startsWith('$')) {
+                // It's an operator like $set, $inc
+                const op = key;
+                const fields = update[key];
+                for (const field in fields) {
+                    applyUpdate(op, field, fields[field]);
+                }
+            } else {
+                // It's a direct assignment (treated as $set in Mongoose 5+, but explicit $set is better)
+                applyUpdate('$set', key, update[key]);
+            }
+        }
+
+        // 3. Validation
+        validateTotalMarks(finalStatus, finalTotal);
+        validatePassingMarks(finalPassing, finalTotal);
 
         next();
     } catch (error) {

@@ -39,14 +39,19 @@ export default function CreateInstitutePage() {
 
             if (!res.ok) {
                 const contentType = res.headers.get("content-type");
+                let errorMessage = "Failed to create institute. Please try again.";
+
                 if (contentType?.includes("application/json")) {
                     const data = await res.json();
-                    throw new Error(data.error || "Failed to create institute");
+                    // Only use server error if it's a known safe message type
+                    if (data.error && typeof data.error === 'string' && data.error.length < 100) {
+                        errorMessage = data.error;
+                    }
                 } else {
-                    throw new Error("Failed to create institute");
+                    errorMessage = "Failed to create institute. Please check your input.";
                 }
+                throw new Error(errorMessage);
             }
-
             const data = await res.json();
             toast.success("Institute Created Successfully!");
             router.push("/super-admin/institutes");
@@ -103,9 +108,8 @@ export default function CreateInstitutePage() {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Admin Password *</label>
-                        <input name="adminPassword" type="password" required value={formData.adminPassword} onChange={handleChange} className="mt-1 block w-full border rounded p-2" minLength={6} />
-                    </div>
-                </div>
+                        <input name="adminPassword" type="password" required value={formData.adminPassword} onChange={handleChange} className="mt-1 block w-full border rounded p-2" minLength={12} />
+                    </div>                </div>
 
                 <div className="pt-4">
                     <button

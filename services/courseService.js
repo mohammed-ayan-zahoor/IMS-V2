@@ -100,13 +100,8 @@ export class BatchService {
 
         Object.keys(data).forEach(key => {
             if (allowedFields.includes(key)) {
-                if (key === 'description') {
-                    sanitizedData.schedule = { ...sanitizedData.schedule, description: data[key] };
-                } else if (key === 'startDate') {
-                    sanitizedData.schedule = { ...sanitizedData.schedule, startDate: data[key] };
-                } else if (key === 'endDate') {
-                    sanitizedData.schedule = { ...sanitizedData.schedule, endDate: data[key] };
-                } else if (key === 'schedule') {
+                if (key === 'schedule') {
+                    // Process schedule first, top-level fields will override below
                     sanitizedData.schedule = { ...sanitizedData.schedule, ...data[key] };
                 } else {
                     sanitizedData[key] = data[key];
@@ -115,6 +110,10 @@ export class BatchService {
             }
         });
 
+        // Apply top-level convenience fields after schedule, giving them precedence
+        if (data.description !== undefined) sanitizedData.schedule = { ...sanitizedData.schedule, description: data.description };
+        if (data.startDate !== undefined) sanitizedData.schedule = { ...sanitizedData.schedule, startDate: data.startDate };
+        if (data.endDate !== undefined) sanitizedData.schedule = { ...sanitizedData.schedule, endDate: data.endDate };
         if (Object.keys(sanitizedData).length === 0) {
             throw new Error("No valid updatable fields provided");
         }

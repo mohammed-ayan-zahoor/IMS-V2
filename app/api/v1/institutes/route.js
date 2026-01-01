@@ -133,6 +133,10 @@ export async function POST(req) {
 
         } catch (err) {
             await sessionDb.abortTransaction();
+            // Handle MongoDB duplicate key error for institute code (TOCTOU race)
+            if (err.code === 11000 && (err.keyPattern?.code || err.message?.includes("code"))) {
+                return NextResponse.json({ error: "Institute Code already exists" }, { status: 400 });
+            }
             throw err;
         } finally {
             sessionDb.endSession();

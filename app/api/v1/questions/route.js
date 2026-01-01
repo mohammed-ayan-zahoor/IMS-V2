@@ -91,6 +91,38 @@ export async function POST(req) {
             return NextResponse.json({ error: "Invalid difficulty" }, { status: 400 });
         }
 
+        // Marks Validation
+        const marks = Number(body.marks);
+        if (isNaN(marks) || marks <= 0) {
+            return NextResponse.json({ error: "Marks must be a positive number" }, { status: 400 });
+        }
+
+        // Answer Validation
+        let validatedAnswer = body.correctAnswer;
+        if (body.type === 'mcq') {
+            const index = Number(body.correctAnswer);
+            // Options must allow array check
+            const opts = Array.isArray(body.options) ? body.options : [];
+            if (opts.length < 2) {
+                return NextResponse.json({ error: "MCQ must have at least 2 options" }, { status: 400 });
+            }
+            if (isNaN(index) || index < 0 || index >= opts.length) {
+                return NextResponse.json({ error: "MCQ answer must be a valid option index" }, { status: 400 });
+            }
+            validatedAnswer = String(index);
+        } else if (body.type === 'true_false') {
+            const val = String(body.correctAnswer).toLowerCase();
+            if (val !== 'true' && val !== 'false') {
+                return NextResponse.json({ error: "True/False answer must be 'true' or 'false'" }, { status: 400 });
+            }
+            validatedAnswer = val;
+        } else if (['short_answer', 'essay'].includes(body.type)) {
+            if (!body.correctAnswer || typeof body.correctAnswer !== 'string' || !body.correctAnswer.trim()) {
+                return NextResponse.json({ error: "Correct answer text is required" }, { status: 400 });
+            }
+            validatedAnswer = body.correctAnswer.trim();
+        }
+
         // Whitelist sanitation
         const safeData = {
             text: body.text,
@@ -98,9 +130,9 @@ export async function POST(req) {
             subject: body.subject,
             classLevel: body.classLevel,
             difficulty: body.difficulty,
-            options: body.options || [],
-            correctAnswer: body.correctAnswer,
-            marks: Number(body.marks),
+            options: Array.isArray(body.options) ? body.options : [],
+            correctAnswer: validatedAnswer,
+            marks: marks,
             explanation: body.explanation,
             tags: Array.isArray(body.tags) ? body.tags : [],
             institute: scope.instituteId,

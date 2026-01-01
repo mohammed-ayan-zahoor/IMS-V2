@@ -12,8 +12,8 @@ const AttendanceRecordSchema = new Schema({
 });
 
 const AttendanceSchema = new Schema({
-    institute: { type: Schema.Types.ObjectId, ref: 'Institute', required: true }, date: { type: Date, required: true, index: true },
-    batch: {
+    institute: { type: Schema.Types.ObjectId, ref: 'Institute', required: true },
+    date: { type: Date, required: true, index: true }, batch: {
         type: Schema.Types.ObjectId,
         ref: 'Batch',
         required: true,

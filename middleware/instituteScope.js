@@ -41,19 +41,20 @@ export function addInstituteFilter(filter, scope) {
         throw new Error("Institute Context Missing");
     }
 
+    // Default to empty object if filter is invalid to prevent spread errors
+    const safeFilter = (filter && typeof filter === 'object') ? filter : {};
+
     return {
-        ...filter,
+        ...safeFilter,
         institute: scope.instituteId
     };
 }
 /**
  * Validate user can access resource from their institute
  */
-export async function validateInstituteAccess(resource, scope) {
+export function validateInstituteAccess(resource, scope) {
     if (!resource) {
         // Fail closed: If resource is missing/null, deny access by default.
-        // Caller should handle 404s before calling this security check.
-        // If there are specific cases where null resource means "global access", handle them explicitly here.
         return false;
     }
     if (!scope) return false;
@@ -68,10 +69,11 @@ export async function validateInstituteAccess(resource, scope) {
         return false;
     }
 
-    const resourceInstituteId = resource.institute.toString();
+    const resourceInstituteId = String(resource.institute);
+    const scopeInstituteId = String(scope.instituteId);
 
-    if (resourceInstituteId !== scope.instituteId) {
-        console.warn(`Access denied: Tenant Mismatch. User: ${scope.instituteId}, Resource: ${resourceInstituteId}`);
+    if (resourceInstituteId !== scopeInstituteId) {
+        console.warn(`Access denied: Tenant Mismatch. User: ${scopeInstituteId}, Resource: ${resourceInstituteId}`);
         return false;
     }
 

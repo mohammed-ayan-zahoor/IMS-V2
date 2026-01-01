@@ -54,9 +54,7 @@ const FeeSchema = new Schema({
 }, { timestamps: true });
 
 // Compound index
-FeeSchema.index({ student: 1, batch: 1 }, { unique: true });
-FeeSchema.index({ institute: 1, student: 1, batch: 1 });
-
+FeeSchema.index({ institute: 1, student: 1, batch: 1 }, { unique: true });
 // Pre-save hook to calculate balances
 FeeSchema.pre('save', async function () {
     // Validate installment amounts sum
