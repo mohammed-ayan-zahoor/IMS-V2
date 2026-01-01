@@ -27,11 +27,26 @@ const ExamSchema = new mongoose.Schema({
     },
     totalMarks: {
         type: Number,
-        default: 0
+        default: 0,
+        validate: {
+            validator: function (v) {
+                if (this.status === 'published') {
+                    return v > 0;
+                }
+                return true;
+            },
+            message: "Total marks must be greater than 0 for published exams"
+        }
     },
     passingMarks: {
         type: Number,
-        required: [true, "Passing marks is required"]
+        required: [true, "Passing marks is required"],
+        validate: {
+            validator: function (v) {
+                return v <= this.totalMarks;
+            },
+            message: "Passing marks cannot exceed total marks"
+        }
     },
     scheduledAt: {
         type: Date,

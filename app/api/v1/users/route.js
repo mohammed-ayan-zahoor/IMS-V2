@@ -65,47 +65,72 @@ export async function POST(req) {
             return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
-        /* 
-         * Transactions require a replica set. For standalone/dev environments,
-         * we run these sequentially. 
-         */
+        // Check if transactions are supported (Replica Set)
+        const isReplicaSet = mongoose.connection.client.topology?.s?.options?.replSet;
 
-        // 1. Create User
-        const createdUser = await User.create({
-            email: normalizedEmail,
-            passwordHash,
-            role: body.role,
-            profile: {
-                firstName: body.firstName,
-                lastName: body.lastName,
-                phone: body.phone,
+        if (isReplicaSet) {
+            const session = await mongoose.startSession();
+            session.startTransaction();
+            try {
+                // 1. Create User
+                const createdUser = await User.create([userPayload], { session });
+
+                // 2. Audit Log
+                await AuditLog.create([{
+                    actor: session.user.id,
+                    action: 'user.create',
+                    resource: { type: 'User', id: createdUser[0]._id },
+                    details: {
+                        role: body.role,
+                        name: `${body.firstName} ${body.lastName}`,
+                        email: normalizedEmail
+                    },
+                    ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+                    userAgent: req.headers.get('user-agent') || 'unknown'
+                }], { session });
+
+                await session.commitTransaction();
+
+                // Prepare response object from the array result
+                const userObj = createdUser[0].toObject();
+                delete userObj.passwordHash;
+                return NextResponse.json({ user: userObj }, { status: 201 });
+
+            } catch (error) {
+                await session.abortTransaction();
+                throw error; // Re-throw to be caught by outer catch
+            } finally {
+                session.endSession();
             }
-        });
+        } else {
+            // Standalone / Dev Fallback (Non-Atomic)
+            // 1. Create User
+            const createdUser = await User.create(userPayload);
 
-        // 2. Audit Log (Best effort)
-        try {
-            await AuditLog.create({
-                actor: session.user.id,
-                action: 'user.create',
-                resource: { type: 'User', id: createdUser._id },
-                details: {
-                    role: body.role,
-                    name: `${body.firstName} ${body.lastName}`,
-                    email: normalizedEmail
-                },
-                ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
-                userAgent: req.headers.get('user-agent') || 'unknown'
-            });
-        } catch (auditError) {
-            console.error("Audit log creation failed:", auditError);
-            // We don't fail the request if audit log fails, but we should log it.
+            // 2. Audit Log (Best effort)
+            try {
+                await AuditLog.create({
+                    actor: session.user.id,
+                    action: 'user.create',
+                    resource: { type: 'User', id: createdUser._id },
+                    details: {
+                        role: body.role,
+                        name: `${body.firstName} ${body.lastName}`,
+                        email: normalizedEmail
+                    },
+                    ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+                    userAgent: req.headers.get('user-agent') || 'unknown'
+                });
+            } catch (auditError) {
+                console.error("Audit log creation failed:", auditError);
+                // In strict compliance mode, we might want to delete the user if audit fails,
+                // but for this fallback, we'll log the critical error.
+            }
+
+            const userObj = createdUser.toObject();
+            delete userObj.passwordHash;
+            return NextResponse.json({ user: userObj }, { status: 201 });
         }
-
-        // Remove password from response
-        const userObj = createdUser.toObject();
-        delete userObj.passwordHash;
-
-        return NextResponse.json({ user: userObj }, { status: 201 });
 
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

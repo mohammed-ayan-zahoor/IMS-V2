@@ -22,8 +22,12 @@ import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
 import { format } from "date-fns";
+import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 export default function BatchesPage() {
+    const toast = useToast();
+    const confirm = useConfirm();
     const [batches, setBatches] = useState([]);
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -65,16 +69,18 @@ export default function BatchesPage() {
 
 
     const handleDeleteBatch = async (id) => {
-        if (!confirm("Are you sure you want to delete this batch?")) return;
+        if (!await confirm({ title: "Delete Batch?", message: "Are you sure you want to delete this batch?", type: "danger" })) return;
         try {
             const res = await fetch(`/api/v1/batches/${id}`, { method: "DELETE" });
             if (res.ok) {
+                toast.success("Batch deleted successfully");
                 fetchInitialData();
             } else {
-                alert("Failed to delete batch");
+                toast.error("Failed to delete batch");
             }
         } catch (error) {
             console.error(error);
+            toast.error("Error deleting batch");
         }
     };
 
@@ -115,12 +121,14 @@ export default function BatchesPage() {
                 setEditingBatch(null);
                 setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
                 fetchInitialData();
+                toast.success(editingBatch ? "Batch updated successfully" : "Batch created successfully");
             } else {
                 const error = await res.json();
-                alert(error.error || "Operation failed");
+                toast.error(error.error || "Operation failed");
             }
         } catch (err) {
             console.error(err);
+            toast.error("Operation failed");
         }
     };
 
@@ -259,12 +267,12 @@ export default function BatchesPage() {
                         <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Select Course</label>
                         <Select
                             value={formData.course}
-                            onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                            onChange={(val) => setFormData(prev => ({ ...prev, course: val }))}
                             placeholder="-- Select a Course --"
                             options={[
-                                { label: "-- Select a Course --", value: "" },
                                 ...courses.map(course => ({ label: `${course.name} (${course.code})`, value: course._id }))
                             ]}
+                            required
                         />
                     </div>
 

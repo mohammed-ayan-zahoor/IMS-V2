@@ -28,8 +28,6 @@ export default function LoginPage() {
                 redirect: false,
             });
 
-            console.log("=> Login Response:", res);
-
             if (!res) {
                 setError("No response from authentication server");
                 setLoading(false);
@@ -38,13 +36,11 @@ export default function LoginPage() {
 
             // If NextAuth says ok, we ignore the error string and proceed
             if (res.ok) {
-                console.log("=> Login OK! Proceeding to dashboard...");
                 router.push("/dashboard");
                 return;
             }
 
             if (res.error) {
-                console.error("=> Login Error:", res.error);
                 // Handle the case where error is the string "undefined" or null
                 // Also handle "CredentialsSignin" which is the default NextAuth error for auth failure
                 const displayError = (res.error === "undefined" || !res.error || res.error === "CredentialsSignin")

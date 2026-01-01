@@ -57,7 +57,7 @@ export class FeeService {
 
     static async recordPayment(feeId, installmentId, paymentDetails, actorId) {
         await connectDB();
-        const fee = await FeeDb.findById(feeId);
+        const fee = await FeeDb.findById(feeId).populate('student');
         if (!fee) throw new Error("Fee record not found");
 
         let savedAmount = 0;
@@ -76,7 +76,11 @@ export class FeeService {
             installment.notes = paymentDetails.notes;
 
             savedAmount = installment.amount;
-            details = { installmentId, amount: savedAmount };
+            details = {
+                name: `${fee.student?.profile?.firstName} ${fee.student?.profile?.lastName}`,
+                installmentId,
+                amount: savedAmount
+            };
         }
         // 2. Ad-hoc Payment (Waterfall or New)
         else {
@@ -114,7 +118,12 @@ export class FeeService {
                         status: 'pending'
                     });
                 }
-                details = { type: 'ad-hoc', amount: amountToPay, balanceCreated: balance };
+                details = {
+                    name: `${fee.student?.profile?.firstName} ${fee.student?.profile?.lastName}`,
+                    type: 'ad-hoc',
+                    amount: amountToPay,
+                    balanceCreated: balance
+                };
             }
             // If we HAVE installments -> Waterfall
             else {
@@ -172,7 +181,11 @@ export class FeeService {
                     // Let's throw if amount > 1st pending installment + epsilon
                     throw new Error(`Payment amount (${amountToPay}) exceeds current pending installment (${current.amount}). Please pay installments sequentially.`);
                 }
-                details = { type: 'waterfall', amount: amountToPay };
+                details = {
+                    name: `${fee.student?.profile?.firstName} ${fee.student?.profile?.lastName}`,
+                    type: 'waterfall',
+                    amount: amountToPay
+                };
             }
         }
 

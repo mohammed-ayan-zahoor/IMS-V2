@@ -76,13 +76,17 @@ export default function AuditLogsPage() {
                                                 {log.resource?.type}
                                                 {log.details?.name && <span className="text-slate-500 font-normal"> • {log.details.name}</span>}
                                             </span>
-                                            {log.details && (
-                                                <p className="text-xs text-slate-500 max-w-md truncate" title={JSON.stringify(log.details, null, 2)}>
-                                                    {Object.entries(log.details)
-                                                        .filter(([k]) => k !== 'name' && k !== 'role') // simple filter to avoid redundancy
-                                                        .map(([k, v]) => `${k}: ${v}`).join(", ") || (log.details.email || JSON.stringify(log.details))}
-                                                </p>
-                                            )}
+                                            {log.details && typeof log.details === 'object' && !Array.isArray(log.details) && (() => {
+                                                const filteredDetails = Object.entries(log.details)
+                                                    .filter(([k]) => k !== 'name' && k !== 'role')
+                                                    .map(([k, v]) => `${k}: ${v}`)
+                                                    .join(", ");
+                                                return filteredDetails ? (
+                                                    <p className="text-xs text-slate-500 max-w-md truncate" title={filteredDetails}>
+                                                        {filteredDetails}
+                                                    </p>
+                                                ) : null;
+                                            })()}
                                         </div>
                                     </td>
                                 </tr>

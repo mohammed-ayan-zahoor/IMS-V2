@@ -39,6 +39,6 @@ const AuditLogSchema = new Schema({
 AuditLogSchema.index({ actor: 1, createdAt: -1 });
 AuditLogSchema.index({ action: 1, createdAt: -1 });
 AuditLogSchema.index({ 'resource.type': 1, 'resource.id': 1 });
-AuditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 }); // 90 days retention
+AuditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: (parseInt(process.env.AUDIT_LOG_RETENTION_DAYS) || 90) * 24 * 60 * 60 }); // Customizable retention
 
 export default mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);

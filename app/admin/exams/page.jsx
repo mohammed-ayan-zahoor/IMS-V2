@@ -8,8 +8,12 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 export default function ExamListPage() {
+    const toast = useToast();
+    const confirm = useConfirm();
     const [exams, setExams] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("upcoming"); // upcoming, closed
@@ -32,19 +36,25 @@ export default function ExamListPage() {
     };
 
     const handleDelete = async (id) => {
-        if (!confirm("Are you sure you want to delete this exam?")) return;
-
-        try {
-            const res = await fetch(`/api/v1/exams/${id}`, {
-                method: "DELETE"
-            });
-            if (res.ok) {
-                setExams(exams.filter(e => e._id !== id));
-            } else {
-                alert("Failed to delete exam");
+        if (await confirm({
+            title: "Delete Exam?",
+            message: "Are you sure you want to delete this exam? This action cannot be undone.",
+            type: "danger"
+        })) {
+            try {
+                const res = await fetch(`/api/v1/exams/${id}`, {
+                    method: "DELETE"
+                });
+                if (res.ok) {
+                    setExams(exams.filter(e => e._id !== id));
+                    toast.success("Exam deleted successfully");
+                } else {
+                    toast.error("Failed to delete exam");
+                }
+            } catch (error) {
+                console.error("Delete failed", error);
+                toast.error("Error deleting exam");
             }
-        } catch (error) {
-            console.error("Delete failed", error);
         }
     };
 

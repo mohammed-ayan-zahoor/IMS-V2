@@ -8,9 +8,11 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function CreateExamPage() {
     const router = useRouter();
+    const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [courses, setCourses] = useState([]);
     const [batches, setBatches] = useState([]); // All batches
@@ -67,7 +69,7 @@ export default function CreateExamPage() {
 
     const handleSubmit = async () => {
         if (!formData.title || !formData.course) {
-            alert("Please fill in basic exam details.");
+            toast.warning("Please fill in basic exam details.");
             return;
         }
 
@@ -86,15 +88,16 @@ export default function CreateExamPage() {
 
             if (res.ok) {
                 const data = await res.json();
+                toast.success("Exam created! Now add some questions.");
                 // Redirect to Manage Page to add questions
                 router.push(`/admin/exams/${data.exam._id}/manage`);
             } else {
                 const err = await res.json();
-                alert(err.error || "Failed to create exam");
+                toast.error(err.error || "Failed to create exam");
             }
         } catch (error) {
             console.error(error);
-            alert("Something went wrong");
+            toast.error("Something went wrong");
         } finally {
             setLoading(false);
         }

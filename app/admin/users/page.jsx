@@ -7,17 +7,24 @@ import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { User, Shield, UserCog, Mail, Phone, Plus, Search, Trash2 } from "lucide-react";
+import { User, Shield, UserCog, Mail, Phone, Plus, Search, Trash2, Lock } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import Select from "@/components/ui/Select";
 
 export default function UserManagementPage() {
     const toast = useToast();
+    const confirm = useConfirm();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [activeTab, setActiveTab] = useState("students"); // 'students' or 'admins'
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+    // Password Change State
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [newPassword, setNewPassword] = useState("");
 
     // Form State
     const [formData, setFormData] = useState({
@@ -96,8 +103,57 @@ export default function UserManagementPage() {
     };
 
     const handleDeleteUser = async (userId) => {
-        if (!confirm("Are you sure? This will soft-delete the user.")) return;
-        alert("Delete functionality requires specific endpoint implementation (TODO by agent).");
+        if (await confirm({
+            title: "Delete User?",
+            message: "This will soft-delete the user and remove their access. Are you sure?",
+            type: "danger"
+        })) {
+            try {
+                const res = await fetch(`/api/v1/users/${userId}`, { method: "DELETE" });
+                if (res.ok) {
+                    toast.success("User deactivated successfully");
+                    fetchUsers();
+                } else {
+                    const err = await res.json();
+                    toast.error(err.error || "Failed to delete user");
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error("An error occurred");
+            }
+        }
+    };
+
+    const openPasswordModal = (user) => {
+        setSelectedUser(user);
+        setNewPassword("");
+        setIsPasswordModalOpen(true);
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        if (!selectedUser) return;
+
+        try {
+            const res = await fetch(`/api/v1/users/${selectedUser._id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: newPassword })
+            });
+
+            if (res.ok) {
+                toast.success("Password updated successfully");
+                setIsPasswordModalOpen(false);
+                setNewPassword("");
+                setSelectedUser(null);
+            } else {
+                const err = await res.json();
+                toast.error(err.error || "Failed to update password");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("An error occurred");
+        }
     };
 
     const filteredUsers = useMemo(() => users.filter(u => {
@@ -207,6 +263,16 @@ export default function UserManagementPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             {/* Actions */}
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    onClick={() => openPasswordModal(user)}
+                                                    className="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 shadow-sm px-4 font-medium"
+                                                >
+                                                    <Lock key="lock-icon" size={14} className="mr-2 text-slate-400" /> Password
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -243,6 +309,28 @@ export default function UserManagementPage() {
                     <div className="flex justify-end gap-2 pt-4">
                         <Button type="button" variant="ghost" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
                         <Button type="submit">Create User</Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Change Password Modal */}
+            <Modal title="Change Password" isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)}>
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                    <div className="bg-slate-50 p-3 rounded-lg text-sm text-slate-600 mb-4">
+                        Changing password for <strong>{selectedUser?.profile?.firstName} {selectedUser?.profile?.lastName}</strong> ({selectedUser?.email})
+                    </div>
+                    <Input
+                        label="New Password"
+                        type="password"
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        placeholder="Enter new password"
+                    />
+                    <div className="flex justify-end gap-2 pt-4">
+                        <Button type="button" variant="ghost" onClick={() => setIsPasswordModalOpen(false)}>Cancel</Button>
+                        <Button type="submit" variant="primary">Update Password</Button>
                     </div>
                 </form>
             </Modal>

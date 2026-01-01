@@ -19,8 +19,10 @@ import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function CoursesPage() {
+    const toast = useToast();
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -68,12 +70,14 @@ export default function CoursesPage() {
                 setIsAddModalOpen(false);
                 setFormData({ name: "", code: "", description: "", duration: "", fees: { amount: "", currency: "INR" } });
                 fetchCourses();
+                toast.success("Course created successfully");
             } else {
                 const error = await res.json();
-                alert(error.error || "Failed to create course");
+                toast.error(error.error || "Failed to create course");
             }
         } catch (err) {
             console.error(err);
+            toast.error("Failed to create course");
         }
     };
 

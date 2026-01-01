@@ -29,9 +29,13 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 export default function StudentDetailsPage({ params }) {
     const router = useRouter();
+    const toast = useToast();
+    const confirm = useConfirm();
     const { id } = use(params);
 
     const [studentData, setStudentData] = useState(null);
@@ -176,13 +180,13 @@ export default function StudentDetailsPage({ params }) {
                 setSelectedBatch("");
                 setSelectedCourse("");
                 fetchStudentDetails();
-                alert("Student enrolled successfully!");
+                toast.success("Student enrolled successfully!");
             } else {
                 const err = await res.json();
-                alert(err.error || "Failed to enroll student");
+                toast.error(err.error || "Failed to enroll student");
             }
         } catch (error) {
-            alert("Enrollment failed");
+            toast.error("Enrollment failed");
         } finally {
             setIsEnrolling(false);
         }
@@ -213,38 +217,42 @@ export default function StudentDetailsPage({ params }) {
             if (res.ok) {
                 setIsPayModalOpen(false);
                 fetchStudentDetails();
-                alert("Payment recorded successfully!");
+                toast.success("Payment recorded successfully!");
             } else {
                 const err = await res.json();
-                alert(err.error || "Failed to record payment");
+                toast.error(err.error || "Failed to record payment");
             }
         } catch (error) {
-            alert("Payment failed");
+            toast.error("Payment failed");
         }
     };
 
 
     const handleDeleteStudent = async () => {
-        if (!confirm("Are you sure you want to permanently delete this student? This action cannot be undone.")) return;
+        if (await confirm({
+            title: "Delete Student?",
+            message: "Are you sure you want to permanently delete this student? This action cannot be undone.",
+            type: "danger"
+        })) {
+            try {
+                setIsDeleting(true);
+                const res = await fetch(`/api/v1/students/${id}`, {
+                    method: "DELETE"
+                });
 
-        try {
-            setIsDeleting(true);
-            const res = await fetch(`/api/v1/students/${id}`, {
-                method: "DELETE"
-            });
-
-            if (res.ok) {
-                alert("Student deleted successfully");
-                router.push("/admin/students");
-            } else {
-                const err = await res.json();
-                alert(err.error || "Failed to delete student");
+                if (res.ok) {
+                    toast.success("Student deleted successfully");
+                    router.push("/admin/students");
+                } else {
+                    const err = await res.json();
+                    toast.error(err.error || "Failed to delete student");
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error("Failed to delete student");
+            } finally {
+                setIsDeleting(false);
             }
-        } catch (error) {
-            console.error(error);
-            alert("Failed to delete student");
-        } finally {
-            setIsDeleting(false);
         }
     };
 
@@ -260,13 +268,13 @@ export default function StudentDetailsPage({ params }) {
             if (res.ok) {
                 setIsEditModalOpen(false);
                 fetchStudentDetails();
-                alert("Student profile updated successfully!");
+                toast.success("Student profile updated successfully!");
             } else {
                 const err = await res.json();
-                alert(err.error || "Failed to update profile");
+                toast.error(err.error || "Failed to update profile");
             }
         } catch (error) {
-            alert("Update failed");
+            toast.error("Update failed");
         }
     };
 

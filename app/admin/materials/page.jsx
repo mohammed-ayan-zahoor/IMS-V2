@@ -13,7 +13,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
 export default function MaterialsPage() {
-    const { toast } = useToast();
+    const toast = useToast();
     const confirm = useConfirm();
 
     const [materials, setMaterials] = useState([]);

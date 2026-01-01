@@ -8,14 +8,16 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function EditExamPage({ params }) {
     const router = useRouter();
+    const toast = useToast();
     const { id } = use(params);
 
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [courses, setCourses] = useState([]);
-    const [batches, setBatches] = useState([]); // All batches
     const [filteredBatches, setFilteredBatches] = useState([]); // Filtered by course
 
     const [formData, setFormData] = useState({
@@ -60,7 +62,9 @@ export default function EditExamPage({ params }) {
             const exam = examData?.exam;
             if (!exam) {
                 console.error("Exam data not found in response:", examData);
-                throw new Error("Exam not found or invalid response");
+                setError("Exam not found or invalid response");
+                setLoading(false);
+                return;
             }
 
             // Format date for datetime-local input (YYYY-MM-DDTHH:mm)
@@ -99,6 +103,7 @@ export default function EditExamPage({ params }) {
 
         } catch (error) {
             console.error("Failed to fetch data", error);
+            setError("Failed to load exam data");
         } finally {
             setLoading(false);
         }
@@ -115,7 +120,7 @@ export default function EditExamPage({ params }) {
 
     const handleSubmit = async () => {
         if (!formData.title || !formData.course) {
-            alert("Please fill in basic exam details.");
+            toast.warning("Please fill in basic exam details.");
             return;
         }
 
@@ -136,19 +141,32 @@ export default function EditExamPage({ params }) {
             });
 
             if (res.ok) {
-                alert("Exam details updated successfully!");
+                toast.success("Exam details updated successfully!");
                 router.back();
             } else {
                 const err = await res.json();
-                alert(err.error || "Failed to update exam");
+                toast.error(err.error || "Failed to update exam");
             }
         } catch (error) {
             console.error(error);
-            alert("Something went wrong");
+            toast.error("Something went wrong");
         } finally {
             setLoading(false);
         }
     };
+
+    if (error) {
+        return (
+            <div className="max-w-4xl mx-auto p-6">
+                <Card>
+                    <div className="p-6 text-center">
+                        <p className="text-red-600 font-semibold">{error}</p>
+                        <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
 
     if (loading) return <LoadingSpinner fullPage />;
 

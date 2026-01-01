@@ -56,13 +56,12 @@ export async function PATCH(req, { params }) {
         }
 
         // Explicitly set fields
-        if (body.questions) exam.questions = body.questions;
-        if (body.title) exam.title = body.title;
+        if (body.questions !== undefined) exam.questions = body.questions;
+        if (body.title !== undefined) exam.title = body.title;
         if (body.description !== undefined) exam.description = body.description;
-        if (body.status) exam.status = body.status;
+        if (body.status !== undefined) exam.status = body.status;
         if (body.totalMarks !== undefined) exam.totalMarks = body.totalMarks;
         if (body.resultsPublished !== undefined) exam.resultsPublished = body.resultsPublished;
-
         // Handle other fields if necessary
         Object.keys(body).forEach(key => {
             if (!['questions', 'title', 'description', 'status', 'totalMarks', 'resultsPublished', 'deletedAt', 'createdBy', 'course', 'batches'].includes(key)) {
@@ -71,18 +70,16 @@ export async function PATCH(req, { params }) {
         });
 
         await exam.save();
+        await exam.save();
 
-        // Re-fetch populated if needed or return exam
-        // Mongoose save returns the document, but not populated?
-        // Let's populate manually or just return what we have (frontend might need populated questions?)
-        // The frontend only uses `data.exam` to setExam. But setCurrentQuestions uses `data.exam.questions`.
-        // So we MUST return populated questions.
+        // Populate to match GET response structure
+        await exam.populate([
+            { path: "course", select: "name code" },
+            { path: "batches", select: "name" },
+            { path: "questions" }
+        ]);
 
-        // Since safe() might not populate, let's re-fetch.
-        const populatedExam = await Exam.findById(id).populate("questions");
-
-        return NextResponse.json({ success: true, exam: populatedExam });
-
+        return NextResponse.json({ success: true, exam });
     } catch (error) {
         console.error("Update Exam Error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });

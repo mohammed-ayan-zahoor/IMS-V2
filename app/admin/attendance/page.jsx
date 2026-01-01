@@ -18,8 +18,10 @@ import {
     Save,
     Users
 } from "lucide-react";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function AttendanceMarkingPage() {
+    const toast = useToast();
     // Selection State
     const [batches, setBatches] = useState([]);
     const [selectedBatch, setSelectedBatch] = useState("");
@@ -152,14 +154,14 @@ export default function AttendanceMarkingPage() {
             });
 
             if (res.ok) {
-                alert("Attendance saved successfully!");
+                toast.success("Attendance saved successfully!");
                 // Optionally refetch to confirm
                 fetchBatchData();
             } else {
                 throw new Error("Failed to save");
             }
         } catch (error) {
-            alert("Error saving attendance");
+            toast.error("Error saving attendance");
             console.error(error);
         } finally {
             setSaving(false);
@@ -195,7 +197,6 @@ export default function AttendanceMarkingPage() {
                                 onChange={(e) => setSelectedBatch(e.target.value)}
                                 placeholder="-- Choose Batch --"
                                 options={[
-                                    { label: "-- Choose Batch --", value: "" },
                                     ...batches.map(b => ({ label: b.name, value: b._id }))
                                 ]}
                             />
@@ -287,10 +288,21 @@ export default function AttendanceMarkingPage() {
                                                                 <button
                                                                     key={opt.id}
                                                                     onClick={() => handleStatusChange(sId, opt.id)}
-                                                                    className={`p-2 rounded-lg border transition-all ${current.status === opt.id
-                                                                        ? `${opt.bg} ${opt.color} shadow-sm ring-2 ring-offset-1 ring-${opt.color.split('-')[1]}-100`
-                                                                        : 'border-transparent text-slate-300 hover:bg-slate-100 hover:text-slate-400'
-                                                                        }`}
+<button
+    key={opt.id}
+    onClick={() => handleStatusChange(sId, opt.id)}
+    className={`p-2 rounded-lg border transition-all ${
+        current.status === opt.id
+            ? `${opt.bg} ${opt.color} shadow-sm ring-2 ring-offset-1 ${
+                opt.id === 'present' ? 'ring-emerald-100' :
+                opt.id === 'absent' ? 'ring-rose-100' :
+                opt.id === 'late' ? 'ring-amber-100' :
+                'ring-blue-100'
+            }`
+            : 'border-transparent text-slate-300 hover:bg-slate-100 hover:text-slate-400'
+    }`}
+    title={opt.id.charAt(0).toUpperCase() + opt.id.slice(1)}
+>                                                                        }`}
                                                                     title={opt.id.charAt(0).toUpperCase() + opt.id.slice(1)}
                                                                 >
                                                                     <opt.icon size={20} className={current.status === opt.id ? "fill-current opacity-20" : ""} />

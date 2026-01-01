@@ -40,4 +40,7 @@ async function checkExam() {
     }
 }
 
-checkExam();
+checkExam().catch(err => {
+    console.error('Unhandled error:', err);
+    process.exit(1);
+});

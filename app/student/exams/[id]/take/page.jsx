@@ -17,11 +17,15 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 export default function ExamRoomPage() {
     const params = useParams();
     const router = useRouter();
     const { id: examId } = params;
+    const toast = useToast();
+    const confirm = useConfirm();
 
     const [loading, setLoading] = useState(true);
     const [initializing, setInitializing] = useState(false);
@@ -61,7 +65,7 @@ export default function ExamRoomPage() {
             }
             if (!res.ok) {
                 const err = await res.json();
-                alert(err.error || "Access denied");
+                toast.error(err.error || "Access denied");
                 router.push("/student/exams");
                 return;
             }
@@ -130,7 +134,7 @@ export default function ExamRoomPage() {
             startTimers();
 
         } catch (err) {
-            alert(err.message);
+            toast.error(err.message);
             setInitializing(false);
         }
     };
@@ -272,7 +276,7 @@ export default function ExamRoomPage() {
 
     const handleSubmit = async (auto = false) => {
         if (isSubmitting) return;
-        if (!auto && !confirm("Are you sure you want to submit? You cannot undo this action.")) return;
+        if (!auto && !await confirm({ title: "Submit Exam?", message: "Are you sure you want to submit? You cannot undo this action.", type: "warning" })) return;
 
         setIsSubmitting(true);
         try {
@@ -297,7 +301,7 @@ export default function ExamRoomPage() {
             router.replace(`/student/exams/${submissionId}/result`);
 
         } catch (err) {
-            alert("Submission failed! Copy your answers if possible to prevent data loss.");
+            toast.error("Submission failed! Copy your answers if possible to prevent data loss.");
             setIsSubmitting(false);
         }
     };

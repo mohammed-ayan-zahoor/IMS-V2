@@ -24,8 +24,10 @@ import {
 import { format } from "date-fns";
 import Link from "next/link";
 import Select from "@/components/ui/Select";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function StudentsPage() {
+    const toast = useToast();
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -127,12 +129,14 @@ export default function StudentsPage() {
                 setIsAddModalOpen(false);
                 setFormData({ email: "", password: "", profile: { firstName: "", lastName: "", phone: "" } });
                 fetchStudents();
+                toast.success("Student registered successfully");
             } else {
                 const error = await res.json();
-                alert(error.error || "Failed to create student");
+                toast.error(error.error || "Failed to create student");
             }
         } catch (err) {
             console.error(err);
+            toast.error("Failed to create student");
         }
     };
 
@@ -200,15 +204,14 @@ export default function StudentsPage() {
                             />
                         </div>
 
-                        {(filters.courseId || filters.batchId || filters.isActive) && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setFilters({ batchId: "", courseId: "", isActive: "true" })}
-                                className="text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-red-500"
-                            >
-                                Reset
-                            </Button>
+                        {(filters.courseId || filters.batchId || filters.isActive !== "true") && (<Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFilters({ batchId: "", courseId: "", isActive: "true" })}
+                            className="text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-red-500"
+                        >
+                            Reset
+                        </Button>
                         )}
                     </div>
                 </CardHeader>

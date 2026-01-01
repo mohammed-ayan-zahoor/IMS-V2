@@ -20,8 +20,12 @@ import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
 import { format } from "date-fns";
+import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 export default function FeesPage() {
+    const toast = useToast();
+    const confirm = useConfirm();
     const [fees, setFees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -69,7 +73,7 @@ export default function FeesPage() {
         if (payload.installmentId === 'adhoc') {
             delete payload.installmentId; // Remove it so backend sees it as ad-hoc
         } else if (!payload.installmentId) {
-            alert("Please select an installment or choose Ad-hoc Payment");
+            toast.warning("Please select an installment or choose Ad-hoc Payment");
             return;
         }
 
@@ -84,12 +88,14 @@ export default function FeesPage() {
                 setIsPaymentModalOpen(false);
                 setPaymentData({ installmentId: "", amount: "", method: "cash", transactionId: "", notes: "" });
                 fetchFees(); // Refresh list to update balance/status
+                toast.success("Payment recorded successfully");
             } else {
                 const error = await res.json();
-                alert(error.error || "Failed to record payment");
+                toast.error(error.error || "Failed to record payment");
             }
         } catch (err) {
             console.error(err);
+            toast.error("Failed to record payment");
         }
     };
 
@@ -120,7 +126,7 @@ export default function FeesPage() {
                         size="sm"
                         variant="soft"
                         onClick={async () => {
-                            if (!confirm("Create test fee record?")) return;
+                            if (!await confirm({ title: "Seed Test Fee?", message: "Create test fee record?", type: "info" })) return;
                             try {
                                 // 1. Get a student and batch
                                 const [sRes, bRes] = await Promise.all([
@@ -134,7 +140,7 @@ export default function FeesPage() {
                                 const batch = bData.batches?.[0] || bData?.[0];
 
                                 if (!student || !batch) {
-                                    alert("Need at least one student and batch to seed fee.");
+                                    toast.warning("Need at least one student and batch to seed fee.");
                                     return;
                                 }
 
@@ -151,11 +157,14 @@ export default function FeesPage() {
                                         ]
                                     })
                                 });
-                                if (res.ok) fetchFees();
-                                else alert("Failed to seed");
+                                if (res.ok) {
+                                    fetchFees();
+                                    toast.success("Seeded test fee");
+                                }
+                                else toast.error("Failed to seed");
                             } catch (e) {
                                 console.error(e);
-                                alert("Error seeding");
+                                toast.error("Error seeding");
                             }
                         }}
                     >
@@ -298,6 +307,7 @@ export default function FeesPage() {
                                     required
                                 />
                                 <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Payment Method</label>
                                     <Select
                                         value={paymentData.method}
                                         onChange={(e) => setPaymentData({ ...paymentData, method: e.target.value })}

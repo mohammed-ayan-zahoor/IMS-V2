@@ -7,9 +7,11 @@ import Button from "@/components/ui/Button";
 import Card, { CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function CreateQuestionPage() {
     const router = useRouter();
+    const toast = useToast();
     const [loading, setLoading] = useState(false);
 
     // Data state
@@ -99,10 +101,11 @@ export default function CreateQuestionPage() {
 
             if (!res.ok) throw new Error("Failed to create question");
 
+            toast.success("Question created successfully");
             router.push("/admin/question-bank");
         } catch (error) {
             console.error(error);
-            alert("Error creating question");
+            toast.error("Error creating question");
         } finally {
             setLoading(false);
         }

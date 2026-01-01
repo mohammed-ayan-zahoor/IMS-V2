@@ -2,6 +2,8 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { ArrowLeft, Save, Plus, Trash2, CheckCircle, Search, AlertCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -26,6 +28,9 @@ export default function ManageExamPage({ params }) {
     const [selectedBankQuestions, setSelectedBankQuestions] = useState([]);
     const [bankLoading, setBankLoading] = useState(false);
 
+    const toast = useToast();
+    const confirm = useConfirm();
+
     useEffect(() => {
         fetchExam();
     }, [id]);
@@ -33,13 +38,13 @@ export default function ManageExamPage({ params }) {
     const fetchExam = async () => {
         if (!id || id === 'undefined') return;
         try {
-            const res = await fetch(`/api/v1/exams/${id}`, { cache: "no-store" });
-            if (!res.ok) throw new Error("Failed to fetch exam");
+            const res = await fetch(`/api/v1/exams/${id}`); if (!res.ok) throw new Error("Failed to fetch exam");
             const data = await res.json();
             setExam(data.exam);
             setCurrentQuestions(data.exam.questions || []);
         } catch (error) {
             console.error(error);
+            toast.error("Failed to load exam details");
         } finally {
             setLoading(false);
         }
@@ -58,6 +63,7 @@ export default function ManageExamPage({ params }) {
             setBankQuestions(available);
         } catch (error) {
             console.error(error);
+            toast.error("Failed to fetch question bank");
         } finally {
             setBankLoading(false);
         }
@@ -82,10 +88,18 @@ export default function ManageExamPage({ params }) {
         const toAdd = bankQuestions.filter(q => selectedBankQuestions.includes(q._id));
         setCurrentQuestions(prev => [...prev, ...toAdd]);
         setIsAddModalOpen(false);
+        toast.success(`Added ${toAdd.length} questions`);
     };
 
-    const removeQuestion = (qId) => {
-        setCurrentQuestions(prev => prev.filter(q => q._id !== qId));
+    const removeQuestion = async (qId) => {
+        if (await confirm({
+            title: "Remove Question",
+            message: "Are you sure you want to remove this question from the exam?",
+            type: "danger"
+        })) {
+            setCurrentQuestions(prev => prev.filter(q => q._id !== qId));
+            toast.info("Question removed");
+        }
     };
 
     const handleSave = async (newStatus = null, toggleResults = null) => {
@@ -104,8 +118,6 @@ export default function ManageExamPage({ params }) {
                 payload.resultsPublished = toggleResults;
             }
 
-            console.log("DEBUG: Sending Save Payload:", payload);
-
             const res = await fetch(`/api/v1/exams/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -116,20 +128,20 @@ export default function ManageExamPage({ params }) {
                 const data = await res.json();
                 setExam(data.exam);
                 if (toggleResults !== null) {
-                    alert(toggleResults ? "Results Published! Students can now see their scores." : "Results Unpublished.");
+                    toast.success(toggleResults ? "Results Published! Students can now see their scores." : "Results Unpublished.");
                 } else if (newStatus === 'published') {
-                    alert("Exam Published Successfully!");
+                    toast.success("Exam Published Successfully!");
                 } else {
-                    alert("Changes Saved!");
+                    toast.success("Changes Saved!");
                 }
             } else {
                 const err = await res.json();
-                alert(err.error || "Failed to save");
+                toast.error(err.error || "Failed to save");
                 throw new Error(err.error || "Failed to save");
             }
         } catch (error) {
             console.error(error);
-            alert("Error saving exam");
+            toast.error("Error saving exam");
         } finally {
             setSaving(false);
         }
@@ -175,7 +187,19 @@ export default function ManageExamPage({ params }) {
                     {exam.status === 'draft' && (
                         <Button
                             className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20"
-                            onClick={() => handleSave('published')}
+                            onClick={async () => {
+                                if (currentQuestions.length === 0) {
+                                    toast.error("Add questions before publishing");
+                                    return;
+                                }
+                                if (await confirm({
+                                    title: "Publish Exam?",
+                                    message: "Once published, students will be able to see this exam. Are you sure?",
+                                    type: "info"
+                                })) {
+                                    handleSave('published');
+                                }
+                            }}
                             disabled={saving || currentQuestions.length === 0}
                         >
                             <CheckCircle size={18} className="mr-2" />
@@ -274,34 +298,43 @@ export default function ManageExamPage({ params }) {
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 className="max-w-4xl"
+                title="Add Questions from Bank"
             >
-                <div className="space-y-4 min-h-[50vh] max-h-[70vh] overflow-y-auto pr-2">
-                    {bankLoading ? (
-                        <LoadingSpinner />
-                    ) : bankQuestions.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500">No available questions found.</div>
-                    ) : (
-                        bankQuestions.map(q => (
-                            <div
-                                key={q._id}
-                                onClick={() => handleSelectQuestion(q._id)}
-                                className={`p-3 rounded-xl border cursor-pointer transition-all flex gap-3 ${selectedBankQuestions.includes(q._id)
-                                    ? "bg-premium-blue/5 border-premium-blue ring-1 ring-premium-blue"
-                                    : "bg-white border-slate-200 hover:border-premium-blue/50"
-                                    }`}
-                            >
-                                <div className={`w-4 h-4 mt-1 rounded-full border flex-shrink-0 flex items-center justify-center ${selectedBankQuestions.includes(q._id) ? "bg-premium-blue border-premium-blue" : "border-slate-300"
-                                    }`}>
-                                    {selectedBankQuestions.includes(q._id) && <CheckCircle size={10} className="text-white" />}
+                <div className="max-h-[60vh] overflow-y-auto space-y-2 p-1">
+                    {bankLoading ? <LoadingSpinner /> : (
+                        bankQuestions.length === 0 ? (
+                            <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                                <div className="bg-slate-50 p-3 rounded-full">
+                                    <Search className="h-6 w-6 text-slate-400" />
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm text-slate-900 font-medium line-clamp-2" dangerouslySetInnerHTML={{ __html: q.text }} />
-                                    <p className="text-xs text-slate-500 mt-1">
-                                        {q.subject} • {q.classLevel} • {q.marks} Marks
-                                    </p>
+                                <div>
+                                    <p className="text-slate-900 font-medium">No questions found</p>
+                                    <p className="text-slate-500 text-sm">Try refreshing or adding questions to the bank.</p>
                                 </div>
                             </div>
-                        ))
+                        ) : (
+                            bankQuestions.map(q => (
+                                <div
+                                    key={q._id}
+                                    onClick={() => handleSelectQuestion(q._id)}
+                                    className={`p-3 rounded-xl border cursor-pointer transition-all flex gap-3 ${selectedBankQuestions.includes(q._id)
+                                        ? "bg-premium-blue/5 border-premium-blue ring-1 ring-premium-blue"
+                                        : "bg-white border-slate-200 hover:border-premium-blue/50"
+                                        }`}
+                                >
+                                    <div className={`w-4 h-4 mt-1 rounded-full border flex-shrink-0 flex items-center justify-center ${selectedBankQuestions.includes(q._id) ? "bg-premium-blue border-premium-blue" : "border-slate-300"
+                                        }`}>
+                                        {selectedBankQuestions.includes(q._id) && <CheckCircle size={10} className="text-white" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm text-slate-900 font-medium line-clamp-2" dangerouslySetInnerHTML={{ __html: q.text }} />
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            {q.subject} • {q.classLevel} • {q.marks} Marks
+                                        </p>
+                                    </div>
+                                </div>
+                            ))
+                        )
                     )}
                 </div>
                 <div className="pt-6 mt-4 border-t border-slate-100 flex justify-end gap-3">
@@ -310,7 +343,7 @@ export default function ManageExamPage({ params }) {
                         Add {selectedBankQuestions.length} Questions
                     </Button>
                 </div>
-            </Modal>
-        </div>
+            </Modal >
+        </div >
     );
 }
