@@ -10,36 +10,49 @@ export default function StudentFeesPage() {
     const [fees, setFees] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const [error, setError] = useState(null);
+    if (loading) return <LoadingSpinner fullPage />;
 
-    useEffect(() => {
-        const controller = new AbortController();
-        const fetchFees = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await fetch("/api/v1/student/fees", { signal: controller.signal });
-                if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
-                const data = await res.json();
-                if (!controller.signal.aborted) {
-                    setFees(data.fees || []);
-                }
-            } catch (error) {
-                if (error.name !== "AbortError") {
-                    console.error(error);
-                    setError("Unable to load fee details. Please try again later.");
-                }
-            } finally {
-                if (!controller.signal.aborted) {
-                    setLoading(false);
-                }
-            }
-        };
+    if (error) {
+        return (
+            <div className="max-w-5xl mx-auto">
+                <div className="py-20 text-center">
+                    <AlertCircle size={48} className="mx-auto mb-4 text-rose-500" />
+                    <p className="text-slate-900 font-semibold mb-2">Error Loading Fees</p>
+                    <p className="text-slate-500">{error}</p>
+                </div>
+            </div>
+        );
+    }
 
-        fetchFees();
+    return (
+        useEffect(() => {
+            const controller = new AbortController();
+            const fetchFees = async () => {
+                setLoading(true);
+                setError(null);
+                try {
+                    const res = await fetch("/api/v1/student/fees", { signal: controller.signal });
+                    if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
+                    const data = await res.json();
+                    if (!controller.signal.aborted) {
+                        setFees(data.fees || []);
+                    }
+                } catch (error) {
+                    if (error.name !== "AbortError") {
+                        console.error(error);
+                        setError("Unable to load fee details. Please try again later.");
+                    }
+                } finally {
+                    if (!controller.signal.aborted) {
+                        setLoading(false);
+                    }
+                }
+            };
 
-        return () => controller.abort();
-    }, []);
+            fetchFees();
+
+            return () => controller.abort();
+        }, []);
 
     if (loading) return <LoadingSpinner fullPage />;
 

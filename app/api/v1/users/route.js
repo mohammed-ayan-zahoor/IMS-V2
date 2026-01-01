@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
@@ -64,36 +65,51 @@ export async function POST(req) {
             return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
-        const newUser = await User.create({
-            email: body.email,
-            passwordHash,
-            role: body.role,
-            profile: {
-                firstName: body.firstName,
-                lastName: body.lastName,
-                phone: body.phone,
-            }
-        });
+        const mongoSession = await mongoose.startSession();
+        mongoSession.startTransaction();
 
-        // Audit Log
-        await AuditLog.create({
-            actor: session.user.id,
-            action: 'user.create',
-            resource: { type: 'User', id: newUser._id },
-            details: {
+        try {
+            const newUser = await User.create([{
+                email: normalizedEmail, // Use normalized email
+                passwordHash,
                 role: body.role,
-                name: `${body.firstName} ${body.lastName}`,
-                email: body.email
-            },
-            ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
-            userAgent: req.headers.get('user-agent') || 'unknown'
-        });
+                profile: {
+                    firstName: body.firstName,
+                    lastName: body.lastName,
+                    phone: body.phone,
+                }
+            }], { session: mongoSession });
 
-        // Remove password from response
-        const userObj = newUser.toObject();
-        delete userObj.passwordHash;
+            const createdUser = newUser[0];
 
-        return NextResponse.json({ user: userObj }, { status: 201 });
+            // Audit Log
+            await AuditLog.create([{
+                actor: session.user.id,
+                action: 'user.create',
+                resource: { type: 'User', id: createdUser._id },
+                details: {
+                    role: body.role,
+                    name: `${body.firstName} ${body.lastName}`,
+                    email: normalizedEmail
+                },
+                ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+                userAgent: req.headers.get('user-agent') || 'unknown'
+            }], { session: mongoSession });
+
+            await mongoSession.commitTransaction();
+
+            // Remove password from response
+            const userObj = createdUser.toObject();
+            delete userObj.passwordHash;
+
+            return NextResponse.json({ user: userObj }, { status: 201 });
+
+        } catch (err) {
+            await mongoSession.abortTransaction();
+            throw err;
+        } finally {
+            mongoSession.endSession();
+        }
 
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

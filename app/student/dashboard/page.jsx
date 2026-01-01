@@ -103,7 +103,7 @@ export default function StudentDashboard() {
     );
 
     // Retry UI if critical error
-    if (error && !loading && data.upcomingExams.length === 0 && data.recentMaterials.length === 0) {
+    if (error && !loading && (!data.upcomingExams || data.upcomingExams.length === 0) && (!data.recentMaterials || data.recentMaterials.length === 0)) {
         return (
             <div className="flex flex-col items-center justify-center p-12 space-y-4">
                 <p className="text-red-500 font-medium">{error}</p>

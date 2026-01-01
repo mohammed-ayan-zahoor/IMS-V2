@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle } from "lucide-react";
 
@@ -43,68 +43,9 @@ export default function StudentMaterialsPage() {
 
     if (loading) return <LoadingSpinner fullPage />;
 
-    // Video Loading Logic
-    const [videoLoading, setVideoLoading] = useState(true);
+    if (loading) return <LoadingSpinner fullPage />;
 
-    useEffect(() => {
-        if (selectedVideo) {
-            setVideoError(false);
-            setVideoLoading(true);
-            const timer = setTimeout(() => {
-                // If still loading after 10s, assume timeout/error
-                // Note: This is an aggressive check, might need tuning. 
-                // However, user requested "short timer".
-                // We check if it HAS NOT loaded yet.
-                // But we can't easily access 'videoLoading' state inside timeout closure perfectly without refs or functional updates if we changed logic.
-                // A cleaner way relies on the 'onLoad' clearing the timeout.
-            }, 5000);
-            // Better strategy: set a timeout ID, clear it on load. 
-            // If timeout fires, set error.
-
-            return () => clearTimeout(timer);
-        }
-    }, [selectedVideo]);
-
-    const handleIframeLoad = () => {
-        setVideoLoading(false);
-    };
-
-    const handleIframeTimeout = () => {
-        if (videoLoading) setVideoError(true);
-    };
-
-    // We need to implement the timeout logic inside the effect properly.
-    // Actually, simple way:
-    // When selectedVideo changes:
-    // 1. setVideoLoading(true), setVideoError(false)
-    // 2. Start timeout: if(stillLoading) setVideoError(true)
-
-    useEffect(() => {
-        let timeoutId;
-        if (selectedVideo) {
-            setVideoLoading(true);
-            setVideoError(false);
-
-            timeoutId = setTimeout(() => {
-                setVideoError((prev) => {
-                    // If we haven't received onLoad event, we might show error or retry.
-                    // But 'onLoad' might fire even for 404 pages. 
-                    // This is a "best effort" fallback as requested.
-                    // Instead of complex state checks, let's just use the timeout to flag "taking too long".
-                    // But we need to know if it finished. 
-                    // Let's rely on a separate ref or just state if we trust updates.
-                    return true;
-                    // Wait, if it loaded, we shouldn't set error.
-                    // We need to check loading state.
-                    // State updates inside timeouts are tricky with closures. 
-                });
-            }, 8000); // 8 seconds timeout
-        }
-        return () => clearTimeout(timeoutId);
-    }, [selectedVideo]);
-
-    // Better approach matching the user request "onLoad handler... start short timer... if onLoad never fires... treat as failure"
-    // I will use a ref to track load status for the timer.
+    // IframeWithFallback handles its own loading state locally now.
 
     return (
         <div className="max-w-7xl mx-auto space-y-6">
@@ -292,15 +233,20 @@ export default function StudentMaterialsPage() {
 // Iframe component with Timeout strategy
 function IframeWithFallback({ src, title, onError }) {
     const [loaded, setLoaded] = useState(false);
+    const onErrorRef = useRef(onError);
+
+    useEffect(() => {
+        onErrorRef.current = onError;
+    }, [onError]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             if (!loaded) {
-                onError();
+                onErrorRef.current();
             }
         }, 5000); // 5 second timeout
         return () => clearTimeout(timer);
-    }, [loaded, onError]);
+    }, [loaded]);
 
     return (
         <iframe

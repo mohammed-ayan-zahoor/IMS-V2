@@ -52,19 +52,26 @@ export async function POST(req) {
         });
 
         // Audit Log
-        await AuditLog.create({
-            actor: session.user.id,
-            action: 'exam.create',
-            resource: { type: 'Exam', id: exam._id },
-            details: {
-                title: exam.title,
-                course: exam.course,
-                batches: exam.batches,
-                totalMarks: exam.totalMarks
-            },
-            ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
-            userAgent: req.headers.get('user-agent') || 'unknown'
-        });
+        try {
+            const ipHeader = req.headers.get('x-forwarded-for') || '';
+            const ipAddress = ipHeader.split(',')[0].trim() || 'unknown';
+
+            await AuditLog.create({
+                actor: session.user.id,
+                action: 'exam.create',
+                resource: { type: 'Exam', id: exam._id },
+                details: {
+                    title: exam.title,
+                    course: exam.course,
+                    batches: exam.batches,
+                    totalMarks: exam.totalMarks
+                },
+                ipAddress,
+                userAgent: req.headers.get('user-agent') || 'unknown'
+            });
+        } catch (auditError) {
+            console.error("Audit Log Error (Exam Create):", auditError);
+        }
 
         return NextResponse.json({ success: true, exam }, { status: 201 });
 

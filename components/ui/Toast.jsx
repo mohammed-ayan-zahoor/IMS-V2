@@ -47,11 +47,12 @@ export default function Toast({ id, type, message, onDismiss }) {
             <div className="flex-shrink-0">{icons[type] || icons.info}</div>
             <div className="flex-1 text-sm font-medium text-slate-700">{message}</div>
             <button
+                type="button"
+                aria-label="Dismiss notification"
                 onClick={handleDismiss}
                 className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
             >
                 <X size={16} />
-            </button>
-        </div>
+            </button>        </div>
     );
 }
