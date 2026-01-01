@@ -84,12 +84,8 @@ const ExamSchema = new mongoose.Schema({
 
 // Auto-calculate total marks before save
 // Note: This logic now requires population or explicit totalMarks setting since questions are references
-ExamSchema.pre('save', async function (next) {
-    // If questions are modified, we might want to recalculate totalMarks
-    // but we can't easily do sync populate here. 
-    // It's better to handle calculation at the Controller level when adding questions.
-    next();
-});
+// Auto-calculate total marks before save was removed as it caused issues
+// Total marks are now handled at the controller level
 
 // Safe export for Next.js hot reloading
 if (process.env.NODE_ENV !== 'production') delete mongoose.models.Exam;

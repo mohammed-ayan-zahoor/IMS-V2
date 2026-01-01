@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Search, Filter, Plus, FileText, Video, Link as LinkIcon, Download, Trash2, Edit, X } from "lucide-react";
+import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -199,14 +200,17 @@ export default function MaterialsPage() {
 
             {/* Filters */}
             <div className="flex gap-4 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                <select
-                    className="bg-slate-50 border-none rounded-lg px-4 py-2 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-premium-blue/20"
-                    value={selectedCourse}
-                    onChange={(e) => setSelectedCourse(e.target.value)}
-                >
-                    <option value="">All Courses</option>
-                    {courses.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                </select>
+                <div className="w-48">
+                    <Select
+                        value={selectedCourse}
+                        onChange={(e) => setSelectedCourse(e.target.value)}
+                        placeholder="All Courses"
+                        options={[
+                            { label: "All Courses", value: "" },
+                            ...courses.map(c => ({ label: c.name, value: c._id }))
+                        ]}
+                    />
+                </div>
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
@@ -325,30 +329,30 @@ export default function MaterialsPage() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Type</label>
-                                    <select
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none"
+                                    <Select
+                                        label="Type"
                                         value={formData.fileType}
                                         onChange={(e) => setFormData({ ...formData, fileType: e.target.value })}
-                                    >
-                                        <option value="pdf">PDF Document</option>
-                                        <option value="video">Video URL</option>
-                                        <option value="image">Image</option>
-                                        <option value="doc">Word Doc</option>
-                                        <option value="other">Other Link</option>
-                                    </select>
+                                        options={[
+                                            { label: "PDF Document", value: "pdf" },
+                                            { label: "Video URL", value: "video" },
+                                            { label: "Image", value: "image" },
+                                            { label: "Word Doc", value: "doc" },
+                                            { label: "Other Link", value: "other" }
+                                        ]}
+                                    />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
-                                    <select
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none"
+                                    <Select
+                                        label="Category"
                                         value={formData.category}
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                    >
-                                        <option value="lecture">Lecture Note</option>
-                                        <option value="assignment">Assignment</option>
-                                        <option value="reference">Reference</option>
-                                    </select>
+                                        options={[
+                                            { label: "Lecture Note", value: "lecture" },
+                                            { label: "Assignment", value: "assignment" },
+                                            { label: "Reference", value: "reference" }
+                                        ]}
+                                    />
                                 </div>
                             </div>
 
@@ -423,15 +427,15 @@ export default function MaterialsPage() {
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Course</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none"
+                                <Select
+                                    label="Course"
                                     value={formData.course}
                                     onChange={(e) => setFormData({ ...formData, course: e.target.value, batches: [] })}
-                                >
-                                    <option value="">Select Course</option>
-                                    {courses.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                                </select>
+                                    options={[
+                                        { label: "Select Course", value: "" },
+                                        ...courses.map(c => ({ label: c.name, value: c._id }))
+                                    ]}
+                                />
                             </div>
 
                             {formData.course && (

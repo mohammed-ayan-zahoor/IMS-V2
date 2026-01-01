@@ -11,6 +11,7 @@ import {
     Clock,
     DollarSign
 } from "lucide-react";
+import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -60,13 +61,23 @@ export default function FeesPage() {
 
     const handleRecordPayment = async (e) => {
         e.preventDefault();
-        if (!selectedFee || !paymentData.installmentId) return;
+        // Allow if installmentId is set OR if we are in adhoc mode (where we send null/undefined)
+        // But currently our Select uses "adhoc" string.
+        if (!selectedFee) return;
+
+        const payload = { ...paymentData };
+        if (payload.installmentId === 'adhoc') {
+            delete payload.installmentId; // Remove it so backend sees it as ad-hoc
+        } else if (!payload.installmentId) {
+            alert("Please select an installment or choose Ad-hoc Payment");
+            return;
+        }
 
         try {
             const res = await fetch(`/api/v1/fees/${selectedFee._id}/payment`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(paymentData),
+                body: JSON.stringify(payload),
             });
 
             if (res.ok) {
@@ -254,9 +265,7 @@ export default function FeesPage() {
 
                         <form onSubmit={handleRecordPayment} className="space-y-5">
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Select Installment</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 text-sm text-slate-700 transition-all cursor-pointer"
+                                <Select
                                     value={paymentData.installmentId}
                                     onChange={(e) => {
                                         const inst = selectedFee.installments.find(i => i._id === e.target.value);
@@ -266,17 +275,17 @@ export default function FeesPage() {
                                             amount: inst ? inst.amount : ""
                                         });
                                     }}
-                                    required
-                                >
-                                    <option value="">-- Select Installment --</option>
-                                    {selectedFee.installments
-                                        .filter(i => i.status !== 'paid')
-                                        .map((inst, idx) => (
-                                            <option key={inst._id} value={inst._id}>
-                                                Installment #{idx + 1} - ₹{inst.amount} (Due: {format(new Date(inst.dueDate), 'MMM d')})
-                                            </option>
-                                        ))}
-                                </select>
+                                    options={[
+                                        { label: "-- Select Installment --", value: "" },
+                                        { label: "+ Record New / Ad-hoc Payment", value: "adhoc" },
+                                        ...selectedFee.installments
+                                            .filter(i => i.status !== 'paid')
+                                            .map((inst, idx) => ({
+                                                label: `Installment #${idx + 1} - ₹${inst.amount} (Due: ${format(new Date(inst.dueDate), 'MMM d')})`,
+                                                value: inst._id
+                                            }))
+                                    ]}
+                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -289,18 +298,17 @@ export default function FeesPage() {
                                     required
                                 />
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Payment Method</label>
-                                    <select
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 text-sm text-slate-700 transition-all cursor-pointer"
+                                    <Select
                                         value={paymentData.method}
                                         onChange={(e) => setPaymentData({ ...paymentData, method: e.target.value })}
-                                    >
-                                        <option value="cash">Cash</option>
-                                        <option value="upi">UPI</option>
-                                        <option value="card">Card</option>
-                                        <option value="bank_transfer">Bank Transfer</option>
-                                        <option value="cheque">Cheque</option>
-                                    </select>
+                                        options={[
+                                            { label: "Cash", value: "cash" },
+                                            { label: "UPI", value: "upi" },
+                                            { label: "Card", value: "card" },
+                                            { label: "Bank Transfer", value: "bank_transfer" },
+                                            { label: "Cheque", value: "cheque" }
+                                        ]}
+                                    />
                                 </div>
                             </div>
 

@@ -43,8 +43,7 @@ export default function StudentMaterialsPage() {
 
     if (loading) return <LoadingSpinner fullPage />;
 
-    if (loading) return <LoadingSpinner fullPage />;
-
+    // IframeWithFallback handles its own loading state locally now.
     // IframeWithFallback handles its own loading state locally now.
 
     return (

@@ -1,10 +1,18 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-export default function Modal({ isOpen, onClose, title, children }) {
+export default function Modal({ isOpen, onClose, title, children, className = "" }) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = "hidden";
@@ -26,10 +34,12 @@ export default function Modal({ isOpen, onClose, title, children }) {
         };
     }, [isOpen, onClose]);
 
-    return (
+    if (!mounted) return null;
+
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -44,9 +54,10 @@ export default function Modal({ isOpen, onClose, title, children }) {
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="modal-title"
-                        className="glass w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden relative"
+                        className={`glass w-full rounded-3xl shadow-2xl overflow-hidden relative flex flex-col ${className || 'max-w-lg'}`}
+                        style={{ maxHeight: '90vh' }}
                     >
-                        <div className="p-6 border-b border-glass-border flex justify-between items-center">
+                        <div className="p-6 border-b border-glass-border flex justify-between items-center flex-shrink-0">
                             <h3 id="modal-title" className="text-xl font-bold tracking-tight">{title}</h3>
                             <button
                                 onClick={onClose}
@@ -56,12 +67,13 @@ export default function Modal({ isOpen, onClose, title, children }) {
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="p-6">
+                        <div className="p-6 overflow-y-auto flex-1">
                             {children}
                         </div>
                     </motion.div>
                 </div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }

@@ -28,6 +28,7 @@ import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 
 export default function StudentDetailsPage({ params }) {
     const router = useRouter();
@@ -56,6 +57,7 @@ export default function StudentDetailsPage({ params }) {
     });
 
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isEnrolling, setIsEnrolling] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [formData, setFormData] = useState({
         email: "",
@@ -162,6 +164,7 @@ export default function StudentDetailsPage({ params }) {
         if (!selectedBatch) return;
 
         try {
+            setIsEnrolling(true);
             const res = await fetch(`/api/v1/students/${id}/enroll`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -180,6 +183,8 @@ export default function StudentDetailsPage({ params }) {
             }
         } catch (error) {
             alert("Enrollment failed");
+        } finally {
+            setIsEnrolling(false);
         }
     };
 
@@ -634,18 +639,18 @@ export default function StudentDetailsPage({ params }) {
                             />
                             <div className="space-y-1">
                                 <label htmlFor="guardianRelation" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Relation</label>
-                                <select
+                                <Select
                                     id="guardianRelation"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700"
                                     value={formData.guardianDetails.relation}
                                     onChange={(e) => setFormData({ ...formData, guardianDetails: { ...formData.guardianDetails, relation: e.target.value } })}
-                                >
-                                    <option value="">Select Relation</option>
-                                    <option value="father">Father</option>
-                                    <option value="mother">Mother</option>
-                                    <option value="guardian">Guardian</option>
-                                    <option value="other">Other</option>
-                                </select>
+                                    options={[
+                                        { label: "Select Relation", value: "" },
+                                        { label: "Father", value: "father" },
+                                        { label: "Mother", value: "mother" },
+                                        { label: "Guardian", value: "guardian" },
+                                        { label: "Other", value: "other" }
+                                    ]}
+                                />
                             </div>
                         </div>
                         <Input
@@ -672,38 +677,34 @@ export default function StudentDetailsPage({ params }) {
                 <form onSubmit={handleEnrollStudent} className="space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Select Course</label>
-                            <select
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700"
+                            <Select
+                                label="Select Course"
                                 value={selectedCourse}
                                 onChange={(e) => setSelectedCourse(e.target.value)}
-                                required
-                            >
-                                <option value="">-- Choose a Course --</option>
-                                {courses.map(course => (
-                                    <option key={course._id} value={course._id}>
-                                        {course.name} ({course.code})
-                                    </option>
-                                ))}
-                            </select>
+                                options={[
+                                    { label: "-- Choose a Course --", value: "" },
+                                    ...courses.map(course => ({
+                                        label: `${course.name} (${course.code})`,
+                                        value: course._id
+                                    }))
+                                ]}
+                            />
                         </div>
 
                         {selectedCourse && (
                             <div className="space-y-1 animate-fade-in">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Select Batch</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700"
+                                <Select
+                                    label="Select Batch"
                                     value={selectedBatch}
                                     onChange={(e) => setSelectedBatch(e.target.value)}
-                                    required
-                                >
-                                    <option value="">-- Choose a Batch --</option>
-                                    {courseBatches.map(batch => (
-                                        <option key={batch._id} value={batch._id}>
-                                            {batch.name} (Starts: {format(new Date(batch.schedule.startDate), "MMM d")})
-                                        </option>
-                                    ))}
-                                </select>
+                                    options={[
+                                        { label: "-- Choose a Batch --", value: "" },
+                                        ...courseBatches.map(batch => ({
+                                            label: `${batch.name} (Starts: ${format(new Date(batch.schedule.startDate), "MMM d")})`,
+                                            value: batch._id
+                                        }))
+                                    ]}
+                                />
                                 {courseBatches.length === 0 && (
                                     <p className="text-xs text-amber-500 font-medium px-1">No active batches for this course.</p>
                                 )}
@@ -712,7 +713,14 @@ export default function StudentDetailsPage({ params }) {
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsEnrollModalOpen(false)}>Cancel</Button>
-                        <Button type="submit" disabled={!selectedBatch}>Enroll Student</Button>
+                        <Button type="submit" disabled={!selectedBatch || isEnrolling}>
+                            {isEnrolling ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                                    Enrolling...
+                                </>
+                            ) : "Enroll Student"}
+                        </Button>
                     </div>
                 </form>
             </Modal>
@@ -742,16 +750,16 @@ export default function StudentDetailsPage({ params }) {
 
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Payment Method</label>
-                            <select
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700"
+                            <Select
                                 value={paymentData.method}
                                 onChange={(e) => setPaymentData({ ...paymentData, method: e.target.value })}
-                            >
-                                <option value="cash">Cash</option>
-                                <option value="upi">UPI / Online</option>
-                                <option value="bank_transfer">Bank Transfer</option>
-                                <option value="cheque">Cheque</option>
-                            </select>
+                                options={[
+                                    { label: "Cash", value: "cash" },
+                                    { label: "UPI / Online", value: "upi" },
+                                    { label: "Bank Transfer", value: "bank_transfer" },
+                                    { label: "Cheque", value: "cheque" }
+                                ]}
+                            />
                         </div>
 
                         <Input

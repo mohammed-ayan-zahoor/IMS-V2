@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -189,16 +190,15 @@ export default function AttendanceMarkingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select Batch</label>
-                            <select
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/5 transition-all cursor-pointer font-medium text-sm"
+                            <Select
                                 value={selectedBatch}
                                 onChange={(e) => setSelectedBatch(e.target.value)}
-                            >
-                                <option value="">-- Choose Batch --</option>
-                                {batches.map(b => (
-                                    <option key={b._id} value={b._id}>{b.name}</option>
-                                ))}
-                            </select>
+                                placeholder="-- Choose Batch --"
+                                options={[
+                                    { label: "-- Choose Batch --", value: "" },
+                                    ...batches.map(b => ({ label: b.name, value: b._id }))
+                                ]}
+                            />
                         </div>
                         <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Date</label>
@@ -288,8 +288,8 @@ export default function AttendanceMarkingPage() {
                                                                     key={opt.id}
                                                                     onClick={() => handleStatusChange(sId, opt.id)}
                                                                     className={`p-2 rounded-lg border transition-all ${current.status === opt.id
-                                                                            ? `${opt.bg} ${opt.color} shadow-sm ring-2 ring-offset-1 ring-${opt.color.split('-')[1]}-100`
-                                                                            : 'border-transparent text-slate-300 hover:bg-slate-100 hover:text-slate-400'
+                                                                        ? `${opt.bg} ${opt.color} shadow-sm ring-2 ring-offset-1 ring-${opt.color.split('-')[1]}-100`
+                                                                        : 'border-transparent text-slate-300 hover:bg-slate-100 hover:text-slate-400'
                                                                         }`}
                                                                     title={opt.id.charAt(0).toUpperCase() + opt.id.slice(1)}
                                                                 >

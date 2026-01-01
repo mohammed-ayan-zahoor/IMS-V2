@@ -71,9 +71,19 @@ export default function AuditLogsPage() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <p className="text-sm text-slate-600 truncate max-w-md" title={JSON.stringify(log.metadata)}>
-                                            {log.targetModel} {log.targetId} - {Object.keys(log.metadata || {}).join(", ")}
-                                        </p>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-sm font-medium text-slate-700">
+                                                {log.resource?.type}
+                                                {log.details?.name && <span className="text-slate-500 font-normal"> • {log.details.name}</span>}
+                                            </span>
+                                            {log.details && (
+                                                <p className="text-xs text-slate-500 max-w-md truncate" title={JSON.stringify(log.details, null, 2)}>
+                                                    {Object.entries(log.details)
+                                                        .filter(([k]) => k !== 'name' && k !== 'role') // simple filter to avoid redundancy
+                                                        .map(([k, v]) => `${k}: ${v}`).join(", ") || (log.details.email || JSON.stringify(log.details))}
+                                                </p>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

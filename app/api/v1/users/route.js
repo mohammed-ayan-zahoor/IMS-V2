@@ -65,25 +65,26 @@ export async function POST(req) {
             return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
-        const mongoSession = await mongoose.startSession();
-        mongoSession.startTransaction();
+        /* 
+         * Transactions require a replica set. For standalone/dev environments,
+         * we run these sequentially. 
+         */
 
+        // 1. Create User
+        const createdUser = await User.create({
+            email: normalizedEmail,
+            passwordHash,
+            role: body.role,
+            profile: {
+                firstName: body.firstName,
+                lastName: body.lastName,
+                phone: body.phone,
+            }
+        });
+
+        // 2. Audit Log (Best effort)
         try {
-            const newUser = await User.create([{
-                email: normalizedEmail, // Use normalized email
-                passwordHash,
-                role: body.role,
-                profile: {
-                    firstName: body.firstName,
-                    lastName: body.lastName,
-                    phone: body.phone,
-                }
-            }], { session: mongoSession });
-
-            const createdUser = newUser[0];
-
-            // Audit Log
-            await AuditLog.create([{
+            await AuditLog.create({
                 actor: session.user.id,
                 action: 'user.create',
                 resource: { type: 'User', id: createdUser._id },
@@ -94,22 +95,17 @@ export async function POST(req) {
                 },
                 ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
                 userAgent: req.headers.get('user-agent') || 'unknown'
-            }], { session: mongoSession });
-
-            await mongoSession.commitTransaction();
-
-            // Remove password from response
-            const userObj = createdUser.toObject();
-            delete userObj.passwordHash;
-
-            return NextResponse.json({ user: userObj }, { status: 201 });
-
-        } catch (err) {
-            await mongoSession.abortTransaction();
-            throw err;
-        } finally {
-            mongoSession.endSession();
+            });
+        } catch (auditError) {
+            console.error("Audit log creation failed:", auditError);
+            // We don't fail the request if audit log fails, but we should log it.
         }
+
+        // Remove password from response
+        const userObj = createdUser.toObject();
+        delete userObj.passwordHash;
+
+        return NextResponse.json({ user: userObj }, { status: 201 });
 
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

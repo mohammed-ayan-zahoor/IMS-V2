@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
+import Select from "@/components/ui/Select";
 
 export default function StudentsPage() {
     const [students, setStudents] = useState([]);
@@ -162,33 +163,42 @@ export default function StudentsPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        <select
-                            value={filters.courseId}
-                            onChange={(e) => setFilters({ ...filters, courseId: e.target.value })}
-                            className="bg-white border border-slate-200 text-[11px] font-bold uppercase tracking-wider rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 transition-all text-slate-600 cursor-pointer"
-                        >
-                            <option value="">All Courses</option>
-                            {courses.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                        </select>
+                        <div className="w-40">
+                            <Select
+                                value={filters.courseId}
+                                onChange={(e) => setFilters({ ...filters, courseId: e.target.value })}
+                                placeholder="All Courses"
+                                options={[
+                                    { label: "All Courses", value: "" },
+                                    ...courses.map(c => ({ label: c.name, value: c._id }))
+                                ]}
+                            />
+                        </div>
 
-                        <select
-                            value={filters.batchId}
-                            onChange={(e) => setFilters({ ...filters, batchId: e.target.value })}
-                            className="bg-white border border-slate-200 text-[11px] font-bold uppercase tracking-wider rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 transition-all text-slate-600 cursor-pointer"
-                        >
-                            <option value="">All Batches</option>
-                            {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
-                        </select>
+                        <div className="w-40">
+                            <Select
+                                value={filters.batchId}
+                                onChange={(e) => setFilters({ ...filters, batchId: e.target.value })}
+                                placeholder="All Batches"
+                                options={[
+                                    { label: "All Batches", value: "" },
+                                    ...batches.map(b => ({ label: b.name, value: b._id }))
+                                ]}
+                            />
+                        </div>
 
-                        <select
-                            value={filters.isActive}
-                            onChange={(e) => setFilters({ ...filters, isActive: e.target.value })}
-                            className="bg-white border border-slate-200 text-[11px] font-bold uppercase tracking-wider rounded-xl px-4 py-2.5 outline-none focus:border-premium-blue/30 transition-all text-slate-600 cursor-pointer"
-                        >
-                            <option value="">All Status</option>
-                            <option value="true">Active Only</option>
-                            <option value="false">Inactive</option>
-                        </select>
+                        <div className="w-32">
+                            <Select
+                                value={filters.isActive}
+                                onChange={(e) => setFilters({ ...filters, isActive: e.target.value })}
+                                placeholder="All Status"
+                                options={[
+                                    { label: "All Status", value: "" },
+                                    { label: "Active Only", value: "true" },
+                                    { label: "Inactive", value: "false" }
+                                ]}
+                            />
+                        </div>
 
                         {(filters.courseId || filters.batchId || filters.isActive) && (
                             <Button

@@ -9,9 +9,10 @@ import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { User, Shield, UserCog, Mail, Phone, Plus, Search, Trash2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import Select from "@/components/ui/Select";
 
 export default function UserManagementPage() {
-    const { toast } = useToast();
+    const toast = useToast();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -225,16 +226,16 @@ export default function UserManagementPage() {
                     <Input label="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
 
                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Role</label>
-                        <select
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5"
+                        <Select
+                            label="Role"
                             value={formData.role}
                             onChange={e => setFormData({ ...formData, role: e.target.value })}
-                        >
-                            <option value="student">Student</option>
-                            <option value="admin">Admin</option>
-                            <option value="instructor">Instructor</option>
-                        </select>
+                            options={[
+                                { label: "Student", value: "student" },
+                                { label: "Admin", value: "admin" },
+                                { label: "Instructor", value: "instructor" }
+                            ]}
+                        />
                     </div>
 
                     <Input label="Password" type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} required />

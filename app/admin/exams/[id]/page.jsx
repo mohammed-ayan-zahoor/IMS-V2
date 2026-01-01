@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Settings } from "lucide-react";
+import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -56,7 +57,12 @@ export default function EditExamPage({ params }) {
             setCourses(cData.courses || []);
             setBatches(bData.batches || []);
 
-            const exam = examData.exam;
+            const exam = examData?.exam;
+            if (!exam) {
+                console.error("Exam data not found in response:", examData);
+                throw new Error("Exam not found or invalid response");
+            }
+
             // Format date for datetime-local input (YYYY-MM-DDTHH:mm)
             const date = new Date(exam.scheduledAt);
             // Manually format to local string 'YYYY-MM-DDTHH:mm'
@@ -186,14 +192,15 @@ export default function EditExamPage({ params }) {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 uppercase">Select Course</label>
-                            <select
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700"
+                            <Select
                                 value={formData.course}
                                 onChange={(e) => setFormData({ ...formData, course: e.target.value, batches: [] })}
-                            >
-                                <option value="">-- Choose Course --</option>
-                                {courses.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                            </select>
+                                placeholder="-- Choose Course --"
+                                options={[
+                                    { label: "-- Choose Course --", value: "" },
+                                    ...courses.map(c => ({ label: c.name, value: c._id }))
+                                ]}
+                            />
                         </div>
                         <Input
                             label="Duration (minutes)"

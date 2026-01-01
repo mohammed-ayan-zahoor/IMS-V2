@@ -6,6 +6,7 @@ import Exam from "@/models/Exam";
 import "@/models/Course";
 import "@/models/Batch";
 import AuditLog from "@/models/AuditLog";
+import { getClientIp } from "@/lib/ip-helper";
 
 export async function GET(req) {
     try {
@@ -53,8 +54,7 @@ export async function POST(req) {
 
         // Audit Log
         try {
-            const ipHeader = req.headers.get('x-forwarded-for') || '';
-            const ipAddress = ipHeader.split(',')[0].trim() || 'unknown';
+            const ipAddress = getClientIp(req);
 
             await AuditLog.create({
                 actor: session.user.id,

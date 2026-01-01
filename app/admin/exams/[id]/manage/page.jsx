@@ -33,7 +33,7 @@ export default function ManageExamPage({ params }) {
     const fetchExam = async () => {
         if (!id || id === 'undefined') return;
         try {
-            const res = await fetch(`/api/v1/exams/${id}`);
+            const res = await fetch(`/api/v1/exams/${id}`, { cache: "no-store" });
             if (!res.ok) throw new Error("Failed to fetch exam");
             const data = await res.json();
             setExam(data.exam);
@@ -48,7 +48,7 @@ export default function ManageExamPage({ params }) {
     const fetchBankQuestions = async () => {
         setBankLoading(true);
         try {
-            const res = await fetch("/api/v1/questions?createdBy=me"); // Or all questions
+            const res = await fetch("/api/v1/questions"); // Fetch all questions
             const data = await res.json();
 
             // Filter out questions already in the exam
@@ -103,6 +103,8 @@ export default function ManageExamPage({ params }) {
             if (toggleResults !== null) {
                 payload.resultsPublished = toggleResults;
             }
+
+            console.log("DEBUG: Sending Save Payload:", payload);
 
             const res = await fetch(`/api/v1/exams/${id}`, {
                 method: "PATCH",
@@ -271,9 +273,9 @@ export default function ManageExamPage({ params }) {
             <Modal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                title="Select Questions"
+                className="max-w-4xl"
             >
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div className="space-y-4 min-h-[50vh] max-h-[70vh] overflow-y-auto pr-2">
                     {bankLoading ? (
                         <LoadingSpinner />
                     ) : bankQuestions.length === 0 ? (

@@ -13,6 +13,7 @@ import {
     Edit,
     Trash2
 } from "lucide-react";
+import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -256,17 +257,15 @@ export default function BatchesPage() {
                 <form onSubmit={handleFormSubmit} className="space-y-5">
                     <div className="space-y-1.5">
                         <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Select Course</label>
-                        <select
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 text-sm text-slate-700 transition-all cursor-pointer"
+                        <Select
                             value={formData.course}
                             onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                            required
-                        >
-                            <option value="">-- Select a Course --</option>
-                            {courses.map(course => (
-                                <option key={course._id} value={course._id}>{course.name} ({course.code})</option>
-                            ))}
-                        </select>
+                            placeholder="-- Select a Course --"
+                            options={[
+                                { label: "-- Select a Course --", value: "" },
+                                ...courses.map(course => ({ label: `${course.name} (${course.code})`, value: course._id }))
+                            ]}
+                        />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

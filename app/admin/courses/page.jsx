@@ -11,6 +11,7 @@ import {
     Code,
     FileText
 } from "lucide-react";
+import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -197,15 +198,15 @@ export default function CoursesPage() {
                             />
                             <div className="space-y-1.5">
                                 <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Unit</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 text-sm text-slate-700 transition-all cursor-pointer"
+                                <Select
                                     value={formData.duration.unit}
                                     onChange={(e) => setFormData({ ...formData, duration: { ...formData.duration, unit: e.target.value } })}
-                                >
-                                    <option value="months">Months</option>
-                                    <option value="weeks">Weeks</option>
-                                    <option value="days">Days</option>
-                                </select>
+                                    options={[
+                                        { label: "Months", value: "months" },
+                                        { label: "Weeks", value: "weeks" },
+                                        { label: "Days", value: "days" }
+                                    ]}
+                                />
                             </div>
                         </div>
                         <Input
