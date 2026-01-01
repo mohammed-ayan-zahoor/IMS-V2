@@ -1,14 +1,19 @@
 import mongoose from 'mongoose';
-import Counter from './Counter';
-const { Schema } = mongoose;
+import mongoose from 'mongoose';
+const { Schema } = mongoose; const { Schema } = mongoose;
 
 const UserSchema = new Schema({
+    institute: {
+        type: Schema.Types.ObjectId,
+        ref: 'Institute',
+        required: true,
+        index: true
+    },
     email: {
         type: String,
         required: true,
-        // unique: true, // Moved to index with partialFilterExpression
+        // unique: true, // Moved to compound index with institute
         lowercase: true,
-        // index: true, // Removed to avoid duplicate index warning
         match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
     },
     passwordHash: {
@@ -69,9 +74,10 @@ UserSchema.index({ role: 1, deletedAt: 1 });
 UserSchema.index({ 'profile.firstName': 'text', 'profile.lastName': 'text' });
 
 // Partial unique indexes to allow reusing email/enrollmentNumber if previous one is deleted
-UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
-UserSchema.index({ enrollmentNumber: 1 }, { unique: true, partialFilterExpression: { deletedAt: null, enrollmentNumber: { $exists: true } } });
-
+// Scoped by Institute
+UserSchema.index({ institute: 1, email: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
+UserSchema.index({ institute: 1, enrollmentNumber: 1 }, { unique: true, partialFilterExpression: { deletedAt: null, enrollmentNumber: { $exists: true } } });
+UserSchema.index({ institute: 1, role: 1, deletedAt: 1 });
 // Virtual for full name
 UserSchema.virtual('fullName').get(function () {
     if (!this.profile || !this.profile.firstName || !this.profile.lastName) {

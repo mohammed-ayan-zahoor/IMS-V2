@@ -6,40 +6,54 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import AuditLog from "@/models/AuditLog";
 import bcrypt from "bcryptjs";
+import { getInstituteScope, addInstituteFilter } from "@/middleware/instituteScope";
 
 export async function GET(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !["admin", "super_admin"].includes(session.user.role)) {
+        await connectDB();
+        const scope = await getInstituteScope(req);
+
+        if (!scope) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        await connectDB();
+        // Allowed roles: admin, super_admin
+        // Staff/Instructors might also list users? Restrict for now.
+        if (!["admin", "super_admin"].includes(scope.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const { searchParams } = new URL(req.url);
         const role = searchParams.get("role");
 
         const query = { deletedAt: null };
         if (role) query.role = role;
 
-        const users = await User.find(query)
+        // Apply Scope
+        const scopedQuery = addInstituteFilter(query, scope);
+
+        const users = await User.find(scopedQuery)
             .select("-passwordHash")
+            .populate("institute", "name code")
             .sort({ createdAt: -1 });
 
         return NextResponse.json({ users });
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("GET /api/v1/users error:", error);
+        return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
     }
 }
 
 export async function POST(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !["admin", "super_admin"].includes(session.user.role)) {
+        await connectDB();
+        const scope = await getInstituteScope(req);
+
+        if (!scope || !["admin", "super_admin"].includes(scope.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        await connectDB();
         const body = await req.json();
 
         // Basic validation
@@ -47,89 +61,102 @@ export async function POST(req) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        // Check duplicates
+        // Institute Context
+        // If Super Admin, they might specify institute in body.
+        // If Admin, forced to their institute.
+        let targetInstituteId = scope.instituteId;
+
+        if (scope.isSuperAdmin && body.instituteId) {
+            targetInstituteId = body.instituteId;
+        }
+
+        if (!targetInstituteId) {
+            return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
+        }
+
+        // Check duplicates (Scoped by Institute!)
         const normalizedEmail = body.email.toLowerCase().trim();
-        const existing = await User.findOne({ email: normalizedEmail, deletedAt: null });
+        const existing = await User.findOne({
+            email: normalizedEmail,
+            institute: targetInstituteId,
+            deletedAt: null
+        });
+
         if (existing) {
-            return NextResponse.json({ error: "Email already exists" }, { status: 400 });
+            return NextResponse.json({ error: "Email already exists in this institute" }, { status: 400 });
         }
 
         const passwordHash = await bcrypt.hash(body.password, 10);
-        const allowedRoles = ["user", "admin", "super_admin"];
+        const allowedRoles = ["student", "admin", "super_admin", "instructor", "staff"];
         if (!allowedRoles.includes(body.role)) {
             return NextResponse.json({ error: "Invalid role" }, { status: 400 });
         }
 
-        // Prevent privilege escalation: only super_admin can create super_admin
-        if (body.role === "super_admin" && session.user.role !== "super_admin") {
+        // Prevent privilege escalation
+        if (body.role === "super_admin" && scope.user.role !== "super_admin") {
             return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
-        // Check if transactions are supported (Replica Set)
-        const isReplicaSet = mongoose.connection.client.topology?.s?.options?.replSet;
+        const userPayload = {
+            email: normalizedEmail,
+            passwordHash,
+            role: body.role,
+            profile: {
+                firstName: body.firstName,
+                lastName: body.lastName,
+                phone: body.phone
+            },
+            institute: targetInstituteId,
+            isActive: true
+        };
 
-        if (isReplicaSet) {
-            const session = await mongoose.startSession();
-            session.startTransaction();
-            try {
-                // 1. Create User
-                const createdUser = await User.create([userPayload], { session });
+        const enableTransactions = process.env.ENABLE_TRANSACTIONS === 'true' || process.env.NODE_ENV === 'production';
+        let session = null;
 
-                // 2. Audit Log
-                await AuditLog.create([{
-                    actor: session.user.id,
-                    action: 'user.create',
-                    resource: { type: 'User', id: createdUser[0]._id },
-                    details: {
-                        role: body.role,
-                        name: `${body.firstName} ${body.lastName}`,
-                        email: normalizedEmail
-                    },
-                    ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
-                    userAgent: req.headers.get('user-agent') || 'unknown'
-                }], { session });
-
-                await session.commitTransaction();
-
-                // Prepare response object from the array result
-                const userObj = createdUser[0].toObject();
-                delete userObj.passwordHash;
-                return NextResponse.json({ user: userObj }, { status: 201 });
-
-            } catch (error) {
-                await session.abortTransaction();
-                throw error; // Re-throw to be caught by outer catch
-            } finally {
-                session.endSession();
+        try {
+            if (enableTransactions) {
+                session = await mongoose.startSession();
+                session.startTransaction();
             }
-        } else {
-            // Standalone / Dev Fallback (Non-Atomic)
+
             // 1. Create User
-            const createdUser = await User.create(userPayload);
+            const createdUsers = await User.create([userPayload], { session });
+            const user = createdUsers[0];
 
-            // 2. Audit Log (Best effort)
-            try {
-                await AuditLog.create({
-                    actor: session.user.id,
-                    action: 'user.create',
-                    resource: { type: 'User', id: createdUser._id },
-                    details: {
-                        role: body.role,
-                        name: `${body.firstName} ${body.lastName}`,
-                        email: normalizedEmail
-                    },
-                    ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
-                    userAgent: req.headers.get('user-agent') || 'unknown'
-                });
-            } catch (auditError) {
-                console.error("Audit log creation failed:", auditError);
-                // In strict compliance mode, we might want to delete the user if audit fails,
-                // but for this fallback, we'll log the critical error.
+            // 2. Audit Log
+            await AuditLog.create([{
+                actor: scope.user.id,
+                action: 'user.create',
+                resource: { type: 'User', id: user._id },
+                institute: targetInstituteId, // Audit Log needs institute too
+                details: {
+                    role: body.role,
+                    name: `${body.firstName} ${body.lastName}`,
+                    email: normalizedEmail
+                },
+                ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+                userAgent: req.headers.get('user-agent') || 'unknown'
+            }], { session });
+
+            if (session) {
+                await session.commitTransaction();
             }
 
-            const userObj = createdUser.toObject();
+            // Prepare response
+            const userObj = user.toObject();
             delete userObj.passwordHash;
             return NextResponse.json({ user: userObj }, { status: 201 });
+
+        } catch (error) {
+            if (session) {
+                await session.abortTransaction();
+            }
+            console.error("User Creation Error:", error);
+            throw error;
+        } finally {
+            if (session) {
+                session.endSession();
+            }
         }
 
     } catch (error) {

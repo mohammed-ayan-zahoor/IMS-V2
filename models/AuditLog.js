@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 const AuditLogSchema = new Schema({
-    actor: {
+    institute: { type: Schema.Types.ObjectId, ref: 'Institute', required: false, index: true }, actor: {
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true,
@@ -36,9 +36,29 @@ const AuditLogSchema = new Schema({
 }, { timestamps: true });
 
 // Compound indexes
+// Compound indexes
 AuditLogSchema.index({ actor: 1, createdAt: -1 });
+AuditLogSchema.index({ institute: 1, actor: 1, createdAt: -1 });
 AuditLogSchema.index({ action: 1, createdAt: -1 });
 AuditLogSchema.index({ 'resource.type': 1, 'resource.id': 1 });
-AuditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: (parseInt(process.env.AUDIT_LOG_RETENTION_DAYS) || 90) * 24 * 60 * 60 }); // Customizable retention
+// Safe config parsing
+const getRetentionSeconds = () => {
+    try {
+        const envVal = process.env.AUDIT_LOG_RETENTION_DAYS;
+        if (!envVal || typeof envVal !== 'string') return 90 * 86400; // Default 90 days
+
+        const days = parseInt(envVal.trim(), 10);
+        // Ensure valid positive integer
+        if (Number.isNaN(days) || days <= 0 || !/^\d+$/.test(envVal.trim())) {
+            console.warn(`Invalid AUDIT_LOG_RETENTION_DAYS "${envVal}", defaulting to 90 days.`);
+            return 90 * 86400;
+        }
+        return days * 86400;
+    } catch {
+        return 90 * 86400;
+    }
+};
+
+AuditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: getRetentionSeconds() }); // Customizable retention
 
 export default mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);

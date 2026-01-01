@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 const MaterialSchema = new Schema({
+    institute: { type: Schema.Types.ObjectId, ref: 'Institute', index: true }, // Optional for migration support
     title: { type: String, required: true, trim: true },
     description: { type: String, maxlength: 1000 },
     file: {
@@ -29,6 +30,7 @@ const MaterialSchema = new Schema({
 }, { timestamps: true });
 
 MaterialSchema.index({ course: 1, batches: 1, visibleToStudents: 1 });
+MaterialSchema.index({ institute: 1, course: 1, batches: 1 });
 MaterialSchema.index({ title: 'text', description: 'text' });
 
 export default mongoose.models.Material || mongoose.model('Material', MaterialSchema);

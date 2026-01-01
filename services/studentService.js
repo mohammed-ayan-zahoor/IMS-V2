@@ -12,20 +12,29 @@ export class StudentService {
      */
     static async createStudent(data, actorId) {
         try {
-            const { email, password, profile, guardianDetails } = data;
+            const { email, password, profile, guardianDetails, institute } = data; // Destructure institute
 
-            // Check if active user exists (ignore soft deleted)
+            if (!institute) {
+                throw new Error('Institute context required for student creation');
+            }
+
+            // Check if active user exists (ignore soft deleted) within Institute
             const existingUser = await User.findOne({
                 email: email?.toLowerCase(),
+                institute: institute,
                 deletedAt: null
             });
 
             if (existingUser) {
-                throw new Error('User with this email already exists');
+                throw new Error('User with this email already exists in this institute');
             }
 
             const salt = await bcrypt.genSalt(10);
-            const defaultPass = process.env.DEFAULT_STUDENT_PASSWORD || 'Welcome@123';
+
+            // Random password if env var is missing, for security
+            const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+            const defaultPass = process.env.DEFAULT_STUDENT_PASSWORD || randomPassword;
+
             const passwordHash = await bcrypt.hash(password || defaultPass, salt);
 
             // Create student
@@ -35,6 +44,7 @@ export class StudentService {
                 role: 'student',
                 profile,
                 guardianDetails,
+                institute: institute // Add Institute
             });
 
             // Log action
@@ -42,6 +52,7 @@ export class StudentService {
                 actor: actorId,
                 action: 'student.create',
                 resource: { type: 'User', id: student._id },
+                institute: institute, // Pass scope to audit log
                 details: {
                     name: `${profile.firstName} ${profile.lastName}`,
                     email: email
@@ -77,32 +88,43 @@ export class StudentService {
             // 3. Hard Delete User
             await User.findByIdAndDelete(studentId).session(session);
 
+            // 3. Hard Delete User
+            await User.findByIdAndDelete(studentId).session(session);
+
+            await session.commitTransaction();
+
             await createAuditLog({
                 actor: actorId,
                 action: 'student.hard_delete',
                 resource: { type: 'User', id: studentId },
                 details: { name: student.fullName, email: student.email }
-            }); // Audit log is outside transaction usually, or we accept it might fail if transaction commits but log doesn't. 
-            // Better to log independently or after commit. But for simplicity here:
+            });
 
-            await session.commitTransaction();
             return true;
         } catch (error) {
             await session.abortTransaction();
             // Fallback for standalone mongo (which doesn't support transactions)
             if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
-                // Manual Cleanup without transaction
+                // Manual Cleanup without transaction (Fallback)
+                const student = await User.findById(studentId);
+                if (!student) return false;
+
                 await Fee.deleteMany({ student: studentId });
                 await Batch.updateMany(
                     { 'enrolledStudents.student': studentId },
                     { $pull: { enrolledStudents: { student: studentId } } }
                 );
                 await User.findByIdAndDelete(studentId);
+
                 await createAuditLog({
                     actor: actorId,
                     action: 'student.hard_delete',
                     resource: { type: 'User', id: studentId },
-                    details: { event: "Manual Hard Delete due to No RS" }
+                    details: {
+                        name: student.profile?.firstName + ' ' + student.profile?.lastName,
+                        email: student.email,
+                        event: "Manual Hard Delete due to No RS"
+                    }
                 });
                 return true;
             }
@@ -115,42 +137,39 @@ export class StudentService {
     /**
      * Get all students with pagination and filters
      */
-    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null }) {
+    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, instituteId = null }) {
+        if (!instituteId) {
+            throw new Error('Institute context required for fetching students');
+        }
+
         const skip = (page - 1) * limit;
 
         const query = {
-            role: 'student'
+            role: 'student',
+            institute: instituteId // Enforce Scope
         };
 
-        if (isActive === 'true') {
+        // Normalize isActive to handle both string and boolean inputs
+        const normalizedIsActive = isActive === true || isActive === 'true'
+            ? true
+            : isActive === false || isActive === 'false'
+                ? false
+                : null;
+
+        if (normalizedIsActive === true) {
             query.deletedAt = null;
-        } else if (isActive === 'false') {
+        } else if (normalizedIsActive === false) {
+            query.deletedAt = { $ne: null };
+        } else if (showDeleted) {
+            // Legacy support
             query.deletedAt = { $ne: null };
         } else {
-            // Default or "All" case. 
-            // If explicit showDeleted is used (legacy), fallback to it
-            // Otherwise, if isActive is null (All), we might want to show BOTH?
-            // Usually "All" means everything. But if showDeleted was false default...
-            // Let's assume:
-            // - invalid/null isActive + showDeleted=false => Active Only (Default behavior)
-            // - invalid/null isActive + showDeleted=true => Deleted Only (Legacy)
-            // But if the UI sends isActive="" which becomes null, and we want "All", 
-            // we should probably NOT filter deletedAt. 
-            // However, typical behavior is hide deleted unless asked.
-
-            // Let's match the previous default: Active Only.
-            if (isActive === null && !showDeleted) {
-                query.deletedAt = null;
-            } else if (showDeleted) {
-                query.deletedAt = { $ne: null };
-            }
-            // If isActive is null and we somehow want ALL, we'd need a specific flag.
-            // For now, let's keep the safe default of Active Only if no filter is set.
+            // Default: show active only
+            query.deletedAt = null;
         }
-
         // Filter by batch or course
         if (batchId || courseId) {
-            const batchQuery = { deletedAt: null };
+            const batchQuery = { deletedAt: null, institute: instituteId }; // Scope Batch Search
             if (batchId) batchQuery._id = batchId;
             if (courseId) batchQuery.course = courseId;
 
@@ -219,61 +238,69 @@ export class StudentService {
                 // Check if fee record exists
                 const existingFee = await Fee.findOne({ student: studentId, batch: batchId }).session(session);
                 if (existingFee) {
+                    if (existingEnrollment) {
+                        // Check if fee record exists
+                        const existingFee = await Fee.findOne({ student: studentId, batch: batchId }).session(session);
+                        if (existingFee) {
+                            throw new Error('Student already enrolled in this batch');
+                        }
+                        // If enrolled but no Fee, we proceed to create Fee (Fix consistency)                // If enrolled but no Fee, we proceed to create Fee (Fix consistency)
+                    } else {
+                        // Check capacity
+                        if (batch.activeEnrollmentCount >= batch.capacity) {
+                            throw new Error('Batch has reached its maximum capacity');
+                        }
+
+                        // Add to batch
+                        batch.enrolledStudents.push({
+                            student: studentId,
+                            enrolledAt: new Date(),
+                            status: 'active'
+                        });
+                        await batch.save({ session });
+                    }
+
+                    // Create initial fee record
+                    const fee = await Fee.create([{
+                        student: studentId,
+                        batch: batchId,
+                        totalAmount: batch.course.fees.amount,
+                        installments: [],
+                        status: 'not_started' // Default status
+                    }], { session });
+
+                    await session.commitTransaction();
+
+                    // Log action independently after commit
+                    try {
+                        await createAuditLog({
+                            actor: actorId,
+                            action: 'batch.enroll',
+                            resource: { type: 'Batch', id: batchId },
+                            details: {
+                                studentId,
+                                studentName: student.fullName,
+                                batchName: batch.name,
+                                event: existingEnrollment ? "Fee Recovery for existing enrollment" : "New Enrollment"
+                            }
+                        });
+                    } catch (auditError) {
+                        console.error("Audit Log Error (Batch Enroll):", auditError);
+                    }
+
+                    return { student, batch, fee: fee[0] };
+
+                } catch (error) {
                     await session.abortTransaction();
-                    throw new Error('Student already enrolled in this batch');
+                    // Fallback for standalone mongo (Replica Set required for transactions)
+                    if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
+                        return this.enrollInBatchStandalone(studentId, batchId, actorId);
+                    }
+                    throw error;
+                } finally {
+                    session.endSession();
                 }
-                // If enrolled but no Fee, we proceed to create Fee (Fix consistency)
-            } else {
-                // Check capacity
-                if (batch.activeEnrollmentCount >= batch.capacity) {
-                    throw new Error('Batch has reached its maximum capacity');
-                }
-
-                // Add to batch
-                batch.enrolledStudents.push({
-                    student: studentId,
-                    enrolledAt: new Date(),
-                    status: 'active'
-                });
-                await batch.save({ session });
             }
-
-            // Create initial fee record
-            const fee = await Fee.create([{
-                student: studentId,
-                batch: batchId,
-                totalAmount: batch.course.fees.amount,
-                installments: [],
-                status: 'not_started' // Default status
-            }], { session });
-
-            // Log action
-            await createAuditLog({
-                actor: actorId,
-                action: 'batch.enroll',
-                resource: { type: 'Batch', id: batchId },
-                details: {
-                    studentId,
-                    studentName: student.fullName,
-                    batchName: batch.name,
-                    event: existingEnrollment ? "Fee Recovery for existing enrollment" : "New Enrollment"
-                }
-            });
-
-            await session.commitTransaction();
-            return { student, batch, fee: fee[0] };
-
-        } catch (error) {
-            await session.abortTransaction();
-            // Fallback for standalone mongo (Replica Set required for transactions)
-            if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
-                return this.enrollInBatchStandalone(studentId, batchId, actorId);
-            }
-            throw error;
-        } finally {
-            session.endSession();
-        }
-    }
 
     // Fallback for standalone DB without transactions
     static async enrollInBatchStandalone(studentId, batchId, actorId) {

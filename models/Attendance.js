@@ -12,7 +12,7 @@ const AttendanceRecordSchema = new Schema({
 });
 
 const AttendanceSchema = new Schema({
-    date: { type: Date, required: true, index: true },
+    institute: { type: Schema.Types.ObjectId, ref: 'Institute', required: true }, date: { type: Date, required: true, index: true },
     batch: {
         type: Schema.Types.ObjectId,
         ref: 'Batch',
@@ -25,6 +25,5 @@ const AttendanceSchema = new Schema({
 }, { timestamps: true });
 
 // Unique constraint: one attendance record per batch per date
-AttendanceSchema.index({ batch: 1, date: 1 }, { unique: true });
-
-export default mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);
+// Unique constraint: one attendance record per institute per batch per date
+AttendanceSchema.index({ institute: 1, batch: 1, date: 1 }, { unique: true }); export default mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);

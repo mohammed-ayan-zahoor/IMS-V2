@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import { StudentService } from "@/services/studentService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { getInstituteScope } from "@/middleware/instituteScope";
 
 export async function GET(req) {
     try {
@@ -12,7 +13,10 @@ export async function GET(req) {
         }
 
         await connectDB();
-
+        const scope = await getInstituteScope(req);
+        if (!scope || !scope.instituteId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
         const { searchParams } = new URL(req.url);
         const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit")) || 10));
@@ -29,7 +33,8 @@ export async function GET(req) {
             showDeleted,
             batchId,
             courseId,
-            isActive
+            isActive,
+            instituteId: scope.instituteId // Pass Institute ID
         });
 
         return NextResponse.json(data);
@@ -47,6 +52,10 @@ export async function POST(req) {
         }
 
         await connectDB();
+        const scope = await getInstituteScope(req);
+        if (!scope || !scope.instituteId) {
+            return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
+        }
 
         const body = await req.json();
 
@@ -55,12 +64,16 @@ export async function POST(req) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const student = await StudentService.createStudent(body, session.user.id);
+        const studentData = {
+            ...body,
+            institute: scope.instituteId // Inject Institute
+        };
+
+        const student = await StudentService.createStudent(studentData, session.user.id);
 
         return NextResponse.json(student, { status: 201 });
     } catch (error) {
         console.error("API Error [Students POST]:", error);
-        // Be careful with error messages, but return validation errors if needed
         const message = error.message || "Failed to create student";
         return NextResponse.json({ error: message }, { status: 400 });
     }

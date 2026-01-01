@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 const BatchSchema = new Schema({
+    institute: { type: Schema.Types.ObjectId, ref: 'Institute', required: true, index: true },
     name: { type: String, required: true, trim: true },
     course: {
         type: Schema.Types.ObjectId,
@@ -55,6 +56,7 @@ const BatchSchema = new Schema({
 });
 
 BatchSchema.index({ course: 1, deletedAt: 1 });
+BatchSchema.index({ institute: 1, course: 1, deletedAt: 1 });
 BatchSchema.index({ 'schedule.startDate': 1 });
 
 // Virtual for active enrollment count

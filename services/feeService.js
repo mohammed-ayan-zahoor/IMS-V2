@@ -5,6 +5,15 @@ import { connectDB } from '@/lib/mongodb';
 // Ensure we have the model
 const FeeDb = Fee;
 
+// Helper to safely get student name
+const getStudentName = (student) => {
+    if (!student) return 'Unknown Student';
+    if (student.profile && (student.profile.firstName || student.profile.lastName)) {
+        return `${student.profile.firstName || ''} ${student.profile.lastName || ''}`.trim();
+    }
+    return student.displayName || student.email || 'Unknown Student';
+};
+
 export class FeeService {
     static async createFeeStructure(data, actorId) {
         await connectDB();
@@ -77,7 +86,7 @@ export class FeeService {
 
             savedAmount = installment.amount;
             details = {
-                name: `${fee.student?.profile?.firstName} ${fee.student?.profile?.lastName}`,
+                name: getStudentName(fee.student),
                 installmentId,
                 amount: savedAmount
             };
@@ -119,7 +128,7 @@ export class FeeService {
                     });
                 }
                 details = {
-                    name: `${fee.student?.profile?.firstName} ${fee.student?.profile?.lastName}`,
+                    name: getStudentName(fee.student),
                     type: 'ad-hoc',
                     amount: amountToPay,
                     balanceCreated: balance
@@ -182,7 +191,7 @@ export class FeeService {
                     throw new Error(`Payment amount (${amountToPay}) exceeds current pending installment (${current.amount}). Please pay installments sequentially.`);
                 }
                 details = {
-                    name: `${fee.student?.profile?.firstName} ${fee.student?.profile?.lastName}`,
+                    name: getStudentName(fee.student),
                     type: 'waterfall',
                     amount: amountToPay
                 };

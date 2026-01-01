@@ -1,63 +1,119 @@
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Question from "@/models/Question";
-import User from "@/models/User"; // Ensure registered
+import { getInstituteScope } from "@/middleware/instituteScope";
 
-export async function POST(req) {
-    try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['admin', 'teacher', 'super_admin'].includes(session.user.role)) {
-            return Response.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        await connectDB();
-        const data = await req.json();
-
-        const question = await Question.create({
-            ...data,
-            createdBy: session.user.id
-        });
-
-        return Response.json(question, { status: 201 });
-    } catch (error) {
-        console.error("Create Question Error:", error);
-        return Response.json({ error: "Failed to create question" }, { status: 500 });
-    }
-}
+const ALLOWED_TYPES = ['mcq', 'true_false', 'short_answer', 'essay'];
+const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'];
 
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
         if (!session) {
-            return Response.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { searchParams } = new URL(req.url);
-        const course = searchParams.get('course');
-        const batch = searchParams.get('batch');
-        const type = searchParams.get('type');
-        const difficulty = searchParams.get('difficulty');
-        const createdBy = searchParams.get('createdBy'); // "my questions"
-
-        const query = { deletedAt: null };
-        if (course) query.course = course;
-        if (batch) query.batch = batch;
-        if (type) query.type = type;
-        if (difficulty) query.difficulty = difficulty;
-        if (createdBy === 'me') query.createdBy = session.user.id;
+        // Check if user has permission (admin/super_admin usually, maybe instructor)
+        const scope = await getInstituteScope(req);
+        if (!scope || !["admin", "super_admin", "instructor"].includes(scope.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        }
 
         await connectDB();
 
-        const questions = await Question.find(query)
-            .sort({ createdAt: -1 })
-            .populate('createdBy', 'name')
-            .populate('course', 'name code')
-            .populate('batch', 'name');
+        const { searchParams } = new URL(req.url);
+        const subject = searchParams.get('subject');
+        const difficulty = searchParams.get('difficulty');
+        const type = searchParams.get('type');
 
-        return Response.json({ questions });
+        const filter = { isActive: true, institute: scope.instituteId };
+
+        // Validate and apply filters
+        if (subject) {
+            filter.subject = subject; // Subject is free text but we could sanitize if needed
+        }
+
+        if (difficulty) {
+            if (ALLOWED_DIFFICULTIES.includes(difficulty)) {
+                filter.difficulty = difficulty;
+            }
+            // Else ignore invalid difficulty or return 400? 
+            // "only add to filter when valid, and otherwise ignore" per instructions
+        }
+
+        if (type) {
+            if (ALLOWED_TYPES.includes(type)) {
+                filter.type = type;
+            }
+        }
+
+        const questions = await Question.find(filter)
+            .populate('createdBy', 'profile.firstName profile.lastName')
+            .sort({ createdAt: -1 });
+
+        return NextResponse.json({ questions });
+
     } catch (error) {
-        console.error("Fetch Questions Error:", error);
-        return Response.json({ error: "Failed to fetch questions" }, { status: 500 });
+        console.error('Error fetching questions:', error);
+        return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 });
+    }
+}
+
+export async function POST(req) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const scope = await getInstituteScope(req);
+        if (!scope || !["admin", "super_admin", "instructor"].includes(scope.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        }
+
+        await connectDB();
+        const body = await req.json();
+
+        // Input Validation
+        const requiredFields = ['text', 'type', 'subject', 'classLevel', 'difficulty', 'correctAnswer', 'marks'];
+        const missing = requiredFields.filter(field => !body[field]);
+        if (missing.length > 0) {
+            return NextResponse.json({ error: `Missing required fields: ${missing.join(', ')}` }, { status: 400 });
+        }
+
+        // Enum Validation
+        if (!ALLOWED_TYPES.includes(body.type)) {
+            return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+        }
+        if (!ALLOWED_DIFFICULTIES.includes(body.difficulty)) {
+            return NextResponse.json({ error: "Invalid difficulty" }, { status: 400 });
+        }
+
+        // Whitelist sanitation
+        const safeData = {
+            text: body.text,
+            type: body.type,
+            subject: body.subject,
+            classLevel: body.classLevel,
+            difficulty: body.difficulty,
+            options: body.options || [],
+            correctAnswer: body.correctAnswer,
+            marks: Number(body.marks),
+            explanation: body.explanation,
+            tags: Array.isArray(body.tags) ? body.tags : [],
+            institute: scope.instituteId,
+            createdBy: session.user.id
+            // isActive defaults to true in schema
+        };
+
+        const question = await Question.create(safeData);
+
+        return NextResponse.json({ question }, { status: 201 });
+
+    } catch (error) {
+        console.error('Error creating question:', error);
+        return NextResponse.json({ error: 'Failed to create question' }, { status: 500 });
     }
 }

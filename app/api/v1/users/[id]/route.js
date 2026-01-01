@@ -7,6 +7,9 @@ import AuditLog from "@/models/AuditLog";
 import { StudentService } from "@/services/studentService";
 import bcrypt from "bcryptjs";
 
+const COMMON_PASSWORDS = ["password", "123456", "12345678", "qwerty", "welcome123", "admin123"];
+const ALLOWED_ROLES = ["student", "admin", "super_admin", "instructor", "staff"]; // Adjust based on actual roles
+
 export async function PATCH(req, { params }) {
     try {
         const session = await getServerSession(authOptions);
@@ -26,14 +29,30 @@ export async function PATCH(req, { params }) {
 
         // Handle Password Update
         if (body.password) {
-            if (body.password.length < 6) {
-                return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+            // 1. Minimum Length
+            if (body.password.length < 8) {
+                return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
             }
+            // 2. Complexity (Upper, Lower, Digit, Special)
+            const complexityRegex = /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_])/;
+            if (!complexityRegex.test(body.password)) {
+                return NextResponse.json({ error: "Password must contain uppercase, lowercase, number, and special character" }, { status: 400 });
+            }
+            // 3. Common Password Check
+            if (COMMON_PASSWORDS.includes(body.password.toLowerCase())) {
+                return NextResponse.json({ error: "Password is too common/breached" }, { status: 400 });
+            }
+
             user.passwordHash = await bcrypt.hash(body.password, 10);
         }
 
-        // Handle Role Update (Optional, if needed later)
+        // Handle Role Update
         if (body.role) {
+            // Validate whitelist
+            if (!ALLOWED_ROLES.includes(body.role)) {
+                return NextResponse.json({ error: "Invalid role specified" }, { status: 400 });
+            }
+
             // Only super_admin can create/promote to super_admin
             if (body.role === "super_admin" && session.user.role !== "super_admin") {
                 return NextResponse.json({ error: "Insufficient permissions to assign super_admin role" }, { status: 403 });
@@ -64,7 +83,8 @@ export async function PATCH(req, { params }) {
 
     } catch (error) {
         console.error("Update User Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        // Generic Error
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
 
@@ -77,8 +97,8 @@ export async function DELETE(req, { params }) {
 
         const { id } = await params;
 
-        // Prevent self-deletion
-        if (id === session.user.id) {
+        // Prevent self-deletion (Robust String Comparison)
+        if (id && session.user.id && String(id) === String(session.user.id)) {
             return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
         }
 
@@ -97,6 +117,25 @@ export async function DELETE(req, { params }) {
         // Special handling for Students: Hard Delete via Service
         if (user.role === "student") {
             await StudentService.deleteStudent(id, session.user.id);
+
+            // Audit Log
+            try {
+                await AuditLog.create({
+                    actor: session.user.id,
+                    action: 'user.delete',
+                    resource: { type: 'User', id: user._id },
+                    details: {
+                        targetUser: user.email,
+                        type: 'hard-delete',
+                        role: 'student'
+                    },
+                    ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+                    userAgent: req.headers.get('user-agent') || 'unknown'
+                });
+            } catch (e) {
+                console.error("Audit log failed", e);
+            }
+
             return NextResponse.json({ message: "Student permanently deleted" });
         }
 
@@ -127,6 +166,7 @@ export async function DELETE(req, { params }) {
 
     } catch (error) {
         console.error("Delete User Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        // Generic Error
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

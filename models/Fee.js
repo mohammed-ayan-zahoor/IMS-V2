@@ -19,6 +19,12 @@ const InstallmentSchema = new Schema({
 });
 
 const FeeSchema = new Schema({
+    institute: {
+        type: Schema.Types.ObjectId,
+        ref: 'Institute',
+        required: true,
+        index: true
+    },
     student: {
         type: Schema.Types.ObjectId,
         ref: 'User',
@@ -49,6 +55,7 @@ const FeeSchema = new Schema({
 
 // Compound index
 FeeSchema.index({ student: 1, batch: 1 }, { unique: true });
+FeeSchema.index({ institute: 1, student: 1, batch: 1 });
 
 // Pre-save hook to calculate balances
 FeeSchema.pre('save', async function () {

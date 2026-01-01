@@ -102,7 +102,9 @@ export default function CreateQuestionPage() {
             if (!res.ok) throw new Error("Failed to create question");
 
             toast.success("Question created successfully");
-            router.push("/admin/question-bank");
+            setTimeout(() => {
+                router.push("/admin/question-bank");
+            }, 1000);
         } catch (error) {
             console.error(error);
             toast.error("Error creating question");

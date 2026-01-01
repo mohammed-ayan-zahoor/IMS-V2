@@ -17,15 +17,18 @@ export default function AuditLogsPage() {
     const fetchLogs = async () => {
         try {
             const res = await fetch("/api/v1/audit-logs");
+            if (!res.ok) {
+                throw new Error(`Failed to fetch logs: ${res.status}`);
+            }
             const data = await res.json();
             setLogs(data.logs || []);
         } catch (error) {
             console.error(error);
+            // TODO: Show user-facing error (e.g., toast notification or error state)
         } finally {
             setLoading(false);
         }
     };
-
     if (loading) return <LoadingSpinner fullPage />;
 
     return (
@@ -77,10 +80,12 @@ export default function AuditLogsPage() {
                                                 {log.details?.name && <span className="text-slate-500 font-normal"> • {log.details.name}</span>}
                                             </span>
                                             {log.details && typeof log.details === 'object' && !Array.isArray(log.details) && (() => {
+                                                const SENSITIVE_KEYS = ['password', 'token', 'secret', 'auth', 'credit', 'card', 'cvv'];
                                                 const filteredDetails = Object.entries(log.details)
-                                                    .filter(([k]) => k !== 'name' && k !== 'role')
-                                                    .map(([k, v]) => `${k}: ${v}`)
+                                                    .filter(([k]) => k !== 'name' && k !== 'role' && !SENSITIVE_KEYS.some(s => k.toLowerCase().includes(s)))
+                                                    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
                                                     .join(", ");
+
                                                 return filteredDetails ? (
                                                     <p className="text-xs text-slate-500 max-w-md truncate" title={filteredDetails}>
                                                         {filteredDetails}

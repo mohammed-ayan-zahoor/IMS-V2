@@ -7,15 +7,17 @@ import "@/models/Course";
 import "@/models/Batch";
 import AuditLog from "@/models/AuditLog";
 import { getClientIp } from "@/lib/ip-helper";
+import { getInstituteScope, addInstituteFilter } from "@/middleware/instituteScope";
 
 export async function GET(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !["admin", "super_admin"].includes(session.user.role)) {
+        await connectDB();
+        const scope = await getInstituteScope(req);
+
+        if (!scope || !["admin", "super_admin", "instructor"].includes(scope.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        await connectDB();
         const { searchParams } = new URL(req.url);
         const courseId = searchParams.get("courseId");
         const status = searchParams.get("status");
@@ -24,7 +26,10 @@ export async function GET(req) {
         if (courseId) query.course = courseId;
         if (status) query.status = status;
 
-        const exams = await Exam.find(query)
+        // Apply Scope
+        const scopedQuery = addInstituteFilter(query, scope);
+
+        const exams = await Exam.find(scopedQuery)
             .populate("course", "name code")
             .populate("batches", "name")
             .sort({ createdAt: -1 });
@@ -33,7 +38,7 @@ export async function GET(req) {
 
     } catch (error) {
         console.error("Fetch Exams Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
 
@@ -45,10 +50,38 @@ export async function POST(req) {
         }
 
         await connectDB();
+        const scope = await getInstituteScope(req);
+        if (!scope || !scope.instituteId) {
+            return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
+        }
+
         const body = await req.json();
 
+        // Whitelist allowed fields (Mass Assignment Protection)
+        // Ignoring: institute, createdBy, _id, status, deletedAt
+        const allowedFields = {
+            title: body.title,
+            course: body.course,
+            batch: body.batch,
+            questions: body.questions || [],
+            duration: body.duration,
+            totalMarks: body.totalMarks,
+            passingMarks: body.passingMarks,
+            scheduledAt: body.scheduledAt,
+            schedule: body.schedule,
+            instructions: body.instructions,
+            resultsPublished: body.resultsPublished,
+            resultsPublishedAt: body.resultsPublishedAt,
+            showCorrectAnswers: body.showCorrectAnswers,
+            showExplanations: body.showExplanations,
+            securityConfig: body.securityConfig,
+            negativeMarking: body.negativeMarking,
+            negativeMarkingPercentage: body.negativeMarkingPercentage
+        };
+
         const exam = await Exam.create({
-            ...body,
+            ...allowedFields,
+            institute: scope.instituteId, // Set Institute
             createdBy: session.user.id
         });
 
@@ -60,6 +93,7 @@ export async function POST(req) {
                 actor: session.user.id,
                 action: 'exam.create',
                 resource: { type: 'Exam', id: exam._id },
+                institute: scope.instituteId,
                 details: {
                     title: exam.title,
                     course: exam.course,
@@ -77,6 +111,6 @@ export async function POST(req) {
 
     } catch (error) {
         console.error("Create Exam Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

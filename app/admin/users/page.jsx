@@ -114,8 +114,15 @@ export default function UserManagementPage() {
                     toast.success("User deactivated successfully");
                     fetchUsers();
                 } else {
-                    const err = await res.json();
-                    toast.error(err.error || "Failed to delete user");
+                    const contentType = res.headers.get("content-type");
+                    let errorMessage = "Failed to delete user";
+                    if (contentType && contentType.includes("application/json")) {
+                        const errorData = await res.json();
+                        errorMessage = errorData.error || errorMessage;
+                    } else {
+                        errorMessage = await res.text();
+                    }
+                    toast.error(errorMessage);
                 }
             } catch (error) {
                 console.error(error);
@@ -123,7 +130,6 @@ export default function UserManagementPage() {
             }
         }
     };
-
     const openPasswordModal = (user) => {
         setSelectedUser(user);
         setNewPassword("");
@@ -270,7 +276,15 @@ export default function UserManagementPage() {
                                                     onClick={() => openPasswordModal(user)}
                                                     className="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 shadow-sm px-4 font-medium"
                                                 >
-                                                    <Lock key="lock-icon" size={14} className="mr-2 text-slate-400" /> Password
+                                                    <Lock size={14} className="mr-2 text-slate-400" /> Password
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    disabled={user.role === 'super_admin'}
+                                                    onClick={() => handleDeleteUser(user._id)}
+                                                    className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 shadow-sm px-4 font-medium"
+                                                >
+                                                    <Trash2 size={14} className="mr-2" /> Delete
                                                 </Button>
                                             </div>
                                         </td>
@@ -317,15 +331,16 @@ export default function UserManagementPage() {
             <Modal title="Change Password" isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)}>
                 <form onSubmit={handleChangePassword} className="space-y-4">
                     <div className="bg-slate-50 p-3 rounded-lg text-sm text-slate-600 mb-4">
-                        Changing password for <strong>{selectedUser?.profile?.firstName} {selectedUser?.profile?.lastName}</strong> ({selectedUser?.email})
+                        Changing password for <strong>{selectedUser?.profile?.firstName || 'User'} {selectedUser?.profile?.lastName || ''}</strong> ({selectedUser?.email || 'unknown'})
                     </div>
+
                     <Input
                         label="New Password"
                         type="password"
                         value={newPassword}
                         onChange={e => setNewPassword(e.target.value)}
                         required
-                        minLength={6}
+                        minLength={8}
                         placeholder="Enter new password"
                     />
                     <div className="flex justify-end gap-2 pt-4">

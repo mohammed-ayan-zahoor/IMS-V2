@@ -2,11 +2,17 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 const CourseSchema = new Schema({
+    institute: {
+        type: Schema.Types.ObjectId,
+        ref: 'Institute',
+        required: true,
+        index: true
+    },
     name: { type: String, required: true, trim: true },
     code: {
         type: String,
         required: true,
-        unique: true,
+        // unique: true, // Moved to compound index
         uppercase: true,
         match: [/^[A-Z0-9]+$/, 'Course code must be alphanumeric']
     },
@@ -30,5 +36,6 @@ const CourseSchema = new Schema({
 }, { timestamps: true });
 
 CourseSchema.index({ name: 'text', code: 'text' });
+CourseSchema.index({ institute: 1, code: 1 }, { unique: true }); // Code unique per institute
 
 export default mongoose.models.Course || mongoose.model('Course', CourseSchema);

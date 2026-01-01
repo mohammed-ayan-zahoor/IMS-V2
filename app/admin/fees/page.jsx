@@ -23,6 +23,8 @@ import { format } from "date-fns";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
 export default function FeesPage() {
     const toast = useToast();
     const confirm = useConfirm();
@@ -31,6 +33,7 @@ export default function FeesPage() {
     const [search, setSearch] = useState("");
     const [selectedFee, setSelectedFee] = useState(null); // For detail/payment view
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [isSeeding, setIsSeeding] = useState(false);
 
     // Payment Form state
     const [paymentData, setPaymentData] = useState({
@@ -49,15 +52,21 @@ export default function FeesPage() {
         try {
             setLoading(true);
             const res = await fetch("/api/v1/fees");
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to fetch fees: ${res.statusText}`);
+            }
             const data = await res.json();
             if (Array.isArray(data)) {
                 setFees(data);
             } else {
                 console.error("Expected array but got:", data);
                 setFees([]);
+                toast.error("Received invalid data from server");
             }
         } catch (error) {
             console.error("Failed to fetch fees", error);
+            toast.error(error.message || "Failed to load fee records");
         } finally {
             setLoading(false);
         }
@@ -69,7 +78,18 @@ export default function FeesPage() {
         // But currently our Select uses "adhoc" string.
         if (!selectedFee) return;
 
-        const payload = { ...paymentData };
+        // Validate Amount
+        const amountNum = parseFloat(paymentData.amount);
+        if (!paymentData.amount || isNaN(amountNum) || amountNum <= 0) {
+            toast.warning("Please enter a valid positive amount");
+            return;
+        }
+
+        const payload = {
+            ...paymentData,
+            amount: amountNum
+        };
+
         if (payload.installmentId === 'adhoc') {
             delete payload.installmentId; // Remove it so backend sees it as ad-hoc
         } else if (!payload.installmentId) {
@@ -90,12 +110,17 @@ export default function FeesPage() {
                 fetchFees(); // Refresh list to update balance/status
                 toast.success("Payment recorded successfully");
             } else {
-                const error = await res.json();
-                toast.error(error.error || "Failed to record payment");
+                let errorMessage = "Failed to record payment";
+                try {
+                    const error = await res.json();
+                    errorMessage = error.error || errorMessage;
+                } catch (e) { /* ignore parse error */ }
+
+                toast.error(errorMessage);
             }
         } catch (err) {
             console.error(err);
-            toast.error("Failed to record payment");
+            toast.error("Network error while recording payment");
         }
     };
 
@@ -127,16 +152,19 @@ export default function FeesPage() {
                         variant="soft"
                         onClick={async () => {
                             if (!await confirm({ title: "Seed Test Fee?", message: "Create test fee record?", type: "info" })) return;
-                            try {
-                                // 1. Get a student and batch
-                                const [sRes, bRes] = await Promise.all([
-                                    fetch("/api/v1/students"),
-                                    fetch("/api/v1/batches")
-                                ]);
-                                const sData = await sRes.json();
-                                const bData = await bRes.json();
 
+                            setIsSeeding(true);
+                            try {
+                                // 1. Get a student
+                                const sRes = await fetch("/api/v1/students");
+                                if (!sRes.ok) throw new Error("Failed to fetch students");
+                                const sData = await sRes.json();
                                 const student = sData.students?.[0] || sData?.[0];
+
+                                // 2. Get a batch
+                                const bRes = await fetch("/api/v1/batches");
+                                if (!bRes.ok) throw new Error("Failed to fetch batches");
+                                const bData = await bRes.json();
                                 const batch = bData.batches?.[0] || bData?.[0];
 
                                 if (!student || !batch) {
@@ -144,6 +172,7 @@ export default function FeesPage() {
                                     return;
                                 }
 
+                                // 3. Create Fee
                                 const res = await fetch("/api/v1/fees", {
                                     method: "POST",
                                     headers: { "Content-Type": "application/json" },
@@ -153,22 +182,28 @@ export default function FeesPage() {
                                         totalAmount: 12000,
                                         installments: [
                                             { amount: 6000, dueDate: new Date() },
-                                            { amount: 6000, dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }
+                                            { amount: 6000, dueDate: new Date(Date.now() + THIRTY_DAYS_MS) }
                                         ]
                                     })
                                 });
+
                                 if (res.ok) {
-                                    fetchFees();
+                                    await fetchFees();
                                     toast.success("Seeded test fee");
+                                } else {
+                                    const errData = await res.json().catch(() => ({}));
+                                    toast.error(errData.error || "Failed to seed fee");
                                 }
-                                else toast.error("Failed to seed");
                             } catch (e) {
                                 console.error(e);
-                                toast.error("Error seeding");
+                                toast.error(e.message || "Error seeding");
+                            } finally {
+                                setIsSeeding(false);
                             }
                         }}
+                        disabled={isSeeding}
                     >
-                        + Seed Test Fee
+                        {isSeeding ? "Seeding..." : "+ Seed Test Fee"}
                     </Button>
                 </div>
             </div>
