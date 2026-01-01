@@ -82,8 +82,22 @@ async function migrate() {
             { name: 'AuditLog', model: AuditLog }
         ];
 
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        let session;
+        let useTransaction = false;
+
+        try {
+            // Check if replica set is available
+            const adminDb = mongoose.connection.db.admin();
+            const serverStatus = await adminDb.serverStatus();
+            useTransaction = serverStatus.repl !== undefined;
+        } catch (e) {
+            console.log('ℹ️  Transactions not available, running without transaction support');
+        }
+
+        if (useTransaction) {
+            session = await mongoose.startSession();
+            session.startTransaction();
+        }
 
         try {
             for (const { name, model } of models) {
@@ -91,20 +105,25 @@ async function migrate() {
                 const result = await model.updateMany(
                     { institute: { $exists: false } },
                     { $set: { institute: instituteId } },
-                    { session }
+                    useTransaction ? { session } : {}
                 );
 
                 console.log(`✅ Updated ${result.modifiedCount} ${name} records to Institute: ${instituteId}`);
             }
 
-            await session.commitTransaction();
+            if (useTransaction) {
+                await session.commitTransaction();
+            }
         } catch (error) {
-            await session.abortTransaction();
+            if (useTransaction && session) {
+                await session.abortTransaction();
+            }
             throw error;
         } finally {
-            session.endSession();
-        }
-        // Step 3: Update usage statistics
+            if (session) {
+                session.endSession();
+            }
+        }        // Step 3: Update usage statistics
         await defaultInstitute.updateUsage();
         console.log('✅ Updated institute usage statistics');
 

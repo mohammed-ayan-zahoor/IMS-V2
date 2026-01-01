@@ -106,11 +106,17 @@ ExamSchema.pre(['findOneAndUpdate', 'updateOne'], async function (next) {
         const update = this.getUpdate();
 
         // 1. Fetch the document being updated
+        // Note: This creates a small TOCTOU window. For strict consistency, we should use atomic updates or a version key.
+        // However, this hook is needed to calculate complex derived validation (Total Marks vs Passing Marks) which depends on non-deterministic/operator-based updates.
+        // For now, checking doc existence helps prevent acting on "null" documents.
         const doc = await this.model.findOne(query);
 
-        // If document not found, we should fail unless it's an upsert (which we assume false for safety or check options)
+        // If document not found, we should fail unless it's an upsert (check options if possible, though Mongoose hook options are limited)
+        // If this.getOptions().upsert is true, doc might be null and we are creating. 
         if (!doc) {
-            // If we want to be strict:
+            // If upsert logic is standard, maybe we just return? But we can't easily validate the *new* document state here if it didn't exist.
+            // Best effort:
+            if (this.getOptions().upsert) return next();
             return next(new Error("Exam not found for update"));
         }
 
@@ -133,9 +139,17 @@ ExamSchema.pre(['findOneAndUpdate', 'updateOne'], async function (next) {
                 if (field === 'status') finalStatus = undefined; // Should fallback to default? Schema default doesn't apply to unset.
                 if (field === 'totalMarks') finalTotal = undefined;
                 if (field === 'passingMarks') finalPassing = undefined;
+            } else if (operator === '$min') {
+                if (field === 'totalMarks') finalTotal = Math.min(finalTotal ?? Infinity, value);
+                if (field === 'passingMarks') finalPassing = Math.min(finalPassing ?? Infinity, value);
+            } else if (operator === '$max') {
+                if (field === 'totalMarks') finalTotal = Math.max(finalTotal ?? -Infinity, value);
+                if (field === 'passingMarks') finalPassing = Math.max(finalPassing ?? -Infinity, value);
+            } else if (operator === '$mul') {
+                if (field === 'totalMarks') finalTotal = (finalTotal || 0) * value;
+                if (field === 'passingMarks') finalPassing = (finalPassing || 0) * value;
             }
         };
-
         // Iterate over update object keys
         for (const key in update) {
             if (key.startsWith('$')) {

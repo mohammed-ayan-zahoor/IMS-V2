@@ -9,6 +9,7 @@ if (!MONGODB_URI) {
 }
 
 async function migrate() {
+    let exitCode = 0;
     try {
         await mongoose.connect(MONGODB_URI);
         console.log('Connected to MongoDB');
@@ -37,7 +38,13 @@ async function migrate() {
                     continue;
                 }
 
-                const creator = await usersCollection.findOne({ _id: batch.createdBy });
+                // Normalize createdBy to ObjectId for lookup
+                let creatorId = batch.createdBy;
+                if (typeof creatorId === 'string' && mongoose.Types.ObjectId.isValid(creatorId)) {
+                    creatorId = new mongoose.Types.ObjectId(creatorId);
+                }
+
+                const creator = await usersCollection.findOne({ _id: creatorId });
                 if (!creator || !creator.institute) {
                     console.warn(`Creator or Creator's Institute not found for Batch ${batch._id}. Skipping.`);
                     errorCount++;
@@ -56,13 +63,15 @@ async function migrate() {
         }
 
         console.log(`Migration Complete. Updated: ${updatedCount}, Skipped/Errors: ${errorCount}`);
+        if (errorCount > 0 && updatedCount === 0) exitCode = 1;
 
     } catch (error) {
         console.error('Migration Error:', error);
+        exitCode = 1;
     } finally {
         await mongoose.disconnect();
         console.log('Disconnected');
-        process.exit(0);
+        process.exit(exitCode);
     }
 }
 

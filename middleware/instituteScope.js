@@ -52,7 +52,7 @@ export function addInstituteFilter(filter, scope) {
 /**
  * Validate user can access resource from their institute
  */
-export function validateInstituteAccess(resource, scope) {
+export async function validateInstituteAccess(resource, scope) {
     if (!resource) {
         // Fail closed: If resource is missing/null, deny access by default.
         return false;

@@ -36,8 +36,7 @@ const AuditLogSchema = new Schema({
 }, { timestamps: true });
 
 // Compound indexes
-AuditLogSchema.index({ actor: 1, createdAt: -1 }); AuditLogSchema.index({ actor: 1, createdAt: -1 });
-AuditLogSchema.index({ institute: 1, actor: 1, createdAt: -1 });
+AuditLogSchema.index({ actor: 1, createdAt: -1 }); AuditLogSchema.index({ institute: 1, actor: 1, createdAt: -1 });
 AuditLogSchema.index({ action: 1, createdAt: -1 });
 AuditLogSchema.index({ 'resource.type': 1, 'resource.id': 1 });
 // Safe config parsing
