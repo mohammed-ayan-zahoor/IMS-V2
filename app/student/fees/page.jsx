@@ -10,19 +10,35 @@ export default function StudentFeesPage() {
     const [fees, setFees] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const [error, setError] = useState(null);
+
     useEffect(() => {
+        const controller = new AbortController();
         const fetchFees = async () => {
+            setLoading(true);
+            setError(null);
             try {
-                const res = await fetch("/api/v1/student/fees");
+                const res = await fetch("/api/v1/student/fees", { signal: controller.signal });
+                if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
                 const data = await res.json();
-                setFees(data.fees || []);
+                if (!controller.signal.aborted) {
+                    setFees(data.fees || []);
+                }
             } catch (error) {
-                console.error(error);
+                if (error.name !== "AbortError") {
+                    console.error(error);
+                    setError("Unable to load fee details. Please try again later.");
+                }
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
+
         fetchFees();
+
+        return () => controller.abort();
     }, []);
 
     if (loading) return <LoadingSpinner fullPage />;
@@ -61,10 +77,14 @@ export default function StudentFeesPage() {
                                 <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
                                     <div
                                         className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
-                                        style={{ width: `${(fee.paidAmount / (fee.totalAmount - (fee.discount?.amount || 0))) * 100}%` }}
+                                        style={{
+                                            width: `${fee.totalAmount - (fee.discount?.amount || 0) > 0
+                                                ? (fee.paidAmount / (fee.totalAmount - (fee.discount?.amount || 0))) * 100
+                                                : 0
+                                                }%`
+                                        }}
                                     />
-                                </div>
-                            </div>
+                                </div>                            </div>
 
                             {/* Installments Table */}
                             <div className="border border-slate-100 rounded-xl overflow-hidden">

@@ -103,7 +103,7 @@ export default function StudentDashboard() {
     );
 
     // Retry UI if critical error
-    if (error && !data.upcomingExams) {
+    if (error && !loading && data.upcomingExams.length === 0 && data.recentMaterials.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center p-12 space-y-4">
                 <p className="text-red-500 font-medium">{error}</p>
@@ -111,7 +111,6 @@ export default function StudentDashboard() {
             </div>
         );
     }
-
     const stats = [
         { title: "Attendance", value: `${data.attendance}%`, label: "Presence", icon: CheckCircle2, softColor: "bg-emerald-50 text-emerald-600" },
         { title: "Exams Taken", value: (data.examsTaken || 0).toString().padStart(2, '0'), label: "Completed", icon: Trophy, softColor: "bg-purple-50 text-purple-600" },

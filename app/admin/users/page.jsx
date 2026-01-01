@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -8,11 +8,14 @@ import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { User, Shield, UserCog, Mail, Phone, Plus, Search, Trash2 } from "lucide-react";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function UserManagementPage() {
+    const { toast } = useToast();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
+    const [activeTab, setActiveTab] = useState("students"); // 'students' or 'admins'
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // Form State
@@ -33,10 +36,25 @@ export default function UserManagementPage() {
         try {
             setLoading(true);
             const res = await fetch("/api/v1/users");
+
+            if (!res.ok) {
+                const contentType = res.headers.get("content-type");
+                let errorMessage = "Failed to fetch users";
+                if (contentType && contentType.includes("application/json")) {
+                    const errorData = await res.json();
+                    errorMessage = errorData.error || errorMessage;
+                } else {
+                    errorMessage = await res.text();
+                }
+                throw new Error(errorMessage);
+            }
+
             const data = await res.json();
             setUsers(data.users || []);
         } catch (error) {
             console.error("Failed to fetch users", error);
+            toast.error(error.message || "Failed to load users");
+            setUsers([]);
         } finally {
             setLoading(false);
         }
@@ -58,30 +76,40 @@ export default function UserManagementPage() {
                     password: "", role: "student"
                 });
                 fetchUsers();
-                alert("User created successfully");
+                toast.success("User created successfully");
             } else {
-                const err = await res.json();
-                alert(err.error || "Failed to create user");
+                const contentType = res.headers.get("content-type");
+                let errorMessage = "Failed to create user";
+                if (contentType && contentType.includes("application/json")) {
+                    const errorData = await res.json();
+                    errorMessage = errorData.error || errorMessage;
+                } else {
+                    errorMessage = await res.text();
+                }
+                toast.error(errorMessage);
             }
         } catch (error) {
             console.error(error);
+            toast.error("Network error during creation");
         }
     };
 
     const handleDeleteUser = async (userId) => {
         if (!confirm("Are you sure? This will soft-delete the user.")) return;
-        // Assuming we reuse the student delete API or need a generic one. 
-        // For now, let's just use the generic users API if implemented, or alert TODO.
-        // Actually, we haven't implemented DELETE /api/v1/users/[id] yet.
-        // I'll skip this or implementing client-side warning.
         alert("Delete functionality requires specific endpoint implementation (TODO by agent).");
     };
 
-    const filteredUsers = users.filter(u =>
-        u.profile?.firstName?.toLowerCase().includes(search.toLowerCase()) ||
-        u.email?.toLowerCase().includes(search.toLowerCase()) ||
-        u.role?.toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredUsers = useMemo(() => users.filter(u => {
+        const matchesSearch = u.profile?.firstName?.toLowerCase().includes(search.toLowerCase()) ||
+            u.profile?.lastName?.toLowerCase().includes(search.toLowerCase()) ||
+            u.email?.toLowerCase().includes(search.toLowerCase()) ||
+            u.role?.toLowerCase().includes(search.toLowerCase());
+
+        const isStudent = u.role === 'student';
+        const matchesTab = activeTab === 'students' ? isStudent : !isStudent;
+
+        return matchesSearch && matchesTab;
+    }), [users, search, activeTab]);
 
     return (
         <div className="space-y-6">
@@ -91,17 +119,48 @@ export default function UserManagementPage() {
                     <p className="text-slate-400 mt-1 text-sm font-medium">Manage admins, instructors, and students.</p>
                 </div>
                 <div>
-                    <Button onClick={() => setIsCreateModalOpen(true)}>
-                        <Plus size={18} className="mr-2" /> Add User
+                    <Button onClick={() => {
+                        setFormData(prev => ({ ...prev, role: activeTab === 'students' ? 'student' : 'admin' }));
+                        setIsCreateModalOpen(true);
+                    }}>
+                        <Plus size={18} className="mr-2" /> Add {activeTab === 'students' ? 'Student' : 'User'}
                     </Button>
                 </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-4 border-b border-slate-200">
+                <button
+                    onClick={() => setActiveTab("students")}
+                    className={`pb-3 px-1 text-sm font-bold transition-all relative ${activeTab === "students"
+                        ? "text-premium-blue"
+                        : "text-slate-500 hover:text-slate-700"}`}
+                >
+                    Students
+                    {activeTab === "students" && (
+                        <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-premium-blue rounded-full"></span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab("admins")}
+                    className={`pb-3 px-1 text-sm font-bold transition-all relative ${activeTab === "admins"
+                        ? "text-premium-blue"
+                        : "text-slate-500 hover:text-slate-700"}`}
+                >
+                    Admins & Staff
+                    {activeTab === "admins" && (
+                        <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-premium-blue rounded-full"></span>
+                    )}
+                </button>
             </div>
 
             <Card className="border-transparent shadow-sm">
                 <div className="p-4 border-b border-slate-50 flex items-center justify-between">
                     <div className="relative group max-w-sm w-full">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-premium-blue transition-colors" size={18} />
+                        <label htmlFor="user-search" className="sr-only">Search users</label>
                         <input
+                            id="user-search"
                             type="text"
                             placeholder="Search users..."
                             value={search}

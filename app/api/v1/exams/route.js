@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import Exam from "@/models/Exam";
 import "@/models/Course";
 import "@/models/Batch";
+import AuditLog from "@/models/AuditLog";
 
 export async function GET(req) {
     try {
@@ -48,6 +49,21 @@ export async function POST(req) {
         const exam = await Exam.create({
             ...body,
             createdBy: session.user.id
+        });
+
+        // Audit Log
+        await AuditLog.create({
+            actor: session.user.id,
+            action: 'exam.create',
+            resource: { type: 'Exam', id: exam._id },
+            details: {
+                title: exam.title,
+                course: exam.course,
+                batches: exam.batches,
+                totalMarks: exam.totalMarks
+            },
+            ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+            userAgent: req.headers.get('user-agent') || 'unknown'
         });
 
         return NextResponse.json({ success: true, exam }, { status: 201 });

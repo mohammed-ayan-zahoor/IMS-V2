@@ -7,10 +7,9 @@ import Batch from "@/models/Batch";
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user || session.user.role !== 'student') {
+        if (!session?.user?.id || session.user.role !== 'student') {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-
         await connectDB();
 
         const batches = await Batch.find({

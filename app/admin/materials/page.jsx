@@ -8,7 +8,13 @@ import Input from "@/components/ui/Input";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
+import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
+
 export default function MaterialsPage() {
+    const { toast } = useToast();
+    const confirm = useConfirm();
+
     const [materials, setMaterials] = useState([]);
     const [loading, setLoading] = useState(true);
     const [courses, setCourses] = useState([]);
@@ -82,15 +88,15 @@ export default function MaterialsPage() {
 
         // Validation
         if (!formData.title?.trim()) {
-            alert("Title is required");
+            toast.error("Title is required");
             return;
         }
         if (!formData.course) {
-            alert("Course is required");
+            toast.error("Course is required");
             return;
         }
         if (!formData.fileUrl?.trim()) {
-            alert("File URL or upload is required");
+            toast.error("File URL or upload is required");
             return;
         }
 
@@ -121,35 +127,44 @@ export default function MaterialsPage() {
             });
 
             if (res.ok) {
+                toast.success(editingId ? "Material updated successfully" : "Material created successfully");
                 setIsModalOpen(false);
                 setEditingId(null);
                 setFormData(initialFormState());
                 fetchMaterials();
             } else {
                 const err = await res.json();
-                alert(err.error || "Failed to save material");
+                toast.error(err.error || "Failed to save material");
             }
         } catch (error) {
             console.error(error);
-            alert("Network error");
+            toast.error("Network error");
         } finally {
             setSaving(false);
         }
     };
 
     const handleDelete = async (id) => {
-        if (!confirm("Delete this material?")) return;
+        const isConfirmed = await confirm({
+            title: "Delete Material?",
+            message: "This action cannot be undone. The material will be permanently removed.",
+            type: "danger"
+        });
+
+        if (!isConfirmed) return;
+
         try {
             const res = await fetch(`/api/v1/materials/${id}`, { method: "DELETE" });
             if (!res.ok) {
                 const err = await res.json();
-                alert(err.error || "Failed to delete");
+                toast.error(err.error || "Failed to delete");
                 return;
             }
+            toast.success("Material deleted successfully");
             fetchMaterials();
         } catch (error) {
             console.error(error);
-            alert("Network error during delete");
+            toast.error("Network error during delete");
         }
     };
 
@@ -384,12 +399,13 @@ export default function MaterialsPage() {
                                                             fileUrl: json.url,
                                                             fileType: computedType
                                                         }));
+                                                        toast.success("File uploaded successfully");
                                                     } else {
-                                                        alert("Upload failed");
+                                                        toast.error("Upload failed");
                                                     }
                                                 } catch (err) {
                                                     console.error(err);
-                                                    alert("Upload error");
+                                                    toast.error("Upload error");
                                                 }
                                             }}
                                         />

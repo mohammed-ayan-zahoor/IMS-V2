@@ -61,6 +61,7 @@ export default function StudentAttendancePage() {
         present: monthRecords.filter(r => r.status === 'present').length,
         absent: monthRecords.filter(r => r.status === 'absent').length,
         late: monthRecords.filter(r => r.status === 'late').length,
+        excused: monthRecords.filter(r => r.status === 'excused').length,
         total: monthRecords.length
     };
 
@@ -111,6 +112,7 @@ export default function StudentAttendancePage() {
                 <StatsBadge label="Present" value={stats.present} total={stats.total} color="emerald" />
                 <StatsBadge label="Absent" value={stats.absent} total={stats.total} color="red" />
                 <StatsBadge label="Late" value={stats.late} total={stats.total} color="amber" />
+                <StatsBadge label="Excused" value={stats.excused} total={stats.total} color="blue" />
                 <div className="px-4 py-4 rounded-2xl border border-slate-200 bg-white flex flex-col items-center justify-center shadow-sm">
                     <span className="text-2xl font-black text-slate-700">
                         {attendanceRate}%
@@ -192,6 +194,7 @@ function StatsBadge({ label, value, total, color }) {
         emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
         red: "bg-red-50 text-red-600 border-red-100",
         amber: "bg-amber-50 text-amber-600 border-amber-100",
+        blue: "bg-blue-50 text-blue-600 border-blue-100",
     };
 
     return (

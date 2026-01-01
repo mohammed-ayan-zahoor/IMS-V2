@@ -24,22 +24,43 @@ export async function POST(req) {
             return NextResponse.json({ error: "File too large" }, { status: 400 });
         }
 
-        // Validate file type (whitelist allowed MIME types)
-        const allowedTypes = ["image/jpeg", "image/png", "image/gif", "application/pdf"];
-        if (!allowedTypes.includes(file.type)) {
-            return NextResponse.json({ error: "File type not allowed" }, { status: 400 });
-        }
-
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
+
+        // Magic Number Validation
+        const getMimeType = (buf) => {
+            if (buf.length < 4) return null;
+            // JPEG: FF D8 FF
+            if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return "image/jpeg";
+            // PNG: 89 50 4E 47
+            if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return "image/png";
+            // GIF: 47 49 46 38
+            if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return "image/gif";
+            // PDF: 25 50 44 46
+            if (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46) return "application/pdf";
+            return null;
+        };
+
+        const detectedType = getMimeType(buffer);
+        const allowedTypes = ["image/jpeg", "image/png", "image/gif", "application/pdf"];
+
+        if (!detectedType || !allowedTypes.includes(detectedType)) {
+            return NextResponse.json({ error: "File type not allowed or unrecognizable" }, { status: 400 });
+        }
 
         // Sanitize filename: remove path separators and dangerous characters
         const sanitizedName = file.name
             .replace(/[^a-zA-Z0-9._-]/g, "_")
             .replace(/\.+/g, ".")
             .substring(0, 255);
-        const filename = `${Date.now()}_${sanitizedName}`;
 
+        // Ensure sanitized name has meaningful content (not just underscores/dots)
+        const meaningfulPart = sanitizedName.replace(/[_.-]/g, "");
+        if (meaningfulPart.length === 0) {
+            return NextResponse.json({ error: "Invalid filename" }, { status: 400 });
+        }
+
+        const filename = `${Date.now()}_${sanitizedName}`;
         const uploadDir = path.join(process.cwd(), "public/uploads");
 
         // Ensure directory exists

@@ -22,6 +22,7 @@ export async function GET(req) {
         return NextResponse.json({ logs });
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("Audit logs fetch error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

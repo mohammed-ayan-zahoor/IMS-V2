@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { FeeService } from "@/services/feeService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import AuditLog from "@/models/AuditLog";
 
 export async function POST(req, { params }) {
     try {
@@ -15,6 +16,24 @@ export async function POST(req, { params }) {
         const { installmentId, ...paymentDetails } = body;
 
         const fee = await FeeService.recordPayment(id, installmentId, paymentDetails, session.user.id);
+
+        // Audit Log
+        if (fee) {
+            await AuditLog.create({
+                actor: session.user.id,
+                action: 'fee.payment',
+                resource: { type: 'Fee', id: fee._id },
+                details: {
+                    student: fee.student,
+                    amount: paymentDetails.amount,
+                    method: paymentDetails.method,
+                    installmentId: installmentId
+                },
+                ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+                userAgent: req.headers.get('user-agent') || 'unknown'
+            });
+        }
+
         return NextResponse.json(fee);
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
