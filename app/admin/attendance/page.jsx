@@ -82,6 +82,7 @@ export default function AttendanceMarkingPage() {
             const existingMap = {};
             if (attData.records) {
                 attData.records.forEach(r => {
+                    if (!r.student) return;
                     // Handle populate vs ID
                     const sId = typeof r.student === 'object' ? r.student._id : r.student;
                     existingMap[sId] = { status: r.status, remarks: r.remarks };
@@ -187,14 +188,14 @@ export default function AttendanceMarkingPage() {
             </div>
 
             {/* Selection Area */}
-            <Card className="border-transparent shadow-sm bg-white">
-                <CardContent className="p-6">
+            <Card className="border-transparent shadow-sm bg-white overflow-visible">
+                <CardContent className="p-6 overflow-visible">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select Batch</label>
                             <Select
                                 value={selectedBatch}
-                                onChange={(e) => setSelectedBatch(e.target.value)}
+                                onChange={(val) => setSelectedBatch(val)}
                                 placeholder="-- Choose Batch --"
                                 options={[
                                     ...batches.map(b => ({ label: b.name, value: b._id }))
@@ -288,21 +289,14 @@ export default function AttendanceMarkingPage() {
                                                                 <button
                                                                     key={opt.id}
                                                                     onClick={() => handleStatusChange(sId, opt.id)}
-<button
-    key={opt.id}
-    onClick={() => handleStatusChange(sId, opt.id)}
-    className={`p-2 rounded-lg border transition-all ${
-        current.status === opt.id
-            ? `${opt.bg} ${opt.color} shadow-sm ring-2 ring-offset-1 ${
-                opt.id === 'present' ? 'ring-emerald-100' :
-                opt.id === 'absent' ? 'ring-rose-100' :
-                opt.id === 'late' ? 'ring-amber-100' :
-                'ring-blue-100'
-            }`
-            : 'border-transparent text-slate-300 hover:bg-slate-100 hover:text-slate-400'
-    }`}
-    title={opt.id.charAt(0).toUpperCase() + opt.id.slice(1)}
->                                                                        }`}
+                                                                    className={`p-2 rounded-lg border transition-all ${current.status === opt.id
+                                                                        ? `${opt.bg} ${opt.color} shadow-sm ring-2 ring-offset-1 ${opt.id === 'present' ? 'ring-emerald-100' :
+                                                                            opt.id === 'absent' ? 'ring-rose-100' :
+                                                                                opt.id === 'late' ? 'ring-amber-100' :
+                                                                                    'ring-blue-100'
+                                                                        }`
+                                                                        : 'border-transparent text-slate-300 hover:bg-slate-100 hover:text-slate-400'
+                                                                        }`}
                                                                     title={opt.id.charAt(0).toUpperCase() + opt.id.slice(1)}
                                                                 >
                                                                     <opt.icon size={20} className={current.status === opt.id ? "fill-current opacity-20" : ""} />

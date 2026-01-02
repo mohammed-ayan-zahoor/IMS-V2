@@ -21,6 +21,14 @@ export async function GET(req) {
 
         const query = { deletedAt: null };
 
+        // Multi-tenancy: Scope by Institute for non-Super Admins
+        if (session.user.role !== 'super_admin') {
+            if (!session.user.institute?.id) {
+                return NextResponse.json({ error: "Institute context missing" }, { status: 403 });
+            }
+            query.institute = session.user.institute.id;
+        }
+
         // Check permissions
         if (session.user.role === 'student') {
             query.visibleToStudents = true;
@@ -191,7 +199,8 @@ export async function POST(req) {
 
         const material = await Material.create({
             ...safeBody,
-            uploadedBy: session.user.id
+            uploadedBy: session.user.id,
+            institute: session.user.institute?.id
         });
 
         // Audit Log

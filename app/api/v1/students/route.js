@@ -14,7 +14,7 @@ export async function GET(req) {
 
         await connectDB();
         const scope = await getInstituteScope(req);
-        if (!scope || !scope.instituteId) {
+        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
         const { searchParams } = new URL(req.url);
@@ -53,7 +53,7 @@ export async function POST(req) {
 
         await connectDB();
         const scope = await getInstituteScope(req);
-        if (!scope || !scope.instituteId) {
+        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
         }
 
@@ -66,7 +66,7 @@ export async function POST(req) {
 
         const studentData = {
             ...body,
-            institute: scope.instituteId // Inject Institute
+            institute: scope.instituteId || body.institute // Inject Institute from Scope or Body
         };
 
         const student = await StudentService.createStudent(studentData, session.user.id);

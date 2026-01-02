@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { BatchService } from "@/services/courseService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { getInstituteScope } from "@/middleware/instituteScope";
 
 export async function GET(req) {
     try {
@@ -12,7 +13,12 @@ export async function GET(req) {
         const filters = {};
         if (courseId) filters.course = courseId;
 
-        const batches = await BatchService.getBatches(filters);
+        const scope = await getInstituteScope(req);
+        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
+            return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
+        }
+
+        const batches = await BatchService.getBatches(filters, scope.instituteId);
         return NextResponse.json({ batches });
     } catch (error) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
@@ -26,12 +32,17 @@ export async function POST(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const scope = await getInstituteScope(req);
+        if (!scope || !scope.instituteId) {
+            return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
+        }
+
         const body = await req.json();
         if (!body.name || !body.course) {
             return NextResponse.json({ error: "Name and course reference are required" }, { status: 400 });
         }
 
-        const batch = await BatchService.createBatch(body, session.user.id);
+        const batch = await BatchService.createBatch({ ...body, institute: scope.instituteId }, session.user.id);
         return NextResponse.json(batch, { status: 201 });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });

@@ -8,7 +8,11 @@ export class ExamGradingService {
      */
     static async autoGrade(submissionId, actorId = null) {
         const submission = await ExamSubmission.findById(submissionId)
-            .populate('exam student');
+            .populate({
+                path: 'exam',
+                populate: { path: 'questions' }
+            })
+            .populate('student');
 
         if (!submission) {
             throw new Error('Submission not found');
@@ -20,12 +24,12 @@ export class ExamGradingService {
 
         for (let i = 0; i < submission.answers.length; i++) {
             const answer = submission.answers[i];
-            // Ensure questionId matches logic (assuming exam.questions is embedded array with _id)
-            const question = exam.questions.id(answer.questionId);
+            const question = exam.questions.find(q => q._id.toString() === answer.questionId.toString());
 
             if (!question) continue;
 
             if (question.type === 'mcq' || question.type === 'true_false') {
+                // ... (rest of logic) ...
                 // Auto-grade objective questions
                 // NOTE: answer.answer is stored as string.
                 // For MCQ: we likely stored the option TEXT or INDEX.

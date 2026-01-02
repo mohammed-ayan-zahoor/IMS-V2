@@ -60,14 +60,12 @@ export async function POST(req) {
             return NextResponse.json({ error: "Institute Code already exists" }, { status: 400 });
         }
 
-        const sessionDb = await mongoose.startSession();
-        let institute, adminUser;
-
-        try {
-            sessionDb.startTransaction();
+        // Helper function to execute creation logic (with or without session)
+        const createInstituteLogic = async (dbSession = null, manualRollback = false) => {
+            const opts = dbSession ? { session: dbSession } : {};
 
             // 2. Create Institute
-            institute = await Institute.create([{
+            const [institute] = await Institute.create([{
                 name: body.name,
                 code: body.code.toUpperCase(),
                 contactEmail: body.contactEmail || body.adminEmail, // Default to admin email if not provided
@@ -79,73 +77,96 @@ export async function POST(req) {
                     isActive: true
                 },
                 createdBy: session.user.id
-            }], { session: sessionDb });
+            }], opts);
 
-            institute = institute[0]; // create returns array
+            try {
+                // Check if email already exists within this institute
+                const existingUser = await User.findOne({
+                    email: body.adminEmail.toLowerCase(),
+                    institute: institute._id
+                }).setOptions(opts);
 
-            // Check if email already exists within this institute (redundant but safe)
-            const existingUser = await User.findOne({
-                email: body.adminEmail.toLowerCase(),
-                institute: institute._id
-            }).session(sessionDb);
-            if (existingUser) {
-                throw new Error("Admin email already exists for this institute");
+                if (existingUser) {
+                    throw new Error("Admin email already exists for this institute");
+                }
+
+                // 3. Create Admin User for this Institute
+                const salt = await bcrypt.genSalt(10);
+                const hashedPassword = await bcrypt.hash(body.adminPassword, salt);
+
+                const [adminUser] = await User.create([{
+                    email: body.adminEmail.toLowerCase(),
+                    passwordHash: hashedPassword,
+                    role: 'admin',
+                    profile: {
+                        firstName: body.adminName || 'Admin',
+                        lastName: body.adminLastName || 'User',
+                        phone: body.contactPhone
+                    },
+                    institute: institute._id,
+                    isActive: true
+                }], opts);
+
+                // 4. Audit Log
+                await AuditLog.create([{
+                    actor: session.user.id,
+                    action: 'institute.create',
+                    resource: { type: 'Institute', id: institute._id },
+                    institute: institute._id,
+                    details: { name: institute.name, code: institute.code }
+                }], opts);
+
+                return institute;
+
+            } catch (innerError) {
+                // If manual rollback is enabled (Sequential Mode) and an error occurred AFTER institute creation
+                if (manualRollback) {
+                    console.error("Sequential Execution Failed. Rolling back orphaned institute:", institute._id);
+                    await Institute.findByIdAndDelete(institute._id);
+                }
+                throw innerError;
             }
+        };
 
-            // 3. Create Admin User for this Institute
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(body.adminPassword, salt);
-
-            // Check if user email already exists globally? 
-            // Our logic allows same email in different institutes, BUT it might be confusing for login if they use same email.
-            // The login requires institute code, so duplicates are technically fine.
-            // However, globally unique emails are better for strict uniqueness.
-            // Let's allow duplicates but scoped to institute (which we enforced in User model).
-
-            adminUser = await User.create([{
-                email: body.adminEmail.toLowerCase(),
-                passwordHash: hashedPassword,
-                role: 'admin',
-                profile: {
-                    firstName: body.adminName || 'Admin',
-                    lastName: body.adminLastName || 'User',
-                    phone: body.contactPhone
-                },
-                institute: institute._id,
-                isActive: true
-            }], { session: sessionDb });
-
-            // 4. Audit Log
-            await AuditLog.create([{
-                actor: session.user.id,
-                action: 'institute.create',
-                resource: { type: 'Institute', id: institute._id },
-                institute: institute._id, // Self-reference? Or Super Admin Log?
-                // Super Admin doesn't necessarily belong to this new institute. 
-                // So we might leave institute null or use Default.
-                // But wait, the schema requires institute.
-                // Super Admin's institute ID (Default) should probably be logged?
-                // Let's use the new institute ID to track actions related to it.
-                details: { name: institute.name, code: institute.code }
-            }], { session: sessionDb });
-
-            await sessionDb.commitTransaction();
-
-        } catch (err) {
-            await sessionDb.abortTransaction();
-            // Handle MongoDB duplicate key error for institute code (TOCTOU race)
-            if (err.code === 11000 && (err.keyPattern?.code || err.message?.includes("code"))) {
-                return NextResponse.json({ error: "Institute Code already exists" }, { status: 400 });
+        // Transaction Execution Strategy
+        let institute;
+        const dbSession = await mongoose.startSession();
+        try {
+            dbSession.startTransaction();
+            institute = await createInstituteLogic(dbSession, false); // No manual rollback in transaction
+            await dbSession.commitTransaction();
+        } catch (error) {
+            await dbSession.abortTransaction();
+            // Check for Standalone MongoDB error (Code 20: IllegalOperation)
+            // or if the error message explicitly mentions transaction numbers support
+            if (error.code === 20 || error.message?.includes("Transaction numbers")) {
+                console.warn("MongoDB Transactions not supported (Standalone mode). Falling back to sequential execution.");
+                // Retry without a session (non-transactional) but WITH manual rollback
+                try {
+                    institute = await createInstituteLogic(null, true);
+                } catch (retryError) {
+                    // Handle duplicate key error manually during retry if needed, or just let it bubble
+                    if (retryError.code === 11000) {
+                        return NextResponse.json({ error: "Institute Code or User Email already exists" }, { status: 400 });
+                    }
+                    console.error("Final Create Error (Sequential):", retryError);
+                    throw retryError;
+                }
+            } else {
+                // Re-throw other errors (like validation or duplicate key in transaction)
+                if (error.code === 11000) {
+                    return NextResponse.json({ error: "Institute Code or User Email already exists" }, { status: 400 });
+                }
+                throw error;
             }
-            throw err;
         } finally {
-            sessionDb.endSession();
+            dbSession.endSession();
         }
 
         return NextResponse.json({ success: true, institute });
 
     } catch (error) {
         console.error("Create Institute Error:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
     }
 }

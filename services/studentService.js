@@ -135,16 +135,17 @@ export class StudentService {
      * Get all students with pagination and filters
      */
     static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, instituteId = null }) {
-        if (!instituteId) {
-            throw new Error('Institute context required for fetching students');
-        }
+        // if (!instituteId) throw new Error('Institute context required for fetching students'); // Allow global view
 
         const skip = (page - 1) * limit;
 
         const query = {
             role: 'student',
-            institute: instituteId // Enforce Scope
+            // institute: instituteId // Enforce Scope conditionally
         };
+        if (instituteId) {
+            query.institute = instituteId;
+        }
 
         // Normalize isActive to handle both string and boolean inputs
         const normalizedIsActive = isActive === true || isActive === 'true'
@@ -166,7 +167,8 @@ export class StudentService {
         }
         // Filter by batch or course
         if (batchId || courseId) {
-            const batchQuery = { deletedAt: null, institute: instituteId }; // Scope Batch Search
+            const batchQuery = { deletedAt: null }; // Scope Batch Search
+            if (instituteId) batchQuery.institute = instituteId;
             if (batchId) batchQuery._id = batchId;
             if (courseId) batchQuery.course = courseId;
 
@@ -207,7 +209,7 @@ export class StudentService {
     /**
      * Enroll student in a batch and initialize fees
      */
-    static async enrollInBatch(studentId, batchId, actorId) {
+    static async enrollInBatch(studentId, batchId, actorId, instituteId) {
         const session = await mongoose.startSession();
         try {
             session.startTransaction();
@@ -215,6 +217,11 @@ export class StudentService {
             const student = await User.findById(studentId).session(session);
             if (!student || student.role !== 'student' || student.deletedAt) {
                 throw new Error('Invalid or inactive student');
+            }
+
+            // Check cross-institute access if instituteId is provided
+            if (instituteId && student.institute && student.institute.toString() !== instituteId.toString()) {
+                throw new Error("Student does not belong to this institute");
             }
 
             const batch = await Batch.findById(batchId).populate('course').session(session);
@@ -232,77 +239,78 @@ export class StudentService {
             );
 
             if (existingEnrollment) {
-                // Check if fee record exists
+                // Check if fee record also exists
                 const existingFee = await Fee.findOne({ student: studentId, batch: batchId }).session(session);
                 if (existingFee) {
-                    if (existingEnrollment) {
-                        // Check if fee record exists
-                        const existingFee = await Fee.findOne({ student: studentId, batch: batchId }).session(session);
-                        if (existingFee) {
-                            throw new Error('Student already enrolled in this batch');
-                        }
-                        // If enrolled but no Fee, we proceed to create Fee (Fix consistency)
-                    } else {
-                        // Check capacity
-                        if (batch.activeEnrollmentCount >= batch.capacity) {
-                            throw new Error('Batch has reached its maximum capacity');
-                        }
-
-                        // Add to batch
-                        batch.enrolledStudents.push({
-                            student: studentId,
-                            enrolledAt: new Date(),
-                            status: 'active'
-                        });
-                        await batch.save({ session });
-                    }
-
-                    // Create initial fee record
-                    const fee = await Fee.create([{
-                        student: studentId,
-                        batch: batchId,
-                        totalAmount: batch.course.fees.amount,
-                        installments: [],
-                        status: 'not_started' // Default status
-                    }], { session });
-
-                    await session.commitTransaction();
-
-                    // Log action independently after commit
-                    try {
-                        await createAuditLog({
-                            actor: actorId,
-                            action: 'batch.enroll',
-                            resource: { type: 'Batch', id: batchId },
-                            details: {
-                                studentId,
-                                studentName: student.fullName,
-                                batchName: batch.name,
-                                event: existingEnrollment ? "Fee Recovery for existing enrollment" : "New Enrollment"
-                            }
-                        });
-                    } catch (auditError) {
-                        console.error("Audit Log Error (Batch Enroll):", auditError);
-                    }
-
-                    return { student, batch, fee: fee[0] };
-
-                } catch (error) {
-                    await session.abortTransaction();
-                    // Fallback for standalone mongo (Replica Set required for transactions)
-                    if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
-                        return this.enrollInBatchStandalone(studentId, batchId, actorId);
-                    }
-                    throw error;
-                } finally {
-                    session.endSession();
+                    throw new Error('Student already enrolled in this batch');
                 }
+                // If enrolled but no Fee, we proceed to create Fee (Fix consistency)
+            } else {
+                // Check capacity
+                if (batch.activeEnrollmentCount >= batch.capacity) {
+                    throw new Error('Batch has reached its maximum capacity');
+                }
+
+                // Add to batch
+                batch.enrolledStudents.push({
+                    student: studentId,
+                    enrolledAt: new Date(),
+                    status: 'active'
+                });
+                await batch.save({ session });
             }
 
+            // Create initial fee record
+            const fee = await Fee.create([{
+                student: studentId,
+                batch: batchId,
+                institute: instituteId || student.institute, // Use provided institute or student's own
+                totalAmount: batch.course.fees.amount,
+                installments: [],
+                status: 'not_started' // Default status
+            }], { session });
+
+            await session.commitTransaction();
+
+            // Log action independently after commit
+            try {
+                await createAuditLog({
+                    actor: actorId,
+                    action: 'batch.enroll',
+                    resource: { type: 'Batch', id: batchId },
+                    institute: instituteId || student.institute,
+                    details: {
+                        studentId,
+                        studentName: student.fullName,
+                        batchName: batch.name,
+                        event: existingEnrollment ? "Fee Recovery for existing enrollment" : "New Enrollment"
+                    }
+                });
+            } catch (auditError) {
+                console.error("Audit Log Error (Batch Enroll):", auditError);
+            }
+
+            return { student, batch, fee: fee[0] };
+        } catch (error) {
+            await session.abortTransaction();
+            // Fallback for standalone mongo (Replica Set required for transactions)
+            if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
+                return this.enrollInBatchStandalone(studentId, batchId, actorId, instituteId);
+            }
+            throw error;
+        } finally {
+            session.endSession();
+        }
+    }
+
     // Fallback for standalone DB without transactions
-    static async enrollInBatchStandalone(studentId, batchId, actorId) {
+    static async enrollInBatchStandalone(studentId, batchId, actorId, instituteId) {
         const student = await User.findById(studentId);
         if (!student || student.role !== 'student' || student.deletedAt) throw new Error('Invalid or inactive student');
+
+        if (instituteId && student.institute && student.institute.toString() !== instituteId.toString()) {
+            throw new Error("Student does not belong to this institute");
+        }
 
         const batch = await Batch.findById(batchId).populate('course');
         if (!batch || batch.deletedAt) throw new Error('Batch not found or inactive');
@@ -329,6 +337,7 @@ export class StudentService {
         const fee = await Fee.create({
             student: studentId,
             batch: batchId,
+            institute: instituteId || student.institute, // Correctly set Institute
             totalAmount: batch.course.fees.amount,
             installments: [],
             status: 'not_started'
@@ -338,6 +347,7 @@ export class StudentService {
             actor: actorId,
             action: 'batch.enroll',
             resource: { type: 'Batch', id: batchId },
+            institute: instituteId || student.institute,
             details: { studentName: student.fullName, batchName: batch.name }
         });
 

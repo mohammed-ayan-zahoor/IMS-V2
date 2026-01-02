@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -9,10 +9,12 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 
-export default function CreateQuestionPage() {
+export default function EditQuestionPage({ params }) {
+    const { id } = use(params);
     const router = useRouter();
-    const toast = useToast();
+    const { toast } = useToast();
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
 
     // Data state
     const [courses, setCourses] = useState([]);
@@ -32,6 +34,7 @@ export default function CreateQuestionPage() {
 
     useEffect(() => {
         fetchDropdowns();
+        fetchQuestion();
     }, []);
 
     useEffect(() => {
@@ -57,6 +60,32 @@ export default function CreateQuestionPage() {
             setBatches(bData.batches || []);
         } catch (error) {
             console.error("Failed to fetch dropdowns", error);
+        }
+    };
+
+    const fetchQuestion = async () => {
+        try {
+            const res = await fetch(`/api/v1/questions/${id}`);
+            if (!res.ok) throw new Error("Failed to fetch question");
+            const data = await res.json();
+            const q = data.question;
+
+            // Map backend data to form state
+            setFormData({
+                text: q.text || "",
+                course: q.course || "",
+                batch: q.batch || "",
+                type: q.type || "mcq",
+                difficulty: q.difficulty || "medium",
+                marks: q.marks || 1,
+                options: q.options && q.options.length > 0 ? q.options : ["", "", "", ""],
+                correctOption: q.type === 'mcq' ? Number(q.correctAnswer) : 0
+            });
+        } catch (error) {
+            console.error("Failed to fetch question", error);
+            toast.error("Failed to load question details");
+        } finally {
+            setFetching(false);
         }
     };
 
@@ -96,21 +125,21 @@ export default function CreateQuestionPage() {
                 correctAnswer: String(formData.correctOption) // Backend expects string index for MCQ
             };
 
-            const res = await fetch("/api/v1/questions", {
-                method: "POST",
+            const res = await fetch(`/api/v1/questions/${id}`, {
+                method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
-            if (!res.ok) throw new Error("Failed to create question");
+            if (!res.ok) throw new Error("Failed to update question");
 
-            toast.success("Question created successfully");
+            toast.success("Question updated successfully");
             setTimeout(() => {
                 router.push("/admin/question-bank");
             }, 1000);
         } catch (error) {
             console.error(error);
-            toast.error("Error creating question");
+            toast.error("Error updating question");
             setLoading(false);
         }
     };
@@ -128,6 +157,10 @@ export default function CreateQuestionPage() {
         { label: "Descriptive / Text", value: "descriptive" }
     ];
 
+    if (fetching) {
+        return <div className="p-8 text-center text-slate-500">Loading question details...</div>;
+    }
+
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             <div className="flex items-center gap-4">
@@ -135,8 +168,8 @@ export default function CreateQuestionPage() {
                     <ArrowLeft size={20} />
                 </Button>
                 <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Add New Question</h1>
-                    <p className="text-slate-500">Create a question for the question bank.</p>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Edit Question</h1>
+                    <p className="text-slate-500">Modify existing question details.</p>
                 </div>
             </div>
 
@@ -147,7 +180,7 @@ export default function CreateQuestionPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <Select
-                                    label="Course *"
+                                    label="Course"
                                     name="course"
                                     value={formData.course}
                                     onChange={(val) => {
@@ -159,7 +192,7 @@ export default function CreateQuestionPage() {
                             </div>
                             <div>
                                 <Select
-                                    label="Batch *"
+                                    label="Batch"
                                     name="batch"
                                     value={formData.batch}
                                     onChange={(val) => setFormData(prev => ({ ...prev, batch: val }))}
@@ -265,7 +298,7 @@ export default function CreateQuestionPage() {
                 <div className="flex justify-end gap-3">
                     <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
                     <Button type="submit" disabled={loading} className="bg-premium-blue hover:bg-premium-blue/90 text-white min-w-[120px]">
-                        {loading ? "Saving..." : <><Save size={18} className="mr-2" /> Save Question</>}
+                        {loading ? "Saving..." : <><Save size={18} className="mr-2" /> Save Changes</>}
                     </Button>
                 </div>
             </form>

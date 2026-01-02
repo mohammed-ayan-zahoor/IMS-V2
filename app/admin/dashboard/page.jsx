@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import {
     Users,
@@ -32,19 +33,63 @@ const StatCard = ({ title, value, icon: Icon, trend, color, softColor }) => (
 );
 
 export default function AdminDashboard() {
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const res = await fetch('/api/v1/dashboard/stats');
+                if (res.ok) {
+                    const data = await res.json();
+                    setDashboardData(data);
+                }
+            } catch (error) {
+                console.error("Dashboard fetch error:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchStats();
+    }, []);
+
     const stats = [
-        { title: "Students", value: "124,684", icon: Users, trend: "+12%", softColor: "bg-soft-purple" },
-        { title: "Teachers", value: "12,379", icon: BookOpen, trend: "-5%", softColor: "bg-soft-yellow" },
-        { title: "Staffs", value: "29,300", icon: Layers3, trend: "-2%", softColor: "bg-soft-blue" },
-        { title: "Awards", value: "95,800", icon: Trophy, trend: "+8%", softColor: "bg-soft-emerald" },
+        {
+            title: "Students",
+            value: loading ? "-" : (dashboardData?.counts?.students || 0).toLocaleString(),
+            icon: Users,
+            trend: "+0%", // Real trend calculation requires historical data
+            softColor: "bg-soft-purple"
+        },
+        {
+            title: "Teachers",
+            value: loading ? "-" : (dashboardData?.counts?.teachers || 0).toLocaleString(),
+            icon: BookOpen,
+            trend: "+0%",
+            softColor: "bg-soft-yellow"
+        },
+        {
+            title: "Staffs",
+            value: loading ? "-" : (dashboardData?.counts?.staff || 0).toLocaleString(),
+            icon: Layers3,
+            trend: "+0%",
+            softColor: "bg-soft-blue"
+        },
+        {
+            title: "Awards",
+            value: loading ? "-" : (dashboardData?.counts?.awards || 0).toLocaleString(),
+            icon: Trophy,
+            trend: "+0%",
+            softColor: "bg-soft-emerald"
+        },
     ];
 
     return (
         <div className="space-y-10">
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight text-slate-900">Enterprise Overview</h1>
-                    <p className="text-slate-500 mt-1 font-medium">System performance metrics and admission trends.</p>
+                    <h1 className="text-3xl font-black tracking-tight text-slate-900">Institute Overview</h1>
+                    <p className="text-slate-500 mt-1 font-medium">Real-time performance metrics and admission trends.</p>
                 </div>
                 <div className="hidden sm:block">
                     <div className="bg-slate-50 border border-border px-4 py-2 rounded-lg text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -70,22 +115,32 @@ export default function AdminDashboard() {
                 <Card className="border-border shadow-sm">
                     <CardHeader
                         title="Recent Admissions"
-                        subtitle="Detailed log of the latest 5 student enrollments"
+                        subtitle="Latest student enrollments"
                     />
                     <CardContent>
                         <div className="divide-y divide-slate-100">
-                            {[1, 2, 3, 4, 5].map((item) => (
-                                <div key={item} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0 group cursor-pointer">
-                                    <div className="w-10 h-10 rounded-lg bg-soft-blue flex items-center justify-center text-premium-blue group-hover:bg-premium-blue group-hover:text-white transition-colors border border-blue-100/50">
-                                        <Users size={18} />
+                            {loading ? (
+                                <div className="py-8 text-center text-slate-400 text-sm">Loading admissions...</div>
+                            ) : dashboardData?.recentAdmissions?.length === 0 ? (
+                                <div className="py-8 text-center text-slate-400 text-sm">No recent admissions found.</div>
+                            ) : (
+                                dashboardData?.recentAdmissions?.map((student) => (
+                                    <div key={student._id || student.id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0 group cursor-pointer">
+                                        <div className="w-10 h-10 rounded-lg bg-soft-blue flex items-center justify-center text-premium-blue group-hover:bg-premium-blue group-hover:text-white transition-colors border border-blue-100/50">
+                                            <Users size={18} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-bold text-slate-900">
+                                                {student.profile?.firstName} {student.profile?.lastName}
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                                                {student.enrollmentNumber || "Pending ID"}
+                                            </p>
+                                        </div>
+                                        <ArrowUpRight size={14} className="text-slate-300 group-hover:text-premium-blue transition-colors" />
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-bold text-slate-900">Student Name {item}</p>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Web Development • Batch A</p>
-                                    </div>
-                                    <ArrowUpRight size={14} className="text-slate-300 group-hover:text-premium-blue transition-colors" />
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -102,10 +157,10 @@ export default function AdminDashboard() {
                                 <div className="flex-1">
                                     <div className="flex justify-between items-end mb-2">
                                         <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Database Cluster</p>
-                                        <p className="text-[10px] font-black text-emerald-600/70">98% CAPACITY</p>
+                                        <p className="text-[10px] font-black text-emerald-600/70">CONNECTED</p>
                                     </div>
                                     <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden border border-slate-100">
-                                        <div className="bg-emerald-400 h-full w-[98%] rounded-full shadow-[0_0_8px_rgba(52,211,153,0.2)]" />
+                                        <div className="bg-emerald-400 h-full w-[100%] rounded-full shadow-[0_0_8px_rgba(52,211,153,0.2)]" />
                                     </div>
                                 </div>
                             </div>
@@ -115,7 +170,7 @@ export default function AdminDashboard() {
                                 <div className="flex-1">
                                     <div className="flex justify-between items-end mb-2">
                                         <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Auth Gateway</p>
-                                        <p className="text-[10px] font-black text-premium-blue/70">OPERATIONAL</p>
+                                        <p className="text-[10px] font-black text-premium-blue/70">SECURE</p>
                                     </div>
                                     <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden border border-slate-100">
                                         <div className="bg-premium-blue/40 h-full w-[100%] rounded-full shadow-[0_0_8px_rgba(59,130,246,0.1)]" />

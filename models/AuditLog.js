@@ -19,14 +19,16 @@ const AuditLogSchema = new Schema({
             'material.upload', 'material.delete',
             'attendance.mark', 'attendance.update',
             'exam.create', 'exam.update', 'exam.delete', 'exam.publish',
-            'user.password_reset', 'user.role_change', 'user.create', 'user.delete'
+            'user.password_reset', 'user.role_change', 'user.create', 'user.delete',
+            'institute.create', 'institute.update', 'institute.delete',
+            'LOGIN'
         ],
         index: true
     },
     resource: {
         type: {
             type: String,
-            enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission']
+            enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute']
         },
         id: Schema.Types.ObjectId
     },
@@ -58,5 +60,12 @@ const getRetentionSeconds = () => {
 };
 
 AuditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: getRetentionSeconds() }); // Customizable retention
+
+// Force recompilation in dev to pick up enum changes
+if (process.env.NODE_ENV === 'development') {
+    if (mongoose.models.AuditLog) {
+        delete mongoose.models.AuditLog;
+    }
+}
 
 export default mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);

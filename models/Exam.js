@@ -5,7 +5,7 @@ const ExamSchema = new Schema({
     title: { type: String, required: true, trim: true },
     institute: { type: Schema.Types.ObjectId, ref: 'Institute', required: true, index: true },
     course: { type: Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
-    batch: { type: Schema.Types.ObjectId, ref: 'Batch', required: true, index: true },
+    batches: [{ type: Schema.Types.ObjectId, ref: 'Batch', index: true }], // Changed to Array
 
     // Questions - STORE AS REFERENCES, NOT EMBEDDED
     questions: [{
@@ -39,6 +39,14 @@ const ExamSchema = new Schema({
     showCorrectAnswers: { type: Boolean, default: true },
     showExplanations: { type: Boolean, default: true },
 
+    // Attempt & Result Control
+    maxAttempts: { type: Number, default: 1, min: 1 },
+    resultPublication: {
+        type: String,
+        enum: ['immediate', 'after_exam_end'],
+        default: 'immediate'
+    },
+
     // Security Configuration
     securityConfig: {
         enforceFullscreen: { type: Boolean, default: true },
@@ -58,8 +66,8 @@ const ExamSchema = new Schema({
     deletedAt: { type: Date, default: null }
 }, { timestamps: true });
 
-ExamSchema.index({ batch: 1, status: 1 });
-ExamSchema.index({ institute: 1, batch: 1, status: 1 });
+ExamSchema.index({ batches: 1, status: 1 });
+ExamSchema.index({ institute: 1, status: 1 });
 ExamSchema.index({ scheduledAt: 1 });
 
 // Validation Hooks
@@ -70,109 +78,100 @@ function validateTotalMarks(status, totalMarks) {
 }
 
 function validatePassingMarks(passing, total) {
-    if (passing !== undefined && total !== undefined && passing > total) {
+    if (total > 0 && passing !== undefined && passing > total) {
         throw new Error('Passing marks cannot exceed total marks');
     }
 }
 
-ExamSchema.pre('save', function (next) {
-    try {
-        // Validation: Schedule is required
-        if (!this.schedule || !this.schedule.startTime || !this.schedule.endTime) {
-            throw new Error('Exam schedule (start and end time) is required');
-        }
-
-        // Sync legacy scheduledAt
-        this.scheduledAt = this.schedule.startTime;
-
-        if (this.schedule.endTime <= this.schedule.startTime) {
-            throw new Error('End time must be after start time');
-        }
-
-        // Only run these checks if totalMarks/passingMarks/status are being modified or doc is new
-        // Ideally we should perform this check, but let's trust the logic.
-        validateTotalMarks(this.status, this.totalMarks);
-        validatePassingMarks(this.passingMarks, this.totalMarks);
-
-        next();
-    } catch (error) {
-        next(error);
+ExamSchema.pre('save', async function () {
+    // Validation: Schedule is required
+    if (!this.schedule || !this.schedule.startTime || !this.schedule.endTime) {
+        throw new Error('Exam schedule (start and end time) is required');
     }
+
+    // Sync legacy scheduledAt
+    this.scheduledAt = this.schedule.startTime;
+
+    if (this.schedule.endTime <= this.schedule.startTime) {
+        throw new Error('End time must be after start time');
+    }
+
+    // Only run these checks if totalMarks/passingMarks/status are being modified or doc is new
+    validateTotalMarks(this.status, this.totalMarks);
+    validatePassingMarks(this.passingMarks, this.totalMarks);
 });
 
-ExamSchema.pre(['findOneAndUpdate', 'updateOne'], async function (next) {
-    try {
-        const query = this.getQuery();
-        const update = this.getUpdate();
+ExamSchema.pre(['findOneAndUpdate', 'updateOne'], async function () {
+    const query = this.getQuery();
+    const update = this.getUpdate();
 
-        // 1. Fetch the document being updated
-        // Note: This creates a small TOCTOU window. For strict consistency, we should use atomic updates or a version key.
-        // However, this hook is needed to calculate complex derived validation (Total Marks vs Passing Marks) which depends on non-deterministic/operator-based updates.
-        // For now, checking doc existence helps prevent acting on "null" documents.
-        const doc = await this.model.findOne(query);
+    // 1. Fetch the document being updated
+    // Note: This creates a small TOCTOU window. For strict consistency, we should use atomic updates or a version key.
+    // However, this hook is needed to calculate complex derived validation (Total Marks vs Passing Marks) which depends on non-deterministic/operator-based updates.
+    // For now, checking doc existence helps prevent acting on "null" documents.
+    const doc = await this.model.findOne(query);
 
-        // If document not found, we should fail unless it's an upsert (check options if possible, though Mongoose hook options are limited)
-        // If this.getOptions().upsert is true, doc might be null and we are creating. 
-        if (!doc) {
-            // If upsert logic is standard, maybe we just return? But we can't easily validate the *new* document state here if it didn't exist.
-            // Best effort:
-            if (this.getOptions().upsert) return next();
-            return next(new Error("Exam not found for update"));
-        }
-
-        // 2. Compute effective values after update
-        // We only care about fields that affect validation: status, totalMarks, passingMarks
-        let finalStatus = doc.status;
-        let finalTotal = doc.totalMarks;
-        let finalPassing = doc.passingMarks;
-
-        // Helper to apply operators
-        const applyUpdate = (operator, field, value) => {
-            if (operator === '$set') {
-                if (field === 'status') finalStatus = value;
-                if (field === 'totalMarks') finalTotal = value;
-                if (field === 'passingMarks') finalPassing = value;
-            } else if (operator === '$inc') {
-                if (field === 'totalMarks') finalTotal = (finalTotal || 0) + value;
-                if (field === 'passingMarks') finalPassing = (finalPassing || 0) + value;
-            } else if (operator === '$unset') {
-                if (field === 'status') finalStatus = undefined; // Should fallback to default? Schema default doesn't apply to unset.
-                if (field === 'totalMarks') finalTotal = undefined;
-                if (field === 'passingMarks') finalPassing = undefined;
-            } else if (operator === '$min') {
-                if (field === 'totalMarks') finalTotal = Math.min(finalTotal ?? Infinity, value);
-                if (field === 'passingMarks') finalPassing = Math.min(finalPassing ?? Infinity, value);
-            } else if (operator === '$max') {
-                if (field === 'totalMarks') finalTotal = Math.max(finalTotal ?? -Infinity, value);
-                if (field === 'passingMarks') finalPassing = Math.max(finalPassing ?? -Infinity, value);
-            } else if (operator === '$mul') {
-                if (field === 'totalMarks') finalTotal = (finalTotal || 0) * value;
-                if (field === 'passingMarks') finalPassing = (finalPassing || 0) * value;
-            }
-        };
-        // Iterate over update object keys
-        for (const key in update) {
-            if (key.startsWith('$')) {
-                // It's an operator like $set, $inc
-                const op = key;
-                const fields = update[key];
-                for (const field in fields) {
-                    applyUpdate(op, field, fields[field]);
-                }
-            } else {
-                // It's a direct assignment (treated as $set in Mongoose 5+, but explicit $set is better)
-                applyUpdate('$set', key, update[key]);
-            }
-        }
-
-        // 3. Validation
-        validateTotalMarks(finalStatus, finalTotal);
-        validatePassingMarks(finalPassing, finalTotal);
-
-        next();
-    } catch (error) {
-        next(error);
+    // If document not found, we should fail unless it's an upsert (check options if possible, though Mongoose hook options are limited)
+    // If this.getOptions().upsert is true, doc might be null and we are creating. 
+    if (!doc) {
+        // If upsert logic is standard, maybe we just return? But we can't easily validate the *new* document state here if it didn't exist.
+        // Best effort:
+        if (this.getOptions().upsert) return;
+        throw new Error("Exam not found for update");
     }
+
+    // 2. Compute effective values after update
+    // We only care about fields that affect validation: status, totalMarks, passingMarks
+    let finalStatus = doc.status;
+    let finalTotal = doc.totalMarks;
+    let finalPassing = doc.passingMarks;
+
+    // Helper to apply operators
+    const applyUpdate = (operator, field, value) => {
+        if (operator === '$set') {
+            if (field === 'status') finalStatus = value;
+            if (field === 'totalMarks') finalTotal = value;
+            if (field === 'passingMarks') finalPassing = value;
+        } else if (operator === '$inc') {
+            if (field === 'totalMarks') finalTotal = (finalTotal || 0) + value;
+            if (field === 'passingMarks') finalPassing = (finalPassing || 0) + value;
+        } else if (operator === '$unset') {
+            if (field === 'status') finalStatus = undefined; // Should fallback to default? Schema default doesn't apply to unset.
+            if (field === 'totalMarks') finalTotal = undefined;
+            if (field === 'passingMarks') finalPassing = undefined;
+        } else if (operator === '$min') {
+            if (field === 'totalMarks') finalTotal = Math.min(finalTotal ?? Infinity, value);
+            if (field === 'passingMarks') finalPassing = Math.min(finalPassing ?? Infinity, value);
+        } else if (operator === '$max') {
+            if (field === 'totalMarks') finalTotal = Math.max(finalTotal ?? -Infinity, value);
+            if (field === 'passingMarks') finalPassing = Math.max(finalPassing ?? -Infinity, value);
+        } else if (operator === '$mul') {
+            if (field === 'totalMarks') finalTotal = (finalTotal || 0) * value;
+            if (field === 'passingMarks') finalPassing = (finalPassing || 0) * value;
+        }
+    };
+    // Iterate over update object keys
+    for (const key in update) {
+        if (key.startsWith('$')) {
+            // It's an operator like $set, $inc
+            const op = key;
+            const fields = update[key];
+            for (const field in fields) {
+                applyUpdate(op, field, fields[field]);
+            }
+        } else {
+            // It's a direct assignment (treated as $set in Mongoose 5+, but explicit $set is better)
+            applyUpdate('$set', key, update[key]);
+        }
+    }
+
+    // 3. Validation
+    validateTotalMarks(finalStatus, finalTotal);
+    validatePassingMarks(finalPassing, finalTotal);
 });
+
+if (process.env.NODE_ENV !== 'production') {
+    delete mongoose.models.Exam;
+}
 
 export default mongoose.models.Exam || mongoose.model('Exam', ExamSchema);

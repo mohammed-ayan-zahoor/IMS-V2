@@ -203,7 +203,7 @@ export default function MaterialsPage() {
                 <div className="w-48">
                     <Select
                         value={selectedCourse}
-                        onChange={(e) => setSelectedCourse(e.target.value)}
+                        onChange={(val) => setSelectedCourse(val)}
                         placeholder="All Courses"
                         options={[
                             { label: "All Courses", value: "" },
@@ -332,7 +332,7 @@ export default function MaterialsPage() {
                                     <Select
                                         label="Type"
                                         value={formData.fileType}
-                                        onChange={(e) => setFormData({ ...formData, fileType: e.target.value })}
+                                        onChange={(val) => setFormData({ ...formData, fileType: val })}
                                         options={[
                                             { label: "PDF Document", value: "pdf" },
                                             { label: "Video URL", value: "video" },
@@ -346,7 +346,7 @@ export default function MaterialsPage() {
                                     <Select
                                         label="Category"
                                         value={formData.category}
-                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                        onChange={(val) => setFormData({ ...formData, category: val })}
                                         options={[
                                             { label: "Lecture Note", value: "lecture" },
                                             { label: "Assignment", value: "assignment" },
@@ -430,7 +430,7 @@ export default function MaterialsPage() {
                                 <Select
                                     label="Course"
                                     value={formData.course}
-                                    onChange={(e) => setFormData({ ...formData, course: e.target.value, batches: [] })}
+                                    onChange={(val) => setFormData({ ...formData, course: val, batches: [] })}
                                     options={[
                                         { label: "Select Course", value: "" },
                                         ...courses.map(c => ({ label: c.name, value: c._id }))

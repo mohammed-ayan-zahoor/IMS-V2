@@ -9,7 +9,35 @@ export class CourseService {
         const { institute } = data;
         if (!institute) throw new Error("Institute context missing");
 
-        const course = await Course.create({ ...data, createdBy: actorId });
+        let course;
+        try {
+            course = await Course.create({ ...data, createdBy: actorId });
+        } catch (error) {
+            // Self-healing check for Obsolete Global Index 'code_1'
+            // We must be careful not to match the NEW compound index 'institute_1_code_1'
+            const isObsoleteIndex = error.code === 11000 && error.message.includes('code_1') && !error.message.includes('institute_1');
+
+            if (isObsoleteIndex) {
+                console.warn("Detected obsolete 'code_1' index. Dropping it...");
+                try {
+                    await Course.collection.dropIndex('code_1');
+                    // Retry creation
+                    course = await Course.create({ ...data, createdBy: actorId });
+                } catch (retryError) {
+                    // If dropping failed or retry failed, it might be a real duplicate or ongoing issue
+                    if (retryError.code === 27 || retryError.message?.includes('index not found')) {
+                        // Index didn't exist, so it wasn't the obsolete one affecting us.
+                        // This implies it's a real duplicate in the new scheme (or another index).
+                        throw new Error("Course with this code already exists in this institute");
+                    }
+                    throw retryError;
+                }
+            } else if (error.code === 11000) {
+                throw new Error("Course with this code already exists in this institute");
+            } else {
+                throw error;
+            }
+        }
 
         await createAuditLog({
             actor: actorId,
@@ -23,7 +51,7 @@ export class CourseService {
     }
 
     static async getCourses(filters = {}, instituteId) {
-        if (!instituteId) throw new Error("Institute context missing");
+        // if (!instituteId) throw new Error("Institute context missing"); // Allow global view
         await connectDB();
         // Prevent filter injection by only allowing specific top-level fields
         const allowedFilters = ['name', 'code', 'duration.unit'];
@@ -32,8 +60,75 @@ export class CourseService {
             if (allowedFilters.includes(key)) safeFilters[key] = filters[key];
         });
 
-        return await Course.find({ deletedAt: null, institute: instituteId, ...safeFilters })
+        const query = { deletedAt: null, ...safeFilters };
+        if (instituteId) query.institute = instituteId;
+
+        return await Course.find(query)
             .populate('createdBy', 'profile.firstName profile.lastName');
+    }
+
+    static async updateCourse(id, data, actorId, instituteId) {
+        await connectDB();
+        const { code, name, duration, fees, description } = data;
+
+        console.log(`[UpdateCourse] Attempting update. ID: ${id}, Inst: ${instituteId}`);
+
+        const course = await Course.findOneAndUpdate(
+            { _id: id, institute: instituteId, deletedAt: null },
+            {
+                $set: {
+                    name,
+                    code,
+                    duration,
+                    fees,
+                    description
+                }
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!course) {
+            console.error(`[UpdateCourse] Failed. Course NOT found for ID: ${id} and Institute: ${instituteId}`);
+            throw new Error("Course not found or access denied");
+        }
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'course.update',
+            resource: { type: 'Course', id: course._id },
+            institute: instituteId,
+            details: { name: course.name, changes: Object.keys(data) }
+        });
+
+        return course;
+    }
+
+    static async deleteCourse(id, actorId, instituteId) {
+        await connectDB();
+
+        console.log(`[DeleteCourse] Attempting delete. ID: ${id}, Inst: ${instituteId}`);
+
+        // Soft Delete
+        const course = await Course.findOneAndUpdate(
+            { _id: id, institute: instituteId, deletedAt: null },
+            { deletedAt: new Date() },
+            { new: true }
+        );
+
+        if (!course) {
+            console.error(`[DeleteCourse] Failed. Course NOT found for ID: ${id} and Institute: ${instituteId}`);
+            throw new Error("Course not found or access denied");
+        }
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'course.delete',
+            resource: { type: 'Course', id: course._id },
+            institute: instituteId,
+            details: { name: course.name, code: course.code }
+        });
+
+        return true;
     }
 }
 
@@ -57,7 +152,7 @@ export class BatchService {
     }
 
     static async getBatches(filters = {}, instituteId) {
-        if (!instituteId) throw new Error("Institute context missing");
+        // if (!instituteId) throw new Error("Institute context missing"); // Allow global view
         await connectDB();
         const allowedFilters = ['course', 'instructor'];
         const safeFilters = {};
@@ -65,7 +160,10 @@ export class BatchService {
             if (allowedFilters.includes(key)) safeFilters[key] = filters[key];
         });
 
-        const batches = await Batch.find({ deletedAt: null, institute: instituteId, ...safeFilters })
+        const query = { deletedAt: null, ...safeFilters };
+        if (instituteId) query.institute = instituteId;
+
+        const batches = await Batch.find(query)
             .populate('course')
             .populate('instructor', 'profile.firstName profile.lastName')
             .sort({ 'schedule.startDate': -1 });
@@ -74,9 +172,11 @@ export class BatchService {
     }
 
     static async getBatchById(id, instituteId) {
-        if (!instituteId) throw new Error("Institute context missing");
+        // if (!instituteId) throw new Error("Institute context missing");
         await connectDB();
-        const batch = await Batch.findOne({ _id: id, deletedAt: null, institute: instituteId })
+        const query = { _id: id, deletedAt: null };
+        if (instituteId) query.institute = instituteId;
+        const batch = await Batch.findOne(query)
             .populate('course')
             .populate('enrolledStudents.student', 'profile.firstName profile.lastName enrollmentNumber');
 
@@ -111,15 +211,17 @@ export class BatchService {
         });
 
         // Apply top-level convenience fields after schedule, giving them precedence
-        if (data.description !== undefined) sanitizedData.schedule = { ...sanitizedData.schedule, description: data.description };
         if (data.startDate !== undefined) sanitizedData.schedule = { ...sanitizedData.schedule, startDate: data.startDate };
         if (data.endDate !== undefined) sanitizedData.schedule = { ...sanitizedData.schedule, endDate: data.endDate };
         if (Object.keys(sanitizedData).length === 0) {
             throw new Error("No valid updatable fields provided");
         }
 
+        const query = { _id: id, deletedAt: null };
+        if (instituteId) query.institute = instituteId;
+
         const batch = await Batch.findOneAndUpdate(
-            { _id: id, deletedAt: null, institute: instituteId },
+            query,
             { $set: sanitizedData },
             { new: true }
         );
@@ -138,10 +240,13 @@ export class BatchService {
     }
 
     static async deleteBatch(id, actorId, instituteId) {
-        if (!instituteId) throw new Error("Institute context missing");
+        // if (!instituteId) throw new Error("Institute context missing");
         await connectDB();
+        const query = { _id: id, deletedAt: null };
+        if (instituteId) query.institute = instituteId; // Restrict if institute provided
+
         const batch = await Batch.findOneAndUpdate(
-            { _id: id, deletedAt: null, institute: instituteId },
+            query,
             { deletedAt: new Date() },
             { new: true }
         );

@@ -132,6 +132,10 @@ export default function StudentDetailsPage({ params }) {
                     guardianDetails: data.student.guardianDetails || { name: "", relation: "", phone: "" }
                 });
             }
+            // Ensure inputs don't switch to uncontrolled
+            if (!data.student.profile?.address) {
+                setFormData(prev => ({ ...prev, profile: { ...prev.profile, address: { street: "", city: "", state: "", pincode: "" } } }));
+            }
         } catch (error) {
             console.error(error);
         } finally {
@@ -650,7 +654,7 @@ export default function StudentDetailsPage({ params }) {
                                 <Select
                                     id="guardianRelation"
                                     value={formData.guardianDetails.relation}
-                                    onChange={(e) => setFormData({ ...formData, guardianDetails: { ...formData.guardianDetails, relation: e.target.value } })}
+                                    onChange={(val) => setFormData({ ...formData, guardianDetails: { ...formData.guardianDetails, relation: val } })}
                                     options={[
                                         { label: "Select Relation", value: "" },
                                         { label: "Father", value: "father" },
@@ -688,7 +692,7 @@ export default function StudentDetailsPage({ params }) {
                             <Select
                                 label="Select Course"
                                 value={selectedCourse}
-                                onChange={(e) => setSelectedCourse(e.target.value)}
+                                onChange={(val) => setSelectedCourse(val)}
                                 options={[
                                     { label: "-- Choose a Course --", value: "" },
                                     ...courses.map(course => ({
@@ -704,7 +708,7 @@ export default function StudentDetailsPage({ params }) {
                                 <Select
                                     label="Select Batch"
                                     value={selectedBatch}
-                                    onChange={(e) => setSelectedBatch(e.target.value)}
+                                    onChange={(val) => setSelectedBatch(val)}
                                     options={[
                                         { label: "-- Choose a Batch --", value: "" },
                                         ...courseBatches.map(batch => ({
@@ -760,7 +764,7 @@ export default function StudentDetailsPage({ params }) {
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Payment Method</label>
                             <Select
                                 value={paymentData.method}
-                                onChange={(e) => setPaymentData({ ...paymentData, method: e.target.value })}
+                                onChange={(val) => setPaymentData({ ...paymentData, method: val })}
                                 options={[
                                     { label: "Cash", value: "cash" },
                                     { label: "UPI / Online", value: "upi" },

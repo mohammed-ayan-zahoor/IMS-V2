@@ -36,29 +36,34 @@ export async function POST(req, { params }) {
             sessionId
         );
 
-        // Check existing submission
-        let submission = await ExamSubmission.findOne({
+        // Check existing submissions
+        const existingSubmissions = await ExamSubmission.find({
             exam: examId,
             student: session.user.id
-        });
+        }).sort({ attemptNumber: 1 });
 
-        if (submission) {
-            if (submission.status === 'submitted') {
-                return Response.json(
-                    { error: 'Already submitted' },
-                    { status: 409 }
-                );
-            }
+        const activeSubmission = existingSubmissions.find(s => s.status === 'in_progress');
+
+        if (activeSubmission) {
             // Resume existing submission
             return Response.json({
                 submission: {
-                    id: submission._id,
-                    startedAt: submission.startedAt,
-                    draftAnswers: submission.draftAnswers,
-                    suspiciousEvents: submission.suspiciousEvents
+                    id: activeSubmission._id,
+                    startedAt: activeSubmission.startedAt,
+                    draftAnswers: activeSubmission.draftAnswers,
+                    suspiciousEvents: activeSubmission.suspiciousEvents
                 },
                 isResume: true
             });
+        }
+
+        // Check Max Attempts
+        const attemptCount = existingSubmissions.length;
+        if (attemptCount >= (exam.maxAttempts || 1)) {
+            return Response.json(
+                { error: `You have used all ${exam.maxAttempts || 1} attempts for this exam.` },
+                { status: 403 }
+            );
         }
 
         // Create new submission
@@ -71,6 +76,7 @@ export async function POST(req, { params }) {
         submission = await ExamSubmission.create({
             exam: examId,
             student: session.user.id,
+            attemptNumber: attemptCount + 1,
             startedAt: new Date(),
             status: 'in_progress',
             answers: exam.questions.map(q => ({

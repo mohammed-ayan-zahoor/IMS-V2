@@ -83,7 +83,7 @@ export default function Select({
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                onChange({ target: { name, value: option.value } });
+                                                onChange(option.value);
                                                 setIsOpen(false);
                                             }}
                                             className={cn(

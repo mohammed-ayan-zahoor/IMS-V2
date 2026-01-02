@@ -10,8 +10,11 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { format } from "date-fns";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import { useConfirm } from "@/contexts/ConfirmContext";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function QuestionBankPage() {
+    const { toast } = useToast();
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -36,7 +39,9 @@ export default function QuestionBankPage() {
 
     useEffect(() => {
         if (filters.course) {
-            const courseBatches = batches.filter(b => b.course?._id === filters.course || b.course === filters.course);
+            const courseBatches = batches.filter(b =>
+                String(b.course?._id || b.course) === String(filters.course)
+            );
             setFilteredBatches(courseBatches);
         } else {
             setFilteredBatches([]);
@@ -91,6 +96,23 @@ export default function QuestionBankPage() {
         { label: "Descriptive", value: "descriptive" }
     ];
 
+    const confirm = useConfirm();
+
+    const handleDelete = async (id) => {
+        if (!await confirm("Are you sure you want to delete this question?", "Delete Question", "destructive")) return;
+
+        try {
+            const res = await fetch(`/api/v1/questions/${id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("Failed to delete");
+
+            toast.success("Question deleted successfully");
+            fetchQuestions(); // Refresh list
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to delete question");
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -107,14 +129,14 @@ export default function QuestionBankPage() {
             </div>
 
             {/* Filters Section */}
-            <Card>
+            <Card className="overflow-visible">
                 <CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
                         <Select
                             label="Course"
                             name="course"
                             value={filters.course}
-                            onChange={(e) => handleFilterChange({ target: { name: 'course', value: e.target.value } })}
+                            onChange={(val) => handleFilterChange({ target: { name: 'course', value: val } })}
                             options={courseOptions}
                             placeholder="All Courses"
                         />
@@ -124,7 +146,7 @@ export default function QuestionBankPage() {
                             label="Batch"
                             name="batch"
                             value={filters.batch}
-                            onChange={(e) => handleFilterChange({ target: { name: 'batch', value: e.target.value } })}
+                            onChange={(val) => handleFilterChange({ target: { name: 'batch', value: val } })}
                             options={batchOptions}
                             placeholder="All Batches"
                             disabled={!filters.course}
@@ -135,7 +157,7 @@ export default function QuestionBankPage() {
                             label="Type"
                             name="type"
                             value={filters.type}
-                            onChange={(e) => handleFilterChange({ target: { name: 'type', value: e.target.value } })}
+                            onChange={(val) => handleFilterChange({ target: { name: 'type', value: val } })}
                             options={typeOptions}
                             placeholder="All Types"
                         />
@@ -198,14 +220,19 @@ export default function QuestionBankPage() {
                                             {q.marks}
                                         </td>
                                         <td className="px-6 py-4 text-slate-500">
-                                            {q.createdBy?.name || "Unknown"}
+                                            {q.createdBy?.fullName || "Unknown"}
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors">
-                                                    <Edit size={16} />
-                                                </button>
-                                                <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-red-600 transition-colors">
+                                                <Link href={`/admin/question-bank/${q._id}/edit`}>
+                                                    <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors">
+                                                        <Edit size={16} />
+                                                    </button>
+                                                </Link>
+                                                <button
+                                                    onClick={() => handleDelete(q._id)}
+                                                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-red-600 transition-colors"
+                                                >
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>

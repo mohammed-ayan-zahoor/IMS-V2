@@ -7,7 +7,7 @@ import { getInstituteScope } from "@/middleware/instituteScope";
 export async function GET(req) {
     try {
         const scope = await getInstituteScope(req);
-        if (!scope || !scope.instituteId) {
+        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
         }
 

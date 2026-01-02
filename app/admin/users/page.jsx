@@ -58,7 +58,15 @@ export default function UserManagementPage() {
             }
 
             const data = await res.json();
-            setUsers(data.users || []);
+            const fetchedUsers = data.users || [];
+            setUsers(fetchedUsers);
+
+            // UX Improvement: If no students but we have admins, switch to Admins tab automatically
+            const studentCount = fetchedUsers.filter(u => u.role === 'student').length;
+            if (studentCount === 0 && fetchedUsers.length > 0) {
+                setActiveTab("admins");
+            }
+
         } catch (error) {
             console.error("Failed to fetch users", error);
             toast.error(error.message || "Failed to load users");
@@ -309,7 +317,7 @@ export default function UserManagementPage() {
                         <Select
                             label="Role"
                             value={formData.role}
-                            onChange={e => setFormData({ ...formData, role: e.target.value })}
+                            onChange={val => setFormData({ ...formData, role: val })}
                             options={[
                                 { label: "Student", value: "student" },
                                 { label: "Admin", value: "admin" },

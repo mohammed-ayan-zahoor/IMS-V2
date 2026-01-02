@@ -13,8 +13,17 @@ export async function GET(req) {
 
         await connectDB();
 
+        // Multi-tenancy Scope
+        const query = {};
+        if (session.user.role !== 'super_admin') {
+            if (!session.user.institute?.id) {
+                return NextResponse.json({ error: "Institute context missing" }, { status: 403 });
+            }
+            query.institute = session.user.institute.id;
+        }
+
         // Fetch last 100 logs
-        const logs = await AuditLog.find({})
+        const logs = await AuditLog.find(query)
             .populate("actor", "profile.firstName profile.lastName email role")
             .sort({ createdAt: -1 })
             .limit(100);

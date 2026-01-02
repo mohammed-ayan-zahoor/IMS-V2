@@ -6,30 +6,48 @@ import { authOptions } from '@/lib/auth';
  * Returns context: { user, instituteId, isSuperAdmin }
  */
 export async function getInstituteScope(req) {
-    const session = await getServerSession(authOptions);
+    try {
+        // DEBUG: Check if we are being called as a Mongoose hook (where req might be 'next' function)
+        if (typeof req === 'function') {
+            console.error("CRITICAL ERROR: getInstituteScope called as a function (likely Mongoose hook)!", new Error().stack);
+            // If it's next(), calling it might save us? But better to return null or throw distinct error.
+            return null;
+        }
 
-    if (!session) {
-        return null; // Let caller handle unauthorized
+        const session = await getServerSession(authOptions);
+
+        if (!session) {
+            return null; // Let caller handle unauthorized
+        }
+
+        const user = session.user;
+        const isSuperAdmin = user.role === 'super_admin';
+
+        // If Super Admin, they might be targeting a specific institute via query/header,
+        // OR defaulting to their own context (which might be null or a management institute).
+        // For now, if super admin, we check if they passed 'instituteId' query param to impersonate/manage.
+        let instituteId = user.institute?.id;
+
+        if (isSuperAdmin) {
+            // Check query param or header for impersonation context
+            // Ensure req is valid object before accessing url
+            if (req && req.url) {
+                const queryId = new URL(req.url).searchParams.get('instituteId');
+                if (queryId) {
+                    instituteId = queryId;
+                }
+            }
+        }
+
+        return {
+            user: session.user,
+            instituteId: instituteId,
+            isSuperAdmin: isSuperAdmin
+        };
+    } catch (err) {
+        console.error("ERROR in getInstituteScope:", err);
+        throw err; // Re-throw to see 500
     }
-
-    const user = session.user;
-    const isSuperAdmin = user.role === 'super_admin';
-
-    // If Super Admin, they might be targeting a specific institute via query/header,
-    // OR defaulting to their own context (which might be null or a management institute).
-    // For now, if super admin, we check if they passed 'instituteId' query param to impersonate/manage.
-    let instituteId = user.institute?.id;
-
-    if (isSuperAdmin) {
-        // Logic for Super Admin to switch context could go here.
-        // For now, they also belong to an institute (Default most likely).
-    }
-
-    return {
-        user: session.user,
-        instituteId: instituteId,
-        isSuperAdmin: isSuperAdmin
-    };
 }
 
 /**

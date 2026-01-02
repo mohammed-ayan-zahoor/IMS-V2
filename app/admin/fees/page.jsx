@@ -311,11 +311,11 @@ export default function FeesPage() {
                             <div className="space-y-1.5">
                                 <Select
                                     value={paymentData.installmentId}
-                                    onChange={(e) => {
-                                        const inst = selectedFee.installments.find(i => i._id === e.target.value);
+                                    onChange={(val) => {
+                                        const inst = selectedFee.installments.find(i => i._id === val);
                                         setPaymentData({
                                             ...paymentData,
-                                            installmentId: e.target.value,
+                                            installmentId: val,
                                             amount: inst ? inst.amount : ""
                                         });
                                     }}
@@ -345,7 +345,7 @@ export default function FeesPage() {
                                     <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Payment Method</label>
                                     <Select
                                         value={paymentData.method}
-                                        onChange={(e) => setPaymentData({ ...paymentData, method: e.target.value })}
+                                        onChange={(val) => setPaymentData({ ...paymentData, method: val })}
                                         options={[
                                             { label: "Cash", value: "cash" },
                                             { label: "UPI", value: "upi" },

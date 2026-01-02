@@ -36,6 +36,7 @@ export default function StudentsPage() {
     // Filter State
     const [batches, setBatches] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [institutes, setInstitutes] = useState([]);
     const [filters, setFilters] = useState({
         batchId: "",
         courseId: "",
@@ -46,6 +47,7 @@ export default function StudentsPage() {
     const [formData, setFormData] = useState({
         email: "",
         password: "",
+        institute: "", // Add institute
         profile: {
             firstName: "",
             lastName: "",
@@ -81,6 +83,13 @@ export default function StudentsPage() {
             const [bData, cData] = await Promise.all([bRes.json(), cRes.json()]);
             setBatches(bData.batches || []);
             setCourses(cData.courses || []);
+
+            // Try fetching institutes (only for Super Admin)
+            const iRes = await fetch("/api/v1/institutes");
+            if (iRes.ok) {
+                const iData = await iRes.json();
+                setInstitutes(iData.institutes || []);
+            }
         } catch (error) {
             console.error("Failed to fetch filter data", error);
         }
@@ -127,7 +136,7 @@ export default function StudentsPage() {
             });
             if (res.ok) {
                 setIsAddModalOpen(false);
-                setFormData({ email: "", password: "", profile: { firstName: "", lastName: "", phone: "" } });
+                setFormData({ email: "", password: "", institute: "", profile: { firstName: "", lastName: "", phone: "" } });
                 fetchStudents();
                 toast.success("Student registered successfully");
             } else {
@@ -170,7 +179,7 @@ export default function StudentsPage() {
                         <div className="w-40">
                             <Select
                                 value={filters.courseId}
-                                onChange={(e) => setFilters({ ...filters, courseId: e.target.value })}
+                                onChange={(val) => setFilters({ ...filters, courseId: val })}
                                 placeholder="All Courses"
                                 options={[
                                     { label: "All Courses", value: "" },
@@ -182,7 +191,7 @@ export default function StudentsPage() {
                         <div className="w-40">
                             <Select
                                 value={filters.batchId}
-                                onChange={(e) => setFilters({ ...filters, batchId: e.target.value })}
+                                onChange={(val) => setFilters({ ...filters, batchId: val })}
                                 placeholder="All Batches"
                                 options={[
                                     { label: "All Batches", value: "" },
@@ -194,7 +203,7 @@ export default function StudentsPage() {
                         <div className="w-32">
                             <Select
                                 value={filters.isActive}
-                                onChange={(e) => setFilters({ ...filters, isActive: e.target.value })}
+                                onChange={(val) => setFilters({ ...filters, isActive: val })}
                                 placeholder="All Status"
                                 options={[
                                     { label: "All Status", value: "" },
@@ -319,6 +328,19 @@ export default function StudentsPage() {
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         required
                     />
+
+                    {institutes.length > 0 && (
+                        <Select
+                            label="Assign Institute"
+                            value={formData.institute}
+                            onChange={(val) => setFormData({ ...formData, institute: val })}
+                            options={[
+                                { label: "Select Institute", value: "" },
+                                ...institutes.map(i => ({ label: `${i.name} (${i.code})`, value: i._id }))
+                            ]}
+                            required
+                        />
+                    )}
 
                     <Input
                         id="phone"

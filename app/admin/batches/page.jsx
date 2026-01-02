@@ -57,8 +57,11 @@ export default function BatchesPage() {
                 fetch("/api/v1/courses")
             ]);
             const [bData, cData] = await Promise.all([bRes.json(), cRes.json()]);
-            setBatches(bData.batches || bData || []);
-            setCourses(cData.courses || cData || []);
+            // Ensure strictly array
+            const batchList = Array.isArray(bData) ? bData : (Array.isArray(bData?.batches) ? bData.batches : []);
+            setBatches(batchList);
+            const courseList = Array.isArray(cData) ? cData : (Array.isArray(cData?.courses) ? cData.courses : []);
+            setCourses(courseList);
         } catch (error) {
             console.error("Failed to fetch data", error);
         } finally {

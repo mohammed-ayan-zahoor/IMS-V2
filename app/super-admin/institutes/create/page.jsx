@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-hot-toast";
+
+import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
 
 export default function CreateInstitutePage() {
+    const toast = useToast();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({

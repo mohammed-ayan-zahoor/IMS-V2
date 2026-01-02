@@ -51,6 +51,8 @@ export async function GET(req) {
 
         const questions = await Question.find(filter)
             .populate('createdBy', 'profile.firstName profile.lastName')
+            .populate('course', 'name')
+            .populate('batch', 'name')
             .sort({ createdAt: -1 });
 
         return NextResponse.json({ questions });
@@ -77,7 +79,7 @@ export async function POST(req) {
         const body = await req.json();
 
         // Input Validation
-        const requiredFields = ['text', 'type', 'subject', 'classLevel', 'difficulty', 'correctAnswer', 'marks'];
+        const requiredFields = ['text', 'type', 'difficulty', 'correctAnswer', 'marks'];
         const missing = requiredFields.filter(field => !body[field]);
         if (missing.length > 0) {
             return NextResponse.json({ error: `Missing required fields: ${missing.join(', ')}` }, { status: 400 });
@@ -129,6 +131,8 @@ export async function POST(req) {
             type: body.type,
             subject: body.subject,
             classLevel: body.classLevel,
+            course: body.course || null,
+            batch: body.batch || null,
             difficulty: body.difficulty,
             options: Array.isArray(body.options) ? body.options : [],
             correctAnswer: validatedAnswer,

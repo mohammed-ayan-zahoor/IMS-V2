@@ -20,10 +20,12 @@ export async function GET(req) {
 
         const { searchParams } = new URL(req.url);
         const courseId = searchParams.get("courseId");
+        const batchId = searchParams.get("batch"); // "batch" param from checking UI
         const status = searchParams.get("status");
 
         const query = { deletedAt: null };
         if (courseId) query.course = courseId;
+        if (batchId) query.batches = batchId; // Autos-maps to checking existence in array
         if (status) query.status = status;
 
         // Apply Scope
@@ -62,7 +64,7 @@ export async function POST(req) {
         const allowedFields = {
             title: body.title,
             course: body.course,
-            batches: body.batches,
+            batches: body.batches || (body.batch ? [body.batch] : []), // Support both for migration
             questions: body.questions || [],
             duration: body.duration,
             totalMarks: body.totalMarks,

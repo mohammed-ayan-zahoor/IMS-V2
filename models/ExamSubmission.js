@@ -79,11 +79,13 @@ const ExamSubmissionSchema = new Schema({
     // Metadata
     ipAddress: String,
     userAgent: String,
-    browserFingerprint: String // Optional: for multi-device detection
+    browserFingerprint: String, // Optional: for multi-device detection
+
+    attemptNumber: { type: Number, default: 1 }
 }, { timestamps: true });
 
-// Unique constraint: one submission per student per exam
-ExamSubmissionSchema.index({ exam: 1, student: 1 }, { unique: true });
+// Unique constraint: one submission per student per exam per attempt
+ExamSubmissionSchema.index({ exam: 1, student: 1, attemptNumber: 1 }, { unique: true });
 
 // Virtual: Total suspicious events count
 ExamSubmissionSchema.virtual('suspiciousEventCount').get(function () {

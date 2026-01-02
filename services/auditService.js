@@ -1,7 +1,7 @@
 import AuditLog from "@/models/AuditLog";
 import { connectDB } from "@/lib/mongodb";
 
-export async function createAuditLog({ actor, action, resource, details, req }) {
+export async function createAuditLog({ actor, action, resource, details, institute, req }) {
     try {
         await connectDB();
 
@@ -25,6 +25,7 @@ export async function createAuditLog({ actor, action, resource, details, req }) 
             action,
             resource,
             details,
+            institute, // Pass institute
             ipAddress,
             userAgent
         });

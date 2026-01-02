@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import ExamSubmission from '@/models/ExamSubmission';
+import '@/models/Question'; // Ensure Question schema is registered for population
 
 export async function GET(req, { params }) {
     try {
@@ -17,15 +18,13 @@ export async function GET(req, { params }) {
 
         const { id: queryId } = await params;
 
-        const submission = await ExamSubmission.findOne({
-            $or: [
-                { _id: queryId },
-                { exam: queryId }
-            ],
+        // Try to find by Submission ID first
+        let submission = await ExamSubmission.findOne({
+            _id: queryId,
             student: session.user.id
         }).populate({
             path: 'exam',
-            select: 'title totalMarks passingMarks questions resultsPublished showCorrectAnswers showExplanations',
+            select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations',
             populate: {
                 path: 'questions',
                 model: 'Question',
@@ -33,19 +32,53 @@ export async function GET(req, { params }) {
             }
         });
 
+        // If not found, try to find by Exam ID (Best Score Strategy)
+        if (!submission) {
+            const submissions = await ExamSubmission.find({
+                exam: queryId,
+                student: session.user.id
+            })
+                .sort({ score: -1 }) // Best score first
+                .populate({
+                    path: 'exam',
+                    select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations',
+                    populate: {
+                        path: 'questions',
+                        model: 'Question',
+                        select: 'text type options correctOption marks'
+                    }
+                });
+
+            if (submissions.length > 0) {
+                submission = submissions[0];
+            }
+        }
+
         if (!submission) {
             return Response.json({ error: 'Submission not found' }, { status: 404 });
         }
 
         const exam = submission.exam;
 
-        // Gatekeeping Results
-        if (!exam.resultsPublished) {
+        // Check Result Visibility
+        let showResults = false;
+        if (exam.resultPublication === 'immediate') {
+            showResults = true;
+        } else if (exam.resultPublication === 'after_exam_end') {
+            const endTime = new Date(exam.schedule.endTime);
+            if (new Date() > endTime) {
+                showResults = true;
+            }
+        } else if (exam.resultsPublished) { // Legacy manual override
+            showResults = true;
+        }
+
+        if (!showResults) {
             return Response.json({
                 submission: {
                     status: submission.status,
                     submittedAt: submission.submittedAt,
-                    message: "Results have not been published yet."
+                    message: `Results will be published after the exam ends on ${new Date(exam.schedule.endTime).toLocaleString()}.`
                 },
                 exam: {
                     title: exam.title

@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { toast } from "react-hot-toast";
+
+import { useToast } from "@/contexts/ToastContext";
 
 export default function SuperAdminDashboard() {
+    const toast = useToast();
     const [stats, setStats] = useState({
         institutes: 0,
         totalUsers: 0,
@@ -31,7 +33,7 @@ export default function SuperAdminDashboard() {
                 if (error.name !== "AbortError") {
                     console.error("Stats fetch error:", error);
                     setError("Failed to load dashboard stats. Please try again.");
-                    // toast.error("Failed to load dashboard stats");
+                    toast.error("Failed to load dashboard stats");
                 }
             } finally {
                 setLoading(false);

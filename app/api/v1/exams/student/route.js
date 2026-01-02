@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Exam from '@/models/Exam';
 import Batch from '@/models/Batch';
+import '@/models/Course'; // Ensure Course schema is registered for population
 import ExamSubmission from '@/models/ExamSubmission';
 
 export async function GET(req) {

@@ -70,6 +70,17 @@ export default function AdminLayout({ children }) {
         },
     ];
 
+    if (session?.user?.role === "super_admin") {
+        menuGroups.unshift({
+            label: "Super Admin",
+            icon: LayoutDashboard,
+            items: [
+                { label: "Dashboard", icon: LayoutDashboard, href: "/super-admin" },
+                { label: "Institutes", icon: Users, href: "/super-admin/institutes" },
+            ]
+        });
+    }
+
     if (status === "loading") {
         return <LoadingSpinner fullPage />;
     }

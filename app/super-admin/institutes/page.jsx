@@ -2,11 +2,22 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { toast } from "react-hot-toast";
+import { useToast } from "@/contexts/ToastContext";
+import { useSession } from "next-auth/react";
+
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function InstitutesPage() {
+    const toast = useToast();
+    const { data: session } = useSession();
     const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // Action State
+    const [actionLoading, setActionLoading] = useState(false);
+    const [selectedInstitute, setSelectedInstitute] = useState(null);
+    const [isSuspendOpen, setIsSuspendOpen] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
     useEffect(() => {
         fetchInstitutes();
@@ -15,7 +26,7 @@ export default function InstitutesPage() {
     const fetchInstitutes = async () => {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
 
             const res = await fetch("/api/v1/institutes", {
                 signal: controller.signal
@@ -32,6 +43,66 @@ export default function InstitutesPage() {
             setLoading(false);
         }
     };
+
+    const handleSuspend = async () => {
+        if (!selectedInstitute) return;
+        setActionLoading(true);
+        try {
+            const newStatus = selectedInstitute.status === 'suspended' ? 'active' : 'suspended';
+            const res = await fetch(`/api/v1/institutes/${selectedInstitute._id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: newStatus })
+            });
+
+            if (!res.ok) throw new Error("Failed to update status");
+
+            // Update local state
+            setInstitutes(prev => prev.map(inst =>
+                inst._id === selectedInstitute._id ? { ...inst, status: newStatus } : inst
+            ));
+            toast.success(`Institute ${newStatus === 'active' ? 'Activated' : 'Suspended'} Successfully`);
+            setIsSuspendOpen(false);
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setActionLoading(false);
+            setSelectedInstitute(null);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!selectedInstitute) return;
+        setActionLoading(true);
+        try {
+            const res = await fetch(`/api/v1/institutes/${selectedInstitute._id}`, {
+                method: "DELETE"
+            });
+
+            if (!res.ok) throw new Error("Failed to delete institute");
+
+            // Remove from local state
+            setInstitutes(prev => prev.filter(inst => inst._id !== selectedInstitute._id));
+            toast.success("Institute Deleted Successfully (Soft Delete)");
+            setIsDeleteOpen(false);
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setActionLoading(false);
+            setSelectedInstitute(null);
+        }
+    };
+
+    const openSuspendModal = (inst) => {
+        setSelectedInstitute(inst);
+        setIsSuspendOpen(true);
+    };
+
+    const openDeleteModal = (inst) => {
+        setSelectedInstitute(inst);
+        setIsDeleteOpen(true);
+    };
+
     if (loading) return <div>Loading...</div>;
 
     return (
@@ -70,7 +141,7 @@ export default function InstitutesPage() {
                             </tr>
                         )}
                         {institutes.map((inst) => (
-                            <tr key={inst.id}>
+                            <tr key={inst._id || inst.id}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="font-medium text-gray-900">{inst.name || 'N/A'}</div>
                                     <div className="text-sm text-gray-500">{inst.contactEmail || 'N/A'}</div>
@@ -79,7 +150,8 @@ export default function InstitutesPage() {
                                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
                                         {inst.code || 'N/A'}
                                     </span>
-                                </td>                                <td className="px-6 py-4 whitespace-nowrap">
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${inst.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                                         }`}>
                                         {inst.status}
@@ -92,14 +164,54 @@ export default function InstitutesPage() {
                                     {inst.usage?.studentCount || 0} Students
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                                    <button className="text-red-600 hover:text-red-900">Suspend</button>
+                                    <div className="flex justify-end gap-3">
+                                        <Link
+                                            href={`/super-admin/institutes/${inst._id}/edit`}
+                                            className="text-blue-600 hover:text-blue-900"
+                                        >
+                                            Edit
+                                        </Link>
+                                        <button
+                                            onClick={() => openSuspendModal(inst)}
+                                            className="text-orange-600 hover:text-orange-900"
+                                        >
+                                            {inst.status === 'suspended' ? 'Activate' : 'Suspend'}
+                                        </button>
+                                        <button
+                                            onClick={() => openDeleteModal(inst)}
+                                            className="text-red-600 hover:text-red-900"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+
+            {/* Suspend Confirmation */}
+            <ConfirmDialog
+                isOpen={isSuspendOpen}
+                title={selectedInstitute?.status === 'suspended' ? "Activate Institute" : "Suspend Institute"}
+                message={selectedInstitute?.status === 'suspended'
+                    ? "Are you sure you want to activate this institute? Users will be able to log in again."
+                    : "Are you sure you want to suspend this institute? Users will not be able to log in until reactivated."}
+                onConfirm={handleSuspend}
+                onCancel={() => setIsSuspendOpen(false)}
+                type={selectedInstitute?.status === 'suspended' ? "info" : "danger"}
+            />
+
+            {/* Delete Confirmation */}
+            <ConfirmDialog
+                isOpen={isDeleteOpen}
+                title="Delete Institute"
+                message="Are you sure you want to delete this institute? This action will hide the institute but retain data."
+                onConfirm={handleDelete}
+                onCancel={() => setIsDeleteOpen(false)}
+                type="danger"
+            />
         </div>
     );
 }

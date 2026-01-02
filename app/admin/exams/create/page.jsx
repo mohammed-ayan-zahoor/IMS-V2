@@ -26,6 +26,7 @@ export default function CreateExamPage() {
         duration: 60,
         passingMarks: 0,
         scheduledAt: "",
+        endAt: "",
         status: "draft",
         questions: [] // Intentionally empty
     });
@@ -42,6 +43,41 @@ export default function CreateExamPage() {
             setFilteredBatches([]);
         }
     }, [formData.course, batches]);
+
+    // Sync Logic
+    const handleStartTimeChange = (val) => {
+        const start = new Date(val);
+        const end = new Date(start.getTime() + (Number(formData.duration) * 60000));
+        setFormData(prev => ({
+            ...prev,
+            scheduledAt: val,
+            endAt: !isNaN(end) ? end.toISOString().slice(0, 16) : ""
+        }));
+    };
+
+    const handleDurationChange = (val) => {
+        const duration = Number(val);
+        let endAt = formData.endAt;
+        if (formData.scheduledAt) {
+            const start = new Date(formData.scheduledAt);
+            const end = new Date(start.getTime() + (duration * 60000));
+            endAt = !isNaN(end) ? end.toISOString().slice(0, 16) : "";
+        }
+        setFormData(prev => ({ ...prev, duration: duration, endAt: endAt }));
+    };
+
+    const handleEndTimeChange = (val) => {
+        const end = new Date(val);
+        let duration = formData.duration;
+        if (formData.scheduledAt) {
+            const start = new Date(formData.scheduledAt);
+            const diffMs = end - start;
+            if (diffMs > 0) {
+                duration = Math.floor(diffMs / 60000);
+            }
+        }
+        setFormData(prev => ({ ...prev, endAt: val, duration: duration }));
+    };
 
     const fetchDropdowns = async () => {
         try {
@@ -73,11 +109,24 @@ export default function CreateExamPage() {
             return;
         }
 
+        if (!formData.scheduledAt || !formData.endAt) {
+            toast.warning("Please specify both Start and End times.");
+            return;
+        }
+
         try {
             setLoading(true);
+
+            const startTime = new Date(formData.scheduledAt);
+            const endTime = new Date(formData.endAt);
+
             const payload = {
                 ...formData,
-                scheduledAt: formData.scheduledAt ? new Date(formData.scheduledAt).toISOString() : ""
+                scheduledAt: startTime.toISOString(),
+                schedule: {
+                    startTime: startTime.toISOString(),
+                    endTime: endTime.toISOString()
+                }
             };
 
             const res = await fetch("/api/v1/exams", {
@@ -141,7 +190,7 @@ export default function CreateExamPage() {
                             <label className="text-xs font-bold text-slate-500 uppercase">Select Course</label>
                             <Select
                                 value={formData.course}
-                                onChange={(e) => setFormData({ ...formData, course: e.target.value, batches: [] })}
+                                onChange={(val) => setFormData({ ...formData, course: val, batches: [] })}
                                 placeholder="-- Choose Course --"
                                 options={[
                                     { label: "-- Choose Course --", value: "" },
@@ -150,10 +199,10 @@ export default function CreateExamPage() {
                             />
                         </div>
                         <Input
-                            label="Duration (minutes)"
+                            label="Duration (minutes) - Auto-calculated"
                             type="number"
                             value={formData.duration}
-                            onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                            onChange={(e) => handleDurationChange(e.target.value)}
                         />
                     </div>
 
@@ -177,12 +226,18 @@ export default function CreateExamPage() {
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Input
-                            label="Schedule Date"
+                            label="Start Date & Time"
                             type="datetime-local"
                             value={formData.scheduledAt}
-                            onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
+                            onChange={(e) => handleStartTimeChange(e.target.value)}
+                        />
+                        <Input
+                            label="End Date & Time"
+                            type="datetime-local"
+                            value={formData.endAt}
+                            onChange={(e) => handleEndTimeChange(e.target.value)}
                         />
                         <Input
                             label="Passing Marks"
@@ -190,6 +245,27 @@ export default function CreateExamPage() {
                             value={formData.passingMarks}
                             onChange={(e) => setFormData({ ...formData, passingMarks: e.target.value })}
                         />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                            label="Max Attempts"
+                            type="number"
+                            min="1"
+                            value={formData.maxAttempts}
+                            onChange={(e) => setFormData({ ...formData, maxAttempts: e.target.value })}
+                        />
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Result Visibility</label>
+                            <Select
+                                value={formData.resultPublication}
+                                onChange={(val) => setFormData({ ...formData, resultPublication: val })}
+                                options={[
+                                    { label: "Immediate (After Submit)", value: "immediate" },
+                                    { label: "After Exam Ends", value: "after_exam_end" }
+                                ]}
+                            />
+                        </div>
                     </div>
 
                     <div className="pt-6 flex justify-end">

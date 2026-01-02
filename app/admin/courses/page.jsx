@@ -8,8 +8,8 @@ import {
     MoreVertical,
     Clock,
     CreditCard,
-    Code,
-    FileText
+    Edit2,
+    Trash2
 } from "lucide-react";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
@@ -19,6 +19,7 @@ import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
+import ConfirmDialog from "@/components/ui/ConfirmDialog"; // Import ConfirmDialog
 import { useToast } from "@/contexts/ToastContext";
 
 export default function CoursesPage() {
@@ -28,17 +29,29 @@ export default function CoursesPage() {
     const [search, setSearch] = useState("");
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+    // Actions State
+    const [editingCourse, setEditingCourse] = useState(null);
+    const [deletingCourse, setDeletingCourse] = useState(null);
+    const [activeMenu, setActiveMenu] = useState(null); // To toggle menu
+
     // Form State
     const [formData, setFormData] = useState({
         name: "",
         code: "",
         description: "",
-        duration: "",
-        fees: { amount: "", currency: "INR" } // simplified for now
+        duration: { value: "", unit: "months" },
+        fees: { amount: "", currency: "INR" }
     });
 
     useEffect(() => {
         fetchCourses();
+    }, []);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = () => setActiveMenu(null);
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
     }, []);
 
     const fetchCourses = async () => {
@@ -46,7 +59,8 @@ export default function CoursesPage() {
             setLoading(true);
             const res = await fetch("/api/v1/courses");
             const data = await res.json();
-            setCourses(data.courses || data || []); // Handle array or object return
+            const list = Array.isArray(data) ? data : (Array.isArray(data?.courses) ? data.courses : []);
+            setCourses(list);
         } catch (error) {
             console.error("Failed to fetch courses", error);
         } finally {
@@ -54,11 +68,14 @@ export default function CoursesPage() {
         }
     };
 
-    const handleAddCourse = async (e) => {
+    const handleSaveCourse = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch("/api/v1/courses", {
-                method: "POST",
+            const url = editingCourse ? `/api/v1/courses/${editingCourse._id}` : "/api/v1/courses";
+            const method = editingCourse ? "PATCH" : "POST";
+
+            const res = await fetch(url, {
+                method: method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     ...formData,
@@ -68,19 +85,60 @@ export default function CoursesPage() {
 
             if (res.ok) {
                 setIsAddModalOpen(false);
-                setFormData({ name: "", code: "", description: "", duration: "", fees: { amount: "", currency: "INR" } });
+                setEditingCourse(null);
+                setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" } });
                 fetchCourses();
-                toast.success("Course created successfully");
+                toast.success(editingCourse ? "Course updated successfully" : "Course created successfully");
             } else {
                 const error = await res.json();
-                toast.error(error.error || "Failed to create course");
+                toast.error(error.error || "Failed to save course");
             }
         } catch (err) {
             console.error(err);
-            toast.error("Failed to create course");
+            toast.error("Failed to save course");
         }
     };
 
+    const confirmDelete = async () => {
+        if (!deletingCourse) return;
+        try {
+            const res = await fetch(`/api/v1/courses/${deletingCourse._id}`, {
+                method: "DELETE"
+            });
+
+            if (res.ok) {
+                setDeletingCourse(null);
+                fetchCourses();
+                toast.success("Course deleted successfully");
+            } else {
+                const error = await res.json();
+                toast.error(error.error || "Failed to delete course");
+            }
+        } catch (err) {
+            toast.error("Failed to delete course");
+        }
+    };
+
+    const openEditModal = (course) => {
+        setEditingCourse(course);
+        setFormData({
+            name: course.name,
+            code: course.code,
+            description: course.description || "",
+            duration: {
+                value: course.duration?.value || "",
+                unit: course.duration?.unit || "months"
+            },
+            fees: {
+                amount: course.fees?.amount || "",
+                currency: course.fees?.currency || "INR"
+            }
+        });
+        setIsAddModalOpen(true);
+        setActiveMenu(null);
+    };
+
+    // Filter Logic
     const filteredCourses = courses.filter(course =>
         course.name?.toLowerCase().includes(search.toLowerCase()) ||
         course.code?.toLowerCase().includes(search.toLowerCase())
@@ -93,13 +151,17 @@ export default function CoursesPage() {
                     <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Course Management</h1>
                     <p className="text-slate-400 mt-1 text-sm font-medium">Design curriculum, set fees and manage academic programs.</p>
                 </div>
-                <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
+                <Button onClick={() => {
+                    setEditingCourse(null);
+                    setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" } });
+                    setIsAddModalOpen(true);
+                }} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
                     <Plus size={18} />
                     <span>Add New Course</span>
                 </Button>
             </div>
 
-            <Card className="transition-all border-transparent shadow-sm">
+            <Card className="transition-all border-transparent shadow-sm overflow-visible">
                 <CardHeader className="flex-row items-center justify-between space-y-0">
                     <div className="flex-1 max-w-md relative group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/50 transition-colors group-focus-within:text-premium-blue" size={18} />
@@ -118,12 +180,27 @@ export default function CoursesPage() {
                     ) : filteredCourses.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                             {filteredCourses.map(course => (
-                                <div key={course._id} className="group relative bg-white border border-slate-100 rounded-2xl p-5 hover:border-premium-blue/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all">
-                                    <div className="absolute top-5 right-5">
-                                        <button className="text-slate-300 hover:text-premium-blue transition-colors">
-                                            <MoreVertical size={18} />
+                                <div
+                                    key={course._id}
+                                    className={`group relative bg-white border border-slate-100 rounded-2xl p-5 transition-all hover:border-premium-blue/30 hover:shadow-lg hover:shadow-blue-500/5`}
+                                >
+                                    <div className="absolute top-5 right-5 z-10 flex gap-2">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); openEditModal(course); }}
+                                            className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
+                                            title="Edit Course"
+                                        >
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setDeletingCourse(course); }}
+                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Delete Course"
+                                        >
+                                            <Trash2 size={16} />
                                         </button>
                                     </div>
+
                                     <div className="flex items-start gap-4 mb-4">
                                         <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center border border-violet-100">
                                             <BookOpen size={22} />
@@ -141,7 +218,7 @@ export default function CoursesPage() {
                                     <div className="flex items-center justify-between text-xs font-bold text-slate-400 border-t border-slate-50 pt-4">
                                         <div className="flex items-center gap-1.5">
                                             <Clock size={14} />
-                                            <span className="capitalize">{course.duration?.value} {course.duration?.unit}</span>
+                                            <span className="capitalize">{course?.duration?.value} {course?.duration?.unit}</span>
                                         </div>
                                         <div className="flex items-center gap-1.5 text-slate-600">
                                             <CreditCard size={14} />
@@ -157,7 +234,11 @@ export default function CoursesPage() {
                             title="No courses found"
                             description="Create your first course to get started."
                             actionLabel="Create Course"
-                            onAction={() => setIsAddModalOpen(true)}
+                            onAction={() => {
+                                setEditingCourse(null);
+                                setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" } });
+                                setIsAddModalOpen(true);
+                            }}
                         />
                     )}
                 </CardContent>
@@ -166,10 +247,10 @@ export default function CoursesPage() {
             <Modal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                title="Create New Course"
+                title={editingCourse ? "Edit Course" : "Create New Course"}
             >
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">Course Details</div>
-                <form onSubmit={handleAddCourse} className="space-y-5">
+                <form onSubmit={handleSaveCourse} className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                         <Input
                             id="name"
@@ -204,7 +285,7 @@ export default function CoursesPage() {
                                 <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Unit</label>
                                 <Select
                                     value={formData.duration.unit}
-                                    onChange={(e) => setFormData({ ...formData, duration: { ...formData.duration, unit: e.target.value } })}
+                                    onChange={(val) => setFormData({ ...formData, duration: { ...formData.duration, unit: val } })}
                                     options={[
                                         { label: "Months", value: "months" },
                                         { label: "Weeks", value: "weeks" },
@@ -235,10 +316,18 @@ export default function CoursesPage() {
 
                     <div className="pt-4 flex gap-3">
                         <Button type="button" variant="outline" className="flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
-                        <Button type="submit" className="flex-1">Create Course</Button>
+                        <Button type="submit" className="flex-1">{editingCourse ? "Update Course" : "Create Course"}</Button>
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmDialog
+                isOpen={!!deletingCourse}
+                onClose={() => setDeletingCourse(null)}
+                onConfirm={confirmDelete}
+                title="Delete Course"
+                message={`Are you sure you want to delete ${deletingCourse?.name}? This action cannot be undone.`}
+            />
         </div>
     );
 }
