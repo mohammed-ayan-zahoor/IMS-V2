@@ -114,7 +114,14 @@ export default function EditQuestionPage({ params }) {
                 newCorrectOption = 0;
             } else if (prev.correctOption > index) {
                 // Correct option is after removed option, decrement
-            });
+                newCorrectOption = prev.correctOption - 1;
+            }
+            return {
+                ...prev,
+                options: newOptions,
+                correctOption: newCorrectOption
+            };
+        });
     };
 
     const handleSubmit = async (e) => {
