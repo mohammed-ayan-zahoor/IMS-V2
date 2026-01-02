@@ -126,6 +126,42 @@ export default function StudentsPage() {
         }
     };
 
+    // Action State
+    const [uploading, setUploading] = useState(false);
+
+    // ... existing ...
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        const data = new FormData();
+        data.append("file", file);
+
+        try {
+            const res = await fetch("/api/v1/upload", {
+                method: "POST",
+                body: data
+            });
+            const json = await res.json();
+            if (res.ok) {
+                setFormData(prev => ({
+                    ...prev,
+                    profile: { ...prev.profile, avatar: json.url }
+                }));
+                toast.success("Photo uploaded!");
+            } else {
+                toast.error(json.error || "Upload failed");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Upload failed");
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleAddStudent = async (e) => {
         e.preventDefault();
         try {
@@ -136,7 +172,12 @@ export default function StudentsPage() {
             });
             if (res.ok) {
                 setIsAddModalOpen(false);
-                setFormData({ email: "", password: "", institute: "", profile: { firstName: "", lastName: "", phone: "" } });
+                setFormData({
+                    email: "",
+                    password: "",
+                    institute: "",
+                    profile: { firstName: "", lastName: "", phone: "", avatar: "" }
+                });
                 fetchStudents();
                 toast.success("Student registered successfully");
             } else {
@@ -245,8 +286,12 @@ export default function StudentsPage() {
                                         <tr key={student._id} className="group hover:bg-slate-50/50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-premium-blue/10 flex items-center justify-center text-premium-blue font-bold border border-premium-blue/20">
-                                                        {student.profile?.firstName?.[0]}
+                                                    <div className="w-10 h-10 rounded-xl bg-premium-blue/10 flex items-center justify-center text-premium-blue font-bold border border-premium-blue/20 overflow-hidden">
+                                                        {student.profile?.avatar ? (
+                                                            <img src={student.profile.avatar} alt={student.profile.firstName} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            student.profile?.firstName?.[0]
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <p className="text-sm font-bold text-slate-900 capitalize">{student.fullName}</p>
@@ -317,6 +362,33 @@ export default function StudentsPage() {
                             onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, lastName: e.target.value } })}
                             required
                         />
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-200 overflow-hidden shrink-0">
+                            {formData.profile.avatar ? (
+                                <img src={formData.profile.avatar} alt="Preview" className="w-full h-full object-cover" />
+                            ) : (
+                                <Users size={24} className="text-slate-300" />
+                            )}
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Student Photo</label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                                disabled={uploading}
+                                className="block w-full text-sm text-slate-500
+                                  file:mr-4 file:py-2 file:px-4
+                                  file:rounded-lg file:border-0
+                                  file:text-xs file:font-semibold
+                                  file:bg-premium-blue/10 file:text-premium-blue
+                                  hover:file:bg-premium-blue/20
+                                "
+                            />
+                            {uploading && <p className="text-xs text-premium-blue mt-1">Uploading...</p>}
+                        </div>
                     </div>
 
                     <Input

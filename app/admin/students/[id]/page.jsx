@@ -131,7 +131,8 @@ export default function StudentDetailsPage({ params }) {
                     email: data.student.email,
                     profile: {
                         ...data.student.profile,
-                        address: { ...defaultAddress, ...(data.student.profile?.address || {}) }
+                        address: { ...defaultAddress, ...(data.student.profile?.address || {}) },
+                        avatar: data.student.profile?.avatar || ""
                     },
                     guardianDetails: data.student.guardianDetails || { name: "", relation: "", phone: "" }
                 });
@@ -260,6 +261,40 @@ export default function StudentDetailsPage({ params }) {
         }
     };
 
+    // Upload State
+    const [uploading, setUploading] = useState(false);
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        const data = new FormData();
+        data.append("file", file);
+
+        try {
+            const res = await fetch("/api/v1/upload", {
+                method: "POST",
+                body: data
+            });
+            const json = await res.json();
+            if (res.ok) {
+                setFormData(prev => ({
+                    ...prev,
+                    profile: { ...prev.profile, avatar: json.url }
+                }));
+                toast.success("Photo uploaded!");
+            } else {
+                toast.error(json.error || "Upload failed");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Upload failed");
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleUpdateStudent = async (e) => {
         e.preventDefault();
         try {
@@ -320,8 +355,19 @@ export default function StudentDetailsPage({ params }) {
             {/* Profile Header Card */}
             <Card className="border-transparent shadow-sm bg-gradient-to-r from-white to-slate-50">
                 <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8 items-start">
-                    <div className="w-24 h-24 rounded-2xl bg-premium-blue/10 flex items-center justify-center text-premium-blue text-4xl font-bold border border-premium-blue/20 shadow-blue-500/10 shadow-lg">
-                        {student.profile?.firstName?.[0]}
+                    <div className="w-24 h-24 rounded-2xl bg-premium-blue/10 flex items-center justify-center text-premium-blue text-4xl font-bold border border-premium-blue/20 shadow-blue-500/10 shadow-lg overflow-hidden shrink-0 relative group">
+                        {student.profile?.avatar ? (
+                            <img src={student.profile.avatar} alt={student.fullName} className="w-full h-full object-cover" />
+                        ) : (
+                            student.profile?.firstName?.[0]
+                        )}
+                        <button
+                            onClick={() => setIsEditModalOpen(true)}
+                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            title="Change Photo"
+                        >
+                            <Edit size={24} className="text-white" />
+                        </button>
                     </div>
                     <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-3">
@@ -601,6 +647,34 @@ export default function StudentDetailsPage({ params }) {
                                 value={formData.profile.phone}
                                 onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, phone: e.target.value } })}
                             />
+
+                            <div className="col-span-2 md:col-span-2 flex items-center gap-4 py-2">
+                                <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-200 overflow-hidden shrink-0">
+                                    {formData.profile.avatar ? (
+                                        <img src={formData.profile.avatar} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <User size={24} className="text-slate-300" />
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Update Photo</label>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleFileChange}
+                                        disabled={uploading}
+                                        className="block w-full text-sm text-slate-500
+                                        file:mr-4 file:py-2 file:px-4
+                                        file:rounded-lg file:border-0
+                                        file:text-xs file:font-semibold
+                                        file:bg-premium-blue/10 file:text-premium-blue
+                                        hover:file:bg-premium-blue/20
+                                        "
+                                    />
+                                    {uploading && <p className="text-xs text-premium-blue mt-1">Uploading...</p>}
+                                </div>
+                            </div>
+
                             <Input
                                 id="dob"
                                 label="Date of Birth"

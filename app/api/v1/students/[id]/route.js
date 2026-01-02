@@ -56,7 +56,8 @@ export async function PATCH(req, { params }) {
             lastName: "profile.lastName",
             phone: "profile.phone",
             dateOfBirth: "profile.dateOfBirth",
-            address: "profile.address"
+            address: "profile.address",
+            avatar: "profile.avatar"
         };
 
         Object.entries(updateableFields).forEach(([key, path]) => {

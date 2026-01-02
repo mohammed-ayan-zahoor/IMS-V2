@@ -122,11 +122,22 @@ export default function StudentDashboard() {
         <div className="space-y-10">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div>
-                    <h1 className="text-3xl font-black tracking-tight text-slate-900 text-center md:text-left">Academic Overview</h1>
-                    <p className="text-slate-500 mt-1 font-medium italic text-center md:text-left">
-                        Keep pushing your boundaries, {session?.user?.name?.split(' ')[0] || "Student"}.
-                    </p>
+                <div className="flex items-center gap-5">
+                    <div className="w-24 h-24 rounded-2xl bg-white border-4 border-white shadow-xl shadow-slate-200/50 overflow-hidden shrink-0 relative z-10">
+                        {session?.user?.image ? (
+                            <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400 font-bold text-2xl">
+                                {session?.user?.name?.[0]}
+                            </div>
+                        )}
+                    </div>
+                    <div className="mb-2">
+                        <h1 className="text-3xl font-black tracking-tight text-slate-900 text-center md:text-left">Academic Overview</h1>
+                        <p className="text-slate-500 mt-1 font-medium italic text-center md:text-left">
+                            Keep pushing your boundaries, {session?.user?.name?.split(' ')[0] || "Student"}.
+                        </p>
+                    </div>
                 </div>
                 <div className="flex gap-3 justify-center">
                     <Button size="sm" className="flex items-center gap-2">
@@ -228,13 +239,14 @@ export default function StudentDashboard() {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-800 p-0 overflow-hidden relative group rounded-xl border-none shadow-md">
-                        <div className="p-6 relative z-10 text-white">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] mb-3 text-amber-300">
+                    {/* Notice Board - High Contrast */}
+                    <Card className="bg-gradient-to-br from-amber-50 to-orange-50 p-0 overflow-hidden relative group rounded-xl border-amber-100 shadow-sm">
+                        <div className="p-6 relative z-10">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] mb-3 text-amber-700">
                                 <AlertCircle size={14} />
                                 <span>Notice Board</span>
                             </div>
-                            <p className="text-xs font-medium leading-relaxed text-slate-100 opacity-90">
+                            <p className="text-sm font-bold leading-relaxed text-slate-800">
                                 Welcome to the new IMS student portal. Check your exam schedule regularly.
                             </p>
                         </div>

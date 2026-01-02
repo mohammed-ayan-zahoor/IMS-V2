@@ -1,6 +1,7 @@
 import User from '@/models/User';
 import Batch from '@/models/Batch';
 import Fee from '@/models/Fee';
+import '@/models/Course'; // Ensure Course schema is registered
 import { createAuditLog } from './auditService';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
@@ -377,7 +378,7 @@ export class StudentService {
      * Get full student profile with batches and fees
      */
     static async getStudentProfile(studentId) {
-        const student = await User.findOne({ _id: studentId, role: 'student', deletedAt: null })
+        const student = await User.findOne({ _id: studentId, role: 'student' })
             .select('-passwordHash -passwordResetToken -passwordResetExpires');
 
         if (!student) return null;
