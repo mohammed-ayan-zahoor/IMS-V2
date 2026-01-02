@@ -94,47 +94,28 @@ export default function EditExamPage({ params }) {
     const handleSubmit = async () => {
         // ... (implementation needed or kept if elsewhere)
     };
-                        <Input
-                            label="Schedule Date"
-                            type="datetime-local"
-                            value={formData.scheduledAt}
-                            onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
-                        />
-                        <Input
-                            label="End Time (Deadline)"
-                            type="datetime-local"
-                            value={formData.endTime || ""}
-                            onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                            helperText="Leave blank to enforce strict duration from start time."
-                        />
-                        <Input
-                            label="Passing Marks"
-                            type="number"
-                            value={formData.passingMarks}
-                            onChange={(e) => setFormData({ ...formData, passingMarks: e.target.value })}
-                        />
-                    </div >
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-                label="Max Attempts"
-                type="number"
-                min="1"
-                value={formData.maxAttempts}
-                onChange={(e) => setFormData({ ...formData, maxAttempts: e.target.value })}
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Input
+            label="Max Attempts"
+            type="number"
+            min="1"
+            value={formData.maxAttempts}
+            onChange={(e) => setFormData({ ...formData, maxAttempts: e.target.value })}
+        />
+        <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500 uppercase">Result Visibility</label>
+            <Select
+                value={formData.resultPublication}
+                onChange={(e) => setFormData({ ...formData, resultPublication: e.target.value })}
+                options={[
+                    { label: "Immediate (After Submit)", value: "immediate" },
+                    { label: "After Exam Ends", value: "after_exam_end" }
+                ]}
             />
-            <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase">Result Visibility</label>
-                <Select
-                    value={formData.resultPublication}
-                    onChange={(e) => setFormData({ ...formData, resultPublication: e.target.value })}
-                    options={[
-                        { label: "Immediate (After Submit)", value: "immediate" },
-                        { label: "After Exam Ends", value: "after_exam_end" }
-                    ]}
-                />
-            </div>
         </div>
+    </div>
 
     {/* Status Toggle */ }
                     <div className="pt-4 border-t border-slate-50">

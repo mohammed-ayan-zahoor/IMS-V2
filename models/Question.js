@@ -98,35 +98,37 @@ const QuestionSchema = new Schema({
                     // The API `POST` logic definitely parses it as index: `const index = Number(body.correctAnswer); validatedAnswer = String(index);`
                     // So for now, I will validate that `Number(v)` is a valid index.
 
-                    if (this.type === 'mcq') {
-                        if (!this.options || this.options.length === 0) return false;
-                        const idx = Number(v);
-                        return !isNaN(idx) && idx >= 0 && idx < this.options.length;
+                    validate: {
+                        validator: function(v) {
+                            if (this.type === 'mcq') {
+                                if (!this.options || this.options.length === 0) return false;
+                                const idx = Number(v);
+                                return !isNaN(idx) && idx >= 0 && idx < this.options.length;
+                            }
+                            if (this.type === 'true_false') {
+                                return v === 'true' || v === 'false';
+                            }
+                            return true;
+                        },
+                        message: 'Invalid correct answer for the selected question type.'
                     }
-                    if (this.type === 'true_false') {
-                        return v === 'true' || v === 'false';
-                    }
-                    return true; // Short answer/Essay
-                },
-                message: 'Invalid correct answer for the selected question type.'
-            }
-        }
-    },
+                }
+            },
 
-    marks: { type: Number, required: true, default: 1, min: 0 },
-    explanation: { type: String }, // Optional explanation
+            marks: { type: Number, required: true, default: 1, min: 0 },
+            explanation: { type: String }, // Optional explanation
 
-    // Metadata
-    tags: [String],
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    isActive: { type: Boolean, default: true },
+            // Metadata
+            tags: [String],
+            createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+            isActive: { type: Boolean, default: true },
 
-    // Usage tracking
-    timesUsed: { type: Number, default: 0 },
-    averageScore: { type: Number, default: 0 }, // For analytics
+            // Usage tracking
+            timesUsed: { type: Number, default: 0 },
+            averageScore: { type: Number, default: 0 }, // For analytics
 
-    deletedAt: Date
-}, { timestamps: true });
+            deletedAt: Date
+        }, { timestamps: true });
 
 QuestionSchema.index({ subject: 1, classLevel: 1, difficulty: 1 });
 QuestionSchema.index({ institute: 1, subject: 1, difficulty: 1 });
