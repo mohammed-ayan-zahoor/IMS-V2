@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Institute from "@/models/Institute";
 import AuditLog from "@/models/AuditLog";
-
+import mongoose from "mongoose";
 // Helper to check Super Admin access
 async function checkAccess() {
     const session = await getServerSession(authOptions);

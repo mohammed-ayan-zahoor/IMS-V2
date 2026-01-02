@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Question from "@/models/Question";
 import { getInstituteScope } from "@/middleware/instituteScope";
+import mongoose from "mongoose";
 
 const ALLOWED_TYPES = ['mcq', 'true_false', 'short_answer', 'essay'];
 const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'];
@@ -97,6 +98,19 @@ export async function POST(req) {
         const marks = Number(body.marks);
         if (isNaN(marks) || marks <= 0) {
             return NextResponse.json({ error: "Marks must be a positive number" }, { status: 400 });
+        }
+
+        // Course and Batch Validation (if provided)
+        if (body.course) {
+            if (!mongoose.Types.ObjectId.isValid(body.course)) {
+                return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
+            }
+        }
+
+        if (body.batch) {
+            if (!mongoose.Types.ObjectId.isValid(body.batch)) {
+                return NextResponse.json({ error: "Invalid batch ID" }, { status: 400 });
+            }
         }
 
         // Answer Validation

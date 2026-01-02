@@ -6,6 +6,11 @@ import { getInstituteScope } from "@/middleware/instituteScope";
 
 export async function GET(req, { params }) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const scope = await getInstituteScope(req);
         if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });

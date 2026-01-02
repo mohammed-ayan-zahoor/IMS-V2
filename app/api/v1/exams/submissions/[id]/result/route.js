@@ -24,8 +24,7 @@ export async function GET(req, { params }) {
             student: session.user.id
         }).populate({
             path: 'exam',
-            select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations',
-            populate: {
+            select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations resultsPublished', populate: {
                 path: 'questions',
                 model: 'Question',
                 select: 'text type options correctOption marks'

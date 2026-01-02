@@ -32,16 +32,15 @@ export async function GET(req) {
         // Apply Scope
         const scopedQuery = addInstituteFilter(query, scope);
 
-        console.log("=> GET /users Debug:");
-        console.log("   Scope:", JSON.stringify(scope, null, 2));
-        console.log("   Query:", JSON.stringify(scopedQuery, null, 2));
 
         const users = await User.find(scopedQuery)
             .select("-passwordHash")
             .populate("institute", "name code")
             .sort({ createdAt: -1 });
 
-        console.log(`   Found ${users.length} users.`);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`   Found ${users.length} users.`);
+        }
 
         return NextResponse.json({ users });
 

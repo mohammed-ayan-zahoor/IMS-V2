@@ -19,10 +19,8 @@ const AuditLogSchema = new Schema({
             'material.upload', 'material.delete',
             'attendance.mark', 'attendance.update',
             'exam.create', 'exam.update', 'exam.delete', 'exam.publish',
-            'user.password_reset', 'user.role_change', 'user.create', 'user.delete',
-            'institute.create', 'institute.update', 'institute.delete',
-            'LOGIN'
-        ],
+            'user.password_reset', 'user.role_change', 'user.create', 'user.delete', 'user.login',
+            'institute.create', 'institute.update', 'institute.delete',],
         index: true
     },
     resource: {

@@ -28,6 +28,7 @@ export async function GET(req, { params }) {
 
         return NextResponse.json(course);
     } catch (error) {
+        console.error("Course GET Error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
@@ -41,7 +42,7 @@ export async function PATCH(req, { params }) {
         }
 
         const scope = await getInstituteScope(req);
-        if (!scope || !scope.instituteId) {
+        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
         }
 
@@ -64,7 +65,7 @@ export async function DELETE(req, { params }) {
         }
 
         const scope = await getInstituteScope(req);
-        if (!scope || !scope.instituteId) {
+        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
         }
 

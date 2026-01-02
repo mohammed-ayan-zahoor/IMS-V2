@@ -197,10 +197,22 @@ export async function POST(req) {
             tags: Array.isArray(body.tags) ? body.tags : []
         };
 
+        // Determine Institute
+        let instituteId = session.user.institute?.id;
+
+        if (session.user.role !== 'super_admin') {
+            if (!instituteId) {
+                return NextResponse.json({ error: "Institute context missing for this user" }, { status: 403 });
+            }
+        } else {
+            // For super_admin, rely on body or undefined (global)
+            instituteId = body.institute || instituteId;
+        }
+
         const material = await Material.create({
             ...safeBody,
             uploadedBy: session.user.id,
-            institute: session.user.institute?.id
+            institute: instituteId
         });
 
         // Audit Log

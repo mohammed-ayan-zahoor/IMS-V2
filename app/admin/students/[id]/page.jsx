@@ -124,17 +124,17 @@ export default function StudentDetailsPage({ params }) {
             const data = await res.json();
             setStudentData(data);
 
-            // Populate form data for editing
+            // Populate form data for editing with normalized address
             if (data.student) {
+                const defaultAddress = { street: "", city: "", state: "", pincode: "" };
                 setFormData({
                     email: data.student.email,
-                    profile: { ...data.student.profile, address: data.student.profile?.address || {} },
+                    profile: {
+                        ...data.student.profile,
+                        address: { ...defaultAddress, ...(data.student.profile?.address || {}) }
+                    },
                     guardianDetails: data.student.guardianDetails || { name: "", relation: "", phone: "" }
                 });
-            }
-            // Ensure inputs don't switch to uncontrolled
-            if (!data.student.profile?.address) {
-                setFormData(prev => ({ ...prev, profile: { ...prev.profile, address: { street: "", city: "", state: "", pincode: "" } } }));
             }
         } catch (error) {
             console.error(error);

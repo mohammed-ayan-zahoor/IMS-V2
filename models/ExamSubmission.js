@@ -81,7 +81,7 @@ const ExamSubmissionSchema = new Schema({
     userAgent: String,
     browserFingerprint: String, // Optional: for multi-device detection
 
-    attemptNumber: { type: Number, default: 1 }
+    attemptNumber: { type: Number, default: 1, min: 1, required: true }
 }, { timestamps: true });
 
 // Unique constraint: one submission per student per exam per attempt

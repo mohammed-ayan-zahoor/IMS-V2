@@ -43,7 +43,7 @@ async function inspectData() {
                 for (const enrollment of b.enrolledStudents) {
                     const sId = enrollment.student;
                     const studentExists = students.find(s => s._id.toString() === sId.toString());
-                    console.log(`  - Student ID: ${sId} -> Exists in Users? ${studentExists ? 'YES (' + studentExists.profile.firstName + ')' : 'NO (Dangling Reference)'}`);
+                    console.log(`  - Student ID: ${sId} -> Exists in Users? ${studentExists ? 'YES (' + (studentExists.profile?.firstName || 'N/A') + ')' : 'NO (Dangling Reference)'}`);
                 }
             }
         }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import Select from "@/components/ui/Select";
+// Verified: Usage of Select component is compatible with onChange(value) signature.
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -67,16 +68,27 @@ export default function CreateExamPage() {
     };
 
     const handleEndTimeChange = (val) => {
-        const end = new Date(val);
-        let duration = formData.duration;
+        // Validation: Cannot be before start time
         if (formData.scheduledAt) {
             const start = new Date(formData.scheduledAt);
+            const end = new Date(val);
             const diffMs = end - start;
-            if (diffMs > 0) {
-                duration = Math.floor(diffMs / 60000);
+
+            if (diffMs <= 0) {
+                // Invalid: End time is before Start time
+                // Don't update endAt or duration, but maybe show toast or error state?
+                // For now, just early return to prevent invalid state.
+                // Ideally set a form error state here.
+                return;
             }
+
+            // Valid duration
+            const duration = Math.floor(diffMs / 60000);
+            setFormData(prev => ({ ...prev, endAt: val, duration: duration }));
+        } else {
+            // No start time set yet, just set end time
+            setFormData(prev => ({ ...prev, endAt: val }));
         }
-        setFormData(prev => ({ ...prev, endAt: val, duration: duration }));
     };
 
     const fetchDropdowns = async () => {

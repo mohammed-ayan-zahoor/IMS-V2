@@ -81,6 +81,7 @@ export class ExamGradingService {
                 action: 'exam.auto_grade',
                 resource: 'ExamSubmission', // Corrected resource format for existing audit service if needed, usually string or object
                 resourceId: submission._id, // Providing ID separately if audit service expects it
+                institute: exam.institute,
                 details: {
                     studentName: submission.student.fullName,
                     examTitle: exam.title,
@@ -155,6 +156,7 @@ export class ExamGradingService {
             action: 'exam.manual_grade',
             resource: 'ExamSubmission',
             resourceId: submission._id,
+            institute: submission.exam.institute,
             details: {
                 studentName: submission.student.fullName,
                 examTitle: submission.exam.title,

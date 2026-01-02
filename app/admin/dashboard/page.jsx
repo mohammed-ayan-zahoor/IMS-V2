@@ -33,26 +33,44 @@ const StatCard = ({ title, value, icon: Icon, trend, color, softColor }) => (
 );
 
 export default function AdminDashboard() {
+
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
         const fetchStats = async () => {
             try {
-                const res = await fetch('/api/v1/dashboard/stats');
+                const res = await fetch('/api/v1/dashboard/stats', {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
                 if (res.ok) {
                     const data = await res.json();
                     setDashboardData(data);
+                } else {
+                    setError(`Failed to fetch dashboard data: ${res.status}`);
                 }
             } catch (error) {
-                console.error("Dashboard fetch error:", error);
+                if (error.name !== 'AbortError') {
+                    console.error("Dashboard fetch error:", error);
+                    setError("Unable to load dashboard data. Please try again.");
+                }
             } finally {
                 setLoading(false);
             }
         };
         fetchStats();
-    }, []);
 
+        return () => {
+            clearTimeout(timeoutId);
+            controller.abort();
+        };
+    }, []);
     const stats = [
         {
             title: "Students",
@@ -69,7 +87,7 @@ export default function AdminDashboard() {
             softColor: "bg-soft-yellow"
         },
         {
-            title: "Staffs",
+            title: "Staff",
             value: loading ? "-" : (dashboardData?.counts?.staff || 0).toLocaleString(),
             icon: Layers3,
             trend: "+0%",

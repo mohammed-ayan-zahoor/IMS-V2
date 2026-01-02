@@ -81,13 +81,13 @@ export async function POST(req) {
 
             try {
                 // Check if email already exists within this institute
+                // Check if email already exists globally (assuming email is unique login identifier)
                 const existingUser = await User.findOne({
-                    email: body.adminEmail.toLowerCase(),
-                    institute: institute._id
+                    email: body.adminEmail.toLowerCase()
                 }).setOptions(opts);
 
                 if (existingUser) {
-                    throw new Error("Admin email already exists for this institute");
+                    throw new Error("Admin email already exists");
                 }
 
                 // 3. Create Admin User for this Institute
@@ -119,10 +119,14 @@ export async function POST(req) {
                 return institute;
 
             } catch (innerError) {
-                // If manual rollback is enabled (Sequential Mode) and an error occurred AFTER institute creation
                 if (manualRollback) {
-                    console.error("Sequential Execution Failed. Rolling back orphaned institute:", institute._id);
-                    await Institute.findByIdAndDelete(institute._id);
+                    console.error("Sequential Execution Failed. Rolling back:", institute._id);
+                    try {
+                        await User.deleteMany({ institute: institute._id });
+                        await Institute.findByIdAndDelete(institute._id);
+                    } catch (rollbackError) {
+                        console.error("Rollback failed:", rollbackError);
+                    }
                 }
                 throw innerError;
             }
@@ -167,6 +171,7 @@ export async function POST(req) {
 
     } catch (error) {
         console.error("Create Institute Error:", error);
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        // Hide internal error details from client
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

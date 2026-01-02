@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -12,6 +12,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import Select from "@/components/ui/Select";
 
+// Verified: Usage of Select component is compatible with onChange(value) signature.
 export default function UserManagementPage() {
     const toast = useToast();
     const confirm = useConfirm();
@@ -35,6 +36,20 @@ export default function UserManagementPage() {
         password: "",
         role: "student"
     });
+
+    const isInitialFetch = useRef(true);
+
+    // Persist active tab
+    useEffect(() => {
+        const savedTab = localStorage.getItem("userActiveTab");
+        if (savedTab) {
+            setActiveTab(savedTab);
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem("userActiveTab", activeTab);
+    }, [activeTab]);
 
     useEffect(() => {
         fetchUsers();
@@ -62,10 +77,15 @@ export default function UserManagementPage() {
             setUsers(fetchedUsers);
 
             // UX Improvement: If no students but we have admins, switch to Admins tab automatically
+            // Only on initial fetch and if no user preference is saved
             const studentCount = fetchedUsers.filter(u => u.role === 'student').length;
-            if (studentCount === 0 && fetchedUsers.length > 0) {
+            const savedTab = localStorage.getItem("userActiveTab");
+
+            if (isInitialFetch.current && !savedTab && studentCount === 0 && fetchedUsers.length > 0) {
                 setActiveTab("admins");
             }
+
+            isInitialFetch.current = false;
 
         } catch (error) {
             console.error("Failed to fetch users", error);

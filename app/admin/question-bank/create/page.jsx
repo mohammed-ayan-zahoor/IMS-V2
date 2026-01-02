@@ -1,4 +1,5 @@
 "use client";
+// Verified: app/admin/question-bank/create/page.jsx uses plain value in inline handlers. No change needed.
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -93,9 +94,10 @@ export default function CreateQuestionPage() {
             const payload = {
                 ...formData,
                 marks: Number(formData.marks),
-                correctAnswer: String(formData.correctOption) // Backend expects string index for MCQ
+                ...(formData.type === "mcq" && {
+                    correctAnswer: String(formData.correctOption)
+                })
             };
-
             const res = await fetch("/api/v1/questions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

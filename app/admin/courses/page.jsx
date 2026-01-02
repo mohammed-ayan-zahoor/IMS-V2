@@ -218,8 +218,11 @@ export default function CoursesPage() {
                                     <div className="flex items-center justify-between text-xs font-bold text-slate-400 border-t border-slate-50 pt-4">
                                         <div className="flex items-center gap-1.5">
                                             <Clock size={14} />
-                                            <span className="capitalize">{course?.duration?.value} {course?.duration?.unit}</span>
-                                        </div>
+                                            <span className="capitalize">
+                                                {course?.duration?.value && course?.duration?.unit
+                                                    ? `${course.duration.value} ${course.duration.unit}`
+                                                    : "N/A"}
+                                            </span>                                        </div>
                                         <div className="flex items-center gap-1.5 text-slate-600">
                                             <CreditCard size={14} />
                                             <span>₹{course.fees?.amount?.toLocaleString()}</span>

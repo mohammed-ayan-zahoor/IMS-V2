@@ -69,24 +69,25 @@ export class CourseService {
 
     static async updateCourse(id, data, actorId, instituteId) {
         await connectDB();
-        const { code, name, duration, fees, description } = data;
+        const allowedFields = ['code', 'name', 'duration', 'fees', 'description'];
+        const updateData = {};
+        allowedFields.forEach(field => {
+            if (data[field] !== undefined) {
+                updateData[field] = data[field];
+            }
+        });
+
+        if (Object.keys(updateData).length === 0) {
+            throw new Error("No valid updatable fields provided");
+        }
 
         console.log(`[UpdateCourse] Attempting update. ID: ${id}, Inst: ${instituteId}`);
 
         const course = await Course.findOneAndUpdate(
             { _id: id, institute: instituteId, deletedAt: null },
-            {
-                $set: {
-                    name,
-                    code,
-                    duration,
-                    fees,
-                    description
-                }
-            },
+            { $set: updateData },
             { new: true, runValidators: true }
         );
-
         if (!course) {
             console.error(`[UpdateCourse] Failed. Course NOT found for ID: ${id} and Institute: ${instituteId}`);
             throw new Error("Course not found or access denied");

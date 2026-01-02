@@ -26,26 +26,74 @@ export default function EditExamPage({ params }) {
         course: "",
         batches: [], // Array of batch IDs
         duration: 60,
+        duration: 60,
         passingMarks: 0,
-        passingMarks: 0,
-        scheduledAt: "",
+        scheduledAt: "", scheduledAt: "",
         maxAttempts: 1,
         resultPublication: "immediate",
         status: "draft"
     });
 
-    useEffect(() => {
-        fetchInitialData();
-        // ... (lines 36-100 skipped)
-        scheduledAt: exam.scheduledAt ? formattedDate : "", // Use localized format
-            endTime: formattedEndTime,
-                maxAttempts: exam.maxAttempts || 1,
-                    resultPublication: exam.resultPublication || "immediate",
-                        status: exam.status
-    });
+    const fetchInitialData = async () => {
+        try {
+            const [coursesRes, examRes] = await Promise.all([
+                fetch("/api/v1/courses"),
+                fetch(`/api/v1/exams/${id}`)
+            ]);
 
-} catch (error) {
-// ... (lines 105-256 skipped)
+            if (!coursesRes.ok || !examRes.ok) throw new Error("Failed to fetch initial data");
+
+            const { courses: coursesData } = await coursesRes.json();
+            const { exam } = await examRes.json();
+
+            setCourses(coursesData);
+
+            // Fetch batches if course is already selected
+            if (exam.course) {
+                const batchesRes = await fetch(`/api/v1/batches?courseId=${exam.course._id || exam.course}`);
+                if (batchesRes.ok) {
+                    const { batches: batchesData } = await batchesRes.json();
+                    setFilteredBatches(batchesData);
+                }
+            }
+
+            // Helpers to format date for input (YYYY-MM-DDTHH:mm)
+            const formatDate = (dateStr) => {
+                if (!dateStr) return "";
+                const d = new Date(dateStr);
+                return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            };
+
+            setFormData({
+                title: exam.title,
+                description: exam.description || "",
+                course: exam.course?._id || exam.course || "",
+                batches: exam.batches ? exam.batches.map(b => b._id || b) : (exam.batch ? [exam.batch] : []), // Handle legacy batch
+                duration: exam.duration,
+                passingMarks: exam.passingMarks,
+                scheduledAt: formatDate(exam.schedule.startTime),
+                endTime: formatDate(exam.schedule.endTime),
+                maxAttempts: exam.maxAttempts || 1,
+                resultPublication: exam.resultPublication || "immediate",
+                status: exam.status
+            });
+
+        } catch (error) {
+            console.error(error);
+            setError("Failed to load exam data");
+            toast.error("Failed to load exam details");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (id) fetchInitialData();
+    }, [id]);
+
+    const handleSubmit = async () => {
+        // ... (implementation needed or kept if elsewhere)
+    };
                         <Input
                             label="Schedule Date"
                             type="datetime-local"

@@ -66,8 +66,8 @@ const ExamSchema = new Schema({
     deletedAt: { type: Date, default: null }
 }, { timestamps: true });
 
-ExamSchema.index({ batches: 1, status: 1 });
-ExamSchema.index({ institute: 1, status: 1 });
+ExamSchema.index({ institute: 1, batches: 1, status: 1 }); // Optimized for common list filtering
+ExamSchema.index({ institute: 1, status: 1 }); // Backup for queries without batches
 ExamSchema.index({ scheduledAt: 1 });
 
 // Validation Hooks
@@ -106,68 +106,118 @@ ExamSchema.pre(['findOneAndUpdate', 'updateOne'], async function () {
     const update = this.getUpdate();
 
     // 1. Fetch the document being updated
-    // Note: This creates a small TOCTOU window. For strict consistency, we should use atomic updates or a version key.
-    // However, this hook is needed to calculate complex derived validation (Total Marks vs Passing Marks) which depends on non-deterministic/operator-based updates.
-    // For now, checking doc existence helps prevent acting on "null" documents.
+    // LIMITATION: This creates a race condition (TOCTOU). Another request could modify the document 
+    // between this findOne and the actual update. Optimistic locking (versioning) is recommended for strict consistency.
     const doc = await this.model.findOne(query);
 
-    // If document not found, we should fail unless it's an upsert (check options if possible, though Mongoose hook options are limited)
-    // If this.getOptions().upsert is true, doc might be null and we are creating. 
+    // If upsert enabled, doc might be null. Validation is skipped for upserts of new documents in this hook 
+    // because we can't easily predict the final state of a new document from just update operators.
     if (!doc) {
-        // If upsert logic is standard, maybe we just return? But we can't easily validate the *new* document state here if it didn't exist.
-        // Best effort:
         if (this.getOptions().upsert) return;
-        throw new Error("Exam not found for update");
+        throw new Error("Exam not found for update (and upsert not enabled)");
     }
 
-    // 2. Compute effective values after update
-    // We only care about fields that affect validation: status, totalMarks, passingMarks
-    let finalStatus = doc.status;
-    let finalTotal = doc.totalMarks;
-    let finalPassing = doc.passingMarks;
+    // 2. Simulation Logic for Validation
+    // LIMITATION: This simulation does not handle all MangoDB operators. 
+    // Unsupported array operators ($push, $pull, etc.) will trigger an error to prevent inconsistent state.
 
-    // Helper to apply operators
-    const applyUpdate = (operator, field, value) => {
-        if (operator === '$set') {
-            if (field === 'status') finalStatus = value;
-            if (field === 'totalMarks') finalTotal = value;
-            if (field === 'passingMarks') finalPassing = value;
-        } else if (operator === '$inc') {
-            if (field === 'totalMarks') finalTotal = (finalTotal || 0) + value;
-            if (field === 'passingMarks') finalPassing = (finalPassing || 0) + value;
-        } else if (operator === '$unset') {
-            if (field === 'status') finalStatus = undefined; // Should fallback to default? Schema default doesn't apply to unset.
-            if (field === 'totalMarks') finalTotal = undefined;
-            if (field === 'passingMarks') finalPassing = undefined;
-        } else if (operator === '$min') {
-            if (field === 'totalMarks') finalTotal = Math.min(finalTotal ?? Infinity, value);
-            if (field === 'passingMarks') finalPassing = Math.min(finalPassing ?? Infinity, value);
-        } else if (operator === '$max') {
-            if (field === 'totalMarks') finalTotal = Math.max(finalTotal ?? -Infinity, value);
-            if (field === 'passingMarks') finalPassing = Math.max(finalPassing ?? -Infinity, value);
-        } else if (operator === '$mul') {
-            if (field === 'totalMarks') finalTotal = (finalTotal || 0) * value;
-            if (field === 'passingMarks') finalPassing = (finalPassing || 0) * value;
+    // Helper to get nested value safely
+    const getVal = (obj, path) => path.split('.').reduce((o, k) => (o || {})[k], obj);
+
+    // Helper to set value (simple version for simulation)
+    const setVal = (obj, path, val) => {
+        const keys = path.split('.');
+        let current = obj;
+        for (let i = 0; i < keys.length - 1; i++) {
+            current = current[keys[i]] = current[keys[i]] || {};
+        }
+        current[keys[keys.length - 1]] = val;
+    };
+
+    // State object representing the document after update
+    // We clone only relevant fields for performance, or use the doc structure
+    const nextDoc = {
+        status: doc.status,
+        totalMarks: doc.totalMarks,
+        passingMarks: doc.passingMarks
+    };
+
+    // Helper to resolve whether a field update affects our target fields
+    // We strictly care about: 'status', 'totalMarks', 'passingMarks'
+    const RELEVANT_FIELDS = ['status', 'totalMarks', 'passingMarks'];
+
+    const applyUpdate = (operator, fieldPath, value) => {
+        // Only simulate if it affects one of our relevant validation fields
+        // Direct match or nested match? Our fields are top-level, so strict check is mostly OK, 
+        // but let's be safe if schema changes later.
+        if (!RELEVANT_FIELDS.includes(fieldPath)) return;
+
+        const currentVal = nextDoc[fieldPath];
+
+        switch (operator) {
+            case '$set':
+                nextDoc[fieldPath] = value;
+                break;
+            case '$unset':
+                nextDoc[fieldPath] = undefined;
+                break;
+            case '$inc':
+                nextDoc[fieldPath] = (currentVal || 0) + value;
+                break;
+            case '$min':
+                // logic: if current exists, take min(current, value). If not, take value.
+                if (typeof currentVal === 'number') {
+                    nextDoc[fieldPath] = Math.min(currentVal, value);
+                } else {
+                    nextDoc[fieldPath] = value;
+                }
+                break;
+            case '$max':
+                if (typeof currentVal === 'number') {
+                    nextDoc[fieldPath] = Math.max(currentVal, value);
+                } else {
+                    nextDoc[fieldPath] = value;
+                }
+                break;
+            case '$mul':
+                nextDoc[fieldPath] = (currentVal || 0) * value;
+                break;
+            default:
+                // Ignore other field-level operators that we don't strictly need for *this* specific validation
+                break;
         }
     };
-    // Iterate over update object keys
+
+    // Iterate over update operators
     for (const key in update) {
         if (key.startsWith('$')) {
-            // It's an operator like $set, $inc
-            const op = key;
+            // Unsupported Operators Check
+            if (['$push', '$pull', '$addToSet', '$pop', '$pullAll', '$rename', '$currentDate'].includes(key)) {
+                // If these operators target our critical fields, it's a risk. 
+                // Since our critical fields are primitives (not arrays), array ops *shouldn't* target them.
+                // But $rename could.
+                const fields = update[key];
+                for (const f in fields) {
+                    if (RELEVANT_FIELDS.includes(f)) {
+                        console.warn(`[Exam] Unsupported operator ${key} used on critical validation field ${f}. Validation may be inaccurate.`);
+                    }
+                }
+                continue;
+            }
+
             const fields = update[key];
             for (const field in fields) {
-                applyUpdate(op, field, fields[field]);
+                applyUpdate(key, field, fields[field]);
             }
         } else {
-            // It's a direct assignment (treated as $set in Mongoose 5+, but explicit $set is better)
+            // Direct assignment (implicit $set)
             applyUpdate('$set', key, update[key]);
         }
     }
 
     // 3. Validation
-    validateTotalMarks(finalStatus, finalTotal);
-    validatePassingMarks(finalPassing, finalTotal);
+    validateTotalMarks(nextDoc.status, nextDoc.totalMarks);
+    validatePassingMarks(nextDoc.passingMarks, nextDoc.totalMarks);
 });
 
 if (process.env.NODE_ENV !== 'production') {

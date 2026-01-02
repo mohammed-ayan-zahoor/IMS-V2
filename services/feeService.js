@@ -28,6 +28,8 @@ export class FeeService {
             throw new Error(`Installment sum (${installmentSum}) does not match total payable (${finalExpected})`);
         }
 
+        if (!data.institute) throw new Error("Institute context missing"); // Validate here if not checked before
+
         const fee = await FeeDb.create({
             student,
             batch,
@@ -37,13 +39,15 @@ export class FeeService {
                 status: 'pending' // Force initial status
             })),
             discount,
-            status: 'not_started'
+            status: 'not_started',
+            institute: data.institute
         });
 
         await createAuditLog({
             actor: actorId,
             action: 'fee.create',
             resource: { type: 'Fee', id: fee._id },
+            institute: data.institute,
             details: { student, batch, totalAmount }
         });
 
@@ -205,6 +209,7 @@ export class FeeService {
             actor: actorId,
             action: 'fee.payment',
             resource: { type: 'Fee', id: fee._id },
+            institute: fee.institute,
             details
         });
 

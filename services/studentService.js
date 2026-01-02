@@ -94,6 +94,7 @@ export class StudentService {
                 actor: actorId,
                 action: 'student.hard_delete',
                 resource: { type: 'User', id: studentId },
+                institute: student.institute,
                 details: { name: student.fullName, email: student.email }
             });
 
@@ -117,6 +118,7 @@ export class StudentService {
                     actor: actorId,
                     action: 'student.hard_delete',
                     resource: { type: 'User', id: studentId },
+                    institute: student.institute,
                     details: {
                         name: student.profile?.firstName + ' ' + student.profile?.lastName,
                         email: student.email,
@@ -220,8 +222,14 @@ export class StudentService {
             }
 
             // Check cross-institute access if instituteId is provided
-            if (instituteId && student.institute && student.institute.toString() !== instituteId.toString()) {
-                throw new Error("Student does not belong to this institute");
+            // Check cross-institute access if instituteId is provided
+            if (instituteId) {
+                if (!student.institute) {
+                    throw new Error("Student has no institute assigned");
+                }
+                if (student.institute.toString() !== instituteId.toString()) {
+                    throw new Error("Student does not belong to this institute");
+                }
             }
 
             const batch = await Batch.findById(batchId).populate('course').session(session);
@@ -260,11 +268,22 @@ export class StudentService {
                 await batch.save({ session });
             }
 
+            // Enforce Institute Consistency for Fee
+            const targetInstitute = batch.institute;
+            if (!targetInstitute) throw new Error("Batch has no institute assigned");
+
+            if (student.institute && student.institute.toString() !== targetInstitute.toString()) {
+                throw new Error("Institute mismatch: Student does not belong to the batch's institute");
+            }
+            if (instituteId && instituteId.toString() !== targetInstitute.toString()) {
+                throw new Error("Institute mismatch: Act on behalf of correct institute");
+            }
+
             // Create initial fee record
             const fee = await Fee.create([{
                 student: studentId,
                 batch: batchId,
-                institute: instituteId || student.institute, // Use provided institute or student's own
+                institute: targetInstitute, // Use validated batch institute
                 totalAmount: batch.course.fees.amount,
                 installments: [],
                 status: 'not_started' // Default status
@@ -308,12 +327,13 @@ export class StudentService {
         const student = await User.findById(studentId);
         if (!student || student.role !== 'student' || student.deletedAt) throw new Error('Invalid or inactive student');
 
-        if (instituteId && student.institute && student.institute.toString() !== instituteId.toString()) {
+        if (instituteId && (!student.institute || student.institute.toString() !== instituteId.toString())) {
             throw new Error("Student does not belong to this institute");
         }
 
         const batch = await Batch.findById(batchId).populate('course');
         if (!batch || batch.deletedAt) throw new Error('Batch not found or inactive');
+        if (!batch.institute) throw new Error('Batch configuration error: Institute is missing'); // Validation
         if (!batch.course?.fees?.amount) throw new Error('Course fee information is missing');
 
         const existingEnrollment = batch.enrolledStudents.find(
@@ -337,7 +357,7 @@ export class StudentService {
         const fee = await Fee.create({
             student: studentId,
             batch: batchId,
-            institute: instituteId || student.institute, // Correctly set Institute
+            institute: batch.institute, // Enforce Batch's Institute
             totalAmount: batch.course.fees.amount,
             installments: [],
             status: 'not_started'

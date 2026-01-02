@@ -45,6 +45,15 @@ export async function POST(req, { params }) {
         const activeSubmission = existingSubmissions.find(s => s.status === 'in_progress');
 
         if (activeSubmission) {
+            // Prepare sanitized exam questions
+            const sanitizedQuestions = exam.questions.map(q => ({
+                _id: q._id,
+                text: q.text,
+                type: q.type,
+                options: q.options,
+                marks: q.marks
+            }));
+
             // Resume existing submission
             return Response.json({
                 submission: {
@@ -53,17 +62,34 @@ export async function POST(req, { params }) {
                     draftAnswers: activeSubmission.draftAnswers,
                     suspiciousEvents: activeSubmission.suspiciousEvents
                 },
+                exam: {
+                    id: exam._id,
+                    title: exam.title,
+                    duration: exam.duration,
+                    totalMarks: exam.totalMarks,
+                    questions: sanitizedQuestions,
+                    securityConfig: exam.securityConfig
+                },
                 isResume: true
             });
         }
-
         // Check Max Attempts
-        const attemptCount = existingSubmissions.length;
-        if (attemptCount >= (exam.maxAttempts || 1)) {
-            return Response.json(
-                { error: `You have used all ${exam.maxAttempts || 1} attempts for this exam.` },
-                { status: 403 }
-            );
+        // Semantics: 0 = Unlimited. If > 0, strict limit.
+        const maxAttempts = exam.maxAttempts !== undefined ? exam.maxAttempts : 1;
+
+        if (maxAttempts > 0) {
+            // Only count attempts that are fully consumed (submitted/completed)
+            // Note: 'in_progress' is handled above by resume logic.
+            const consumedAttempts = existingSubmissions.filter(s =>
+                s.status === 'submitted' || s.status === 'evaluated'
+            ).length;
+
+            if (consumedAttempts >= maxAttempts) {
+                return Response.json(
+                    { error: `You have used all ${maxAttempts} attempts for this exam.` },
+                    { status: 403 }
+                );
+            }
         }
 
         // Create new submission
@@ -73,7 +99,7 @@ export async function POST(req, { params }) {
             'unknown';
         const userAgent = headersList.get('user-agent') || 'unknown';
 
-        submission = await ExamSubmission.create({
+        const submission = await ExamSubmission.create({
             exam: examId,
             student: session.user.id,
             attemptNumber: attemptCount + 1,

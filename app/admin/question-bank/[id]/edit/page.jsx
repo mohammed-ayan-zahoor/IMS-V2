@@ -60,9 +60,9 @@ export default function EditQuestionPage({ params }) {
             setBatches(bData.batches || []);
         } catch (error) {
             console.error("Failed to fetch dropdowns", error);
+            toast.error("Failed to load courses and batches");
         }
     };
-
     const fetchQuestion = async () => {
         try {
             const res = await fetch(`/api/v1/questions/${id}`);
@@ -79,7 +79,8 @@ export default function EditQuestionPage({ params }) {
                 difficulty: q.difficulty || "medium",
                 marks: q.marks || 1,
                 options: q.options && q.options.length > 0 ? q.options : ["", "", "", ""],
-                correctOption: q.type === 'mcq' ? Number(q.correctAnswer) : 0
+                correctOption: q.type === 'mcq' && q.correctAnswer != null ?
+                    Math.max(0, Math.min(Number(q.correctAnswer) || 0, (q.options?.length || 4) - 1)) : 0
             });
         } catch (error) {
             console.error("Failed to fetch question", error);
@@ -88,7 +89,6 @@ export default function EditQuestionPage({ params }) {
             setFetching(false);
         }
     };
-
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -107,201 +107,221 @@ export default function EditQuestionPage({ params }) {
     const removeOption = (index) => {
         if (formData.options.length <= 2) return;
         const newOptions = formData.options.filter((_, i) => i !== index);
-        setFormData(prev => ({
-            ...prev,
-            options: newOptions,
-            correctOption: prev.correctOption >= index && prev.correctOption > 0 ? prev.correctOption - 1 : prev.correctOption
-        }));
-    };
+        setFormData(prev => {
+            let newCorrectOption = prev.correctOption;
+            if (prev.correctOption === index) {
+                // Removed the correct option, reset to first option
+                newCorrectOption = 0;
+            } else if (prev.correctOption > index) {
+                // Correct option is after removed option, decrement
+                const handleSubmit = async (e) => {
+                    e.preventDefault();
+                    setLoading(true);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
+                    try {
+                        // Validate MCQ options are not empty
+                        if (formData.type === "mcq") {
+                            const hasEmptyOptions = formData.options.some(opt => !opt.trim());
+                            if (hasEmptyOptions) {
+                                toast.error("All MCQ options must have text");
+                                setLoading(false);
+                                return;
+                            }
+                        }
 
-        try {
-            const payload = {
-                ...formData,
-                marks: Number(formData.marks),
-                correctAnswer: String(formData.correctOption) // Backend expects string index for MCQ
-            };
+                        const payload = {
+                            ...formData,
+                            marks: Number(formData.marks),
+                            correctAnswer: String(formData.correctOption) // Backend expects string index for MCQ
+                        };
 
-            const res = await fetch(`/api/v1/questions/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+                        const res = await fetch(`/api/v1/questions/${id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(payload)
+                        });
 
-            if (!res.ok) throw new Error("Failed to update question");
+                        if (!res.ok) throw new Error("Failed to update question");
 
-            toast.success("Question updated successfully");
-            setTimeout(() => {
-                router.push("/admin/question-bank");
-            }, 1000);
-        } catch (error) {
-            console.error(error);
-            toast.error("Error updating question");
-            setLoading(false);
+                        toast.success("Question updated successfully");
+                        setTimeout(() => {
+                            router.push("/admin/question-bank");
+                        }, 1000);
+                    } catch (error) {
+                        console.error(error);
+                        toast.error("Error updating question");
+                        setLoading(false);
+                    }
+                };
+                toast.success("Question updated successfully");
+                setTimeout(() => {
+                    router.push("/admin/question-bank");
+                }, 1000);
+            } catch (error) {
+                console.error(error);
+                toast.error("Error updating question");
+                setLoading(false);
+            }
+        };
+
+        // Prepare Options
+        const courseOptions = courses.map(c => ({ label: c.name, value: c._id }));
+        const batchOptions = filteredBatches.map(b => ({ label: b.name, value: b._id }));
+        const difficultyOptions = [
+            { label: "Easy", value: "easy" },
+            { label: "Medium", value: "medium" },
+            { label: "Hard", value: "hard" }
+        ];
+        const typeOptions = [
+            { label: "Multiple Choice (MCQ)", value: "mcq" },
+            { label: "Descriptive / Text", value: "descriptive" }
+        ];
+
+        if (fetching) {
+            return <div className="p-8 text-center text-slate-500">Loading question details...</div>;
         }
-    };
 
-    // Prepare Options
-    const courseOptions = courses.map(c => ({ label: c.name, value: c._id }));
-    const batchOptions = filteredBatches.map(b => ({ label: b.name, value: b._id }));
-    const difficultyOptions = [
-        { label: "Easy", value: "easy" },
-        { label: "Medium", value: "medium" },
-        { label: "Hard", value: "hard" }
-    ];
-    const typeOptions = [
-        { label: "Multiple Choice (MCQ)", value: "mcq" },
-        { label: "Descriptive / Text", value: "descriptive" }
-    ];
-
-    if (fetching) {
-        return <div className="p-8 text-center text-slate-500">Loading question details...</div>;
-    }
-
-    return (
-        <div className="space-y-6 max-w-4xl mx-auto">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" onClick={() => router.back()}>
-                    <ArrowLeft size={20} />
-                </Button>
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Edit Question</h1>
-                    <p className="text-slate-500">Modify existing question details.</p>
+        return (
+            <div className="space-y-6 max-w-4xl mx-auto">
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" onClick={() => router.back()}>
+                        <ArrowLeft size={20} />
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Edit Question</h1>
+                        <p className="text-slate-500">Modify existing question details.</p>
+                    </div>
                 </div>
-            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <Card className="overflow-visible">
-                    <CardContent className="p-6 space-y-6">
-                        {/* Meta Data */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div>
-                                <Select
-                                    label="Course"
-                                    name="course"
-                                    value={formData.course}
-                                    onChange={(val) => {
-                                        setFormData(prev => ({ ...prev, course: val, batch: "" }));
-                                    }}
-                                    options={courseOptions}
-                                    placeholder="Select Course"
-                                />
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <Card className="overflow-visible">
+                        <CardContent className="p-6 space-y-6">
+                            {/* Meta Data */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div>
+                                    <Select
+                                        label="Course"
+                                        name="course"
+                                        value={formData.course}
+                                        onChange={(val) => {
+                                            setFormData(prev => ({ ...prev, course: val, batch: "" }));
+                                        }}
+                                        options={courseOptions}
+                                        placeholder="Select Course"
+                                    />
+                                </div>
+                                <div>
+                                    <Select
+                                        label="Batch"
+                                        name="batch"
+                                        value={formData.batch}
+                                        onChange={(val) => setFormData(prev => ({ ...prev, batch: val }))}
+                                        options={batchOptions}
+                                        placeholder="Select Batch"
+                                        disabled={!formData.course}
+                                    />
+                                </div>
+                                <div>
+                                    <Select
+                                        label="Difficulty"
+                                        name="difficulty"
+                                        value={formData.difficulty}
+                                        onChange={(val) => setFormData(prev => ({ ...prev, difficulty: val }))}
+                                        options={difficultyOptions}
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <Select
-                                    label="Batch"
-                                    name="batch"
-                                    value={formData.batch}
-                                    onChange={(val) => setFormData(prev => ({ ...prev, batch: val }))}
-                                    options={batchOptions}
-                                    placeholder="Select Batch"
-                                    disabled={!formData.course}
-                                />
-                            </div>
-                            <div>
-                                <Select
-                                    label="Difficulty"
-                                    name="difficulty"
-                                    value={formData.difficulty}
-                                    onChange={(val) => setFormData(prev => ({ ...prev, difficulty: val }))}
-                                    options={difficultyOptions}
-                                />
-                            </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <Select
-                                    label="Question Type"
-                                    name="type"
-                                    value={formData.type}
-                                    onChange={(val) => setFormData(prev => ({ ...prev, type: val }))}
-                                    options={typeOptions}
-                                />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <Select
+                                        label="Question Type"
+                                        name="type"
+                                        value={formData.type}
+                                        onChange={(val) => setFormData(prev => ({ ...prev, type: val }))}
+                                        options={typeOptions}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Default Marks</label>
+                                    <Input
+                                        type="number"
+                                        name="marks"
+                                        value={formData.marks}
+                                        onChange={handleChange}
+                                        min="0"
+                                        required
+                                    />
+                                </div>
                             </div>
+
+                            {/* Question Text */}
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Default Marks</label>
-                                <Input
-                                    type="number"
-                                    name="marks"
-                                    value={formData.marks}
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Question Text *</label>
+                                <textarea
+                                    name="text"
+                                    value={formData.text}
                                     onChange={handleChange}
-                                    min="0"
+                                    className="w-full min-h-[150px] p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-premium-blue/20 outline-none resize-y font-medium text-slate-700"
+                                    placeholder="Enter your question here..."
                                     required
                                 />
                             </div>
-                        </div>
 
-                        {/* Question Text */}
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Question Text *</label>
-                            <textarea
-                                name="text"
-                                value={formData.text}
-                                onChange={handleChange}
-                                className="w-full min-h-[150px] p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-premium-blue/20 outline-none resize-y font-medium text-slate-700"
-                                placeholder="Enter your question here..."
-                                required
-                            />
-                        </div>
-
-                        {/* Options Section (MCQ Only) */}
-                        {formData.type === "mcq" && (
-                            <div className="space-y-4 pt-4 border-t border-slate-100">
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Answer Options</label>
-                                <div className="space-y-3">
-                                    {formData.options.map((opt, idx) => (
-                                        <div key={idx} className="flex items-center gap-3">
-                                            <input
-                                                type="radio"
-                                                name="correctOption"
-                                                checked={Number(formData.correctOption) === idx}
-                                                onChange={() => setFormData({ ...formData, correctOption: idx })}
-                                                className="w-5 h-5 text-premium-blue focus:ring-premium-blue"
-                                            />
-                                            <Input
-                                                value={opt}
-                                                onChange={(e) => handleOptionChange(idx, e.target.value)}
-                                                placeholder={`Option ${idx + 1}`}
-                                                required
-                                                className="flex-1"
-                                            />
-                                            {formData.options.length > 2 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeOption(idx)}
-                                                    className="p-2 text-slate-400 hover:text-red-500"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
+                            {/* Options Section (MCQ Only) */}
+                            {formData.type === "mcq" && (
+                                <div className="space-y-4 pt-4 border-t border-slate-100">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Answer Options</label>
+                                    <div className="space-y-3">
+                                        {formData.options.map((opt, idx) => (
+                                            <div key={idx} className="flex items-center gap-3">
+                                                <input
+                                                    type="radio"
+                                                    name="correctOption"
+                                                    checked={Number(formData.correctOption) === idx}
+                                                    onChange={() => setFormData({ ...formData, correctOption: idx })}
+                                                    className="w-5 h-5 text-premium-blue focus:ring-premium-blue"
+                                                />
+                                                <Input
+                                                    value={opt}
+                                                    onChange={(e) => handleOptionChange(idx, e.target.value)}
+                                                    placeholder={`Option ${idx + 1}`}
+                                                    required
+                                                    className="flex-1"
+                                                />
+                                                {formData.options.length > 2 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeOption(idx)}
+                                                        className="p-2 text-slate-400 hover:text-red-500"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={addOption}
+                                        className="mt-2"
+                                    >
+                                        <Plus size={16} className="mr-2" />
+                                        Add Option
+                                    </Button>
                                 </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={addOption}
-                                    className="mt-2"
-                                >
-                                    <Plus size={16} className="mr-2" />
-                                    Add Option
-                                </Button>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                            )}
+                        </CardContent>
+                    </Card>
 
-                <div className="flex justify-end gap-3">
-                    <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-                    <Button type="submit" disabled={loading} className="bg-premium-blue hover:bg-premium-blue/90 text-white min-w-[120px]">
-                        {loading ? "Saving..." : <><Save size={18} className="mr-2" /> Save Changes</>}
-                    </Button>
-                </div>
-            </form>
-        </div >
-    );
-}
+                    <div className="flex justify-end gap-3">
+                        <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+                        <Button type="submit" disabled={loading} className="bg-premium-blue hover:bg-premium-blue/90 text-white min-w-[120px]">
+                            {loading ? "Saving..." : <><Save size={18} className="mr-2" /> Save Changes</>}
+                        </Button>
+                    </div>
+                </form>
+            </div >
+        );
+    }

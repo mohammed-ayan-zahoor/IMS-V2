@@ -34,7 +34,7 @@ export async function GET(req) {
             batchId,
             courseId,
             isActive,
-            instituteId: scope.instituteId // Pass Institute ID
+            instituteId: scope.isSuperAdmin ? (searchParams.get("institute") || null) : scope.instituteId
         });
 
         return NextResponse.json(data);
@@ -54,7 +54,7 @@ export async function POST(req) {
         await connectDB();
         const scope = await getInstituteScope(req);
         if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
-            return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const body = await req.json();
@@ -64,9 +64,22 @@ export async function POST(req) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
+        // Super admins must explicitly specify target institute via query param or validated field
+        let targetInstituteId;
+        if (scope.isSuperAdmin) {
+            // Require explicit institute specification for super admins
+            targetInstituteId = body.institute;
+            if (!targetInstituteId) {
+                return NextResponse.json({ error: "Super admins must specify target institute" }, { status: 400 });
+            }
+            // TODO: Add validation that the institute exists and super admin has access
+        } else {
+            targetInstituteId = scope.instituteId;
+        }
+
         const studentData = {
             ...body,
-            institute: scope.instituteId || body.institute // Inject Institute from Scope or Body
+            institute: targetInstituteId
         };
 
         const student = await StudentService.createStudent(studentData, session.user.id);

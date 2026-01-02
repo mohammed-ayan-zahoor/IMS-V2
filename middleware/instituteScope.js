@@ -5,12 +5,18 @@ import { authOptions } from '@/lib/auth';
  * Middleware to enforce institute-level data isolation
  * Returns context: { user, instituteId, isSuperAdmin }
  */
+import { connectDB } from '@/lib/mongodb';
+import AuditLog from '@/models/AuditLog';
+
+/**
+ * Middleware to enforce institute-level data isolation
+ * Returns context: { user, instituteId, isSuperAdmin }
+ */
 export async function getInstituteScope(req) {
     try {
         // DEBUG: Check if we are being called as a Mongoose hook (where req might be 'next' function)
         if (typeof req === 'function') {
             console.error("CRITICAL ERROR: getInstituteScope called as a function (likely Mongoose hook)!", new Error().stack);
-            // If it's next(), calling it might save us? But better to return null or throw distinct error.
             return null;
         }
 
@@ -23,18 +29,39 @@ export async function getInstituteScope(req) {
         const user = session.user;
         const isSuperAdmin = user.role === 'super_admin';
 
-        // If Super Admin, they might be targeting a specific institute via query/header,
-        // OR defaulting to their own context (which might be null or a management institute).
-        // For now, if super admin, we check if they passed 'instituteId' query param to impersonate/manage.
+        // If Super Admin, they might be targeting a specific institute via query/header
         let instituteId = user.institute?.id;
 
-        if (isSuperAdmin) {
-            // Check query param or header for impersonation context
-            // Ensure req is valid object before accessing url
-            if (req && req.url) {
-                const queryId = new URL(req.url).searchParams.get('instituteId');
-                if (queryId) {
-                    instituteId = queryId;
+        if (isSuperAdmin && req && req.url) {
+            // Use dummy base for relative URLs
+            const url = new URL(req.url, 'http://localhost');
+            const queryId = url.searchParams.get('instituteId');
+
+            // Validate format (Mongo ObjectId)
+            if (queryId && /^[0-9a-fA-F]{24}$/.test(queryId)) {
+                instituteId = queryId;
+
+                // Audit Log for Impersonation/Override
+                // We fire-and-forget this to avoid slowing down the read? 
+                // Or await it for safety. User requested "add an audit log entry".
+                // We must ensure DB is connected.
+                try {
+                    await connectDB();
+                    await AuditLog.create({
+                        actor: user.id,
+                        action: 'super_admin.impersonate',
+                        resource: { type: 'Institute', id: instituteId },
+                        details: {
+                            path: url.pathname,
+                            method: req.method
+                        },
+                        ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+                        userAgent: req.headers.get('user-agent') || 'unknown'
+                    });
+                } catch (logErr) {
+                    console.error("Failed to audit super_admin impersonation:", logErr);
+                    // Do not fail the request just because audit failed? 
+                    // Strict security might say yes, but usually loose for logs.
                 }
             }
         }

@@ -9,7 +9,6 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function InstitutesPage() {
     const toast = useToast();
-    const { data: session } = useSession();
     const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -47,15 +46,22 @@ export default function InstitutesPage() {
     const handleSuspend = async () => {
         if (!selectedInstitute) return;
         setActionLoading(true);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
         try {
             const newStatus = selectedInstitute.status === 'suspended' ? 'active' : 'suspended';
             const res = await fetch(`/api/v1/institutes/${selectedInstitute._id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({ status: newStatus }),
+                signal: controller.signal
             });
 
-            if (!res.ok) throw new Error("Failed to update status");
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to update status");
+            }
 
             // Update local state
             setInstitutes(prev => prev.map(inst =>
@@ -64,8 +70,13 @@ export default function InstitutesPage() {
             toast.success(`Institute ${newStatus === 'active' ? 'Activated' : 'Suspended'} Successfully`);
             setIsSuspendOpen(false);
         } catch (error) {
-            toast.error(error.message);
+            if (error.name === 'AbortError') {
+                toast.error("Request timed out. Please try again.");
+            } else {
+                toast.error(error.message || "Failed to update status");
+            }
         } finally {
+            clearTimeout(timeoutId);
             setActionLoading(false);
             setSelectedInstitute(null);
         }
@@ -74,20 +85,32 @@ export default function InstitutesPage() {
     const handleDelete = async () => {
         if (!selectedInstitute) return;
         setActionLoading(true);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
         try {
             const res = await fetch(`/api/v1/institutes/${selectedInstitute._id}`, {
-                method: "DELETE"
+                method: "DELETE",
+                signal: controller.signal
             });
 
-            if (!res.ok) throw new Error("Failed to delete institute");
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to delete institute");
+            }
 
             // Remove from local state
             setInstitutes(prev => prev.filter(inst => inst._id !== selectedInstitute._id));
             toast.success("Institute Deleted Successfully (Soft Delete)");
             setIsDeleteOpen(false);
         } catch (error) {
-            toast.error(error.message);
+            if (error.name === 'AbortError') {
+                toast.error("Request timed out. Please try again.");
+            } else {
+                toast.error(error.message || "Failed to delete institute");
+            }
         } finally {
+            clearTimeout(timeoutId);
             setActionLoading(false);
             setSelectedInstitute(null);
         }
@@ -167,19 +190,25 @@ export default function InstitutesPage() {
                                     <div className="flex justify-end gap-3">
                                         <Link
                                             href={`/super-admin/institutes/${inst._id}/edit`}
-                                            className="text-blue-600 hover:text-blue-900"
+                                            className={`text-blue-600 hover:text-blue-900 ${actionLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            onClick={(e) => actionLoading && e.preventDefault()}
+                                            aria-disabled={actionLoading}
                                         >
                                             Edit
                                         </Link>
                                         <button
                                             onClick={() => openSuspendModal(inst)}
-                                            className="text-orange-600 hover:text-orange-900"
+                                            disabled={actionLoading}
+                                            className={`text-orange-600 hover:text-orange-900 ${actionLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            aria-disabled={actionLoading}
                                         >
                                             {inst.status === 'suspended' ? 'Activate' : 'Suspend'}
                                         </button>
                                         <button
                                             onClick={() => openDeleteModal(inst)}
-                                            className="text-red-600 hover:text-red-900"
+                                            disabled={actionLoading}
+                                            className={`text-red-600 hover:text-red-900 ${actionLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            aria-disabled={actionLoading}
                                         >
                                             Delete
                                         </button>

@@ -14,6 +14,7 @@ import {
     Trash2
 } from "lucide-react";
 import Select from "@/components/ui/Select";
+// Verified: Usage of Select component is compatible with onChange(value) signature.
 import Button from "@/components/ui/Button";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";

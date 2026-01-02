@@ -33,7 +33,7 @@ export async function POST(req) {
         }
 
         const scope = await getInstituteScope(req);
-        if (!scope || !scope.instituteId) {
+        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
         }
 
@@ -42,7 +42,17 @@ export async function POST(req) {
             return NextResponse.json({ error: "Name and course reference are required" }, { status: 400 });
         }
 
-        const batch = await BatchService.createBatch({ ...body, institute: scope.instituteId }, session.user.id);
+        // Determine target institute
+        let targetInstitute = scope.instituteId;
+        if (scope.isSuperAdmin && !targetInstitute) {
+            targetInstitute = body.institute;
+        }
+
+        if (!targetInstitute) {
+            return NextResponse.json({ error: "Institute context required" }, { status: 400 });
+        }
+
+        const batch = await BatchService.createBatch({ ...body, institute: targetInstitute }, session.user.id);
         return NextResponse.json(batch, { status: 201 });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
