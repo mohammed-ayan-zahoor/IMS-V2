@@ -5,9 +5,23 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User, Lock, Save, Camera, Mail, Building } from "lucide-react";
 import { useForm } from "react-hook-form";
-// ... (imports remain)
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
-// ... (schema remains)
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import { useToast } from "@/contexts/ToastContext";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
+
+const passwordSchema = z.object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string()
+}).refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+});
 
 export default function StudentSettingsPage() {
     const { data: session, status } = useSession();
