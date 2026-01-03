@@ -92,7 +92,47 @@ export default function EditExamPage({ params }) {
     }, [id]);
 
     const handleSubmit = async () => {
-        // ... (implementation needed or kept if elsewhere)
+        setLoading(true);
+        try {
+            // Prepare payload
+            const payload = {
+                title: formData.title,
+                description: formData.description,
+                course: formData.course,
+                // batches: formData.batches, // Batches are usually handled separately or read-only here if complex?
+                // Actually, let's include them if the API accepts them.
+                duration: Number(formData.duration),
+                passingMarks: Number(formData.passingMarks),
+                scheduledAt: formData.scheduledAt,
+                // endTime: formData.endTime, // API might expect 'schedule.endTime'
+                schedule: {
+                    startTime: formData.scheduledAt,
+                    endTime: formData.endTime
+                },
+                maxAttempts: Number(formData.maxAttempts),
+                resultPublication: formData.resultPublication,
+                status: formData.status
+            };
+
+            const res = await fetch(`/api/v1/exams/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to update exam");
+            }
+
+            toast.success("Exam details updated successfully");
+            router.refresh(); // Refresh server data
+        } catch (err) {
+            console.error(err);
+            toast.error(err.message || "Failed to update exam");
+        } finally {
+            setLoading(false);
+        }
     };
 
 
@@ -157,7 +197,7 @@ export default function EditExamPage({ params }) {
                             <label className="text-xs font-bold text-slate-500 uppercase">Result Visibility</label>
                             <Select
                                 value={formData.resultPublication}
-                                onChange={(e) => setFormData({ ...formData, resultPublication: e.target.value })}
+                                onChange={(val) => setFormData({ ...formData, resultPublication: val })}
                                 options={[
                                     { label: "Immediate (After Submit)", value: "immediate" },
                                     { label: "After Exam Ends", value: "after_exam_end" }

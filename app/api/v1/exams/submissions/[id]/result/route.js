@@ -60,16 +60,22 @@ export async function GET(req, { params }) {
         const exam = submission.exam;
 
         // Check Result Visibility
+        // Check Result Visibility
         let showResults = false;
-        if (exam.resultPublication === 'immediate') {
+
+        // Manual override (Admin clicked "Publish Results") - Highest Priority
+        if (exam.resultsPublished) {
             showResults = true;
-        } else if (exam.resultPublication === 'after_exam_end') {
+        }
+        // Automatic Logic
+        else if (exam.resultPublication === 'immediate') {
+            showResults = true;
+        }
+        else if (exam.resultPublication === 'after_exam_end') {
             const endTime = new Date(exam.schedule.endTime);
             if (new Date() > endTime) {
                 showResults = true;
             }
-        } else if (exam.resultsPublished) { // Legacy manual override
-            showResults = true;
         }
 
         if (!showResults) {
