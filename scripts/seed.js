@@ -1,9 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+// Try loading .env.local first, then fall back to .env
 require('dotenv').config({ path: '.env.local' });
-
-// We can't use imports here if we run with 'node seed.js' unless we use mjs or babel
-// So using require for this standalone script
+require('dotenv').config(); // Load .env if .env.local didn't saturate everything or as fallback
 
 const UserSchema = new mongoose.Schema({
     email: String,
