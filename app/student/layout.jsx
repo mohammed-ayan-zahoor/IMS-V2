@@ -88,7 +88,7 @@ export default function StudentLayout({ children }) {
                             <User size={20} className="text-slate-500 group-hover:text-premium-purple" />
                         </Link>
                         <button
-                            onClick={() => signOut()}
+                            onClick={() => signOut({ callbackUrl: "/login" })}
                             className="w-10 h-10 rounded-lg hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-600 transition-colors"
                         >
                             <LogOut size={20} />
@@ -98,7 +98,7 @@ export default function StudentLayout({ children }) {
             </header>
 
             {/* Main Content */}
-            <main className="flex-1 pt-28 pb-12 px-6 bg-academic">
+            <main className="flex-1 pt-28 pb-24 md:pb-12 px-6 bg-academic">
                 <div className="max-w-7xl mx-auto w-full">
                     <motion.div
                         initial={{ opacity: 0, y: 5 }}
@@ -109,6 +109,39 @@ export default function StudentLayout({ children }) {
                     </motion.div>
                 </div>
             </main>
+
+            {/* Mobile Bottom Navigation */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 px-6 py-3 safe-area-pb">
+                <div className="flex justify-between items-center">
+                    {navItems.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={cn(
+                                    "flex flex-col items-center gap-1 transition-colors relative min-w-[3.5rem]",
+                                    isActive ? "text-premium-blue" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                <div className={cn(
+                                    "p-1.5 rounded-xl transition-all",
+                                    isActive ? "bg-blue-50" : "bg-transparent"
+                                )}>
+                                    <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                                </div>
+                                {/* <span className="text-[10px] font-bold">{item.label}</span> */}
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="bottomNavIndicator"
+                                        className="absolute -top-3 w-8 h-1 bg-premium-blue rounded-b-full"
+                                    />
+                                )}
+                            </Link>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     );
 }
