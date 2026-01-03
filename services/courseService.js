@@ -246,6 +246,48 @@ export class BatchService {
         const query = { _id: id, deletedAt: null };
         if (instituteId) query.institute = instituteId;
 
+        // Fetch existing batch first for validation
+        const existingBatch = await Batch.findOne(query).populate('course');
+        if (!existingBatch) throw new Error("Batch not found or access denied");
+
+        if (sanitizedData.course) {
+            // Validate Target Course
+            const targetCourse = await Course.findOne({
+                _id: sanitizedData.course,
+                institute: existingBatch.institute, // Must match batch's institute
+                deletedAt: null
+            });
+
+            if (!targetCourse) {
+                throw new Error("Invalid Course: Target course does not exist or belongs to a different institute");
+            }
+
+            // Business Rule: Check for active active enrollments
+            // User requested gating or "shift". Since we are allowing the shift, we validate integrity.
+            // If the course changes, students in this batch implicitly "shift" to the new course.
+            const hasActiveStudents = existingBatch.enrolledStudents?.some(s => s.status === 'active');
+            if (hasActiveStudents) {
+                // Audit the transfer event explicitly
+                try {
+                    await createAuditLog({
+                        actor: actorId,
+                        action: 'batch.course_transfer',
+                        resource: { type: 'Batch', id: existingBatch._id },
+                        institute: existingBatch.institute,
+                        details: {
+                            batchName: existingBatch.name,
+                            previousCourse: existingBatch.course?.name || 'Unknown',
+                            newCourse: targetCourse.name,
+                            activeStudentsCount: existingBatch.activeEnrollmentCount,
+                            note: "Implicit migration of active students to new course logic."
+                        }
+                    });
+                } catch (logErr) {
+                    console.error("Failed to log course transfer audit", logErr);
+                }
+            }
+        }
+
         const batch = await Batch.findOneAndUpdate(
             query,
             { $set: sanitizedData },

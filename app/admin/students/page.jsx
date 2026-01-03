@@ -63,9 +63,15 @@ export default function StudentsPage() {
     });
 
     const isFirstRender = useRef(true);
+    const abortControllerRef = useRef(null);
 
     useEffect(() => {
         fetchInitialData();
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
     }, []);
 
 
@@ -98,10 +104,10 @@ export default function StudentsPage() {
 
     const fetchStudents = async (page = pagination.page) => {
         // Cancellation logic
-        if (window.fetchController) {
-            window.fetchController.abort();
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
         }
-        window.fetchController = new AbortController();
+        abortControllerRef.current = new AbortController();
 
         try {
             setLoading(true);
@@ -115,7 +121,7 @@ export default function StudentsPage() {
             });
 
             const res = await fetch(`/api/v1/students?${queryParams.toString()}`, {
-                signal: window.fetchController.signal,
+                signal: abortControllerRef.current.signal,
                 cache: 'no-store'
             });
             if (!res.ok) {
