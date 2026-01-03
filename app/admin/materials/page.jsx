@@ -40,6 +40,7 @@ export default function MaterialsPage() {
             batches: [],
             category: "lecture",
             fileUrl: "",
+            fileId: "",
             fileType: "other",
             visibleToStudents: true
         };
@@ -114,6 +115,7 @@ export default function MaterialsPage() {
                 visibleToStudents: formData.visibleToStudents,
                 file: {
                     url: formData.fileUrl,
+                    fileId: formData.fileId,
                     type: formData.fileType,
                     originalName: formData.title // Fallback
                 }
@@ -179,6 +181,7 @@ export default function MaterialsPage() {
             batches: mat.batches.map(b => b._id || b),
             category: mat.category,
             fileUrl: mat.file?.url || "",
+            fileId: mat.file?.fileId || "",
             fileType: mat.file?.type || "other",
             visibleToStudents: mat.visibleToStudents
         });
@@ -396,12 +399,13 @@ export default function MaterialsPage() {
                                                 data.append("file", file);
 
                                                 try {
-                                                    const res = await fetch("/api/upload", { method: "POST", body: data });
+                                                    const res = await fetch("/api/v1/upload", { method: "POST", body: data });
                                                     if (res.ok) {
                                                         const json = await res.json();
                                                         setFormData(prev => ({
                                                             ...prev,
                                                             fileUrl: json.url,
+                                                            fileId: json.public_id,
                                                             fileType: computedType
                                                         }));
                                                         toast.success("File uploaded successfully");

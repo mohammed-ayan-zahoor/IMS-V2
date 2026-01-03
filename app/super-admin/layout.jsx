@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -44,7 +44,7 @@ export default function SuperAdminLayout({ children }) {
                 </nav>
 
                 <div className="p-4 border-t border-gray-800">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 mb-3">
                         <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-bold">
                             {session.user.name?.[0] || session.user.email?.[0] || 'SA'}
                         </div>
@@ -55,6 +55,18 @@ export default function SuperAdminLayout({ children }) {
                             </div>
                         )}
                     </div>
+
+                    <button
+                        onClick={async () => {
+                            await signOut({ redirect: false });
+                            window.location.href = "/login";
+                        }}
+                        className={`flex items-center gap-3 w-full p-2 rounded hover:bg-red-500/10 text-red-400 hover:text-red-400 transition-colors ${!isSidebarOpen && 'justify-center'}`}
+                        title="Sign Out"
+                    >
+                        <span className="text-xl">🚪</span>
+                        {isSidebarOpen && <span className="font-medium">Sign Out</span>}
+                    </button>
                 </div>            </aside>
 
             {/* Main Content */}

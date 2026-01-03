@@ -102,7 +102,7 @@ export async function POST(req, { params }) {
         const submission = await ExamSubmission.create({
             exam: examId,
             student: session.user.id,
-            attemptNumber: attemptCount + 1,
+            attemptNumber: existingSubmissions.length + 1,
             startedAt: new Date(),
             status: 'in_progress',
             answers: exam.questions.map(q => ({
