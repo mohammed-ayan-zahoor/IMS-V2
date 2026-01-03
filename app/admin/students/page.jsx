@@ -43,6 +43,13 @@ export default function StudentsPage() {
         isActive: "true"
     });
 
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 10,
+        total: 0,
+        pages: 1
+    });
+
     // Form State
     const [formData, setFormData] = useState({
         email: "",
@@ -61,18 +68,7 @@ export default function StudentsPage() {
         fetchInitialData();
     }, []);
 
-    useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            fetchStudents();
-            return;
-        }
 
-        const timer = setTimeout(() => {
-            fetchStudents();
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [search, filters]);
 
     const fetchInitialData = async () => {
         try {
@@ -80,9 +76,14 @@ export default function StudentsPage() {
                 fetch("/api/v1/batches"),
                 fetch("/api/v1/courses")
             ]);
-            const [bData, cData] = await Promise.all([bRes.json(), cRes.json()]);
-            setBatches(bData.batches || []);
-            setCourses(cData.courses || []);
+            if (bRes.ok) {
+                const bData = await bRes.json();
+                setBatches(bData.batches || []);
+            }
+            if (cRes.ok) {
+                const cData = await cRes.json();
+                setCourses(cData.courses || []);
+            }
 
             // Try fetching institutes (only for Super Admin)
             const iRes = await fetch("/api/v1/institutes");
@@ -95,7 +96,7 @@ export default function StudentsPage() {
         }
     };
 
-    const fetchStudents = async () => {
+    const fetchStudents = async (page = pagination.page) => {
         // Cancellation logic
         if (window.fetchController) {
             window.fetchController.abort();
@@ -108,15 +109,28 @@ export default function StudentsPage() {
                 search,
                 batchId: filters.batchId,
                 courseId: filters.courseId,
-                isActive: filters.isActive
+                isActive: filters.isActive,
+                page: page.toString(),
+                limit: pagination.limit.toString()
             });
 
             const res = await fetch(`/api/v1/students?${queryParams.toString()}`, {
                 signal: window.fetchController.signal,
                 cache: 'no-store'
             });
+            if (!res.ok) {
+                throw new Error(`Failed to fetch students: ${res.status}`);
+            }
             const data = await res.json();
             setStudents(data.students || []);
+            if (data.pagination) {
+                setPagination(prev => ({
+                    ...prev,
+                    page: data.pagination.page,
+                    total: data.pagination.total,
+                    pages: data.pagination.pages
+                }));
+            }
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error("Failed to fetch students", error);
@@ -190,8 +204,46 @@ export default function StudentsPage() {
         }
     };
 
+
+
+    // ... existing ...
+
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            fetchStudents(1); // Fetch page 1 initially
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            fetchStudents(1); // Reset to page 1 on filter change
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search, filters]);
+
+    // Trigger fetch when page changes (but not filters)
+    useEffect(() => {
+        if (!isFirstRender.current) {
+            fetchStudents(pagination.page);
+        }
+    }, [pagination.page]);
+
+    // ... existing ...
+
+
+
+    // ... existing ...
+
+    // Pagination helper
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= pagination.pages) {
+            setPagination(prev => ({ ...prev, page: newPage }));
+        }
+    };
+
     return (
         <div className="space-y-6">
+            {/* Header ... */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-100">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Student Management</h1>
@@ -204,6 +256,7 @@ export default function StudentsPage() {
             </div>
 
             <Card className="transition-all border-transparent shadow-sm">
+                {/* Card Header ... */}
                 <CardHeader className="flex-col md:flex-row items-stretch md:items-center gap-4 space-y-0">
                     <div className="flex-1 relative group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/50 transition-colors group-focus-within:text-premium-blue" size={18} />
@@ -270,61 +323,115 @@ export default function StudentsPage() {
                     {loading ? (
                         <LoadingSpinner />
                     ) : students.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-white border-y border-slate-100">
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Enrollment ID</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {students.map((student) => (
-                                        <tr key={student._id} className="group hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-premium-blue/10 flex items-center justify-center text-premium-blue font-bold border border-premium-blue/20 overflow-hidden">
-                                                        {student.profile?.avatar ? (
-                                                            <img src={student.profile.avatar} alt={student.profile.firstName} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            student.profile?.firstName?.[0]
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-bold text-slate-900 capitalize">{student.fullName}</p>
-                                                        <p className="text-[11px] font-medium text-slate-400 break-all">{student.email}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-bold font-mono border border-slate-200">
-                                                    {student.enrollmentNumber || "PENDING"}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <p className="text-[11px] font-bold text-slate-600">{student.profile?.phone || "—"}</p>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <Badge variant={student.isActive ? "success" : "danger"} className="text-[10px] px-2 py-0.5">
-                                                    {student.isActive ? "Active" : "Inactive"}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <Link
-                                                    href={`/admin/students/${student._id}`}
-                                                    className="inline-flex p-2 hover:bg-white rounded-lg text-slate-300 hover:text-premium-blue hover:shadow-sm border border-transparent hover:border-slate-100 transition-all"
-                                                >
-                                                    <Edit2 size={16} />
-                                                </Link>
-                                            </td>
+                        <>
+                            <div className="overflow-x-auto min-h-[400px]">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-white border-y border-slate-100">
+                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
+                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Enrollment ID</th>
+                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact</th>
+                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {students.map((student) => (
+                                            <tr key={student._id} className="group hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-premium-blue/10 flex items-center justify-center text-premium-blue font-bold border border-premium-blue/20 overflow-hidden">
+                                                            {student.profile?.avatar ? (
+                                                                <img src={student.profile.avatar} alt={student.profile.firstName} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                student.profile?.firstName?.[0]
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-900 capitalize">{student.fullName}</p>
+                                                            <p className="text-[11px] font-medium text-slate-400 break-all">{student.email}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-bold font-mono border border-slate-200">
+                                                        {student.enrollmentNumber || "PENDING"}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <p className="text-[11px] font-bold text-slate-600">{student.profile?.phone || "—"}</p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <Badge variant={student.isActive ? "success" : "danger"} className="text-[10px] px-2 py-0.5">
+                                                        {student.isActive ? "Active" : "Inactive"}
+                                                    </Badge>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <Link
+                                                        href={`/admin/students/${student._id}`}
+                                                        className="inline-flex p-2 hover:bg-white rounded-lg text-slate-300 hover:text-premium-blue hover:shadow-sm border border-transparent hover:border-slate-100 transition-all"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Pagination */}
+                            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                                <div className="text-xs text-slate-500 font-medium">
+                                    Showing <span className="font-bold text-slate-700">{Math.min(students.length, pagination.limit)}</span> of <span className="font-bold text-slate-700">{pagination.total}</span> students
+                                    <span className="mx-2 text-slate-300">|</span>
+                                    Page <span className="font-bold text-slate-700">{pagination.page}</span> of <span className="font-bold text-slate-700">{pagination.pages}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => handlePageChange(pagination.page - 1)}
+                                        disabled={pagination.page <= 1}
+                                        className="px-3 py-1.5 text-xs font-bold text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        Previous
+                                    </button>
+
+                                    {/* Page Numbers - Simplified for now */}
+                                    <div className="hidden sm:flex items-center gap-1">
+                                        {[...Array(Math.min(5, pagination.pages))].map((_, i) => {
+                                            // Handle truncated pagination view logic if needed later
+                                            // For now simple range near current page
+                                            let p = pagination.page;
+                                            if (pagination.pages <= 5) p = i + 1;
+                                            else if (pagination.page < 3) p = i + 1;
+                                            else if (pagination.page > pagination.pages - 2) p = pagination.pages - 4 + i;
+                                            else p = pagination.page - 2 + i;
+
+                                            return (
+                                                <button
+                                                    key={p}
+                                                    onClick={() => handlePageChange(p)}
+                                                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${pagination.page === p
+                                                        ? "bg-premium-blue text-white shadow-md shadow-blue-500/20"
+                                                        : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+                                                        }`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+
+                                    <button
+                                        onClick={() => handlePageChange(pagination.page + 1)}
+                                        disabled={pagination.page >= pagination.pages}
+                                        className="px-3 py-1.5 text-xs font-bold text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        </>
                     ) : (
                         <EmptyState
                             icon={Users}
@@ -337,14 +444,16 @@ export default function StudentsPage() {
                 </CardContent>
             </Card>
 
-            {/* Add Student Modal */}
+            {/* Add Student Modal ... */}
             <Modal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 title="Register New Student"
             >
+                {/* ... Modal content ... */}
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">Academic Information</div>
                 <form onSubmit={handleAddStudent} className="space-y-5">
+                    {/* ... form fields reused exactly ... */}
                     <div className="grid grid-cols-2 gap-4">
                         <Input
                             id="firstName"
