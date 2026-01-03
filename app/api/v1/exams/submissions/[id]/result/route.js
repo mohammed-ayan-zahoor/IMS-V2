@@ -59,9 +59,7 @@ export async function GET(req, { params }) {
 
         const exam = submission.exam;
 
-        // Check Result Visibility
-        // Check Result Visibility
-        let showResults = false;
+        // Check Result Visibility        let showResults = false;
 
         // Manual override (Admin clicked "Publish Results") - Highest Priority
         if (exam.resultsPublished) {

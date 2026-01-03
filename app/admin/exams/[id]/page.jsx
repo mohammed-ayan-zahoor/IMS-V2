@@ -92,6 +92,7 @@ export default function EditExamPage({ params }) {
     }, [id]);
 
     const handleSubmit = async () => {
+        if (loading) return; // Prevent concurrent submissions
         setLoading(true);
         try {
             // Prepare payload
@@ -103,13 +104,10 @@ export default function EditExamPage({ params }) {
                 // Actually, let's include them if the API accepts them.
                 duration: Number(formData.duration),
                 passingMarks: Number(formData.passingMarks),
-                scheduledAt: formData.scheduledAt,
-                // endTime: formData.endTime, // API might expect 'schedule.endTime'
                 schedule: {
                     startTime: formData.scheduledAt,
                     endTime: formData.endTime
-                },
-                maxAttempts: Number(formData.maxAttempts),
+                }, maxAttempts: Number(formData.maxAttempts),
                 resultPublication: formData.resultPublication,
                 status: formData.status
             };
@@ -226,9 +224,13 @@ export default function EditExamPage({ params }) {
                     </div>
 
                     <div className="pt-6 flex justify-end">
-                        <Button size="lg" onClick={handleSubmit} className="shadow-lg shadow-premium-blue/25">
-                            <Save className="mr-2" size={18} />
-                            Save Details
+                        <Button
+                            size="lg"
+                            onClick={handleSubmit}
+                            disabled={loading}
+                            className="shadow-lg shadow-premium-blue/25"
+                        >
+                            {loading ? "Saving..." : <><Save className="mr-2" size={18} /> Save Details</>}
                         </Button>
                     </div>
                 </div>
