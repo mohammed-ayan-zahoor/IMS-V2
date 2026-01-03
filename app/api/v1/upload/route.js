@@ -34,9 +34,12 @@ export async function POST(req) {
 
         // Upload to Cloudinary
         const uploadResponse = await new Promise((resolve, reject) => {
+            const isPdf = file.type === "application/pdf";
             const options = {
-                folder: "ims_v2/uploads", // Generic folder
-                resource_type: "auto", // Allow images and raw/docs
+                folder: "ims_v2/uploads",
+                // Explicitly use 'raw' for PDFs to prevent weird image-conversion issues
+                // and ensure the file is served exactly as uploaded.
+                resource_type: isPdf ? "raw" : "auto",
             };
 
             // Only apply image transformations if it's an image
