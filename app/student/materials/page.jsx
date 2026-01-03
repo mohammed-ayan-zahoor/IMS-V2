@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle } from "lucide-react";
+import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle, X } from "lucide-react";
 
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
