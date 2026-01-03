@@ -18,8 +18,9 @@ export async function POST(req) {
         }
 
         // Validate file type
-        if (!file.type.startsWith("image/")) {
-            return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 });
+        const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
+        if (!allowedTypes.includes(file.type)) {
+            return NextResponse.json({ error: "Only images and PDF files are allowed" }, { status: 400 });
         }
 
         // Validate file size (e.g., max 5MB)
@@ -33,12 +34,18 @@ export async function POST(req) {
 
         // Upload to Cloudinary
         const uploadResponse = await new Promise((resolve, reject) => {
+            const options = {
+                folder: "ims_v2/uploads", // Generic folder
+                resource_type: "auto", // Allow images and raw/docs
+            };
+
+            // Only apply image transformations if it's an image
+            if (file.type.startsWith("image/")) {
+                options.transformation = [{ width: 500, height: 500, crop: "limit" }];
+            }
+
             const uploadStream = cloudinary.uploader.upload_stream(
-                {
-                    folder: "ims_v2/avatars",
-                    resource_type: "image",
-                    transformation: [{ width: 500, height: 500, crop: "limit" }] // Resize huge images
-                },
+                options,
                 (error, result) => {
                     if (error) reject(error);
                     else resolve(result);
