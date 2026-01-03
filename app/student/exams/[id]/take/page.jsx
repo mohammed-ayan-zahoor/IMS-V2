@@ -44,6 +44,9 @@ export default function ExamRoomPage() {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [warnings, setWarnings] = useState([]);
 
+    // Mobile Palette State
+    const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+
     // Refs for intervals/timers
     const timerRef = useRef(null);
     const autoSaveRef = useRef(null);
