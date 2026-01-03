@@ -61,6 +61,7 @@ export class FeeService {
         if (filters.batch) query.batch = filters.batch;
         if (filters.status) query.status = filters.status;
         if (filters.student) query.student = filters.student;
+        if (filters.institute) query.institute = filters.institute;
 
         return await FeeDb.find(query)
             .populate('student', 'profile.firstName profile.lastName enrollmentNumber')
