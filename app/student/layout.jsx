@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
     LayoutDashboard,
-    BookOpen,
+    Layers,
+    FileText,
     CreditCard,
     Calendar,
     PenTool,
@@ -23,8 +24,8 @@ export default function StudentLayout({ children }) {
 
     const navItems = [
         { label: "Overview", icon: LayoutDashboard, href: "/student/dashboard" },
-        { label: "My Batches", icon: BookOpen, href: "/student/batches" },
-        { label: "Materials", icon: BookOpen, href: "/student/materials" },
+        { label: "My Batches", icon: Layers, href: "/student/batches" },
+        { label: "Materials", icon: FileText, href: "/student/materials" },
         { label: "Attendance", icon: Calendar, href: "/student/attendance" },
         { label: "Fees", icon: CreditCard, href: "/student/fees" },
         { label: "Exams", icon: PenTool, href: "/student/exams" },
