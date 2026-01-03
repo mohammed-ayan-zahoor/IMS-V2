@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import cloudinary from "@/lib/cloudinary";
+import crypto from "crypto";
 
 export async function POST(req) {
     try {
@@ -41,6 +42,15 @@ export async function POST(req) {
                 // and ensure the file is served exactly as uploaded.
                 resource_type: isPdf ? "raw" : "auto",
             };
+
+            if (isPdf) {
+                // For raw files, we MUST explicitly add the extension to the public_id
+                // so the delivery URL ends in .pdf
+                const uniqueId = crypto.randomUUID();
+                options.public_id = `${uniqueId}.pdf`;
+                options.use_filename = false; // We use our own ID
+                options.unique_filename = false;
+            }
 
             // Only apply image transformations if it's an image
             if (file.type.startsWith("image/")) {
