@@ -3,20 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import fs from "fs/promises";
 import path from "path";
-import mime from "mime"; // You might need to install 'mime' or just hardcode for pdf
 
 export async function GET(req, { params }) {
     try {
         const session = await getServerSession(authOptions);
-        // Strict Access Control: Only logged in users with role
-        /* 
-           Note: Depending on requirements, we might want to restrict this further 
-           (e.g., only the student who owns it + admins). 
-           For now, proceeding with Admin/SuperAdmin + potentially the student themselves 
-           (though verifying student ownership from just filename is hard without DB lookup).
-           
-           Given the context is "Admin" uploading/viewing, we'll start with Admin roles.
-        */
 
         if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -36,11 +26,22 @@ export async function GET(req, { params }) {
 
         const fileBuffer = await fs.readFile(filePath);
 
-        // Determine content type (default to pdf as per current use case)
-        let contentType = "application/pdf";
-        if (safeFilename.endsWith(".png")) contentType = "image/png";
-        if (safeFilename.endsWith(".jpg")) contentType = "image/jpeg";
-        // ... add more if needed, or use a mime library
+        // Determine content type manually to avoid external dependencies
+        const ext = path.extname(safeFilename).toLowerCase();
+        let contentType = "application/octet-stream";
+
+        const mimeTypes = {
+            ".pdf": "application/pdf",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".gif": "image/gif"
+        };
+
+        if (mimeTypes[ext]) {
+            contentType = mimeTypes[ext];
+        }
 
         return new NextResponse(fileBuffer, {
             headers: {
