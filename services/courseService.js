@@ -109,6 +109,16 @@ export class CourseService {
 
         console.log(`[DeleteCourse] Attempting delete. ID: ${id}, Inst: ${instituteId}`);
 
+        // Check for active batches
+        const activeBatchCount = await Batch.countDocuments({
+            course: id,
+            deletedAt: null
+        });
+
+        if (activeBatchCount > 0) {
+            throw new Error("Cannot delete course. It has active batches associated with it.");
+        }
+
         // Soft Delete
         const course = await Course.findOneAndUpdate(
             { _id: id, institute: instituteId, deletedAt: null },
