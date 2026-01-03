@@ -220,7 +220,7 @@ export class BatchService {
             instituteId = user.institute;
         }
 
-        const allowedFields = ['name', 'schedule', 'capacity', 'instructor', 'description', 'startDate', 'endDate'];
+        const allowedFields = ['name', 'course', 'schedule', 'capacity', 'instructor', 'description', 'startDate', 'endDate'];
         const sanitizedData = {};
         const updatesLog = [];
 
