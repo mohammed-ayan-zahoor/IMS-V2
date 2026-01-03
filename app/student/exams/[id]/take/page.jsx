@@ -362,10 +362,6 @@ export default function ExamRoomPage() {
     // EXAM ROOM VIEW
     const currentQuestion = examData?.questions?.[currentQuestionIndex];
 
-    // Mobile Palette State
-    const [isPaletteOpen, setIsPaletteOpen] = useState(false);
-
-    // ... (rest of the component) ...
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col h-screen overflow-hidden">
@@ -373,10 +369,15 @@ export default function ExamRoomPage() {
             <header className="h-16 bg-white border-b px-4 md:px-6 flex items-center justify-between shrink-0 z-40 relative">
                 <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
                     {/* Mobile Menu Button */}
-                    <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={() => setIsPaletteOpen(!isPaletteOpen)}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="md:hidden shrink-0"
+                        onClick={() => setIsPaletteOpen(!isPaletteOpen)}
+                        aria-label="Toggle question palette"
+                    >
                         <Maximize size={20} className="rotate-45" />
                     </Button>
-
                     <div className="min-w-0 flex-1">
                         <h2 className="font-bold text-slate-700 truncate text-sm md:text-base">{examData?.title}</h2>
                     </div>

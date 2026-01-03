@@ -123,6 +123,7 @@ export default function StudentLayout({ children }) {
                                     "flex flex-col items-center gap-1 transition-colors relative min-w-[3.5rem]",
                                     isActive ? "text-premium-blue" : "text-slate-400 hover:text-slate-600"
                                 )}
+                                aria-label={item.label}
                             >
                                 <div className={cn(
                                     "p-1.5 rounded-xl transition-all",
@@ -130,7 +131,7 @@ export default function StudentLayout({ children }) {
                                 )}>
                                     <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
                                 </div>
-                                {/* <span className="text-[10px] font-bold">{item.label}</span> */}
+                                <span className="sr-only">{item.label}</span>
                                 {isActive && (
                                     <motion.div
                                         layoutId="bottomNavIndicator"
@@ -141,7 +142,6 @@ export default function StudentLayout({ children }) {
                         );
                     })}
                 </div>
-            </div>
-        </div>
+            </div>        </div>
     );
 }
