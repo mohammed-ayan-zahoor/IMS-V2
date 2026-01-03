@@ -1,5 +1,6 @@
 import Course from '@/models/Course';
 import Batch from '@/models/Batch';
+import mongoose from 'mongoose';
 import { createAuditLog } from './auditService';
 import { connectDB } from '@/lib/mongodb';
 
@@ -107,37 +108,51 @@ export class CourseService {
     static async deleteCourse(id, actorId, instituteId) {
         await connectDB();
 
-        console.log(`[DeleteCourse] Attempting delete. ID: ${id}, Inst: ${instituteId}`);
+        const session = await mongoose.startSession();
+        let course = null;
 
-        // Check for active batches
-        const activeBatchCount = await Batch.countDocuments({
-            course: id,
-            deletedAt: null
-        });
+        try {
+            await session.withTransaction(async () => {
+                // Check for active batches within transaction
+                // TOCTOU prevention: This read must be part of the transaction
+                const activeBatchCount = await Batch.countDocuments({
+                    course: id,
+                    institute: instituteId, // Safer to include institute scope logic if consistent
+                    deletedAt: null
+                }).session(session);
 
-        if (activeBatchCount > 0) {
-            throw new Error("Cannot delete course. It has active batches associated with it.");
+                if (activeBatchCount > 0) {
+                    throw new Error("Cannot delete course. It has active batches associated with it.");
+                }
+
+                // Soft Delete
+                course = await Course.findOneAndUpdate(
+                    { _id: id, institute: instituteId, deletedAt: null },
+                    { deletedAt: new Date() },
+                    { new: true, session }
+                );
+
+                if (!course) {
+                    throw new Error("Course not found or access denied");
+                }
+            });
+        } catch (error) {
+            console.error(`[DeleteCourse] Transaction Aborted: ${error.message}`);
+            throw error; // Re-throw to caller
+        } finally {
+            await session.endSession();
         }
 
-        // Soft Delete
-        const course = await Course.findOneAndUpdate(
-            { _id: id, institute: instituteId, deletedAt: null },
-            { deletedAt: new Date() },
-            { new: true }
-        );
-
-        if (!course) {
-            console.error(`[DeleteCourse] Failed. Course NOT found for ID: ${id} and Institute: ${instituteId}`);
-            throw new Error("Course not found or access denied");
+        // Audit Log (Outside transaction as requested/appropriate)
+        if (course) {
+            await createAuditLog({
+                actor: actorId,
+                action: 'course.delete',
+                resource: { type: 'Course', id: course._id },
+                institute: instituteId,
+                details: { name: course.name, code: course.code }
+            });
         }
-
-        await createAuditLog({
-            actor: actorId,
-            action: 'course.delete',
-            resource: { type: 'Course', id: course._id },
-            institute: instituteId,
-            details: { name: course.name, code: course.code }
-        });
 
         return true;
     }

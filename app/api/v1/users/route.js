@@ -98,10 +98,14 @@ export async function POST(req) {
         }
 
         // Prevent privilege escalation
-        // Only super_admin can create 'admin' or 'super_admin' users
-        if (["admin", "super_admin"].includes(body.role) && scope.user.role !== "super_admin") {
-            return NextResponse.json({ error: "Insufficient permissions to create admin/super_admin users" }, { status: 403 });
+        // 1. No one can create a super_admin unless they are super_admin
+        if (body.role === "super_admin" && scope.user.role !== "super_admin") {
+            return NextResponse.json({ error: "Insufficient permissions to create super_admin users" }, { status: 403 });
         }
+
+        // 2. admins CAN create other admins (for their institute), but not super_admins.
+        // The previous check blocked admins from creating admins, which was too strict.
+
 
         const userPayload = {
             email: normalizedEmail,
