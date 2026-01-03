@@ -7,6 +7,7 @@ import User from "@/models/User";
 import AuditLog from "@/models/AuditLog";
 import bcrypt from "bcryptjs";
 import { getInstituteScope, addInstituteFilter } from "@/middleware/instituteScope";
+import { getClientIp } from "@/lib/ip-helper";
 
 export async function GET(req) {
     try {
@@ -120,36 +121,31 @@ export async function POST(req) {
             isActive: true
         };
 
-        const enableTransactions = process.env.ENABLE_TRANSACTIONS === 'true' || process.env.NODE_ENV === 'production';
-        let session = null;
+        let user;
 
         try {
-            if (enableTransactions) {
-                session = await mongoose.startSession();
-                session.startTransaction();
-            }
-
             // 1. Create User
-            const createdUsers = await User.create([userPayload], { session });
-            const user = createdUsers[0];
+            user = await User.create(userPayload);
 
-            // 2. Audit Log
-            await AuditLog.create([{
-                actor: scope.user.id,
-                action: 'user.create',
-                resource: { type: 'User', id: user._id },
-                institute: targetInstituteId, // Audit Log needs institute too
-                details: {
-                    role: body.role,
-                    name: `${body.firstName} ${body.lastName}`,
-                    email: normalizedEmail
-                },
-                ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
-                userAgent: req.headers.get('user-agent') || 'unknown'
-            }], { session });
-
-            if (session) {
-                await session.commitTransaction();
+            // 2. Audit Log (Best Effort)
+            try {
+                const ipAddress = getClientIp(req);
+                await AuditLog.create({
+                    actor: scope.user.id,
+                    action: 'user.create',
+                    resource: { type: 'User', id: user._id },
+                    institute: targetInstituteId,
+                    details: {
+                        role: body.role,
+                        name: `${body.firstName} ${body.lastName}`,
+                        email: normalizedEmail
+                    },
+                    ipAddress,
+                    userAgent: req.headers.get('user-agent') || 'unknown'
+                });
+            } catch (auditError) {
+                console.error("Audit Log Creation Failed:", auditError);
+                // Continue execution, do not fail user creation
             }
 
             // Prepare response
@@ -158,15 +154,10 @@ export async function POST(req) {
             return NextResponse.json({ user: userObj }, { status: 201 });
 
         } catch (error) {
-            if (session) {
-                await session.abortTransaction();
-            }
             console.error("User Creation Error:", error);
+            // If user was created but something else failed (unlikely here as audit is caught), 
+            // but if User.create failed, we explicitly catch it.
             throw error;
-        } finally {
-            if (session) {
-                session.endSession();
-            }
         }
 
     } catch (error) {
