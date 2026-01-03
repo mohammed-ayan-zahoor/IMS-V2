@@ -97,28 +97,76 @@ export default function EditExamPage({ params }) {
 
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-                label="Max Attempts"
-                type="number"
-                min="1"
-                value={formData.maxAttempts}
-                onChange={(e) => setFormData({ ...formData, maxAttempts: e.target.value })}
-            />
-            <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase">Result Visibility</label>
-                <Select
-                    value={formData.resultPublication}
-                    onChange={(e) => setFormData({ ...formData, resultPublication: e.target.value })}
-                    options={[
-                        { label: "Immediate (After Submit)", value: "immediate" },
-                        { label: "After Exam Ends", value: "after_exam_end" }
-                    ]}
-                />
+        <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" onClick={() => router.back()}>
+                    <ArrowLeft size={20} />
+                </Button>
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Edit Exam</h1>
+                    <p className="text-slate-500">Modify exam details and schedule.</p>
+                </div>
             </div>
-        </div>
 
-    {/* Status Toggle */ }
+            <Card className="overflow-visible">
+                <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 gap-6">
+                        <Input
+                            label="Exam Title"
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                label="Schedule Date"
+                                type="datetime-local"
+                                value={formData.scheduledAt}
+                                onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
+                            />
+                            <Input
+                                label="End Time (Deadline)"
+                                type="datetime-local"
+                                value={formData.endTime || ""}
+                                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                                helperText="Leave blank to enforce strict duration."
+                            />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Input
+                                label="Duration (Minutes)"
+                                type="number"
+                                value={formData.duration}
+                                onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                            />
+                            <Input
+                                label="Passing Marks"
+                                type="number"
+                                value={formData.passingMarks}
+                                onChange={(e) => setFormData({ ...formData, passingMarks: e.target.value })}
+                            />
+                            <Input
+                                label="Max Attempts"
+                                type="number"
+                                min="1"
+                                value={formData.maxAttempts}
+                                onChange={(e) => setFormData({ ...formData, maxAttempts: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Result Visibility</label>
+                            <Select
+                                value={formData.resultPublication}
+                                onChange={(e) => setFormData({ ...formData, resultPublication: e.target.value })}
+                                options={[
+                                    { label: "Immediate (After Submit)", value: "immediate" },
+                                    { label: "After Exam Ends", value: "after_exam_end" }
+                                ]}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Status Toggle */}
                     <div className="pt-4 border-t border-slate-50">
                         <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Exam Status</label>
                         <div className="flex gap-4">
@@ -143,8 +191,8 @@ export default function EditExamPage({ params }) {
                             Save Details
                         </Button>
                     </div>
-                </div >
-            </Card >
-        </div >
+                </div>
+            </Card>
+        </div>
     );
 }
