@@ -550,8 +550,11 @@ export default function ExamRoomPage() {
                         </div>
                     )}
 
-                    {/* Navigation Buttons */}
-                    <div className="flex items-center justify-between pt-6 md:pt-8 mt-auto pb-6 md:pb-0">
+                </main>
+
+                {/* Fixed Footer for Navigation */}
+                <footer className="bg-white border-t p-4 z-30 shrink-0">
+                    <div className="flex items-center justify-between max-w-4xl mx-auto w-full">
                         <Button
                             variant="outline"
                             onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
@@ -574,8 +577,7 @@ export default function ExamRoomPage() {
                             </Button>
                         )}
                     </div>
-
-                </main>
+                </footer>
             </div>
         </div>
     );

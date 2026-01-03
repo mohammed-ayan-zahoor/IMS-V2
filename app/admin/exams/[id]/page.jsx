@@ -105,8 +105,8 @@ export default function EditExamPage({ params }) {
                 duration: Number(formData.duration),
                 passingMarks: Number(formData.passingMarks),
                 schedule: {
-                    startTime: formData.scheduledAt,
-                    endTime: formData.endTime
+                    startTime: formData.scheduledAt ? new Date(formData.scheduledAt).toISOString() : null,
+                    endTime: formData.endTime ? new Date(formData.endTime).toISOString() : null
                 }, maxAttempts: Number(formData.maxAttempts),
                 resultPublication: formData.resultPublication,
                 status: formData.status
