@@ -96,14 +96,21 @@ export async function DELETE(req, { params }) {
                 if (!/^[a-zA-Z0-9._-]+$/.test(safeBasename)) {
                     console.warn(`Skipping file deletion: Invalid filename format '${safeBasename}'`);
                 } else {
-                    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+                    // Determine directory based on URL structure
+                    // Private files are served via /api/v1/files/filename
+                    const isPrivate = material.file.url.includes('/api/v1/files/');
+                    const uploadsDir = isPrivate
+                        ? path.join(process.cwd(), "private_uploads")
+                        : path.join(process.cwd(), "public", "uploads");
+
                     const filepath = path.join(uploadsDir, safeBasename);
 
-                    // Verify path is within uploads directory
+                    // Verify path is within expected directory to prevent traversal
                     if (!filepath.startsWith(uploadsDir)) {
                         console.warn(`Skipping file deletion: Path traversal detected '${filepath}'`);
                     } else {
                         await unlink(filepath).catch(err => {
+                            // ignore if missing
                             if (err.code !== 'ENOENT') console.error("Failed to delete file:", err);
                         });
                     }
