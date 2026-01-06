@@ -20,7 +20,9 @@ import {
     ChevronRight,
     Menu,
     X,
-    Settings
+    Settings,
+    Plus,
+    List
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
@@ -48,6 +50,14 @@ export default function AdminLayout({ children }) {
                 { label: "Students", icon: Users, href: "/admin/students" },
                 { label: "Courses", icon: BookOpen, href: "/admin/courses" },
                 { label: "Batches", icon: Layers3, href: "/admin/batches" },
+            ]
+        },
+        {
+            label: "Enquiry",
+            icon: Users,
+            items: [
+                { label: "New Entry", icon: Plus, href: "/admin/enquiries/new" },
+                { label: "View Entry", icon: List, href: "/admin/enquiries" },
             ]
         },
         {
@@ -162,7 +172,17 @@ export default function AdminLayout({ children }) {
                             {expandedGroup === group.label && (
                                 <div className="space-y-1 animate-fade-in">
                                     {group.items.map((item) => {
-                                        const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                                        // Improved active state logic: check for exact match or deeper path match
+                                        // but only if another more specific item doesn't match better.
+                                        const isExact = pathname === item.href;
+                                        const isSubPath = pathname.startsWith(item.href + "/");
+
+                                        // Check if any other item in any group is a more specific match for current path
+                                        const hasMoreSpecificMatch = menuGroups.some(g =>
+                                            g.items.some(i => i.href !== item.href && pathname.startsWith(i.href) && i.href.length > item.href.length)
+                                        );
+
+                                        const isActive = isExact || (isSubPath && !hasMoreSpecificMatch);
                                         return (
                                             <Link
                                                 key={item.href}
