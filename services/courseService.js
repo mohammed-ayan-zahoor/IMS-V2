@@ -4,6 +4,26 @@ import mongoose from 'mongoose';
 import { createAuditLog } from './auditService';
 import { connectDB } from '@/lib/mongodb';
 
+// Simple In-Memory Mutex for Standalone Server (locks by Course ID)
+const courseLocks = new Map();
+
+function runSynchronized(courseId, action) {
+    const key = String(courseId);
+    const prev = courseLocks.get(key) || Promise.resolve();
+
+    const next = prev
+        .catch(() => { }) // Swallow previous operation errors
+        .then(() => action())
+        .finally(() => {
+            // Cleanup chain if we are the last one
+            if (courseLocks.get(key) === next) {
+                courseLocks.delete(key);
+            }
+        });
+
+    courseLocks.set(key, next);
+    return next;
+}
 export class CourseService {
     static async createCourse(data, actorId) {
         await connectDB();
@@ -106,45 +126,39 @@ export class CourseService {
     }
 
     static async deleteCourse(id, actorId, instituteId) {
-        await connectDB();
+        // Use In-Memory Lock to serialize operations on this course
+        // This prevents 'Batch.create' from running concurrently with the validation/deletion here
+        return runSynchronized(id, async () => {
+            await connectDB();
 
-        const session = await mongoose.startSession();
-        let course = null;
+            // 1. Check for active batches
+            const batchQuery = {
+                course: id,
+                deletedAt: null
+            };
+            if (instituteId) batchQuery.institute = instituteId;
 
-        try {
-            await session.withTransaction(async () => {
-                // Check for active batches within transaction
-                // TOCTOU prevention: This read must be part of the transaction
-                const activeBatchCount = await Batch.countDocuments({
-                    course: id,
-                    institute: instituteId, // Safer to include institute scope logic if consistent
-                    deletedAt: null
-                }).session(session);
+            const activeBatchCount = await Batch.countDocuments(batchQuery);
 
-                if (activeBatchCount > 0) {
-                    throw new Error("Cannot delete course. It has active batches associated with it.");
-                }
+            if (activeBatchCount > 0) {
+                throw new Error("Cannot delete course. It has active batches associated with it.");
+            }
 
-                // Soft Delete
-                course = await Course.findOneAndUpdate(
-                    { _id: id, institute: instituteId, deletedAt: null },
-                    { deletedAt: new Date() },
-                    { new: true, session }
-                );
+            // 2. Soft Delete
+            const courseQuery = { _id: id, deletedAt: null };
+            if (instituteId) courseQuery.institute = instituteId;
 
-                if (!course) {
-                    throw new Error("Course not found or access denied");
-                }
-            });
-        } catch (error) {
-            console.error(`[DeleteCourse] Transaction Aborted: ${error.message}`);
-            throw error; // Re-throw to caller
-        } finally {
-            await session.endSession();
-        }
+            const course = await Course.findOneAndUpdate(
+                courseQuery,
+                { deletedAt: new Date() },
+                { new: true }
+            );
 
-        // Audit Log (Outside transaction as requested/appropriate)
-        if (course) {
+            if (!course) {
+                throw new Error("Course not found or access denied");
+            }
+
+            // Audit Log
             await createAuditLog({
                 actor: actorId,
                 action: 'course.delete',
@@ -152,29 +166,42 @@ export class CourseService {
                 institute: instituteId,
                 details: { name: course.name, code: course.code }
             });
-        }
 
-        return true;
+            return true;
+        });
     }
 }
 
 export class BatchService {
     static async createBatch(data, actorId) {
-        await connectDB();
-        const { institute } = data;
-        if (!institute) throw new Error("Institute context missing");
+        // Lock on the course ID to prevent concurrent deletion
+        const courseId = data.course; // Ensure 'course' field is present in data
+        if (!courseId) throw new Error("Course ID is required");
 
-        const batch = await Batch.create({ ...data, createdBy: actorId });
+        return runSynchronized(courseId, async () => {
+            await connectDB();
+            const { institute } = data;
+            if (!institute) throw new Error("Institute context missing");
 
-        await createAuditLog({
-            actor: actorId,
-            action: 'batch.create',
-            resource: { type: 'Batch', id: batch._id },
-            institute: institute,
-            details: { name: batch.name }
+            // Re-validate course existence/active status INSIDE the lock
+            const course = await Course.findOne({
+                _id: courseId,
+                institute: institute,
+                deletedAt: null
+            });
+            if (!course) throw new Error("Course not found or inactive");
+            const batch = await Batch.create({ ...data, createdBy: actorId });
+
+            await createAuditLog({
+                actor: actorId,
+                action: 'batch.create',
+                resource: { type: 'Batch', id: batch._id },
+                institute: institute,
+                details: { name: batch.name }
+            });
+
+            return batch;
         });
-
-        return batch;
     }
 
     static async getBatches(filters = {}, instituteId) {

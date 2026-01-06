@@ -39,3 +39,34 @@ export async function POST(req, { params }) {
         return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
     }
 }
+
+export async function DELETE(req, { params }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id || !["admin", "super_admin"].includes(session.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const scope = await getInstituteScope(req);
+        if (!scope || !scope.instituteId) {
+            return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
+        }
+
+        const { id } = await params;
+        const { searchParams } = new URL(req.url);
+        const batchId = searchParams.get("batchId");
+
+        if (!batchId) {
+            return NextResponse.json({ error: "Batch ID is required" }, { status: 400 });
+        }
+
+        await connectDB();
+        await StudentService.unenrollFromBatch(id, batchId, session.user.id, scope.instituteId);
+
+        return NextResponse.json({ success: true, message: "Student unenrolled successfully" });
+
+    } catch (error) {
+        console.error("API Error [Unenroll Student]:", error);
+        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    }
+}

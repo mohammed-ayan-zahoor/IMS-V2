@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { escapeRegExp } from 'lodash';
 import crypto from 'crypto';
+import { connectDB } from '@/lib/mongoose';
 
 export class StudentService {
     /**
@@ -378,7 +379,7 @@ export class StudentService {
      * Get full student profile with batches and fees
      */
     static async getStudentProfile(studentId) {
-        const student = await User.findOne({ _id: studentId, role: 'student' })
+        const student = await User.findOne({ _id: studentId, role: 'student', deletedAt: null })
             .select('-passwordHash -passwordResetToken -passwordResetExpires');
 
         if (!student) return null;
@@ -405,5 +406,61 @@ export class StudentService {
             })),
             fees
         };
+    }
+    /**
+     * Unenroll student from a batch (Correcting mistakes)
+     */
+    static async unenrollFromBatch(studentId, batchId, actorId, instituteId) {
+        await connectDB(); // Ensure DB connection
+
+        // Transaction logic removed for standalone MongoDB support
+
+        // Check if active student exists
+        const student = await User.findById(studentId);
+        if (!student) throw new Error("Student not found");
+
+        // Verify institute scope
+        if (instituteId && student.institute && student.institute.toString() !== instituteId.toString()) {
+            throw new Error("Unauthorized: Student belongs to a different institute");
+        }
+
+        // 1. Remove from Batch Enrolled Students
+        // STRICT SECURITY: Use student.institute to scope the query.
+        // A student can only be unenrolled from a batch that belongs to THEIR institute.
+        const batch = await Batch.findOneAndUpdate(
+            { _id: batchId, institute: student.institute },
+            { $pull: { enrolledStudents: { student: studentId } } },
+            { new: true }
+        );
+
+        if (!batch) throw new Error("Batch not found or access denied");
+
+        // 2. Clean up Fee record ONLY if it hasn't been paid yet (status: 'not_started')
+        // This prevents data loss if they actually paid and then got removed.
+        const deleteResult = await Fee.deleteMany({
+            student: studentId,
+            batch: batchId,
+            status: 'not_started'
+        });
+
+        // If fee was mostly paid, we might want to warn or log, but for "Remove" 
+        // requested by admin to fix a mistake, removing the association is key.
+        // If status was 'partial' or 'paid', the Fee record remains but effectively orphaned 
+        // from the batch list perspective, serving as a financial record of what happened.
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'batch.unenroll',
+            resource: { type: 'Batch', id: batchId },
+            institute: instituteId || student.institute,
+            details: {
+                studentId,
+                studentName: student.fullName,
+                batchName: batch.name,
+                feesRemoved: deleteResult.deletedCount
+            }
+        });
+
+        return true;
     }
 }

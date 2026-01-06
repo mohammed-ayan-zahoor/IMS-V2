@@ -197,6 +197,31 @@ export default function StudentDetailsPage({ params }) {
         }
     };
 
+    const handleUnenrollStudent = async (batchId, batchName) => {
+        if (await confirm({
+            title: "Unenroll Student?",
+            message: `Are you sure you want to remove this student from batch "${batchName}"? This will also remove any unpaid fee records.`,
+            type: "danger"
+        })) {
+            try {
+                const res = await fetch(`/api/v1/students/${id}/enroll?batchId=${batchId}`, {
+                    method: "DELETE"
+                });
+
+                if (res.ok) {
+                    toast.success("Student unenrolled successfully");
+                    fetchStudentDetails();
+                } else {
+                    const err = await res.json();
+                    toast.error(err.error || "Failed to unenroll student");
+                }
+            } catch (error) {
+                console.error("Unenroll error:", error);
+                toast.error("Failed to unenroll student");
+            }
+        }
+    };
+
     const openPaymentModal = (fee) => {
         setSelectedFee(fee);
         setPaymentData({
@@ -208,15 +233,21 @@ export default function StudentDetailsPage({ params }) {
         setIsPayModalOpen(true);
     };
 
+    const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+
     const handleRecordPayment = async (e) => {
         e.preventDefault();
         if (!selectedFee) return;
 
         try {
+            setIsRecordingPayment(true);
             const res = await fetch(`/api/v1/fees/${selectedFee._id}/payment`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(paymentData)
+                body: JSON.stringify({
+                    ...paymentData,
+                    amount: parseFloat(paymentData.amount)
+                })
             });
 
             if (res.ok) {
@@ -229,9 +260,10 @@ export default function StudentDetailsPage({ params }) {
             }
         } catch (error) {
             toast.error("Payment failed");
+        } finally {
+            setIsRecordingPayment(false);
         }
     };
-
 
     const handleDeleteStudent = async () => {
         if (await confirm({
@@ -456,8 +488,19 @@ export default function StudentDetailsPage({ params }) {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <Badge variant="primary" className="mb-1">{batch.enrollment?.status}</Badge>
-                                                <p className="text-xs text-slate-400">Enrolled: {format(new Date(batch.enrollment?.enrolledAt), "MMM d, yyyy")}</p>
+                                                <Badge variant="primary" className="mb-2">{batch.enrollment?.status}</Badge>
+                                                <p className="text-xs text-slate-400 mb-2">
+                                                    Enrolled: {batch.enrollment?.enrolledAt
+                                                        ? format(new Date(batch.enrollment.enrolledAt), "MMM d, yyyy")
+                                                        : "N/A"}
+                                                </p>
+                                                <Button size="xs"
+                                                    variant="ghost"
+                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 h-6 px-2"
+                                                    onClick={() => handleUnenrollStudent(batch._id, batch.name)}
+                                                >
+                                                    Remove
+                                                </Button>
                                             </div>
                                         </div>
                                     </Card>
@@ -785,10 +828,14 @@ export default function StudentDetailsPage({ params }) {
                                     onChange={(val) => setSelectedBatch(val)}
                                     options={[
                                         { label: "-- Choose a Batch --", value: "" },
-                                        ...courseBatches.map(batch => ({
-                                            label: `${batch.name} (Starts: ${format(new Date(batch.schedule.startDate), "MMM d")})`,
-                                            value: batch._id
-                                        }))
+                                        ...courseBatches.map(batch => {
+                                            const startDate = batch.schedule?.startDate ? new Date(batch.schedule.startDate) : null;
+                                            const dateStr = startDate && !isNaN(startDate) ? format(startDate, "MMM d") : "TBD";
+                                            return {
+                                                label: `${batch.name} (Starts: ${dateStr})`,
+                                                value: batch._id
+                                            };
+                                        })
                                     ]}
                                 />
                                 {courseBatches.length === 0 && (
