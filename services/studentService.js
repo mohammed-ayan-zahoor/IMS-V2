@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { escapeRegExp } from 'lodash';
 import crypto from 'crypto';
-import { connectDB } from '@/lib/mongoose';
+import { connectDB } from '@/lib/mongodb';
 
 export class StudentService {
     /**
