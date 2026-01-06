@@ -76,7 +76,7 @@ export default function ReceiptPage({ params }) {
                         </div>
                     </div>
                     <div className="text-right">
-                        <h3 className="text-4xl font-black text-slate-800 uppercase tracking-widest mb-2">RECEIPT</h3>                        <p className="text-sm font-bold text-slate-500">Date: {format(new Date(), "PP")}</p>
+                        <h3 className="text-4xl font-black text-slate-800 uppercase tracking-widest mb-2">FEE RECEIPT</h3>                        <p className="text-sm font-bold text-slate-500">Date: {format(new Date(), "PP")}</p>
                         <p className="text-sm text-slate-400">Ref: #{fee._id.toString().slice(-8).toUpperCase()}</p>
                     </div>
                 </div>
@@ -92,7 +92,11 @@ export default function ReceiptPage({ params }) {
                     <div className="text-right">
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">For Course</h4>
                         <p className="text-lg font-bold text-slate-900">{batch?.name}</p>
-                        <p className="text-sm text-slate-500">{batch?.course?.name}</p>
+                        <p className="text-sm text-slate-500 mb-3">{batch?.course?.name}</p>
+                        <div className="border-t border-slate-100 pt-2 mt-1">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Fee</span>
+                            <span className="text-2xl font-black text-slate-900">₹{fee.totalAmount.toLocaleString()}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -128,10 +132,7 @@ export default function ReceiptPage({ params }) {
                 {/* Totals */}
                 <div className="flex justify-end border-t border-slate-200 pt-8">
                     <div className="w-64 space-y-3">
-                        <div className="flex justify-between text-sm">
-                            <span className="text-slate-500 font-medium">Total Fee</span>
-                            <span className="font-bold text-slate-900">₹{fee.totalAmount.toLocaleString()}</span>
-                        </div>
+
                         {fee.discount?.amount > 0 && (
                             <div className="flex justify-between text-sm text-red-500">
                                 <span className="font-medium">Discount</span>
