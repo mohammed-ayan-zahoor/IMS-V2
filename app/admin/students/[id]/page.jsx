@@ -20,7 +20,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Edit,
-    Trash2
+    Trash2,
+    FileText
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -581,8 +582,18 @@ export default function StudentDetailsPage({ params }) {
                                                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                                         onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
                                                         disabled={deletingFeeId === fee._id}
+                                                        aria-label="Delete Fee"
                                                     >
                                                         {deletingFeeId === fee._id ? "Deleting..." : "Delete"}
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => window.open(`/admin/receipts/${fee._id}`, '_blank')}
+                                                        title="View Receipt"
+                                                        aria-label={`View receipt for fee ${fee._id}`}
+                                                    >
+                                                        <FileText size={16} className="text-slate-400 hover:text-premium-blue" />
                                                     </Button>
                                                     <Button size="sm" variant="outline" onClick={() => openPaymentModal(fee)}>
                                                         Pay Fee
@@ -590,19 +601,31 @@ export default function StudentDetailsPage({ params }) {
                                                 </div>
                                             )}
                                             {fee.status === 'paid' && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-gray-400 hover:text-red-600"
-                                                    onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
-                                                    disabled={deletingFeeId === fee._id}
-                                                >
-                                                    {deletingFeeId === fee._id ? (
-                                                        <div className="w-3 h-3 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
-                                                    ) : (
-                                                        <Trash2 size={14} />
-                                                    )}
-                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-gray-400 hover:text-red-600"
+                                                        onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
+                                                        disabled={deletingFeeId === fee._id}
+                                                        aria-label="Delete Fee"
+                                                    >
+                                                        {deletingFeeId === fee._id ? (
+                                                            <div className="w-3 h-3 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+                                                        ) : (
+                                                            <Trash2 size={14} />
+                                                        )}
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => window.open(`/admin/receipts/${fee._id}`, '_blank')}
+                                                        title="View Receipt"
+                                                        aria-label={`View receipt for fee ${fee._id}`}
+                                                    >
+                                                        <FileText size={16} className="text-slate-400 hover:text-premium-blue" />
+                                                    </Button>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -967,7 +990,7 @@ export default function StudentDetailsPage({ params }) {
                     </div>
                 </form>
             </Modal>
-        </div>
+        </div >
     );
 }
 

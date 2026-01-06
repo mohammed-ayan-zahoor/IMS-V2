@@ -19,7 +19,8 @@ import {
     LogOut,
     ChevronRight,
     Menu,
-    X
+    X,
+    Settings
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
@@ -66,6 +67,7 @@ export default function AdminLayout({ children }) {
                 { label: "Fees", icon: CreditCard, href: "/admin/fees" },
                 { label: "User Management", icon: UserCog, href: "/admin/users" },
                 { label: "Audit Logs", icon: History, href: "/admin/audit-logs" },
+                { label: "Settings", icon: Settings, href: "/admin/settings" },
             ]
         },
     ];
@@ -99,7 +101,7 @@ export default function AdminLayout({ children }) {
             <button
                 onClick={() => setIsSidebarOpen(true)}
                 aria-label="Open navigation menu"
-                className="lg:hidden fixed top-4 left-4 z-40 w-10 h-10 glass rounded-xl flex items-center justify-center text-foreground/60"
+                className="lg:hidden fixed top-4 left-4 z-40 w-10 h-10 glass rounded-xl flex items-center justify-center text-foreground/60 print:hidden"
             >
                 <Menu size={20} />
             </button>
@@ -108,14 +110,14 @@ export default function AdminLayout({ children }) {
             {isSidebarOpen && (
                 <div
                     onClick={() => setIsSidebarOpen(false)}
-                    className="lg:hidden fixed inset-0 bg-background/60 backdrop-blur-sm z-[60]"
+                    className="lg:hidden fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] print:hidden"
                     aria-hidden="true"
                 />
             )}
 
             {/* Sidebar */}
             <aside className={cn(
-                "w-64 border-r border-border bg-white fixed h-full z-[70] flex flex-col transition-transform duration-300 lg:translate-x-0",
+                "w-64 border-r border-border bg-white fixed h-full z-[70] flex flex-col transition-transform duration-300 lg:translate-x-0 print:hidden",
                 isSidebarOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 <div className="p-8 pb-4 flex items-center justify-between">
@@ -209,7 +211,7 @@ export default function AdminLayout({ children }) {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 lg:ml-64 min-h-screen p-6 md:p-10 relative bg-blueprint">
+            <main className="flex-1 lg:ml-64 min-h-screen p-6 md:p-10 relative bg-blueprint print:ml-0 print:p-4 print:bg-white">
                 <div className="relative z-10 max-w-7xl mx-auto">
                     {children}
                 </div>

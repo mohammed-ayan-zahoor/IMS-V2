@@ -6,12 +6,58 @@ import Fee from '@/models/Fee';
 import { createAuditLog } from '@/services/auditService';
 import { getInstituteScope } from '@/middleware/instituteScope';
 
+import { Types } from "mongoose";
+
+export async function GET(req, { params }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { id } = await params;
+        if (!Types.ObjectId.isValid(id)) {
+            return NextResponse.json({ error: "Invalid fee ID format" }, { status: 400 });
+        }
+
+        await connectDB();
+        const scope = await getInstituteScope(req);
+
+        // Scope validation
+        const query = { _id: id };
+        if (scope.instituteId) {
+            query.institute = scope.instituteId;
+        }
+
+        const fee = await Fee.findOne(query)
+            .populate({
+                path: 'batch',
+                select: 'name course',
+                populate: { path: 'course', select: 'name' }
+            })
+            .populate('student', 'profile.firstName profile.lastName email enrollmentNumber')
+            .populate('institute', 'name branding address contactEmail contactPhone');
+
+        if (!fee) {
+            return NextResponse.json({ error: "Fee record not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({ fee });
+
+    } catch (error) {
+        console.error("Fee Get Error:", error);
+        return NextResponse.json({ error: "Failed to fetch fee details" }, { status: 500 });
+    }
+}
+
 export async function DELETE(req, { params }) {
     try {
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { id } = await params;
+        if (!Types.ObjectId.isValid(id)) {
+            return NextResponse.json({ error: "Invalid fee ID format" }, { status: 400 });
+        }
+
         await connectDB();
         const scope = await getInstituteScope(req);
 
@@ -37,8 +83,7 @@ export async function DELETE(req, { params }) {
             institute: fee.institute,
             details: {
                 batchName: fee.batch?.name || 'Unknown Batch',
-                studentName: fee.student?.profile ? `${fee.student.profile.firstName || ''} ${fee.student.profile.lastName || ''}`.trim() : 'Unknown Student',
-                amount: fee.totalAmount,
+                studentName: fee.student?.profile ? `${fee.student.profile.firstName || ''} ${fee.student.profile.lastName || ''}`.trim() || 'Unknown Student' : 'Unknown Student', amount: fee.totalAmount,
                 paidAmount: fee.paidAmount
             }
         });
