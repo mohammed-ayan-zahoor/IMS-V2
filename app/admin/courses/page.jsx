@@ -178,58 +178,72 @@ export default function CoursesPage() {
                     {loading ? (
                         <LoadingSpinner />
                     ) : filteredCourses.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-                            {filteredCourses.map(course => (
-                                <div
-                                    key={course._id}
-                                    className={`group relative bg-white border border-slate-100 rounded-2xl p-5 transition-all hover:border-premium-blue/30 hover:shadow-lg hover:shadow-blue-500/5`}
-                                >
-                                    <div className="absolute top-5 right-5 z-10 flex gap-2">
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); openEditModal(course); }}
-                                            className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
-                                            title="Edit Course"
-                                        >
-                                            <Edit2 size={16} />
-                                        </button>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); setDeletingCourse(course); }}
-                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                            title="Delete Course"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-
-                                    <div className="flex items-start gap-4 mb-4">
-                                        <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center border border-violet-100">
-                                            <BookOpen size={22} />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-slate-900 text-lg">{course.name}</h3>
-                                            <Badge variant="primary" className="mt-1 font-mono text-[10px]">{course.code}</Badge>
-                                        </div>
-                                    </div>
-
-                                    <p className="text-slate-500 text-sm line-clamp-2 mb-6 h-10">
-                                        {course.description || "No description provided."}
-                                    </p>
-
-                                    <div className="flex items-center justify-between text-xs font-bold text-slate-400 border-t border-slate-50 pt-4">
-                                        <div className="flex items-center gap-1.5">
-                                            <Clock size={14} />
-                                            <span className="capitalize">
-                                                {course?.duration?.value && course?.duration?.unit
-                                                    ? `${course.duration.value} ${course.duration.unit}`
-                                                    : "N/A"}
-                                            </span>                                        </div>
-                                        <div className="flex items-center gap-1.5 text-slate-600">
-                                            <CreditCard size={14} />
-                                            <span>₹{course.fees?.amount?.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-slate-100 bg-slate-50/50 text-xs uppercase tracking-wider text-slate-500 font-bold">
+                                        <th className="px-6 py-4">Course Name</th>
+                                        <th className="px-6 py-4">Code</th>
+                                        <th className="px-6 py-4">Duration</th>
+                                        <th className="px-6 py-4">Total Fees</th>
+                                        <th className="px-6 py-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredCourses.map(course => (
+                                        <tr key={course._id} className="group hover:bg-slate-50/80 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center border border-violet-100 shrink-0">
+                                                        <BookOpen size={18} />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-bold text-slate-900 text-sm">{course.name}</h3>
+                                                        <p className="text-xs text-slate-500 line-clamp-1 max-w-[200px]">{course.description || "No description"}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <Badge variant="primary" className="font-mono text-[10px]">{course.code}</Badge>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-slate-600">
+                                                <div className="flex items-center gap-2">
+                                                    <Clock size={14} className="text-slate-400" />
+                                                    <span className="capitalize">
+                                                        {course?.duration?.value && course?.duration?.unit
+                                                            ? `${course.duration.value} ${course.duration.unit}`
+                                                            : "N/A"}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-slate-400 font-normal">₹</span>
+                                                    {course.fees?.amount?.toLocaleString() || "0"}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); openEditModal(course); }}
+                                                        className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
+                                                        title="Edit Course"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setDeletingCourse(course); }}
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                        title="Delete Course"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     ) : (
                         <EmptyState
