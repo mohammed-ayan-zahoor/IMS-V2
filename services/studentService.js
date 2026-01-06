@@ -435,13 +435,29 @@ export class StudentService {
 
         if (!batch) throw new Error("Batch not found or access denied");
 
-        // 2. Clean up Fee record ONLY if it hasn't been paid yet (status: 'not_started')
-        // This prevents data loss if they actually paid and then got removed.
+        // 2. Clean up Fee record (Smart Logic)
+        // A. If status is 'not_started' (no payment history), DELETE it clean.
         const deleteResult = await Fee.deleteMany({
             student: studentId,
             batch: batchId,
             status: 'not_started'
         });
+
+        // B. If status is 'partial', 'paid', or 'overdue' (has history), CANCEL it.
+        // This preserves the financial record/audit trail but marks it as void.
+        const cancelResult = await Fee.updateMany(
+            {
+                student: studentId,
+                batch: batchId,
+                status: { $in: ['partial', 'paid', 'overdue'] }
+            },
+            {
+                $set: {
+                    status: 'cancelled',
+                    // notes: `Auto-cancelled due to batch unenrollment by ${actorId}` // Optional: if schema allows
+                }
+            }
+        );
 
         // If fee was mostly paid, we might want to warn or log, but for "Remove" 
         // requested by admin to fix a mistake, removing the association is key.
@@ -457,7 +473,8 @@ export class StudentService {
                 studentId,
                 studentName: student.fullName,
                 batchName: batch.name,
-                feesRemoved: deleteResult.deletedCount
+                feesDeleted: deleteResult.deletedCount,
+                feesCancelled: cancelResult.modifiedCount
             }
         });
 

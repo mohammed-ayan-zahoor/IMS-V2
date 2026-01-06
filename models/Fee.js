@@ -48,7 +48,7 @@ const FeeSchema = new Schema({
     balanceAmount: { type: Number, default: 0 },
     status: {
         type: String,
-        enum: ['not_started', 'partial', 'paid', 'overdue'],
+        enum: ['not_started', 'partial', 'paid', 'overdue', 'cancelled', 'refunded'],
         default: 'not_started'
     }
 }, { timestamps: true });

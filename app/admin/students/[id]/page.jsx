@@ -61,6 +61,7 @@ export default function StudentDetailsPage({ params }) {
     });
 
     const [isDeleting, setIsDeleting] = useState(false);
+    const [deletingFeeId, setDeletingFeeId] = useState(null);
     const [isEnrolling, setIsEnrolling] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [formData, setFormData] = useState({
@@ -200,7 +201,7 @@ export default function StudentDetailsPage({ params }) {
     const handleUnenrollStudent = async (batchId, batchName) => {
         if (await confirm({
             title: "Unenroll Student?",
-            message: `Are you sure you want to remove this student from batch "${batchName}"? This will also remove any unpaid fee records.`,
+            message: `Are you sure you want to remove this student from batch "${batchName}"? WARNING: This will DELETE all fee records and payment history associated with this batch.`,
             type: "danger"
         })) {
             try {
@@ -218,6 +219,37 @@ export default function StudentDetailsPage({ params }) {
             } catch (error) {
                 console.error("Unenroll error:", error);
                 toast.error("Failed to unenroll student");
+            }
+        }
+    };
+
+    const handleDeleteFee = async (feeId, amountPaid) => {
+        if (deletingFeeId) return;
+
+        const paid = amountPaid ?? 0;
+        const warning = paid > 0
+            ? `WARNING: This fee has a paid amount of ₹${paid}. Deleting it will remove this financial record forever.`
+            : "Are you sure you want to delete this fee record?";
+
+        if (await confirm({
+            title: "Delete Fee Record?",
+            message: warning,
+            type: "danger"
+        })) {
+            try {
+                setDeletingFeeId(feeId);
+                const res = await fetch(`/api/v1/fees/${feeId}`, { method: "DELETE" });
+                if (res.ok) {
+                    toast.success("Fee record deleted");
+                    fetchStudentDetails();
+                } else {
+                    const err = await res.json();
+                    toast.error(err.error || "Failed to delete fee");
+                }
+            } catch (error) {
+                toast.error("Failed to delete fee");
+            } finally {
+                setDeletingFeeId(null);
             }
         }
     };
@@ -542,8 +574,34 @@ export default function StudentDetailsPage({ params }) {
                                                 </p>
                                             </div>
                                             {fee.status !== 'paid' && (
-                                                <Button size="sm" variant="outline" onClick={() => openPaymentModal(fee)}>
-                                                    Pay Fee
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                        onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
+                                                        disabled={deletingFeeId === fee._id}
+                                                    >
+                                                        {deletingFeeId === fee._id ? "Deleting..." : "Delete"}
+                                                    </Button>
+                                                    <Button size="sm" variant="outline" onClick={() => openPaymentModal(fee)}>
+                                                        Pay Fee
+                                                    </Button>
+                                                </div>
+                                            )}
+                                            {fee.status === 'paid' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-gray-400 hover:text-red-600"
+                                                    onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
+                                                    disabled={deletingFeeId === fee._id}
+                                                >
+                                                    {deletingFeeId === fee._id ? (
+                                                        <div className="w-3 h-3 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+                                                    ) : (
+                                                        <Trash2 size={14} />
+                                                    )}
                                                 </Button>
                                             )}
                                         </div>
