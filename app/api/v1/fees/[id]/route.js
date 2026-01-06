@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Fee from '@/models/Fee';
 import { createAuditLog } from '@/services/auditService';
-import { getInstituteScope } from '@/lib/utils'; // Assuming this utility exists, similar to other routes
+import { getInstituteScope } from '@/middleware/instituteScope';
 
 export async function DELETE(req, { params }) {
     try {
-        const session = await auth();
+        const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { id } = await params;
