@@ -22,7 +22,7 @@ const UserSchema = new Schema({
     },
     role: {
         type: String,
-        enum: ['super_admin', 'admin', 'student'],
+        enum: ['super_admin', 'admin', 'instructor', 'staff', 'student'],
         required: true,
         index: true
     },

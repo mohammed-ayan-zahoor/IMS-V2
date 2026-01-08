@@ -87,6 +87,7 @@ export class FeeService {
             installment.paidDate = paymentDetails.date ? new Date(paymentDetails.date) : new Date();
             installment.paymentMethod = paymentDetails.method;
             installment.transactionId = paymentDetails.transactionId;
+            installment.collectedBy = paymentDetails.collectedBy;
             installment.notes = paymentDetails.notes;
 
             savedAmount = installment.amount;
@@ -118,6 +119,7 @@ export class FeeService {
                     paidDate: paymentDetails.date ? new Date(paymentDetails.date) : new Date(),
                     paymentMethod: paymentDetails.method,
                     transactionId: paymentDetails.transactionId,
+                    collectedBy: paymentDetails.collectedBy,
                     notes: paymentDetails.notes
                 });
 
@@ -159,6 +161,7 @@ export class FeeService {
                     current.paidDate = paymentDetails.date ? new Date(paymentDetails.date) : new Date();
                     current.paymentMethod = paymentDetails.method;
                     current.transactionId = paymentDetails.transactionId;
+                    current.collectedBy = paymentDetails.collectedBy;
                     current.notes = paymentDetails.notes;
                     remaining = 0;
                 } else if (remaining < current.amount) {
@@ -181,6 +184,7 @@ export class FeeService {
                         paidDate: paymentDetails.date ? new Date(paymentDetails.date) : new Date(),
                         paymentMethod: paymentDetails.method,
                         transactionId: paymentDetails.transactionId,
+                        collectedBy: paymentDetails.collectedBy,
                         notes: paymentDetails.notes
                     });
                     remaining = 0;

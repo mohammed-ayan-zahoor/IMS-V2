@@ -22,7 +22,9 @@ import {
     X,
     Settings,
     Plus,
-    List
+    List,
+    ReceiptText,
+    Building2
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
@@ -86,6 +88,8 @@ export default function AdminLayout({ children }) {
             icon: UserCog,
             items: [
                 { label: "Fees", icon: CreditCard, href: "/admin/fees" },
+                { label: "Collection History", icon: ReceiptText, href: "/admin/collections" },
+                { label: "Accounts Master", icon: Building2, href: "/admin/accounts" },
                 { label: "User Management", icon: UserCog, href: "/admin/users" },
                 { label: "Audit Logs", icon: History, href: "/admin/audit-logs" },
                 { label: "Settings", icon: Settings, href: "/admin/settings" },

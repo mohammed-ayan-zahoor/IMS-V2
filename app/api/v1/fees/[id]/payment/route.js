@@ -3,6 +3,9 @@ import { FeeService } from "@/services/feeService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import AuditLog from "@/models/AuditLog";
+import { connectDB } from "@/lib/mongodb";
+import Fee from "@/models/Fee";
+import { getInstituteScope, validateInstituteAccess } from "@/middleware/instituteScope";
 
 export async function POST(req, { params }) {
     try {
@@ -14,6 +17,20 @@ export async function POST(req, { params }) {
         const { id } = await params; // Fee ID
         const body = await req.json();
         const { installmentId, ...paymentDetails } = body;
+
+        await connectDB();
+        const scope = await getInstituteScope(req);
+
+        // Fetch fee to verify institute ownership
+        const feeRecord = await Fee.findById(id);
+        if (!feeRecord) {
+            return NextResponse.json({ error: "Fee record not found" }, { status: 404 });
+        }
+
+        const hasAccess = await validateInstituteAccess(feeRecord, scope);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied: This fee record belongs to another institute" }, { status: 403 });
+        }
 
         const fee = await FeeService.recordPayment(id, installmentId, paymentDetails, session.user.id);
 

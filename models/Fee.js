@@ -15,6 +15,7 @@ const InstallmentSchema = new Schema({
         enum: ['cash', 'card', 'upi', 'bank_transfer', 'cheque']
     },
     transactionId: String,
+    collectedBy: String,
     notes: String
 });
 

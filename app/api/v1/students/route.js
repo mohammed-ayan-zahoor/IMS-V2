@@ -8,7 +8,7 @@ import { getInstituteScope } from "@/middleware/instituteScope";
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.role || !["admin", "super_admin"].includes(session.user.role)) {
+        if (!session?.user?.role || !["admin", "super_admin", "instructor"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

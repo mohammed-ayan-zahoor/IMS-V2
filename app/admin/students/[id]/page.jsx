@@ -61,8 +61,10 @@ export default function StudentDetailsPage({ params }) {
         method: "cash",
         reference: "",
         notes: "",
+        collectedBy: "",
         date: format(new Date(), "yyyy-MM-dd")
     });
+    const [collectors, setCollectors] = useState([]);
 
     const [isDeleting, setIsDeleting] = useState(false);
     const [deletingFeeId, setDeletingFeeId] = useState(null);
@@ -151,7 +153,29 @@ export default function StudentDetailsPage({ params }) {
 
     useEffect(() => {
         fetchStudentDetails();
+        const controller = new AbortController();
+        fetchCollectors(controller.signal);
+        return () => controller.abort();
     }, [id]);
+
+    const fetchCollectors = async (signal) => {
+        try {
+            const res = await fetch("/api/v1/collectors", {
+                signal: signal || AbortSignal.timeout(10000)
+            });
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to fetch collectors (${res.status})`);
+            }
+            const data = await res.json();
+            if (signal?.aborted) return;
+            setCollectors(data.collectors || []);
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            console.error("Failed to fetch collectors", error);
+            toast.error(error.message || "Failed to load fee collectors");
+        }
+    };
 
     const fetchCourses = async () => {
         try {
@@ -265,8 +289,10 @@ export default function StudentDetailsPage({ params }) {
             method: "cash",
             reference: "",
             notes: "",
+            collectedBy: "",
             date: format(new Date(), "yyyy-MM-dd")
         });
+        fetchCollectors();
         setIsPayModalOpen(true);
     };
 
@@ -1085,6 +1111,18 @@ export default function StudentDetailsPage({ params }) {
                             onChange={(e) => setPaymentData({ ...paymentData, reference: e.target.value })}
                         />
 
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Collected By</label>
+                            <Select
+                                value={paymentData.collectedBy}
+                                onChange={(val) => setPaymentData({ ...paymentData, collectedBy: val })}
+                                options={[
+                                    { label: "Select Collector", value: "" },
+                                    ...collectors.map(c => ({ label: c.name, value: c._id }))
+                                ]}
+                                required
+                            />
+                        </div>
                         <Input
                             label="Payment Date"
                             type="date"

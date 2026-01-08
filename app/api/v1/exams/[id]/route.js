@@ -51,7 +51,7 @@ export async function PATCH(req, { params }) {
         await connectDB();
         const scope = await getInstituteScope(req);
 
-        if (!scope || !["admin", "super_admin"].includes(scope.user.role)) {
+        if (!scope || !["admin", "super_admin", "instructor"].includes(scope.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -154,7 +154,7 @@ export async function DELETE(req, { params }) {
         await connectDB();
         const scope = await getInstituteScope(req);
 
-        if (!scope || !["admin", "super_admin"].includes(scope.user.role)) {
+        if (!scope || !["admin", "super_admin", "instructor"].includes(scope.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
