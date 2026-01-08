@@ -397,6 +397,9 @@ export default function MaterialsPage() {
 
                                                 const data = new FormData();
                                                 data.append("file", file);
+                                                // API requires a context check: image vs document
+                                                const uploadContext = file.type.startsWith('image/') ? 'image' : 'document';
+                                                data.append("fileType", uploadContext);
 
                                                 try {
                                                     const res = await fetch("/api/v1/upload", { method: "POST", body: data });

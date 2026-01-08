@@ -415,6 +415,7 @@ export default function StudentDetailsPage({ params }) {
         setUploading(true);
         const data = new FormData();
         data.append("file", file);
+        data.append("fileType", "image");
 
         try {
             const res = await fetch("/api/v1/upload", {
