@@ -60,7 +60,8 @@ export default function StudentDetailsPage({ params }) {
         amount: "",
         method: "cash",
         reference: "",
-        notes: ""
+        notes: "",
+        date: format(new Date(), "yyyy-MM-dd")
     });
 
     const [isDeleting, setIsDeleting] = useState(false);
@@ -260,10 +261,11 @@ export default function StudentDetailsPage({ params }) {
     const openPaymentModal = (fee) => {
         setSelectedFee(fee);
         setPaymentData({
-            amount: (fee.totalAmount - (fee.paidAmount || 0)).toString(), // Default to remaining amount
+            amount: (fee.totalAmount - (fee.paidAmount || 0)).toString(),
             method: "cash",
             reference: "",
-            notes: ""
+            notes: "",
+            date: format(new Date(), "yyyy-MM-dd")
         });
         setIsPayModalOpen(true);
     };
@@ -1081,6 +1083,14 @@ export default function StudentDetailsPage({ params }) {
                             placeholder="e.g. UPI ID or Cheque No."
                             value={paymentData.reference}
                             onChange={(e) => setPaymentData({ ...paymentData, reference: e.target.value })}
+                        />
+
+                        <Input
+                            label="Payment Date"
+                            type="date"
+                            value={paymentData.date}
+                            onChange={(e) => setPaymentData({ ...paymentData, date: e.target.value })}
+                            required
                         />
                     </div>
 

@@ -84,7 +84,7 @@ export class FeeService {
             if (installment.status === 'paid') throw new Error("Installment is already paid");
 
             installment.status = 'paid';
-            installment.paidDate = new Date();
+            installment.paidDate = paymentDetails.date ? new Date(paymentDetails.date) : new Date();
             installment.paymentMethod = paymentDetails.method;
             installment.transactionId = paymentDetails.transactionId;
             installment.notes = paymentDetails.notes;
@@ -113,9 +113,9 @@ export class FeeService {
                 // Create one PAID installment for this amount
                 fee.installments.push({
                     amount: amountToPay,
-                    dueDate: new Date(),
+                    dueDate: paymentDetails.date ? new Date(paymentDetails.date) : new Date(),
                     status: 'paid',
-                    paidDate: new Date(),
+                    paidDate: paymentDetails.date ? new Date(paymentDetails.date) : new Date(),
                     paymentMethod: paymentDetails.method,
                     transactionId: paymentDetails.transactionId,
                     notes: paymentDetails.notes
@@ -156,7 +156,7 @@ export class FeeService {
                 if (Math.abs(current.amount - remaining) < 1.0) {
                     // Exact match
                     current.status = 'paid';
-                    current.paidDate = new Date();
+                    current.paidDate = paymentDetails.date ? new Date(paymentDetails.date) : new Date();
                     current.paymentMethod = paymentDetails.method;
                     current.transactionId = paymentDetails.transactionId;
                     current.notes = paymentDetails.notes;
@@ -178,7 +178,7 @@ export class FeeService {
                         amount: paidPart,
                         dueDate: current.dueDate,
                         status: 'paid',
-                        paidDate: new Date(),
+                        paidDate: paymentDetails.date ? new Date(paymentDetails.date) : new Date(),
                         paymentMethod: paymentDetails.method,
                         transactionId: paymentDetails.transactionId,
                         notes: paymentDetails.notes
