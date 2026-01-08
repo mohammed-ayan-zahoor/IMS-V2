@@ -274,7 +274,29 @@ export default function StudentDetailsPage({ params }) {
 
         try {
             setIsRecordingPayment(true);
-            const res = await fetch(`/api/v1/fees/${selectedFee._id}/payment`, {
+            let feeId = selectedFee._id;
+
+            // 1. If this is a "virtual" fee record (no record in DB), initialize it first
+            if (feeId === "new") {
+                const initRes = await fetch(`/api/v1/students/${id}/enroll`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ batchId: selectedFee.batch._id })
+                });
+
+                if (!initRes.ok) {
+                    const err = await initRes.json();
+                    throw new Error(err.error || "Failed to initialize fee record");
+                }
+
+                const initData = await initRes.json();
+                feeId = initData.fee?._id;
+
+                if (!feeId) throw new Error("Fee record initialization failed to return ID");
+            }
+
+            // 2. Record the payment
+            const res = await fetch(`/api/v1/fees/${feeId}/payment`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -292,7 +314,8 @@ export default function StudentDetailsPage({ params }) {
                 toast.error(err.error || "Failed to record payment");
             }
         } catch (error) {
-            toast.error("Payment failed");
+            console.error("Payment error:", error);
+            toast.error(error.message || "Payment failed");
         } finally {
             setIsRecordingPayment(false);
         }
@@ -552,88 +575,81 @@ export default function StudentDetailsPage({ params }) {
                     <div className="space-y-6">
                         <h3 className="text-lg font-bold text-slate-900 px-1">Fee & Payment Status</h3>
                         <div className="grid gap-4">
-                            {fees.map(fee => (
-                                <Card key={fee._id}>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
-                                                <CreditCard size={20} />
+                            {batches.map(batch => {
+                                const fee = fees.find(f => f.batch?._id === batch._id);
+                                const totalAmount = fee?.totalAmount || batch.course?.fees?.amount || 0;
+                                const paidAmount = fee?.paidAmount || 0;
+                                const isPaid = fee?.status === 'paid';
+
+                                return (
+                                    <Card key={batch._id}>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
+                                                    <CreditCard size={20} />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-slate-900">{batch.name}</h4>
+                                                    <p className="text-xs text-slate-500">Total: ₹{totalAmount.toLocaleString()}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h4 className="font-bold text-slate-900">{fee.batch?.name || "Course Fee"}</h4>
-                                                <p className="text-xs text-slate-500">Total: ₹{fee.totalAmount?.toLocaleString()}</p>
+                                            <div className="flex items-center gap-6">
+                                                <div className="text-right">
+                                                    <div className="text-xl font-black text-slate-900">
+                                                        ₹{paidAmount.toLocaleString()}
+                                                        <span className="text-xs text-slate-400 font-medium ml-1">/ {totalAmount.toLocaleString()}</span>
+                                                    </div>
+                                                    <p className={`text-xs font-bold ${isPaid ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                        {isPaid ? 'Fully Paid' : `Pending: ₹${(totalAmount - paidAmount).toLocaleString()}`}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {fee ? (
+                                                        <>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                                onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
+                                                                disabled={deletingFeeId === fee._id}
+                                                                aria-label="Delete Fee"
+                                                            >
+                                                                {deletingFeeId === fee._id ? (
+                                                                    <div className="w-3 h-3 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+                                                                ) : (
+                                                                    <Trash2 size={14} className={isPaid ? "" : "hidden"} />
+                                                                )}
+                                                                {!isPaid && (deletingFeeId === fee._id ? "" : "Delete")}
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => window.open(`/admin/receipts/${fee._id}`, '_blank')}
+                                                                title="View Receipt"
+                                                            >
+                                                                <FileText size={16} className="text-slate-400 hover:text-premium-blue" />
+                                                            </Button>
+                                                            {!isPaid && (
+                                                                <Button size="sm" variant="outline" onClick={() => openPaymentModal(fee)}>
+                                                                    Pay Fee
+                                                                </Button>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <Button size="sm" variant="outline" onClick={() => openPaymentModal({ batch, totalAmount, _id: "new" })}>
+                                                            Pay Fee
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-6">
-                                            <div className="text-right">
-                                                <div className="text-xl font-black text-slate-900">
-                                                    ₹{((fee.paidAmount || 0)).toLocaleString()}
-                                                    <span className="text-xs text-slate-400 font-medium ml-1">/ {fee.totalAmount?.toLocaleString()}</span>
-                                                </div>
-                                                <p className={`text-xs font-bold ${fee.status === 'paid' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                                    {fee.status === 'paid' ? 'Fully Paid' : `Pending: ₹${(fee.totalAmount - (fee.paidAmount || 0)).toLocaleString()}`}
-                                                </p>
-                                            </div>
-                                            {fee.status !== 'paid' && (
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                        onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
-                                                        disabled={deletingFeeId === fee._id}
-                                                        aria-label="Delete Fee"
-                                                    >
-                                                        {deletingFeeId === fee._id ? "Deleting..." : "Delete"}
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() => window.open(`/admin/receipts/${fee._id}`, '_blank')}
-                                                        title="View Receipt"
-                                                        aria-label={`View receipt for fee ${fee._id}`}
-                                                    >
-                                                        <FileText size={16} className="text-slate-400 hover:text-premium-blue" />
-                                                    </Button>
-                                                    <Button size="sm" variant="outline" onClick={() => openPaymentModal(fee)}>
-                                                        Pay Fee
-                                                    </Button>
-                                                </div>
-                                            )}
-                                            {fee.status === 'paid' && (
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-gray-400 hover:text-red-600"
-                                                        onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
-                                                        disabled={deletingFeeId === fee._id}
-                                                        aria-label="Delete Fee"
-                                                    >
-                                                        {deletingFeeId === fee._id ? (
-                                                            <div className="w-3 h-3 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
-                                                        ) : (
-                                                            <Trash2 size={14} />
-                                                        )}
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() => window.open(`/admin/receipts/${fee._id}`, '_blank')}
-                                                        title="View Receipt"
-                                                        aria-label={`View receipt for fee ${fee._id}`}
-                                                    >
-                                                        <FileText size={16} className="text-slate-400 hover:text-premium-blue" />
-                                                    </Button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Card>
-                            ))}
-                            {fees.length === 0 && (
+                                    </Card>
+                                );
+                            })}
+                            {batches.length === 0 && (
                                 <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                    <p className="text-slate-400 font-medium">No fee records found.</p>
+                                    <p className="text-slate-400 font-medium">No active enrollments found.</p>
+                                    <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-widest">Enroll in a batch to see fee status</p>
                                 </div>
                             )}
                         </div>

@@ -87,7 +87,7 @@ export default function ReceiptPage({ params }) {
     const template = previewTemplate || 'classic';
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-8 print:p-0 print:bg-white">
+        <div className="min-h-screen bg-slate-50 p-4 md:p-8 print:p-0 print:bg-white print:min-h-0 print:h-auto">
             {/* Toolbar (Hidden in Print) */}
             <div className="max-w-4xl mx-auto mb-8 flex flex-wrap justify-between items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm print:hidden">
                 <div className="flex items-center gap-6">
@@ -128,14 +128,14 @@ export default function ReceiptPage({ params }) {
             </div>
 
             {/* Receipt Content */}
-            <div className={`max-w-4xl mx-auto ${template === 'compact' && isDualCopy ? 'print:max-w-none' : ''}`}>
+            <div className={`max-w-4xl mx-auto ${template === 'compact' && isDualCopy ? 'print:max-w-none print:w-[210mm]' : ''}`}>
                 {template === 'compact' ? (
-                    <div className={isDualCopy ? "flex flex-col gap-0" : ""}>
+                    <div className={isDualCopy ? "flex flex-col gap-0 relative print:h-auto" : ""}>
                         <CompactSlip fee={fee} />
                         {isDualCopy && (
                             <>
-                                <div className="border-t-2 border-dashed border-slate-300 my-0 print:border-slate-400 print:mt-[-1px] relative print:z-10 hidden print:block">
-                                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-[8px] text-slate-400 uppercase font-black tracking-widest">Cut Here</div>
+                                <div className="hidden print:block absolute top-1/2 left-0 right-0 border-t-2 border-dashed border-slate-400 z-10 -translate-y-1/2">
+                                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-[9px] text-slate-400 uppercase font-black tracking-[0.3em]">Cut Here</div>
                                 </div>
                                 <CompactSlip fee={fee} isCopy />
                             </>
@@ -150,18 +150,23 @@ export default function ReceiptPage({ params }) {
                 @media print {
                     @page {
                         size: A4;
-                        margin: 0;
+                        margin: 0mm !important;
                     }
-                    body {
+                    html, body {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        height: auto !important;
+                        min-height: auto !important;
                         background: white;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
                     }
                     .receipt-slip {
-                        height: 148.5mm !important;
+                        height: 148mm !important;
                         page-break-inside: avoid;
-                        border-bottom: 1px dashed #ccc;
-                    }
-                    .receipt-slip:last-child {
-                        border-bottom: none;
+                        overflow: hidden !important;
+                        border: none !important;
+                        box-sizing: border-box;
                     }
                 }
             `}</style>

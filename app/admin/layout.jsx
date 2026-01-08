@@ -26,6 +26,17 @@ import {
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
+const sanitizeUrl = (url) => {
+    if (!url) return null;
+    try {
+        const parsed = new URL(url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+        return url;
+    } catch (e) {
+        return null;
+    }
+};
+
 export default function AdminLayout({ children }) {
     const { data: session, status } = useSession();
     const pathname = usePathname();
@@ -130,10 +141,27 @@ export default function AdminLayout({ children }) {
                 "w-64 border-r border-border bg-white fixed h-full z-[70] flex flex-col transition-transform duration-300 lg:translate-x-0 print:hidden",
                 isSidebarOpen ? "translate-x-0" : "-translate-x-full"
             )}>
-                <div className="p-8 pb-4 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-black tracking-tighter text-premium-blue">IMS-v2</h1>
-                        <p className="text-[10px] uppercase font-bold text-slate-400 mt-1">Administrator Portal</p>
+                <div className="p-6 pb-2 border-b border-slate-50">
+                    <div className="flex items-center gap-3">
+                        {sanitizeUrl(session?.user?.institute?.logo) ? (
+                            <img
+                                src={session.user.institute.logo}
+                                alt={session.user.institute.name}
+                                className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-slate-100 shadow-sm"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-lg bg-premium-blue/10 flex items-center justify-center border border-premium-blue/20 text-premium-blue font-black text-xs">
+                                {session?.user?.institute?.name?.slice(0, 2).toUpperCase() || "I"}
+                            </div>
+                        )}
+                        <div className="min-w-0">
+                            <h1 className="text-sm font-black tracking-tight text-slate-800 truncate leading-tight">
+                                {session?.user?.institute?.name || "IMS-v2"}
+                            </h1>
+                            <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
+                                {session?.user?.role} Portal
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -227,6 +255,12 @@ export default function AdminLayout({ children }) {
                         <LogOut size={18} />
                         <span>Sign Out</span>
                     </button>
+
+                    <div className="mt-4 text-center">
+                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-300">
+                            Powered by <span className="text-premium-blue">IMS-v2</span>
+                        </p>
+                    </div>
                 </div>
             </aside>
 
