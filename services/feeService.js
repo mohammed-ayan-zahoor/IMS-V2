@@ -216,4 +216,55 @@ export class FeeService {
 
         return fee;
     }
+    static async updateDiscount(feeId, discountData, actorId) {
+        await connectDB();
+        const fee = await FeeDb.findById(feeId).populate('student').populate('batch');
+        if (!fee) throw new Error("Fee record not found");
+
+        const oldDiscount = fee.discount?.amount || 0;
+        const amountValue = typeof discountData === 'object' ? discountData.amount : discountData;
+        const newDiscount = parseFloat(amountValue) || 0;
+
+        if (newDiscount < 0) {
+            throw new Error("Discount amount cannot be negative.");
+        }
+        if (newDiscount > fee.totalAmount) {
+            throw new Error("Discount cannot exceed the total fee amount.");
+        }
+
+        const discountDiff = newDiscount - oldDiscount;
+        fee.discount = {
+            amount: newDiscount,
+            reason: typeof discountData === 'object' ? discountData.reason : (fee.discount?.reason || 'General Discount'),
+            appliedBy: actorId,
+            appliedAt: new Date()
+        };
+
+        // If we have installments, we MUST adjust them to match the new total
+        if (fee.installments && fee.installments.length > 0) {
+            const pendingInstallments = fee.installments.filter(i => i.status !== 'paid');
+
+            if (pendingInstallments.length > 0) {
+                // Adjustment: Apply the discount difference to the last pending installment
+                // This is the simplest way to maintain balance.
+                const lastPending = pendingInstallments[pendingInstallments.length - 1];
+                const newAmount = lastPending.amount - discountDiff;
+
+                if (newAmount < 0) {
+                    throw new Error("Discount is too high to be applied to remaining pending installments.");
+                }
+
+                lastPending.amount = newAmount;
+            } else if (discountDiff !== 0) {
+                // No pending installments but discount changed? 
+                // This means the fee was already fully paid.
+                // We should probably block this or handle it as a refund, but for now let's block.
+                throw new Error("Cannot change discount on a fully paid fee record.");
+            }
+        }
+
+        await fee.save();
+
+        return fee;
+    }
 }

@@ -21,7 +21,9 @@ import {
     ChevronRight,
     Edit,
     Trash2,
-    FileText
+    FileText,
+    Percent,
+    Tag
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -267,6 +269,60 @@ export default function StudentDetailsPage({ params }) {
     };
 
     const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+    const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+    const [discountData, setDiscountData] = useState({ amount: "", reason: "" });
+    const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
+
+    const handleApplyDiscount = async (e) => {
+        e.preventDefault();
+        if (!selectedFee || selectedFee._id === "new") {
+            toast.error("Please record a payment first to create a fee record before applying a discount.");
+            return;
+        }
+
+        const amount = parseFloat(discountData.amount);
+        if (isNaN(amount) || amount <= 0 || !Number.isFinite(amount)) {
+            toast.error("Please enter a valid discount amount greater than zero.");
+            return;
+        }
+
+        const paidAmount = selectedFee.paidAmount || 0;
+        const totalAmount = selectedFee.totalAmount || 0;
+        const maxAllowedDiscount = totalAmount - paidAmount;
+
+        if (amount > maxAllowedDiscount) {
+            toast.error(`Discount cannot exceed the remaining balance of ₹${maxAllowedDiscount.toLocaleString()}.`);
+            return;
+        }
+
+        try {
+            setIsApplyingDiscount(true);
+            const res = await fetch(`/api/v1/fees/${selectedFee._id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    discount: {
+                        amount: amount,
+                        reason: discountData.reason
+                    }
+                })
+            });
+
+            if (res.ok) {
+                setIsDiscountModalOpen(false);
+                fetchStudentDetails();
+                toast.success("Discount applied successfully!");
+            } else {
+                const err = await res.json();
+                toast.error(err.error || "Failed to apply discount");
+            }
+        } catch (error) {
+            console.error("Discount error:", error);
+            toast.error(error.message || "Discount failed");
+        } finally {
+            setIsApplyingDiscount(false);
+        }
+    };
 
     const handleRecordPayment = async (e) => {
         e.preventDefault();
@@ -577,7 +633,9 @@ export default function StudentDetailsPage({ params }) {
                         <div className="grid gap-4">
                             {batches.map(batch => {
                                 const fee = fees.find(f => f.batch?._id === batch._id);
-                                const totalAmount = fee?.totalAmount || batch.course?.fees?.amount || 0;
+                                const originalTotal = fee?.totalAmount || batch.course?.fees?.amount || 0;
+                                const discountAmount = fee?.discount?.amount || 0;
+                                const totalPayable = originalTotal - discountAmount;
                                 const paidAmount = fee?.paidAmount || 0;
                                 const isPaid = fee?.status === 'paid';
 
@@ -590,22 +648,47 @@ export default function StudentDetailsPage({ params }) {
                                                 </div>
                                                 <div>
                                                     <h4 className="font-bold text-slate-900">{batch.name}</h4>
-                                                    <p className="text-xs text-slate-500">Total: ₹{totalAmount.toLocaleString()}</p>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <p className="text-xs text-slate-500">Original Total: ₹{originalTotal.toLocaleString()}</p>
+                                                        {discountAmount > 0 && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <p className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex items-center gap-1">
+                                                                    <Tag size={10} /> Discount: -₹{discountAmount.toLocaleString()}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-6">
                                                 <div className="text-right">
                                                     <div className="text-xl font-black text-slate-900">
                                                         ₹{paidAmount.toLocaleString()}
-                                                        <span className="text-xs text-slate-400 font-medium ml-1">/ {totalAmount.toLocaleString()}</span>
+                                                        <span className="text-xs text-slate-400 font-medium ml-1">/ {totalPayable.toLocaleString()}</span>
                                                     </div>
                                                     <p className={`text-xs font-bold ${isPaid ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                                        {isPaid ? 'Fully Paid' : `Pending: ₹${(totalAmount - paidAmount).toLocaleString()}`}
+                                                        {isPaid ? 'Fully Paid' : `Pending: ₹${Math.max(0, totalPayable - paidAmount).toLocaleString()}`}
                                                     </p>
                                                 </div>
                                                 <div className="flex gap-2">
                                                     {fee ? (
                                                         <>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                                                                onClick={() => {
+                                                                    setSelectedFee(fee);
+                                                                    setDiscountData({
+                                                                        amount: fee.discount?.amount || "",
+                                                                        reason: fee.discount?.reason || ""
+                                                                    });
+                                                                    setIsDiscountModalOpen(true);
+                                                                }}
+                                                                title="Apply Discount"
+                                                            >
+                                                                <Percent size={14} />
+                                                            </Button>
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
@@ -636,7 +719,7 @@ export default function StudentDetailsPage({ params }) {
                                                             )}
                                                         </>
                                                     ) : (
-                                                        <Button size="sm" variant="outline" onClick={() => openPaymentModal({ batch, totalAmount, _id: "new" })}>
+                                                        <Button size="sm" variant="outline" onClick={() => openPaymentModal({ batch, totalAmount: originalTotal, _id: "new" })}>
                                                             Pay Fee
                                                         </Button>
                                                     )}
@@ -1003,6 +1086,49 @@ export default function StudentDetailsPage({ params }) {
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsPayModalOpen(false)}>Cancel</Button>
                         <Button type="submit">Record Payment</Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Discount Modal */}
+            <Modal
+                isOpen={isDiscountModalOpen}
+                onClose={() => setIsDiscountModalOpen(false)}
+                title="Apply Fee Discount"
+            >
+                <form onSubmit={handleApplyDiscount} className="space-y-6">
+                    <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 mb-4">
+                        <p className="text-xs text-amber-600 font-bold uppercase tracking-wider mb-1">Applying For</p>
+                        <p className="text-sm font-bold text-slate-900">{selectedFee?.batch?.name}</p>
+                        <p className="text-xs text-slate-500">Original Total: ₹{selectedFee?.totalAmount?.toLocaleString()}</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <Input
+                            label="Discount Amount (₹)"
+                            type="number"
+                            placeholder="Amount to deduct"
+                            value={discountData.amount}
+                            onChange={(e) => setDiscountData({ ...discountData, amount: e.target.value })}
+                            required
+                            min="0"
+                            max={selectedFee?.totalAmount || 0}
+                        />
+
+                        <Input
+                            label="Reason for Discount"
+                            placeholder="e.g. Special Offer, Scholarship, etc."
+                            value={discountData.reason}
+                            onChange={(e) => setDiscountData({ ...discountData, reason: e.target.value })}
+                            required
+                        />
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
+                        <Button type="button" variant="ghost" onClick={() => setIsDiscountModalOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isApplyingDiscount} className="bg-amber-500 hover:bg-amber-600 border-none text-white font-bold px-4 py-2 rounded-lg">
+                            {isApplyingDiscount ? "Applying..." : "Apply Discount"}
+                        </Button>
                     </div>
                 </form>
             </Modal>

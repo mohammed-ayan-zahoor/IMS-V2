@@ -273,7 +273,7 @@ function ClassicReceipt({ fee }) {
                 <div className="w-64 space-y-3">
                     {fee.discount?.amount > 0 && (
                         <div className="flex justify-between text-sm text-red-500">
-                            <span className="font-medium">Discount</span>
+                            <span className="font-medium">Discount ({fee.discount.reason || 'General Discount'})</span>
                             <span className="font-bold">- {formatCurrency(fee.discount.amount)}</span>
                         </div>
                     )}
@@ -359,9 +359,15 @@ function CompactSlip({ fee, isCopy = false }) {
 
             {/* Compact Totals */}
             <div className="mt-auto">
+                {fee.discount?.amount > 0 && (
+                    <div className="flex justify-between items-baseline px-1 mb-2">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase italic">Applied Discount: {fee.discount.reason || 'General Discount'}</span>
+                        <span className="text-[10px] font-black text-red-500">-{formatCurrency(fee.discount.amount)}</span>
+                    </div>
+                )}
                 <div className="bg-slate-50 rounded-lg p-3 flex justify-between items-end border border-slate-100">
                     <div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase">Total Amount Paid</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase">Paid Amount</p>
                         <p className="text-xl font-black text-emerald-600">{formatCurrency(fee.paidAmount)}</p>
                     </div>
                     <div className="text-right">
