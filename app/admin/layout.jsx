@@ -148,6 +148,10 @@ export default function AdminLayout({ children }) {
                                 src={session.user.institute.logo}
                                 alt={session.user.institute.name}
                                 className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-slate-100 shadow-sm"
+                                style={{ imageRendering: "-webkit-optimize-contrast" }}
+                                crossOrigin="anonymous"
+                                decoding="async"
+                                loading="eager"
                             />
                         ) : (
                             <div className="w-10 h-10 rounded-lg bg-premium-blue/10 flex items-center justify-center border border-premium-blue/20 text-premium-blue font-black text-xs">

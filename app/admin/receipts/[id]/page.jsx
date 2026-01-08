@@ -63,7 +63,20 @@ export default function ReceiptPage({ params }) {
     };
 
     const handlePrint = () => {
-        window.print();
+        // Wait for images to load before printing
+        const images = document.querySelectorAll('.print-area img');
+        const promises = Array.from(images).map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
+                img.onload = resolve;
+                img.onerror = resolve; // Continue anyway if error
+            });
+        });
+
+        Promise.all(promises).then(() => {
+            // Give a tiny extra buffer for rendering engines
+            setTimeout(() => window.print(), 100);
+        });
     };
 
     if (loading) {
@@ -128,7 +141,7 @@ export default function ReceiptPage({ params }) {
             </div>
 
             {/* Receipt Content */}
-            <div className={`max-w-4xl mx-auto ${template === 'compact' && isDualCopy ? 'print:max-w-none print:w-[210mm]' : ''}`}>
+            <div className={`print-area max-w-4xl mx-auto ${template === 'compact' && isDualCopy ? 'print:max-w-none print:w-[210mm]' : ''}`}>
                 {template === 'compact' ? (
                     <div className={isDualCopy ? "flex flex-col gap-0 relative print:h-auto" : ""}>
                         <CompactSlip fee={fee} />
@@ -168,6 +181,9 @@ export default function ReceiptPage({ params }) {
                         border: none !important;
                         box-sizing: border-box;
                     }
+                    img {
+                        image-rendering: -webkit-optimize-contrast;
+                    }
                 }
             `}</style>
         </div>
@@ -186,7 +202,14 @@ function ClassicReceipt({ fee }) {
             <div className="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
                 <div>
                     {institute?.branding?.logo ? (
-                        <img src={institute.branding.logo} alt={institute.name} className="h-16 mb-4 object-contain" />
+                        <img
+                            src={institute.branding.logo}
+                            alt={institute.name}
+                            className="h-16 mb-4 object-contain"
+                            crossOrigin="anonymous"
+                            decoding="async"
+                            loading="eager"
+                        />
                     ) : (
                         <div className="h-16 w-16 bg-slate-100 rounded-lg flex items-center justify-center mb-4 text-slate-400 font-bold text-xs">NO LOGO</div>
                     )}
@@ -285,7 +308,14 @@ function CompactSlip({ fee, isCopy = false }) {
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
                     <div className="flex items-center gap-4">
                         {institute?.branding?.logo ? (
-                            <img src={institute.branding.logo} alt="Logo" className="h-10 object-contain" />
+                            <img
+                                src={institute.branding.logo}
+                                alt="Logo"
+                                className="h-10 object-contain"
+                                crossOrigin="anonymous"
+                                decoding="async"
+                                loading="eager"
+                            />
                         ) : (
                             <div className="h-10 w-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 font-bold text-[8px]">NO LOGO</div>
                         )}
