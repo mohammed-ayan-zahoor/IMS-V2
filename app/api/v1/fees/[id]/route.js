@@ -34,7 +34,7 @@ export async function GET(req, { params }) {
                 populate: { path: 'course', select: 'name' }
             })
             .populate('student', 'profile.firstName profile.lastName email enrollmentNumber')
-            .populate('institute', 'name branding address contactEmail contactPhone');
+            .populate('institute', 'name branding address contactEmail contactPhone settings');
 
         if (!fee) {
             return NextResponse.json({ error: "Fee record not found" }, { status: 404 });

@@ -71,6 +71,28 @@ export async function PATCH(req) {
         if (body.contactPhone) updateData.contactPhone = body.contactPhone;
         if (body.website) updateData.website = body.website;
 
+        if (body.settings) {
+            updateData.settings = {};
+            const allowedSettings = ['timezone', 'dateFormat', 'currency', 'language', 'receiptTemplate', 'emailNotifications', 'smsNotifications'];
+
+            allowedSettings.forEach(key => {
+                if (body.settings[key] !== undefined) {
+                    updateData.settings[key] = body.settings[key];
+                }
+            });
+
+            // Handle nested features object
+            if (body.settings.features) {
+                updateData.settings.features = {};
+                const allowedFeatures = ['exams', 'attendance', 'fees', 'materials'];
+                allowedFeatures.forEach(feature => {
+                    if (body.settings.features[feature] !== undefined) {
+                        updateData.settings.features[feature] = Boolean(body.settings.features[feature]);
+                    }
+                });
+            }
+        }
+
         // Validate Inputs
         if (updateData.contactEmail && !/^\S+@\S+\.\S+$/.test(updateData.contactEmail)) {
             return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
@@ -102,7 +124,14 @@ export async function PATCH(req) {
                 resource: { type: 'Institute', id: scope.instituteId },
                 institute: scope.instituteId,
                 details: {
-                    changes: Object.keys(updateData)
+                    changes: Object.keys(updateData).reduce((acc, key) => {
+                        if (key === 'settings' && updateData.settings) {
+                            // Expand settings keys
+                            const settingKeys = Object.keys(updateData.settings).map(sk => `settings.${sk}`);
+                            return [...acc, ...settingKeys];
+                        }
+                        return [...acc, key];
+                    }, [])
                 }
             });
         }

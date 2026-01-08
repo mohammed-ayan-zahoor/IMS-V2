@@ -84,6 +84,11 @@ const InstituteSchema = new Schema({
         dateFormat: { type: String, default: 'YYYY-MM-DD' },
         currency: { type: String, default: 'USD' },
         language: { type: String, default: 'en' },
+        receiptTemplate: {
+            type: String,
+            enum: ['classic', 'compact'],
+            default: 'classic'
+        },
 
         // Feature toggles
         features: {

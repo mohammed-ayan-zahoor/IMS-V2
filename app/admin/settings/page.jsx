@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import { cn } from "@/lib/utils";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -27,6 +28,9 @@ export default function SettingsPage() {
         },
         branding: {
             logo: ""
+        },
+        settings: {
+            receiptTemplate: "classic"
         }
     });
 
@@ -44,7 +48,8 @@ export default function SettingsPage() {
                     ...prev,
                     ...data.institute,
                     address: { ...prev.address, ...(data.institute?.address || {}) },
-                    branding: { ...prev.branding, ...(data.institute?.branding || {}) }
+                    branding: { ...prev.branding, ...(data.institute?.branding || {}) },
+                    settings: { ...prev.settings, ...(data.institute?.settings || {}) }
                 }));
             }
         } catch (error) {
@@ -255,6 +260,79 @@ export default function SettingsPage() {
                                 value={institute.address?.pincode || ""}
                                 onChange={e => setInstitute({ ...institute, address: { ...institute.address, pincode: e.target.value } })}
                             />
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Receipt Settings */}
+                <Card title="Fee Receipt Settings">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-3">
+                                <label className="text-sm font-bold text-slate-700">Receipt Design Template</label>
+                                <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Receipt Design Template">
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={institute.settings?.receiptTemplate === 'classic'}
+                                        onClick={() => setInstitute({ ...institute, settings: { ...institute.settings, receiptTemplate: 'classic' } })}
+                                        className={cn(
+                                            "flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all",
+                                            institute.settings?.receiptTemplate === 'classic'
+                                                ? "border-premium-blue bg-premium-blue/5"
+                                                : "border-slate-100 hover:border-slate-200"
+                                        )}
+                                    >
+                                        <div className="w-full aspect-[3/4] bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200 shadow-inner">
+                                            <div className="w-4/5 h-4/5 bg-white shadow-sm flex flex-col gap-1 p-2">
+                                                <div className="h-2 w-1/3 bg-slate-100 mb-1" />
+                                                <div className="h-1 w-full bg-slate-50" />
+                                                <div className="h-5 w-full bg-slate-50 mt-auto" />
+                                            </div>
+                                        </div>
+                                        <span className="text-xs font-bold uppercase tracking-wider">Classic Full</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={institute.settings?.receiptTemplate === 'compact'}
+                                        onClick={() => setInstitute({ ...institute, settings: { ...institute.settings, receiptTemplate: 'compact' } })}
+                                        className={cn(
+                                            "flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all",
+                                            institute.settings?.receiptTemplate === 'compact'
+                                                ? "border-premium-blue bg-premium-blue/5"
+                                                : "border-slate-100 hover:border-slate-200"
+                                        )}
+                                    >
+                                        <div className="w-full aspect-[3/4] bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200 shadow-inner">
+                                            <div className="w-4/5 h-1/2 bg-white shadow-sm flex flex-col gap-1 p-2">
+                                                <div className="h-1 w-1/3 bg-slate-100 mb-1" />
+                                                <div className="h-4 w-full bg-slate-50 mt-auto" />
+                                            </div>
+                                        </div>
+                                        <span className="text-xs font-bold uppercase tracking-wider">Compact Slip</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+                                <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-3">Layout Details</h4>
+                                <ul className="space-y-2">
+                                    <li className="flex items-start gap-2 text-xs font-medium text-slate-500">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-premium-blue mt-1 shrink-0" />
+                                        <span>{institute.settings?.receiptTemplate === 'classic' ? 'Professional full-page layout' : 'Compact slip-style layout (50% A4 height)'}</span>
+                                    </li>
+                                    <li className="flex items-start gap-2 text-xs font-medium text-slate-500">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-premium-blue mt-1 shrink-0" />
+                                        <span>Showcases institute logo and branding</span>
+                                    </li>
+                                    {institute.settings?.receiptTemplate === 'compact' && (
+                                        <li className="flex items-start gap-2 text-xs font-bold text-amber-600">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1 shrink-0" />
+                                            <span>Option to print 2 slips per A4 page</span>
+                                        </li>
+                                    )}
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </Card>
