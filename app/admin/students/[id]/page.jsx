@@ -374,7 +374,7 @@ export default function StudentDetailsPage({ params }) {
                 }
 
                 const initData = await initRes.json();
-                feeId = initData.fee?._id;
+                feeId = initData.data?.fee?._id;
 
                 if (!feeId) throw new Error("Fee record initialization failed to return ID");
             }
