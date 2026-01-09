@@ -1118,7 +1118,7 @@ export default function StudentDetailsPage({ params }) {
                                 onChange={(val) => setPaymentData({ ...paymentData, collectedBy: val })}
                                 options={[
                                     { label: "Select Collector", value: "" },
-                                    ...collectors.map(c => ({ label: c.name, value: c._id }))
+                                    ...collectors.map(c => ({ label: c.name, value: c.name }))
                                 ]}
                                 required
                             />
