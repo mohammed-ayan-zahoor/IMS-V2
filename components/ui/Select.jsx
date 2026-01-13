@@ -14,6 +14,7 @@ export default function Select({
     error,
     disabled = false,
     className,
+    buttonClassName,
     name
 }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -55,11 +56,12 @@ export default function Select({
                     type="button"
                     onClick={() => !disabled && setIsOpen(!isOpen)}
                     className={cn(
-                        "w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none transition-all duration-200 text-left flex items-center justify-between",
+                        "w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none transition-all duration-200 text-left flex items-center justify-between gap-2",
                         "focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10",
                         error && "border-red-500",
                         disabled && "opacity-50 cursor-not-allowed",
-                        !selectedOption && "text-slate-400"
+                        !selectedOption && "text-slate-400",
+                        buttonClassName
                     )}
                 >
                     <span className="truncate block text-sm font-medium text-slate-700">

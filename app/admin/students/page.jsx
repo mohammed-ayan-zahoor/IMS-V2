@@ -277,11 +277,13 @@ export default function StudentsPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        <div className="w-40">
+                        <div className="min-w-[160px] max-w-xs">
                             <Select
                                 value={filters.courseId}
                                 onChange={(val) => setFilters({ ...filters, courseId: val })}
                                 placeholder="All Courses"
+                                className="w-auto"
+                                buttonClassName="w-auto min-w-full"
                                 options={[
                                     { label: "All Courses", value: "" },
                                     ...courses.map(c => ({ label: c.name, value: c._id }))
@@ -289,11 +291,13 @@ export default function StudentsPage() {
                             />
                         </div>
 
-                        <div className="w-40">
+                        <div className="min-w-[160px] max-w-xs">
                             <Select
                                 value={filters.batchId}
                                 onChange={(val) => setFilters({ ...filters, batchId: val })}
                                 placeholder="All Batches"
+                                className="w-auto"
+                                buttonClassName="w-auto min-w-full"
                                 options={[
                                     { label: "All Batches", value: "" },
                                     ...batches.map(b => ({ label: b.name, value: b._id }))
@@ -301,7 +305,7 @@ export default function StudentsPage() {
                             />
                         </div>
 
-                        <div className="w-32">
+                        <div className="min-w-[140px]">
                             <Select
                                 value={filters.isActive}
                                 onChange={(val) => setFilters({ ...filters, isActive: val })}
@@ -324,7 +328,7 @@ export default function StudentsPage() {
                         </Button>
                         )}
                     </div>
-                </CardHeader>
+                </CardHeader >
 
                 <CardContent className="p-0">
                     {loading ? (
@@ -449,16 +453,17 @@ export default function StudentsPage() {
                         />
                     )}
                 </CardContent>
-            </Card>
+            </Card >
 
             {/* Add Student Modal ... */}
-            <Modal
+            < Modal
                 isOpen={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
+                onClose={() => setIsAddModalOpen(false)
+                }
                 title="Register New Student"
             >
                 {/* ... Modal content ... */}
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">Academic Information</div>
+                < div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2" > Academic Information</div >
                 <form onSubmit={handleAddStudent} className="space-y-5">
                     {/* ... form fields reused exactly ... */}
                     <div className="grid grid-cols-2 gap-4">
@@ -552,7 +557,7 @@ export default function StudentsPage() {
                         <Button type="submit" className="flex-1">Register Student</Button>
                     </div>
                 </form>
-            </Modal>
-        </div>
+            </Modal >
+        </div >
     );
 }
