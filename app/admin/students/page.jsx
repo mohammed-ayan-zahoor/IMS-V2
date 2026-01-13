@@ -19,7 +19,8 @@ import {
     Mail,
     Phone,
     Fingerprint,
-    Users
+    Users,
+    Printer
 } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -143,6 +144,84 @@ export default function StudentsPage() {
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handlePrint = async () => {
+        try {
+            const queryParams = new URLSearchParams({
+                search,
+                batchId: filters.batchId,
+                courseId: filters.courseId,
+                isActive: filters.isActive,
+                page: '1',
+                limit: '1000' // Get all for print
+            });
+
+            const res = await fetch(`/api/v1/students?${queryParams.toString()}`);
+            const data = await res.json();
+            const printStudents = data.students || [];
+
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(`
+                  <html>
+                    <head>
+                      <title>Student List</title>
+                      <style>
+                        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; color: #1e293b; }
+                        h1 { font-size: 20px; font-weight: 800; margin-bottom: 5px; color: #0f172a; }
+                        p.meta { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                        th { text-align: left; padding: 8px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; }
+                        td { padding: 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+                        tr:nth-child(even) { background-color: #f8fafc; }
+                        .status-active { color: #16a34a; font-weight: 600; }
+                        .status-inactive { color: #dc2626; font-weight: 600; }
+                        @media print {
+                          @page { margin: 1cm; }
+                          body { -webkit-print-color-adjust: exact; }
+                        }
+                      </style>
+                    </head>
+                    <body>
+                      <h1>Student List</h1>
+                      <p class="meta">Generated: ${format(new Date(), "PPpp")} | showing ${printStudents.length} records</p>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Enrollment ID</th>
+                            <th>Contact</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${printStudents.map((s, i) => `
+                            <tr>
+                              <td style="color:#94a3b8;">${i + 1}</td>
+                              <td style="font-weight:600;">${s.fullName}</td>
+                              <td style="font-family:monospace; color:#475569;">${s.enrollmentNumber || 'PENDING'}</td>
+                              <td>${s.profile?.phone || '-'}</td>
+                              <td>${s.email}</td>
+                              <td class="${s.isActive ? 'status-active' : 'status-inactive'}">${s.isActive ? 'Active' : 'Inactive'}</td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                      <script>
+                        window.onload = function() { window.print(); }
+                      </script>
+                    </body>
+                  </html>
+                `);
+                printWindow.document.close();
+            }
+        } catch (error) {
+            console.error("Print failed", error);
+            toast.error("Failed to generate print view");
         }
     };
 
@@ -327,9 +406,20 @@ export default function StudentsPage() {
                             Reset
                         </Button>
                         )}
-                    </div>
-                </CardHeader >
 
+                        <div className="pl-2 border-l border-slate-200">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handlePrint}
+                                className="text-slate-400 hover:text-premium-blue hover:bg-premium-blue/5"
+                                title="Print List"
+                            >
+                                <Printer size={18} />
+                            </Button>
+                        </div>
+                    </div>
+                </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
                         <LoadingSpinner />
@@ -456,15 +546,12 @@ export default function StudentsPage() {
             </Card >
 
             {/* Add Student Modal ... */}
-            < Modal
+            <Modal
                 isOpen={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)
-                }
-                title="Register New Student"
+                onClose={() => setIsAddModalOpen(false)} title="Register New Student"
             >
                 {/* ... Modal content ... */}
-                < div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2" > Academic Information</div >
-                <form onSubmit={handleAddStudent} className="space-y-5">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">Academic Information</div>                <form onSubmit={handleAddStudent} className="space-y-5">
                     {/* ... form fields reused exactly ... */}
                     <div className="grid grid-cols-2 gap-4">
                         <Input

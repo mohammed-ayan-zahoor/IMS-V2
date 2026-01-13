@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Check, X } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -114,8 +114,3 @@ export default function Select({
     );
 }
 
-// Helper to wrap primitive <select> props if needed, but the above is cleaner to implement directly.
-// Need to handle 'props' usage for 'name'.
-function SelectWrapper(props) {
-    return <Select {...props} />;
-}
