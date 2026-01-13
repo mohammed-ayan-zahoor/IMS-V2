@@ -28,6 +28,11 @@ export default function ManageExamPage({ params }) {
     const [selectedBankQuestions, setSelectedBankQuestions] = useState([]);
     const [bankLoading, setBankLoading] = useState(false);
 
+    // Search & Filter State
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filterSubject, setFilterSubject] = useState("");
+    const [filterCourse, setFilterCourse] = useState("");
+
     const toast = useToast();
     const confirm = useConfirm();
 
@@ -71,6 +76,11 @@ export default function ManageExamPage({ params }) {
 
     const openAddModal = () => {
         setIsAddModalOpen(true);
+        // Reset Search & Filters
+        setSearchTerm("");
+        setFilterSubject("");
+        setFilterCourse("");
+
         fetchBankQuestions();
         setSelectedBankQuestions([]);
     };
@@ -147,6 +157,13 @@ export default function ManageExamPage({ params }) {
         }
     };
 
+    // Question Filtering Logic
+    const filteredQuestions = bankQuestions.filter(q => {
+        const matchesSearch = (q.text || "").toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSubject = !filterSubject || q.subject === filterSubject;
+        const matchesCourse = !filterCourse || q.course?.name === filterCourse;
+        return matchesSearch && matchesSubject && matchesCourse;
+    });
     if (loading) return <LoadingSpinner fullPage />;
     if (!exam) return <div className="p-10 text-center">Exam not found</div>;
 
@@ -308,42 +325,84 @@ export default function ManageExamPage({ params }) {
                 className="max-w-4xl"
                 title="Add Questions from Bank"
             >
-                <div className="max-h-[60vh] overflow-y-auto space-y-2 p-1">
-                    {bankLoading ? <LoadingSpinner /> : (
-                        bankQuestions.length === 0 ? (
-                            <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                                <div className="bg-slate-50 p-3 rounded-full">
-                                    <Search className="h-6 w-6 text-slate-400" />
-                                </div>
-                                <div>
-                                    <p className="text-slate-900 font-medium">No questions found</p>
-                                    <p className="text-slate-500 text-sm">Try refreshing or adding questions to the bank.</p>
-                                </div>
-                            </div>
-                        ) : (
-                            bankQuestions.map(q => (
-                                <div
-                                    key={q._id}
-                                    onClick={() => handleSelectQuestion(q._id)}
-                                    className={`p-3 rounded-xl border cursor-pointer transition-all flex gap-3 ${selectedBankQuestions.includes(q._id)
-                                        ? "bg-premium-blue/5 border-premium-blue ring-1 ring-premium-blue"
-                                        : "bg-white border-slate-200 hover:border-premium-blue/50"
-                                        }`}
-                                >
-                                    <div className={`w-4 h-4 mt-1 rounded-full border flex-shrink-0 flex items-center justify-center ${selectedBankQuestions.includes(q._id) ? "bg-premium-blue border-premium-blue" : "border-slate-300"
-                                        }`}>
-                                        {selectedBankQuestions.includes(q._id) && <CheckCircle size={10} className="text-white" />}
+                <div className="space-y-4">
+                    <div className="flex gap-3">
+                        <Input
+                            placeholder="Search questions..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="flex-1"
+                        />
+                        <select
+                            aria-label="Filter by subject"
+                            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-premium-blue/20"
+                            value={filterSubject}
+                            onChange={(e) => setFilterSubject(e.target.value)}
+                        >
+                            <option value="">All Subjects</option>
+                            {[...new Set(bankQuestions.map(q => q.subject).filter(Boolean))].map(s => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
+                        <select
+                            aria-label="Filter by course"
+                            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-premium-blue/20"
+                            value={filterCourse}
+                            onChange={(e) => setFilterCourse(e.target.value)}
+                        >
+                            <option value="">All Courses</option>
+                            {[...new Set(bankQuestions.map(q => q.course?.name).filter(Boolean))].map(c => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="max-h-[50vh] overflow-y-auto space-y-2 p-1">
+                        {bankLoading ? <LoadingSpinner /> : (
+                            filteredQuestions.length === 0 ? (
+                                <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                                    <div className="bg-slate-50 p-3 rounded-full">
+                                        <Search className="h-6 w-6 text-slate-400" />
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-sm text-slate-900 font-medium line-clamp-2" dangerouslySetInnerHTML={{ __html: q.text }} />
-                                        <p className="text-xs text-slate-500 mt-1">
-                                            {q.subject} • {q.classLevel} • {q.marks} Marks
-                                        </p>
+                                    <div>
+                                        <p className="text-slate-900 font-medium">No questions found</p>
+                                        <p className="text-slate-500 text-sm">Try adjusting your filters.</p>
                                     </div>
                                 </div>
-                            ))
-                        )
-                    )}
+                            ) : (
+                                filteredQuestions.map(q => (
+                                    <div
+                                        key={q._id}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-pressed={selectedBankQuestions.includes(q._id)}
+                                        onClick={() => handleSelectQuestion(q._id)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                handleSelectQuestion(q._id);
+                                            }
+                                        }}
+                                        className={`p-3 rounded-xl border cursor-pointer transition-all flex gap-3 ${selectedBankQuestions.includes(q._id)
+                                            ? "bg-premium-blue/5 border-premium-blue ring-1 ring-premium-blue"
+                                            : "bg-white border-slate-200 hover:border-premium-blue/50"
+                                            }`}
+                                    >
+                                        <div className={`w-4 h-4 mt-1 rounded-full border flex-shrink-0 flex items-center justify-center ${selectedBankQuestions.includes(q._id) ? "bg-premium-blue border-premium-blue" : "border-slate-300"
+                                            }`}>
+                                            {selectedBankQuestions.includes(q._id) && <CheckCircle size={10} className="text-white" />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm text-slate-900 font-medium line-clamp-2" dangerouslySetInnerHTML={{ __html: q.text }} />
+                                            <p className="text-xs text-slate-500 mt-1">
+                                                {q.subject} • {q.classLevel} • {q.marks} Marks
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))
+                            )
+                        )}
+                    </div>
                 </div>
                 <div className="pt-6 mt-4 border-t border-slate-100 flex justify-end gap-3">
                     <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
