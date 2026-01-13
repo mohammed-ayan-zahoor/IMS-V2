@@ -68,34 +68,26 @@ export default function CreateExamPage() {
             setFormData(prev => ({ ...prev, scheduledAt: "" }));
             return;
         }
-        // Input val is Local Time string (YYYY-MM-DDTHH:mm)
-        // Create Date object - constructor assumes local time from such string
         const localDate = new Date(val);
-        if (isNaN(localDate.getTime())) {
-            return;
-        }
+        if (isNaN(localDate.getTime())) return;
 
-        // Store as ISO (UTC)
-        const utcString = localDate.toISOString();
-        const handleEndTimeChange = (val) => {
-            if (!val) {
-                setFormData(prev => ({ ...prev, endAt: "" }));
-                return;
-            }
-            const localDate = new Date(val);
-            if (isNaN(localDate.getTime())) {
-                return;
-            }
-            const utcString = localDate.toISOString();
-
-            setFormData(prev => ({
-                ...prev,
-                endAt: utcString
-            }));
-        };
         setFormData(prev => ({
             ...prev,
-            endAt: utcString
+            scheduledAt: localDate.toISOString()
+        }));
+    };
+
+    const handleEndTimeChange = (val) => {
+        if (!val) {
+            setFormData(prev => ({ ...prev, endAt: "" }));
+            return;
+        }
+        const localDate = new Date(val);
+        if (isNaN(localDate.getTime())) return;
+
+        setFormData(prev => ({
+            ...prev,
+            endAt: localDate.toISOString()
         }));
     };
 
