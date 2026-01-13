@@ -21,16 +21,17 @@ export async function GET(req) {
             "Gender" // Optional
         ];
 
-        // Create sample data for clarity (optional, or just headers)        const sampleData = [
-        {
-            FirstName: "John",
+        // Create sample data for clarity (optional, or just headers)
+        const sampleData = [
+            {
+                FirstName: "John",
                 LastName: "Doe",
-                    Email: "john.doe@example.com",
-                        Phone: "9876543210",
-                            // Password: "", // Omitted to enforce security; system will generate if missing
-                            EnrollmentNumber: "STU001",
-                                Gender: "Male"
-        }
+                Email: "john.doe@example.com",
+                Phone: "9876543210",
+                // Password: "", // Omitted to enforce security; system will generate if missing
+                EnrollmentNumber: "STU001",
+                Gender: "Male"
+            }
         ];
 
         // Create workbook and worksheet

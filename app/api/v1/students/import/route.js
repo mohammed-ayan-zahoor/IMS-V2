@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import { Student } from "@/models/Student";
+import Student from "@/models/User"; // Direct access to User model (aliased as Student) for bulk ops
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getInstituteScope } from "@/middleware/instituteScope";
@@ -121,14 +121,46 @@ export async function POST(req) {
 
         // Bulk Insert if any valid
         if (successResults.length > 0) {
-            // Parallel Password Hashing
+            // 1. Auto-generate Enrollment IDs for students who are missing one
+            const studentsMissingId = successResults.filter(s => !s.enrollmentNumber);
+
+            if (studentsMissingId.length > 0) {
+                const year = new Date().getFullYear();
+                const counterId = `student_enrollment_${year}`;
+
+                // Atomically reserve a block of IDs
+                // Note: We need to import Counter model dynamically or at top-level
+                // Ideally import Counter from '@/models/Counter'; at top
+                const Counter = (await import("@/models/Counter")).default;
+
+                const counter = await Counter.findByIdAndUpdate(
+                    counterId,
+                    { $inc: { seq: studentsMissingId.length } },
+                    { new: true, upsert: true }
+                );
+
+                if (!counter) throw new Error("Failed to generate enrollment sequence");
+
+                // Calculate starting sequence for this batch
+                // If current seq is 105 and we reserved 5, valid IDs are 101, 102, 103, 104, 105
+                let currentSeq = counter.seq - studentsMissingId.length + 1;
+
+                // Assign IDs
+                studentsMissingId.forEach(s => {
+                    s.enrollmentNumber = `STU${year}${String(currentSeq).padStart(4, '0')}`;
+                    currentSeq++;
+                });
+            }
+
+            // 2. Parallel Password Hashing
             const hashedPasswords = await Promise.all(
                 successResults.map(s => bcrypt.hash(s.password, 10))
             );
 
             // Assign hashes back
             successResults.forEach((s, idx) => {
-                s.password = hashedPasswords[idx];
+                s.passwordHash = hashedPasswords[idx]; // Map to correct DB field
+                delete s.password; // Remove temp field
             });
 
             await Student.insertMany(successResults);
