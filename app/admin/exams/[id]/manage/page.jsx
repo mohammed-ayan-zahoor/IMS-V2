@@ -166,9 +166,17 @@ export default function ManageExamPage({ params }) {
                                 {exam.status.toUpperCase()}
                             </Badge>
                         </div>
-                        <p className="text-sm text-slate-500 font-medium mt-1">
-                            {format(new Date(exam.scheduledAt), "PPP p")} • {exam.duration} mins
-                        </p>
+                        {(() => {
+                            const endTime = exam.schedule?.endTime
+                                ? new Date(exam.schedule.endTime)
+                                : new Date(new Date(exam.scheduledAt).getTime() + (exam.duration * 60000));
+
+                            return (
+                                <p className="text-sm text-slate-500 font-medium mt-1">
+                                    {format(new Date(exam.scheduledAt), "MMM d, h:mm a")} - {format(endTime, "MMM d, h:mm a")} • {exam.duration} mins (Limit)
+                                </p>
+                            );
+                        })()}
                     </div>
                 </div>
                 <div className="flex gap-3">

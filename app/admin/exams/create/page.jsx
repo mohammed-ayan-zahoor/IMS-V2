@@ -45,50 +45,62 @@ export default function CreateExamPage() {
         }
     }, [formData.course, batches]);
 
-    // Sync Logic
+    // Helper: Convert UTC string to Local DateTime string for input[type="datetime-local"]
+    const toLocalISOString = (dateString) => {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "";
+
+        // Get local date components
+        const pad = (n) => n.toString().padStart(2, '0');
+        const year = date.getFullYear();
+        const month = pad(date.getMonth() + 1);
+        const day = pad(date.getDate());
+        const hours = pad(date.getHours());
+        const minutes = pad(date.getMinutes());
+
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
     const handleStartTimeChange = (val) => {
-        const start = new Date(val);
-        const end = new Date(start.getTime() + (Number(formData.duration) * 60000));
+        if (!val) {
+            setFormData(prev => ({ ...prev, scheduledAt: "" }));
+            return;
+        }
+        // Input val is Local Time string (YYYY-MM-DDTHH:mm)
+        // Create Date object - constructor assumes local time from such string
+        const localDate = new Date(val);
+        if (isNaN(localDate.getTime())) {
+            return;
+        }
+
+        // Store as ISO (UTC)
+        const utcString = localDate.toISOString();
+        const handleEndTimeChange = (val) => {
+            if (!val) {
+                setFormData(prev => ({ ...prev, endAt: "" }));
+                return;
+            }
+            const localDate = new Date(val);
+            if (isNaN(localDate.getTime())) {
+                return;
+            }
+            const utcString = localDate.toISOString();
+
+            setFormData(prev => ({
+                ...prev,
+                endAt: utcString
+            }));
+        };
         setFormData(prev => ({
             ...prev,
-            scheduledAt: val,
-            endAt: !isNaN(end) ? end.toISOString().slice(0, 16) : ""
+            endAt: utcString
         }));
     };
 
     const handleDurationChange = (val) => {
-        const duration = Number(val);
-        let endAt = formData.endAt;
-        if (formData.scheduledAt) {
-            const start = new Date(formData.scheduledAt);
-            const end = new Date(start.getTime() + (duration * 60000));
-            endAt = !isNaN(end) ? end.toISOString().slice(0, 16) : "";
-        }
-        setFormData(prev => ({ ...prev, duration: duration, endAt: endAt }));
-    };
-
-    const handleEndTimeChange = (val) => {
-        // Validation: Cannot be before start time
-        if (formData.scheduledAt) {
-            const start = new Date(formData.scheduledAt);
-            const end = new Date(val);
-            const diffMs = end - start;
-
-            if (diffMs <= 0) {
-                // Invalid: End time is before Start time
-                // Don't update endAt or duration, but maybe show toast or error state?
-                // For now, just early return to prevent invalid state.
-                // Ideally set a form error state here.
-                return;
-            }
-
-            // Valid duration
-            const duration = Math.floor(diffMs / 60000);
-            setFormData(prev => ({ ...prev, endAt: val, duration: duration }));
-        } else {
-            // No start time set yet, just set end time
-            setFormData(prev => ({ ...prev, endAt: val }));
-        }
+        // Duration is now independent of End Time
+        setFormData(prev => ({ ...prev, duration: Number(val) }));
     };
 
     const fetchDropdowns = async () => {
@@ -131,6 +143,14 @@ export default function CreateExamPage() {
 
             const startTime = new Date(formData.scheduledAt);
             const endTime = new Date(formData.endAt);
+            const minEndTime = new Date(startTime.getTime() + (Number(formData.duration) * 60000));
+
+            // Logic Check: Window must accommodate duration
+            if (endTime < minEndTime) {
+                toast.warning(`End time must be at least ${formData.duration} mins after start time to allow full duration.`);
+                setLoading(false);
+                return;
+            }
 
             const payload = {
                 ...formData,
@@ -240,22 +260,22 @@ export default function CreateExamPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Input
-                            label="Start Date & Time"
+                            label="Start Date & Time (Window Open)"
                             type="datetime-local"
-                            value={formData.scheduledAt}
+                            value={toLocalISOString(formData.scheduledAt)}
                             onChange={(e) => handleStartTimeChange(e.target.value)}
                         />
                         <Input
-                            label="End Date & Time"
+                            label="End Date & Time (Window Close)"
                             type="datetime-local"
-                            value={formData.endAt}
+                            value={toLocalISOString(formData.endAt)}
                             onChange={(e) => handleEndTimeChange(e.target.value)}
                         />
                         <Input
                             label="Passing Marks"
                             type="number"
                             value={formData.passingMarks}
-                            onChange={(e) => setFormData({ ...formData, passingMarks: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, passingMarks: Number(e.target.value) })}
                         />
                     </div>
 
@@ -265,7 +285,7 @@ export default function CreateExamPage() {
                             type="number"
                             min="1"
                             value={formData.maxAttempts}
-                            onChange={(e) => setFormData({ ...formData, maxAttempts: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, maxAttempts: Number(e.target.value) })}
                         />
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 uppercase">Result Visibility</label>

@@ -96,6 +96,12 @@ ExamSchema.pre('save', async function () {
         throw new Error('End time must be after start time');
     }
 
+    // Validation: Availability Window must be at least as long as the duration
+    const windowDurationMinutes = (this.schedule.endTime - this.schedule.startTime) / (1000 * 60);
+    if (windowDurationMinutes < this.duration) {
+        throw new Error(`Availability window (${Math.floor(windowDurationMinutes)} mins) must be at least equal to exam duration (${this.duration} mins)`);
+    }
+
     // Only run these checks if totalMarks/passingMarks/status are being modified or doc is new
     validateTotalMarks(this.status, this.totalMarks);
     validatePassingMarks(this.passingMarks, this.totalMarks);
