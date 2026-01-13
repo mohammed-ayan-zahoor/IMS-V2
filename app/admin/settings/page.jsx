@@ -337,6 +337,26 @@ export default function SettingsPage() {
                     </div>
                 </Card>
 
+                {/* Data Management */}
+                <Card title="Data Management">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h4 className="text-sm font-bold text-slate-700">Bulk Student Import Template</h4>
+                            <p className="text-xs text-slate-500 max-w-sm mt-1">
+                                Download the standardized Excel template with required headers (FirstName, LastName, Email, etc.) to bulk upload students.
+                            </p>
+                        </div>
+                        <a
+                            href="/api/v1/students/template"
+                            target="_blank"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 font-bold text-sm rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+                            Download Template
+                        </a>
+                    </div>
+                </Card>
+
                 {/* Actions */}
                 <div className="flex justify-end pt-4">
                     <Button type="submit" disabled={isSaving || uploading} className="px-8">

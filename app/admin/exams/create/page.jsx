@@ -30,9 +30,9 @@ export default function CreateExamPage() {
         scheduledAt: "",
         endAt: "",
         status: "draft",
-        questions: [] // Intentionally empty
+        questions: [], // Intentionally empty
+        resultPublication: "immediate"
     });
-
     useEffect(() => {
         fetchDropdowns();
     }, []);
@@ -63,9 +63,9 @@ export default function CreateExamPage() {
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
-    const handleStartTimeChange = (val) => {
+    const handleTimeChange = (val, field) => {
         if (!val) {
-            setFormData(prev => ({ ...prev, scheduledAt: "" }));
+            setFormData(prev => ({ ...prev, [field]: "" }));
             return;
         }
         const localDate = new Date(val);
@@ -73,21 +73,7 @@ export default function CreateExamPage() {
 
         setFormData(prev => ({
             ...prev,
-            scheduledAt: localDate.toISOString()
-        }));
-    };
-
-    const handleEndTimeChange = (val) => {
-        if (!val) {
-            setFormData(prev => ({ ...prev, endAt: "" }));
-            return;
-        }
-        const localDate = new Date(val);
-        if (isNaN(localDate.getTime())) return;
-
-        setFormData(prev => ({
-            ...prev,
-            endAt: localDate.toISOString()
+            [field]: localDate.toISOString()
         }));
     };
 
@@ -236,13 +222,12 @@ export default function CreateExamPage() {
                             <label className="text-xs font-bold text-slate-500 uppercase">Assign Batches</label>
                             <div className="grid grid-cols-2 gap-2">
                                 {filteredBatches.map(batch => (
-                                    <label key={batch._id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-premium-blue transaction-colors">
-                                        <input
-                                            type="checkbox"
-                                            className="w-4 h-4 text-premium-blue rounded focus:ring-premium-blue"
-                                            checked={formData.batches.includes(batch._id)}
-                                            onChange={() => handleBatchSelection(batch._id)}
-                                        />
+                                    <label key={batch._id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-premium-blue transition-colors">                                        <input
+                                        type="checkbox"
+                                        className="w-4 h-4 text-premium-blue rounded focus:ring-premium-blue"
+                                        checked={formData.batches.includes(batch._id)}
+                                        onChange={() => handleBatchSelection(batch._id)}
+                                    />
                                         <span className="text-sm font-bold text-slate-700">{batch.name}</span>
                                     </label>
                                 ))}
@@ -256,13 +241,13 @@ export default function CreateExamPage() {
                             label="Start Date & Time (Window Open)"
                             type="datetime-local"
                             value={toLocalISOString(formData.scheduledAt)}
-                            onChange={(e) => handleStartTimeChange(e.target.value)}
+                            onChange={(e) => handleTimeChange(e.target.value, "scheduledAt")}
                         />
                         <Input
                             label="End Date & Time (Window Close)"
                             type="datetime-local"
                             value={toLocalISOString(formData.endAt)}
-                            onChange={(e) => handleEndTimeChange(e.target.value)}
+                            onChange={(e) => handleTimeChange(e.target.value, "endAt")}
                         />
                         <Input
                             label="Passing Marks"

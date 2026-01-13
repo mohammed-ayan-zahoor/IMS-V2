@@ -20,7 +20,12 @@ import {
     Phone,
     Fingerprint,
     Users,
-    Printer
+    Printer,
+    FileSpreadsheet,
+    AlertCircle,
+    CheckCircle,
+    X,
+    Upload
 } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -33,6 +38,12 @@ export default function StudentsPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+    // Import Logic State
+    const [importFile, setImportFile] = useState(null);
+    const [importStatus, setImportStatus] = useState("idle"); // idle, uploading, success, error
+    const [importResult, setImportResult] = useState(null); // { successCount, failedCount, errors }
 
     // Filter State
     const [batches, setBatches] = useState([]);
@@ -159,11 +170,24 @@ export default function StudentsPage() {
             });
 
             const res = await fetch(`/api/v1/students?${queryParams.toString()}`);
+            if (!res.ok) {
+                throw new Error(`Failed to fetch students for print: ${res.status}`);
+            }
             const data = await res.json();
             const printStudents = data.students || [];
-
             const printWindow = window.open('', '_blank');
             if (printWindow) {
+                // XSS Protection Helper
+                const escapeHtml = (unsafe) => {
+                    if (unsafe === null || unsafe === undefined) return "";
+                    return String(unsafe)
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")
+                        .replace(/"/g, "&quot;")
+                        .replace(/'/g, "&#039;");
+                };
+
                 printWindow.document.write(`
                   <html>
                     <head>
@@ -186,7 +210,7 @@ export default function StudentsPage() {
                     </head>
                     <body>
                       <h1>Student List</h1>
-                      <p class="meta">Generated: ${format(new Date(), "PPpp")} | showing ${printStudents.length} records</p>
+                      <p class="meta">Generated: ${escapeHtml(format(new Date(), "PPpp"))} | showing ${printStudents.length} records</p>
                       <table>
                         <thead>
                           <tr>
@@ -202,10 +226,10 @@ export default function StudentsPage() {
                           ${printStudents.map((s, i) => `
                             <tr>
                               <td style="color:#94a3b8;">${i + 1}</td>
-                              <td style="font-weight:600;">${s.fullName}</td>
-                              <td style="font-family:monospace; color:#475569;">${s.enrollmentNumber || 'PENDING'}</td>
-                              <td>${s.profile?.phone || '-'}</td>
-                              <td>${s.email}</td>
+                              <td style="font-weight:600;">${escapeHtml(s.fullName)}</td>
+                              <td style="font-family:monospace; color:#475569;">${escapeHtml(s.enrollmentNumber || 'PENDING')}</td>
+                              <td>${escapeHtml(s.profile?.phone || '-')}</td>
+                              <td>${escapeHtml(s.email)}</td>
                               <td class="${s.isActive ? 'status-active' : 'status-inactive'}">${s.isActive ? 'Active' : 'Inactive'}</td>
                             </tr>
                           `).join('')}
@@ -290,6 +314,54 @@ export default function StudentsPage() {
         }
     };
 
+    const handleImport = async () => {
+        if (!importFile) return;
+        setLoading(true); // Re-use main loading or local
+        // Actually better to have local loading state for modal
+        setImportStatus("uploading");
+
+        try {
+            const formData = new FormData();
+            formData.append("file", importFile);
+
+            const res = await fetch("/api/v1/students/import", {
+                method: "POST",
+                body: formData
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                setImportResult({
+                    successCount: data.importedCount,
+                    failedCount: data.failedCount,
+                    errors: data.errors
+                });
+                setImportStatus("success");
+                if (data.importedCount > 0) {
+                    fetchStudents(); // Refresh list
+                    toast.success(`Imported ${data.importedCount} students successfully`);
+                }
+            } else {
+                setImportStatus("error");
+                toast.error(data.error || "Import failed");
+            }
+
+        } catch (error) {
+            setImportStatus("error");
+            console.error("Import error", error);
+            toast.error("Import failed");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const resetImport = () => {
+        setImportFile(null);
+        setImportStatus("idle");
+        setImportResult(null);
+        setIsImportModalOpen(false);
+    };
+
 
 
     // ... existing ...
@@ -335,10 +407,16 @@ export default function StudentsPage() {
                     <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Student Management</h1>
                     <p className="text-slate-400 mt-1 text-sm font-medium">Manage admissions, enrollments and student records across batches.</p>
                 </div>
-                <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
-                    <UserPlus size={18} />
-                    <span>New Admission</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button onClick={() => setIsImportModalOpen(true)} variant="outline" className="flex items-center gap-2">
+                        <FileSpreadsheet size={18} />
+                        <span>Import</span>
+                    </Button>
+                    <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
+                        <UserPlus size={18} />
+                        <span>New Admission</span>
+                    </Button>
+                </div>
             </div>
 
             <Card className="transition-all border-transparent shadow-sm">
@@ -644,6 +722,153 @@ export default function StudentsPage() {
                         <Button type="submit" className="flex-1">Register Student</Button>
                     </div>
                 </form>
+            </Modal >
+            {/* Import Modal */}
+            <Modal
+                isOpen={isImportModalOpen}
+                onClose={resetImport}
+                title="Bulk Import Students"
+            >
+                <div className="space-y-6">
+                    {importStatus === "idle" && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                                <FileSpreadsheet className="mx-auto text-premium-blue mb-2" size={32} />
+                                <h3 className="text-sm font-bold text-slate-800">Upload Excel File</h3>
+                                <p className="text-xs text-slate-500 mt-1 mb-4">
+                                    Select the .xlsx file containing student records.
+                                    <br />
+                                    <a href="/api/v1/students/template" target="_blank" className="text-premium-blue hover:underline font-bold">Download Template</a>
+                                </p>
+                                <input
+                                    type="file"
+                                    accept=".xlsx, .xls"
+                                    onChange={(e) => setImportFile(e.target.files[0])}
+                                    className="block w-full text-sm text-slate-500
+                                      file:mr-4 file:py-2 file:px-4
+                                      file:rounded-full file:border-0
+                                      file:text-xs file:font-semibold
+                                      file:bg-premium-blue file:text-white
+                                      hover:file:bg-premium-blue/90
+                                      cursor-pointer
+                                    "
+                                />
+                            </div>
+                            {importFile && (
+                                <Button onClick={handleImport} className="w-full" disabled={!importFile}>
+                                    <Upload className="mr-2" size={16} />
+                                    Start Import
+                                </Button>
+                            )}
+                        </div>
+                    )}
+
+                    {importStatus === "uploading" && (
+                        <div className="flex flex-col items-center justify-center p-8">
+                            <LoadingSpinner />
+                            <p className="text-sm font-bold text-slate-600 mt-4">Processing Excel File...</p>
+                            <p className="text-xs text-slate-400">Please do not close this window.</p>
+                        </div>
+                    )}
+
+                    {importStatus === "success" && importResult && (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex flex-col items-center">
+                                    <CheckCircle className="text-emerald-500 mb-1" size={24} />
+                                    <span className="text-2xl font-black text-emerald-800">{importResult.successCount}</span>
+                                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Imported</span>
+                                </div>
+                                <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex flex-col items-center">
+                                    <X className="text-red-500 mb-1" size={24} />
+                                    <span className="text-2xl font-black text-red-800">{importResult.failedCount}</span>
+                                    <span className="text-xs font-bold text-red-600 uppercase tracking-wider">Failed</span>
+                                </div>
+                            </div>
+
+                            {importResult.failedCount > 0 && (
+                                <div className="space-y-2">
+                                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Error Report</h4>
+                                    <div className="max-h-[200px] overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-slate-50 sticky top-0 z-10">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Row</th>
+                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Input</th>
+                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Reason</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white">
+                                                {importResult.errors.map((err, idx) => (
+                                                    <tr key={idx} className="hover:bg-red-50/50">
+                                                        <td className="px-3 py-2 text-xs font-mono text-slate-500">{err.row}</td>
+                                                        <td className="px-3 py-2 text-xs font-medium text-slate-700">{err.identifier}</td>
+                                                        <td className="px-3 py-2 text-xs font-bold text-red-600">{err.reason}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="pt-2">
+                                <Button onClick={resetImport} variant="outline" className="w-full">
+                                    Close & Refresh
+                                </Button>
+                            </div>
+                        </div>
+
+                    )}
+
+                    {importStatus === "error" && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex flex-col items-center text-center">
+                                <AlertCircle className="text-red-500 mb-2" size={32} />
+                                <h3 className="text-lg font-bold text-red-800">Import Failed</h3>
+                                <p className="text-sm font-medium text-red-600 mt-1">
+                                    {/* Show specific error if importResult exists (valid file but parse error), else generic */}
+                                    {importResult?.failedCount > 0
+                                        ? "Some rows contained errors."
+                                        : "The file could not be processed. Please check the format."}
+                                </p>
+                            </div>
+
+                            {/* Reuse the same error table if we have detail errors (e.g. from partial failure response) */}
+                            {importResult?.errors?.length > 0 && (
+                                <div className="space-y-2">
+                                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Error Details</h4>
+                                    <div className="max-h-[200px] overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-slate-50 sticky top-0 z-10">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Row</th>
+                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Input</th>
+                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Reason</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white">
+                                                {importResult.errors.map((err, idx) => (
+                                                    <tr key={idx} className="hover:bg-red-50/50">
+                                                        <td className="px-3 py-2 text-xs font-mono text-slate-500">{err.row}</td>
+                                                        <td className="px-3 py-2 text-xs font-medium text-slate-700">{err.identifier}</td>
+                                                        <td className="px-3 py-2 text-xs font-bold text-red-600">{err.reason}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="pt-2">
+                                <Button onClick={resetImport} variant="outline" className="w-full">
+                                    Try Again
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </Modal >
         </div >
     );
