@@ -19,7 +19,7 @@ export async function GET(req) {
         }
         const { searchParams } = new URL(req.url);
         const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit")) || 10));
+        const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get("limit")) || 10));
         const search = searchParams.get("search") || "";
         const showDeleted = searchParams.get("showDeleted") === "true";
         const batchId = searchParams.get("batchId");
