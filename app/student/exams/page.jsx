@@ -202,8 +202,9 @@ function ExamCard({ exam, onAction }) {
                         variant={exam.submissionStatus === "evaluated" || exam.submissionStatus === "submitted" ? "outline" : "default"}
                     >
                         {isResume ? "Resume Exam" :
-                            exam.submissionStatus === "available" ? "Start Exam" :
-                                "View Result"}
+                            exam.submissionStatus === "available"
+                                ? (exam.attemptsUsed > 0 ? "Retake Exam" : "Start Exam")
+                                : "View Result"}
                         {exam.submissionStatus === "available" && <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />}
                     </Button>
                 ) : (

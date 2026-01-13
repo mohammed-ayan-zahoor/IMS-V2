@@ -26,6 +26,7 @@ export default function CreateExamPage() {
         batches: [], // Array of batch IDs
         duration: 60,
         passingMarks: 0,
+        maxAttempts: 1,
         scheduledAt: "",
         endAt: "",
         status: "draft",

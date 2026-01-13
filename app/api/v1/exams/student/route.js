@@ -63,9 +63,9 @@ export async function GET(req) {
                     );
                 }
 
-                const maxAttempts = exam.maxAttempts || 1;
+                const rawMaxAttempts = Number(exam.maxAttempts);
+                const maxAttempts = Number.isNaN(rawMaxAttempts) ? 1 : rawMaxAttempts;
                 const isUnlimited = maxAttempts === 0;
-
                 let status = 'available';
 
                 // 1. Check if exam window is valid
