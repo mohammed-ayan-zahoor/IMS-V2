@@ -52,12 +52,8 @@ export class ExamSecurityService {
     /**
      * Validate exam timing
      */
-    static validateExamTiming(exam) {    static validateExamTiming(exam) {
+    static validateExamTiming(exam) {
         const now = new Date();
-        const startTime = new Date(exam.schedule?.startTime || exam.scheduledAt); // Support legacy & new
-        const endTime = new Date(exam.schedule?.endTime);
-
-        const startTime = new Date(exam.schedule?.startTime || exam.scheduledAt); // Support legacy & new
         // Support legacy data: compute endTime from scheduledAt + duration if schedule.endTime is missing
         const endTime = exam.schedule?.endTime
             ? new Date(exam.schedule.endTime)

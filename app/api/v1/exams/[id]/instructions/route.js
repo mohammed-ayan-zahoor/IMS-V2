@@ -13,7 +13,7 @@ export async function GET(req, { params }) {
 
         await connectDB();
 
-        await connectDB();
+
 
         const { id: examId } = await params;
 
