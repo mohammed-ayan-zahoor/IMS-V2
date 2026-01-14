@@ -10,11 +10,12 @@ import { getInstituteScope, validateInstituteAccess } from "@/middleware/institu
 const { z } = require("zod");
 
 const PaymentSchema = z.object({
-    installmentId: z.string().min(1, "Installment ID is required"),
+    installmentId: z.string().optional(), // Optional for ad-hoc / waterfall payments
     amount: z.number().positive("Amount must be positive"),
     method: z.string().min(1, "Payment method is required"),
     transactionId: z.string().optional(),
     date: z.string().optional(),
+    collectedBy: z.string().optional(), // Whitelist collectedBy
     notes: z.string().optional()
 });
 

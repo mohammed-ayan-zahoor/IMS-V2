@@ -14,7 +14,7 @@ const AuditLogSchema = new Schema({
         enum: [
             'student.create', 'student.update', 'student.delete',
             'course.create', 'course.update', 'course.delete',
-            'batch.create', 'batch.update', 'batch.delete', 'batch.enroll', 'batch.remove_student',
+            'batch.create', 'batch.update', 'batch.delete', 'batch.enroll', 'batch.remove_student', 'batch.course_transfer',
             'fee.create', 'fee.update', 'fee.payment', 'fee.delete', 'fee.discount',
             'material.upload', 'material.delete',
             'attendance.mark', 'attendance.update',
