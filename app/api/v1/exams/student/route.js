@@ -57,15 +57,24 @@ export async function GET(req) {
 
                 // Find best result
                 let bestSubmission = null;
+                let latestSubmission = null;
+
                 if (submissions.length > 0) {
-                    bestSubmission = submissions.reduce((prev, current) =>
+                    // Filter to completed submissions and sort by submission time (descending)
+                    const completedSubmissions = submissions
+                        .filter(s => s.status !== 'in_progress' && s.submittedAt)
+                        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+                    latestSubmission = completedSubmissions[0] || null; bestSubmission = submissions.reduce((prev, current) =>
                         (prev.score > current.score) ? prev : current
                     );
                 }
 
                 const rawMaxAttempts = Number(exam.maxAttempts);
-                const maxAttempts = Number.isNaN(rawMaxAttempts) ? 1 : rawMaxAttempts;
+                // Default to 1 only if truly invalid or missing. If 0 (unlimited), keep 0.
+                // If it is 0, we treat as unlimited.
+                const maxAttempts = (rawMaxAttempts === 0 || !Number.isNaN(rawMaxAttempts)) ? rawMaxAttempts : 1;
                 const isUnlimited = maxAttempts === 0;
+
                 let status = 'available';
 
                 // 1. Check if exam window is valid
@@ -96,6 +105,14 @@ export async function GET(req) {
                         percentage: bestSubmission.percentage,
                         status: bestSubmission.status,
                         _id: bestSubmission._id
+                    } : null,
+                    // Frontend expects 'submission' for ID. sending best or latest?
+                    // Usually "View Result" should show the most relevant one. 
+                    // Let's send the latest one so they see what they just did.
+                    submission: latestSubmission ? {
+                        _id: latestSubmission._id,
+                        status: latestSubmission.status,
+                        score: latestSubmission.score
                     } : null
                 };
             })
