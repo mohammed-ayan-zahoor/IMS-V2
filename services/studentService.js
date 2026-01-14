@@ -482,12 +482,28 @@ export class StudentService {
         const student = await User.findById(studentId);
         if (!student) throw new Error("Student not found");
 
+        // 2. Clean up Fee record (Smart Logic)
+         // A. If status is 'not_started' (no payment history), DELETE it clean.        }
+
+static async unenrollFromBatch(studentId, batchId, actorId, instituteId) {
+        await connectDB(); // Ensure DB connection
+
+        if (!studentId || !batchId) {
+            throw new Error("studentId and batchId are required");
+        }
+
+        // Transaction logic removed for standalone MongoDB support
+
+        // Check if active student exists
+        const student = await User.findById(studentId);
+        if (!student) throw new Error("Student not found");
+
         // Verify institute scope
         if (instituteId && student.institute && student.institute.toString() !== instituteId.toString()) {
             throw new Error("Unauthorized: Student belongs to a different institute");
         }
 
-        // 1. Remove from Batch Enrolled Students
+        // 1. Remove from Batch Enrolled Students        // 1. Remove from Batch Enrolled Students
         // STRICT SECURITY: Use student.institute to scope the query.
         // A student can only be unenrolled from a batch that belongs to THEIR institute.
         const batch = await Batch.findOneAndUpdate(
@@ -498,7 +514,9 @@ export class StudentService {
 
         if (!batch) throw new Error("Batch not found or access denied");
 
-        // 2. Clean up Fee record (Smart Logic)
+        // 2. Clean up Fee record (Smart Logic) - SAFETY CHECK FIRST
+        if (!studentId || !batchId) throw new Error("Critical: Missing IDs for fee cleanup");
+
         // A. If status is 'not_started' (no payment history), DELETE it clean.
         const deleteResult = await Fee.deleteMany({
             student: studentId,
