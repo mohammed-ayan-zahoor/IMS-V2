@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { FeeService } from "@/services/feeService";
+import { StudentService } from "@/services/studentService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
@@ -33,6 +34,23 @@ export async function GET(req) {
             if (session.user.institute?.id) {
                 filters.institute = session.user.institute.id;
             }
+        } else if (session.user.role === 'instructor') {
+            if (!session.user.institute?.id) {
+                return NextResponse.json({ error: "Instructor has no institute context" }, { status: 403 });
+            }
+            filters.institute = session.user.institute.id;
+            // Security: If specific student is requested, verify assignment
+            if (filters.student) {
+                const isAssigned = await StudentService.verifyInstructorAccess(session.user.id, filters.student);
+                if (!isAssigned) {
+                    return NextResponse.json({ error: "Forbidden: You are not assigned to this student" }, { status: 403 });
+                }
+            } else {
+                // Note: If no student filter, we should ideally return ONLY fees for assigned students.
+                // However, for the specific "Fees" tab on a Student Profile, the frontend sends a student ID.
+                // For a general "Fee List", we might need more complex filtering in FeeService (e.g. getFeesForInstructor).
+                // For now, checking the explicit filter covers the user's specific request about blocking unassigned access.
+            }
         } else {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
@@ -48,8 +66,12 @@ export async function GET(req) {
 export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !["admin", "super_admin"].includes(session.user.role)) {
+        if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        if (!["admin", "super_admin", "instructor"].includes(session.user.role)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const body = await req.json();

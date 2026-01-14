@@ -22,6 +22,10 @@ export default function UserManagementPage() {
     const [activeTab, setActiveTab] = useState("students"); // 'students' or 'admins'
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+    // Assignment Data
+    const [availableBatches, setAvailableBatches] = useState([]);
+    const [availableCourses, setAvailableCourses] = useState([]);
+
     // Password Change State
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
@@ -34,7 +38,9 @@ export default function UserManagementPage() {
         email: "",
         phone: "",
         password: "",
-        role: "student"
+        role: "student",
+        assignedBatches: [], // Multi-select IDs
+        assignedCourses: []  // Multi-select IDs
     });
 
     const isInitialFetch = useRef(true);
@@ -96,6 +102,40 @@ export default function UserManagementPage() {
         }
     };
 
+    // Fetch Batches & Courses for Assignment
+    const fetchAssignmentData = async () => {
+        try {
+            const [batchRes, courseRes] = await Promise.all([
+                fetch('/api/v1/batches'),
+                fetch('/api/v1/courses')
+            ]);
+
+            if (batchRes.ok) {
+                const bData = await batchRes.json();
+                setAvailableBatches(bData.batches || []);
+            } else {
+                toast.error("Failed to load batches");
+            }
+            if (courseRes.ok) {
+                const cData = await courseRes.json();
+                setAvailableCourses(cData.courses || []);
+            } else {
+                toast.error("Failed to load courses");
+            }
+        } catch (err) {
+            console.error("Failed to load assignment data", err);
+            toast.error("Failed to load assignment options");
+        }
+    };
+    useEffect(() => {
+        if (isCreateModalOpen && formData.role === 'instructor') {
+            // Optimization: Avoid refetching if data is already loaded
+            if (availableBatches.length === 0 && availableCourses.length === 0) {
+                fetchAssignmentData();
+            }
+        }
+    }, [isCreateModalOpen, formData.role, availableBatches.length, availableCourses.length]);
+
     const handleCreateUser = async (e) => {
         e.preventDefault();
         try {
@@ -109,7 +149,9 @@ export default function UserManagementPage() {
                 setIsCreateModalOpen(false);
                 setFormData({
                     firstName: "", lastName: "", email: "", phone: "",
-                    password: "", role: "student"
+                    password: "", role: "student",
+                    assignedBatches: [],
+                    assignedCourses: []
                 });
                 fetchUsers();
                 toast.success("User created successfully");
@@ -154,10 +196,11 @@ export default function UserManagementPage() {
                 }
             } catch (error) {
                 console.error(error);
-                toast.error("An error occurred");
+                toast.error("Failed to delete user");
             }
         }
     };
+
     const openPasswordModal = (user) => {
         setSelectedUser(user);
         setNewPassword("");
@@ -345,6 +388,63 @@ export default function UserManagementPage() {
                             ]}
                         />
                     </div>
+
+                    {/* Instructor Assignments */}
+                    {formData.role === 'instructor' && (
+                        <div className="space-y-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                            <h4 className="text-sm font-bold text-slate-700">Access Assignments</h4>
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label htmlFor="assigned-batches" className="text-xs font-bold text-slate-500 mb-1 block">Assigned Batches (Select Multiple)</label>
+                                    <select
+                                        id="assigned-batches"
+                                        multiple
+                                        className="w-full p-2 border border-slate-200 rounded-md text-sm min-h-[100px]"
+                                        value={formData.assignedBatches}
+                                        onChange={(e) => {
+                                            const options = [...e.target.selectedOptions];
+                                            const values = options.map(option => option.value);
+                                            setFormData({ ...formData, assignedBatches: values });
+                                        }}
+                                    >
+                                        {availableBatches.length > 0 ? (
+                                            availableBatches.map(b => (
+                                                <option key={b._id} value={b._id}>{b.name}</option>
+                                            ))
+                                        ) : (
+                                            <option disabled>Loading batches or none found...</option>
+                                        )}
+                                    </select>
+                                    {availableBatches.length === 0 && <p className="text-xs text-slate-400 mt-1">No batches available</p>}
+                                    <p className="text-[10px] text-slate-400 mt-1">Hold Ctrl/Cmd to select multiple</p>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="assigned-courses" className="text-xs font-bold text-slate-500 mb-1 block">Assigned Courses (Select Multiple)</label>
+                                    <select
+                                        id="assigned-courses"
+                                        multiple
+                                        className="w-full p-2 border border-slate-200 rounded-md text-sm min-h-[100px]"
+                                        value={formData.assignedCourses}
+                                        onChange={(e) => {
+                                            const options = [...e.target.selectedOptions];
+                                            const values = options.map(option => option.value);
+                                            setFormData({ ...formData, assignedCourses: values });
+                                        }}
+                                    >
+                                        {availableCourses.length > 0 ? (
+                                            availableCourses.map(c => (
+                                                <option key={c._id} value={c._id}>{c.name}</option>
+                                            ))
+                                        ) : (
+                                            <option disabled>Loading courses or none found...</option>
+                                        )}
+                                    </select>
+                                    {availableCourses.length === 0 && <p className="text-xs text-slate-400 mt-1">No courses available</p>}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <Input label="Password" type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} required />
 

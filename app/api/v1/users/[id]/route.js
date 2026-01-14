@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
+import Batch from "@/models/Batch";
+import Course from "@/models/Course";
+import mongoose from "mongoose";
 import AuditLog from "@/models/AuditLog";
 import { StudentService } from "@/services/studentService";
 import bcrypt from "bcryptjs";
@@ -58,6 +61,60 @@ export async function PATCH(req, { params }) {
                 return NextResponse.json({ error: "Insufficient permissions to assign super_admin role" }, { status: 403 });
             }
             user.role = body.role;
+        }
+
+        // Handle Assignments Update (Instructors)
+        // Handle Assignments Update (Instructors)
+        if (body.assignedBatches !== undefined || body.assignedCourses !== undefined) {
+            // Only relevant if user is/becoming instructor
+            const effectiveRole = body.role || user.role;
+            if (effectiveRole === 'instructor') {
+                if (!user.assignments) user.assignments = {};
+
+                // Validate and Assign Batches
+                if (body.assignedBatches !== undefined) {
+                    if (!Array.isArray(body.assignedBatches)) {
+                        return NextResponse.json({ error: "Assigned batches must be an array" }, { status: 400 });
+                    }
+                    // Validate IDs format
+                    if (body.assignedBatches.some(id => !mongoose.Types.ObjectId.isValid(id))) {
+                        return NextResponse.json({ error: "Invalid batch ID format in assignments" }, { status: 400 });
+                    }
+                    // Verify existence in DB
+                    if (body.assignedBatches.length > 0) {
+                        const count = await Batch.countDocuments({
+                            _id: { $in: body.assignedBatches },
+                            deletedAt: null // Only active batches
+                        });
+                        if (count !== body.assignedBatches.length) {
+                            return NextResponse.json({ error: "One or more assigned batches do not exist or are deleted" }, { status: 400 });
+                        }
+                    }
+                    user.assignments.batches = body.assignedBatches;
+                }
+
+                // Validate and Assign Courses
+                if (body.assignedCourses !== undefined) {
+                    if (!Array.isArray(body.assignedCourses)) {
+                        return NextResponse.json({ error: "Assigned courses must be an array" }, { status: 400 });
+                    }
+                    // Validate IDs format
+                    if (body.assignedCourses.some(id => !mongoose.Types.ObjectId.isValid(id))) {
+                        return NextResponse.json({ error: "Invalid course ID format in assignments" }, { status: 400 });
+                    }
+                    // Verify existence in DB
+                    if (body.assignedCourses.length > 0) {
+                        const count = await Course.countDocuments({
+                            _id: { $in: body.assignedCourses },
+                            deletedAt: null // Only active courses
+                        });
+                        if (count !== body.assignedCourses.length) {
+                            return NextResponse.json({ error: "One or more assigned courses do not exist or are deleted" }, { status: 400 });
+                        }
+                    }
+                    user.assignments.courses = body.assignedCourses;
+                }
+            }
         }
 
         await user.save();

@@ -120,9 +120,30 @@ export default function AdminLayout({ children }) {
         setExpandedGroup(prev => prev === groupLabel ? null : groupLabel);
     };
 
+    // Determine base path for links (admin vs instructor)
+    const getBasePath = () => {
+        // If current path starts with /instructor, all links should use /instructor prefix
+        if (pathname?.startsWith("/instructor")) return "/instructor";
+        // Or if role is instructor (redundant but safe)
+        if (session?.user?.role === "instructor") return "/instructor";
+        return "/admin";
+    };
+
+    const basePath = getBasePath();
+
+    // Helper to replace /admin with current base path
+    const getHref = (href) => {
+        if (href.startsWith("/admin")) {
+            return href.replace("/admin", basePath);
+        }
+        return href;
+    };
+
+    const dashboardHref = getHref("/admin/dashboard");
+
     return (
         <div className="flex min-h-screen bg-background text-foreground">
-            {/* Mobile Menu Toggle */}
+            {/* ... (mobile menu toggle code remains same) ... */}
             <button
                 onClick={() => setIsSidebarOpen(true)}
                 aria-label="Open navigation menu"
@@ -177,16 +198,16 @@ export default function AdminLayout({ children }) {
                     {/* Dashboard (Top Level) */}
                     <div>
                         <Link
-                            href="/admin/dashboard"
+                            href={dashboardHref}
                             onClick={() => setIsSidebarOpen(false)}
                             className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-bold border-l-4 border-transparent",
-                                pathname === "/admin/dashboard"
+                                pathname === dashboardHref
                                     ? "soft-active border-premium-blue"
                                     : "hover:bg-slate-50 text-slate-500 hover:text-premium-blue"
                             )}
                         >
-                            <LayoutDashboard size={18} className={cn(pathname === "/admin/dashboard" ? "text-premium-blue" : "text-slate-400 group-hover:text-premium-blue")} />
+                            <LayoutDashboard size={18} className={cn(pathname === dashboardHref ? "text-premium-blue" : "text-slate-400 group-hover:text-premium-blue")} />
                             <span className="flex-1">Dashboard</span>
                         </Link>
                     </div>
@@ -210,19 +231,23 @@ export default function AdminLayout({ children }) {
                                     {group.items.map((item) => {
                                         // Improved active state logic: check for exact match or deeper path match
                                         // but only if another more specific item doesn't match better.
-                                        const isExact = pathname === item.href;
-                                        const isSubPath = pathname.startsWith(item.href + "/");
+                                        const href = getHref(item.href);
+                                        const isExact = pathname === href;
+                                        const isSubPath = pathname.startsWith(href + "/");
 
                                         // Check if any other item in any group is a more specific match for current path
                                         const hasMoreSpecificMatch = menuGroups.some(g =>
-                                            g.items.some(i => i.href !== item.href && pathname.startsWith(i.href) && i.href.length > item.href.length)
+                                            g.items.some(i => {
+                                                const otherHref = getHref(i.href);
+                                                return i.href !== item.href && pathname.startsWith(otherHref) && otherHref.length > href.length;
+                                            })
                                         );
 
                                         const isActive = isExact || (isSubPath && !hasMoreSpecificMatch);
                                         return (
                                             <Link
-                                                key={item.href}
-                                                href={item.href}
+                                                key={href}
+                                                href={href}
                                                 onClick={() => setIsSidebarOpen(false)}
                                                 className={cn(
                                                     "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group text-[13px] font-bold border-l-4 border-transparent ml-2",

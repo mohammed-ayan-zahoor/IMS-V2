@@ -26,6 +26,11 @@ const UserSchema = new Schema({
         required: true,
         index: true
     },
+    // RBAC: Assignments for Instructors/Staff
+    assignments: {
+        batches: [{ type: Schema.Types.ObjectId, ref: 'Batch' }],
+        courses: [{ type: Schema.Types.ObjectId, ref: 'Course' }]
+    },
     profile: {
         type: {
             firstName: { type: String, required: true },
@@ -68,9 +73,7 @@ const UserSchema = new Schema({
     toObject: { virtuals: true }
 });
 
-// Indexes
-UserSchema.index({ role: 1, deletedAt: 1 });
-UserSchema.index({ 'profile.firstName': 'text', 'profile.lastName': 'text' });
+
 
 // Partial unique indexes to allow reusing email/enrollmentNumber if previous one is deleted
 // Scoped by Institute
@@ -92,6 +95,7 @@ UserSchema.virtual('isActive').get(function () {
 
 // Pre-save hook to ensure enrollment number for students
 UserSchema.pre('save', async function () {
+    // 1. Enrollment Number Generation
     if (this.isNew && this.role === 'student' && !this.enrollmentNumber) {
         try {
             const year = new Date().getFullYear();
@@ -108,7 +112,24 @@ UserSchema.pre('save', async function () {
             throw err;
         }
     }
+
+    // 2. Assignment Validation (RBAC)
+    if (this.isModified('assignments') || this.isModified('role')) {
+        const allowedRoles = ['instructor', 'staff'];
+        // If has assignments but role is NOT allowed
+        if ((this.assignments?.batches?.length > 0 || this.assignments?.courses?.length > 0) && !allowedRoles.includes(this.role)) {
+            console.warn(`Clearing assignments for user with disallowed role: ${this.role}`);
+            this.assignments = { batches: [], courses: [] };
+        }
+    }
 });
+
+// Indexes
+UserSchema.index({ role: 1, deletedAt: 1 });
+UserSchema.index({ 'profile.firstName': 'text', 'profile.lastName': 'text' });
+// Multikey indexes for fast lookup of "Which users are assigned to Batch X?"
+UserSchema.index({ 'assignments.batches': 1 });
+UserSchema.index({ 'assignments.courses': 1 });
 
 // Force re-compilation of model to ensure virtuals and hooks are updated in Dev
 // if (mongoose.models.User) {

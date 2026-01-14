@@ -34,7 +34,8 @@ export async function GET(req) {
             batchId,
             courseId,
             isActive,
-            instituteId: scope.isSuperAdmin ? (searchParams.get("institute") || null) : scope.instituteId
+            instituteId: scope.isSuperAdmin ? (searchParams.get("institute") || null) : scope.instituteId,
+            actorId: session.user.id
         });
 
         return NextResponse.json(data);

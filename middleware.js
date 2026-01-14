@@ -14,12 +14,24 @@ export default withAuth(
             if (token?.role === "admin" || token?.role === "super_admin") {
                 return NextResponse.redirect(new URL("/admin/dashboard", req.url));
             }
+            if (token?.role === "instructor") {
+                return NextResponse.redirect(new URL("/instructor/dashboard", req.url));
+            }
             // If at root and no token, allow client-side handling or redirect to login
             if (path === "/") return NextResponse.redirect(new URL("/login", req.url));
         }
 
-        // Protection for admin routes
-        if (path.startsWith("/admin") && token?.role !== "admin" && token?.role !== "super_admin") {
+        // Helper to force redirect admin -> instructor path for consistency
+        if (path.startsWith("/admin") && token?.role === "instructor") {
+            return NextResponse.redirect(new URL(path.replace("/admin", "/instructor"), req.url));
+        }
+
+        // Protection for admin & instructor routes
+        // Check if path is admin OR instructor
+        const isAdminPath = path.startsWith("/admin");
+        const isInstructorPath = path.startsWith("/instructor");
+
+        if ((isAdminPath || isInstructorPath) && token?.role !== "admin" && token?.role !== "super_admin" && token?.role !== "instructor") {
             if (token?.role === "student") {
                 return NextResponse.redirect(new URL("/student/dashboard", req.url));
             }

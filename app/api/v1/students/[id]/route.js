@@ -20,7 +20,7 @@ export async function GET(req, { params }) {
 
         await connectDB();
 
-        const data = await StudentService.getStudentProfile(id);
+        const data = await StudentService.getStudentProfile(id, session.user.id);
 
         if (!data) {
             return NextResponse.json({ error: "Student not found" }, { status: 404 });
@@ -44,8 +44,20 @@ export async function PATCH(req, { params }) {
         const { id } = await params;
         const body = await req.json();
 
+        const { id } = await params;
+        const body = await req.json();
+
         await connectDB();
 
+        if (session.user.role === "instructor") {
+            // Verify assignment first
+            const profile = await StudentService.getStudentProfile(id, session.user.id);
+            if (!profile) {
+                return NextResponse.json({ error: "Unauthorized access to student" }, { status: 403 });
+            }
+        }
+
+        const oldStudent = await User.findOne({ _id: id, role: "student", deletedAt: null });
         const oldStudent = await User.findOne({ _id: id, role: "student", deletedAt: null });
         if (!oldStudent) return NextResponse.json({ error: "Not found or not a student" }, { status: 404 });
 

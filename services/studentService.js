@@ -138,7 +138,7 @@ export class StudentService {
     /**
      * Get all students with pagination and filters
      */
-    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, instituteId = null }) {
+    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, instituteId = null, actorId = null }) {
         // if (!instituteId) throw new Error('Institute context required for fetching students'); // Allow global view
 
         const skip = (page - 1) * limit;
@@ -169,6 +169,7 @@ export class StudentService {
             // Default: show active only
             query.deletedAt = null;
         }
+
         // Filter by batch or course
         if (batchId || courseId) {
             const batchQuery = { deletedAt: null }; // Scope Batch Search
@@ -180,6 +181,43 @@ export class StudentService {
             const studentIds = batches.flatMap(b => b.enrolledStudents.map(e => e.student));
 
             query._id = { $in: studentIds };
+        }
+
+        // RBAC: Instructor Filtering
+        if (actorId) {
+            const actor = await User.findById(actorId).select('role assignments');
+            if (actor && actor.role === 'instructor') {
+                const assignedBatches = actor.assignments?.batches || [];
+                const assignedCourses = actor.assignments?.courses || [];
+
+                // If no assignments, instructor sees nothing
+                if (assignedBatches.length === 0 && assignedCourses.length === 0) {
+                    query._id = { $in: [] };
+                } else {
+                    const rbacBatchQuery = {
+                        deletedAt: null,
+                        $or: [
+                            { _id: { $in: assignedBatches } },
+                            { course: { $in: assignedCourses } }
+                        ]
+                    };
+                    if (instituteId) {
+                        rbacBatchQuery.institute = instituteId;
+                    }
+                    const allowedBatches = await Batch.find(rbacBatchQuery).select('enrolledStudents.student');
+                    const allowedStudentIds = allowedBatches.flatMap(b => b.enrolledStudents.map(e => e.student));
+
+                    if (query._id && query._id.$in) {
+                        // Intersect with existing filter - O(n) Optimization
+                        const existing = query._id.$in.map(id => id.toString());
+                        const allowedSet = new Set(allowedStudentIds.map(id => id.toString()));
+                        const common = existing.filter(id => allowedSet.has(id));
+                        query._id = { $in: common };
+                    } else {
+                        query._id = { $in: allowedStudentIds };
+                    }
+                }
+            }
         }
 
         if (search) {
@@ -378,17 +416,42 @@ export class StudentService {
     /**
      * Get full student profile with batches and fees
      */
-    static async getStudentProfile(studentId) {
+    static async getStudentProfile(studentId, actorId) {
+        // 1. Fetch Student Basic Info
         const student = await User.findOne({ _id: studentId, role: 'student', deletedAt: null })
             .select('-passwordHash -passwordResetToken -passwordResetExpires');
 
-        if (!student) return null;
+        if (!student) {
+            return null;
+        }
 
+        // 2. Fetch Batches (regardless of permission initially, needed for check)
         // Get batches
         const batches = await Batch.find({
             'enrolledStudents.student': studentId,
             deletedAt: null
         }).populate('course', 'name code duration fees');
+
+        // RBAC CHECK
+        if (actorId) {
+            const actor = await User.findById(actorId).select('role assignments');
+            if (actor && actor.role === 'instructor') {
+                const assignedBatches = (actor.assignments?.batches || []).map(id => id.toString());
+                const assignedCourses = (actor.assignments?.courses || []).map(id => id.toString());
+
+                // Check if student is in any assigned batch or course
+                const isStudentInAssignedBatch = batches.some(b =>
+                    assignedBatches.includes(b._id.toString()) ||
+                    assignedCourses.includes(b.course?._id.toString())
+                );
+
+                if (!isStudentInAssignedBatch) {
+                    // Instructor is not assigned to any batch/course this student is taking
+                    // Thus, they should not see this profile.
+                    return null; // Return null so API returns 404/Forbidden
+                }
+            }
+        }
 
         // Get fees
         const fees = await Fee.find({
@@ -401,7 +464,7 @@ export class StudentService {
                 _id: b._id,
                 name: b.name,
                 course: b.course,
-                enrollment: b.enrolledStudents.find(e => e.student.toString() === studentId),
+                enrollment: b.enrolledStudents.find(e => e.student.toString() === studentId.toString()), // Fix: ensure string comparison
                 schedule: b.schedule
             })),
             fees
@@ -479,5 +542,30 @@ export class StudentService {
         });
 
         return true;
+    }
+    /**
+     * Verify if an instructor has access to a specific student
+     */
+    static async verifyInstructorAccess(instructorId, studentId) {
+        const actor = await User.findById(instructorId).select('role assignments');
+        if (!actor || actor.role !== 'instructor') return false;
+
+        const assignedBatches = (actor.assignments?.batches || []).map(id => id.toString());
+        const assignedCourses = (actor.assignments?.courses || []).map(id => id.toString());
+
+        if (assignedBatches.length === 0 && assignedCourses.length === 0) return false;
+
+        // Find batches where student is enrolled
+        const studentBatches = await Batch.find({
+            'enrolledStudents.student': studentId,
+            deletedAt: null
+        }).select('course');
+
+        const isAssigned = studentBatches.some(b =>
+            assignedBatches.includes(b._id.toString()) ||
+            (b.course && assignedCourses.includes(b.course.toString()))
+        );
+
+        return isAssigned;
     }
 }
