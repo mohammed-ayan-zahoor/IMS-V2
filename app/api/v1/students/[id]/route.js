@@ -44,9 +44,6 @@ export async function PATCH(req, { params }) {
         const { id } = await params;
         const body = await req.json();
 
-        const { id } = await params;
-        const body = await req.json();
-
         await connectDB();
 
         if (session.user.role === "instructor") {
@@ -57,7 +54,6 @@ export async function PATCH(req, { params }) {
             }
         }
 
-        const oldStudent = await User.findOne({ _id: id, role: "student", deletedAt: null });
         const oldStudent = await User.findOne({ _id: id, role: "student", deletedAt: null });
         if (!oldStudent) return NextResponse.json({ error: "Not found or not a student" }, { status: 404 });
 

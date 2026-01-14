@@ -122,15 +122,13 @@ export async function POST(req) {
         };
 
         if (body.role === 'instructor') {
-+            const batches = Array.isArray(body.assignedBatches) ? body.assignedBatches : [];
-+            const courses = Array.isArray(body.assignedCourses) ? body.assignedCourses : [];
-             userPayload.assignments = {
--                batches: body.assignedBatches || [],
--                courses: body.assignedCourses || []
-+                batches,
-+                courses
-             };
-         }
+            const batches = Array.isArray(body.assignedBatches) ? body.assignedBatches : [];
+            const courses = Array.isArray(body.assignedCourses) ? body.assignedCourses : [];
+            userPayload.assignments = {
+                batches,
+                courses
+            };
+        }
 
         let user;
 
