@@ -473,19 +473,8 @@ export class StudentService {
     /**
      * Unenroll student from a batch (Correcting mistakes)
      */
+
     static async unenrollFromBatch(studentId, batchId, actorId, instituteId) {
-        await connectDB(); // Ensure DB connection
-
-        // Transaction logic removed for standalone MongoDB support
-
-        // Check if active student exists
-        const student = await User.findById(studentId);
-        if (!student) throw new Error("Student not found");
-
-        // 2. Clean up Fee record (Smart Logic)
-         // A. If status is 'not_started' (no payment history), DELETE it clean.        }
-
-static async unenrollFromBatch(studentId, batchId, actorId, instituteId) {
         await connectDB(); // Ensure DB connection
 
         if (!studentId || !batchId) {
