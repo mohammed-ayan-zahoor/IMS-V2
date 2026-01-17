@@ -141,7 +141,7 @@ export default function StudentMaterialsPage() {
                             ) : (
                                 <a
                                     href={mat.file?.url}
-                                    target="_blank"
+                                    target="_self"
                                     rel="noopener noreferrer"
                                     className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10 group-hover:shadow-premium-blue/20 group-hover:bg-premium-blue"
                                 >
@@ -194,7 +194,7 @@ export default function StudentMaterialsPage() {
                                         </button>
                                         <a
                                             href={selectedVideo.file?.url}
-                                            target="_blank"
+                                            target="_self"
                                             rel="noopener noreferrer"
                                             className="px-4 py-2 bg-premium-blue text-white rounded-lg text-xs font-bold hover:bg-premium-blue/90"
                                         >
