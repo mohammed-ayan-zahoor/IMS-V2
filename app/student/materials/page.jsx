@@ -14,25 +14,34 @@ export default function StudentMaterialsPage() {
     const [search, setSearch] = useState("");
     const [activeType, setActiveType] = useState("all"); // all, pdf, video
     const [selectedVideo, setSelectedVideo] = useState(null);
+    const [selectedPdf, setSelectedPdf] = useState(null);
     const [videoError, setVideoError] = useState(false);
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        const controller = new AbortController();
         const fetchMaterials = async () => {
             try {
-                const res = await fetch("/api/v1/student/materials");
+                const res = await fetch("/api/v1/student/materials", { signal: controller.signal });
                 if (!res.ok) throw new Error("Failed to load materials");
                 const data = await res.json();
-                setMaterials(data.materials || []);
-                setError(null);
+                if (!controller.signal.aborted) {
+                    setMaterials(data.materials || []);
+                    setError(null);
+                }
             } catch (error) {
-                console.error("Fetch materials error:", error);
-                setError("Unable to load materials. Please try again later.");
+                if (error.name !== 'AbortError') {
+                    console.error("Fetch materials error:", error);
+                    setError("Unable to load materials. Please try again later.");
+                }
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
         fetchMaterials();
+        return () => controller.abort();
     }, []);
 
     const filteredMaterials = materials.filter(mat => {
@@ -106,9 +115,8 @@ export default function StudentMaterialsPage() {
                                         <LinkIcon size={22} />}
                             </div>
                             <Badge variant="neutral" className="bg-slate-100 text-slate-500">
-                                {mat.file?.type.toUpperCase()}
-                            </Badge>
-                        </div>
+                                {mat.file?.type?.toUpperCase() ?? 'UNKNOWN'}
+                            </Badge>                        </div>
 
                         <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-1 group-hover:text-premium-blue transition-colors">
                             {mat.title}
@@ -138,11 +146,18 @@ export default function StudentMaterialsPage() {
                                     <Video size={18} />
                                     Watch Video
                                 </button>
+                            ) : mat.file?.type === 'pdf' ? (
+                                <button
+                                    onClick={() => setSelectedPdf(mat)}
+                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10 group-hover:shadow-premium-blue/20 group-hover:bg-premium-blue"
+                                >
+                                    <FileText size={18} />
+                                    View PDF
+                                </button>
                             ) : (
                                 <a
                                     href={mat.file?.url}
                                     target="_self"
-                                    rel="noopener noreferrer"
                                     className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10 group-hover:shadow-premium-blue/20 group-hover:bg-premium-blue"
                                 >
                                     <Download size={18} />
@@ -165,60 +180,71 @@ export default function StudentMaterialsPage() {
             </div>
 
             {/* Video Player Modal */}
+            {/* Video Player Modal */}
             {selectedVideo && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-                    <div className="bg-black rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col relative">
-                        <div className="flex justify-between items-center p-4 absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent z-10">
-                            <h3 className="text-white font-bold truncate pr-8">{selectedVideo.title}</h3>
-                            <button onClick={() => setSelectedVideo(null)} className="text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-2 backdrop-blur-md">
-                                <X size={24} />
-                            </button>
+                <VideoModal
+                    video={selectedVideo}
+                    onClose={() => setSelectedVideo(null)}
+                />
+            )}
+
+            {/* PDF Viewer Modal */}
+            {selectedPdf && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col relative overflow-hidden">
+                        {/* Header */}
+                        <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-white z-10">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+                                    <FileText size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-slate-900 line-clamp-1">{selectedPdf.title}</h3>
+                                    <p className="text-xs text-slate-500">PDF Document</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <a
+                                    href={selectedPdf.file?.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors"
+                                >
+                                    <LinkIcon size={16} />
+                                    Open New Tab
+                                </a>
+                                <button
+                                    onClick={() => setSelectedPdf(null)}
+                                    className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="aspect-video bg-black flex items-center justify-center relative">
-                            {videoError ? (
-                                <div className="text-center p-6 space-y-4">
-                                    <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-500">
+                        {/* Content */}
+                        <div className="flex-1 bg-slate-50 relative overflow-hidden">
+                            <object
+                                data={selectedPdf.file?.url}
+                                type="application/pdf"
+                                className="w-full h-full"
+                            >
+                                <div className="flex flex-col items-center justify-center h-full p-8 text-center text-slate-500">
+                                    <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mb-4">
                                         <AlertTriangle size={32} />
                                     </div>
-                                    <div>
-                                        <h3 className="text-white font-bold">Video Unavailable</h3>
-                                        <p className="text-slate-400 text-sm">The video could not be loaded.</p>
-                                    </div>
-                                    <div className="flex gap-3 justify-center">
-                                        <button
-                                            onClick={() => setVideoError(false)}
-                                            className="px-4 py-2 bg-white/10 text-white rounded-lg text-xs font-bold hover:bg-white/20"
-                                        >
-                                            Retry
-                                        </button>
-                                        <a
-                                            href={selectedVideo.file?.url}
-                                            target="_self"
-                                            rel="noopener noreferrer"
-                                            className="px-4 py-2 bg-premium-blue text-white rounded-lg text-xs font-bold hover:bg-premium-blue/90"
-                                        >
-                                            Open Directly
-                                        </a>
-                                    </div>
+                                    <h3 className="text-lg font-bold text-slate-900 mb-2">Unable to display PDF</h3>
+                                    <p className="max-w-md mb-6">Your browser might not support direct PDF viewing, or the file type is incompatible.</p>
+                                    <a
+                                        href={selectedPdf.file?.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-6 py-3 bg-premium-blue text-white rounded-xl font-bold shadow-lg shadow-premium-blue/20 hover:bg-premium-blue/90"
+                                    >
+                                        Download / View in New Tab
+                                    </a>
                                 </div>
-                            ) : (selectedVideo.file?.url.includes('youtube.com') || selectedVideo.file?.url.includes('youtu.be')) ? (
-                                <IframeWithFallback
-                                    src={getEmbedUrl(selectedVideo.file.url)}
-                                    title={selectedVideo.title}
-                                    onError={() => setVideoError(true)}
-                                />
-                            ) : (
-                                <video
-                                    controls
-                                    autoPlay
-                                    className="w-full h-full max-h-[80vh]"
-                                    onError={() => setVideoError(true)}
-                                >
-                                    <source src={selectedVideo.file?.url} type="video/mp4" />
-                                    Your browser does not support the video tag.
-                                </video>
-                            )}
+                            </object>
                         </div>
                     </div>
                 </div>
@@ -227,8 +253,123 @@ export default function StudentMaterialsPage() {
     );
 }
 
+// Video Modal Component with Accessibility
+function VideoModal({ video, onClose }) {
+    const [videoError, setVideoError] = useState(false);
+    const modalRef = useRef(null);
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') onClose();
+
+            // Focus Trap
+            if (e.key === 'Tab' && modalRef.current) {
+                const focusableElements = modalRef.current.querySelectorAll(
+                    'button, [href], input, select, textarea, iframe, [tabindex]:not([tabindex="-1"])'
+                );
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+
+                if (e.shiftKey) { // Shift + Tab
+                    if (document.activeElement === firstElement) {
+                        e.preventDefault();
+                        lastElement?.focus();
+                    }
+                } else { // Tab
+                    if (document.activeElement === lastElement) {
+                        e.preventDefault();
+                        firstElement?.focus();
+                    }
+                }
+            }
+        };
+
+        const previousActiveElement = document.activeElement;
+
+        // Initial Focus
+        if (modalRef.current) {
+            modalRef.current.focus();
+        }
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            if (previousActiveElement) previousActiveElement.focus();
+        };
+    }, [onClose]);
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in"
+            ref={modalRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+        >
+            <div className="bg-black rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col relative outline-none">
+                <div className="flex justify-between items-center p-4 absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent z-10">
+                    <h3 className="text-white font-bold truncate pr-8">{video.title}</h3>
+                    <button
+                        onClick={onClose}
+                        className="text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-2 backdrop-blur-md focus:ring-2 focus:ring-white/50 outline-none"
+                        aria-label="Close video"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
+
+                <div className="aspect-video bg-black flex items-center justify-center relative">
+                    {videoError ? (
+                        <div className="text-center p-6 space-y-4">
+                            <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-500">
+                                <AlertTriangle size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-white font-bold">Video Unavailable</h3>
+                                <p className="text-slate-400 text-sm">The video could not be loaded.</p>
+                            </div>
+                            <div className="flex gap-3 justify-center">
+                                <button
+                                    onClick={() => setVideoError(false)}
+                                    className="px-4 py-2 bg-white/10 text-white rounded-lg text-xs font-bold hover:bg-white/20"
+                                >
+                                    Retry
+                                </button>
+                                <a
+                                    href={video.file?.url}
+                                    target="_self"
+                                    className="px-4 py-2 bg-premium-blue text-white rounded-lg text-xs font-bold hover:bg-premium-blue/90"
+                                >
+                                    Open Directly
+                                </a>
+                            </div>
+                        </div>
+                    ) : (video.file?.url && (video.file.url.includes('youtube.com') || video.file.url.includes('youtu.be'))) ? (
+                        <IframeWithFallback
+                            src={getEmbedUrl(video.file.url)}
+                            title={video.title}
+                            onError={() => setVideoError(true)}
+                            iframeTimeoutMs={15000}
+                        />
+                    ) : (
+                        <video
+                            controls
+                            autoPlay
+                            className="w-full h-full max-h-[80vh]"
+                            onError={() => setVideoError(true)}
+                        >
+                            <source src={video.file?.url} type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // Iframe component with Timeout strategy
-function IframeWithFallback({ src, title, onError }) {
+function IframeWithFallback({ src, title, onError, iframeTimeoutMs = 15000 }) {
     const [loaded, setLoaded] = useState(false);
     const onErrorRef = useRef(onError);
 
@@ -241,19 +382,26 @@ function IframeWithFallback({ src, title, onError }) {
             if (!loaded) {
                 onErrorRef.current();
             }
-        }, 5000); // 5 second timeout
+        }, iframeTimeoutMs);
         return () => clearTimeout(timer);
-    }, [loaded]);
+    }, [loaded, iframeTimeoutMs]);
 
     return (
-        <iframe
-            src={src}
-            title={title}
-            className="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            onLoad={() => setLoaded(true)}
-        />
+        <div className="relative w-full h-full bg-black">
+            {!loaded && (
+                <div className="absolute inset-0 flex items-center justify-center z-0">
+                    <LoadingSpinner />
+                </div>
+            )}
+            <iframe
+                src={src}
+                title={title}
+                className={`w-full h-full transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'} relative z-10`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                onLoad={() => setLoaded(true)}
+            />
+        </div>
     );
 }
 
@@ -267,8 +415,9 @@ function getEmbedUrl(sourceUrl) {
         let videoId = "";
 
         if (hostname.includes("youtu.be")) {
-            // https://youtu.be/ID
-            videoId = url.pathname.slice(1);
+            // https://youtu.be/ID/extra -> becomes [ID, extra]
+            const segments = url.pathname.split('/').filter(Boolean);
+            videoId = segments[0];
         } else if (hostname.includes("youtube.com")) {
             // https://youtube.com/watch?v=ID or /embed/ID
             if (url.pathname.includes("/embed/")) {
@@ -286,5 +435,3 @@ function getEmbedUrl(sourceUrl) {
         return ""; // Fallback for invalid URLs
     }
 }
-
-
