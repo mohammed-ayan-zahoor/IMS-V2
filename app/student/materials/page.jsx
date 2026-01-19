@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle, X } from "lucide-react";
+import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/esm/Page/TextLayer.css';
+
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -190,65 +196,140 @@ export default function StudentMaterialsPage() {
 
             {/* PDF Viewer Modal */}
             {selectedPdf && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col relative overflow-hidden">
-                        {/* Header */}
-                        <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-white z-10">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-red-50 text-red-600 rounded-lg">
-                                    <FileText size={20} />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-slate-900 line-clamp-1">{selectedPdf.title}</h3>
-                                    <p className="text-xs text-slate-500">PDF Document</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <a
-                                    href={selectedPdf.file?.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors"
-                                >
-                                    <LinkIcon size={16} />
-                                    Open New Tab
-                                </a>
-                                <button
-                                    onClick={() => setSelectedPdf(null)}
-                                    className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
-                                >
-                                    <X size={20} />
-                                </button>
-                            </div>
-                        </div>
+                <PdfModal
+                    file={selectedPdf}
+                    onClose={() => setSelectedPdf(null)}
+                />
+            )}
+        </div>
+    );
+}
 
-                        {/* Content */}
-                        <div className="flex-1 bg-slate-50 relative overflow-hidden">
-                            <object
-                                data={selectedPdf.file?.url}
-                                type="application/pdf"
-                                className="w-full h-full"
-                            >
-                                <div className="flex flex-col items-center justify-center h-full p-8 text-center text-slate-500">
-                                    <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mb-4">
-                                        <AlertTriangle size={32} />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-slate-900 mb-2">Unable to display PDF</h3>
-                                    <p className="max-w-md mb-6">Your browser might not support direct PDF viewing, or the file type is incompatible.</p>
-                                    <a
-                                        href={selectedPdf.file?.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="px-6 py-3 bg-premium-blue text-white rounded-xl font-bold shadow-lg shadow-premium-blue/20 hover:bg-premium-blue/90"
-                                    >
-                                        Download / View in New Tab
-                                    </a>
-                                </div>
-                            </object>
+// PDF Modal Component
+function PdfModal({ file, onClose }) {
+    const [numPages, setNumPages] = useState(null);
+    const [pageNumber, setPageNumber] = useState(1);
+    const [scale, setScale] = useState(1.0);
+    const [loading, setLoading] = useState(true);
+
+    function onDocumentLoadSuccess({ numPages }) {
+        setNumPages(numPages);
+        setLoading(false);
+    }
+
+    // Reset pagination when file changes
+    useEffect(() => {
+        setPageNumber(1);
+        setLoading(true);
+    }, [file]);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col relative overflow-hidden">
+                {/* Header */}
+                <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-white z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+                            <FileText size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-slate-900 line-clamp-1">{file.title}</h3>
+                            <p className="text-xs text-slate-500">
+                                Page {pageNumber} of {numPages || '--'}
+                            </p>
                         </div>
                     </div>
+
+                    {/* Controls */}
+                    <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
+                            className="p-1.5 hover:bg-white rounded-md text-slate-500 hover:text-slate-700 transition-colors"
+                            title="Zoom Out"
+                        >
+                            <ZoomOut size={18} />
+                        </button>
+                        <span className="text-xs font-bold w-12 text-center">{Math.round(scale * 100)}%</span>
+                        <button
+                            onClick={() => setScale(s => Math.min(2, s + 0.1))}
+                            className="p-1.5 hover:bg-white rounded-md text-slate-500 hover:text-slate-700 transition-colors"
+                            title="Zoom In"
+                        >
+                            <ZoomIn size={18} />
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <a
+                            href={file.file?.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors"
+                        >
+                            <LinkIcon size={16} />
+                            Open
+                        </a>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
-            )}
+
+                {/* Content */}
+                <div className="flex-1 bg-slate-100 overflow-auto flex justify-center p-8 relative">
+                    <Document
+                        file={file.file?.url}
+                        onLoadSuccess={onDocumentLoadSuccess}
+                        loading={
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <LoadingSpinner />
+                            </div>
+                        }
+                        error={
+                            <div className="flex flex-col items-center justify-center h-full text-slate-500 p-4 text-center">
+                                <AlertTriangle size={36} className="mb-4 text-slate-400" />
+                                <p className="font-medium">Failed to load PDF.</p>
+                                <a href={file.file?.url} target="_blank" className="text-premium-blue hover:underline text-sm mt-2">Download file</a>
+                            </div>
+                        }
+                        className="shadow-xl"
+                    >
+                        <Page
+                            pageNumber={pageNumber}
+                            scale={scale}
+                            renderTextLayer={true}
+                            renderAnnotationLayer={true}
+                            className="bg-white"
+                        />
+                    </Document>
+                </div>
+
+                {/* Footer Controls */}
+                <div className="p-4 border-t border-slate-100 bg-white flex justify-center items-center gap-4 z-10">
+                    <button
+                        onClick={() => setPageNumber(p => Math.max(1, p - 1))}
+                        disabled={pageNumber <= 1}
+                        className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <ChevronLeft size={16} />
+                        Previous
+                    </button>
+                    <span className="text-sm font-medium text-slate-500">
+                        {pageNumber} / {numPages || '--'}
+                    </span>
+                    <button
+                        onClick={() => setPageNumber(p => Math.min(numPages || 1, p + 1))}
+                        disabled={pageNumber >= (numPages || 1)}
+                        className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Next
+                        <ChevronRight size={16} />
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
