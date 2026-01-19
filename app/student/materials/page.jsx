@@ -223,9 +223,50 @@ function PdfModal({ file, onClose }) {
         setLoading(true);
     }, [file]);
 
+    const modalRef = useRef(null);
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') onClose();
+            if (e.key === 'Tab' && modalRef.current) {
+                const focusableElements = modalRef.current.querySelectorAll(
+                    'button, [href], input, select, textarea, iframe, [tabindex]:not([tabindex="-1"])'
+                );
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+
+                if (e.shiftKey) {
+                    if (document.activeElement === firstElement) {
+                        e.preventDefault();
+                        lastElement?.focus();
+                    }
+                } else {
+                    if (document.activeElement === lastElement) {
+                        e.preventDefault();
+                        firstElement?.focus();
+                    }
+                }
+            }
+        };
+
+        const previousActiveElement = document.activeElement;
+        if (modalRef.current) modalRef.current.focus();
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            if (previousActiveElement) previousActiveElement.focus();
+        };
+    }, [onClose]);
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col relative overflow-hidden">
+        <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in"
+            ref={modalRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+        >
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col relative overflow-hidden outline-none">
                 {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-white z-10">
                     <div className="flex items-center gap-3">
@@ -272,10 +313,10 @@ function PdfModal({ file, onClose }) {
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                            aria-label="Close PDF viewer"
                         >
                             <X size={20} />
-                        </button>
-                    </div>
+                        </button>                    </div>
                 </div>
 
                 {/* Content */}
