@@ -12,6 +12,7 @@ import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { format } from "date-fns";
+import DOMPurify from "dompurify";
 
 export default function ManageExamPage({ params }) {
     const { id } = use(params);
@@ -270,7 +271,7 @@ export default function ManageExamPage({ params }) {
                                                     {idx + 1}
                                                 </span>
                                                 <div className="space-y-1">
-                                                    <div className="font-medium text-slate-900 line-clamp-2" dangerouslySetInnerHTML={{ __html: q.text }} />
+                                                    <div className="font-medium text-slate-900 line-clamp-2" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(q.text) }} />
                                                     <div className="flex items-center gap-2 text-xs text-slate-500">
                                                         <span className="uppercase font-bold text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{q.type}</span>
                                                         <span>•</span>
@@ -393,7 +394,7 @@ export default function ManageExamPage({ params }) {
                                             {selectedBankQuestions.includes(q._id) && <CheckCircle size={10} className="text-white" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-sm text-slate-900 font-medium line-clamp-2" dangerouslySetInnerHTML={{ __html: q.text }} />
+                                            <div className="text-sm text-slate-900 font-medium line-clamp-2" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(q.text) }} />
                                             <p className="text-xs text-slate-500 mt-1">
                                                 {q.subject} • {q.classLevel} • {q.marks} Marks
                                             </p>

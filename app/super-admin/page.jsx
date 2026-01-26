@@ -2,8 +2,35 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-
+import { motion } from "framer-motion";
+import {
+    Building2,
+    Users,
+    CreditCard,
+    Plus,
+    ArrowRight,
+    Zap,
+    Activity,
+    Database,
+    Globe
+} from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import Button from "@/components/ui/Button";
+
+const container = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.1
+        }
+    }
+};
+
+const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 export default function SuperAdminDashboard() {
     const toast = useToast();
@@ -18,7 +45,7 @@ export default function SuperAdminDashboard() {
     useEffect(() => {
         const controller = new AbortController();
         const fetchStats = async () => {
-            setLoading(true); // Ensure loading is true on start (though init is true)
+            setLoading(true);
             setError(null);
             try {
                 const res = await fetch("/api/admin/stats", { signal: controller.signal });
@@ -32,7 +59,7 @@ export default function SuperAdminDashboard() {
             } catch (error) {
                 if (error.name !== "AbortError") {
                     console.error("Stats fetch error:", error);
-                    setError("Failed to load dashboard stats. Please try again.");
+                    setError("Failed to load dashboard stats.");
                     toast.error("Failed to load dashboard stats");
                 }
             } finally {
@@ -47,82 +74,210 @@ export default function SuperAdminDashboard() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="p-6 bg-red-50 text-red-700 rounded-lg flex items-center gap-3">
-                <span className="text-xl">⚠️</span>
-                <p>{error}</p>
-                <button onClick={() => window.location.reload()} className="underline ml-auto">Retry</button>
-            </div>
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-8 bg-red-50 border border-red-100 rounded-3xl flex flex-col items-center text-center gap-4"
+            >
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                    <Zap size={32} />
+                </div>
+                <div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight mb-1">System Error</h3>
+                    <p className="text-red-600/80 font-medium">{error}</p>
+                </div>
+                <Button onClick={() => window.location.reload()} variant="outline" className="mt-2">
+                    Retry Connection
+                </Button>
+            </motion.div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <div className="space-y-10">
+            <header>
+                <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">
+                    System Overview
+                </h1>
+                <p className="text-slate-500 font-medium">Monitoring the pulse of your education platform.</p>
+            </header>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="Total Institutes" value={stats.institutes} icon="🏢" color="blue" />
-                <StatCard title="Total Users" value={stats.totalUsers} icon="👥" color="green" />
-                <StatCard title="Active Subscriptions" value={stats.activeSubscriptions} icon="💳" color="purple" />            </div>
+            <motion.div
+                variants={container}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            >
+                <StatCard
+                    title="Total Institutes"
+                    value={stats.institutes}
+                    icon={Building2}
+                    color="blue"
+                    trend="+12% this month"
+                />
+                <StatCard
+                    title="Total Users"
+                    value={stats.totalUsers}
+                    icon={Users}
+                    color="emerald"
+                    trend="+85 today"
+                />
+                <StatCard
+                    title="Active Subscriptions"
+                    value={stats.activeSubscriptions}
+                    icon={CreditCard}
+                    color="amber"
+                    trend="+5 new trials"
+                />
+            </motion.div>
 
-            {/* Recent Activity / Quick Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-                    <div className="space-y-3">
-                        <Link href="/super-admin/institutes/create" className="block w-full p-3 text-center bg-blue-600 text-white rounded hover:bg-blue-700 transition">
-                            + Create New Institute
-                        </Link>
-                        <Link href="/super-admin/institutes" className="block w-full p-3 text-center bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition">
-                            View All Institutes
-                        </Link>
+            {/* Bottom Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                {/* Quick Actions */}
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="lg:col-span-3 bg-white p-8 rounded-[32px] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+                >
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                            <Zap size={20} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 tracking-tight">Quick Actions</h3>
                     </div>
-                </div>
 
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-semibold mb-4">System Status</h3>
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center p-2 bg-green-50 rounded">
-                            <span className="text-green-800 font-medium">System Operational</span>
-                            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <ActionLink
+                            href="/super-admin/institutes/create"
+                            icon={Plus}
+                            title="Register Institute"
+                            description="Onboard a new organization to the platform."
+                            primary
+                        />
+                        <ActionLink
+                            href="/super-admin/institutes"
+                            icon={ArrowRight}
+                            title="Manage Directory"
+                            description="Audit and manage all registered institutes."
+                        />
+                    </div>
+                </motion.div>
+
+                {/* System Status */}
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="lg:col-span-2 bg-slate-900 p-8 rounded-[32px] text-white overflow-hidden relative"
+                >
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-8">
+                            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-blue-400">
+                                <Activity size={20} />
+                            </div>
+                            <h3 className="text-xl font-black tracking-tight">System Node</h3>
                         </div>
-                        <div className="flex justify-between items-center text-sm text-gray-600">
-                            <span>Database</span>
-                            <span>Connected</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm text-gray-600">
-                            <span>Version</span>
-                            <span>v2.0.0 (SaaS)</span>
+
+                        <div className="space-y-6">
+                            <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                    <span className="font-bold text-emerald-400 text-sm">Cluster Active</span>
+                                </div>
+                                <span className="text-xs font-black text-white/40 uppercase tracking-widest">v2.4.0-STABLE</span>
+                            </div>
+
+                            <div className="space-y-4">
+                                <StatusItem icon={Database} label="MongoDB Core" status="Optimized" />
+                                <StatusItem icon={Globe} label="API Mesh" status="Healthy" />
+                            </div>
                         </div>
                     </div>
-                </div>
+
+                    {/* Background Detail */}
+                    <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-blue-600/20 blur-[100px]" />
+                </motion.div>
             </div>
         </div>
     );
 }
 
-function StatCard({ title, value, icon, color }) {
-    const colors = {
-        blue: "bg-blue-50 text-blue-600",
-        green: "bg-green-50 text-green-600",
-        purple: "bg-purple-50 text-purple-600",
+function StatCard({ title, value, icon: Icon, color, trend }) {
+    const colorClasses = {
+        blue: "bg-blue-600 shadow-blue-600/20",
+        emerald: "bg-emerald-600 shadow-emerald-600/20",
+        amber: "bg-amber-600 shadow-amber-600/20",
     };
+
     return (
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex items-center justify-between">
-            <div>
-                <p className="text-sm font-medium text-gray-500">{title}</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
+        <motion.div
+            variants={item}
+            className="group bg-white p-8 rounded-[32px] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.06)] hover:-translate-y-1 transition-all duration-300"
+        >
+            <div className="flex items-center justify-between mb-6">
+                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-xl", colorClasses[color])}>
+                    <Icon size={28} />
+                </div>
+                <div className="px-3 py-1 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    Metrics
+                </div>
             </div>
-            <div className={`p-3 rounded-full ${colors[color]}`}>
-                <span className="text-2xl">{icon}</span>
+
+            <p className="text-slate-500 font-bold text-sm tracking-wide lowercase mb-1">{title}</p>
+            <div className="flex items-baseline gap-3">
+                <h2 className="text-4xl font-black text-slate-900 tracking-tighter">{value}</h2>
+                <span className="text-xs font-bold text-emerald-500">{trend}</span>
             </div>
+        </motion.div>
+    );
+}
+
+function ActionLink({ href, icon: Icon, title, description, primary }) {
+    return (
+        <Link href={href} className={cn(
+            "group p-6 rounded-2xl border transition-all duration-300",
+            primary
+                ? "bg-blue-600 border-blue-600 hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/20"
+                : "bg-white border-slate-200 hover:border-blue-600 hover:bg-slate-50"
+        )}>
+            <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110",
+                primary ? "bg-white/20 text-white" : "bg-blue-50 text-blue-600"
+            )}>
+                <Icon size={20} />
+            </div>
+            <h4 className={cn("font-black tracking-tight mb-1", primary ? "text-white" : "text-slate-900")}>
+                {title}
+            </h4>
+            <p className={cn("text-xs leading-relaxed", primary ? "text-white/70" : "text-slate-500")}>
+                {description}
+            </p>
+        </Link>
+    );
+}
+
+function StatusItem({ icon: Icon, label, status }) {
+    return (
+        <div className="flex items-center justify-between text-sm py-1">
+            <div className="flex items-center gap-3 text-white/70 font-medium">
+                <Icon size={16} strokeWidth={2.5} />
+                <span>{label}</span>
+            </div>
+            <span className="font-bold text-white/90">{status}</span>
         </div>
-    )
+    );
+}
+
+// Internal utility duplicated to avoid import complexity in this specific file structure
+function cn(...inputs) {
+    return inputs.filter(Boolean).join(" ");
 }

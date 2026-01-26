@@ -12,6 +12,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
+import DOMPurify from "dompurify";
 
 export default function QuestionBankPage() {
     const { toast } = useToast();
@@ -204,7 +205,7 @@ export default function QuestionBankPage() {
                                     <tr key={q._id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-4 max-w-md">
                                             <div className="font-medium text-slate-900 line-clamp-2"
-                                                dangerouslySetInnerHTML={{ __html: q.text }} />
+                                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(q.text) }} />
                                             {/* We can strip HTML tags for preview or just trust text is simple */}
                                         </td>
                                         <td className="px-6 py-4">
