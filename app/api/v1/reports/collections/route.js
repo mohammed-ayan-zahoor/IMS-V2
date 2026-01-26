@@ -21,8 +21,14 @@ export async function GET(req) {
         const limit = parseInt(searchParams.get('limit') || '100');
         const skip = (page - 1) * limit;
 
-        // Find all fees for the institute
-        const fees = await Fee.find({ institute: session.user.institute.id })
+        const instituteId = session.user.institute?.id;
+        if (!instituteId && session.user.role !== 'super_admin') {
+            return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
+        }
+
+        // Find all fees for the institute (Super Admins without instituteId will get empty for now or we could allow all)
+        const query = instituteId ? { institute: instituteId } : {};
+        const fees = await Fee.find(query)
             .skip(skip)
             .limit(limit)
             .populate('student', 'fullName email enrollmentNumber profile')
