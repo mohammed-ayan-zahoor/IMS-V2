@@ -46,16 +46,13 @@ export async function PATCH(req, { params }) {
         // Allowed updates via this route: status, settings, etc.
         // For now, primarily used for Suspend/Activate
         const updateData = {};
+        if (body.name) updateData.name = body.name;
+        if (body.contactPhone) updateData.contactPhone = body.contactPhone;
+        if (body.addressStr) updateData.addressStr = body.addressStr;
+
         if (body.status) {
             if (['active', 'suspended', 'inactive'].includes(body.status)) {
                 updateData.status = body.status;
-                // If suspending, also set isActive to false?
-                // Institute model has both status and isActive.
-                // status='suspended' implies isActive=false usually, but logic depends on app.
-                // Let's keep them synced if needed, currently model relies on status enum.
-                // Model: isActive: { type: Boolean, default: true }
-                // Index: { status: 1, isActive: 1 }
-
                 if (body.status === 'suspended' || body.status === 'inactive') {
                     updateData.isActive = false;
                 } else if (body.status === 'active') {
