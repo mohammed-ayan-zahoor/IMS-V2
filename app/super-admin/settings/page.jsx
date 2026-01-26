@@ -31,8 +31,7 @@ export default function SuperAdminSettings() {
                         Global <span className="text-slate-400">Settings</span>
                     </h1>
                 </div>
-                <p className="text-slate-500 font-medium ml-13">Configure platform-wide parameters and security protocols.</p>
-            </header>
+                <p className="text-slate-500 font-medium ml-[3.25rem]">Configure platform-wide parameters and security protocols.</p>            </header>
 
             <motion.div
                 variants={container}

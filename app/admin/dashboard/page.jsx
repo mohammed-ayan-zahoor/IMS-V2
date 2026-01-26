@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import StudentSearch from "@/components/admin/StudentSearch";
 
 const StatCard = ({ title, value, icon: Icon, trend, color, softColor }) => (
     <Card className={cn("transition-all cursor-default border-transparent shadow-sm", softColor)}>
@@ -104,14 +105,17 @@ export default function AdminDashboard() {
 
     return (
         <div className="space-y-10">
-            <div className="flex justify-between items-end">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                 <div>
                     <h1 className="text-3xl font-black tracking-tight text-slate-900">Institute Overview</h1>
                     <p className="text-slate-500 mt-1 font-medium">Real-time performance metrics and admission trends.</p>
                 </div>
-                <div className="hidden sm:block">
-                    <div className="bg-slate-50 border border-border px-4 py-2 rounded-lg text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                    <StudentSearch />
+                    <div className="hidden sm:block">
+                        <div className="bg-slate-50 border border-border px-4 py-2 rounded-lg text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </div>
                     </div>
                 </div>
             </div>

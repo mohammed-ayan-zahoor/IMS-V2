@@ -50,12 +50,17 @@ export default function EditInstitutePage() {
     });
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchInstitute = async () => {
             try {
-                const res = await fetch(`/api/v1/institutes/${params.id}`);
+                const res = await fetch(`/api/v1/institutes/${params.id}`, {
+                    signal: controller.signal
+                });
                 if (!res.ok) throw new Error("Could not find organization data.");
                 const data = await res.json();
                 const inst = data.institute;
+                if (!inst) throw new Error("Institute data not found.");
                 setFormData({
                     name: inst.name || "",
                     code: inst.code || "",
@@ -64,6 +69,7 @@ export default function EditInstitutePage() {
                     status: inst.status || "active"
                 });
             } catch (error) {
+                if (error.name === "AbortError") return;
                 toast.error(error.message);
                 router.push("/super-admin/institutes");
             } finally {
@@ -72,8 +78,9 @@ export default function EditInstitutePage() {
         };
 
         if (params.id) fetchInstitute();
-    }, [params.id, router, toast]);
 
+        return () => controller.abort();
+    }, [params.id]);
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({
@@ -138,13 +145,12 @@ export default function EditInstitutePage() {
 
             <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Organization Details */}
-                <motion.div variants={item} className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-[0_8px_30_rgb(0,0,0,0.04)]">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                            <Building2 size={20} />
-                        </div>
-                        <h3 className="text-xl font-black text-slate-900 tracking-tight">Core Repository</h3>
+                <motion.div variants={item} className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">                    <div className="flex items-center gap-3 mb-8">
+                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                        <Building2 size={20} />
                     </div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Core Repository</h3>
+                </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField
