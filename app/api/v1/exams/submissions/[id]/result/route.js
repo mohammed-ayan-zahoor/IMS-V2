@@ -113,17 +113,17 @@ export async function GET(req, { params }) {
 
             let result = {
                 questionId: ans.questionId,
-                questionText: question?.text,
-                type: question?.type,
+                questionText: question?.text || 'Deleted question',
+                type: question?.type || null,
                 yourAnswer: ans.answer,
                 marksAwarded: ans.marksAwarded,
-                maxMarks: question?.marks,
-                isCorrect: ans.isCorrect
+                maxMarks: question?.marks || 0,
+                isCorrect: ans.isCorrect || false
             };
 
             if (exam.showCorrectAnswers) {
-                result.correctAnswer = question?.correctOption; // Or text for descriptive
-                result.options = question?.options;
+                result.correctAnswer = question?.correctOption || null;
+                result.options = question?.options || [];
             }
 
             return result;
