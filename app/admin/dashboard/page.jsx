@@ -38,6 +38,16 @@ export default function AdminDashboard() {
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [dateString, setDateString] = useState("");
+
+    // Set formatted date only on client side to avoid hydration mismatch
+    useEffect(() => {
+        setDateString(new Date().toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        }));
+    }, []);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -114,7 +124,7 @@ export default function AdminDashboard() {
                     <StudentSearch />
                     <div className="hidden sm:block">
                         <div className="bg-slate-50 border border-border px-4 py-2 rounded-lg text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {dateString || "Loading..."}
                         </div>
                     </div>
                 </div>

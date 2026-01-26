@@ -12,6 +12,7 @@ export default function StudentSearch() {
     const [isOpen, setIsOpen] = useState(false);
     const router = useRouter();
     const dropdownRef = useRef(null);
+    const searchAbortRef = useRef(null);
 
     // Debounced search
     useEffect(() => {
@@ -24,10 +25,12 @@ export default function StudentSearch() {
             }
         }, 300);
 
-        return () => clearTimeout(timer);
+        return () => {
+            clearTimeout(timer);
+        };
     }, [query]);
 
-    // Handle clicks outside dropdown
+    // Handle clicks outside dropdown and cleanup
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -35,22 +38,45 @@ export default function StudentSearch() {
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            if (searchAbortRef.current) {
+                searchAbortRef.current.abort();
+            }
+        };
     }, []);
 
     const fetchResults = async () => {
+        // Abort previous search
+        if (searchAbortRef.current) {
+            searchAbortRef.current.abort();
+        }
+
+        // Create new controller
+        const controller = new AbortController();
+        searchAbortRef.current = controller;
+
         setLoading(true);
         try {
-            const res = await fetch(`/api/v1/students?search=${encodeURIComponent(query)}&limit=5`);
+            const res = await fetch(`/api/v1/students?search=${encodeURIComponent(query)}&limit=5`, {
+                signal: controller.signal
+            });
             if (res.ok) {
                 const data = await res.json();
                 setResults(data.students || []);
                 setIsOpen(true);
             }
         } catch (error) {
+            if (error.name === 'AbortError' || error instanceof DOMException && error.name === 'AbortError') {
+                // Ignore abort errors
+                return;
+            }
             console.error("Search error:", error);
         } finally {
-            setLoading(false);
+            // Only stop loading if this is still the active request
+            if (searchAbortRef.current === controller) {
+                setLoading(false);
+            }
         }
     };
 
@@ -66,13 +92,18 @@ export default function StudentSearch() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-premium-blue transition-colors" size={18} />
                 <input
                     type="text"
+                    role="combobox"
+                    aria-label="Search students"
+                    aria-expanded={isOpen}
+                    aria-controls="student-search-results"
+                    aria-autocomplete="list"
+                    aria-haspopup="listbox"
                     placeholder="Search students by name, email or ID..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => query.trim() && results.length > 0 && setIsOpen(true)}
                     className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-medium placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-premium-blue/5 focus:border-premium-blue transition-all shadow-sm"
-                />
-                {loading && (
+                />                {loading && (
                     <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-premium-blue animate-spin" size={18} />
                 )}
             </div>
