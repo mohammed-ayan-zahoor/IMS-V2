@@ -19,6 +19,7 @@
     "dotenv": "^17.2.3",
     "file-type": "^21.2.0",
     "framer-motion": "^12.23.26",
+    "isomorphic-dompurify": "^2.35.0",
     "jsdom": "^27.4.0",
     "lodash": "^4.17.21",
     "lucide-react": "^0.562.0",
