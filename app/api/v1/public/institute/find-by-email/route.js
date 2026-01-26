@@ -33,9 +33,8 @@ export async function GET(req) {
         );
 
         if (!validUser) {
-            return NextResponse.json({ error: "No active institute found for this email" }, { status: 404 });
+            return NextResponse.json({ error: "Institute not found" }, { status: 404 });
         }
-
         return NextResponse.json({
             name: validUser.institute.name,
             logo: validUser.institute.branding?.logo || null,

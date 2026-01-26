@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
@@ -9,7 +9,7 @@ import Button from "@/components/ui/Button";
 import { LogIn, ShieldCheck, GraduationCap, Building2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function LoginPage() {
+function LoginForm() {
     const searchParams = useSearchParams();
     const instituteCode = searchParams.get("code");
     const [email, setEmail] = useState("");
@@ -39,7 +39,7 @@ export default function LoginPage() {
         }, 600); // Wait for user to finish typing
 
         return () => clearTimeout(timer);
-    }, [email]);
+    }, [email, branding]);
 
     const fetchBrandingByCode = async (code) => {
         setBrandingLoading(true);
@@ -199,5 +199,13 @@ export default function LoginPage() {
                 </CardContent>
             </Card>
         </motion.div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><Loader2 className="animate-spin text-premium-blue" size={32} /></div>}>
+            <LoginForm />
+        </Suspense>
     );
 }

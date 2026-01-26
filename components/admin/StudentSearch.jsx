@@ -67,7 +67,7 @@ export default function StudentSearch() {
                 setIsOpen(true);
             }
         } catch (error) {
-            if (error.name === 'AbortError' || error instanceof DOMException && error.name === 'AbortError') {
+            if (error.name === 'AbortError' || (error instanceof DOMException && error.name === 'AbortError')) {
                 // Ignore abort errors
                 return;
             }
@@ -103,14 +103,15 @@ export default function StudentSearch() {
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => query.trim() && results.length > 0 && setIsOpen(true)}
                     className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-medium placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-premium-blue/5 focus:border-premium-blue transition-all shadow-sm"
-                />                {loading && (
+                />
+                {loading && (
                     <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-premium-blue animate-spin" size={18} />
                 )}
             </div>
 
             {/* Dropdown Results */}
             {isOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div id="student-search-results" role="listbox" className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                     {results.length > 0 ? (
                         <div className="py-2">
                             <div className="px-4 py-2 border-b border-slate-50">
@@ -119,6 +120,7 @@ export default function StudentSearch() {
                             {results.map((student) => (
                                 <button
                                     key={student._id}
+                                    role="option"
                                     onClick={() => handleSelect(student._id)}
                                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 text-left transition-colors group/item"
                                 >
