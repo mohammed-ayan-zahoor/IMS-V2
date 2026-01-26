@@ -15,11 +15,15 @@ export async function POST(req, { params }) {
 
         await connectDB();
 
-        await connectDB();
 
         const { id: submissionId } = await params;
         const body = await req.json();
         const { answers } = body;
+
+        //validate answers input
+        if(!Array.isArray(answers)){
+            return Response.json({ error: 'Invalid answers format' }, { status: 400 });
+        }
 
         const submission = await ExamSubmission.findOne({
             _id: submissionId,
@@ -33,11 +37,7 @@ export async function POST(req, { params }) {
 
         // Validate timing
         const timingCheck = ExamSecurityService.validateSubmissionTime(submission, submission.exam);
-        // Even if time exceeded, we accept submission but maybe flag it?
-        // Usually we auto-submit when time is up. 
-        // If client submits way after grace period, we might reject or mark as late.
-        // Let's accept but flag if significantly late?
-        // For now, accepting it to prevent data loss, validation prevents standard UI start flow.
+       
 
         // Update answers
         submission.answers = answers;
@@ -47,6 +47,16 @@ export async function POST(req, { params }) {
 
         await submission.save();
 
+        // Check if student can retake
+        const maxAttempts = submission.exam.maxAttempts || 1;
+        const totalSubmissions = await ExamSubmission.countDocuments({
+            exam: submission.exam._id,
+            student: session.user.id,
+            status: { $ne: 'in_progress' }
+        });
+
+        const canRetake = submission.exam.maxAttempts === 0 || totalSubmissions < maxAttempts;
+
         // Trigger Auto-Grading
         const gradeResult = await ExamGradingService.autoGrade(submission._id, null); // System is actor (null)
 
@@ -54,7 +64,8 @@ export async function POST(req, { params }) {
             success: true,
             submissionStatus: gradeResult.submission.status,
             score: gradeResult.submission.score, // Might hide this depending on policy
-            needsManualReview: gradeResult.needsManualReview
+            needsManualReview: gradeResult.needsManualReview,
+            canRetake
         });
 
     } catch (error) {

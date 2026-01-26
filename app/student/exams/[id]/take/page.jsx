@@ -52,6 +52,11 @@ export default function ExamRoomPage() {
     const autoSaveRef = useRef(null);
     const cheatMonitorRef = useRef(null);
 
+    // Refs to hold latest state/handlers to avoid stale closures in timers
+    const answersRef = useRef(answers);
+    const handleSubmitRef = useRef(handleSubmit);
+    const saveProgressRef = useRef(saveProgress);
+
     // Initial Load
     useEffect(() => {
         checkExamAccess();
@@ -86,6 +91,17 @@ export default function ExamRoomPage() {
             }
             setExamData(data.exam);
             setSubmissionId(data.submissionId);
+
+            // Fix Timer on Refresh
+            if (data.startedAt) {
+                const startTime = new Date(data.startedAt).getTime();
+                const durationMs = data.exam.duration * 60 * 1000;
+                const endTime = startTime + durationMs;
+                const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+                setTimeRemaining(remaining);
+                startTimers();
+            }
+
             setLoading(false);
         } catch (err) {
             console.error(err);
@@ -149,7 +165,7 @@ export default function ExamRoomPage() {
             setTimeRemaining(prev => {
                 if (prev <= 1) {
                     clearInterval(timerRef.current);
-                    handleSubmit(true); // Auto-submit
+                    if (handleSubmitRef.current) handleSubmitRef.current(true); // Auto-submit
                     return 0;
                 }
                 return prev - 1;
@@ -158,7 +174,9 @@ export default function ExamRoomPage() {
 
         // Auto Save (every 30s)
         if (autoSaveRef.current) clearInterval(autoSaveRef.current);
-        autoSaveRef.current = setInterval(saveProgress, 30000);
+        autoSaveRef.current = setInterval(() => {
+            if (saveProgressRef.current) saveProgressRef.current();
+        }, 30000);
     };
 
     const setupSecurityListeners = () => {
@@ -259,7 +277,7 @@ export default function ExamRoomPage() {
         setIsSaving(true);
         try {
             // Helper to format answers for API
-            const answersArray = Object.entries(answers).map(([qId, ans]) => ({
+            const answersArray = Object.entries(answersRef.current).map(([qId, ans]) => ({
                 questionId: qId,
                 answer: ans
             }));
@@ -288,7 +306,7 @@ export default function ExamRoomPage() {
             if (autoSaveRef.current) clearInterval(autoSaveRef.current);
             if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
 
-            const answersArray = Object.entries(answers).map(([qId, ans]) => ({
+            const answersArray = Object.entries(answersRef.current).map(([qId, ans]) => ({
                 questionId: qId,
                 answer: ans
             }));
@@ -301,13 +319,27 @@ export default function ExamRoomPage() {
 
             if (!res.ok) throw new Error("Submission failed");
 
-            router.replace(`/student/exams/${submissionId}/result`);
+            const data = await res.json();
+
+            if (data.canRetake) {
+                toast.success("Exam submitted successfully. You have attempts remaining.");
+                router.replace("/student/exams");
+            } else {
+                router.replace(`/student/exams/${submissionId}/result`);
+            }
 
         } catch (err) {
             toast.error("Submission failed! Copy your answers if possible to prevent data loss.");
             setIsSubmitting(false);
         }
     };
+
+    // Update refs whenever relevant state/handlers change
+    useEffect(() => {
+        answersRef.current = answers;
+        handleSubmitRef.current = handleSubmit;
+        saveProgressRef.current = saveProgress;
+    }, [answers, handleSubmit, saveProgress]);
 
     const formatTime = (seconds) => {
         const h = Math.floor(seconds / 3600);
@@ -420,7 +452,7 @@ export default function ExamRoomPage() {
                     </div>
 
                     <div className="grid grid-cols-5 md:grid-cols-4 gap-3 md:gap-2">
-                        {examData.questions.map((q, idx) => {
+                        {examData?.questions?.map((q, idx) => {
                             const isAnswered = !!answers[q._id];
                             const isCurrent = idx === currentQuestionIndex;
                             return (

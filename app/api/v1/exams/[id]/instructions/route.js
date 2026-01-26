@@ -73,17 +73,20 @@ export async function GET(req, { params }) {
                 questionCount: exam.questions.length,
                 description: exam.description, // Updated from instructions to description
                 securityConfig: exam.securityConfig,
-                scheduledAt: exam.scheduledAt
+                scheduledAt: exam.scheduledAt,
+                maxAttempts: exam.maxAttempts
             },
             canResume: existingSubmission ? true : false,
-            submissionId: existingSubmission?._id
+            submissionId: existingSubmission?._id,
+            startedAt: existingSubmission?.startedAt,
+            attemptNumber: existingSubmission?.attemptNumber
         });
 
     } catch (error) {
         console.error('Error fetching instructions:', error);
         return Response.json(
             { error: error.message || 'Failed to fetch instructions' },
-            { status: error.message.includes('not enrolled') ? 403 : 500 }
+            { status: error.message?.includes('not enrolled') ? 403 : 500 }
         );
     }
 }

@@ -14,8 +14,7 @@ export async function GET(req, { params }) {
 
         await connectDB();
 
-        await connectDB();
-
+        const { id: queryId } = await params;
         const { id: queryId } = await params;
 
         // Try to find by Submission ID first
@@ -68,68 +67,86 @@ export async function GET(req, { params }) {
         }
         // Automatic Logic
         else if (exam.resultPublication === 'immediate') {
-            showResults = true;
+            const totalAttempts = await ExamSubmission.countDocuments({
+                exam: exam._id,
+                student: session.user.id,
+                status: { $ne: 'in_progress' }
+            });
+            const max = exam.maxAttempts || 1; // Default to 1 if undefined
+            const isUnlimited = exam.maxAttempts === 0;
+
+            if (isUnlimited || totalAttempts >= max) {
+                showResults = true;
+            }
         }
         else if (exam.resultPublication === 'after_exam_end') {
-            const endTime = new Date(exam.schedule.endTime);
-            if (new Date() > endTime) {
+            const endTime = exam.schedule?.endTime;
+            if (endTime && new Date() > new Date(endTime)) {
                 showResults = true;
             }
         }
 
         if (!showResults) {
+            if (!showResults) {
+                let message;
+                if (exam.resultPublication === 'immediate') {
+                    message = 'Results will be available after you complete all your attempts.';
+                } else {
+                    const endTime = exam.schedule?.endTime;
+                    message = endTime
+                        ? `Results will be published after the exam ends on ${new Date(endTime).toLocaleString()}.`
+                        : 'Results will be published once available.';
+                }
+                return Response.json({
+                    submission: {
+                        status: submission.status,
+                        submittedAt: submission.submittedAt,
+                        message
+                    },
+                    exam: {
+                        title: exam.title
+                    }
+                });
+            }        // Process questions to include correctness/feedback based on config
+            const processedAnswers = submission.answers.map(ans => {
+                const question = exam.questions.find(q => q._id.toString() === ans.questionId.toString());
+
+                let result = {
+                    questionId: ans.questionId,
+                    questionText: question?.text,
+                    type: question?.type,
+                    yourAnswer: ans.answer,
+                    marksAwarded: ans.marksAwarded,
+                    maxMarks: question?.marks,
+                    isCorrect: ans.isCorrect
+                };
+
+                if (exam.showCorrectAnswers) {
+                    result.correctAnswer = question?.correctOption; // Or text for descriptive
+                    result.options = question?.options;
+                }
+
+                return result;
+            });
+
             return Response.json({
                 submission: {
+                    score: submission.score,
+                    percentage: submission.percentage,
                     status: submission.status,
                     submittedAt: submission.submittedAt,
-                    message: `Results will be published after the exam ends on ${new Date(exam.schedule.endTime).toLocaleString()}.`
+                    answers: processedAnswers,
+                    remarks: submission.remarks
                 },
                 exam: {
-                    title: exam.title
+                    title: exam.title,
+                    totalMarks: exam.totalMarks,
+                    passingMarks: exam.passingMarks
                 }
             });
+
+        } catch (error) {
+            console.error('Error fetching results:', error);
+            return Response.json({ error: 'Failed to fetch results' }, { status: 500 });
         }
-
-        // Process questions to include correctness/feedback based on config
-        const processedAnswers = submission.answers.map(ans => {
-            const question = exam.questions.find(q => q._id.toString() === ans.questionId.toString());
-
-            let result = {
-                questionId: ans.questionId,
-                questionText: question?.text,
-                type: question?.type,
-                yourAnswer: ans.answer,
-                marksAwarded: ans.marksAwarded,
-                maxMarks: question?.marks,
-                isCorrect: ans.isCorrect
-            };
-
-            if (exam.showCorrectAnswers) {
-                result.correctAnswer = question?.correctOption; // Or text for descriptive
-                result.options = question?.options;
-            }
-
-            return result;
-        });
-
-        return Response.json({
-            submission: {
-                score: submission.score,
-                percentage: submission.percentage,
-                status: submission.status,
-                submittedAt: submission.submittedAt,
-                answers: processedAnswers,
-                remarks: submission.remarks
-            },
-            exam: {
-                title: exam.title,
-                totalMarks: exam.totalMarks,
-                passingMarks: exam.passingMarks
-            }
-        });
-
-    } catch (error) {
-        console.error('Error fetching results:', error);
-        return Response.json({ error: 'Failed to fetch results' }, { status: 500 });
     }
-}
