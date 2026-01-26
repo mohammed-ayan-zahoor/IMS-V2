@@ -54,8 +54,8 @@ export default function ExamRoomPage() {
 
     // Refs to hold latest state/handlers to avoid stale closures in timers
     const answersRef = useRef(answers);
-    const handleSubmitRef = useRef(handleSubmit);
-    const saveProgressRef = useRef(saveProgress);
+    const handleSubmitRef = useRef(null);
+    const saveProgressRef = useRef(null);
 
     // Initial Load
     useEffect(() => {
