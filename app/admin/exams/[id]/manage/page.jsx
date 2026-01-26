@@ -12,7 +12,7 @@ import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { format } from "date-fns";
-import DOMPurify from "dompurify";
+import DOMPurify from "isomorphic-dompurify";
 
 export default function ManageExamPage({ params }) {
     const { id } = use(params);

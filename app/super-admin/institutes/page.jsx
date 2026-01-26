@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -34,6 +35,7 @@ const item = {
 };
 
 export default function InstitutesPage() {
+    const router = useRouter();
     const toast = useToast();
     const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);

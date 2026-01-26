@@ -149,10 +149,11 @@ export default function SuperAdminLayout({ children }) {
                 <button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     className="absolute -right-3 top-24 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 shadow-sm z-50 transition-colors"
+                    aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+                    aria-expanded={isSidebarOpen}
                 >
                     {isSidebarOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-                </button>
-            </motion.aside>
+                </button>            </motion.aside>
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">

@@ -37,7 +37,10 @@ export default function SuperAdminDashboard() {
     const [stats, setStats] = useState({
         institutes: 0,
         totalUsers: 0,
-        activeSubscriptions: 0
+        activeSubscriptions: 0,
+        trendInstitutes: "...",
+        trendUsers: "...",
+        trendSubscriptions: "..."
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -54,7 +57,10 @@ export default function SuperAdminDashboard() {
                 setStats({
                     institutes: data.institutes || 0,
                     totalUsers: data.totalUsers || 0,
-                    activeSubscriptions: data.activeSubscriptions || 0
+                    activeSubscriptions: data.activeSubscriptions || 0,
+                    trendInstitutes: data.trendInstitutes || "+0% this month",
+                    trendUsers: data.trendUsers || "+0 today",
+                    trendSubscriptions: data.trendSubscriptions || "+0 new trials"
                 });
             } catch (error) {
                 if (error.name !== "AbortError") {
@@ -121,21 +127,21 @@ export default function SuperAdminDashboard() {
                     value={stats.institutes}
                     icon={Building2}
                     color="blue"
-                    trend="+12% this month"
+                    trend={stats.trendInstitutes}
                 />
                 <StatCard
                     title="Total Users"
                     value={stats.totalUsers}
                     icon={Users}
                     color="emerald"
-                    trend="+85 today"
+                    trend={stats.trendUsers}
                 />
                 <StatCard
                     title="Active Subscriptions"
                     value={stats.activeSubscriptions}
                     icon={CreditCard}
                     color="amber"
-                    trend="+5 new trials"
+                    trend={stats.trendSubscriptions}
                 />
             </motion.div>
 

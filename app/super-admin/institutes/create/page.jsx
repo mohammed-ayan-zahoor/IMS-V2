@@ -101,12 +101,15 @@ export default function CreateInstitutePage() {
             <div className="mb-10 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Link href="/super-admin/institutes">
-                        <motion.button
+                        <motion.span
                             whileHover={{ x: -4 }}
-                            className="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-blue-600 shadow-sm transition-colors"
+                            className="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-blue-600 shadow-sm transition-colors inline-flex cursor-pointer"
+                            role="link"
+                            tabIndex={0}
+                            aria-label="Go back to institutes"
                         >
                             <ArrowLeft size={20} />
-                        </motion.button>
+                        </motion.span>
                     </Link>
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight">Register Organization</h1>

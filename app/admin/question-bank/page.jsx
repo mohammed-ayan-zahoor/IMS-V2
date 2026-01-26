@@ -12,7 +12,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
-import DOMPurify from "dompurify";
+import DOMPurify from "isomorphic-dompurify";
 
 export default function QuestionBankPage() {
     const { toast } = useToast();
