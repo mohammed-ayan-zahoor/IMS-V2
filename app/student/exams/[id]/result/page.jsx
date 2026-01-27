@@ -164,7 +164,7 @@ export default function ExamResultPage() {
                                                         <div className="grid gap-2">
                                                             {ans.options.map((option, optIdx) => {
                                                                 const isUserSelected = parseInt(ans.yourAnswer) === optIdx;
-                                                                const isCorrectOption = ans.correctAnswer === optIdx;
+                                                                const isCorrectOption = parseInt(ans.correctAnswer) === optIdx;
 
                                                                 let optionStyle = "bg-white border-slate-200 text-slate-700";
                                                                 let icon = null;
