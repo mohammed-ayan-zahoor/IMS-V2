@@ -51,9 +51,8 @@ export default function StudentLayout({ children }) {
                             </div>
                         )}
                         <div className="min-w-0">
-                            <h1 className="text-base md:text-lg font-black tracking-tighter leading-tight text-slate-900 truncate md:whitespace-normal line-clamp-2 md:line-clamp-none">
-                                {session?.user?.institute?.name || "IMS-v2"}
-                            </h1>
+                            <h1 className="text-base md:text-lg font-black tracking-tighter leading-tight text-slate-900 truncate md:whitespace-normal md:overflow-visible">
+                                {session?.user?.institute?.name || "IMS-v2"}                            </h1>
                             <p className="text-[10px] uppercase font-bold text-slate-400 mt-0.5">Student Portal</p>
                         </div>
                     </Link>

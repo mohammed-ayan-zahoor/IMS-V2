@@ -21,7 +21,7 @@ export async function POST(req, { params }) {
         const { answers } = body;
 
         //validate answers input
-        if(!Array.isArray(answers)){
+        if (!Array.isArray(answers)) {
             return Response.json({ error: 'Invalid answers format' }, { status: 400 });
         }
 
@@ -37,7 +37,7 @@ export async function POST(req, { params }) {
 
         // Validate timing
         const timingCheck = ExamSecurityService.validateSubmissionTime(submission, submission.exam);
-       
+
 
         // Update answers
         submission.answers = answers;
@@ -48,14 +48,15 @@ export async function POST(req, { params }) {
         await submission.save();
 
         // Check if student can retake
-        const maxAttempts = submission.exam.maxAttempts || 1;
+        const rawMaxAttempts = submission.exam.maxAttempts;
+        const maxAttempts = (rawMaxAttempts === 0 || rawMaxAttempts) ? Number(rawMaxAttempts) : 1;
         const totalSubmissions = await ExamSubmission.countDocuments({
             exam: submission.exam._id,
             student: session.user.id,
             status: { $ne: 'in_progress' }
         });
 
-        const canRetake = submission.exam.maxAttempts === 0 || totalSubmissions < maxAttempts;
+        const canRetake = maxAttempts === 0 || totalSubmissions < maxAttempts;
 
         // Trigger Auto-Grading
         const gradeResult = await ExamGradingService.autoGrade(submission._id, null); // System is actor (null)

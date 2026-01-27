@@ -49,15 +49,23 @@ export async function GET(req, { params }) {
             );
         }
 
-        // Check existing submission
-        const existingSubmission = await ExamSecurityService.checkExistingSubmission(
-            examId,
-            session.user.id
-        );
+        // Check existing submission & attempts
+        const submissions = await ExamSubmission.find({
+            exam: examId,
+            student: session.user.id
+        }).sort({ createdAt: -1 });
 
-        if (existingSubmission && existingSubmission.status === 'submitted') {
+        const inProgress = submissions.find(s => s.status === 'in_progress');
+        const consumedAttempts = submissions.filter(s => ['submitted', 'evaluated'].includes(s.status)).length;
+        const maxAttempts = exam.maxAttempts || 1;
+
+        // If something is in progress, we are good (resumable)
+        if (inProgress) {
+            // Already handled by existingSubmission logic below
+        } else if (maxAttempts > 0 && consumedAttempts >= maxAttempts) {
+            // No in-progress session AND attempts exhausted -> Redirect to result
             return Response.json(
-                { error: 'Already submitted', submissionId: existingSubmission._id },
+                { error: 'All attempts used', submissionId: submissions[0]?._id },
                 { status: 409 }
             );
         }
@@ -71,15 +79,15 @@ export async function GET(req, { params }) {
                 totalMarks: exam.totalMarks,
                 passingMarks: exam.passingMarks,
                 questionCount: exam.questions.length,
-                description: exam.description, // Updated from instructions to description
+                description: exam.description || exam.instructions,
                 securityConfig: exam.securityConfig,
                 scheduledAt: exam.scheduledAt,
                 maxAttempts: exam.maxAttempts
             },
-            canResume: existingSubmission ? true : false,
-            submissionId: existingSubmission?._id,
-            startedAt: existingSubmission?.startedAt,
-            attemptNumber: existingSubmission?.attemptNumber
+            canResume: !!inProgress,
+            submissionId: inProgress?._id || null,
+            startedAt: inProgress?.startedAt || null,
+            attemptNumber: inProgress ? inProgress.attemptNumber : (consumedAttempts + 1)
         });
 
     } catch (error) {

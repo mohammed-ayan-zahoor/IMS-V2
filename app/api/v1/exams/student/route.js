@@ -76,20 +76,27 @@ export async function GET(req) {
                 const isUnlimited = maxAttempts === 0;
 
                 let status = 'available';
-
-                // 1. Check if exam window is valid
-                if (now < startTime) {
-                    status = 'upcoming';
-                } else if (now > endTime && !activeSubmission) {
-                    status = 'missed'; // Deadline passed and no active session to resume
-                }
                 // 2. Check Submission Status
-                else if (activeSubmission) {
+                if (activeSubmission) {
                     status = 'in_progress';
-                } else if (!isUnlimited && attemptsUsed >= maxAttempts) {
-                    status = 'submitted'; // All attempts used
-                } else if (attemptsUsed > 0 && (isUnlimited || attemptsUsed < maxAttempts)) {
-                    status = 'available'; // Can retake
+                } else {
+                    const maxAttempts = Number(exam.maxAttempts) || 1;
+                    const isUnlimited = exam.maxAttempts === 0;
+
+                    if (!isUnlimited && attemptsUsed >= maxAttempts) {
+                        status = 'submitted'; // All attempts used
+                    } else if (attemptsUsed > 0) {
+                        status = 'available'; // Retake available
+                    } else {
+                        // Check if it's currently within the valid time window to start
+                        if (now >= startTime && now <= endTime) {
+                            status = 'available';
+                        } else if (now < startTime) {
+                            status = 'upcoming';
+                        } else {
+                            status = 'missed';
+                        }
+                    }
                 }
 
                 // If 'submitted', user might want to see results.

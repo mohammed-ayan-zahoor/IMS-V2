@@ -83,18 +83,20 @@ export class ExamSecurityService {
 
     /**
      * Check for existing submission
+     * Returns: in_progress submission to resume, or null
      */
     static async checkExistingSubmission(examId, studentId) {
-        const submission = await ExamSubmission.findOne({
+        // Find all submissions to check for in_progress ones
+        const submissions = await ExamSubmission.find({
             exam: examId,
             student: studentId
-        });
+        }).sort({ createdAt: -1 });
 
-        if (submission && submission.status === 'submitted') {
-            throw new Error('You have already submitted this exam');
-        }
+        const inProgress = submissions.find(s => s.status === 'in_progress');
+        if (inProgress) return inProgress;
 
-        return submission; // Return if in_progress (can resume)
+        // If no in_progress, return the latest submitted one (caller will check maxAttempts)
+        return submissions[0] || null;
     }
 
     /**

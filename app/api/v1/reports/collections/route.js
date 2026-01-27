@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Fee from "@/models/Fee";
+import mongoose from "mongoose";
 import "@/models/User";
 import "@/models/Batch";
 
@@ -26,38 +27,43 @@ export async function GET(req) {
             return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
         }
 
-        // Find all fees for the institute (Super Admins without instituteId will get all institutes' fees)
-        const query = instituteId ? { institute: instituteId } : {};
-        const fees = await Fee.find(query).skip(skip)
-            .limit(limit)
-            .populate('student', 'fullName email enrollmentNumber profile')
-            .populate('batch', 'name');
-        // Extract and flatten paid installments
-        const collections = [];
-        fees.forEach(fee => {
-            (fee.installments || []).forEach(inst => {
-                if (inst.status === 'paid') {
-                    collections.push({
-                        _id: inst._id,
-                        feeId: fee._id,
-                        student: fee.student,
-                        batch: fee.batch,
-                        amount: inst.amount,
-                        paidDate: inst.paidDate,
-                        method: inst.paymentMethod,
-                        collectedBy: inst.collectedBy || "System/Unknown",
-                        notes: inst.notes
-                    });
-                }
-            });
-        });
+        // Create query with proper ObjectId casting for aggregation if instituteId exists
+        const matchQuery = instituteId ? { institute: new mongoose.Types.ObjectId(instituteId) } : {};
 
-        // Sort by date descending
-        collections.sort((a, b) => {
-            const dateA = a.paidDate ? new Date(a.paidDate) : new Date(0);
-            const dateB = b.paidDate ? new Date(b.paidDate) : new Date(0);
-            return dateB - dateA;
-        });
+        // Aggregation pipeline to:
+        // 1. Match fees by institute
+        // 2. Unwind installments to flatten them
+        // 3. Match only paid installments
+        // 4. Sort by paid date descending
+        // 5. Apply pagination skip/limit on the flattened collection
+        const pipeline = [
+            { $match: matchQuery },
+            { $unwind: "$installments" },
+            { $match: { "installments.status": "paid" } },
+            { $sort: { "installments.paidDate": -1 } },
+            { $skip: skip },
+            { $limit: limit }
+        ];
+
+        const aggregatedResults = await Fee.aggregate(pipeline);
+
+        // Populate student and batch on the flattened results
+        const populatedResults = await Fee.populate(aggregatedResults, [
+            { path: 'student', select: 'fullName email enrollmentNumber profile' },
+            { path: 'batch', select: 'name' }
+        ]);
+
+        const collections = populatedResults.map(item => ({
+            _id: item.installments._id,
+            feeId: item._id,
+            student: item.student,
+            batch: item.batch,
+            amount: item.installments.amount,
+            paidDate: item.installments.paidDate,
+            method: item.installments.paymentMethod,
+            collectedBy: item.installments.collectedBy || "System/Unknown",
+            notes: item.installments.notes
+        }));
         return NextResponse.json({ collections });
     } catch (error) {
         console.error("Collections report error:", error);
