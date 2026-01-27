@@ -187,7 +187,7 @@ export default function EditExamPage({ params }) {
                                 type="number"
                                 min="1"
                                 value={formData.maxAttempts}
-                                onChange={(e) => setFormData({ ...formData, maxAttempts: e.target.value })}
+                                onChange={(e) => setFormData({ ...formData, maxAttempts: Number(e.target.value) })}
                             />
                         </div>
 

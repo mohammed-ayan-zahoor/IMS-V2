@@ -131,6 +131,8 @@ export async function PATCH(req, { params }) {
         if (body.negativeMarkingPercentage !== undefined) exam.negativeMarkingPercentage = body.negativeMarkingPercentage;
         if (body.passingMarks !== undefined) exam.passingMarks = body.passingMarks;
         if (body.instructions !== undefined) exam.instructions = body.instructions;
+        if (body.maxAttempts !== undefined) exam.maxAttempts = body.maxAttempts;
+        if (body.resultPublication !== undefined) exam.resultPublication = body.resultPublication;
 
 
         await exam.save();
