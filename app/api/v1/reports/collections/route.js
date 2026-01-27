@@ -26,10 +26,9 @@ export async function GET(req) {
             return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
         }
 
-        // Find all fees for the institute (Super Admins without instituteId will get empty for now or we could allow all)
+        // Find all fees for the institute (Super Admins without instituteId will get all institutes' fees)
         const query = instituteId ? { institute: instituteId } : {};
-        const fees = await Fee.find(query)
-            .skip(skip)
+        const fees = await Fee.find(query).skip(skip)
             .limit(limit)
             .populate('student', 'fullName email enrollmentNumber profile')
             .populate('batch', 'name');

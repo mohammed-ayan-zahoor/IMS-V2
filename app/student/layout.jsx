@@ -13,7 +13,6 @@ import {
     PenTool,
     Settings,
     LogOut,
-    Bell,
     User
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -34,25 +33,25 @@ export default function StudentLayout({ children }) {
     return (
         <div className="min-h-screen bg-white text-foreground flex flex-col">
             {/* Navbar */}
-            <header className="h-20 bg-white border-b border-border fixed top-0 w-full z-50 px-6 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-8">
-                    <Link href="/student/dashboard" className="flex items-center gap-2 group">
+            <header className="h-20 bg-white border-b border-border fixed top-0 w-full z-50 px-4 md:px-6 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-3 md:gap-8 overflow-hidden">
+                    <Link href="/student/dashboard" className="flex items-center gap-2 group min-w-0">
                         {session?.user?.institute?.logo ? (
                             <img
                                 src={session.user.institute.logo}
                                 alt={session.user.institute.name}
-                                className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-slate-100 shadow-sm group-hover:scale-105 transition-transform"
+                                className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-slate-100 shadow-sm group-hover:scale-105 transition-transform shrink-0"
                                 crossOrigin="anonymous"
                             />
                         ) : (
-                            <div className="w-10 h-10 bg-premium-blue rounded-lg flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                            <div className="w-10 h-10 bg-premium-blue rounded-lg flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform shrink-0">
                                 <span className="text-white font-black text-xl italic">
                                     {session?.user?.institute?.name?.[0] || "I"}
                                 </span>
                             </div>
                         )}
-                        <div>
-                            <h1 className="text-lg font-black tracking-tighter leading-none text-slate-900">
+                        <div className="min-w-0">
+                            <h1 className="text-base md:text-lg font-black tracking-tighter leading-tight text-slate-900 truncate md:whitespace-normal line-clamp-2 md:line-clamp-none">
                                 {session?.user?.institute?.name || "IMS-v2"}
                             </h1>
                             <p className="text-[10px] uppercase font-bold text-slate-400 mt-0.5">Student Portal</p>
@@ -82,17 +81,6 @@ export default function StudentLayout({ children }) {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <button
-                        aria-label="View notifications"
-                        onClick={() => alert("Notification system coming soon in Phase 5!")}
-                        className="w-10 h-10 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-premium-blue transition-colors relative"
-                    >
-                        <Bell size={20} />
-                        <span className="absolute top-3 right-3 w-1.5 h-1.5 bg-red-500 rounded-full border-2 border-white" aria-hidden="true" />
-                    </button>
-
-                    <div className="h-8 w-[1px] bg-border mx-2" />
-
                     <div className="flex items-center gap-3 pl-2 group cursor-pointer">
                         <div className="text-right hidden sm:block">
                             <p className="text-sm font-bold leading-none text-slate-900">{session?.user?.name || "Student"}</p>

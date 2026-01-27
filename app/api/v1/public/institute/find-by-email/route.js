@@ -7,14 +7,16 @@ export async function POST(req) {
     try {
         const body = await req.json();
         const email = body.email?.toLowerCase();
+        
 
+        // 1. Missing email check (Generic error to prevent enumeration)
         if (!email) {
-            return NextResponse.json({ error: "Email is required" }, { status: 400 });
+            return NextResponse.json({ error: "Invalid request or resource not found" }, { status: 404 });
         }
 
         await connectDB();
 
-        // Find potential user with this email
+        // 2. Find potential user with this email
         const users = await User.find({
             email,
             deletedAt: null
@@ -23,7 +25,7 @@ export async function POST(req) {
             select: 'name code branding status isActive deletedAt'
         });
 
-        // Filter to find the best match (active institute)
+        // 3. Filter to find the best match (active institute)
         const validUser = users.find(u =>
             u.institute &&
             u.institute.status === 'active' &&
@@ -31,8 +33,9 @@ export async function POST(req) {
             !u.institute.deletedAt
         );
 
+        // 4. No valid institute check (Generic error identical to #1)
         if (!validUser) {
-            return NextResponse.json({ error: "No active institute found for this email" }, { status: 404 });
+            return NextResponse.json({ error: "Invalid request or resource not found" }, { status: 404 });
         }
 
         return NextResponse.json({
