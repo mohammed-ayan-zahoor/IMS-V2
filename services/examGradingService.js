@@ -29,16 +29,13 @@ export class ExamGradingService {
             if (!question) continue;
 
             if (question.type === 'mcq' || question.type === 'true_false') {
-                // ... (rest of logic) ...
                 // Auto-grade objective questions
                 // NOTE: answer.answer is stored as string.
-                // For MCQ: we likely stored the option TEXT or INDEX.
-                // Existing Exam model stores `correctOption` (Number 0-3).
-                // So we expect answer.answer to be stringified index "0" or "1".
+                // For MCQ: correctAnswer is stored as string "0", "1", "2", etc.
 
                 // Check if answer matches
-                const studentAnswer = parseInt(answer.answer);
-                const isCorrect = studentAnswer === question.correctOption;
+                const studentAnswer = String(answer.answer);
+                const isCorrect = studentAnswer === question.correctAnswer;
 
                 answer.isCorrect = isCorrect;
 
