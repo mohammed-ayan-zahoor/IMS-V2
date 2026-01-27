@@ -34,21 +34,31 @@ export async function GET(req) {
         // 1. Match fees by institute
         // 2. Unwind installments to flatten them
         // 3. Match only paid installments
-        // 4. Sort by paid date descending
-        // 5. Apply pagination skip/limit on the flattened collection
+        // 4. Use $facet to get both paginated results and total count
         const pipeline = [
             { $match: matchQuery },
             { $unwind: "$installments" },
             { $match: { "installments.status": "paid" } },
-            { $sort: { "installments.paidDate": -1 } },
-            { $skip: skip },
-            { $limit: limit }
+            {
+                $facet: {
+                    results: [
+                        { $sort: { "installments.paidDate": -1 } },
+                        { $skip: skip },
+                        { $limit: limit }
+                    ],
+                    total: [
+                        { $count: "total" }
+                    ]
+                }
+            }
         ];
 
-        const aggregatedResults = await Fee.aggregate(pipeline);
+        const [aggregatedData] = await Fee.aggregate(pipeline);
+        const results = aggregatedData.results || [];
+        const total = aggregatedData.total[0]?.total || 0;
 
         // Populate student and batch on the flattened results
-        const populatedResults = await Fee.populate(aggregatedResults, [
+        const populatedResults = await Fee.populate(results, [
             { path: 'student', select: 'fullName email enrollmentNumber profile' },
             { path: 'batch', select: 'name' }
         ]);
@@ -64,7 +74,16 @@ export async function GET(req) {
             collectedBy: item.installments.collectedBy || "System/Unknown",
             notes: item.installments.notes
         }));
-        return NextResponse.json({ collections });
+
+        return NextResponse.json({
+            collections,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error("Collections report error:", error);
         return NextResponse.json({ error: "Failed to fetch collections" }, { status: 500 });

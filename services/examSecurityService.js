@@ -83,7 +83,9 @@ export class ExamSecurityService {
 
     /**
      * Check for existing submission
-     * Returns: in_progress submission to resume, or null
+     * @name checkExistingSubmission
+     * @returns {Promise<Object|null>} in_progress submission to resume, or the latest submission (if none in progress), or null. 
+     * Note: Callers must check status and maxAttempts when a non-in_progress submission is returned.
      */
     static async checkExistingSubmission(examId, studentId) {
         // Find all submissions to check for in_progress ones

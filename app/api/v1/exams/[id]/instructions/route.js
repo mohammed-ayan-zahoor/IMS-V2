@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import { ExamSecurityService } from '@/services/examSecurityService';
+import ExamSubmission from '@/models/ExamSubmission';
 
 export async function GET(req, { params }) {
     try {

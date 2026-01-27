@@ -79,23 +79,16 @@ export async function GET(req) {
                 // 2. Check Submission Status
                 if (activeSubmission) {
                     status = 'in_progress';
+                } else if (!isUnlimited && attemptsUsed >= maxAttempts) {
+                    status = 'submitted'; // All attempts used
                 } else {
-                    const maxAttempts = Number(exam.maxAttempts) || 1;
-                    const isUnlimited = exam.maxAttempts === 0;
-
-                    if (!isUnlimited && attemptsUsed >= maxAttempts) {
-                        status = 'submitted'; // All attempts used
-                    } else if (attemptsUsed > 0) {
-                        status = 'available'; // Retake available
+                    // Eligibility exists (either first time or retake), check window
+                    if (now < startTime) {
+                        status = 'upcoming';
+                    } else if (now > endTime) {
+                        status = attemptsUsed > 0 ? 'submitted' : 'missed';
                     } else {
-                        // Check if it's currently within the valid time window to start
-                        if (now >= startTime && now <= endTime) {
-                            status = 'available';
-                        } else if (now < startTime) {
-                            status = 'upcoming';
-                        } else {
-                            status = 'missed';
-                        }
+                        status = 'available'; // Within window and attempts remain
                     }
                 }
 
