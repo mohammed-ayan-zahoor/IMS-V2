@@ -35,9 +35,6 @@ export async function GET(req, { params }) {
         }
 
         const exam = submission.exam;
-
-        // Process questions to include correctness/feedback
-        const exam = submission.exam;
         const questions = exam?.questions || [];
 
         // Process questions to include correctness/feedback
@@ -73,9 +70,9 @@ export async function GET(req, { params }) {
                 remarks: submission.remarks
             },
             exam: {
-                title: exam.title,
-                totalMarks: exam.totalMarks,
-                passingMarks: exam.passingMarks
+                title: exam?.title || 'Unknown Exam',
+                totalMarks: exam?.totalMarks ?? 0,
+                passingMarks: exam?.passingMarks ?? 0
             },
             student: {
                 fullName: submission.student?.fullName,

@@ -182,8 +182,14 @@ export default function ExamResultsPage({ params }) {
                                 </tr>
                             ) : (
                                 filteredSubmissions.map((sub) => (
-                                    <tr key={sub._id} onClick={() => fetchStudentDetails(sub._id)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
-                                        <td className="px-6 py-4">
+                                    <tr
+                                        key={sub._id}
+                                        onClick={() => fetchStudentDetails(sub._id)}
+                                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && fetchStudentDetails(sub._id)}
+                                        tabIndex={0}
+                                        role="button"
+                                        className="hover:bg-slate-50 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-premium-blue/20"
+                                    >                                        <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-premium-blue/10 text-premium-blue flex items-center justify-center font-bold text-xs uppercase">
                                                     {sub.student?.fullName?.charAt(0) || "U"}
