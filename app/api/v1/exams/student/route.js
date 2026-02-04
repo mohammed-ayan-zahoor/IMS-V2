@@ -66,8 +66,7 @@ export async function GET(req) {
             // Effective end time (Fix for Bug #3 and user-reported issue)
             const endTime = (exam.schedule && exam.schedule.endTime)
                 ? new Date(exam.schedule.endTime)
-                : new Date(startTime.getTime() + exam.duration * 60000);
-
+                : new Date(startTime.getTime() + (exam.duration || 60) * 60000); // Default 60 min if missing
             // Analyze submissions
             const activeSubmission = submissions.find(s => s.status === 'in_progress');
             const attemptsUsed = submissions.filter(s => s.status !== 'in_progress').length;
