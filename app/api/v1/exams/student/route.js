@@ -43,7 +43,7 @@ export async function GET(req) {
         const allSubmissions = await ExamSubmission.find({
             student: session.user.id,
             exam: { $in: examIds }
-        }).select('status score percentage submittedAt attemptNumber exam').lean();
+        }).select('status score percentage submittedAt startedAt attemptNumber exam').lean();
 
         // Group submissions by exam ID for O(1) lookup
         const submissionsByExam = allSubmissions.reduce((acc, sub) => {
@@ -93,7 +93,23 @@ export async function GET(req) {
             let status = 'available';
 
             if (activeSubmission) {
-                status = 'in_progress';
+                // Check if this specific attempt has exceeded its duration
+                const durationMinutes = exam.duration || 60;
+                const submissionStartTime = new Date(activeSubmission.startedAt || activeSubmission.createdAt);
+
+                // Safety: if startedAt is missing, fallback to logic that keeps it active or handles error
+                if (!isNaN(submissionStartTime.getTime())) {
+                    const submissionEndTime = new Date(submissionStartTime.getTime() + durationMinutes * 60000);
+
+                    // Buffer of 1 minute to allow auto-submit latency
+                    if (now > new Date(submissionEndTime.getTime() + 60000)) {
+                        status = 'submitted'; // Timed out
+                    } else {
+                        status = 'in_progress';
+                    }
+                } else {
+                    status = 'in_progress'; // Fallback
+                }
             } else if (!isUnlimited && attemptsUsed >= maxAttempts) {
                 status = 'submitted'; // All attempts exhausted
             } else {
