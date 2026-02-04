@@ -6,6 +6,8 @@ import Batch from '@/models/Batch';
 import '@/models/Course'; // Ensure Course schema is registered for population
 import ExamSubmission from '@/models/ExamSubmission';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
@@ -16,7 +18,7 @@ export async function GET(req) {
 
         await connectDB();
 
-        // Find batches student is enrolled in
+        // 1. Find batches student is enrolled in
         const batches = await Batch.find({
             'enrolledStudents.student': session.user.id,
             'enrolledStudents.status': 'active',
@@ -25,98 +27,106 @@ export async function GET(req) {
 
         const batchIds = batches.map(b => b._id);
 
-        // Find exams for these batches
+        // 2. Find exams for these batches
         const exams = await Exam.find({
-            batches: { $in: batchIds }, // Updated from 'batch' to 'batches' array
-            status: 'published', // Updated from 'isPublished' to 'status' enum
+            batches: { $in: batchIds },
+            status: 'published',
             deletedAt: null
         })
-            .populate('course') // Updated population (Exam model has `course`, not `batch` as single ref anymore)
+            .populate('course')
             .populate('batches')
-            .sort({ scheduledAt: -1 }); // Updated from schedule.startTime to scheduledAt
+            .sort({ scheduledAt: -1 })
+            .lean();
 
-        // Get submission status for each exam
-        const examsWithStatus = await Promise.all(
-            exams.map(async (exam) => {
-                const submissions = await ExamSubmission.find({
-                    exam: exam._id,
-                    student: session.user.id
-                }).select('status score percentage submittedAt attemptNumber');
+        // 3. Batch Fetch Submissions (N+1 Optimization)
+        const examIds = exams.map(e => e._id);
+        const allSubmissions = await ExamSubmission.find({
+            student: session.user.id,
+            exam: { $in: examIds }
+        }).select('status score percentage submittedAt attemptNumber exam').lean();
 
-                const now = new Date();
-                const startTime = new Date(exam.scheduledAt);
+        // Group submissions by exam ID for O(1) lookup
+        const submissionsByExam = allSubmissions.reduce((acc, sub) => {
+            const examId = sub.exam.toString();
+            if (!acc[examId]) acc[examId] = [];
+            acc[examId].push(sub);
+            return acc;
+        }, {});
 
-                // Effective end time
-                const endTime = exam.endTime
-                    ? new Date(exam.endTime)
-                    : new Date(startTime.getTime() + exam.duration * 60000);
+        // 4. Process exams
+        const examsWithStatus = exams.map((exam) => {
+            const submissions = submissionsByExam[exam._id.toString()] || [];
 
-                // Analyze submissions
-                const attemptsUsed = submissions.filter(s => s.status !== 'in_progress').length;
-                const activeSubmission = submissions.find(s => s.status === 'in_progress');
+            const now = new Date();
+            // Use schedule.startTime if available, else legacy scheduledAt
+            const startTime = (exam.schedule && exam.schedule.startTime)
+                ? new Date(exam.schedule.startTime)
+                : new Date(exam.scheduledAt);
 
-                // Find best result
-                let bestSubmission = null;
-                let latestSubmission = null;
+            // Effective end time (Fix for Bug #3 and user-reported issue)
+            const endTime = (exam.schedule && exam.schedule.endTime)
+                ? new Date(exam.schedule.endTime)
+                : new Date(startTime.getTime() + exam.duration * 60000);
 
-                if (submissions.length > 0) {
-                    // Filter to completed submissions and sort by submission time (descending)
-                    const completedSubmissions = submissions
-                        .filter(s => s.status !== 'in_progress' && s.submittedAt)
-                        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-                    latestSubmission = completedSubmissions[0] || null; bestSubmission = submissions.reduce((prev, current) =>
-                        (prev.score > current.score) ? prev : current
-                    );
-                }
+            // Analyze submissions
+            const activeSubmission = submissions.find(s => s.status === 'in_progress');
+            const attemptsUsed = submissions.filter(s => s.status !== 'in_progress').length;
 
-                const rawMaxAttempts = Number(exam.maxAttempts);
-                // Default to 1 only if truly invalid or missing. If 0 (unlimited), keep 0.
-                // If it is 0, we treat as unlimited.
-                const maxAttempts = (rawMaxAttempts === 0 || !Number.isNaN(rawMaxAttempts)) ? rawMaxAttempts : 1;
-                const isUnlimited = maxAttempts === 0;
+            // Find best and latest result (Fix for Bug #2)
+            const completedSubmissions = submissions
+                .filter(s => s.status !== 'in_progress' && s.submittedAt && s.score !== undefined);
 
-                let status = 'available';
-                // 2. Check Submission Status
-                if (activeSubmission) {
-                    status = 'in_progress';
-                } else if (!isUnlimited && attemptsUsed >= maxAttempts) {
-                    status = 'submitted'; // All attempts used
+            // Sort by submittedAt descending
+            completedSubmissions.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+
+            const latestSubmission = completedSubmissions[0] || null;
+
+            const bestSubmission = completedSubmissions.length > 0
+                ? completedSubmissions.reduce((prev, current) => (prev.score > current.score) ? prev : current)
+                : null;
+
+            // Validating Max Attempts (Fix for Bug #1)
+            const rawMaxAttempts = Number(exam.maxAttempts);
+            // If NaN, default to 1. If 0, it means unlimited.
+            const maxAttempts = Number.isNaN(rawMaxAttempts) ? 1 : rawMaxAttempts;
+            const isUnlimited = maxAttempts === 0;
+
+            let status = 'available';
+
+            if (activeSubmission) {
+                status = 'in_progress';
+            } else if (!isUnlimited && attemptsUsed >= maxAttempts) {
+                status = 'submitted'; // All attempts exhausted
+            } else {
+                // Eligibility exists, check time window
+                if (now < startTime) {
+                    status = 'upcoming';
+                } else if (now > endTime) {
+                    // If attempts were made, it's submitted/done. If 0 attempts and valid time passed, it's missed.
+                    status = attemptsUsed > 0 ? 'submitted' : 'missed';
                 } else {
-                    // Eligibility exists (either first time or retake), check window
-                    if (now < startTime) {
-                        status = 'upcoming';
-                    } else if (now > endTime) {
-                        status = attemptsUsed > 0 ? 'submitted' : 'missed';
-                    } else {
-                        status = 'available'; // Within window and attempts remain
-                    }
+                    status = 'available';
                 }
+            }
 
-                // If 'submitted', user might want to see results.
-                // If 'available' (retake), user sees 'Start/Retake'.
-
-                return {
-                    ...exam.toObject(),
-                    submissionStatus: status,
-                    attemptsUsed,
-                    maxAttempts: isUnlimited ? 'Unlimited' : maxAttempts,
-                    bestResult: bestSubmission ? {
-                        score: bestSubmission.score,
-                        percentage: bestSubmission.percentage,
-                        status: bestSubmission.status,
-                        _id: bestSubmission._id
-                    } : null,
-                    // Frontend expects 'submission' for ID. sending best or latest?
-                    // Usually "View Result" should show the most relevant one. 
-                    // Let's send the latest one so they see what they just did.
-                    submission: latestSubmission ? {
-                        _id: latestSubmission._id,
-                        status: latestSubmission.status,
-                        score: latestSubmission.score
-                    } : null
-                };
-            })
-        );
+            return {
+                ...exam,
+                submissionStatus: status,
+                attemptsUsed,
+                maxAttempts: isUnlimited ? 'Unlimited' : maxAttempts,
+                bestResult: bestSubmission ? {
+                    score: bestSubmission.score,
+                    percentage: bestSubmission.percentage,
+                    status: bestSubmission.status,
+                    _id: bestSubmission._id
+                } : null,
+                submission: latestSubmission ? {
+                    _id: latestSubmission._id,
+                    status: latestSubmission.status,
+                    score: latestSubmission.score
+                } : null
+            };
+        });
 
         return Response.json({ exams: examsWithStatus });
 

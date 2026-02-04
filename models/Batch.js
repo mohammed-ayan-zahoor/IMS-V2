@@ -58,6 +58,7 @@ const BatchSchema = new Schema({
 BatchSchema.index({ course: 1, deletedAt: 1 });
 BatchSchema.index({ institute: 1, course: 1, deletedAt: 1 });
 BatchSchema.index({ 'schedule.startDate': 1 });
+BatchSchema.index({ 'enrolledStudents.student': 1 }); // Optimized for student batch lookup
 
 // Virtual for active enrollment count
 BatchSchema.virtual('activeEnrollmentCount').get(function () {

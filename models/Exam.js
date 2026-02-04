@@ -68,6 +68,7 @@ const ExamSchema = new Schema({
 
 ExamSchema.index({ institute: 1, batches: 1, status: 1 }); // Optimized for common list filtering
 ExamSchema.index({ institute: 1, status: 1 }); // Backup for queries without batches
+ExamSchema.index({ batches: 1, status: 1, deletedAt: 1 }); // Optimized for student portal queries
 ExamSchema.index({ scheduledAt: 1 });
 
 // Validation Hooks

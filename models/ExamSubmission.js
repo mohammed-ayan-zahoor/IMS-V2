@@ -86,6 +86,7 @@ const ExamSubmissionSchema = new Schema({
 
 // Unique constraint: one submission per student per exam per attempt
 ExamSubmissionSchema.index({ exam: 1, student: 1, attemptNumber: 1 }, { unique: true });
+ExamSubmissionSchema.index({ exam: 1, student: 1 }); // Optimized lookup for all attempts
 
 // Virtual: Total suspicious events count
 ExamSubmissionSchema.virtual('suspiciousEventCount').get(function () {
