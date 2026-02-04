@@ -2,12 +2,12 @@ import { connectDB } from './lib/mongodb.js';
 import mongoose from 'mongoose';
 
 async function run() {
+    let exitCode = 0;
     try {
         console.log("Connecting to DB...");
         await connectDB();
 
         console.log("Searching for 'test 4' in raw 'exams' collection...");
-        // Use the native MongoDB driver collection
         const examsCollection = mongoose.connection.db.collection('exams');
         const exams = await examsCollection.find({ title: /test 4/i }).toArray();
 
@@ -37,19 +37,16 @@ async function run() {
             });
         }
 
-        let exitCode = 0;
-
-        async function run() {
-            try {
-                console.log("Connecting to DB...");
-                // ... rest of try block
-            } catch (error) {
-                console.error("Error:", error);
-                exitCode = 1;
-            } finally {
-                process.exit(exitCode);
-            }
+    } catch (error) {
+        console.error("Error:", error);
+        exitCode = 1;
+    } finally {
+        if (mongoose.connection.readyState !== 0) {
+            await mongoose.connection.close();
+            console.log("\nDB connection closed.");
         }
+        process.exit(exitCode);
     }
+}
 
 run();

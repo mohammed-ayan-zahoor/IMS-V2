@@ -63,94 +63,96 @@ export async function GET(req) {
                 ? new Date(exam.schedule.startTime)
                 : new Date(exam.scheduledAt);
 
-            // Effective end time (Fix for Bug #3 and user-reported issue)
-            // Effective end time (Fix for Bug #3 and user-reported issue)
-            const endTime = (exam.schedule && exam.schedule.endTime)
+            // Effective end time (Fix for Bug #3 and user-reported issue)            const endTime = (exam.schedule && exam.schedule.endTime)
                 ? new Date(exam.schedule.endTime)
-                : null; // Don't fall back to duration; duration is for attempts, not the window!
-            // Analyze submissions
-            const activeSubmission = submissions.find(s => s.status === 'in_progress');
-            const attemptsUsed = submissions.filter(s => s.status !== 'in_progress').length;
+            : null; // Don't fall back to duration; duration is for attempts, not the window!
+        // Analyze submissions
+        const activeSubmission = submissions.find(s => s.status === 'in_progress');
+        const attemptsUsed = submissions.filter(s => s.status !== 'in_progress').length;
 
-            // Find best and latest result (Fix for Bug #2)
-            const completedSubmissions = submissions
-                .filter(s => s.status !== 'in_progress' && s.submittedAt && s.score !== undefined);
+        // Find best and latest result (Fix for Bug #2)
+        const completedSubmissions = submissions
+            .filter(s => s.status !== 'in_progress' && s.submittedAt && s.score !== undefined);
 
-            // Sort by submittedAt descending
-            completedSubmissions.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+        // Sort by submittedAt descending
+        completedSubmissions.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
 
-            const latestSubmission = completedSubmissions[0] || null;
+        const latestSubmission = completedSubmissions[0] || null;
 
-            const bestSubmission = completedSubmissions.length > 0
-                ? completedSubmissions.reduce((prev, current) => (prev.score > current.score) ? prev : current)
-                : null;
+        const bestSubmission = completedSubmissions.length > 0
+            ? completedSubmissions.reduce((prev, current) => (prev.score > current.score) ? prev : current)
+            : null;
 
-            // Validating Max Attempts (Fix for Bug #1)
-            const rawMaxAttempts = Number(exam.maxAttempts);
-            // If NaN, default to 1. If 0, it means unlimited.
-            const maxAttempts = Number.isNaN(rawMaxAttempts) ? 1 : rawMaxAttempts;
-            const isUnlimited = maxAttempts === 0;
+        // Validating Max Attempts (Fix for Bug #1)
+        const rawMaxAttempts = Number(exam.maxAttempts);
+        // If NaN, default to 1. If 0, it means unlimited.
+        const maxAttempts = Number.isNaN(rawMaxAttempts) ? 1 : rawMaxAttempts;
+        const isUnlimited = maxAttempts === 0;
 
-            let status = 'available';
+        let status = 'available';
 
-            if (activeSubmission) {
-                // Check if this specific attempt has exceeded its duration
-                const durationMinutes = exam.duration || 60;
-                const submissionStartTime = new Date(activeSubmission.startedAt || activeSubmission.createdAt);
+        if (activeSubmission) {
+            // Check if this specific attempt has exceeded its duration
+            const durationMinutes = exam.duration || 60;
+            const submissionStartTime = new Date(activeSubmission.startedAt || activeSubmission.createdAt);
 
-                // Safety: if startedAt is missing, fallback to logic that keeps it active or handles error
-                if (!isNaN(submissionStartTime.getTime())) {
-                    const submissionEndTime = new Date(submissionStartTime.getTime() + durationMinutes * 60000);
+            // Safety: if startedAt is missing, fallback to logic that keeps it active or handles error
+            if (!isNaN(submissionStartTime.getTime())) {
+                const submissionEndTime = new Date(submissionStartTime.getTime() + durationMinutes * 60000);
 
-                    // Buffer of 1 minute to allow auto-submit latency
-                    if (now > new Date(submissionEndTime.getTime() + 60000)) {
-                        status = 'submitted'; // Timed out
-                    } else {
-                        status = 'in_progress';
-                    }
+                // Buffer of 1 minute to allow auto-submit latency
+                if (now > new Date(submissionEndTime.getTime() + 60000)) {
+                    status = 'submitted'; // Timed out
                 } else {
-                    status = 'in_progress'; // Fallback
+                    status = 'in_progress';
                 }
-            } else if (!isUnlimited && attemptsUsed >= maxAttempts) {
-                status = 'submitted'; // All attempts exhausted
             } else {
-                // Eligibility exists, check time window
-                if (now < startTime) {
-                    status = 'upcoming';
-                } else if (endTime && now > endTime) {
-                    // If attempts were made, it's submitted/done. If 0 attempts and valid time passed, it's missed.
-                    status = attemptsUsed > 0 ? 'submitted' : 'missed';
-                } else {
-                    status = 'available';
-                }
+                status = 'in_progress'; // Fallback
             }
+        } else if (!isUnlimited && attemptsUsed >= maxAttempts) {
+            status = 'submitted'; // All attempts exhausted
+        } else {
+            // Eligibility exists, check time window
+            if (now < startTime) {
+                status = 'upcoming';
+            } else if (endTime && now > endTime) {
+                // If attempts were made, it's submitted/done. If 0 attempts and valid time passed, it's missed.
+                status = attemptsUsed > 0 ? 'submitted' : 'missed';
+            } else {
+                status = 'available';
+            }
+        }
 
-            return {
-                ...exam,
-                submissionStatus: status,
-                attemptsUsed,
-                maxAttempts: isUnlimited ? 'Unlimited' : maxAttempts,
-                bestResult: bestSubmission ? {
-                    score: bestSubmission.score,
-                    percentage: bestSubmission.percentage,
-                    status: bestSubmission.status,
-                    _id: bestSubmission._id
-                } : null,
-                submission: latestSubmission ? {
-                    _id: latestSubmission._id,
-                    status: latestSubmission.status,
-                    score: latestSubmission.score
-                } : null
-            };
-        });
+        return {
+            ...exam,
+            submissionStatus: status,
+            attemptsUsed: attemptsUsed + (status === 'submitted' && activeSubmission ? 1 : 0),
+            maxAttempts: isUnlimited ? 'Unlimited' : maxAttempts,
+            bestResult: bestSubmission ? {
+                score: bestSubmission.score,
+                percentage: bestSubmission.percentage,
+                status: bestSubmission.status,
+                _id: bestSubmission._id
+            } : null,
+            submission: latestSubmission ? {
+                _id: latestSubmission._id,
+                status: latestSubmission.status,
+                score: latestSubmission.score
+            } : (status === 'submitted' && activeSubmission ? {
+                _id: activeSubmission._id,
+                status: 'submitted', // Fake it for UI
+                score: 0 // Default score for timeout
+            } : null)
+        };
+    });
 
-        return Response.json({ exams: examsWithStatus });
+    return Response.json({ exams: examsWithStatus });
 
-    } catch (error) {
-        console.error('Error fetching student exams:', error);
-        return Response.json(
-            { error: 'Failed to fetch exams' },
-            { status: 500 }
-        );
-    }
+} catch (error) {
+    console.error('Error fetching student exams:', error);
+    return Response.json(
+        { error: 'Failed to fetch exams' },
+        { status: 500 }
+    );
+}
 }
