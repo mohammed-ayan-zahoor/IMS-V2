@@ -43,7 +43,7 @@ export async function GET(req) {
         const allSubmissions = await ExamSubmission.find({
             student: session.user.id,
             exam: { $in: examIds }
-        }).select('status score percentage submittedAt startedAt attemptNumber exam').lean();
+        }).select('status score percentage submittedAt startedAt createdAt attemptNumber exam').lean();
 
         // Group submissions by exam ID for O(1) lookup
         const submissionsByExam = allSubmissions.reduce((acc, sub) => {
@@ -64,9 +64,10 @@ export async function GET(req) {
                 : new Date(exam.scheduledAt);
 
             // Effective end time (Fix for Bug #3 and user-reported issue)
+            // Effective end time (Fix for Bug #3 and user-reported issue)
             const endTime = (exam.schedule && exam.schedule.endTime)
                 ? new Date(exam.schedule.endTime)
-                : new Date(startTime.getTime() + (exam.duration || 60) * 60000); // Default 60 min if missing
+                : null; // Don't fall back to duration; duration is for attempts, not the window!
             // Analyze submissions
             const activeSubmission = submissions.find(s => s.status === 'in_progress');
             const attemptsUsed = submissions.filter(s => s.status !== 'in_progress').length;
@@ -116,7 +117,7 @@ export async function GET(req) {
                 // Eligibility exists, check time window
                 if (now < startTime) {
                     status = 'upcoming';
-                } else if (now > endTime) {
+                } else if (endTime && now > endTime) {
                     // If attempts were made, it's submitted/done. If 0 attempts and valid time passed, it's missed.
                     status = attemptsUsed > 0 ? 'submitted' : 'missed';
                 } else {

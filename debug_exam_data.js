@@ -37,11 +37,19 @@ async function run() {
             });
         }
 
-    } catch (error) {
-        console.error("Error:", error);
-    } finally {
-        process.exit(0);
+        let exitCode = 0;
+
+        async function run() {
+            try {
+                console.log("Connecting to DB...");
+                // ... rest of try block
+            } catch (error) {
+                console.error("Error:", error);
+                exitCode = 1;
+            } finally {
+                process.exit(exitCode);
+            }
+        }
     }
-}
 
 run();
