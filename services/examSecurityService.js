@@ -114,12 +114,12 @@ export class ExamSecurityService {
         });
 
         if (activeSubmission && activeSubmission.browserFingerprint && activeSubmission.browserFingerprint !== sessionId) {
-            // Check if the old session is stale (last activity > 2 minutes ago)
+            // Check if the old session is stale (last activity > 30 seconds ago)
             // This allows legitimate resume after browser close/refresh
             const lastActivity = activeSubmission.lastAutoSaveAt || activeSubmission.startedAt;
-            const minutesSinceActivity = (Date.now() - new Date(lastActivity).getTime()) / 1000 / 60;
+            const secondsSinceActivity = (Date.now() - new Date(lastActivity).getTime()) / 1000;
 
-            if (minutesSinceActivity < 2) {
+            if (secondsSinceActivity < 30) {
                 // Recent activity with different session = actual duplicate session
                 await this.logSuspiciousActivity({
                     submission: activeSubmission._id,
