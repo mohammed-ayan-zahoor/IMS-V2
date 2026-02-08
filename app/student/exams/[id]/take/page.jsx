@@ -392,7 +392,8 @@ export default function ExamRoomPage() {
                 toast.success("Exam submitted successfully. You have attempts remaining.");
                 router.replace("/student/exams");
             } else {
-                router.replace(`/student/exams/${submissionId}/result`);
+                // Use examId so the API returns the best attempt, not this specific one
+                router.replace(`/student/exams/${examId}/result`);
             }
 
         } catch (err) {

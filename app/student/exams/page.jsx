@@ -66,11 +66,8 @@ export default function StudentExamList() {
         if (exam.submissionStatus === "available" || exam.submissionStatus === "in_progress") {
             router.push(`/student/exams/${exam._id}/take`);
         } else if (exam.submissionStatus === "submitted" || exam.submissionStatus === "evaluated") {
-            if (exam.submission?._id) {
-                router.push(`/student/exams/${exam.submission._id}/result`);
-            } else {
-                console.error("Submission ID missing");
-            }
+            // Use exam._id so the API returns the best attempt, not a specific one
+            router.push(`/student/exams/${exam._id}/result`);
         }
     };
 
