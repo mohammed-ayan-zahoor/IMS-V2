@@ -507,12 +507,12 @@ export default function ExamRoomPage() {
                 </div>
             </header>
 
-            {/* Main Content */}
-            <div className="flex-1 flex overflow-hidden relative">
-                {/* Sidebar - Navigation (Responsive) */}
+            {/* Main Content - Column on mobile, row on desktop */}
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+                {/* Sidebar - Navigation (Responsive overlay on mobile) */}
                 <aside className={cn(
                     "bg-white border-r overflow-y-auto p-4 transition-all duration-300",
-                    "md:w-64 md:block md:static md:h-full", // Desktop styles
+                    "md:w-64 md:block md:static md:relative md:h-full", // Desktop styles
                     isPaletteOpen ? "fixed inset-0 z-50 w-full block" : "hidden" // Mobile styles
                 )}>
                     <div className="flex justify-between items-center mb-4">
@@ -651,39 +651,39 @@ export default function ExamRoomPage() {
                     )}
 
                 </main>
+            </div>
 
-                {/* Fixed Footer for Navigation - Sticky on mobile, safe area for notched phones */}
-                <footer className="bg-white border-t p-3 md:p-4 z-30 shrink-0 pb-safe sticky bottom-0">
-                    <div className="flex items-center justify-between max-w-4xl mx-auto w-full gap-3">
+            {/* Footer OUTSIDE flex row - Sticky on mobile, safe area for notched phones */}
+            <footer className="bg-white border-t p-3 md:p-4 z-30 shrink-0 pb-safe sticky bottom-0">
+                <div className="flex items-center justify-between w-full md:max-w-4xl md:mx-auto gap-3">
+                    <Button
+                        variant="outline"
+                        onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+                        disabled={currentQuestionIndex === 0}
+                        className="flex-1 h-11 md:max-w-[140px]"
+                    >
+                        <ChevronLeft size={18} className="mr-1" /> Prev
+                    </Button>
+
+                    {/* Question indicator for mobile */}
+                    <div className="text-center text-xs text-slate-500 font-medium hidden sm:block">
+                        {Object.keys(answers).length} / {examData?.questions?.length} answered
+                    </div>
+
+                    {currentQuestionIndex === (examData?.questions?.length ?? 0) - 1 ? (
+                        <Button onClick={() => handleSubmit(false)} className="flex-1 h-11 md:max-w-[140px] bg-green-600 hover:bg-green-700 text-white">
+                            Submit <CheckCircle size={18} className="ml-1" />
+                        </Button>
+                    ) : (
                         <Button
-                            variant="outline"
-                            onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-                            disabled={currentQuestionIndex === 0}
+                            onClick={() => setCurrentQuestionIndex(prev => Math.min(examData.questions.length - 1, prev + 1))}
                             className="flex-1 h-11 md:max-w-[140px]"
                         >
-                            <ChevronLeft size={18} className="mr-1" /> Prev
+                            Next <ChevronRight size={18} className="ml-1" />
                         </Button>
-
-                        {/* Question indicator for mobile */}
-                        <div className="text-center text-xs text-slate-500 font-medium hidden sm:block">
-                            {Object.keys(answers).length} / {examData?.questions?.length} answered
-                        </div>
-
-                        {currentQuestionIndex === (examData?.questions?.length ?? 0) - 1 ? (
-                            <Button onClick={() => handleSubmit(false)} className="flex-1 h-11 md:max-w-[140px] bg-green-600 hover:bg-green-700 text-white">
-                                Submit <CheckCircle size={18} className="ml-1" />
-                            </Button>
-                        ) : (
-                            <Button
-                                onClick={() => setCurrentQuestionIndex(prev => Math.min(examData.questions.length - 1, prev + 1))}
-                                className="flex-1 h-11 md:max-w-[140px]"
-                            >
-                                Next <ChevronRight size={18} className="ml-1" />
-                            </Button>
-                        )}
-                    </div>
-                </footer>
-            </div>
+                    )}
+                </div>
+            </footer>
         </div>
     );
 }
