@@ -103,6 +103,7 @@ export class ExamSecurityService {
 
     /**
      * Prevent multiple simultaneous sessions
+     * On resume: updates the session fingerprint to the new one
      */
     static async validateSingleSession(examId, studentId, sessionId) {
         // Check if there's an active submission with different session
@@ -113,20 +114,33 @@ export class ExamSecurityService {
         });
 
         if (activeSubmission && activeSubmission.browserFingerprint && activeSubmission.browserFingerprint !== sessionId) {
-            // Log suspicious activity
-            await this.logSuspiciousActivity({
-                submission: activeSubmission._id,
-                student: studentId,
-                exam: examId,
-                eventType: 'multiple_sessions',
-                severity: 'critical',
-                metadata: {
-                    newSessionId: sessionId,
-                    existingSessionId: activeSubmission.browserFingerprint
-                }
-            });
+            // Check if the old session is stale (last activity > 2 minutes ago)
+            // This allows legitimate resume after browser close/refresh
+            const lastActivity = activeSubmission.lastAutoSaveAt || activeSubmission.startedAt;
+            const minutesSinceActivity = (Date.now() - new Date(lastActivity).getTime()) / 1000 / 60;
 
-            throw new Error('Exam is already open in another window/device');
+            if (minutesSinceActivity < 2) {
+                // Recent activity with different session = actual duplicate session
+                await this.logSuspiciousActivity({
+                    submission: activeSubmission._id,
+                    student: studentId,
+                    exam: examId,
+                    eventType: 'multiple_sessions',
+                    severity: 'critical',
+                    metadata: {
+                        newSessionId: sessionId,
+                        existingSessionId: activeSubmission.browserFingerprint
+                    }
+                });
+
+                throw new Error('Exam is already open in another window/device');
+            }
+
+            // Old session is stale - this is a legitimate resume
+            // Update the fingerprint to the new session
+            await ExamSubmission.findByIdAndUpdate(activeSubmission._id, {
+                browserFingerprint: sessionId
+            });
         }
 
         return true;
