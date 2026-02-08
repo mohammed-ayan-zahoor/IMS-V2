@@ -152,3 +152,12 @@ input:-webkit-autofill:active {
   display: none;
   /* Chrome, Safari and Opera */
 }
+
+/* Safe area padding for notched phones */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}

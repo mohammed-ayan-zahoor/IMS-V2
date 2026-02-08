@@ -51,6 +51,8 @@ export default function ExamRoomPage() {
     const timerRef = useRef(null);
     const autoSaveRef = useRef(null);
     const cheatMonitorRef = useRef(null);
+    const resumeTimeoutRef = useRef(null);
+    const isMountedRef = useRef(true);
 
     // Refs to hold latest state/handlers to avoid stale closures in timers
     const answersRef = useRef(answers);
@@ -59,7 +61,15 @@ export default function ExamRoomPage() {
 
     // Initial Load
     useEffect(() => {
+        isMountedRef.current = true;
         checkExamAccess();
+
+        return () => {
+            isMountedRef.current = false;
+            if (resumeTimeoutRef.current) {
+                clearTimeout(resumeTimeoutRef.current);
+            }
+        };
     }, []);
 
     const checkExamAccess = async () => {
@@ -79,33 +89,90 @@ export default function ExamRoomPage() {
             }
 
             const data = await res.json();
-            // Show start screen before entering "room"
-            if (!data.canResume) {
-                // We are in "Lobby", user needs to click "Start"
-                // But this page IS the room. 
-                // Let's repurpose this page to handle both "Lobby" and "Active" state?
-                // Or redirect to separate Lobby? 
-                // The implementation plan had `exams/[id]/instructions` as API, and `take/page.jsx` as room.
-                // Let's assume the user clicked "Start" from the Dashboard.
-                // We should show a "Enter Fullscreen to Start" overlay first.
-            }
             setExamData(data.exam);
-            setSubmissionId(data.submissionId);
 
-            // Fix Timer on Refresh
-            if (data.startedAt) {
-                const startTime = new Date(data.startedAt).getTime();
-                const durationMs = data.exam.duration * 60 * 1000;
-                const endTime = startTime + durationMs;
-                const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
-                setTimeRemaining(remaining);
-                startTimers();
+            // If there's an in-progress submission (resume case), auto-start the exam
+            if (data.canResume && data.submissionId) {
+                setSubmissionId(data.submissionId);
+                // Calculate remaining time from the original start
+                if (data.startedAt) {
+                    const startTime = new Date(data.startedAt).getTime();
+                    const durationMs = data.exam.duration * 60 * 1000;
+                    const endTime = startTime + durationMs;
+                    const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+
+                    if (remaining <= 0) {
+                        // Time has expired, redirect to submit
+                        toast.error("Exam time has expired.");
+                        router.push("/student/exams");
+                        return;
+                    }
+                    setTimeRemaining(remaining);
+                }
+                setLoading(false);
+                // Auto-trigger exam start to load questions and restore answers
+                resumeTimeoutRef.current = setTimeout(() => {
+                    if (isMountedRef.current) {
+                        startExamResume();
+                    }
+                }, 100);
+            } else {
+                // Fresh start - show lobby
+                setLoading(false);
             }
-
-            setLoading(false);
         } catch (err) {
             console.error(err);
+            toast.error("Failed to load exam. Please try again.");
             router.push("/student/exams");
+        }
+    };
+
+    // Separate function for resuming to avoid circular dependency
+    const startExamResume = async () => {
+        if (!isMountedRef.current) return;
+        setInitializing(true);
+        try {
+            const fingerprint = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+            const res = await fetch(`/api/v1/exams/${examId}/start`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sessionId: fingerprint })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || "Failed to resume exam");
+            }
+
+            const data = await res.json();
+            setSubmissionId(data.submission.id);
+            setExamData(prev => ({ ...prev, ...data.exam }));
+
+            // Restore answers if resuming
+            if (data.isResume && data.submission.draftAnswers) {
+                const restored = {};
+                data.submission.draftAnswers.forEach(a => {
+                    restored[a.questionId] = a.answer;
+                });
+                setAnswers(restored);
+            }
+
+            // Calculate remaining time
+            const startTime = new Date(data.submission.startedAt).getTime();
+            const durationMs = data.exam.duration * 60 * 1000;
+            const endTime = startTime + durationMs;
+            const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+            setTimeRemaining(remaining);
+
+            setInitializing(false);
+            startTimers();
+
+        } catch (err) {
+            console.error("Resume Error:", err);
+            toast.error(err.message || "Failed to resume exam. Please try again.");
+            setInitializing(false);
+            // Don't redirect - let user retry from lobby
         }
     };
 
@@ -400,40 +467,42 @@ export default function ExamRoomPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col h-screen overflow-hidden">
-            {/* Header / Toolbar */}
-            <header className="h-16 bg-white border-b px-4 md:px-6 flex items-center justify-between shrink-0 z-40 relative">
-                <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+            {/* Header / Toolbar - Mobile Optimized */}
+            <header className="h-14 md:h-16 bg-white border-b px-3 md:px-6 flex items-center justify-between shrink-0 z-40 relative">
+                <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
                     {/* Mobile Menu Button */}
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="md:hidden shrink-0"
+                        className="md:hidden shrink-0 h-9 w-9"
                         onClick={() => setIsPaletteOpen(!isPaletteOpen)}
                         aria-label="Toggle question palette"
                     >
-                        <Maximize size={20} className="rotate-45" />
+                        <Maximize size={18} className="rotate-45" />
                     </Button>
-                    <div className="min-w-0 flex-1">
-                        <h2 className="font-bold text-slate-700 truncate text-sm md:text-base">{examData?.title}</h2>
+
+                    {/* Timer - Prominent on mobile */}
+                    <div className={cn(
+                        "flex items-center gap-1.5 px-2.5 py-1.5 rounded-full font-mono font-bold text-sm shrink-0",
+                        timeRemaining < 300 ? "bg-red-100 text-red-600 animate-pulse" : "bg-blue-50 text-blue-600"
+                    )}>
+                        <Clock size={14} />
+                        {formatTime(timeRemaining)}
                     </div>
 
-                    <div className={cn(
-                        "flex items-center gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full font-mono font-bold text-xs md:text-sm shrink-0",
-                        timeRemaining < 300 ? "bg-red-100 text-red-600" : "bg-blue-50 text-blue-600"
-                    )}>
-                        <Clock size={14} className="md:w-4 md:h-4" />
-                        {formatTime(timeRemaining)}
+                    {/* Title - Hidden on very small screens */}
+                    <div className="min-w-0 flex-1 hidden sm:block">
+                        <h2 className="font-bold text-slate-700 truncate text-sm md:text-base">{examData?.title}</h2>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 md:gap-4 ml-2 md:ml-4 shrink-0">
+                <div className="flex items-center gap-2 md:gap-4 shrink-0">
                     <div className="hidden md:flex text-xs text-slate-400 items-center gap-1">
                         {isSaving ? "Saving..." : lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : "Not saved yet"}
                         <Save size={12} />
                     </div>
-                    <Button onClick={() => handleSubmit(false)} variant="destructive" size="sm" className="h-8 text-xs md:text-sm px-2 md:px-4">
-                        <span className="hidden md:inline">Finish Exam</span>
-                        <span className="md:hidden">Finish</span>
+                    <Button onClick={() => handleSubmit(false)} variant="destructive" size="sm" className="h-8 text-xs px-3 md:px-4">
+                        Finish
                     </Button>
                 </div>
             </header>
@@ -477,8 +546,8 @@ export default function ExamRoomPage() {
                     </div>
                 </aside>
 
-                {/* Question Area */}
-                <main className="flex-1 overflow-y-auto p-4 md:p-10 flex flex-col w-full">
+                {/* Question Area - Mobile First Layout */}
+                <main className="flex-1 overflow-y-auto p-3 md:p-10 flex flex-col w-full">
 
                     {/* Security Warnings Overlay */}
                     <AnimatePresence>
@@ -487,16 +556,16 @@ export default function ExamRoomPage() {
                                 initial={{ opacity: 0, y: -20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0 }}
-                                className="mb-6 bg-red-100 border border-red-200 text-red-700 p-4 rounded-xl flex items-start gap-3"
+                                className="mb-4 bg-red-100 border border-red-200 text-red-700 p-3 rounded-xl flex items-start gap-2"
                             >
-                                <AlertTriangle className="shrink-0 mt-0.5" size={20} />
-                                <div>
-                                    <h4 className="font-bold">Security Warning</h4>
-                                    <ul className="list-disc pl-4 text-sm mt-1">
+                                <AlertTriangle className="shrink-0 mt-0.5" size={18} />
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-sm">Warning</h4>
+                                    <ul className="list-disc pl-4 text-xs mt-1">
                                         {warnings.map((w, i) => <li key={i}>{w}</li>)}
                                     </ul>
                                 </div>
-                                <button onClick={() => setWarnings([])} className="ml-auto text-red-500 hover:text-red-700">
+                                <button onClick={() => setWarnings([])} className="text-red-500 hover:text-red-700 shrink-0">
                                     <XOctagon size={16} />
                                 </button>
                             </motion.div>
@@ -504,66 +573,65 @@ export default function ExamRoomPage() {
                     </AnimatePresence>
 
                     {currentQuestion && (
-                        <div className="flex-1 space-y-6 max-w-4xl mx-auto w-full">
-                            <div className="flex flex-col md:flex-row items-start gap-2 md:gap-4">
-                                <div className="flex items-baseline gap-3 md:block">
-                                    <span className="text-slate-300 font-black text-3xl md:text-5xl select-none">
-                                        {String(currentQuestionIndex + 1).padStart(2, '0')}
-                                    </span>
-                                    {/* Mobile Only Meta */}
-                                    <div className="flex md:hidden items-center gap-2">
-                                        <span className="px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded uppercase">
+                        <div className="flex-1 space-y-4 md:space-y-6 max-w-4xl mx-auto w-full">
+                            {/* Question Header - Mobile Optimized */}
+                            <div className="space-y-3">
+                                {/* Question Number & Meta Row */}
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-blue-600 font-black text-lg md:text-2xl">
+                                            Q{currentQuestionIndex + 1}
+                                        </span>
+                                        <span className="text-slate-400 text-sm">/</span>
+                                        <span className="text-slate-400 text-sm">{examData?.questions?.length}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="px-2 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded uppercase">
                                             {currentQuestion.type === "mcq" ? "MCQ" : "Desc"}
                                         </span>
-                                        <span className="px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded">
-                                            {currentQuestion.marks} M
+                                        <span className="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded">
+                                            {currentQuestion.marks} {currentQuestion.marks === 1 ? 'Mark' : 'Marks'}
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="space-y-2 md:space-y-4 flex-1 w-full pt-1 md:pt-2">
-                                    <h3 className="text-lg md:text-xl font-bold text-slate-800 leading-relaxed">
+                                {/* Question Text - Full Width, Prominent */}
+                                <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
+                                    <h3 className="text-base md:text-lg font-semibold text-slate-800 leading-relaxed">
                                         {currentQuestion.text}
                                     </h3>
-                                    {/* Desktop Only Meta */}
-                                    <div className="hidden md:flex items-center gap-2">
-                                        <span className="px-2 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded uppercase">
-                                            {currentQuestion.type === "mcq" ? "Multiple Choice" : "Descriptive"}
-                                        </span>
-                                        <span className="px-2 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded">
-                                            {currentQuestion.marks} Marks
-                                        </span>
-                                    </div>
                                 </div>
                             </div>
 
-                            <div className="md:pl-[4.5rem] space-y-4">
+                            {/* Options - Mobile Touch Friendly */}
+                            <div className="space-y-3">
                                 {currentQuestion.type === "mcq" ? (
-                                    <div className="grid gap-3">
+                                    <div className="grid gap-2.5">
                                         {currentQuestion.options.map((opt, optIdx) => (
                                             <div
                                                 key={optIdx}
                                                 onClick={() => handleAnswerChange(String(optIdx))}
                                                 className={cn(
-                                                    "p-3 md:p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 group active:scale-[0.98]",
+                                                    "p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 group active:scale-[0.98]",
+                                                    "min-h-[52px]", // Minimum touch target height
                                                     answers[currentQuestion._id] === String(optIdx)
-                                                        ? "border-blue-600 bg-blue-50"
-                                                        : "border-slate-100 hover:border-slate-200 bg-white"
+                                                        ? "border-blue-500 bg-blue-50 shadow-sm"
+                                                        : "border-slate-200 hover:border-slate-300 bg-white"
                                                 )}
                                             >
                                                 <div className={cn(
-                                                    "w-5 h-5 md:w-6 md:h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                                                    "w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors mt-0.5",
                                                     answers[currentQuestion._id] === String(optIdx)
-                                                        ? "border-blue-600 bg-blue-600"
+                                                        ? "border-blue-500 bg-blue-500"
                                                         : "border-slate-300 group-hover:border-slate-400"
                                                 )}>
                                                     {answers[currentQuestion._id] === String(optIdx) && (
-                                                        <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full" />
+                                                        <div className="w-2 h-2 bg-white rounded-full" />
                                                     )}
                                                 </div>
                                                 <span className={cn(
-                                                    "font-medium text-sm md:text-base",
-                                                    answers[currentQuestion._id] === String(optIdx) ? "text-blue-900" : "text-slate-600"
+                                                    "font-medium text-sm md:text-base flex-1",
+                                                    answers[currentQuestion._id] === String(optIdx) ? "text-blue-900" : "text-slate-700"
                                                 )}>
                                                     {opt}
                                                 </span>
@@ -574,7 +642,7 @@ export default function ExamRoomPage() {
                                     <textarea
                                         value={answers[currentQuestion._id] || ""}
                                         onChange={(e) => handleAnswerChange(e.target.value)}
-                                        className="w-full h-48 p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none font-medium text-slate-700 bg-white"
+                                        className="w-full h-40 md:h-48 p-4 rounded-xl border-2 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none font-medium text-slate-700 bg-white text-sm md:text-base"
                                         placeholder="Type your answer here..."
                                     />
                                 )}
@@ -584,28 +652,33 @@ export default function ExamRoomPage() {
 
                 </main>
 
-                {/* Fixed Footer for Navigation */}
-                <footer className="bg-white border-t p-4 z-30 shrink-0">
-                    <div className="flex items-center justify-between max-w-4xl mx-auto w-full">
+                {/* Fixed Footer for Navigation - Safe Area for notched phones */}
+                <footer className="bg-white border-t p-3 md:p-4 z-30 shrink-0 pb-safe">
+                    <div className="flex items-center justify-between max-w-4xl mx-auto w-full gap-3">
                         <Button
                             variant="outline"
                             onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
                             disabled={currentQuestionIndex === 0}
-                            className="w-28 md:w-32"
+                            className="flex-1 max-w-[140px] h-11"
                         >
-                            <ChevronLeft size={16} className="mr-2" /> Prev
+                            <ChevronLeft size={18} className="mr-1" /> Prev
                         </Button>
 
-                        {currentQuestionIndex === examData.questions.length - 1 ? (
-                            <Button onClick={() => handleSubmit(false)} className="w-28 md:w-32 bg-green-600 hover:bg-green-700 text-white">
-                                Submit <CheckCircle size={16} className="ml-2" />
+                        {/* Question indicator for mobile */}
+                        <div className="text-center text-xs text-slate-500 font-medium hidden sm:block">
+                            {Object.keys(answers).length} / {examData?.questions?.length} answered
+                        </div>
+
+                        {currentQuestionIndex === (examData?.questions?.length ?? 0) - 1 ? (
+                            <Button onClick={() => handleSubmit(false)} className="flex-1 max-w-[140px] h-11 bg-green-600 hover:bg-green-700 text-white">
+                                Submit <CheckCircle size={18} className="ml-1" />
                             </Button>
                         ) : (
                             <Button
                                 onClick={() => setCurrentQuestionIndex(prev => Math.min(examData.questions.length - 1, prev + 1))}
-                                className="w-28 md:w-32"
+                                className="flex-1 max-w-[140px] h-11"
                             >
-                                Next <ChevronRight size={16} className="ml-2" />
+                                Next <ChevronRight size={18} className="ml-1" />
                             </Button>
                         )}
                     </div>

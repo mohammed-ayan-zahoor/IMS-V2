@@ -44,3 +44,5 @@ next-env.d.ts
 # ignore the whole agent file
 .agent/*
 
+#ignore .temp_ag_kit
+.temp_ag_kit
