@@ -466,7 +466,7 @@ export default function ExamRoomPage() {
 
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col h-screen overflow-hidden">
+        <div className="bg-slate-50 flex flex-col min-h-[100svh] overflow-hidden">
             {/* Header / Toolbar - Mobile Optimized */}
             <header className="h-14 md:h-16 bg-white border-b px-3 md:px-6 flex items-center justify-between shrink-0 z-40 relative">
                 <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
@@ -573,7 +573,7 @@ export default function ExamRoomPage() {
                     </AnimatePresence>
 
                     {currentQuestion && (
-                        <div className="flex-1 space-y-4 md:space-y-6 max-w-4xl mx-auto w-full">
+                        <div className="flex-1 space-y-4 md:space-y-6 w-full md:max-w-4xl md:mx-auto">
                             {/* Question Header - Mobile Optimized */}
                             <div className="space-y-3">
                                 {/* Question Number & Meta Row */}
@@ -613,7 +613,7 @@ export default function ExamRoomPage() {
                                                 onClick={() => handleAnswerChange(String(optIdx))}
                                                 className={cn(
                                                     "p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 group active:scale-[0.98]",
-                                                    "min-h-[52px]", // Minimum touch target height
+                                                    "min-h-[64px]", // Larger touch target for mobile
                                                     answers[currentQuestion._id] === String(optIdx)
                                                         ? "border-blue-500 bg-blue-50 shadow-sm"
                                                         : "border-slate-200 hover:border-slate-300 bg-white"
@@ -652,14 +652,14 @@ export default function ExamRoomPage() {
 
                 </main>
 
-                {/* Fixed Footer for Navigation - Safe Area for notched phones */}
-                <footer className="bg-white border-t p-3 md:p-4 z-30 shrink-0 pb-safe">
+                {/* Fixed Footer for Navigation - Sticky on mobile, safe area for notched phones */}
+                <footer className="bg-white border-t p-3 md:p-4 z-30 shrink-0 pb-safe sticky bottom-0">
                     <div className="flex items-center justify-between max-w-4xl mx-auto w-full gap-3">
                         <Button
                             variant="outline"
                             onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
                             disabled={currentQuestionIndex === 0}
-                            className="flex-1 max-w-[140px] h-11"
+                            className="flex-1 h-11 md:max-w-[140px]"
                         >
                             <ChevronLeft size={18} className="mr-1" /> Prev
                         </Button>
@@ -670,13 +670,13 @@ export default function ExamRoomPage() {
                         </div>
 
                         {currentQuestionIndex === (examData?.questions?.length ?? 0) - 1 ? (
-                            <Button onClick={() => handleSubmit(false)} className="flex-1 max-w-[140px] h-11 bg-green-600 hover:bg-green-700 text-white">
+                            <Button onClick={() => handleSubmit(false)} className="flex-1 h-11 md:max-w-[140px] bg-green-600 hover:bg-green-700 text-white">
                                 Submit <CheckCircle size={18} className="ml-1" />
                             </Button>
                         ) : (
                             <Button
                                 onClick={() => setCurrentQuestionIndex(prev => Math.min(examData.questions.length - 1, prev + 1))}
-                                className="flex-1 max-w-[140px] h-11"
+                                className="flex-1 h-11 md:max-w-[140px]"
                             >
                                 Next <ChevronRight size={18} className="ml-1" />
                             </Button>
