@@ -36,6 +36,8 @@ export default function FeesPage() {
     const [selectedFee, setSelectedFee] = useState(null); // For detail/payment view
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isSeeding, setIsSeeding] = useState(false);
+    const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+    const [showOverdueOnly, setShowOverdueOnly] = useState(false);
 
     // Payment Form state
     const [paymentData, setPaymentData] = useState({
@@ -48,12 +50,53 @@ export default function FeesPage() {
     });
     const [collectors, setCollectors] = useState([]);
 
+    // Filters & Report State
+    const [courses, setCourses] = useState([]);
+    const [batches, setBatches] = useState([]);
+    const [selectedCourse, setSelectedCourse] = useState("");
+    const [selectedBatch, setSelectedBatch] = useState("");
+    const [summary, setSummary] = useState({ total: 0, paid: 0, pending: 0 });
+
     useEffect(() => {
         fetchFees();
+        fetchCourses();
         const controller = new AbortController();
         fetchCollectors(controller.signal);
         return () => controller.abort();
     }, []);
+
+    useEffect(() => {
+        if (selectedCourse) {
+            fetchBatches(selectedCourse);
+        } else {
+            setBatches([]);
+        }
+        setSelectedBatch(""); // Reset batch when course changes
+    }, [selectedCourse]);
+
+    const fetchCourses = async () => {
+        try {
+            const res = await fetch("/api/v1/courses");
+            if (res.ok) {
+                const data = await res.json();
+                setCourses(data.courses || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch courses", error);
+        }
+    };
+
+    const fetchBatches = async (courseId) => {
+        try {
+            const res = await fetch(`/api/v1/batches?courseId=${courseId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setBatches(data.batches || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch batches", error);
+        }
+    };
 
     const fetchFees = async () => {
         try {
@@ -100,6 +143,8 @@ export default function FeesPage() {
 
     const handleRecordPayment = async (e) => {
         e.preventDefault();
+        if (isSubmittingPayment) return;
+
         // Allow if installmentId is set OR if we are in adhoc mode (where we send null/undefined)
         // But currently our Select uses "adhoc" string.
         if (!selectedFee) return;
@@ -111,10 +156,21 @@ export default function FeesPage() {
             return;
         }
 
+        if (amountNum > (selectedFee.balanceAmount || 0)) {
+            toast.warning("Amount exceeds pending balance");
+            return;
+        }
+
         const payload = {
             ...paymentData,
             amount: amountNum
         };
+
+        // Conditional Validation for Transaction ID
+        if (["upi", "card", "bank_transfer"].includes(paymentData.method) && !paymentData.transactionId) {
+            toast.warning("Transaction reference is required for this payment method");
+            return;
+        }
 
         if (payload.installmentId === 'adhoc') {
             delete payload.installmentId; // Remove it so backend sees it as ad-hoc
@@ -124,6 +180,7 @@ export default function FeesPage() {
         }
 
         try {
+            setIsSubmittingPayment(true);
             const res = await fetch(`/api/v1/fees/${selectedFee._id}/payment`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -147,6 +204,8 @@ export default function FeesPage() {
         } catch (err) {
             console.error(err);
             toast.error("Network error while recording payment");
+        } finally {
+            setIsSubmittingPayment(false);
         }
     };
 
@@ -155,16 +214,47 @@ export default function FeesPage() {
         // Default to first pending installment
         const firstPending = fee.installments.find(i => i.status === 'pending');
         if (firstPending) {
-            setPaymentData({ ...paymentData, installmentId: firstPending._id, amount: firstPending.amount, collectedBy: "" });
+            setPaymentData(prev => ({ ...prev, installmentId: firstPending._id, amount: firstPending.amount, collectedBy: "" }));
         }
         fetchCollectors();
         setIsPaymentModalOpen(true);
     };
 
-    const filteredFees = fees.filter(fee =>
-        fee.student?.profile?.firstName?.toLowerCase().includes(search.toLowerCase()) ||
-        fee.student?.enrollmentNumber?.toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredFees = fees.filter(fee => {
+        // 1. Search Filter
+        const q = search.toLowerCase();
+        const matchesSearch =
+            fee.student?.profile?.firstName?.toLowerCase()?.includes(q) ||
+            fee.student?.enrollmentNumber?.toLowerCase()?.includes(q);
+
+        // 2. Batch Filter (Direct)
+        if (selectedBatch && fee.batch?._id !== selectedBatch) return false;
+
+        // 3. Course Filter (Indirect via Batch)
+        // If Course is selected but NO Batch is selected, check if fee's batch matches any fetched batch
+        if (selectedCourse && !selectedBatch && batches.length > 0) {
+            const belongsToCourse = batches.some(b => b._id === fee.batch?._id);
+            if (!belongsToCourse) return false;
+        }
+
+        // 4. Overdue Filter
+        if (showOverdueOnly) {
+            const isOverdue = fee.installments?.some(i => i.status === 'pending' && new Date(i.dueDate) < new Date());
+            if (!isOverdue) return false;
+        }
+
+        return matchesSearch;
+    });
+
+    useEffect(() => {
+        // Calculate Summary
+        const newSummary = filteredFees.reduce((acc, fee) => ({
+            total: acc.total + (fee.totalAmount || 0),
+            paid: acc.paid + (fee.paidAmount || 0),
+            pending: acc.pending + (fee.balanceAmount || 0)
+        }), { total: 0, paid: 0, pending: 0 });
+        setSummary(newSummary);
+    }, [fees, search, selectedCourse, selectedBatch, batches]); // Re-run when filters changes
 
     return (
         <div className="space-y-6">
@@ -235,19 +325,91 @@ export default function FeesPage() {
                 </div>
             </div>
 
+            {/* Report Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="p-4 border-l-4 border-l-slate-500">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Expected</p>
+                            <h3 className="text-2xl font-black text-slate-700 mt-1">₹{summary.total.toLocaleString()}</h3>
+                        </div>
+                        <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
+                            <DollarSign size={20} />
+                        </div>
+                    </div>
+                </Card>
+                <Card className="p-4 border-l-4 border-l-emerald-500">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs font-bold text-emerald-600/70 uppercase tracking-wider">Total Collected</p>
+                            <h3 className="text-2xl font-black text-emerald-600 mt-1">₹{summary.paid.toLocaleString()}</h3>
+                        </div>
+                        <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
+                            <CheckCircle size={20} />
+                        </div>
+                    </div>
+                </Card>
+                <Card className="p-4 border-l-4 border-l-amber-500">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs font-bold text-amber-600/70 uppercase tracking-wider">Total Pending</p>
+                            <h3 className="text-2xl font-black text-amber-600 mt-1">₹{summary.pending.toLocaleString()}</h3>
+                        </div>
+                        <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
+                            <AlertCircle size={20} />
+                        </div>
+                    </div>
+                </Card>
+            </div>
+
             <Card className="transition-all border-transparent shadow-sm">
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                    <div className="flex-1 max-w-md relative group">
+                <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 space-y-0">
+                    <div className="flex-1 max-w-sm relative group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/50 transition-colors group-focus-within:text-premium-blue" size={18} />
                         <input
                             type="text"
-                            placeholder="Search by student name or ID..."
+                            placeholder="Search student..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
                         />
                     </div>
+
+                    <div className="flex gap-2 w-full md:w-auto">
+                        <Select
+                            className="w-full md:w-48"
+                            value={selectedCourse}
+                            onChange={(val) => setSelectedCourse(val)}
+                            options={[
+                                { label: "All Courses", value: "" },
+                                ...courses.map(c => ({ label: c.name, value: c._id }))
+                            ]}
+                            placeholder="Filter Course"
+                        />
+                        <Select
+                            className="w-full md:w-48"
+                            value={selectedBatch}
+                            onChange={(val) => setSelectedBatch(val)}
+                            options={[
+                                { label: "All Batches", value: "" },
+                                ...batches.map(b => ({ label: b.name, value: b._id }))
+                            ]}
+                            disabled={!selectedCourse}
+                            placeholder="Filter Batch"
+                        />
+                    </div>
                 </CardHeader>
+                <div className="px-6 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-slate-300 text-premium-blue focus:ring-premium-blue/20"
+                            checked={showOverdueOnly}
+                            onChange={(e) => setShowOverdueOnly(e.target.checked)}
+                        />
+                        Show Overdue Only
+                    </label>
+                </div>
                 <CardContent className="p-0">
                     {loading ? (
                         <LoadingSpinner />
@@ -290,6 +452,11 @@ export default function FeesPage() {
                                                 <div className={`text-sm font-bold ${fee.balanceAmount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
                                                     ₹{fee.balanceAmount?.toLocaleString()}
                                                 </div>
+                                                {fee.installments?.some(i => i.status === 'pending' && new Date(i.dueDate) < new Date()) && (
+                                                    <Badge className="mt-1 bg-rose-100 text-rose-600 border-rose-200">
+                                                        Overdue
+                                                    </Badge>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-2">
@@ -381,8 +548,8 @@ export default function FeesPage() {
                                         { label: "+ Record New / Ad-hoc Payment", value: "adhoc" },
                                         ...selectedFee.installments
                                             .filter(i => i.status !== 'paid')
-                                            .map((inst, idx) => ({
-                                                label: `Installment #${idx + 1} - ₹${inst.amount} (Due: ${format(new Date(inst.dueDate), 'MMM d')})`,
+                                            .map((inst) => ({
+                                                label: `Installment - ₹${inst.amount} (Due: ${format(new Date(inst.dueDate), 'MMM d')})`,
                                                 value: inst._id
                                             }))
                                     ]}
@@ -437,7 +604,9 @@ export default function FeesPage() {
 
                             <div className="pt-4 flex gap-3">
                                 <Button type="button" variant="outline" className="flex-1" onClick={() => setIsPaymentModalOpen(false)}>Cancel</Button>
-                                <Button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20">Record Payment</Button>
+                                <Button type="submit" disabled={isSubmittingPayment} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20">
+                                    {isSubmittingPayment ? "Recording..." : "Record Payment"}
+                                </Button>
                             </div>
                         </form>
                     </div>
