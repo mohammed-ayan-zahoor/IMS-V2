@@ -1098,12 +1098,13 @@ export default function StudentDetailsPage({ params }) {
                                 { label: "-- Select Installment --", value: "" },
                                 { label: "+ Record New / Ad-hoc Payment", value: "adhoc" },
                                 ...(selectedFee.installments || [])
-                                ...(selectedFee.installments || [])
                                     .filter(i => i.status !== 'paid')
                                     .map((inst) => ({
                                         label: `Installment - ₹${inst.amount} (Due: ${inst.dueDate && !isNaN(new Date(inst.dueDate)) ? format(new Date(inst.dueDate), 'MMM d') : 'TBD'})`,
                                         value: inst._id
-                                    })) />
+                                    }))
+                            ]}
+                        />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
