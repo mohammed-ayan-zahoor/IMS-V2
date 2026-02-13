@@ -1097,7 +1097,7 @@ export default function StudentDetailsPage({ params }) {
                             options={[
                                 { label: "-- Select Installment --", value: "" },
                                 { label: "+ Record New / Ad-hoc Payment", value: "adhoc" },
-                                ...(selectedFee.installments || [])
+                                ...(selectedFee?.installments || [])
                                     .filter(i => i.status !== 'paid')
                                     .map((inst) => ({
                                         label: `Installment - ₹${inst.amount} (Due: ${inst.dueDate && !isNaN(new Date(inst.dueDate)) ? format(new Date(inst.dueDate), 'MMM d') : 'TBD'})`,
