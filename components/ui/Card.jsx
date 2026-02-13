@@ -4,7 +4,7 @@ export default function Card({ className, children, ...props }) {
     return (
         <div
             className={cn(
-                "glass rounded-2xl p-6 relative overflow-hidden",
+                "glass rounded-2xl p-6 relative",
                 className
             )}
             {...props}

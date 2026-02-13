@@ -35,7 +35,7 @@ export default function Select({
     }, []);
 
     const handleSelect = (optionValue) => {
-        onChange({ target: { name: props.name, value: optionValue } }); // Mimic event for compatibility
+        onChange(optionValue);
         setIsOpen(false);
     };
 
@@ -85,8 +85,7 @@ export default function Select({
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                onChange(option.value);
-                                                setIsOpen(false);
+                                                handleSelect(option.value);
                                             }}
                                             className={cn(
                                                 "w-full px-3 py-2 text-sm font-medium rounded-lg text-left flex items-center justify-between transition-colors",

@@ -157,14 +157,14 @@ export default function AttendanceReportPage() {
                             label="Course"
                             options={courses.map(c => ({ label: c.name, value: c._id }))}
                             value={selectedCourse}
-                            onChange={(e) => setSelectedCourse(e.target.value)}
+                            onChange={(val) => setSelectedCourse(val)}
                             placeholder="All Courses"
                         />
                         <Select
                             label="Batch"
                             options={batches.map(b => ({ label: b.name, value: b._id }))}
                             value={selectedBatch}
-                            onChange={(e) => setSelectedBatch(e.target.value)}
+                            onChange={(val) => setSelectedBatch(val)}
                             disabled={!selectedCourse}
                             placeholder="All Batches"
                         />
