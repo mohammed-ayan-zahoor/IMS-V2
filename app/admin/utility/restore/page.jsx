@@ -4,7 +4,41 @@ import { RotateCcw, UploadCloud, AlertTriangle } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 
+import { useRef } from "react";
+
 export default function RestorePage() {
+    const inputRef = useRef(null);
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Basic validation
+        const validExtensions = ['.json', '.bson'];
+        const fileName = file.name.toLowerCase();
+        const isValid = validExtensions.some(ext => fileName.endsWith(ext));
+
+        if (!isValid) {
+            alert("Invalid file type. Please upload a .json or .bson file.");
+            return;
+        }
+
+        // TODO: Implement actual restore logic here
+        console.log("File selected for restore:", file);
+        alert(`File "${file.name}" selected. Restore logic to be implemented.`);
+    };
+
+    const triggerUpload = () => {
+        inputRef.current?.click();
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            triggerUpload();
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-100">
@@ -38,7 +72,21 @@ export default function RestorePage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-10 text-center space-y-4 hover:bg-slate-50 transition-colors cursor-pointer">
+                    <input
+                        type="file"
+                        ref={inputRef}
+                        accept=".json,.bson"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                    />
+                    <div
+                        onClick={triggerUpload}
+                        onKeyDown={handleKeyDown}
+                        tabIndex={0}
+                        role="button"
+                        aria-label="Upload Backup File"
+                        className="border-2 border-dashed border-slate-200 rounded-xl p-10 text-center space-y-4 hover:bg-slate-50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-premium-blue focus:ring-offset-2"
+                    >
                         <div className="mx-auto w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100">
                             <UploadCloud size={32} className="text-slate-400" />
                         </div>
