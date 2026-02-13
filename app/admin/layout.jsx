@@ -90,6 +90,7 @@ export default function AdminLayout({ children }) {
             label: "Reports",
             icon: BarChart3,
             items: [
+                { label: "Attendance", icon: Calendar, href: "/admin/reports/attendance" },
                 { label: "Fees", icon: CreditCard, href: "/admin/fees" },
                 { label: "Collection History", icon: ReceiptText, href: "/admin/collections" },
                 { label: "Audit Logs", icon: History, href: "/admin/audit-logs" },
