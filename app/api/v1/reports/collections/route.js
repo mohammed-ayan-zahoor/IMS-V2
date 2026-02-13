@@ -28,7 +28,10 @@ export async function GET(req) {
         }
 
         // Create query with proper ObjectId casting for aggregation if instituteId exists
-        const matchQuery = instituteId ? { institute: new mongoose.Types.ObjectId(instituteId) } : {};
+        const matchQuery = {
+            deletedAt: null,
+            ...(instituteId ? { institute: new mongoose.Types.ObjectId(instituteId) } : {})
+        };
 
         // Aggregation pipeline to:
         // 1. Match fees by institute

@@ -74,8 +74,11 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ error: "Fee record not found or access denied" }, { status: 404 });
         }
 
-        // Delete the fee
-        await Fee.deleteOne(query);
+        // Soft Delete the fee
+        fee.deletedAt = new Date();
+        fee.deletedBy = session.user.id;
+        await fee.save();
+
         // Audit log
         await createAuditLog({
             actor: session.user.id,
@@ -85,7 +88,8 @@ export async function DELETE(req, { params }) {
             details: {
                 batchName: fee.batch?.name || 'Unknown Batch',
                 studentName: fee.student?.profile ? `${fee.student.profile.firstName || ''} ${fee.student.profile.lastName || ''}`.trim() || 'Unknown Student' : 'Unknown Student', amount: fee.totalAmount,
-                paidAmount: fee.paidAmount
+                paidAmount: fee.paidAmount,
+                softDelete: true
             }
         });
 

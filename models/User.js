@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import './Counter'; // Ensure schema is registered
+import './Counter.js'; // Ensure schema is registered
 const { Schema } = mongoose;
 const UserSchema = new Schema({
     institute: {

@@ -51,11 +51,14 @@ const FeeSchema = new Schema({
         type: String,
         enum: ['not_started', 'partial', 'paid', 'overdue', 'cancelled', 'refunded'],
         default: 'not_started'
-    }
+    },
+    // Soft delete
+    deletedAt: { type: Date, index: true },
+    deletedBy: { type: Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
 // Compound index
-FeeSchema.index({ institute: 1, student: 1, batch: 1 }, { unique: true });
+FeeSchema.index({ institute: 1, student: 1, batch: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
 // Pre-save hook to calculate balances
 FeeSchema.pre('save', async function () {
     // Validate installment amounts sum

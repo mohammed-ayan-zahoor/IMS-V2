@@ -46,3 +46,9 @@ next-env.d.ts
 
 #ignore .temp_ag_kit
 .temp_ag_kit
+
+#ignore android
+/android
+.idea/*
+.vscode/*
+.idea
