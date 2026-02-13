@@ -59,10 +59,12 @@ export default function StudentDetailsPage({ params }) {
     const [paymentData, setPaymentData] = useState({
         amount: "",
         method: "cash",
-        reference: "",
+        transactionId: "", // Renamed from reference
         notes: "",
         collectedBy: "",
-        date: format(new Date(), "yyyy-MM-dd")
+        date: format(new Date(), "yyyy-MM-dd"),
+        nextDueDate: "",
+        installmentId: "" // Added installment selection
     });
     const [collectors, setCollectors] = useState([]);
 
@@ -287,10 +289,12 @@ export default function StudentDetailsPage({ params }) {
         setPaymentData({
             amount: (fee.totalAmount - (fee.paidAmount || 0)).toString(),
             method: "cash",
-            reference: "",
+            transactionId: "",
             notes: "",
             collectedBy: "",
-            date: format(new Date(), "yyyy-MM-dd")
+            date: format(new Date(), "yyyy-MM-dd"),
+            nextDueDate: "",
+            installmentId: ""
         });
         fetchCollectors();
         setIsPayModalOpen(true);
@@ -384,8 +388,14 @@ export default function StudentDetailsPage({ params }) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    ...paymentData,
-                    amount: parseFloat(paymentData.amount)
+                    installmentId: paymentData.installmentId === "adhoc" ? undefined : paymentData.installmentId, // Send undefined if adhoc
+                    amount: parseFloat(paymentData.amount),
+                    method: paymentData.method,
+                    transactionId: paymentData.transactionId,
+                    collectedBy: paymentData.collectedBy,
+                    notes: paymentData.notes,
+                    date: paymentData.date,
+                    nextDueDate: paymentData.nextDueDate || undefined
                 })
             });
 
@@ -1073,15 +1083,35 @@ export default function StudentDetailsPage({ params }) {
                 onClose={() => setIsPayModalOpen(false)}
                 title="Record Fee Payment"
             >
-                <form onSubmit={handleRecordPayment} className="space-y-6">
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Payment For</p>
-                        <p className="text-sm font-bold text-slate-900">{selectedFee?.batch?.name}</p>
-                        <p className="text-xs text-slate-500">Total Due: ₹{((selectedFee?.totalAmount || 0) - (selectedFee?.paidAmount || 0)).toLocaleString()}</p>
+                <form onSubmit={handleRecordPayment} className="space-y-5">
+                    <div className="space-y-1.5">
+                        <Select
+                            label="Select Installment (Optional)"
+                            value={paymentData.installmentId}
+                            onChange={(val) => {
+                                const inst = selectedFee.installments?.find(i => i._id === val);
+                                setPaymentData({
+                                    ...paymentData,
+                                    installmentId: val,
+                                    amount: inst ? inst.amount.toString() : paymentData.amount
+                                });
+                            }}
+                            options={[
+                                { label: "-- Select Installment --", value: "" },
+                                { label: "+ Record New / Ad-hoc Payment", value: "adhoc" },
+                                ...(selectedFee.installments || [])
+                                    .filter(i => i.status !== 'paid')
+                                    .map((inst) => ({
+                                        label: `Installment - ₹${inst.amount} (Due: ${format(new Date(inst.dueDate), 'MMM d')})`,
+                                        value: inst._id
+                                    }))
+                            ]}
+                        />
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
                         <Input
+                            id="amount"
                             label="Payment Amount (₹)"
                             type="number"
                             value={paymentData.amount}
@@ -1103,34 +1133,52 @@ export default function StudentDetailsPage({ params }) {
                                 ]}
                             />
                         </div>
+                    </div>
 
+                    <div className="grid grid-cols-2 gap-4">
                         <Input
-                            label="Transaction Ref / Note (Optional)"
-                            placeholder="e.g. UPI ID or Cheque No."
-                            value={paymentData.reference}
-                            onChange={(e) => setPaymentData({ ...paymentData, reference: e.target.value })}
-                        />
-
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Collected By</label>
-                            <Select
-                                value={paymentData.collectedBy}
-                                onChange={(val) => setPaymentData({ ...paymentData, collectedBy: val })}
-                                options={[
-                                    { label: "Select Collector", value: "" },
-                                    ...collectors.map(c => ({ label: c.name, value: c.name }))
-                                ]}
-                                required
-                            />
-                        </div>
-                        <Input
+                            id="paymentDate"
                             label="Payment Date"
                             type="date"
                             value={paymentData.date}
                             onChange={(e) => setPaymentData({ ...paymentData, date: e.target.value })}
                             required
                         />
+                        <Input
+                            id="nextDueDate"
+                            label="Next Due Date"
+                            type="date"
+                            value={paymentData.nextDueDate}
+                            onChange={(e) => setPaymentData({ ...paymentData, nextDueDate: e.target.value })}
+                            placeholder="For remaining balance"
+                        />
                     </div>
+
+                    <Input
+                        label="Transaction Ref / Note (Optional)"
+                        placeholder="e.g. UPI ID or Cheque No."
+                        value={paymentData.transactionId}
+                        onChange={(e) => setPaymentData({ ...paymentData, transactionId: e.target.value })}
+                    />
+
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Collected By</label>
+                        <Select
+                            value={paymentData.collectedBy}
+                            onChange={(val) => setPaymentData({ ...paymentData, collectedBy: val })}
+                            options={[
+                                { label: "Select Collector", value: "" },
+                                ...collectors.map(c => ({ label: c.name, value: c.name }))
+                            ]}
+                            required
+                        />
+                    </div>
+                    <Input
+                        label="Notes"
+                        value={paymentData.notes}
+                        onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
+                        placeholder="Additional notes..."
+                    />
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsPayModalOpen(false)}>Cancel</Button>

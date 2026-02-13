@@ -47,7 +47,9 @@ export default function FeesPage() {
         method: "cash",
         transactionId: "",
         collectedBy: "",
-        notes: ""
+        notes: "",
+        date: format(new Date(), "yyyy-MM-dd"), // Default to today
+        nextDueDate: "" // Optional
     });
     const [collectors, setCollectors] = useState([]);
 
@@ -557,6 +559,26 @@ export default function FeesPage() {
                                                 value: inst._id
                                             }))
                                     ]}
+                                />
+                            </div>
+
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input
+                                    id="paymentDate"
+                                    label="Payment Date"
+                                    type="date"
+                                    value={paymentData.date}
+                                    onChange={(e) => setPaymentData({ ...paymentData, date: e.target.value })}
+                                    required
+                                />
+                                <Input
+                                    id="nextDueDate"
+                                    label="Next Due Date (Remaining Balance)"
+                                    type="date"
+                                    value={paymentData.nextDueDate}
+                                    onChange={(e) => setPaymentData({ ...paymentData, nextDueDate: e.target.value })}
+                                    placeholder="Optional"
                                 />
                             </div>
 

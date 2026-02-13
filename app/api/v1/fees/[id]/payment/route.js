@@ -16,7 +16,8 @@ const PaymentSchema = z.object({
     transactionId: z.string().optional(),
     date: z.string().optional(),
     collectedBy: z.string().optional(), // Whitelist collectedBy
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    nextDueDate: z.string().optional() // New field for remaining balance
 });
 
 export async function POST(req, { params }) {

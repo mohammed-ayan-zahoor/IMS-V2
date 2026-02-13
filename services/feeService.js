@@ -130,7 +130,8 @@ export class FeeService {
                 if (balance > 0.1) {
                     fee.installments.push({
                         amount: balance,
-                        dueDate: new Date(new Date().setMonth(new Date().getMonth() + 1)), // Default 1 month later
+                        amount: balance,
+                        dueDate: paymentDetails.nextDueDate ? new Date(paymentDetails.nextDueDate) : new Date(new Date().setMonth(new Date().getMonth() + 1)), // Use provided nextDueDate or Default 1 month later
                         status: 'pending'
                     });
                 }
@@ -173,6 +174,9 @@ export class FeeService {
 
                     // Update current to be the Balance (Pending)
                     current.amount = balancePart;
+                    if (paymentDetails.nextDueDate) {
+                        current.dueDate = new Date(paymentDetails.nextDueDate);
+                    }
 
                     // Insert new Paid installment BEFORE current
                     // Mongoose array manipulation
