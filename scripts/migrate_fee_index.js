@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Fee from '../models/Fee.js';
 
 async function migrate() {
+    let hadError = false;
     try {
         console.log("Connecting to DB...");
         await connectDB();
@@ -26,12 +27,13 @@ async function migrate() {
 
     } catch (error) {
         console.error("Migration Error:", error);
+        hadError = true;
     } finally {
         if (mongoose.connection.readyState !== 0) {
             await mongoose.connection.close();
             console.log("DB Connection Closed");
         }
-        process.exit(0);
+        process.exit(hadError ? 1 : 0);
     }
 }
 
