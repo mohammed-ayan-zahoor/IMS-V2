@@ -24,6 +24,7 @@ import EmptyState from "@/components/shared/EmptyState";
 import { format } from "date-fns";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import * as XLSX from "xlsx";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -35,7 +36,7 @@ export default function FeesPage() {
     const [search, setSearch] = useState("");
     const [selectedFee, setSelectedFee] = useState(null); // For detail/payment view
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-    const [isSeeding, setIsSeeding] = useState(false);
+
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
     const [showOverdueOnly, setShowOverdueOnly] = useState(false);
 
@@ -246,6 +247,50 @@ export default function FeesPage() {
         return matchesSearch;
     });
 
+
+
+    const handleExport = (formatType = 'xlsx') => {
+        if (!filteredFees.length) {
+            toast.error("No data to export");
+            return;
+        }
+
+        const dataToExport = filteredFees.map(fee => ({
+            "Student Name": `${fee.student?.profile?.firstName || ''} ${fee.student?.profile?.lastName || ''}`.trim(),
+            "Enrollment No": fee.student?.enrollmentNumber || "N/A",
+            "Batch": fee.batch?.name || "N/A",
+            "Total Fee": fee.totalAmount || 0,
+            "Paid Amount": fee.paidAmount || 0,
+            "Balance Amount": fee.balanceAmount || 0,
+            "Status": (fee.balanceAmount || 0) <= 0 ? "Paid" : "Pending",
+            "Installments": fee.installments?.length || 0,
+            "Next Due Date": fee.installments?.find(i => i.status === 'pending')?.dueDate ? format(new Date(fee.installments.find(i => i.status === 'pending').dueDate), 'yyyy-MM-dd') : "N/A"
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Fee Ledger");
+
+        // Auto-width columns (Enterprise Polish)
+        if (formatType === 'xlsx') {
+            worksheet["!cols"] = [
+                { wch: 25 }, // Student Name
+                { wch: 18 }, // Enrollment No
+                { wch: 20 }, // Batch
+                { wch: 12 }, // Total Fee
+                { wch: 12 }, // Paid
+                { wch: 12 }, // Balance
+                { wch: 12 }, // Status
+                { wch: 12 }, // Installments
+                { wch: 16 }  // Next Due Date
+            ];
+        }
+
+        const fileName = `Fee_Ledger_Export_${format(new Date(), 'yyyy-MM-dd')}.${formatType}`;
+        XLSX.writeFile(workbook, fileName);
+        toast.success(`Export started (${formatType.toUpperCase()})`);
+    };
+
     useEffect(() => {
         // Calculate Summary
         const newSummary = filteredFees.reduce((acc, fee) => ({
@@ -254,8 +299,7 @@ export default function FeesPage() {
             pending: acc.pending + (fee.balanceAmount || 0)
         }), { total: 0, paid: 0, pending: 0 });
         setSummary(newSummary);
-    }, [fees, search, selectedCourse, selectedBatch, batches]); // Re-run when filters changes
-
+    }, [fees, search, selectedCourse, selectedBatch, batches, showOverdueOnly]); // Re-run when filters change
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-100">
@@ -265,65 +309,25 @@ export default function FeesPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button
+                        variant="outline"
                         size="sm"
-                        variant="soft"
-                        onClick={async () => {
-                            if (!await confirm({ title: "Seed Test Fee?", message: "Create test fee record?", type: "info" })) return;
-
-                            setIsSeeding(true);
-                            try {
-                                // 1. Get a student
-                                const sRes = await fetch("/api/v1/students");
-                                if (!sRes.ok) throw new Error("Failed to fetch students");
-                                const sData = await sRes.json();
-                                const student = sData.students?.[0] || sData?.[0];
-
-                                // 2. Get a batch
-                                const bRes = await fetch("/api/v1/batches");
-                                if (!bRes.ok) throw new Error("Failed to fetch batches");
-                                const bData = await bRes.json();
-                                const batch = bData.batches?.[0] || bData?.[0];
-
-                                if (!student || !batch) {
-                                    toast.warning("Need at least one student and batch to seed fee.");
-                                    return;
-                                }
-
-                                // 3. Create Fee
-                                const res = await fetch("/api/v1/fees", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                        student: student._id,
-                                        batch: batch._id,
-                                        totalAmount: 12000,
-                                        installments: [
-                                            { amount: 6000, dueDate: new Date() },
-                                            { amount: 6000, dueDate: new Date(Date.now() + THIRTY_DAYS_MS) }
-                                        ]
-                                    })
-                                });
-
-                                if (res.ok) {
-                                    await fetchFees();
-                                    toast.success("Seeded test fee");
-                                } else {
-                                    const errData = await res.json().catch(() => ({}));
-                                    toast.error(errData.error || "Failed to seed fee");
-                                }
-                            } catch (e) {
-                                console.error(e);
-                                toast.error(e.message || "Error seeding");
-                            } finally {
-                                setIsSeeding(false);
-                            }
-                        }}
-                        disabled={isSeeding}
+                        onClick={() => handleExport('csv')}
+                        className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
                     >
-                        {isSeeding ? "Seeding..." : "+ Seed Test Fee"}
+                        <span className="font-mono text-xs font-bold">CSV</span>
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExport('xlsx')}
+                        className="flex items-center gap-2"
+                    >
+                        <DollarSign size={16} className="text-emerald-600" />
+                        Export Excel
                     </Button>
                 </div>
             </div>
+
 
             {/* Report Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -360,7 +364,7 @@ export default function FeesPage() {
                         </div>
                     </div>
                 </Card>
-            </div>
+            </div >
 
             <Card className="transition-all border-transparent shadow-sm">
                 <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 space-y-0">
@@ -612,6 +616,7 @@ export default function FeesPage() {
                     </div>
                 )}
             </Modal>
-        </div>
+        </div >
     );
 }
+
