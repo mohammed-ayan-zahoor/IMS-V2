@@ -9,7 +9,8 @@ import {
     CheckCircle,
     AlertCircle,
     Clock,
-    DollarSign
+    DollarSign,
+    Trash2
 } from "lucide-react";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
@@ -291,14 +292,44 @@ export default function FeesPage() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => openPaymentModal(fee)}
-                                                    className="border-slate-200 hover:border-premium-blue hover:text-premium-blue"
-                                                >
-                                                    <DollarSign size={14} className="mr-1" /> Pay
-                                                </Button>
+                                                <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => openPaymentModal(fee)}
+                                                        className="border-slate-200 hover:border-premium-blue hover:text-premium-blue"
+                                                    >
+                                                        <DollarSign size={14} className="mr-1" /> Pay
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                        onClick={async () => {
+                                                            if (!await confirm({
+                                                                title: "Delete Fee Record?",
+                                                                message: "This will soft-delete the fee record. It will be removed from all views.",
+                                                                type: "danger"
+                                                            })) return;
+
+                                                            try {
+                                                                const res = await fetch(`/api/v1/fees/${fee._id}`, { method: 'DELETE' });
+                                                                if (res.ok) {
+                                                                    toast.success("Fee record deleted");
+                                                                    fetchFees();
+                                                                } else {
+                                                                    const err = await res.json();
+                                                                    toast.error(err.error || "Failed to delete");
+                                                                }
+                                                            } catch (e) {
+                                                                console.error(e);
+                                                                toast.error("Error deleting fee");
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </Button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
