@@ -1087,7 +1087,7 @@ export default function StudentDetailsPage({ params }) {
                             label="Select Installment (Optional)"
                             value={paymentData.installmentId}
                             onChange={(val) => {
-                                const inst = selectedFee.installments?.find(i => i._id === val);
+                                const inst = selectedFee?.installments?.find(i => i._id === val);
                                 setPaymentData({
                                     ...paymentData,
                                     installmentId: val,
