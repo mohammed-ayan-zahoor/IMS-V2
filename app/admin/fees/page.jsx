@@ -318,7 +318,7 @@ export default function FeesPage() {
                                                                     toast.success("Fee record deleted");
                                                                     fetchFees();
                                                                 } else {
-                                                                    const err = await res.json();
+                                                                    const err = await res.json().catch(() => ({}));
                                                                     toast.error(err.error || "Failed to delete");
                                                                 }
                                                             } catch (e) {
