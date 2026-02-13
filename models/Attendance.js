@@ -25,5 +25,10 @@ const AttendanceSchema = new Schema({
 }, { timestamps: true });
 
 // Unique constraint: one attendance record per batch per date
-// Unique constraint: one attendance record per institute per batch per date
-AttendanceSchema.index({ institute: 1, batch: 1, date: 1 }, { unique: true }); export default mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);
+AttendanceSchema.index({ institute: 1, batch: 1, date: 1 }, { unique: true });
+
+// Performance Indexes for Reports & Dashboards
+AttendanceSchema.index({ institute: 1, date: 1 });
+AttendanceSchema.index({ batch: 1, date: 1 });
+
+export default mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);

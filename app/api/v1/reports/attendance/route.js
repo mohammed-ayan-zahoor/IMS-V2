@@ -55,6 +55,10 @@ export async function GET(req) {
                 status: 'active'
             }).distinct('_id');
 
+            if (courseBatchIds.length === 0) {
+                return NextResponse.json({ report: [] });
+            }
+
             matchStage.batch = { $in: courseBatchIds };
         }
 
@@ -93,12 +97,23 @@ export async function GET(req) {
                 }
             },
 
-            // 4. Lookup Student Details
+            // 4. Lookup Student Details (Harden for multi-tenant safety and performance)
             {
                 $lookup: {
                     from: "users",
-                    localField: "_id",
-                    foreignField: "_id",
+                    let: { studentId: "$_id", instituteId: new mongoose.Types.ObjectId(instituteId) },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$_id", "$$studentId"] },
+                                        { $eq: ["$institute", "$$instituteId"] } // Strict tenant check
+                                    ]
+                                }
+                            }
+                        }
+                    ],
                     as: "studentInfo"
                 }
             },

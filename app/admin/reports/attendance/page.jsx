@@ -211,7 +211,7 @@ export default function AttendanceReportPage() {
                                 className="w-full pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-premium-blue/20 transition-all"
                             />
                         </div>
-                        <Button variant="outline" onClick={handleExport} disabled={!filteredData.length} className="gap-2">
+                        <Button variant="outline" onClick={handleExport} disabled={!filteredData.length || loading} className="gap-2">
                             <FileSpreadsheet size={16} className="text-emerald-600" />
                             Export Excel
                         </Button>
