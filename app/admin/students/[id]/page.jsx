@@ -296,7 +296,6 @@ export default function StudentDetailsPage({ params }) {
             nextDueDate: "",
             installmentId: ""
         });
-        fetchCollectors();
         setIsPayModalOpen(true);
     };
 
@@ -388,8 +387,7 @@ export default function StudentDetailsPage({ params }) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    installmentId: paymentData.installmentId === "adhoc" ? undefined : paymentData.installmentId, // Send undefined if adhoc
-                    amount: parseFloat(paymentData.amount),
+                    installmentId: paymentData.installmentId === "adhoc" || !paymentData.installmentId ? undefined : paymentData.installmentId, amount: parseFloat(paymentData.amount),
                     method: paymentData.method,
                     transactionId: paymentData.transactionId,
                     collectedBy: paymentData.collectedBy,
@@ -1100,13 +1098,12 @@ export default function StudentDetailsPage({ params }) {
                                 { label: "-- Select Installment --", value: "" },
                                 { label: "+ Record New / Ad-hoc Payment", value: "adhoc" },
                                 ...(selectedFee.installments || [])
+                                ...(selectedFee.installments || [])
                                     .filter(i => i.status !== 'paid')
                                     .map((inst) => ({
-                                        label: `Installment - ₹${inst.amount} (Due: ${format(new Date(inst.dueDate), 'MMM d')})`,
+                                        label: `Installment - ₹${inst.amount} (Due: ${inst.dueDate && !isNaN(new Date(inst.dueDate)) ? format(new Date(inst.dueDate), 'MMM d') : 'TBD'})`,
                                         value: inst._id
-                                    }))
-                            ]}
-                        />
+                                    })) />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

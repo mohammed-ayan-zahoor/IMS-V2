@@ -14,6 +14,16 @@ const getStudentName = (student) => {
     return student.displayName || student.email || 'Unknown Student';
 };
 
+// Helper to validate dates
+const parseValidDate = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        throw new Error(`Invalid date format provided: ${dateString}`);
+    }
+    return date;
+};
+
 export class FeeService {
     static async createFeeStructure(data, actorId) {
         await connectDB();
@@ -130,8 +140,7 @@ export class FeeService {
                 if (balance > 0.1) {
                     fee.installments.push({
                         amount: balance,
-                        amount: balance,
-                        dueDate: paymentDetails.nextDueDate ? new Date(paymentDetails.nextDueDate) : new Date(new Date().setMonth(new Date().getMonth() + 1)), // Use provided nextDueDate or Default 1 month later
+                        dueDate: parseValidDate(paymentDetails.nextDueDate) || new Date(new Date().setMonth(new Date().getMonth() + 1)), // Use provided nextDueDate or Default 1 month later
                         status: 'pending'
                     });
                 }
@@ -173,9 +182,11 @@ export class FeeService {
                     const balancePart = originalAmount - remaining;
 
                     // Update current to be the Balance (Pending)
+                    // Update current to be the Balance (Pending)
                     current.amount = balancePart;
-                    if (paymentDetails.nextDueDate) {
-                        current.dueDate = new Date(paymentDetails.nextDueDate);
+                    const nextDate = parseValidDate(paymentDetails.nextDueDate);
+                    if (nextDate) {
+                        current.dueDate = nextDate;
                     }
 
                     // Insert new Paid installment BEFORE current
