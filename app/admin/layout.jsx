@@ -24,7 +24,10 @@ import {
     Plus,
     List,
     ReceiptText,
-    Building2
+    Building2,
+    BarChart3,
+    Database,
+    RotateCcw
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
@@ -84,18 +87,33 @@ export default function AdminLayout({ children }) {
             ]
         },
         {
-            label: "Administration",
-            icon: UserCog,
+            label: "Reports",
+            icon: BarChart3,
             items: [
                 { label: "Fees", icon: CreditCard, href: "/admin/fees" },
                 { label: "Collection History", icon: ReceiptText, href: "/admin/collections" },
+                { label: "Audit Logs", icon: History, href: "/admin/audit-logs" },
+            ]
+        },
+        {
+            label: "Administration",
+            icon: UserCog,
+            items: [
                 { label: "Accounts Master", icon: Building2, href: "/admin/accounts" },
                 { label: "User Management", icon: UserCog, href: "/admin/users" },
-                { label: "Audit Logs", icon: History, href: "/admin/audit-logs" },
                 { label: "Settings", icon: Settings, href: "/admin/settings" },
             ]
         },
+        {
+            label: "Utility",
+            icon: Database,
+            items: [
+                { label: "System Backup", icon: Database, href: "/admin/utility/backup" },
+                { label: "System Restore", icon: RotateCcw, href: "/admin/utility/restore" },
+            ]
+        },
     ];
+
 
     if (session?.user?.role === "super_admin") {
         menuGroups.unshift({

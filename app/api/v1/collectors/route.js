@@ -8,15 +8,21 @@ import { createAuditLog } from "@/services/auditService";
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !session.user?.institute?.id || !['admin', 'super_admin'].includes(session.user.role)) {
+        const isSuperAdmin = session?.user?.role === 'super_admin';
+        const instituteId = session?.user?.institute?.id;
+
+        if (!session || (!instituteId && !isSuperAdmin) || !['admin', 'super_admin'].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         await connectDB();
-        const collectors = await Collector.find({
-            institute: session.user.institute.id,
-            isActive: true
-        }).sort({ name: 1 });
+
+        const query = { isActive: true };
+        if (instituteId) {
+            query.institute = instituteId;
+        }
+
+        const collectors = await Collector.find(query).sort({ name: 1 });
 
         return NextResponse.json({ collectors });
     } catch (error) {
@@ -28,7 +34,10 @@ export async function GET(req) {
 export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !session.user?.institute?.id || !['admin', 'super_admin'].includes(session.user.role)) {
+        const isSuperAdmin = session?.user?.role === 'super_admin';
+        const instituteId = session?.user?.institute?.id;
+
+        if (!session || (!instituteId && !isSuperAdmin) || !['admin', 'super_admin'].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -53,12 +62,17 @@ export async function POST(req) {
         }
 
         await connectDB();
-        const collector = await Collector.create({
-            institute: session.user.institute.id,
+        const collectorData = {
             name: name.trim(),
             phone: phone?.trim(),
             designation: designation?.trim()
-        });
+        };
+
+        if (instituteId) {
+            collectorData.institute = instituteId;
+        }
+
+        const collector = await Collector.create(collectorData);
 
         try {
             await createAuditLog({
