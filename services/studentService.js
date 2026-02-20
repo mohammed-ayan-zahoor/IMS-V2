@@ -288,7 +288,7 @@ export class StudentService {
 
             if (existingEnrollment) {
                 // Check if fee record also exists
-                const existingFee = await Fee.findOne({ student: studentId, batch: batchId }).session(session);
+                const existingFee = await Fee.findOne({ student: studentId, batch: batchId, deletedAt: null }).session(session);
                 if (existingFee) {
                     throw new Error('Student already enrolled in this batch');
                 }
@@ -381,7 +381,7 @@ export class StudentService {
         );
 
         if (existingEnrollment) {
-            const existingFee = await Fee.findOne({ student: studentId, batch: batchId });
+            const existingFee = await Fee.findOne({ student: studentId, batch: batchId, deletedAt: null });
             if (existingFee) throw new Error('Student already enrolled in this batch');
             // Proceed to create Fee
         } else {
