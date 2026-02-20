@@ -737,9 +737,8 @@ export default function StudentDetailsPage({ params }) {
                                                                 {deletingFeeId === fee._id ? (
                                                                     <div className="w-3 h-3 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
                                                                 ) : (
-                                                                    <Trash2 size={14} className={isPaid ? "" : "hidden"} />
+                                                                    <Trash2 size={14} />
                                                                 )}
-                                                                {!isPaid && (deletingFeeId === fee._id ? "" : "Delete")}
                                                             </Button>
                                                             <Button
                                                                 size="sm"

@@ -287,12 +287,12 @@ export class StudentService {
             );
 
             if (existingEnrollment) {
-                // Check if fee record also exists
+                // Check if an active (non-deleted) fee record exists
                 const existingFee = await Fee.findOne({ student: studentId, batch: batchId, deletedAt: null }).session(session);
                 if (existingFee) {
                     throw new Error('Student already enrolled in this batch');
                 }
-                // If enrolled but no Fee, we proceed to create Fee (Fix consistency)
+                // If enrolled but no active fee, fall through to restore/create below
             } else {
                 // Check capacity
                 if (batch.activeEnrollmentCount >= batch.capacity) {
@@ -323,10 +323,10 @@ export class StudentService {
             const fee = await Fee.create([{
                 student: studentId,
                 batch: batchId,
-                institute: targetInstitute, // Use validated batch institute
+                institute: targetInstitute,
                 totalAmount: batch.course.fees.amount,
                 installments: [],
-                status: 'not_started' // Default status
+                status: 'not_started'
             }], { session });
 
             await session.commitTransaction();
@@ -383,7 +383,7 @@ export class StudentService {
         if (existingEnrollment) {
             const existingFee = await Fee.findOne({ student: studentId, batch: batchId, deletedAt: null });
             if (existingFee) throw new Error('Student already enrolled in this batch');
-            // Proceed to create Fee
+            // No active fee — fall through to restore/create below
         } else {
             if (batch.activeEnrollmentCount >= batch.capacity) throw new Error('Batch has reached its maximum capacity');
             batch.enrolledStudents.push({
@@ -397,7 +397,7 @@ export class StudentService {
         const fee = await Fee.create({
             student: studentId,
             batch: batchId,
-            institute: batch.institute, // Enforce Batch's Institute
+            institute: batch.institute,
             totalAmount: batch.course.fees.amount,
             installments: [],
             status: 'not_started'
