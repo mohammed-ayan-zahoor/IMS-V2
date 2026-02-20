@@ -319,6 +319,9 @@ export class StudentService {
                 throw new Error("Institute mismatch: Act on behalf of correct institute");
             }
 
+            // If a legacy soft-deleted fee exists, hard-delete it first to free the unique index
+            await Fee.deleteOne({ student: studentId, batch: batchId, deletedAt: { $ne: null } }).session(session);
+
             // Create initial fee record
             const fee = await Fee.create([{
                 student: studentId,
@@ -393,6 +396,9 @@ export class StudentService {
             });
             await batch.save();
         }
+
+        // If a legacy soft-deleted fee exists, hard-delete it first to free the unique index
+        await Fee.deleteOne({ student: studentId, batch: batchId, deletedAt: { $ne: null } });
 
         const fee = await Fee.create({
             student: studentId,
