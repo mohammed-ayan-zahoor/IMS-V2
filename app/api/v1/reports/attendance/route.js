@@ -157,7 +157,9 @@ export async function GET(req) {
             { $sort: { name: 1 } }
         ];
 
+        console.log("Attendance Report MatchStage:", JSON.stringify(matchStage, null, 2));
         const report = await Attendance.aggregate(pipeline);
+        console.log("Attendance Report Generated. Count:", report.length);
 
         return NextResponse.json({ report });
 

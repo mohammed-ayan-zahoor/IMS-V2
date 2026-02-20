@@ -453,9 +453,10 @@ export class StudentService {
             }
         }
 
-        // Get fees
+        // Get fees (exclude soft-deleted records)
         const fees = await Fee.find({
-            student: studentId
+            student: studentId,
+            deletedAt: null
         }).populate('batch', 'name');
 
         return {
