@@ -58,10 +58,9 @@ export async function GET(req) {
         // 3. fetch Exam Submissions first to exclude them from upcoming
         const submittedExams = await ExamSubmission.find({
             student: studentId,
-            status: { $in: ['evaluated', 'submitted'] }
+            status: { $in: ['evaluated', 'submitted', 'in_progress'] }
         }).select('exam');
         const submittedExamIds = submittedExams.map(s => s.exam);
-
         // 4. Run Independent Queries in Parallel
         const [
             totalAttendanceSessions,
@@ -90,6 +89,7 @@ export async function GET(req) {
             }),
             // Upcoming Exams (Advanced logic: Not taken yet)
             Exam.find({
+                course: { $in: courseIds },
                 batches: { $in: batchIds },
                 deletedAt: null,
                 status: 'published',

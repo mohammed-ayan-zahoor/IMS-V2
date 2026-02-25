@@ -13,6 +13,13 @@ import Select from "@/components/ui/Select";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
 
+const stripHtml = (html) => {
+    if (typeof window === 'undefined') return (html ?? '').replace(/<[^>]+>/g, '');
+    const div = document.createElement("div");
+    div.innerHTML = html ?? '';
+    return div.textContent || div.innerText || "";
+};
+
 export default function QuestionBankPage() {
     const toast = useToast();
     const [questions, setQuestions] = useState([]);
@@ -208,7 +215,7 @@ export default function QuestionBankPage() {
                                     <tr key={q._id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-4 max-w-md">
                                             <div className="font-medium text-slate-900 line-clamp-2">
-                                                {q.text.replace(/<[^>]*>?/gm, '')}
+                                                {stripHtml(q.text)}
                                             </div>
                                             {/* We can strip HTML tags for preview or just trust text is simple */}
                                         </td>

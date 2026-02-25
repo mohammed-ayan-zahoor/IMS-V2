@@ -27,12 +27,15 @@ export async function GET(req) {
                 }
             },
             deletedAt: null
-        }).select('_id');
+        }).select('_id course'); // Select course ID as well
 
         const batchIds = batches.map(b => b._id);
+        const courseIds = [...new Set(batches.map(b => b.course.toString()))]; // Extract unique course IDs
 
-        // 2. Find exams for these batches
+        // 2. Find exams for these batches and courses
+        // A robust filter ensures the exam belongs to the student's course AND at least one of their batches.
         const exams = await Exam.find({
+            course: { $in: courseIds },
             batches: { $in: batchIds },
             status: 'published',
             deletedAt: null
