@@ -90,7 +90,7 @@ export async function GET(req) {
             }),
             // Upcoming Exams (Advanced logic: Not taken yet)
             Exam.find({
-                course: { $in: courseIds },
+                batches: { $in: batchIds },
                 deletedAt: null,
                 status: 'published',
                 scheduledAt: { $gt: now },

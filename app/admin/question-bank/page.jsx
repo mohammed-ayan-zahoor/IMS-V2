@@ -15,7 +15,7 @@ import { useToast } from "@/contexts/ToastContext";
 import DOMPurify from "isomorphic-dompurify";
 
 export default function QuestionBankPage() {
-    const { toast } = useToast();
+    const toast = useToast();
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
 

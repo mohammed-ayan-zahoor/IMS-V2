@@ -12,7 +12,7 @@ import { useToast } from "@/contexts/ToastContext";
 export default function EditQuestionPage({ params }) {
     const { id } = use(params);
     const router = useRouter();
-    const { toast } = useToast();
+    const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
 

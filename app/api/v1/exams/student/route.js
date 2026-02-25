@@ -20,8 +20,12 @@ export async function GET(req) {
 
         // 1. Find batches student is enrolled in
         const batches = await Batch.find({
-            'enrolledStudents.student': session.user.id,
-            'enrolledStudents.status': 'active',
+            enrolledStudents: {
+                $elemMatch: {
+                    student: session.user.id,
+                    status: 'active'
+                }
+            },
             deletedAt: null
         }).select('_id');
 
