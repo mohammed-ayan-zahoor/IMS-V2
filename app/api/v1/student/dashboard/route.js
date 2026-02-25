@@ -58,7 +58,7 @@ export async function GET(req) {
         // 3. fetch Exam Submissions first to exclude them from upcoming
         const submittedExams = await ExamSubmission.find({
             student: studentId,
-            status: { $in: ['completed', 'submitted'] }
+            status: { $in: ['evaluated', 'submitted'] }
         }).select('exam');
         const submittedExamIds = submittedExams.map(s => s.exam);
 
@@ -86,7 +86,7 @@ export async function GET(req) {
             // Exams Taken Count
             ExamSubmission.countDocuments({
                 student: studentId,
-                status: { $ne: 'in-progress' }
+                status: { $ne: 'in_progress' }
             }),
             // Upcoming Exams (Advanced logic: Not taken yet)
             Exam.find({

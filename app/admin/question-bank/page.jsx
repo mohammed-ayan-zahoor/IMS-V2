@@ -12,7 +12,6 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
-import DOMPurify from "isomorphic-dompurify";
 
 export default function QuestionBankPage() {
     const toast = useToast();
@@ -100,7 +99,11 @@ export default function QuestionBankPage() {
     const confirm = useConfirm();
 
     const handleDelete = async (id) => {
-        if (!await confirm("Are you sure you want to delete this question?", "Delete Question", "destructive")) return;
+        if (!await confirm({
+            title: "Delete Question",
+            message: "Are you sure you want to delete this question?",
+            type: "danger"
+        })) return;
 
         try {
             const res = await fetch(`/api/v1/questions/${id}`, { method: "DELETE" });
@@ -204,8 +207,9 @@ export default function QuestionBankPage() {
                                 questions.map((q) => (
                                     <tr key={q._id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-4 max-w-md">
-                                            <div className="font-medium text-slate-900 line-clamp-2"
-                                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(q.text) }} />
+                                            <div className="font-medium text-slate-900 line-clamp-2">
+                                                {q.text.replace(/<[^>]*>?/gm, '')}
+                                            </div>
                                             {/* We can strip HTML tags for preview or just trust text is simple */}
                                         </td>
                                         <td className="px-6 py-4">
