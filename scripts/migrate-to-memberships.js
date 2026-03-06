@@ -42,8 +42,7 @@ async function migrate() {
                     user: user._id,
                     institute: user.institute,
                     role: user.role,
-                    isActive: true,
-                    status: 'active'
+                    isActive: true
                 });
                 createdCount++;
             } else {

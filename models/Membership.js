@@ -16,7 +16,7 @@ const MembershipSchema = new Schema({
     },
     role: {
         type: String,
-        enum: ['admin', 'instructor', 'staff'],
+        enum: ['admin', 'instructor', 'staff', 'super_admin', 'student'],
         required: true
     },
     lastAccessed: {
