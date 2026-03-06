@@ -15,10 +15,11 @@ import Button from "@/components/ui/Button";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Select from "@/components/ui/Select";
 import Input from "@/components/ui/Input";
-import { toast } from "react-hot-toast";
+import { useToast } from "@/contexts/ToastContext";
 import * as XLSX from "xlsx";
 
 export default function AttendanceReportPage() {
+    const toast = useToast();
     const [courses, setCourses] = useState([]);
     const [batches, setBatches] = useState([]);
     const [reportData, setReportData] = useState([]);
@@ -60,6 +61,10 @@ export default function AttendanceReportPage() {
         const fetchBatches = async () => {
             try {
                 const res = await fetch(`/api/v1/batches?courseId=${selectedCourse}&active=true`);
+                if (!res.ok) {
+                    console.log("Failed to fetch batches:", res.status);
+                    return;
+                }
                 const data = await res.json();
                 if (data.batches) setBatches(data.batches);
             } catch (error) {
@@ -101,9 +106,8 @@ export default function AttendanceReportPage() {
     // Filter data client-side for search
     const filteredData = reportData.filter(item =>
         item.name?.toLowerCase()?.includes(search.toLowerCase()) ||
-        item.enrollmentNumber?.toLowerCase().includes(search.toLowerCase())
-    );
-    // Export to Excel
+        item.enrollmentNumber?.toLowerCase()?.includes(search.toLowerCase())
+    );    // Export to Excel
     const handleExport = () => {
         if (!filteredData.length) {
             toast.error("No data to export");

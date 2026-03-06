@@ -18,6 +18,12 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
         const { searchParams } = new URL(req.url);
+        const targetInstParam = searchParams.get("instituteId");
+
+        // Global View Logic: 
+        // 1. Super Admin + (instituteId='all' OR no instituteId provided)
+        const isGlobalView = scope.isSuperAdmin && (!targetInstParam || targetInstParam === "all");
+
         const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
         const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get("limit")) || 10));
         const search = searchParams.get("search") || "";
@@ -34,7 +40,7 @@ export async function GET(req) {
             batchId,
             courseId,
             isActive,
-            instituteId: scope.isSuperAdmin ? (searchParams.get("institute") || null) : scope.instituteId,
+            instituteId: isGlobalView ? null : (targetInstParam || scope.instituteId),
             actorId: session.user.id
         });
 

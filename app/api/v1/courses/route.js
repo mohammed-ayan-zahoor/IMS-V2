@@ -6,12 +6,25 @@ import { getInstituteScope } from "@/middleware/instituteScope";
 
 export async function GET(req) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const scope = await getInstituteScope(req);
         if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
         }
+        const { searchParams } = new URL(req.url);
+        const targetInstParam = searchParams.get('instituteId');
 
-        const courses = await CourseService.getCourses({}, scope.instituteId); return NextResponse.json({ courses });
+        // Global View Logic: 
+        // 1. Super Admin + (instituteId='all' OR no instituteId provided)
+        const isGlobalView = scope.isSuperAdmin && (!targetInstParam || targetInstParam === "all");
+        const instituteId = isGlobalView ? null : (targetInstParam || scope.instituteId);
+
+        const courses = await CourseService.getCourses({}, instituteId);
+        return NextResponse.json({ courses });
     } catch (error) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }

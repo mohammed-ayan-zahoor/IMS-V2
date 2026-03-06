@@ -31,9 +31,11 @@ import { format } from "date-fns";
 import Link from "next/link";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
+import { useSession } from "next-auth/react";
 
 export default function StudentsPage() {
     const toast = useToast();
+    const { data: session } = useSession();
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -52,6 +54,7 @@ export default function StudentsPage() {
     const [filters, setFilters] = useState({
         batchId: "",
         courseId: "",
+        instituteId: "", // Add instituteId
         isActive: "true"
     });
 
@@ -85,6 +88,22 @@ export default function StudentsPage() {
             }
         };
     }, []);
+
+    useEffect(() => {
+        if (session?.user?.role === 'super_admin') {
+            fetchInstitutes();
+        }
+    }, [session]);
+
+    const fetchInstitutes = async () => {
+        try {
+            const res = await fetch("/api/v1/institutes");
+            const data = await res.json();
+            setInstitutes(data.institutes || []);
+        } catch (error) {
+            console.error("Failed to fetch institutes", error);
+        }
+    };
 
 
 
@@ -127,6 +146,7 @@ export default function StudentsPage() {
                 search,
                 batchId: filters.batchId,
                 courseId: filters.courseId,
+                instituteId: filters.instituteId, // Include in API call
                 isActive: filters.isActive,
                 page: page.toString(),
                 limit: pagination.limit.toString()
@@ -164,6 +184,7 @@ export default function StudentsPage() {
                 search,
                 batchId: filters.batchId,
                 courseId: filters.courseId,
+                instituteId: filters.instituteId,
                 isActive: filters.isActive,
                 page: '1',
                 limit: '1000' // Get all for print
@@ -475,10 +496,26 @@ export default function StudentsPage() {
                             />
                         </div>
 
-                        {(filters.courseId || filters.batchId || filters.isActive !== "true") && (<Button
+                        {institutes.length > 0 && (
+                            <div className="min-w-[180px] max-w-xs">
+                                <Select
+                                    value={filters.instituteId}
+                                    onChange={(val) => setFilters({ ...filters, instituteId: val })}
+                                    placeholder="All Institutes"
+                                    className="w-auto"
+                                    buttonClassName="w-auto min-w-full"
+                                    options={[
+                                        { label: "All Institutes", value: "" },
+                                        ...institutes.map(i => ({ label: i.name, value: i._id }))
+                                    ]}
+                                />
+                            </div>
+                        )}
+
+                        {(filters.courseId || filters.batchId || filters.instituteId || filters.isActive !== "true") && (<Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setFilters({ batchId: "", courseId: "", isActive: "true" })}
+                            onClick={() => setFilters({ batchId: "", courseId: "", instituteId: "", isActive: "true" })}
                             className="text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-red-500"
                         >
                             Reset

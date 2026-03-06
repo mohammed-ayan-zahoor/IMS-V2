@@ -9,6 +9,7 @@ export async function GET(req) {
     try {
         const { searchParams } = new URL(req.url);
         const courseId = searchParams.get('courseId');
+        const targetInstParam = searchParams.get('instituteId');
 
         const filters = {};
         if (courseId) filters.course = courseId;
@@ -18,7 +19,21 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
         }
 
-        const batches = await BatchService.getBatches(filters, scope.instituteId);
+        // Global View Logic: 
+        // 1. Super Admin + (instituteId='all' OR no instituteId provided)
+        const isGlobalView = scope.isSuperAdmin && (!targetInstParam || targetInstParam === "all");
+
+        let instituteId;
+        if (isGlobalView) {
+            instituteId = null;
+        } else if (scope.isSuperAdmin && targetInstParam) {
+            // Super admin filtering by specific institute
+            instituteId = targetInstParam;
+        } else {
+            // Non-super-admins are restricted to their own institute
+            instituteId = scope.instituteId;
+        }
+        const batches = await BatchService.getBatches(filters, instituteId);
         return NextResponse.json({ batches });
     } catch (error) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
@@ -55,6 +70,10 @@ export async function POST(req) {
         const batch = await BatchService.createBatch({ ...body, institute: targetInstitute }, session.user.id);
         return NextResponse.json(batch, { status: 201 });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        console.error("POST /api/v1/batches error:", error);
+        const clientMessage = error.name === 'ValidationError'
+            ? error.message
+            : "Failed to create batch";
+        return NextResponse.json({ error: clientMessage }, { status: 400 });
     }
 }

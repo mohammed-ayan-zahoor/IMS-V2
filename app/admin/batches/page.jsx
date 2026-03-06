@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
     Calendar,
     Plus,
@@ -32,7 +33,10 @@ export default function BatchesPage() {
     const [batches, setBatches] = useState([]);
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { data: session } = useSession();
     const [search, setSearch] = useState("");
+    const [institutes, setInstitutes] = useState([]);
+    const [selectedInstitute, setSelectedInstitute] = useState("");
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingBatch, setEditingBatch] = useState(null);
@@ -48,14 +52,30 @@ export default function BatchesPage() {
 
     useEffect(() => {
         fetchInitialData();
-    }, []);
+        if (session?.user?.role === 'super_admin') {
+            fetchInstitutes();
+        }
+    }, [session, selectedInstitute]);
 
+    const fetchInstitutes = async () => {
+        try {
+            const res = await fetch("/api/v1/institutes");
+            if (!res.ok) {
+                throw new Error(`Failed to fetch institutes: ${res.status}`);
+            }
+            const data = await res.json();
+            setInstitutes(data.institutes || []);
+        } catch (error) {
+            console.error("Failed to fetch institutes", error);
+        }
+    };
     const fetchInitialData = async () => {
         try {
             setLoading(true);
+            const instQuery = selectedInstitute ? `?instituteId=${selectedInstitute}` : "";
             const [bRes, cRes] = await Promise.all([
-                fetch("/api/v1/batches"),
-                fetch("/api/v1/courses")
+                fetch(`/api/v1/batches${instQuery}`),
+                fetch(`/api/v1/courses${instQuery}`)
             ]);
             const [bData, cData] = await Promise.all([bRes.json(), cRes.json()]);
             // Ensure strictly array
@@ -112,7 +132,7 @@ export default function BatchesPage() {
                 body: JSON.stringify({
                     name: formData.name,
                     course: formData.course,
-                    capacity: parseInt(formData.capacity),
+                    capacity: parseInt(formData.capacity, 10) || 0,
                     schedule: {
                         startDate: formData.startDate,
                         description: formData.schedule
@@ -155,17 +175,30 @@ export default function BatchesPage() {
             </div>
 
             <Card className="transition-all border-transparent shadow-sm">
-                <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardHeader className="flex-row items-center gap-4 space-y-0">
                     <div className="flex-1 max-w-md relative group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/50 transition-colors group-focus-within:text-premium-blue" size={18} />
                         <input
                             type="text"
-                            placeholder="Search batches by name or course..."
+                            placeholder="Search batches..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
                         />
                     </div>
+                    {institutes.length > 0 && (
+                        <div className="min-w-[200px]">
+                            <Select
+                                value={selectedInstitute}
+                                onChange={(val) => setSelectedInstitute(val)}
+                                placeholder="All Institutes"
+                                options={[
+                                    { label: "All Institutes", value: "" },
+                                    ...institutes.map(i => ({ label: i.name, value: i._id }))
+                                ]}
+                            />
+                        </div>
+                    )}
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (

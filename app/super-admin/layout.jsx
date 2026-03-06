@@ -13,10 +13,12 @@ import {
     ChevronLeft,
     ChevronRight,
     ExternalLink,
-    Shield
+    Shield,
+    Users
 } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
 
 function cn(...inputs) {
     return twMerge(clsx(inputs));
@@ -62,24 +64,31 @@ export default function SuperAdminLayout({ children }) {
                 className="bg-white border-r border-slate-200 flex flex-col relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
             >
                 {/* Branding */}
-                <div className="h-20 flex items-center px-6 border-b border-slate-100">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="min-w-[40px] h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
-                            <Shield size={22} strokeWidth={2.5} />
+                <div className="h-40 flex flex-col border-b border-slate-100">
+                    <div className="h-20 flex items-center px-6">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="min-w-[40px] h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
+                                <Shield size={22} strokeWidth={2.5} />
+                            </div>
+                            <AnimatePresence mode="wait">
+                                {isSidebarOpen && (
+                                    <motion.span
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -10 }}
+                                        className="font-black text-slate-800 tracking-tight text-lg whitespace-nowrap"
+                                    >
+                                        IMS <span className="text-blue-600">Admin</span>
+                                    </motion.span>
+                                )}
+                            </AnimatePresence>
                         </div>
-                        <AnimatePresence mode="wait">
-                            {isSidebarOpen && (
-                                <motion.span
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -10 }}
-                                    className="font-black text-slate-800 tracking-tight text-lg whitespace-nowrap"
-                                >
-                                    IMS <span className="text-blue-600">Admin</span>
-                                </motion.span>
-                            )}
-                        </AnimatePresence>
                     </div>
+                    {isSidebarOpen && (
+                        <div className="px-4 pb-4">
+                            <InstituteSwitcher />
+                        </div>
+                    )}
                 </div>
 
                 {/* Navigation */}
@@ -97,6 +106,13 @@ export default function SuperAdminLayout({ children }) {
                         label="Institutes"
                         isOpen={isSidebarOpen}
                         active={pathname.startsWith("/super-admin/institutes")}
+                    />
+                    <NavLink
+                        href="/super-admin/users"
+                        icon={Users}
+                        label="Admin Management"
+                        isOpen={isSidebarOpen}
+                        active={pathname.startsWith("/super-admin/users")}
                     />
                     <NavLink
                         href="/super-admin/settings"

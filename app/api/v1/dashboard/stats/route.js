@@ -12,34 +12,57 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Base query with strict institute scoping
-        const baseQuery = addInstituteFilter({ deletedAt: null }, scope);
+        const { searchParams } = new URL(req.url);
+        const targetInstParam = searchParams.get("instituteId");
 
-        // Run counts in parallel (fast)
+        // Hybrid Scoping Logic for Stats:
+        // 1. If Super Admin and global view requested -> No institute filter
+        // 2. Otherwise -> Scoped View (Membership OR legacy institute field)
+        const isGlobalView = scope.isSuperAdmin && (targetInstParam === "all" || !targetInstParam);
+
+        let hybridBaseQuery = { deletedAt: null };
+
+        if (!isGlobalView) {
+            const mongoose = (await import("mongoose")).default;
+            const safeInstituteId = new mongoose.Types.ObjectId(scope.instituteId);
+
+            const Membership = (await import("@/models/Membership")).default;
+            const memberships = await Membership.find({
+                institute: safeInstituteId,
+                isActive: true
+            }).select('user');
+            const userIdsFromMemberships = memberships.map(m => m.user);
+
+            hybridBaseQuery = {
+                $or: [
+                    { _id: { $in: userIdsFromMemberships } },
+                    { institute: safeInstituteId }
+                ],
+                deletedAt: null
+            };
+        }
+        // Run counts in parallel
         // 1. Students
         const studentsCountPromise = User.countDocuments({
-            ...baseQuery,
+            ...hybridBaseQuery,
             role: 'student'
         });
 
         // 2. Teachers (Instructors)
         const teachersCountPromise = User.countDocuments({
-            ...baseQuery,
+            ...hybridBaseQuery,
             role: 'instructor'
         });
 
         // 3. Staff (Admins/Other)
-        // We consider 'admin' and 'super_admin' (if any assigned) as staff.
-        // Usually system super_admin isn't in institute, but if they are, count them.
         const staffCountPromise = User.countDocuments({
-            ...baseQuery,
+            ...hybridBaseQuery,
             role: { $in: ['admin', 'staff'] }
         });
 
         // 4. Recent Admissions
-        // Last 5 students created
         const recentAdmissionsPromise = User.find({
-            ...baseQuery,
+            ...hybridBaseQuery,
             role: 'student'
         })
             .select('profile.firstName profile.lastName email role createdAt enrollmentNumber')

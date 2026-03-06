@@ -30,6 +30,7 @@ import {
     RotateCcw
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
 
 const sanitizeUrl = (url) => {
     if (!url) return null;
@@ -186,31 +187,7 @@ export default function AdminLayout({ children }) {
                 isSidebarOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 <div className="p-6 pb-2 border-b border-slate-50">
-                    <div className="flex items-center gap-3">
-                        {sanitizeUrl(session?.user?.institute?.logo) ? (
-                            <img
-                                src={session.user.institute.logo}
-                                alt={session.user.institute.name}
-                                className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-slate-100 shadow-sm"
-                                style={{ imageRendering: "-webkit-optimize-contrast" }}
-                                crossOrigin="anonymous"
-                                decoding="async"
-                                loading="eager"
-                            />
-                        ) : (
-                            <div className="w-10 h-10 rounded-lg bg-premium-blue/10 flex items-center justify-center border border-premium-blue/20 text-premium-blue font-black text-xs">
-                                {session?.user?.institute?.name?.slice(0, 2).toUpperCase() || "I"}
-                            </div>
-                        )}
-                        <div className="min-w-0">
-                            <h1 className="text-sm font-black tracking-tight text-slate-800 truncate leading-tight">
-                                {session?.user?.institute?.name || "IMS-v2"}
-                            </h1>
-                            <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                                {session?.user?.role} Portal
-                            </p>
-                        </div>
-                    </div>
+                    <InstituteSwitcher />
                 </div>
 
                 <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto scrollbar-hide font-geist-sans">

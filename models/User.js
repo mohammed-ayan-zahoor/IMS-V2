@@ -5,13 +5,12 @@ const UserSchema = new Schema({
     institute: {
         type: Schema.Types.ObjectId,
         ref: 'Institute',
-        required: true,
+        required: false, // Primary/initial institute; optional for roles like super_admin. Multi-institute access is managed via the Membership model.
         index: true
     },
     email: {
         type: String,
         required: true,
-        // unique: true, // Moved to compound index with institute
         lowercase: true,
         match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
     },
@@ -65,7 +64,7 @@ const UserSchema = new Schema({
     passwordChangeRequested: { type: Boolean, default: false },
     lastLogin: Date,
     // Soft delete
-    deletedAt: { type: Date, index: true },
+    deletedAt: { type: Date, index: true, default: null },
     deletedBy: { type: Schema.Types.ObjectId, ref: 'User' }
 }, {
     timestamps: true,
@@ -75,9 +74,9 @@ const UserSchema = new Schema({
 
 
 
-// Partial unique indexes to allow reusing email/enrollmentNumber if previous one is deleted
-// Scoped by Institute
-UserSchema.index({ institute: 1, email: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
+// Email is now globally unique for non-deleted users (deletedAt === null)
+UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
+// Enrollment remains scoped by institute and required for students (where enrollmentNumber exists)
 UserSchema.index({ institute: 1, enrollmentNumber: 1 }, { unique: true, partialFilterExpression: { deletedAt: null, enrollmentNumber: { $exists: true } } });
 UserSchema.index({ institute: 1, role: 1, deletedAt: 1 });
 // Virtual for full name
