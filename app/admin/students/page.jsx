@@ -25,7 +25,8 @@ import {
     AlertCircle,
     CheckCircle,
     X,
-    Upload
+    Upload,
+    MessageSquare
 } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -582,10 +583,33 @@ export default function StudentsPage() {
                                                         {student.isActive ? "Active" : "Inactive"}
                                                     </Badge>
                                                 </td>
-                                                <td className="px-6 py-4 text-right">
+                                                <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={async () => {
+                                                            try {
+                                                                const res = await fetch("/api/v1/chat/conversations", {
+                                                                    method: "POST",
+                                                                    headers: { "Content-Type": "application/json" },
+                                                                    body: JSON.stringify({ targetUserId: student._id })
+                                                                });
+                                                                if (res.ok) {
+                                                                    window.location.href = "/admin/chat";
+                                                                } else {
+                                                                    toast.error("Failed to start chat");
+                                                                }
+                                                            } catch (err) {
+                                                                toast.error("Failed to start chat");
+                                                            }
+                                                        }}
+                                                        className="inline-flex p-2 hover:bg-white rounded-lg text-slate-300 hover:text-green-500 hover:shadow-sm border border-transparent hover:border-slate-100 transition-all"
+                                                        title="Message Student"
+                                                    >
+                                                        <MessageSquare size={16} />
+                                                    </button>
                                                     <Link
                                                         href={`/admin/students/${student._id}`}
                                                         className="inline-flex p-2 hover:bg-white rounded-lg text-slate-300 hover:text-premium-blue hover:shadow-sm border border-transparent hover:border-slate-100 transition-all"
+                                                        title="Edit Student"
                                                     >
                                                         <Edit2 size={16} />
                                                     </Link>

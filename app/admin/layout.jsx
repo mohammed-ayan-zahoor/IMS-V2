@@ -27,7 +27,8 @@ import {
     Building2,
     BarChart3,
     Database,
-    RotateCcw
+    RotateCcw,
+    MessageSquare
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -112,6 +113,13 @@ export default function AdminLayout({ children }) {
             items: [
                 { label: "System Backup", icon: Database, href: "/admin/utility/backup" },
                 { label: "System Restore", icon: RotateCcw, href: "/admin/utility/restore" },
+            ]
+        },
+        {
+            label: "Communication",
+            icon: MessageSquare,
+            items: [
+                { label: "Messages", icon: MessageSquare, href: "/admin/chat" },
             ]
         },
     ];

@@ -13,7 +13,8 @@ import {
     PenTool,
     Settings,
     LogOut,
-    User
+    User,
+    MessageSquare
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -28,6 +29,7 @@ export default function StudentLayout({ children }) {
         { label: "Attendance", icon: Calendar, href: "/student/attendance" },
         { label: "Fees", icon: CreditCard, href: "/student/fees" },
         { label: "Exams", icon: PenTool, href: "/student/exams" },
+        { label: "Messages", icon: MessageSquare, href: "/student/chat" },
     ];
 
     return (
@@ -115,7 +117,7 @@ export default function StudentLayout({ children }) {
             </main>
 
             {/* Mobile Bottom Navigation */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 px-6 py-3 safe-area-pb">
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 px-6 pt-3 pb-6">
                 <div className="flex justify-between items-center">
                     {navItems.map((item) => {
                         const isActive = pathname === item.href;

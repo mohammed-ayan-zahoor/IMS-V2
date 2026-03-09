@@ -12,7 +12,8 @@ import {
     Clock,
     Filter,
     Edit,
-    Trash2
+    Trash2,
+    MessageSquare
 } from "lucide-react";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
@@ -258,6 +259,28 @@ export default function BatchesPage() {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={async () => {
+                                                            try {
+                                                                const res = await fetch("/api/v1/chat/conversations", {
+                                                                    method: "POST",
+                                                                    headers: { "Content-Type": "application/json" },
+                                                                    body: JSON.stringify({ isBatch: true, batchId: batch._id, name: batch.name })
+                                                                });
+                                                                if (res.ok) {
+                                                                    window.location.href = "/admin/chat";
+                                                                } else {
+                                                                    toast.error("Failed to start batch chat");
+                                                                }
+                                                            } catch (err) {
+                                                                toast.error("Failed to start batch chat");
+                                                            }
+                                                        }}
+                                                        className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-green-500 transition-colors"
+                                                        title="Broadcast to Batch"
+                                                    >
+                                                        <MessageSquare size={16} />
+                                                    </button>
                                                     <button
                                                         onClick={() => handleEditBatch(batch)}
                                                         className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-premium-blue transition-colors"
