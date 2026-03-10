@@ -1,6 +1,7 @@
 import User from '@/models/User';
 import Batch from '@/models/Batch';
 import Fee from '@/models/Fee';
+import Membership from '@/models/Membership';
 import '@/models/Course'; // Ensure Course schema is registered
 import { createAuditLog } from './auditService';
 import mongoose from 'mongoose';
@@ -47,6 +48,14 @@ export class StudentService {
                 profile,
                 guardianDetails,
                 institute: institute // Add Institute
+            });
+
+            // Create membership for the student
+            await Membership.create({
+                user: student._id,
+                institute: institute,
+                role: 'student',
+                isActive: true
             });
 
             // Log action
