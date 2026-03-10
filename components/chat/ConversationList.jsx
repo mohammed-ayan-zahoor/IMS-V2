@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Users, User, Search } from "lucide-react";
 
 export default function ConversationList({
-    conversations,
+    conversations = [],
     activeConversation,
     onSelectConversation,
     currentUserId
@@ -45,8 +45,11 @@ export default function ConversationList({
                     const isBatch = conv.type === 'batch';
                     const otherParticipant = !isBatch ? conv.participants.find(p => p._id !== currentUserId) : null;
 
-                    let title = isBatch ? conv.batch?.name : `${otherParticipant?.profile?.firstName} ${otherParticipant?.profile?.lastName}`;
-                    let subtitle = conv.lastMessage?.text || "New conversation";
+                    let title = isBatch
+                        ? (conv.batch?.name || "Unnamed Batch")
+                        : (otherParticipant?.profile?.firstName && otherParticipant?.profile?.lastName)
+                            ? `${otherParticipant.profile.firstName} ${otherParticipant.profile.lastName}`
+                            : "Unknown User"; let subtitle = conv.lastMessage?.text || "New conversation";
 
                     return (
                         <button

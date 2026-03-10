@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import { useSession } from "next-auth/react";
@@ -42,6 +43,8 @@ export default function StudentsPage() {
     const [search, setSearch] = useState("");
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isChatLoading, setIsChatLoading] = useState(false);
+    const router = useRouter();
 
     // Import Logic State
     const [importFile, setImportFile] = useState(null);
@@ -585,7 +588,10 @@ export default function StudentsPage() {
                                                 </td>
                                                 <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
                                                     <button
+                                                        disabled={isChatLoading}
                                                         onClick={async () => {
+                                                            if (isChatLoading) return;
+                                                            setIsChatLoading(true);
                                                             try {
                                                                 const res = await fetch("/api/v1/chat/conversations", {
                                                                     method: "POST",
@@ -593,18 +599,20 @@ export default function StudentsPage() {
                                                                     body: JSON.stringify({ targetUserId: student._id })
                                                                 });
                                                                 if (res.ok) {
-                                                                    window.location.href = "/admin/chat";
+                                                                    router.push("/admin/chat");
                                                                 } else {
                                                                     toast.error("Failed to start chat");
                                                                 }
                                                             } catch (err) {
                                                                 toast.error("Failed to start chat");
+                                                            } finally {
+                                                                setIsChatLoading(false);
                                                             }
                                                         }}
-                                                        className="inline-flex p-2 hover:bg-white rounded-lg text-slate-300 hover:text-green-500 hover:shadow-sm border border-transparent hover:border-slate-100 transition-all"
+                                                        className={`inline-flex p-2 rounded-lg transition-all ${isChatLoading ? 'opacity-50 cursor-not-allowed text-slate-300' : 'hover:bg-white text-slate-300 hover:text-green-500 hover:shadow-sm border border-transparent hover:border-slate-100'}`}
                                                         title="Message Student"
                                                     >
-                                                        <MessageSquare size={16} />
+                                                        {isChatLoading ? <LoadingSpinner size="sm" /> : <MessageSquare size={16} />}
                                                     </button>
                                                     <Link
                                                         href={`/admin/students/${student._id}`}

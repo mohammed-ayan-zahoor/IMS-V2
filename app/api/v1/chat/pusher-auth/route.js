@@ -2,6 +2,7 @@ import { pusherServer } from '@/lib/pusher';
 import { getInstituteScope } from "@/middleware/instituteScope";
 import { connectDB } from "@/lib/mongodb";
 import Conversation from "@/models/Conversation";
+import mongoose from "mongoose";
 
 export async function POST(req) {
     try {
@@ -25,12 +26,18 @@ export async function POST(req) {
         // Security Check: Ensure user is actually part of this conversation
         if (channelName.startsWith('presence-conversation-')) {
             const conversationId = channelName.replace('presence-conversation-', '');
+
+            if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+                return new Response("Invalid conversation ID", { status: 400 });
+            }
+
             const conversation = await Conversation.findOne({
                 _id: conversationId,
                 institute: scope.instituteId
             });
 
-            if (!conversation || !conversation.participants.includes(scope.user.id)) {
+            const participantIds = conversation?.participants?.map(p => p.toString()) || [];
+            if (!conversation || !participantIds.includes(scope.user.id.toString())) {
                 return new Response("Forbidden to access this channel", { status: 403 });
             }
         }
@@ -39,7 +46,7 @@ export async function POST(req) {
         const presenceData = {
             user_id: scope.user.id,
             user_info: {
-                name: scope.user.email, // Can add more info
+                name: scope.user.displayName || scope.user.username || 'User',
                 role: scope.user.role
             }
         };

@@ -32,7 +32,8 @@ export async function GET(req) {
             _id: conversationId,
             institute: scope.instituteId
         });
-        if (!conversation || !conversation.participants.includes(scope.user.id)) {
+        const participantIds = conversation?.participants?.map(p => p.toString()) || [];
+        if (!conversation || !participantIds.includes(scope.user.id.toString())) {
             return NextResponse.json({ error: "Unauthorized or conversation not found" }, { status: 403 });
         }
 
@@ -80,8 +81,9 @@ export async function POST(req) {
         const conversation = await Conversation.findOne({
             _id: conversationId,
             institute: scope.instituteId
-        });
-        if (!conversation || !conversation.participants.includes(currentUserId)) {
+        }).populate('batch', 'name');
+        const participantIds = conversation?.participants?.map(p => p.toString()) || [];
+        if (!conversation || !participantIds.includes(currentUserId.toString())) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 
@@ -125,10 +127,9 @@ export async function POST(req) {
         const channelName = `presence-conversation-${conversationId}`;
         await pusherServer.trigger(channelName, 'new-message', newMessage.toObject());
 
-        // Send Pusher Beams push notification to all recipients (users not the sender)
         const recipientIds = conversation.participants
             .map(p => p.toString())
-            .filter(id => id !== currentUserId);
+            .filter(id => id !== currentUserId.toString());
 
         if (recipientIds.length > 0 && process.env.PUSHER_BEAMS_INSTANCE_ID) {
             const senderName = newMessage.sender?.profile?.firstName || 'Someone';

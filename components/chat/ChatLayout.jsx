@@ -48,19 +48,26 @@ export default function ChatLayout({ currentUserId }) {
     }, [currentUserId]);
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchConversations = async () => {
             try {
-                const res = await fetch("/api/v1/chat/conversations");
+                const res = await fetch("/api/v1/chat/conversations", {
+                    signal: controller.signal
+                });
                 if (!res.ok) throw new Error("Failed to fetch conversations");
                 const data = await res.json();
-                setConversations(data.conversations);
+                setConversations(Array.isArray(data.conversations) ? data.conversations : []);
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 toast.error("Could not load chat conversations");
             } finally {
                 setIsLoading(false);
             }
         };
         fetchConversations();
+
+        return () => controller.abort();
     }, []);
 
     if (isLoading) {

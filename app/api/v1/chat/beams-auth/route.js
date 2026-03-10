@@ -19,14 +19,20 @@ export async function GET(req) {
         const { searchParams } = new URL(req.url);
         const beamsUserId = searchParams.get("user_id");
 
+        if (!beamsUserId) {
+            return NextResponse.json(
+                { error: "Missing required parameter: user_id" },
+                { status: 400 }
+            );
+        }
+
         // Security check: ensure the requested Beams user ID matches the logged-in user
-        if (beamsUserId !== userId) {
+        if (beamsUserId !== String(userId)) {
             return NextResponse.json(
                 { error: "Inconsistent request. user_id must match authenticated user." },
                 { status: 403 }
             );
         }
-
         const beamsToken = beamsClient.generateToken(userId);
         return NextResponse.json(beamsToken);
 

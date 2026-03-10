@@ -65,73 +65,88 @@ export async function POST(req) {
 
             if (conversation) {
                 // Ensure current user is in the participants list
-                if (!conversation.participants.includes(currentUserId)) {
+                const isParticipant = conversation.participants.some(
+                    (p) => p.toString() === currentUserId.toString()
+                );
+                if (!isParticipant) {
                     conversation.participants.push(currentUserId);
                     await conversation.save();
                 }
                 return NextResponse.json({ conversation }, { status: 200 });
-            }
+                const batchDoc = await Batch.findOne({
+                    _id: batchId,
+                    institute: scope.instituteId
+                });
+                if (!batchDoc) {
+                    return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+                } const batchDoc = await Batch.findById(batchId);
+                if (!batchDoc) {
+                    return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+                }
 
-            // Create new batch conversation
-            const batchDoc = await Batch.findById(batchId);
-            if (!batchDoc) {
-                return NextResponse.json({ error: "Batch not found" }, { status: 404 });
-            }
+                let participantIds = [currentUserId];
+                // Add enrolled students
+                if (batchDoc.enrolledStudents && batchDoc.enrolledStudents.length > 0) {
+                    const studentIds = batchDoc.enrolledStudents
+                        .filter(enrollment => enrollment.status === 'active')
+                        .map(enrollment => enrollment.student.toString());
+                    participantIds = [...new Set([...participantIds, ...studentIds])];
+                }
 
-            let participantIds = [currentUserId];
-            // Add enrolled students
-            if (batchDoc.enrolledStudents && batchDoc.enrolledStudents.length > 0) {
-                const studentIds = batchDoc.enrolledStudents
-                    .filter(enrollment => enrollment.status === 'active')
-                    .map(enrollment => enrollment.student.toString());
-                participantIds = [...new Set([...participantIds, ...studentIds])];
-            }
+                // Add instructor if there is one
+                if (batchDoc.instructor) {
+                    participantIds.push(batchDoc.instructor.toString());
+                    participantIds = [...new Set(participantIds)];
+                }
 
-            // Add instructor if there is one
-            if (batchDoc.instructor) {
-                participantIds.push(batchDoc.instructor.toString());
-                participantIds = [...new Set(participantIds)];
-            }
+                conversation = await Conversation.create({
+                    institute: scope.instituteId,
+                    type: 'batch',
+                    batch: batchId,
+                    if(!targetUserId) {
+                        return NextResponse.json({ error: "Missing target user" }, { status: 400 });
+                    }
 
-            conversation = await Conversation.create({
-                institute: scope.instituteId,
-                type: 'batch',
-                batch: batchId,
-                participants: participantIds,
-            });
-
-            return NextResponse.json({ conversation }, { status: 201 });
-        }
-
-        if (!targetUserId) {
-            return NextResponse.json({ error: "Missing target user" }, { status: 400 });
-        }
+        // Verify target user exists and belongs to the same institute
+        const User = (await import("@/models/User")).default;
+                    const targetUser = await User.findOne({
+                        _id: targetUserId,
+                        institute: scope.instituteId
+                    });
+                    if(!targetUser) {
+                        return NextResponse.json({ error: "Target user not found" }, { status: 404 });
+                    }
 
         // Check if conversation already exists within this institute
         let conversation = await Conversation.findOne({
-            institute: scope.instituteId,
-            type: 'direct',
-            participants: { $all: [currentUserId, targetUserId] },
-            deletedAt: null
-        });
+                        institute: scope.instituteId,
+                        type: 'direct',
+                        participants: { $all: [currentUserId, targetUserId] },
+                        deletedAt: null
+                    });
 
-        if (conversation) {
-            return NextResponse.json({ conversation });
-        }
+                    if(conversation) {
+                        return NextResponse.json({ conversation });
+                    }
 
         // Create new conversation
         conversation = await Conversation.create({
-            institute: scope.instituteId,
-            type: 'direct',
-            participants: [currentUserId, targetUserId],
-        });
+                        institute: scope.instituteId,
+                        type: 'direct',
+                        participants: [currentUserId, targetUserId],
+                    });            // Create new conversation
+                    conversation = await Conversation.create({
+                        institute: scope.instituteId,
+                        type: 'direct',
+                        participants: [currentUserId, targetUserId],
+                    });
 
-        // Trigger pusher event to alert the target user about new conversation
-        // we will implement pusher later
+                    // Trigger pusher event to alert the target user about new conversation
+                    // we will implement pusher later
 
-        return NextResponse.json({ conversation }, { status: 201 });
-    } catch (error) {
-        console.error("POST /api/v1/chat/conversations error:", error);
-        return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
-    }
-}
+                    return NextResponse.json({ conversation }, { status: 201 });
+                } catch (error) {
+                    console.error("POST /api/v1/chat/conversations error:", error);
+                    return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
+                }
+            }

@@ -16,23 +16,38 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
 
     const isBatch = conversation?.type === 'batch';
     const otherParticipant = !isBatch ? conversation?.participants?.find(p => p._id !== currentUserId) : null;
-    const title = isBatch ? conversation?.batch?.name : `${otherParticipant?.profile?.firstName} ${otherParticipant?.profile?.lastName}`;
+
+    let title = 'Group Chat';
+    if (isBatch) {
+        title = conversation?.batch?.name || 'Group Chat';
+    } else {
+        const firstName = otherParticipant?.profile?.firstName || 'Unknown';
+        const lastName = otherParticipant?.profile?.lastName || '';
+        title = `${firstName} ${lastName}`.trim();
+    }
 
     // Fetch initial messages when conversation changes
     useEffect(() => {
         if (!conversation) return;
 
+        const controller = new AbortController();
+
         const fetchMessages = async () => {
             try {
-                const res = await fetch(`/api/v1/chat/messages?conversationId=${conversation._id}`);
+                const res = await fetch(`/api/v1/chat/messages?conversationId=${conversation._id}`, {
+                    signal: controller.signal
+                });
                 if (!res.ok) throw new Error("Failed to load messages");
                 const data = await res.json();
                 setMessages(data.messages);
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 toast.error("Could not load messages");
             }
         };
         fetchMessages();
+
+        return () => controller.abort();
     }, [conversation]);
 
     // Subscribe to Pusher channel for real-time updates
