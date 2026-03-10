@@ -36,7 +36,7 @@ export async function GET(req) {
     }
 }
 
-// Create a new direct conversation
+// Create a new direct or batch conversation
 export async function POST(req) {
     try {
         await connectDB();
@@ -73,80 +73,80 @@ export async function POST(req) {
                     await conversation.save();
                 }
                 return NextResponse.json({ conversation }, { status: 200 });
-                const batchDoc = await Batch.findOne({
-                    _id: batchId,
-                    institute: scope.instituteId
-                });
-                if (!batchDoc) {
-                    return NextResponse.json({ error: "Batch not found" }, { status: 404 });
-                } const batchDoc = await Batch.findById(batchId);
-                if (!batchDoc) {
-                    return NextResponse.json({ error: "Batch not found" }, { status: 404 });
-                }
+            }
 
-                let participantIds = [currentUserId];
-                // Add enrolled students
-                if (batchDoc.enrolledStudents && batchDoc.enrolledStudents.length > 0) {
-                    const studentIds = batchDoc.enrolledStudents
-                        .filter(enrollment => enrollment.status === 'active')
-                        .map(enrollment => enrollment.student.toString());
-                    participantIds = [...new Set([...participantIds, ...studentIds])];
-                }
+            // If a batch conversation doesn't exist, create it.
+            const batchDoc = await Batch.findOne({
+                _id: batchId,
+                institute: scope.instituteId
+            });
+            if (!batchDoc) {
+                return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+            }
 
-                // Add instructor if there is one
-                if (batchDoc.instructor) {
-                    participantIds.push(batchDoc.instructor.toString());
-                    participantIds = [...new Set(participantIds)];
-                }
+            let participantIds = [currentUserId];
+            // Add enrolled students
+            if (batchDoc.enrolledStudents && batchDoc.enrolledStudents.length > 0) {
+                const studentIds = batchDoc.enrolledStudents
+                    .filter(enrollment => enrollment.status === 'active')
+                    .map(enrollment => enrollment.student.toString());
+                participantIds = [...new Set([...participantIds, ...studentIds])];
+            }
 
-                conversation = await Conversation.create({
-                    institute: scope.instituteId,
-                    type: 'batch',
-                    batch: batchId,
-                    if(!targetUserId) {
-                        return NextResponse.json({ error: "Missing target user" }, { status: 400 });
-                    }
+            // Add instructor if there is one
+            if (batchDoc.instructor) {
+                participantIds.push(batchDoc.instructor.toString());
+            }
+            participantIds = [...new Set(participantIds)];
+
+            conversation = await Conversation.create({
+                institute: scope.instituteId,
+                type: 'batch',
+                batch: batchId,
+                participants: participantIds
+            });
+
+            return NextResponse.json({ conversation }, { status: 201 });
+        }
+
+        // --- Direct Conversation Logic ---
+        if (!targetUserId) {
+            return NextResponse.json({ error: "Missing target user" }, { status: 400 });
+        }
 
         // Verify target user exists and belongs to the same institute
         const User = (await import("@/models/User")).default;
-                    const targetUser = await User.findOne({
-                        _id: targetUserId,
-                        institute: scope.instituteId
-                    });
-                    if(!targetUser) {
-                        return NextResponse.json({ error: "Target user not found" }, { status: 404 });
-                    }
+        const targetUser = await User.findOne({
+            _id: targetUserId,
+            institute: scope.instituteId
+        });
+
+        if (!targetUser) {
+            return NextResponse.json({ error: "Target user not found" }, { status: 404 });
+        }
 
         // Check if conversation already exists within this institute
         let conversation = await Conversation.findOne({
-                        institute: scope.instituteId,
-                        type: 'direct',
-                        participants: { $all: [currentUserId, targetUserId] },
-                        deletedAt: null
-                    });
+            institute: scope.instituteId,
+            type: 'direct',
+            participants: { $all: [currentUserId, targetUserId] },
+            deletedAt: null
+        });
 
-                    if(conversation) {
-                        return NextResponse.json({ conversation });
-                    }
+        if (conversation) {
+            return NextResponse.json({ conversation });
+        }
 
         // Create new conversation
         conversation = await Conversation.create({
-                        institute: scope.instituteId,
-                        type: 'direct',
-                        participants: [currentUserId, targetUserId],
-                    });            // Create new conversation
-                    conversation = await Conversation.create({
-                        institute: scope.instituteId,
-                        type: 'direct',
-                        participants: [currentUserId, targetUserId],
-                    });
+            institute: scope.instituteId,
+            type: 'direct',
+            participants: [currentUserId, targetUserId],
+        });
 
-                    // Trigger pusher event to alert the target user about new conversation
-                    // we will implement pusher later
-
-                    return NextResponse.json({ conversation }, { status: 201 });
-                } catch (error) {
-                    console.error("POST /api/v1/chat/conversations error:", error);
-                    return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
-                }
-            }
+        return NextResponse.json({ conversation }, { status: 201 });
+    } catch (error) {
+        console.error("POST /api/v1/chat/conversations error:", error);
+        return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
+    }
+}
