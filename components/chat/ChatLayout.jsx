@@ -17,7 +17,7 @@ export default function ChatLayout({ currentUserId }) {
         let beamsClient;
         const initBeams = async () => {
             try {
-                const { Client } = await import('@pusher/push-notifications-web');
+                const { Client, TokenProvider } = await import('@pusher/push-notifications-web');
                 beamsClient = new Client({
                     instanceId: process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID,
                     serviceWorkerRegistration: await navigator.serviceWorker.register('/service-worker.js'),
@@ -26,13 +26,10 @@ export default function ChatLayout({ currentUserId }) {
                 await beamsClient.start();
 
                 // Authenticate with our backend so this device is linked to the userId
-                await beamsClient.setUserId(currentUserId, {
-                    fetchToken: async (userId) => {
-                        const res = await fetch(`/api/v1/chat/beams-auth?user_id=${userId}`);
-                        if (!res.ok) throw new Error('Beams auth failed');
-                        return res.json();
-                    }
+                const tokenProvider = new TokenProvider({
+                    url: '/api/v1/chat/beams-auth',
                 });
+                await beamsClient.setUserId(currentUserId, tokenProvider);
 
             } catch (err) {
                 // Non-fatal: browser may not support service workers or user denied permission
