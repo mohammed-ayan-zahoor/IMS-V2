@@ -117,36 +117,37 @@ export default function StudentLayout({ children }) {
             </main>
 
             {/* Mobile Bottom Navigation */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 px-6 pt-3 pb-6 safe-area-pb">                <div className="flex justify-between items-center">
-                {navItems.map((item) => {
-                    const isActive = pathname === item.href;
-                    return (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            className={cn(
-                                "flex flex-col items-center gap-1 transition-colors relative min-w-[3.5rem]",
-                                isActive ? "text-premium-blue" : "text-slate-400 hover:text-slate-600"
-                            )}
-                            aria-label={item.label}
-                        >
-                            <div className={cn(
-                                "p-1.5 rounded-xl transition-all",
-                                isActive ? "bg-blue-50" : "bg-transparent"
-                            )}>
-                                <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                            </div>
-                            <span className="sr-only">{item.label}</span>
-                            {isActive && (
-                                <motion.div
-                                    layoutId="bottomNavIndicator"
-                                    className="absolute -top-3 w-8 h-1 bg-premium-blue rounded-b-full"
-                                />
-                            )}
-                        </Link>
-                    );
-                })}
-            </div>
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 px-2 sm:px-6 pt-3 pb-6 safe-area-pb">
+                <div className="flex justify-between sm:justify-around items-center overflow-x-auto scrollbar-hide gap-1 px-1">
+                    {navItems.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={cn(
+                                    "flex flex-col items-center gap-1 transition-colors relative min-w-[3rem] sm:min-w-[3.5rem]",
+                                    isActive ? "text-premium-blue" : "text-slate-400 hover:text-slate-600"
+                                )}
+                                aria-label={item.label}
+                            >
+                                <div className={cn(
+                                    "p-1.5 rounded-xl transition-all",
+                                    isActive ? "bg-blue-50" : "bg-transparent"
+                                )}>
+                                    <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                                </div>
+                                <span className="sr-only">{item.label}</span>
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="bottomNavIndicator"
+                                        className="absolute -top-3 w-8 h-1 bg-premium-blue rounded-b-full"
+                                    />
+                                )}
+                            </Link>
+                        );
+                    })}
+                </div>
             </div>        </div>
     );
 }
