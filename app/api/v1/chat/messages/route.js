@@ -142,8 +142,8 @@ export async function POST(req) {
                         notification: {
                             title: chatTitle,
                             body: `${isBatch ? senderName + ': ' : ''}${text.substring(0, 100)}`,
-                            deep_link: '/admin/chat',
-                            icon: '/icon.png',
+                            deep_link: `${process.env.NEXTAUTH_URL}/admin/chat`,
+                            icon: `${process.env.NEXTAUTH_URL}/icon.png`,
                         }
                     }
                 });
