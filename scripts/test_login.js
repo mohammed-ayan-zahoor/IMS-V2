@@ -31,4 +31,7 @@ async function testAuth() {
     }
     process.exit(0);
 }
-testAuth().catch(console.error);
+testAuth().catch((err) => {
+    console.error(err);
+    process.exit(1);
+});
