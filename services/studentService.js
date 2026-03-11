@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs';
 import { escapeRegExp } from 'lodash';
 import crypto from 'crypto';
 import { connectDB } from '@/lib/mongodb';
+import SharedLink from '@/models/SharedLink';
 
 export class StudentService {
     /**
@@ -483,7 +484,18 @@ export class StudentService {
                 enrollment: b.enrolledStudents.find(e => e.student.toString() === studentId.toString()), // Fix: ensure string comparison
                 schedule: b.schedule
             })),
-            fees
+            fees,
+            externalNotes: await SharedLink.find({ 'comments.studentId': studentId })
+                .select('name slug comments')
+                .then(links => links.flatMap(link => 
+                    link.comments
+                        .filter(c => c.studentId.toString() === studentId.toString())
+                        .map(c => ({
+                            ...c.toObject(),
+                            linkName: link.name,
+                            linkSlug: link.slug
+                        }))
+                ).sort((a,b) => b.createdAt - a.createdAt))
         };
     }
     /**

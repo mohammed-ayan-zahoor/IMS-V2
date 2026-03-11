@@ -14,7 +14,8 @@ import {
     ChevronRight,
     ExternalLink,
     Shield,
-    Users
+    Users,
+    Share2
 } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -120,6 +121,13 @@ export default function SuperAdminLayout({ children }) {
                         label="Global Settings"
                         isOpen={isSidebarOpen}
                         active={pathname === "/super-admin/settings"}
+                    />
+                    <NavLink
+                        href="/super-admin/shared-links"
+                        icon={Share2}
+                        label="Shared Dashboards"
+                        isOpen={isSidebarOpen}
+                        active={pathname.startsWith("/super-admin/shared-links")}
                     />
                 </nav>
 
