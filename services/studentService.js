@@ -485,17 +485,36 @@ export class StudentService {
                 schedule: b.schedule
             })),
             fees,
-            externalNotes: await SharedLink.find({ 'comments.studentId': studentId })
-                .select('name slug comments')
-                .then(links => links.flatMap(link => 
-                    link.comments
-                        .filter(c => c.studentId.toString() === studentId.toString())
-                        .map(c => ({
-                            ...c.toObject(),
-                            linkName: link.name,
-                            linkSlug: link.slug
-                        }))
-                ).sort((a,b) => b.createdAt - a.createdAt))
+            externalNotes: await SharedLink.aggregate([
+                { $match: { 'comments.studentId': new mongoose.Types.ObjectId(studentId) } },
+                {
+                    $project: {
+                        name: 1,
+                        slug: 1,
+                        comments: {
+                            $filter: {
+                                input: '$comments',
+                                as: 'comment',
+                                cond: { $eq: ['$$comment.studentId', new mongoose.Types.ObjectId(studentId)] }
+                            }
+                        }
+                    }
+                },
+                { $unwind: '$comments' },
+                {
+                    $project: {
+                        _id: '$comments._id',
+                        visitorName: '$comments.visitorName',
+                        studentId: '$comments.studentId', // Kept for safety
+                        text: '$comments.text',
+                        followUpDate: '$comments.followUpDate',
+                        createdAt: '$comments.createdAt',
+                        linkName: '$name',
+                        linkSlug: '$slug'
+                    }
+                },
+                { $sort: { createdAt: -1 } }
+            ])
         };
     }
     /**

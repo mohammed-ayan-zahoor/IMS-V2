@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-    Share2, 
-    Plus, 
-    Copy, 
-    Trash2, 
-    ExternalLink, 
-    Check, 
+import {
+    Share2,
+    Plus,
+    Copy,
+    Trash2,
+    ExternalLink,
+    Check,
     X,
     Building2,
     Users,
@@ -32,7 +32,7 @@ const SharpButton = ({ children, onClick, variant = "primary", className = "", d
         danger: "bg-red-600 text-white hover:bg-red-700",
         ghost: "bg-transparent text-black hover:bg-gray-100"
     };
-    
+
     return (
         <button
             onClick={onClick}
@@ -51,7 +51,7 @@ export default function SharedLinksPage() {
     const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
-    
+
     // Form State
     const [newLinkName, setNewLinkName] = useState("");
     const [selectedInstitutes, setSelectedInstitutes] = useState([]);
@@ -63,10 +63,14 @@ export default function SharedLinksPage() {
                     fetch("/api/v1/shared-links"),
                     fetch("/api/v1/institutes")
                 ]);
-                
+
+                if (!linksRes.ok || !instRes.ok) {
+                    throw new Error("Failed to fetch data");
+                }
+
                 const linksData = await linksRes.json();
                 const instData = await instRes.json();
-                
+
                 setLinks(linksData.links || []);
                 setInstitutes(instData.institutes || []);
             } catch (error) {
@@ -97,7 +101,7 @@ export default function SharedLinksPage() {
             });
 
             if (!res.ok) throw new Error("Failed to generate link");
-            
+
             const data = await res.json();
             setLinks([data.link, ...links]);
             setNewLinkName("");
@@ -117,9 +121,9 @@ export default function SharedLinksPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ isActive: !link.isActive })
             });
-            
+
             if (!res.ok) throw new Error("Update failed");
-            
+
             setLinks(links.map(l => l._id === link._id ? { ...l, isActive: !l.isActive } : l));
             toast.success(`Dashboard ${!link.isActive ? 'Activated' : 'Disabled'}`);
         } catch (error) {
@@ -129,7 +133,7 @@ export default function SharedLinksPage() {
 
     const handleDelete = async (id) => {
         if (!confirm("Are you sure you want to delete this link?")) return;
-        
+
         try {
             const res = await fetch(`/api/v1/shared-links/${id}`, { method: "DELETE" });
             if (!res.ok) throw new Error("Delete failed");
@@ -140,17 +144,27 @@ export default function SharedLinksPage() {
         }
     };
 
-    const copyToClipboard = (slug) => {
+    const copyToClipboard = async (slug) => {
         const url = `${window.location.origin}/public/dashboard/${slug}`;
-        navigator.clipboard.writeText(url);
-        toast.success("Link copied to clipboard!");
+        
+        if (!navigator.clipboard) {
+            toast.error("Clipboard access not available");
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(url);
+            toast.success("Link copied to clipboard!");
+        } catch (err) {
+            console.error("Copy failed:", err);
+            toast.error("Failed to copy link");
+        }
     };
 
     if (loading) return <div className="p-8 text-center font-black animate-pulse">LOADING_SYSTEM_RESOURCES...</div>;
 
     return (
         <div className="max-w-6xl mx-auto space-y-12 pb-20">
-            {/* Header section with massive typography */}
             <header className="space-y-2">
                 <h1 className="text-6xl font-black uppercase tracking-tighter leading-none">
                     Shared <span className="text-emerald-600">Access</span>
@@ -171,8 +185,8 @@ export default function SharedLinksPage() {
                     <div className="space-y-6">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Dashboard Name</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 placeholder="E.G. Q1 RECOVERY DRIVE"
                                 value={newLinkName}
                                 onChange={(e) => setNewLinkName(e.target.value)}
@@ -180,12 +194,25 @@ export default function SharedLinksPage() {
                             />
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Select Institutes</label>
-                            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="max-h-60 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                                 {institutes.map(inst => (
                                     <div 
                                         key={inst._id}
+                                        role="checkbox"
+                                        aria-checked={selectedInstitutes.includes(inst._id)}
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                if (selectedInstitutes.includes(inst._id)) {
+                                                    setSelectedInstitutes(selectedInstitutes.filter(id => id !== inst._id));
+                                                } else {
+                                                    setSelectedInstitutes([...selectedInstitutes, inst._id]);
+                                                }
+                                            }
+                                        }}
                                         onClick={() => {
                                             if (selectedInstitutes.includes(inst._id)) {
                                                 setSelectedInstitutes(selectedInstitutes.filter(id => id !== inst._id));
@@ -209,7 +236,7 @@ export default function SharedLinksPage() {
                             </div>
                         </div>
 
-                        <SharpButton 
+                        <SharpButton
                             className="w-full py-4 text-sm"
                             onClick={handleCreateLink}
                             disabled={creating || !newLinkName || selectedInstitutes.length === 0}
@@ -270,17 +297,17 @@ export default function SharedLinksPage() {
                                             </div>
 
                                             <div className="flex items-center gap-2">
-                                                <SharpButton 
-                                                    variant="secondary" 
+                                                <SharpButton
+                                                    variant="secondary"
                                                     onClick={() => copyToClipboard(link.slug)}
                                                     className="p-3"
                                                 >
                                                     <Copy size={16} />
                                                 </SharpButton>
-                                                
-                                                <a 
-                                                    href={`/public/dashboard/${link.slug}`} 
-                                                    target="_blank" 
+
+                                                <a
+                                                    href={`/public/dashboard/${link.slug}`}
+                                                    target="_blank"
                                                     rel="noopener noreferrer"
                                                 >
                                                     <SharpButton variant="secondary" className="p-3">
@@ -288,16 +315,16 @@ export default function SharedLinksPage() {
                                                     </SharpButton>
                                                 </a>
 
-                                                <SharpButton 
-                                                    variant={link.isActive ? "secondary" : "primary"} 
+                                                <SharpButton
+                                                    variant={link.isActive ? "secondary" : "primary"}
                                                     onClick={() => toggleStatus(link)}
                                                     className="p-3"
                                                 >
                                                     <Power size={16} />
                                                 </SharpButton>
 
-                                                <SharpButton 
-                                                    variant="danger" 
+                                                <SharpButton
+                                                    variant="danger"
                                                     onClick={() => handleDelete(link._id)}
                                                     className="p-3 shadow-none"
                                                 >
@@ -312,7 +339,7 @@ export default function SharedLinksPage() {
                     </div>
                 </div>
             </div>
-            
+
             <style jsx global>{`
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 4px;

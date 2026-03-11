@@ -1,18 +1,16 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { 
-    Building2, 
-    Calendar, 
-    ChevronRight, 
-    MessageSquare, 
-    User, 
+import {
+    Calendar,
+    MessageSquare,
     AlertCircle,
     ArrowRight,
     Loader2,
     CalendarClock,
     CheckCircle2,
-    Clock
+    Clock,
+    Share2
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -55,14 +53,21 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        paramsPromise.then(setParams);
+        paramsPromise.then(setParams).catch((err) => {
+            console.error("Failed to resolve params:", err);
+            setError("Failed to load dashboard parameters");
+        });
     }, [paramsPromise]);
 
     useEffect(() => {
-        const storedName = localStorage.getItem("ims_visitor_name");
-        if (storedName) {
-            setVisitorName(storedName);
-            setIsRegistered(true);
+        try {
+            const storedName = localStorage.getItem("ims_visitor_name");
+            if (storedName) {
+                setVisitorName(storedName);
+                setIsRegistered(true);
+            }
+        } catch {
+            // localStorage unavailable, visitor must re-register
         }
     }, []);
 
@@ -115,7 +120,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
             });
 
             if (!res.ok) throw new Error("Failed to submit comment");
-            
+
             toast.success("Comment added successfully");
             setCommentText("");
             setFollowUpDate("");
@@ -131,7 +136,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     const aggregatedStats = useMemo(() => {
         if (!data?.fees) return { totalPending: 0, totalStudents: 0 };
         return data.fees.reduce((acc, fee) => {
-            const pending = fee.installments.reduce((sum, inst) => 
+            const pending = fee.installments.reduce((sum, inst) =>
                 inst.status === 'pending' ? sum + inst.amount : sum, 0);
             return {
                 totalPending: acc.totalPending + pending,
@@ -164,7 +169,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
             {/* Registration Overlay */}
             <AnimatePresence>
                 {!isRegistered && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0, scale: 1.1 }}
@@ -174,16 +179,16 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                             <div className="space-y-4">
                                 <span className="bg-black text-white px-4 py-1 text-xs font-black uppercase tracking-[0.3em]">Access Verification</span>
                                 <h1 className="text-8xl md:text-[10rem] font-black uppercase tracking-tighter leading-[0.85] text-black">
-                                    IDENTIFY<br/>YOURSELF.
+                                    IDENTIFY<br />YOURSELF.
                                 </h1>
                             </div>
 
                             <form onSubmit={handleRegister} className="flex flex-col md:flex-row gap-4 items-end">
                                 <div className="flex-1 space-y-2 w-full">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Full Official Name</label>
-                                    <input 
+                                    <input
                                         autoFocus
-                                        type="text" 
+                                        type="text"
                                         required
                                         value={visitorName}
                                         onChange={(e) => setVisitorName(e.target.value)}
@@ -206,11 +211,11 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                 <div className="flex-1 space-y-20">
                     <header className="space-y-4">
                         <div className="flex items-center gap-4">
-                             <SharpBadge variant="default">IMS EXECUTIVE AUDIT</SharpBadge>
-                             <div className="h-[2px] flex-1 bg-black" />
+                            <SharpBadge variant="default">IMS EXECUTIVE AUDIT</SharpBadge>
+                            <div className="h-[2px] flex-1 bg-black" />
                         </div>
                         <h2 className="text-7xl font-black uppercase tracking-tighter leading-none">
-                            {data.link.name}
+                            {data.link?.name || "Shared Dashboard"}
                         </h2>
                     </header>
 
@@ -230,10 +235,10 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                         </div>
 
                         <div className="grid grid-cols-1 gap-8">
-                            {data.fees.map((fee) => {
-                                const studentPending = fee.installments.reduce((sum, inst) => 
+                            {(data.fees ?? []).map((fee) => {
+                                const studentPending = fee.installments.reduce((sum, inst) =>
                                     inst.status === 'pending' ? sum + inst.amount : sum, 0);
-                                const lastComment = data.link.comments?.filter(c => c.studentId === fee.student?._id).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+                                const lastComment = data.link.comments?.filter(c => c.studentId === fee.student?._id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
                                 return (
                                     <SharpCard key={fee._id} className="group relative">
@@ -294,8 +299,8 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                                         <p className="text-[9px] font-black text-gray-300 uppercase italic">No follow-up logged yet</p>
                                                     </div>
                                                 )}
-                                                
-                                                <button 
+
+                                                <button
                                                     onClick={() => {
                                                         setSelectedStudent(fee);
                                                         setShowCommentModal(true);
@@ -315,17 +320,17 @@ export default function VisitorDashboard({ params: paramsPromise }) {
 
                 {/* Right Side: 10% Radical Negative Space / Summary */}
                 <aside className="hidden lg:block w-32 shrink-0 border-l-2 border-black p-8 sticky top-16 h-fit space-y-12">
-                     <p className="text-[8px] font-black [writing-mode:vertical-rl] transform rotate-180 uppercase tracking-[0.5em] text-gray-300 h-64">
-                         SYSTEMS_AUDIT_VERIFIED // 2026 // IMS-CORP
-                     </p>
-                     
-                     <div className="space-y-4">
-                         <div className="w-full aspect-square bg-black flex items-center justify-center">
-                              <Share2 className="text-white" size={24} />
-                         </div>
-                         <div className="w-full h-1 bg-black" />
-                         <div className="w-full h-8 bg-black animate-pulse" />
-                     </div>
+                    <p className="text-[8px] font-black [writing-mode:vertical-rl] transform rotate-180 uppercase tracking-[0.5em] text-gray-300 h-64">
+                        SYSTEMS_AUDIT_VERIFIED // 2026 // IMS-CORP
+                    </p>
+
+                    <div className="space-y-4">
+                        <div className="w-full aspect-square bg-black flex items-center justify-center">
+                            <Share2 className="text-white" size={24} />
+                        </div>
+                        <div className="w-full h-1 bg-black" />
+                        <div className="w-full h-8 bg-black animate-pulse" />
+                    </div>
                 </aside>
             </div>
 
@@ -354,7 +359,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                 <form onSubmit={handleSubmitComment} className="space-y-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Call/Interaction Summary</label>
-                                        <textarea 
+                                        <textarea
                                             required
                                             value={commentText}
                                             onChange={(e) => setCommentText(e.target.value)}
@@ -368,7 +373,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Next Follow-up Date (Optional)</label>
                                         <div className="relative">
                                             <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-black" size={18} />
-                                            <input 
+                                            <input
                                                 type="date"
                                                 value={followUpDate}
                                                 onChange={(e) => setFollowUpDate(e.target.value)}
@@ -377,7 +382,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                         </div>
                                     </div>
 
-                                    <button 
+                                    <button
                                         type="submit"
                                         disabled={submitting}
                                         className="w-full bg-black text-white py-5 font-black uppercase text-xs tracking-[0.2em] hover:bg-emerald-600 transition-colors disabled:opacity-50"

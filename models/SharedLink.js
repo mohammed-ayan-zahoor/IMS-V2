@@ -8,11 +8,18 @@ const SharedLinkSchema = new Schema({
         unique: true,
         index: true
     },
-    institutes: [{
-        type: Schema.Types.ObjectId,
-        ref: 'Institute',
-        required: true
-    }],
+    institutes: {
+        type: [{
+            type: Schema.Types.ObjectId,
+            ref: 'Institute'
+        }],
+        validate: {
+            validator: function(v) {
+                return Array.isArray(v) && v.length > 0;
+            },
+            message: 'At least one institute is required'
+        }
+    },
     name: {
         type: String, // Friendly label for Super Admin
         required: true
@@ -39,7 +46,8 @@ const SharedLinkSchema = new Schema({
     }],
     settings: {
         allowComments: { type: Boolean, default: true },
-        requireName: { type: Boolean, default: true }
+        requireName: { type: Boolean, default: true },
+        expiresAt: { type: Date }
     }
 }, {
     timestamps: true

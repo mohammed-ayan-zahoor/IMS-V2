@@ -37,9 +37,18 @@ export async function PATCH(req, { params }) {
         await connectDB();
         const body = await req.json();
 
+        // Whitelist allowed fields for update
+        const allowedFields = ['title', 'url', 'isActive', 'expiresAt']; // adjust as needed
+        const updateData = {};
+        for (const key of allowedFields) {
+            if (body[key] !== undefined) {
+                updateData[key] = body[key];
+            }
+        }
+
         const updatedLink = await SharedLink.findByIdAndUpdate(
             id,
-            { $set: body },
+            { $set: updateData },
             { new: true }
         );
 

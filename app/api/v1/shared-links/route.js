@@ -34,7 +34,7 @@ export async function POST(req) {
         await connectDB();
         const body = await req.json();
 
-        if (!body.institutes || !body.institutes.length || !body.name) {
+        if (!Array.isArray(body.institutes) || !body.institutes.length || !body.name?.trim()) {
             return NextResponse.json({ error: "Institutes and Name are required" }, { status: 400 });
         }
 
