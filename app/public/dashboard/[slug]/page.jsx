@@ -13,7 +13,9 @@ import {
     Share2,
     Trash2,
     Edit3,
-    X
+    X,
+    Monitor,
+    Tv
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -57,6 +59,12 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     const [submitting, setSubmitting] = useState(false);
     const [editingComment, setEditingComment] = useState(null);
 
+    // TV Mode State
+    const [isTVMode, setIsTVMode] = useState(false);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [lastUpdated, setLastUpdated] = useState(new Date());
+    const itemsPerPage = isTVMode ? 6 : 999; 
+
     useEffect(() => {
         paramsPromise.then(setParams).catch((err) => {
             console.error("Failed to resolve params:", err);
@@ -91,20 +99,47 @@ export default function VisitorDashboard({ params: paramsPromise }) {
         }
     }, [params]);
 
-    const fetchData = async () => {
-        setLoading(true);
+    // TV Mode Polling
+    useEffect(() => {
+        if (!params?.slug) return;
+        
+        const pollInterval = setInterval(() => {
+            fetchData(true); // Silent update
+        }, 30000); // 30 seconds
+        
+        return () => clearInterval(pollInterval);
+    }, [params?.slug]);
+
+    // TV Mode Cycling
+    useEffect(() => {
+        if (!isTVMode || !data?.fees?.length) return;
+        
+        const totalPages = Math.ceil(data.fees.length / itemsPerPage);
+        if (totalPages <= 1) return;
+
+        const cycleInterval = setInterval(() => {
+            setCurrentPage(prev => (prev + 1) % totalPages);
+        }, 15000); // 15 seconds per page
+        
+        return () => clearInterval(cycleInterval);
+    }, [isTVMode, data?.fees?.length, itemsPerPage]);
+
+    const fetchData = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const res = await fetch(`/api/v1/public/shared-dashboard/${params.slug}`);
             if (!res.ok) {
+                if (silent) return; // Ignore silent errors for now
                 const errData = await res.json();
                 throw new Error(errData.error || "Dashboard not found");
             }
             const result = await res.json();
             setData(result);
+            setLastUpdated(new Date());
         } catch (err) {
-            setError(err.message);
+            if (!silent) setError(err.message);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
@@ -204,7 +239,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     );
 
     return (
-        <div className="min-h-screen bg-gray-50 text-black font-sans pb-20">
+        <div className={`min-h-screen bg-gray-50 text-black font-sans pb-20 ${isTVMode ? 'h-screen overflow-hidden' : ''}`}>
             {/* Registration Overlay */}
             <AnimatePresence>
                 {!isRegistered && (
@@ -249,11 +284,34 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                 {/* Left Side: 90% Content */}
                 <div className="flex-1 space-y-20">
                     <header className="space-y-4">
-                        <div className="flex items-center gap-4">
-                            <SharpBadge variant="default">IMS EXECUTIVE AUDIT</SharpBadge>
-                            <div className="h-[2px] flex-1 bg-black" />
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <SharpBadge variant="default">IMS EXECUTIVE AUDIT</SharpBadge>
+                                <div className="h-[2px] w-24 bg-black" />
+                                <button 
+                                    onClick={() => {
+                                        setIsTVMode(!isTVMode);
+                                        setCurrentPage(0);
+                                    }}
+                                    className={`flex items-center gap-2 px-3 py-1 border-2 border-black font-black text-[10px] uppercase transition-colors ${isTVMode ? 'bg-black text-white' : 'bg-white hover:bg-gray-100'}`}
+                                >
+                                    {isTVMode ? <Tv size={14} /> : <Monitor size={14} />}
+                                    {isTVMode ? 'TV Mode: ON' : 'TV Mode: OFF'}
+                                </button>
+                                {isTVMode && (
+                                    <span className="flex items-center gap-2 text-[10px] font-black text-emerald-600 animate-pulse">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-600" />
+                                        LIVE
+                                    </span>
+                                )}
+                            </div>
+                            {isTVMode && (
+                                <p className="text-[10px] font-black text-gray-400 uppercase">
+                                    Last Update: {lastUpdated.toLocaleTimeString()}
+                                </p>
+                            )}
                         </div>
-                        <h2 className="text-7xl font-black uppercase tracking-tighter leading-none">
+                        <h2 className={`font-black uppercase tracking-tighter leading-none transition-all ${isTVMode ? 'text-8xl' : 'text-7xl'}`}>
                             {data.link?.name || "Shared Dashboard"}
                         </h2>
                     </header>
@@ -263,18 +321,24 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                             <h3 className="font-black uppercase text-2xl">Financial Records</h3>
                             <div className="flex gap-8">
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase">Students Checked</p>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase">Students Count</p>
                                     <p className="text-2xl font-black">{aggregatedStats.totalStudents}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Outstanding</p>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Pending</p>
                                     <p className="text-2xl font-black text-red-600">₹{aggregatedStats.totalPending.toLocaleString()}</p>
                                 </div>
+                                {isTVMode && (
+                                     <div className="text-right">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase">Page</p>
+                                        <p className="text-2xl font-black">{currentPage + 1} / {Math.max(1, Math.ceil((data.fees?.length || 0) / itemsPerPage))}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-8">
-                            {(data.fees ?? []).map((fee) => {
+                        <div className={`grid gap-8 transition-all duration-500 ${isTVMode ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+                            {((data.fees ?? []).slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage)).map((fee) => {
                                 const studentPending = fee.installments.reduce((sum, inst) =>
                                     inst.status === 'pending' ? sum + inst.amount : sum, 0);
                                 const lastComment = data.link.comments?.filter(c => c.studentId === fee.student?._id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
