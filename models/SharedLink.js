@@ -39,6 +39,7 @@ const SharedLinkSchema = new Schema({
     }],
     comments: [{
         visitorName: { type: String, required: true },
+        visitorId: { type: String, required: true, index: true }, // For ownership
         studentId: { type: Schema.Types.ObjectId, ref: 'User' }, // Student the comment is about
         text: { type: String, required: true },
         followUpDate: { type: Date },

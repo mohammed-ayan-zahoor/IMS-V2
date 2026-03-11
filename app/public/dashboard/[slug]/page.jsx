@@ -10,7 +10,10 @@ import {
     CalendarClock,
     CheckCircle2,
     Clock,
-    Share2
+    Share2,
+    Trash2,
+    Edit3,
+    X
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,6 +43,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     const toast = useToast();
     const [params, setParams] = useState(null);
     const [visitorName, setVisitorName] = useState("");
+    const [visitorId, setVisitorId] = useState("");
     const [isRegistered, setIsRegistered] = useState(false);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -51,6 +55,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     const [commentText, setCommentText] = useState("");
     const [followUpDate, setFollowUpDate] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [editingComment, setEditingComment] = useState(null);
 
     useEffect(() => {
         paramsPromise.then(setParams).catch((err) => {
@@ -62,12 +67,21 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     useEffect(() => {
         try {
             const storedName = localStorage.getItem("ims_visitor_name");
+            let storedId = localStorage.getItem("ims_visitor_id");
+            
+            if (!storedId) {
+                storedId = crypto.randomUUID?.() || `v_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+                localStorage.setItem("ims_visitor_id", storedId);
+            }
+            
+            setVisitorId(storedId);
+            
             if (storedName) {
                 setVisitorName(storedName);
                 setIsRegistered(true);
             }
         } catch {
-            // localStorage unavailable, visitor must re-register
+            // localStorage unavailable
         }
     }, []);
 
@@ -95,7 +109,6 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     };
 
     const handleRegister = (e) => {
-        e.preventDefault();
         if (!visitorName.trim()) return;
         localStorage.setItem("ims_visitor_name", visitorName);
         setIsRegistered(true);
@@ -108,28 +121,54 @@ export default function VisitorDashboard({ params: paramsPromise }) {
 
         setSubmitting(true);
         try {
+            const method = editingComment ? "PATCH" : "POST";
+            const payload = {
+                visitorName,
+                visitorId,
+                studentId: selectedStudent.student._id,
+                text: commentText,
+                followUpDate
+            };
+            
+            if (editingComment) {
+                payload.commentId = editingComment._id;
+            }
+
             const res = await fetch(`/api/v1/public/shared-dashboard/${params.slug}`, {
-                method: "POST",
+                method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    visitorName,
-                    studentId: selectedStudent.student._id,
-                    text: commentText,
-                    followUpDate
-                })
+                body: JSON.stringify(payload)
             });
 
-            if (!res.ok) throw new Error("Failed to submit comment");
+            if (!res.ok) throw new Error(`Failed to ${editingComment ? 'update' : 'submit'} comment`);
 
-            toast.success("Comment added successfully");
+            toast.success(`Comment ${editingComment ? 'updated' : 'added'} successfully`);
             setCommentText("");
             setFollowUpDate("");
+            setEditingComment(null);
             setShowCommentModal(false);
-            fetchData(); // Refresh to show new comment
+            fetchData();
         } catch (err) {
             toast.error(err.message);
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleDeleteComment = async (commentId) => {
+        if (!window.confirm("Delete this comment permanently?")) return;
+        
+        try {
+            const res = await fetch(`/api/v1/public/shared-dashboard/${params.slug}?commentId=${commentId}&visitorId=${visitorId}`, {
+                method: "DELETE"
+            });
+            
+            if (!res.ok) throw new Error("Failed to delete comment");
+            
+            toast.success("Comment deleted");
+            fetchData();
+        } catch (err) {
+            toast.error(err.message);
         }
     };
 
@@ -248,7 +287,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                                 <div className="space-y-1">
                                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{fee.institute?.name}</p>
                                                     <h4 className="text-2xl font-black uppercase tracking-tight leading-tight">
-                                                        {fee.student?.profile?.firstName} {fee.student?.profile?.lastName}
+                                                        {fee.student?.profile?.firstName || 'STUDENT'} {fee.student?.profile?.lastName || ''}
                                                     </h4>
                                                     <div className="flex items-center gap-2">
                                                         <SharpBadge>{fee.student?.enrollmentNumber || 'NO-ID'}</SharpBadge>
@@ -284,13 +323,39 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                             <div className="md:col-span-4 p-8 flex flex-col justify-between h-full bg-white">
                                                 {lastComment ? (
                                                     <div className="space-y-2 mb-4">
-                                                        <div className="flex justify-between items-center">
-                                                            <p className="text-[9px] font-black uppercase text-emerald-600">Last Follow-up: {lastComment.visitorName}</p>
-                                                            {lastComment.followUpDate && (
-                                                                <div className="flex items-center gap-1 text-[9px] font-black text-red-600 uppercase">
-                                                                    <CalendarClock size={10} /> {new Date(lastComment.followUpDate).toLocaleDateString()}
-                                                                </div>
-                                                            )}
+                                                        <div className="flex justify-between items-center text-[9px] font-black uppercase">
+                                                            <p className={lastComment.visitorId === visitorId ? "text-emerald-600" : "text-gray-400"}>
+                                                                {lastComment.visitorId === visitorId ? "YOU" : lastComment.visitorName}
+                                                            </p>
+                                                            <div className="flex items-center gap-3">
+                                                                {lastComment.visitorId === visitorId && (
+                                                                    <div className="flex gap-2">
+                                                                        <button 
+                                                                            onClick={() => {
+                                                                                setSelectedStudent(fee);
+                                                                                setEditingComment(lastComment);
+                                                                                setCommentText(lastComment.text);
+                                                                                setFollowUpDate(lastComment.followUpDate ? new Date(lastComment.followUpDate).toISOString().split('T')[0] : "");
+                                                                                setShowCommentModal(true);
+                                                                            }}
+                                                                            className="text-gray-400 hover:text-black transition-colors"
+                                                                        >
+                                                                            <Edit3 size={10} />
+                                                                        </button>
+                                                                        <button 
+                                                                            onClick={() => handleDeleteComment(lastComment._id)}
+                                                                            className="text-gray-400 hover:text-red-600 transition-colors"
+                                                                        >
+                                                                            <Trash2 size={10} />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                                {lastComment.followUpDate && (
+                                                                    <div className="flex items-center gap-1 text-red-600">
+                                                                        <CalendarClock size={10} /> {new Date(lastComment.followUpDate).toLocaleDateString()}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <p className="text-xs font-bold italic line-clamp-1">"{lastComment.text}"</p>
                                                     </div>
@@ -346,12 +411,19 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                             <SharpCard className="w-full max-w-xl p-10 space-y-8">
                                 <header className="flex justify-between items-start border-b-2 border-black pb-4">
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black text-emerald-600 uppercase">Action Logging Protocol</p>
+                                        <p className="text-[10px] font-black text-emerald-600 uppercase">
+                                            {editingComment ? "EDITING LOG" : "Action Logging Protocol"}
+                                        </p>
                                         <h3 className="text-3xl font-black uppercase tracking-tight leading-none">
-                                            {selectedStudent?.student?.profile?.firstName} {selectedStudent?.student?.profile?.lastName}
+                                            {selectedStudent?.student?.profile?.firstName || 'STUDENT'} {selectedStudent?.student?.profile?.lastName || ''}
                                         </h3>
                                     </div>
-                                    <button onClick={() => setShowCommentModal(false)} className="hover:rotate-90 transition-transform">
+                                    <button onClick={() => {
+                                        setShowCommentModal(false);
+                                        setEditingComment(null);
+                                        setCommentText("");
+                                        setFollowUpDate("");
+                                    }} className="hover:rotate-90 transition-transform">
                                         <X size={24} />
                                     </button>
                                 </header>
@@ -387,7 +459,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                         disabled={submitting}
                                         className="w-full bg-black text-white py-5 font-black uppercase text-xs tracking-[0.2em] hover:bg-emerald-600 transition-colors disabled:opacity-50"
                                     >
-                                        {submitting ? "RECORDING..." : "COMMIT LOG TO SYSTEM"}
+                                        {submitting ? "RECORDING..." : editingComment ? "UPDATE LOG" : "COMMIT LOG TO SYSTEM"}
                                     </button>
                                 </form>
                             </SharpCard>

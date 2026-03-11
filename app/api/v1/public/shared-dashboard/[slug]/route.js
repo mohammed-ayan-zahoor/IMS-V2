@@ -80,14 +80,14 @@ export async function POST(req, { params }) {
         const body = await req.json();
         await connectDB();
 
-        const { visitorName, studentId, text, followUpDate } = body;
-
-        if (!visitorName || !studentId || !text) {
-            return NextResponse.json({ error: "Missing required fields (Visitor Name, Student, Comment)" }, { status: 400 });
+        const { visitorName, visitorId, studentId, text, followUpDate } = body;
+        
+        if (!visitorName || !visitorId || !studentId || !text) {
+            return NextResponse.json({ error: "Missing required fields (Visitor Name, Visitor ID, Student, Comment)" }, { status: 400 });
         }
 
         // Validate input lengths
-        if (visitorName.length > 100 || text.length > 5000) {
+        if (visitorName.length > 100 || visitorId.length > 100 || text.length > 5000) {
             return NextResponse.json({ error: "Input exceeds maximum length" }, { status: 400 });
         }
 
@@ -106,14 +106,10 @@ export async function POST(req, { params }) {
             return NextResponse.json({ error: "Invalid student for this dashboard" }, { status: 400 });
         }
 
-        const link = await SharedLink.findOne({ slug, isActive: true });
-        if (!link) {
-            return NextResponse.json({ error: "Dashboard not found" }, { status: 404 });
-        }
-
         // Add comment to the shared link
         const newComment = {
             visitorName,
+            visitorId,
             studentId,
             text,
             followUpDate: followUpDate ? (isNaN(new Date(followUpDate).getTime()) ? null : new Date(followUpDate)) : null,
@@ -135,6 +131,82 @@ export async function POST(req, { params }) {
         return NextResponse.json({ success: true, comment: newComment });
     } catch (error) {
         console.error("Public Dashboard POST Error:", error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
+}
+
+export async function PATCH(req, { params }) {
+    try {
+        const { slug } = await params;
+        const body = await req.json();
+        const { commentId, visitorId, text, followUpDate } = body;
+        await connectDB();
+
+        if (!commentId || !visitorId || !text) {
+            return NextResponse.json({ error: "Missing commentId, visitorId, or text" }, { status: 400 });
+        }
+
+        const link = await SharedLink.findOne({ slug, isActive: true });
+        if (!link) {
+            return NextResponse.json({ error: "Dashboard not found" }, { status: 404 });
+        }
+
+        const comment = link.comments.id(commentId);
+        if (!comment) {
+            return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+        }
+
+        // Ownership check
+        if (comment.visitorId !== visitorId) {
+            return NextResponse.json({ error: "Unauthorized to edit this comment" }, { status: 403 });
+        }
+
+        comment.text = text;
+        if (followUpDate !== undefined) {
+            comment.followUpDate = followUpDate ? new Date(followUpDate) : null;
+        }
+
+        await link.save();
+        return NextResponse.json({ success: true, comment });
+    } catch (error) {
+        console.error("Public Dashboard PATCH Error:", error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
+}
+
+export async function DELETE(req, { params }) {
+    try {
+        const { slug } = await params;
+        const { searchParams } = new URL(req.url);
+        const commentId = searchParams.get('commentId');
+        const visitorId = searchParams.get('visitorId');
+        await connectDB();
+
+        if (!commentId || !visitorId) {
+            return NextResponse.json({ error: "Missing commentId or visitorId" }, { status: 400 });
+        }
+
+        const link = await SharedLink.findOne({ slug, isActive: true });
+        if (!link) {
+            return NextResponse.json({ error: "Dashboard not found" }, { status: 404 });
+        }
+
+        const comment = link.comments.id(commentId);
+        if (!comment) {
+            return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+        }
+
+        // Ownership check
+        if (comment.visitorId !== visitorId) {
+            return NextResponse.json({ error: "Unauthorized to delete this comment" }, { status: 403 });
+        }
+
+        link.comments.pull({ _id: commentId });
+        await link.save();
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("Public Dashboard DELETE Error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
