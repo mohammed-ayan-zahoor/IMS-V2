@@ -59,11 +59,13 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     const [submitting, setSubmitting] = useState(false);
     const [editingComment, setEditingComment] = useState(null);
 
-    // TV Mode State
+    // TV & Utility State
     const [isTVMode, setIsTVMode] = useState(false);
     const [currentPage, setCurrentPage] = useState(0);
     const [lastUpdated, setLastUpdated] = useState(new Date());
-    const itemsPerPage = isTVMode ? 6 : 999; 
+    const [filterInstitute, setFilterInstitute] = useState("all");
+    const [expandedStudentId, setExpandedStudentId] = useState(null);
+    const itemsPerPage = isTVMode ? 6 : 999;
 
     useEffect(() => {
         paramsPromise.then(setParams).catch((err) => {
@@ -212,12 +214,35 @@ export default function VisitorDashboard({ params: paramsPromise }) {
         return data.fees.reduce((acc, fee) => {
             const pending = fee.installments.reduce((sum, inst) =>
                 inst.status === 'pending' ? sum + inst.amount : sum, 0);
+            if (pending === 0) return acc; // Only count students with pending balance
             return {
                 totalPending: acc.totalPending + pending,
                 totalStudents: acc.totalStudents + 1
             };
         }, { totalPending: 0, totalStudents: 0 });
     }, [data]);
+
+    const institutesList = useMemo(() => {
+        if (!data?.fees) return [];
+        const unique = new Map();
+        data.fees.forEach(f => {
+            if (f.institute && !unique.has(f.institute._id)) {
+                unique.set(f.institute._id, f.institute.name);
+            }
+        });
+        return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
+    }, [data]);
+
+    const filteredFees = useMemo(() => {
+        if (!data?.fees) return [];
+        return data.fees.filter(fee => {
+            const pending = fee.installments.reduce((sum, inst) =>
+                inst.status === 'pending' ? sum + inst.amount : sum, 0);
+            if (pending === 0) return false; // Hide cleared students
+            if (filterInstitute !== "all" && fee.institute?._id !== filterInstitute) return false;
+            return true;
+        });
+    }, [data, filterInstitute]);
 
     if (loading) return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -240,49 +265,9 @@ export default function VisitorDashboard({ params: paramsPromise }) {
 
     return (
         <div className={`min-h-screen bg-gray-50 text-black font-sans pb-20 ${isTVMode ? 'h-screen overflow-hidden' : ''}`}>
-            {/* Registration Overlay */}
-            <AnimatePresence>
-                {!isRegistered && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0, scale: 1.1 }}
-                        className="fixed inset-0 z-50 bg-gray-50 flex items-center justify-center p-6"
-                    >
-                        <div className="w-full max-w-4xl space-y-12">
-                            <div className="space-y-4">
-                                <span className="bg-black text-white px-4 py-1 text-xs font-black uppercase tracking-[0.3em]">Access Verification</span>
-                                <h1 className="text-8xl md:text-[10rem] font-black uppercase tracking-tighter leading-[0.85] text-black">
-                                    IDENTIFY<br />YOURSELF.
-                                </h1>
-                            </div>
-
-                            <form onSubmit={handleRegister} className="flex flex-col md:flex-row gap-4 items-end">
-                                <div className="flex-1 space-y-2 w-full">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Full Official Name</label>
-                                    <input
-                                        autoFocus
-                                        type="text"
-                                        required
-                                        value={visitorName}
-                                        onChange={(e) => setVisitorName(e.target.value)}
-                                        className="w-full bg-transparent border-b-8 border-black text-4xl md:text-6xl font-black uppercase focus:outline-none focus:border-emerald-600 transition-colors placeholder:text-gray-200"
-                                        placeholder="TYPE NAME HERE"
-                                    />
-                                </div>
-                                <button className="bg-black text-white p-6 md:p-10 hover:bg-emerald-600 transition-colors group">
-                                    <ArrowRight size={48} className="group-hover:translate-x-2 transition-transform" />
-                                </button>
-                            </form>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
             {/* Main Dashboard UI */}
-            <div className="max-w-[1800px] mx-auto p-8 lg:p-16 flex flex-col lg:flex-row gap-16">
-                {/* Left Side: 90% Content */}
-                <div className="flex-1 space-y-20">
+            <div className="max-w-full mx-auto p-4 lg:p-10 flex flex-col gap-10">
+                <div className="flex-1 space-y-12">
                     <header className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
@@ -311,156 +296,199 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                 </p>
                             )}
                         </div>
-                        <h2 className={`font-black uppercase tracking-tighter leading-none transition-all ${isTVMode ? 'text-8xl' : 'text-7xl'}`}>
+                        <h2 className={`font-black uppercase tracking-tighter leading-none transition-all ${isTVMode ? 'text-8xl' : 'text-6xl'}`}>
                             {data.link?.name || "Shared Dashboard"}
                         </h2>
                     </header>
 
-                    <section className="space-y-12">
+                    <nav className="flex flex-wrap gap-4 border-b-2 border-black pb-6">
+                        <button 
+                            onClick={() => setFilterInstitute("all")}
+                            className={`px-6 py-2 border-2 border-black font-black uppercase text-xs tracking-widest transition-all ${filterInstitute === "all" ? "bg-black text-white shadow-[4px_4px_0_0_#94a3b8]" : "bg-white hover:bg-gray-50"}`}
+                        >
+                            All Institutes
+                        </button>
+                        {institutesList.map(inst => (
+                            <button 
+                                key={inst.id}
+                                onClick={() => setFilterInstitute(inst.id)}
+                                className={`px-6 py-2 border-2 border-black font-black uppercase text-xs tracking-widest transition-all ${filterInstitute === inst.id ? "bg-black text-white shadow-[4px_4px_0_0_#94a3b8]" : "bg-white hover:bg-gray-50"}`}
+                            >
+                                {inst.name}
+                            </button>
+                        ))}
+                    </nav>
+
+                    <section className="space-y-8">
                         <div className="flex items-center justify-between border-b-4 border-black pb-4">
                             <h3 className="font-black uppercase text-2xl">Financial Records</h3>
                             <div className="flex gap-8">
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase">Students Count</p>
-                                    <p className="text-2xl font-black">{aggregatedStats.totalStudents}</p>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Follow-ups</p>
+                                    <p className="text-2xl font-black italic">{aggregatedStats.totalStudents}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Pending</p>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Outstanding</p>
                                     <p className="text-2xl font-black text-red-600">₹{aggregatedStats.totalPending.toLocaleString()}</p>
                                 </div>
-                                {isTVMode && (
-                                     <div className="text-right">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase">Page</p>
-                                        <p className="text-2xl font-black">{currentPage + 1} / {Math.max(1, Math.ceil((data.fees?.length || 0) / itemsPerPage))}</p>
-                                    </div>
-                                )}
                             </div>
                         </div>
 
-                        <div className={`grid gap-8 transition-all duration-500 ${isTVMode ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
-                            {((data.fees ?? []).slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage)).map((fee) => {
+                        <div className={`grid gap-6 transition-all duration-500 ${isTVMode ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 lg:grid-cols-2'}`}>
+                            {(filteredFees.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage)).map((fee) => {
                                 const studentPending = fee.installments.reduce((sum, inst) =>
                                     inst.status === 'pending' ? sum + inst.amount : sum, 0);
                                 const lastComment = data.link.comments?.filter(c => c.studentId === fee.student?._id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+                                const isExpanded = expandedStudentId === fee.student?._id;
 
                                 return (
-                                    <SharpCard key={fee._id} className="group relative">
-                                        <div className="grid grid-cols-1 md:grid-cols-12 items-center">
-                                            {/* Student Ident */}
-                                            <div className="md:col-span-4 p-8 border-b-2 md:border-b-0 md:border-r-2 border-black">
-                                                <div className="space-y-1">
-                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{fee.institute?.name}</p>
-                                                    <h4 className="text-2xl font-black uppercase tracking-tight leading-tight">
-                                                        {fee.student?.profile?.firstName || 'STUDENT'} {fee.student?.profile?.lastName || ''}
-                                                    </h4>
-                                                    <div className="flex items-center gap-2">
-                                                        <SharpBadge>{fee.student?.enrollmentNumber || 'NO-ID'}</SharpBadge>
-                                                        <span className="text-[10px] font-bold text-gray-400 uppercase">{fee.batch?.name}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Fee Data */}
-                                            <div className="md:col-span-4 p-8 border-b-2 md:border-b-0 md:border-r-2 border-black bg-gray-50/50 group-hover:bg-white transition-colors">
-                                                <div className="flex justify-between items-end">
+                                    <SharpCard key={fee._id} className="group overflow-hidden">
+                                        <div 
+                                            onClick={() => setExpandedStudentId(isExpanded ? null : fee.student?._id)}
+                                            className="cursor-pointer"
+                                        >
+                                            <div className="grid grid-cols-12 items-center bg-white">
+                                                {/* Student Ident */}
+                                                <div className="col-span-12 md:col-span-6 p-6 md:border-r-2 border-black">
                                                     <div className="space-y-1">
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase">Outstanding Balance</p>
-                                                        <p className="text-3xl font-black">₹{studentPending.toLocaleString()}</p>
+                                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{fee.institute?.name}</p>
+                                                        <h4 className="text-xl font-black uppercase tracking-tight leading-none group-hover:text-emerald-600 transition-colors">
+                                                            {fee.student?.profile?.firstName || 'STUDENT'} {fee.student?.profile?.lastName || ''}
+                                                        </h4>
+                                                        <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em]">{fee.batch?.name}</p>
                                                     </div>
-                                                    <div className="text-right space-y-1">
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase">Next Installment</p>
-                                                        {fee.installments.find(i => i.status === 'pending') ? (
-                                                            <div className="flex items-center gap-1 font-bold text-xs uppercase">
-                                                                <Clock size={12} className="text-amber-500" />
-                                                                {new Date(fee.installments.find(i => i.status === 'pending').dueDate).toLocaleDateString()}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center gap-1 font-bold text-xs uppercase text-emerald-600">
-                                                                <CheckCircle2 size={12} /> Clear
-                                                            </div>
-                                                        )}
+                                                </div>
+
+                                                {/* Pending Info */}
+                                                <div className="col-span-12 md:col-span-6 p-6">
+                                                    <div className="flex justify-between items-center">
+                                                        <div>
+                                                            <p className="text-[8px] font-black text-gray-400 uppercase">Outstanding</p>
+                                                            <p className="text-2xl font-black italic">₹{studentPending.toLocaleString()}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <SharpBadge variant={studentPending > 10000 ? "danger" : "warning"}>
+                                                                {fee.installments.find(i => i.status === 'pending') ? 'OVERDUE' : 'DUE'}
+                                                            </SharpBadge>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* Action / Last Comment */}
-                                            <div className="md:col-span-4 p-8 flex flex-col justify-between h-full bg-white">
-                                                {lastComment ? (
-                                                    <div className="space-y-2 mb-4">
-                                                        <div className="flex justify-between items-center text-[9px] font-black uppercase">
-                                                            <p className={lastComment.visitorId === visitorId ? "text-emerald-600" : "text-gray-400"}>
-                                                                {lastComment.visitorId === visitorId ? "YOU" : lastComment.visitorName}
-                                                            </p>
-                                                            <div className="flex items-center gap-3">
-                                                                {lastComment.visitorId === visitorId && (
-                                                                    <div className="flex gap-2">
-                                                                        <button 
-                                                                            onClick={() => {
-                                                                                setSelectedStudent(fee);
-                                                                                setEditingComment(lastComment);
-                                                                                setCommentText(lastComment.text);
-                                                                                setFollowUpDate(lastComment.followUpDate ? new Date(lastComment.followUpDate).toISOString().split('T')[0] : "");
-                                                                                setShowCommentModal(true);
-                                                                            }}
-                                                                            className="text-gray-400 hover:text-black transition-colors"
-                                                                        >
-                                                                            <Edit3 size={10} />
-                                                                        </button>
-                                                                        <button 
-                                                                            onClick={() => handleDeleteComment(lastComment._id)}
-                                                                            className="text-gray-400 hover:text-red-600 transition-colors"
-                                                                        >
-                                                                            <Trash2 size={10} />
-                                                                        </button>
+                                            {/* Preview Last Comment */}
+                                            {lastComment && !isExpanded && (
+                                                <div className="px-6 pb-6 pt-2 border-t border-gray-100 flex items-center justify-between">
+                                                    <p className="text-[9px] font-bold text-gray-400 truncate max-w-[70%] italic">
+                                                        "{lastComment.text}" — {lastComment.visitorName}
+                                                    </p>
+                                                    <div className="flex gap-2">
+                                                        {lastComment.visitorId === visitorId && (
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteComment(lastComment._id);
+                                                                }}
+                                                                className="text-gray-300 hover:text-red-600 transition-colors"
+                                                            >
+                                                                <Trash2 size={12} />
+                                                            </button>
+                                                        )}
+                                                        <ArrowRight size={12} className={`text-gray-300 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Expanded Details */}
+                                        <AnimatePresence>
+                                            {isExpanded && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    className="border-t-2 border-black bg-gray-50 p-6 space-y-6"
+                                                >
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                        {/* Installment History */}
+                                                        <div className="space-y-4">
+                                                            <h5 className="text-[10px] font-black uppercase tracking-[0.3em] border-b border-black pb-1">Installment History</h5>
+                                                            <div className="space-y-2">
+                                                                {fee.installments.map((inst, idx) => (
+                                                                    <div key={idx} className="flex justify-between items-center bg-white p-2 border border-black text-[10px] font-bold">
+                                                                        <span className="uppercase text-gray-400">{new Date(inst.dueDate).toLocaleDateString()}</span>
+                                                                        <span>₹{inst.amount.toLocaleString()}</span>
+                                                                        <SharpBadge variant={inst.status === 'paid' ? 'success' : 'default'}>
+                                                                            {inst.status}
+                                                                        </SharpBadge>
                                                                     </div>
-                                                                )}
-                                                                {lastComment.followUpDate && (
-                                                                    <div className="flex items-center gap-1 text-red-600">
-                                                                        <CalendarClock size={10} /> {new Date(lastComment.followUpDate).toLocaleDateString()}
-                                                                    </div>
-                                                                )}
+                                                                ))}
                                                             </div>
                                                         </div>
-                                                        <p className="text-xs font-bold italic line-clamp-1">"{lastComment.text}"</p>
-                                                    </div>
-                                                ) : (
-                                                    <div className="mb-4">
-                                                        <p className="text-[9px] font-black text-gray-300 uppercase italic">No follow-up logged yet</p>
-                                                    </div>
-                                                )}
 
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedStudent(fee);
-                                                        setShowCommentModal(true);
-                                                    }}
-                                                    className="w-full bg-black text-white py-3 font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
-                                                >
-                                                    <MessageSquare size={14} /> Log Action
-                                                </button>
-                                            </div>
-                                        </div>
+                                                        {/* Interaction Log */}
+                                                        <div className="space-y-4">
+                                                            <div className="flex justify-between items-center border-b border-black pb-1">
+                                                                <h5 className="text-[10px] font-black uppercase tracking-[0.3em]">Interaction Log</h5>
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        setSelectedStudent(fee);
+                                                                        setShowCommentModal(true);
+                                                                    }}
+                                                                    className="text-emerald-600 hover:scale-110 transition-transform"
+                                                                >
+                                                                    <MessageSquare size={14} />
+                                                                </button>
+                                                            </div>
+                                                            <div className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                                                                {data.link.comments?.filter(c => c.studentId === fee.student?._id).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map(c => (
+                                                                    <div key={c._id} className="relative pl-3 border-l-2 border-emerald-600 bg-white p-2 shadow-sm">
+                                                                        <div className="flex justify-between items-center mb-1">
+                                                                            <span className="text-[8px] font-black uppercase">{c.visitorName}</span>
+                                                                            {c.visitorId === visitorId && (
+                                                                                <div className="flex gap-1">
+                                                                                    <button 
+                                                                                        onClick={() => {
+                                                                                            setSelectedStudent(fee);
+                                                                                            setEditingComment(c);
+                                                                                            setCommentText(c.text);
+                                                                                            setFollowUpDate(c.followUpDate ? new Date(c.followUpDate).toISOString().split('T')[0] : "");
+                                                                                            setShowCommentModal(true);
+                                                                                        }}
+                                                                                        className="text-gray-300 hover:text-black"
+                                                                                    >
+                                                                                        <Edit3 size={10} />
+                                                                                    </button>
+                                                                                    <button onClick={() => handleDeleteComment(c._id)} className="text-gray-300 hover:text-red-600">
+                                                                                        <Trash2 size={10} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className="text-[10px] leading-tight font-medium">"{c.text}"</p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedStudent(fee);
+                                                            setShowCommentModal(true);
+                                                        }}
+                                                        className="w-full bg-black text-white py-4 font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        <MessageSquare size={14} /> Log New Interaction
+                                                    </button>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </SharpCard>
                                 );
                             })}
                         </div>
                     </section>
                 </div>
-
-                {/* Right Side: 10% Radical Negative Space / Summary */}
-                <aside className="hidden lg:block w-32 shrink-0 border-l-2 border-black p-8 sticky top-16 h-fit space-y-12">
-                    <p className="text-[8px] font-black [writing-mode:vertical-rl] transform rotate-180 uppercase tracking-[0.5em] text-gray-300 h-64">
-                        SYSTEMS_AUDIT_VERIFIED // 2026 // IMS-CORP
-                    </p>
-
-                    <div className="space-y-4">
-                        <div className="w-full aspect-square bg-black flex items-center justify-center">
-                            <Share2 className="text-white" size={24} />
-                        </div>
-                        <div className="w-full h-1 bg-black" />
-                        <div className="w-full h-8 bg-black animate-pulse" />
-                    </div>
-                </aside>
             </div>
 
             {/* Comment Modal */}
@@ -529,6 +557,45 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                             </SharpCard>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* Registration Overlay */}
+            <AnimatePresence>
+                {!isRegistered && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, scale: 1.1 }}
+                        className="fixed inset-0 z-50 bg-gray-50 flex items-center justify-center p-6"
+                    >
+                        <div className="w-full max-w-4xl space-y-12">
+                            <div className="space-y-4">
+                                <span className="bg-black text-white px-4 py-1 text-xs font-black uppercase tracking-[0.3em]">Access Verification</span>
+                                <h1 className="text-8xl md:text-[10rem] font-black uppercase tracking-tighter leading-[0.85] text-black">
+                                    IDENTIFY<br />YOURSELF.
+                                </h1>
+                            </div>
+
+                            <form onSubmit={handleRegister} className="flex flex-col md:flex-row gap-4 items-end">
+                                <div className="flex-1 space-y-2 w-full">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Full Official Name</label>
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        required
+                                        value={visitorName}
+                                        onChange={(e) => setVisitorName(e.target.value)}
+                                        className="w-full bg-transparent border-b-8 border-black text-4xl md:text-6xl font-black uppercase focus:outline-none focus:border-emerald-600 transition-colors placeholder:text-gray-200"
+                                        placeholder="TYPE NAME HERE"
+                                    />
+                                </div>
+                                <button className="bg-black text-white p-6 md:p-10 hover:bg-emerald-600 transition-colors group">
+                                    <ArrowRight size={48} className="group-hover:translate-x-2 transition-transform" />
+                                </button>
+                            </form>
+                        </div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>
