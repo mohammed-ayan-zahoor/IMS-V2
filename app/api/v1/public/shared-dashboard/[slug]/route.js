@@ -53,7 +53,7 @@ export async function GET(req, { params }) {
             institute: { $in: link.institutes.map(i => i._id) },
             deletedAt: null
         })
-            .populate('student', 'enrollmentNumber profile.firstName profile.lastName')
+            .populate('student', 'enrollmentNumber profile.firstName profile.lastName profile.phone')
             .populate('batch', 'name text')
             .populate('institute', 'name')
             .sort({ createdAt: -1 });

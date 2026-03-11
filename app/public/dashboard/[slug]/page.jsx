@@ -15,7 +15,8 @@ import {
     Edit3,
     X,
     Monitor,
-    Tv
+    Tv,
+    Phone
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -351,10 +352,22 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                                 {/* Student Ident */}
                                                 <div className="col-span-12 md:col-span-6 p-6 md:border-r-2 border-black">
                                                     <div className="space-y-1">
-                                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{fee.institute?.name}</p>
-                                                        <h4 className="text-xl font-black uppercase tracking-tight leading-none group-hover:text-emerald-600 transition-colors">
-                                                            {fee.student?.profile?.firstName || 'STUDENT'} {fee.student?.profile?.lastName || ''}
-                                                        </h4>
+                                                        <div className="flex justify-between items-start">
+                                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{fee.institute?.name}</p>
+                                                            {fee.student?.profile?.phone && (
+                                                                <p className="text-[9px] font-black text-emerald-600 block md:hidden">{fee.student.profile.phone}</p>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <h4 className="text-xl font-black uppercase tracking-tight leading-none group-hover:text-emerald-600 transition-colors">
+                                                                {fee.student?.profile?.firstName || 'STUDENT'} {fee.student?.profile?.lastName || ''}
+                                                            </h4>
+                                                            {fee.student?.profile?.phone && (
+                                                                <span className="hidden md:inline-flex px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-[9px] font-black text-emerald-700 rounded-sm">
+                                                                    {fee.student.profile.phone}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em]">{fee.batch?.name}</p>
                                                     </div>
                                                 </div>
@@ -409,6 +422,29 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                                     className="border-t-2 border-black bg-gray-50 p-6 space-y-6"
                                                 >
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                        {/* Student Profile Summary */}
+                                                        <div className="col-span-full bg-emerald-50/50 p-4 border border-emerald-100 flex items-center justify-between">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-10 h-10 bg-emerald-600 flex items-center justify-center text-white font-black text-xs">
+                                                                    {fee.student?.profile?.firstName?.charAt(0)}{fee.student?.profile?.lastName?.charAt(0)}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-[10px] font-black uppercase text-emerald-800">Student Contact</p>
+                                                                    <p className="text-sm font-black uppercase tracking-tight">
+                                                                        {fee.student?.profile?.firstName} {fee.student?.profile?.lastName}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            {fee.student?.profile?.phone && (
+                                                                <a 
+                                                                    href={`tel:${fee.student.profile.phone}`}
+                                                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-colors"
+                                                                >
+                                                                    <Phone size={14} /> {fee.student.profile.phone}
+                                                                </a>
+                                                            )}
+                                                        </div>
+
                                                         {/* Installment History */}
                                                         <div className="space-y-4">
                                                             <h5 className="text-[10px] font-black uppercase tracking-[0.3em] border-b border-black pb-1">Installment History</h5>
