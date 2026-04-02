@@ -58,7 +58,10 @@ export default function FeesPage() {
     const [batches, setBatches] = useState([]);
     const [selectedCourse, setSelectedCourse] = useState("");
     const [selectedBatch, setSelectedBatch] = useState("");
+    const [percentageFilter, setPercentageFilter] = useState("");
     const [summary, setSummary] = useState({ total: 0, paid: 0, pending: 0 });
+    const [currentPage, setCurrentPage] = useState(1);
+    const rowsPerPage = 50;
 
     useEffect(() => {
         fetchFees();
@@ -76,6 +79,11 @@ export default function FeesPage() {
         }
         setSelectedBatch(""); // Reset batch when course changes
     }, [selectedCourse]);
+
+    useEffect(() => {
+        fetchFees();
+        setCurrentPage(1);
+    }, [selectedCourse, selectedBatch, percentageFilter]);
 
     const fetchCourses = async () => {
         try {
@@ -104,7 +112,14 @@ export default function FeesPage() {
     const fetchFees = async () => {
         try {
             setLoading(true);
-            const res = await fetch("/api/v1/fees");
+            const url = new URL('/api/v1/fees', window.location.origin);
+            if (selectedCourse) url.searchParams.append('course', selectedCourse);
+            if (selectedBatch) url.searchParams.append('batch', selectedBatch);
+            if (percentageFilter) url.searchParams.append('percentage', percentageFilter);
+            if (selectedCourse || selectedBatch || percentageFilter) {
+                url.searchParams.append('includeAll', 'true');
+            }
+            const res = await fetch(url);
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({}));
                 throw new Error(errorData.error || `Failed to fetch fees: ${res.statusText}`);
@@ -403,9 +418,21 @@ export default function FeesPage() {
                             disabled={!selectedCourse}
                             placeholder="Filter Batch"
                         />
+                        <Select
+                            className="w-full md:w-40"
+                            value={percentageFilter}
+                            onChange={(val) => setPercentageFilter(val)}
+                            options={[
+                                { label: "All", value: "" },
+                                { label: "≤ 25%", value: "25" },
+                                { label: "≤ 50%", value: "50" },
+                                { label: "≤ 70%", value: "70" }
+                            ]}
+                            placeholder="Payment %"
+                        />
                     </div>
                 </CardHeader>
-                <div className="px-6 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center">
+                <div className="px-6 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-600 cursor-pointer select-none">
                         <input
                             type="checkbox"
@@ -415,107 +442,175 @@ export default function FeesPage() {
                         />
                         Show Overdue Only
                     </label>
+                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 font-mono text-xs">
+                        {filteredFees.length} records
+                    </Badge>
                 </div>
                 <CardContent className="p-0">
-                    {loading ? (
-                        <LoadingSpinner />
-                    ) : filteredFees.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-white border-y border-slate-100">
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Batch</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Fee</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Paid</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Balance</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {filteredFees.map((fee) => (
-                                        <tr key={fee._id} className="group hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div>
-                                                    <p className="text-sm font-bold text-slate-900">
-                                                        {fee.student?.profile?.firstName} {fee.student?.profile?.lastName}
-                                                    </p>
-                                                    <p className="text-[11px] font-medium text-slate-400 font-mono tracking-wide">{fee.student?.enrollmentNumber}</p>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <Badge variant="secondary" className="font-mono text-[10px] uppercase bg-slate-100 text-slate-500">
-                                                    {fee.batch?.name}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-bold text-slate-600">
-                                                ₹{fee.totalAmount?.toLocaleString()}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-bold text-emerald-600">
-                                                ₹{fee.paidAmount?.toLocaleString()}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className={`text-sm font-bold ${fee.balanceAmount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
-                                                    ₹{fee.balanceAmount?.toLocaleString()}
-                                                </div>
-                                                {fee.installments?.some(i => i.status === 'pending' && new Date(i.dueDate) < new Date()) && (
-                                                    <Badge className="mt-1 bg-rose-100 text-rose-600 border-rose-200">
-                                                        Overdue
-                                                    </Badge>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => openPaymentModal(fee)}
-                                                        className="border-slate-200 hover:border-premium-blue hover:text-premium-blue"
-                                                    >
-                                                        <DollarSign size={14} className="mr-1" /> Pay
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                                        onClick={async () => {
-                                                            if (!await confirm({
-                                                                title: "Delete Fee Record?",
-                                                                message: "This will soft-delete the fee record. It will be removed from all views.",
-                                                                type: "danger"
-                                                            })) return;
+                    {(() => {
+                        const totalPages = Math.ceil(filteredFees.length / rowsPerPage);
+                        const startIndex = (currentPage - 1) * rowsPerPage;
+                        const paginatedFees = filteredFees.slice(startIndex, startIndex + rowsPerPage);
 
-                                                            try {
-                                                                const res = await fetch(`/api/v1/fees/${fee._id}`, { method: 'DELETE' });
-                                                                if (res.ok) {
-                                                                    toast.success("Fee record deleted");
-                                                                    fetchFees();
-                                                                } else {
-                                                                    const err = await res.json().catch(() => ({}));
-                                                                    toast.error(err.error || "Failed to delete");
-                                                                }
-                                                            } catch (e) {
-                                                                console.error(e);
-                                                                toast.error("Error deleting fee");
-                                                            }
-                                                        }}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <EmptyState
-                            icon={CreditCard}
-                            title="No fee records found"
-                            description="Fee records are created when students are admitted."
-                        />
-                    )}
+                        if (loading) return <LoadingSpinner />;
+                        if (filteredFees.length === 0) {
+                            return (
+                                <EmptyState
+                                    icon={CreditCard}
+                                    title="No fee records found"
+                                    description="Fee records are created when students are admitted."
+                                />
+                            );
+                        }
+
+                        return (
+                            <>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-white border-y border-slate-100">
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Batch</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Fee</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Paid</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Balance</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {paginatedFees.map((fee) => (
+                                                <tr key={fee._id || fee.student?._id} className="group hover:bg-slate-50/50 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-900">
+                                                                {fee.student?.profile?.firstName} {fee.student?.profile?.lastName}
+                                                            </p>
+                                                            <p className="text-[11px] font-medium text-slate-400 font-mono tracking-wide">{fee.student?.enrollmentNumber}</p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <Badge variant="secondary" className="font-mono text-[10px] uppercase bg-slate-100 text-slate-500">
+                                                            {fee.batch?.name}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm font-bold text-slate-600">
+                                                        ₹{fee.totalAmount?.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm font-bold text-emerald-600">
+                                                        ₹{fee.paidAmount?.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        {!fee.hasFeeRecord ? (
+                                                            <Badge className="bg-slate-100 text-slate-500 border-slate-200">
+                                                                No fee profile
+                                                            </Badge>
+                                                        ) : (
+                                                            <>
+                                                                <div className={`text-sm font-bold ${fee.balanceAmount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                                                                    ₹{fee.balanceAmount?.toLocaleString()}
+                                                                </div>
+                                                                {fee.installments?.some(i => i.status === 'pending' && new Date(i.dueDate) < new Date()) && (
+                                                                    <Badge className="mt-1 bg-rose-100 text-rose-600 border-rose-200">
+                                                                        Overdue
+                                                                    </Badge>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => openPaymentModal(fee)}
+                                                                className="border-slate-200 hover:border-premium-blue hover:text-premium-blue"
+                                                                disabled={!fee.hasFeeRecord}
+                                                            >
+                                                                <DollarSign size={14} className="mr-1" /> Pay
+                                                            </Button>
+                                                            {fee.hasFeeRecord && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                                    onClick={async () => {
+                                                                        if (!await confirm({
+                                                                            title: "Delete Fee Record?",
+                                                                            message: "This will soft-delete the fee record. It will be removed from all views.",
+                                                                            type: "danger"
+                                                                        })) return;
+
+                                                                        try {
+                                                                            const res = await fetch(`/api/v1/fees/${fee._id}`, { method: 'DELETE' });
+                                                                            if (res.ok) {
+                                                                                toast.success("Fee record deleted");
+                                                                                fetchFees();
+                                                                            } else {
+                                                                                const err = await res.json().catch(() => ({}));
+                                                                                toast.error(err.error || "Failed to delete");
+                                                                            }
+                                                                        } catch (e) {
+                                                                            console.error(e);
+                                                                            toast.error("Error deleting fee");
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/50">
+                                        <span className="text-xs text-slate-500 font-medium">
+                                            Showing {startIndex + 1}–{Math.min(startIndex + rowsPerPage, filteredFees.length)} of {filteredFees.length}
+                                        </span>
+                                        <div className="flex gap-1">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                disabled={currentPage === 1}
+                                                onClick={() => setCurrentPage(p => p - 1)}
+                                                className="text-xs"
+                                            >
+                                                Prev
+                                            </Button>
+                                            {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                                                .map((p, idx, arr) => (
+                                                    <span key={p} className="flex items-center">
+                                                        {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-slate-400">...</span>}
+                                                        <Button
+                                                            size="sm"
+                                                            variant={p === currentPage ? "default" : "ghost"}
+                                                            onClick={() => setCurrentPage(p)}
+                                                            className={`text-xs ${p === currentPage ? 'bg-premium-blue text-white' : ''}`}
+                                                        >
+                                                            {p}
+                                                        </Button>
+                                                    </span>
+                                                ))
+                                            }
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                disabled={currentPage === totalPages}
+                                                onClick={() => setCurrentPage(p => p + 1)}
+                                                className="text-xs"
+                                            >
+                                                Next
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
                 </CardContent>
             </Card>
 

@@ -1,4 +1,6 @@
 import Fee from '@/models/Fee';
+import Batch from '@/models/Batch';
+import User from '@/models/User';
 import { createAuditLog } from './auditService';
 import { connectDB } from '@/lib/mongodb';
 
@@ -22,6 +24,33 @@ const parseValidDate = (dateString) => {
         throw new Error(`Invalid date format provided: ${dateString}`);
     }
     return date;
+};
+
+// Helper to map a fee document to the unified result shape
+const mapFeeToResult = (fee) => ({
+    _id: fee._id,
+    student: fee.student,
+    batch: fee.batch,
+    totalAmount: fee.totalAmount || 0,
+    paidAmount: fee.paidAmount || 0,
+    balanceAmount: fee.balanceAmount || 0,
+    percentagePaid: calculatePercentage(fee.paidAmount || 0, fee.totalAmount || 0),
+    hasFeeRecord: true,
+    installments: fee.installments || [],
+    status: fee.status
+});
+
+// Helper to apply percentage filter (< threshold)
+const applyPercentageFilter = (results, percentage) => {
+    if (!percentage || isNaN(percentage)) return results;
+    const threshold = parseFloat(percentage);
+    return results.filter(r => r.percentagePaid < threshold);
+};
+
+// Helper to safely calculate percentage
+const calculatePercentage = (paid, total) => {
+    if (!total || total <= 0) return 0;
+    return (paid / total) * 100;
 };
 
 export class FeeService {
@@ -77,6 +106,92 @@ export class FeeService {
             .populate('student', 'profile.firstName profile.lastName enrollmentNumber')
             .populate('batch', 'name')
             .sort({ createdAt: -1 });
+    }
+
+    static async getFeesWithStudents(filters = {}) {
+        await connectDB();
+
+        // 1. Fetch fee documents with existing logic
+        const feeQuery = { deletedAt: null };
+        if (filters.batch) feeQuery.batch = filters.batch;
+        if (filters.institute) feeQuery.institute = filters.institute;
+
+        const fees = await FeeDb.find(feeQuery)
+            .populate('student', 'profile.firstName profile.lastName enrollmentNumber')
+            .populate('batch', 'name')
+            .sort({ createdAt: -1 });
+
+        // 2. If no course/batch filter, return fees as-is (existing behavior)
+        if (!filters.course && !filters.batch) {
+            const mapped = fees.map(fee => mapFeeToResult(fee));
+            return applyPercentageFilter(mapped, filters.percentage);
+        }
+
+        // 3. Find batches matching the course/institute filter
+        const batchQuery = { deletedAt: null };
+        if (filters.course) batchQuery.course = filters.course;
+        if (filters.batch) batchQuery._id = filters.batch;
+        if (filters.institute) batchQuery.institute = filters.institute;
+
+        const batches = await Batch.find(batchQuery).select('enrolledStudents name');
+
+        // 4. Collect all active enrolled student IDs across matching batches
+        const studentBatchMap = {}; // studentId -> { batchId, batchName }
+        for (const batch of batches) {
+            for (const enrollment of (batch.enrolledStudents || [])) {
+                if (enrollment.status === 'active') {
+                    const sid = enrollment.student.toString();
+                    studentBatchMap[sid] = {
+                        batchId: batch._id,
+                        batchName: batch.name
+                    };
+                }
+            }
+        }
+
+        // 5. Build a set of student IDs that already have fee records
+        const studentsWithFees = new Set(fees.map(f => f.student?._id?.toString()).filter(Boolean));
+
+        // 6. Map existing fee records
+        const results = fees.map(fee => mapFeeToResult(fee));
+
+        // 7. Add students without fee records
+        const studentIdsWithoutFees = Object.keys(studentBatchMap).filter(sid => !studentsWithFees.has(sid));
+
+        if (studentIdsWithoutFees.length > 0) {
+            const students = await User.find({
+                _id: { $in: studentIdsWithoutFees },
+                role: 'student',
+                deletedAt: null
+            }).select('profile.firstName profile.lastName enrollmentNumber');
+
+            for (const student of students) {
+                const sid = student._id.toString();
+                const info = studentBatchMap[sid];
+                results.push({
+                    _id: null,
+                    student: {
+                        _id: student._id,
+                        profile: student.profile,
+                        enrollmentNumber: student.enrollmentNumber
+                    },
+                    batch: {
+                        _id: info.batchId,
+                        name: info.batchName
+                    },
+                    totalAmount: 0,
+                    paidAmount: 0,
+                    balanceAmount: 0,
+                    percentagePaid: 0,
+                    hasFeeRecord: false,
+                    installments: [],
+                    status: 'not_started'
+                });
+            }
+        }
+
+        // 8. Apply percentage filter
+        return applyPercentageFilter(results, filters.percentage);
     }
 
     static async recordPayment(feeId, installmentId, paymentDetails, actorId) {

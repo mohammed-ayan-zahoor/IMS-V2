@@ -16,7 +16,10 @@ export async function GET(req) {
         const filters = {
             batch: searchParams.get('batch'),
             status: searchParams.get('status'),
-            student: searchParams.get('student')
+            student: searchParams.get('student'),
+            course: searchParams.get('course'),
+            percentage: searchParams.get('percentage'),
+            includeAll: searchParams.get('includeAll') === 'true'
         };
 
         // Enforce Institute Scope
@@ -55,7 +58,10 @@ export async function GET(req) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const fees = await FeeService.getFees(filters);
+        const useExtendedQuery = filters.includeAll || filters.percentage || filters.course;
+        const fees = useExtendedQuery
+            ? await FeeService.getFeesWithStudents(filters)
+            : await FeeService.getFees(filters);
         return NextResponse.json(fees);
     } catch (error) {
         console.error("Fee API Error:", error);
