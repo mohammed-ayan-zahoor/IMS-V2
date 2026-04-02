@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Attendance from "@/models/Attendance";
+import Batch from "@/models/Batch";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
 
 export async function GET(req) {
@@ -68,6 +69,11 @@ export async function POST(req) {
             return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
         }
 
+        const batchDoc = await Batch.findById(batchId).select('institute');
+        if (!batchDoc || !batchDoc.institute) {
+            return NextResponse.json({ error: "Batch not found or has no institute" }, { status: 404 });
+        }
+
         const targetDate = parseISO(date);
 
         // Transform frontend records to schema format
@@ -88,6 +94,7 @@ export async function POST(req) {
             },
             {
                 $set: {
+                    institute: batchDoc.institute,
                     batch: batchId,
                     date: targetDate,
                     records: recordSchema,
@@ -98,7 +105,7 @@ export async function POST(req) {
                     createdAt: new Date()
                 }
             },
-            { upsert: true, new: true }
+            { upsert: true, new: true, runValidators: true }
         );
 
         return NextResponse.json({ success: true, count: records.length });

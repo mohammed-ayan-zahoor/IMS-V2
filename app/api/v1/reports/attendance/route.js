@@ -52,7 +52,7 @@ export async function GET(req) {
             const courseBatchIds = await Batch.find({
                 course: courseId,
                 institute: instituteId,
-                status: 'active'
+                deletedAt: null
             }).distinct('_id');
 
             if (courseBatchIds.length === 0) {
