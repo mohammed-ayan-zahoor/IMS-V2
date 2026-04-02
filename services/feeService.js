@@ -102,6 +102,11 @@ export class FeeService {
         if (filters.student) query.student = filters.student;
         if (filters.institute) query.institute = filters.institute;
 
+        // Exclude cancelled fees unless explicitly requested
+        if (!filters.includeCancelled && !filters.status) {
+            query.status = { $ne: 'cancelled' };
+        }
+
         return await FeeDb.find(query)
             .populate('student', 'profile.firstName profile.lastName enrollmentNumber')
             .populate('batch', 'name')
@@ -115,6 +120,11 @@ export class FeeService {
         const feeQuery = { deletedAt: null };
         if (filters.batch) feeQuery.batch = filters.batch;
         if (filters.institute) feeQuery.institute = filters.institute;
+
+        // Exclude cancelled fees unless explicitly requested
+        if (!filters.includeCancelled) {
+            feeQuery.status = { $ne: 'cancelled' };
+        }
 
         const fees = await FeeDb.find(feeQuery)
             .populate('student', 'profile.firstName profile.lastName enrollmentNumber')
@@ -379,25 +389,77 @@ export class FeeService {
             const pendingInstallments = fee.installments.filter(i => i.status !== 'paid');
 
             if (pendingInstallments.length > 0) {
-                // Adjustment: Apply the discount difference to the last pending installment
-                // This is the simplest way to maintain balance.
-                const lastPending = pendingInstallments[pendingInstallments.length - 1];
-                const newAmount = lastPending.amount - discountDiff;
-
-                if (newAmount < 0) {
-                    throw new Error("Discount is too high to be applied to remaining pending installments.");
+                // Cascade discount difference across all pending installments (last-first)
+                let remaining = discountDiff;
+                for (let i = pendingInstallments.length - 1; i >= 0 && remaining > 0; i--) {
+                    const inst = pendingInstallments[i];
+                    const deduction = Math.min(inst.amount, remaining);
+                    inst.amount = inst.amount - deduction;
+                    remaining -= deduction;
                 }
 
-                lastPending.amount = newAmount;
+                if (remaining > 0.01) {
+                    throw new Error("Discount exceeds remaining pending installments total.");
+                }
+
+                // Remove any installments that were reduced to zero
+                for (const inst of pendingInstallments) {
+                    if (inst.amount < 0.01) {
+                        fee.installments.pull(inst._id);
+                    }
+                }
             } else if (discountDiff !== 0) {
-                // No pending installments but discount changed? 
-                // This means the fee was already fully paid.
-                // We should probably block this or handle it as a refund, but for now let's block.
                 throw new Error("Cannot change discount on a fully paid fee record.");
             }
         }
 
         await fee.save();
+
+        return fee;
+    }
+
+    static async cancelFee(feeId, actorId) {
+        await connectDB();
+        const fee = await FeeDb.findById(feeId).populate('student');
+        if (!fee) throw new Error("Fee record not found");
+
+        if (fee.status === 'cancelled') {
+            throw new Error("Fee record is already cancelled");
+        }
+
+        const previousTotal = fee.totalAmount;
+        const paid = fee.paidAmount || 0;
+
+        // Pro-rate totalAmount to match what was actually paid
+        fee.totalAmount = paid;
+        fee.balanceAmount = 0;
+
+        // Waive all non-paid installments
+        if (fee.installments && fee.installments.length > 0) {
+            for (const inst of fee.installments) {
+                if (inst.status !== 'paid') {
+                    inst.status = 'waived';
+                    inst.amount = 0;
+                }
+            }
+        }
+
+        fee.status = 'cancelled';
+
+        await fee.save();
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'fee.cancel',
+            resource: { type: 'Fee', id: fee._id },
+            institute: fee.institute,
+            details: {
+                student: fee.student?._id,
+                previousTotal,
+                paidAmount: paid,
+                reason: 'Student discontinued / dropout'
+            }
+        });
 
         return fee;
     }

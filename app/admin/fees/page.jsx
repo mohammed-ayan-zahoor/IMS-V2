@@ -10,7 +10,8 @@ import {
     AlertCircle,
     Clock,
     DollarSign,
-    Trash2
+    Trash2,
+    XCircle
 } from "lucide-react";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
@@ -39,6 +40,7 @@ export default function FeesPage() {
 
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
     const [showOverdueOnly, setShowOverdueOnly] = useState(false);
+    const [showCancelledOnly, setShowCancelledOnly] = useState(false);
 
     // Payment Form state
     const [paymentData, setPaymentData] = useState({
@@ -83,7 +85,7 @@ export default function FeesPage() {
     useEffect(() => {
         fetchFees();
         setCurrentPage(1);
-    }, [selectedCourse, selectedBatch, percentageFilter]);
+    }, [selectedCourse, selectedBatch, percentageFilter, showCancelledOnly]);
 
     const fetchCourses = async () => {
         try {
@@ -116,7 +118,8 @@ export default function FeesPage() {
             if (selectedCourse) url.searchParams.append('course', selectedCourse);
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
             if (percentageFilter) url.searchParams.append('percentage', percentageFilter);
-            if (selectedCourse || selectedBatch || percentageFilter) {
+            if (showCancelledOnly) url.searchParams.append('includeCancelled', 'true');
+            if (selectedCourse || selectedBatch || percentageFilter || showCancelledOnly) {
                 url.searchParams.append('includeAll', 'true');
             }
             const res = await fetch(url);
@@ -433,15 +436,26 @@ export default function FeesPage() {
                     </div>
                 </CardHeader>
                 <div className="px-6 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600 cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            className="w-4 h-4 rounded border-slate-300 text-premium-blue focus:ring-premium-blue/20"
-                            checked={showOverdueOnly}
-                            onChange={(e) => setShowOverdueOnly(e.target.checked)}
-                        />
-                        Show Overdue Only
-                    </label>
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-600 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-slate-300 text-premium-blue focus:ring-premium-blue/20"
+                                checked={showOverdueOnly}
+                                onChange={(e) => setShowOverdueOnly(e.target.checked)}
+                            />
+                            Show Overdue Only
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-600 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-slate-300 text-slate-500 focus:ring-slate-300/20"
+                                checked={showCancelledOnly}
+                                onChange={(e) => setShowCancelledOnly(e.target.checked)}
+                            />
+                            Show Cancelled
+                        </label>
+                    </div>
                     <Badge variant="secondary" className="bg-slate-100 text-slate-500 font-mono text-xs">
                         {filteredFees.length} records
                     </Badge>
@@ -504,6 +518,10 @@ export default function FeesPage() {
                                                             <Badge className="bg-slate-100 text-slate-500 border-slate-200">
                                                                 No fee profile
                                                             </Badge>
+                                                        ) : fee.status === 'cancelled' ? (
+                                                            <Badge className="bg-slate-100 text-slate-500 border-slate-200">
+                                                                Cancelled
+                                                            </Badge>
                                                         ) : (
                                                             <>
                                                                 <div className={`text-sm font-bold ${fee.balanceAmount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
@@ -524,11 +542,41 @@ export default function FeesPage() {
                                                                 variant="outline"
                                                                 onClick={() => openPaymentModal(fee)}
                                                                 className="border-slate-200 hover:border-premium-blue hover:text-premium-blue"
-                                                                disabled={!fee.hasFeeRecord}
+                                                                disabled={!fee.hasFeeRecord || fee.status === 'cancelled'}
                                                             >
                                                                 <DollarSign size={14} className="mr-1" /> Pay
                                                             </Button>
-                                                            {fee.hasFeeRecord && (
+                                                            {fee.hasFeeRecord && fee.status !== 'cancelled' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                                                                    onClick={async () => {
+                                                                        if (!await confirm({
+                                                                            title: "Cancel Fee?",
+                                                                            message: "This will set the total to match the amount paid, waive all pending installments, and mark the fee as cancelled. This action cannot be undone.",
+                                                                            type: "danger"
+                                                                        })) return;
+
+                                                                        try {
+                                                                            const res = await fetch(`/api/v1/fees/${fee._id}/cancel`, { method: 'POST' });
+                                                                            if (res.ok) {
+                                                                                toast.success("Fee cancelled successfully");
+                                                                                fetchFees();
+                                                                            } else {
+                                                                                const err = await res.json().catch(() => ({}));
+                                                                                toast.error(err.error || "Failed to cancel fee");
+                                                                            }
+                                                                        } catch (e) {
+                                                                            console.error(e);
+                                                                            toast.error("Error cancelling fee");
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <XCircle size={14} />
+                                                                </Button>
+                                                            )}
+                                                            {fee.hasFeeRecord && fee.status !== 'cancelled' && (
                                                                 <Button
                                                                     size="sm"
                                                                     variant="ghost"

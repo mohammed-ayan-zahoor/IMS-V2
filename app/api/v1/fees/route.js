@@ -19,7 +19,8 @@ export async function GET(req) {
             student: searchParams.get('student'),
             course: searchParams.get('course'),
             percentage: searchParams.get('percentage'),
-            includeAll: searchParams.get('includeAll') === 'true'
+            includeAll: searchParams.get('includeAll') === 'true',
+            includeCancelled: searchParams.get('includeCancelled') === 'true'
         };
 
         // Enforce Institute Scope
