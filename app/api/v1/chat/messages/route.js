@@ -5,6 +5,8 @@ import Conversation from "@/models/Conversation";
 import { getInstituteScope } from "@/middleware/instituteScope";
 import { pusherServer } from "@/lib/pusher";
 import PushNotifications from "@pusher/push-notifications-server";
+import User from "@/models/User";
+import { getRecipientRoles, buildPayload, ADMIN_ROLES } from "@/services/notificationService";
 
 const beamsClient = new PushNotifications({
     instanceId: process.env.PUSHER_BEAMS_INSTANCE_ID,
@@ -132,21 +134,49 @@ export async function POST(req) {
             .filter(id => id !== currentUserId.toString());
 
         if (recipientIds.length > 0 && process.env.PUSHER_BEAMS_INSTANCE_ID) {
-            const senderName = newMessage.sender?.profile?.firstName || 'Someone';
-            const isBatch = conversation.type === 'batch';
-            const chatTitle = isBatch ? (conversation.batch?.name || 'Group Chat') : senderName;
-
             try {
-                await beamsClient.publishToUsers(recipientIds, {
-                    web: {
-                        notification: {
-                            title: chatTitle,
-                            body: `${isBatch ? senderName + ': ' : ''}${text.substring(0, 100)}`,
-                            deep_link: `${process.env.NEXTAUTH_URL}/admin/chat`,
-                            icon: `${process.env.NEXTAUTH_URL}/icon.png`,
-                        }
+                // Get roles for all recipients
+                const roleMap = await getRecipientRoles(recipientIds);
+                
+                // Partition IDs by role
+                const adminIds = [];
+                const studentIds = [];
+                
+                for (const recipientId of recipientIds) {
+                    const role = roleMap[recipientId];
+                    if (ADMIN_ROLES.includes(role)) {
+                        adminIds.push(recipientId);
+                    } else {
+                        studentIds.push(recipientId);
                     }
-                });
+                }
+                
+                // Extract data needed for payloads
+                const senderName = newMessage.sender?.profile?.firstName || 'Someone';
+                const isBatch = conversation.type === 'batch';
+                const chatTitle = isBatch ? (conversation.batch?.name || 'Group Chat') : senderName;
+                
+                // Send notifications to admins
+                if (adminIds.length > 0) {
+                    await beamsClient.publishToUsers(adminIds, buildPayload({
+                        chatTitle,
+                        text,
+                        isBatch,
+                        senderName,
+                        role: 'admin' // any admin role works
+                    }));
+                }
+                
+                // Send notifications to students
+                if (studentIds.length > 0) {
+                    await beamsClient.publishToUsers(studentIds, buildPayload({
+                        chatTitle,
+                        text,
+                        isBatch,
+                        senderName,
+                        role: 'student' // non-admin role
+                    }));
+                }
             } catch (beamsErr) {
                 // Don't fail the whole request if Beams push fails
                 console.warn('Beams push failed:', beamsErr.message);
