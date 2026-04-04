@@ -134,45 +134,44 @@ export default function ExamResultsPage({ params }) {
                 <head>
                     <title>${escapeHtml(student.fullName || 'Student')} - Report Card</title>
                     <style>
-                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; padding: 20px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        .report-container { max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; padding: 30px; border-radius: 8px; }
-                        .header { display: flex; align-items: center; justify-content: center; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 20px; }
-                        .logo { max-height: 60px; max-width: 150px; margin-right: 20px; }
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; padding: 40px; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #fff; }
+                        .report-container { max-width: 800px; margin: 0 auto; border: 2px solid #0f172a; padding: 40px; }
+                        
+                        .header { display: flex; align-items: center; justify-content: center; border-bottom: 3px solid #0f172a; padding-bottom: 30px; margin-bottom: 30px; }
+                        .logo { max-height: 80px; max-width: 180px; margin-right: 30px; }
                         .institute-info { text-align: left; }
-                        .institute-name { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; }
-                        .report-title { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #3b82f6; text-transform: uppercase; letter-spacing: 1px; }
+                        .institute-name { font-size: 28px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
                         
-                        .student-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; background: #f8fafc; padding: 15px; border-radius: 6px; }
-                        .info-item { margin: 0; }
-                        .info-label { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: bold; }
-                        .info-value { font-size: 14px; font-weight: 600; color: #0f172a; }
+                        .report-title { text-align: center; font-size: 22px; font-weight: 800; margin-bottom: 40px; color: #1e293b; text-transform: uppercase; letter-spacing: 2px; text-decoration: underline; }
                         
-                        .score-box { text-align: center; margin-bottom: 30px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
-                        .score-main { font-size: 48px; font-weight: 900; color: #0f172a; line-height: 1; margin-bottom: 10px; }
-                        .score-total { font-size: 20px; color: #64748b; font-weight: normal; }
-                        .score-percentage { font-size: 24px; font-weight: bold; }
+                        .student-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; }
+                        .info-row { display: flex; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; }
+                        .info-label { font-size: 13px; text-transform: uppercase; color: #475569; font-weight: bold; width: 140px; }
+                        .info-value { font-size: 15px; font-weight: 700; color: #0f172a; }
+                        
+                        .marks-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+                        .marks-table th, .marks-table td { border: 2px solid #0f172a; padding: 15px; text-align: center; }
+                        .marks-table th { background-color: #f8fafc; font-weight: 800; color: #0f172a; text-transform: uppercase; font-size: 14px; }
+                        .marks-table td { font-size: 18px; font-weight: 700; color: #1e293b; }
+                        
+                        .marks-table .subject-col { text-align: left; font-size: 16px; text-transform: uppercase; }
+                        
+                        .result-summary { display: flex; justify-content: space-around; border: 2px solid #0f172a; padding: 20px; background-color: #f8fafc; margin-bottom: 60px; }
+                        .summary-item { text-align: center; }
+                        .summary-label { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #64748b; margin-bottom: 5px; }
+                        .summary-value { font-size: 24px; font-weight: 900; color: #0f172a; }
+                        
                         .text-green { color: #16a34a; }
                         .text-red { color: #dc2626; }
                         
-                        .section-title { font-size: 16px; font-weight: bold; padding-bottom: 5px; border-bottom: 1px solid #e2e8f0; margin-bottom: 15px; color: #0f172a; page-break-after: avoid; }
+                        .signatures { display: flex; justify-content: space-between; margin-top: 80px; padding: 0 40px; }
+                        .sig-line { width: 200px; border-top: 1px solid #0f172a; text-align: center; padding-top: 10px; font-weight: bold; font-size: 14px; color: #0f172a; }
                         
-                        .question { margin-bottom: 20px; page-break-inside: avoid; border: 1px solid #f1f5f9; padding: 15px; border-radius: 6px; }
-                        .q-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
-                        .q-num { font-weight: bold; color: #3b82f6; }
-                        .q-marks { background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: #475569; }
-                        .q-text { font-weight: 600; margin-bottom: 10px; color: #1e293b; }
-                        
-                        .answer-box { font-size: 13px; line-height: 1.4; }
-                        .ans-correct { color: #16a34a; background: #f0fdf4; padding: 8px; border-radius: 4px; margin-bottom: 5px; border: 1px solid #bbf7d0; }
-                        .ans-incorrect { color: #dc2626; background: #fef2f2; padding: 8px; border-radius: 4px; border: 1px solid #fecaca; }
-                        .ans-missed { color: #64748b; background: #f8fafc; padding: 8px; border-radius: 4px; border: 1px solid #e2e8f0; }
-                        
-                        .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+                        .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8; }
                         
                         @media print {
                             @page { margin: 1cm; size: A4 portrait; }
-                            body { -webkit-print-color-adjust: exact; padding: 0; }
-                            .report-container { border: none; padding: 0; }
+                            body { padding: 0; }
                         }
                     </style>
                 </head>
@@ -182,87 +181,77 @@ export default function ExamResultsPage({ params }) {
                             ${instituteData?.branding?.logo ? `<img src="${instituteData.branding.logo}" alt="Logo" class="logo" />` : ''}
                             <div class="institute-info">
                                 <h1 class="institute-name">${escapeHtml(instituteData?.name || 'Institute Name')}</h1>
-                                <div style="font-size: 12px; color: #64748b; margin-top: 5px;">
+                                <div style="font-size: 14px; color: #475569; margin-top: 5px;">
                                     ${escapeHtml(instituteData?.address?.street || '')} ${escapeHtml(instituteData?.address?.city || '')} 
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="report-title">EXAM REPORT CARD</div>
+                        <div class="report-title">STATEMENT OF MARKS</div>
                         
                         <div class="student-grid">
                             <div>
-                                <p class="info-label">Student Name</p>
-                                <p class="info-value">${escapeHtml(student.fullName || '-')}</p>
-                            </div>
-                            <div>
-                                <p class="info-label">Exam Title</p>
-                                <p class="info-value">${escapeHtml(currentExam.title || '-')}</p>
-                            </div>
-                            <div>
-                                <p class="info-label">Enrollment ID / Email</p>
-                                <p class="info-value">${escapeHtml(student.enrollmentNumber || student.email || '-')}</p>
-                            </div>
-                            <div>
-                                <p class="info-label">Date Submitted</p>
-                                <p class="info-value">${submission.submittedAt ? format(new Date(submission.submittedAt), "PPpp") : '-'}</p>
-                            </div>
-                        </div>
-                        
-                        <div class="score-box">
-                            <div class="score-main">
-                                ${submission.score ?? 0} <span class="score-total">/ ${currentExam.totalMarks ?? 0}</span>
-                            </div>
-                            <div class="score-percentage ${isPass ? 'text-green' : 'text-red'}">
-                                ${(submission.percentage ?? 0).toFixed(1)}% ${isPass ? '(PASS)' : '(FAIL)'}
-                            </div>
-                        </div>
-                        
-                        <div class="section-title">Detailed Analysis</div>
-                        
-                        ${answers.map((ans, idx) => {
-                            const isCorrect = ans.isCorrect;
-                            const isSkipped = ans.yourAnswer === "" || ans.yourAnswer === undefined || ans.yourAnswer === null;
-                            let statusClass = isCorrect ? 'ans-correct' : isSkipped ? 'ans-missed' : 'ans-incorrect';
-                            
-                            let answerDetails = '';
-                            if (ans.type === 'mcq') {
-                                const selectedOpt = !isSkipped ? escapeHtml(ans.options[parseInt(ans.yourAnswer, 10)]) : 'None';
-                                const correctOpt = escapeHtml(ans.options[parseInt(ans.correctAnswer, 10)]);
-                                
-                                answerDetails = `
-                                    <div class="${statusClass}">
-                                        <strong>Your Answer:</strong> ${selectedOpt}
-                                    </div>
-                                    ${!isCorrect ? `<div class="ans-correct" style="margin-top:5px;"><strong>Correct Answer:</strong> ${correctOpt}</div>` : ''}
-                                `;
-                            } else {
-                                answerDetails = `
-                                    <div class="${statusClass}">
-                                        <strong>Your Answer:</strong><br/>
-                                        ${escapeHtml(ans.yourAnswer || 'No answer provided')}
-                                    </div>
-                                    ${ans.correctAnswer ? `<div class="ans-correct" style="margin-top:5px;"><strong>Correct Answer / Note:</strong><br/>${escapeHtml(ans.correctAnswer)}</div>` : ''}
-                                `;
-                            }
-                            
-                            return `
-                                <div class="question">
-                                    <div class="q-header">
-                                        <span class="q-num">Q${idx + 1}.</span>
-                                        <span class="q-marks">${ans.marksAwarded || 0} / ${ans.maxMarks || 0} Marks</span>
-                                    </div>
-                                    <div class="q-text">${escapeHtml(ans.questionText)}</div>
-                                    <div class="answer-box">
-                                        ${answerDetails}
-                                    </div>
+                                <div class="info-row">
+                                    <div class="info-label">Candidate Name</div>
+                                    <div class="info-value">${escapeHtml(student.fullName || '-')}</div>
                                 </div>
-                            `;
-                        }).join('')}
+                                <div class="info-row" style="margin-top: 15px;">
+                                    <div class="info-label">Registration No.</div>
+                                    <div class="info-value">${escapeHtml(student.enrollmentNumber || '-')}</div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="info-row">
+                                    <div class="info-label">Examination</div>
+                                    <div class="info-value">${escapeHtml(currentExam.title || '-')}</div>
+                                </div>
+                                <div class="info-row" style="margin-top: 15px;">
+                                    <div class="info-label">Date</div>
+                                    <div class="info-value">${submission.submittedAt ? format(new Date(submission.submittedAt), "dd MMM yyyy") : '-'}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <table class="marks-table">
+                            <thead>
+                                <tr>
+                                    <th class="subject-col">Subject / Assessment</th>
+                                    <th>Maximum Marks</th>
+                                    <th>Marks Obtained</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="subject-col">${escapeHtml(currentExam.title || 'General Assessment')}</td>
+                                    <td>${currentExam.totalMarks ?? 0}</td>
+                                    <td>${submission.score ?? 0}</td>
+                                </tr>
+                                <tr style="border-top: 2px solid #0f172a; background-color: #f8fafc;">
+                                    <td class="subject-col" style="text-align: right; font-weight: 900;">GRAND TOTAL</td>
+                                    <td style="font-weight: 900;">${currentExam.totalMarks ?? 0}</td>
+                                    <td style="font-weight: 900;">${submission.score ?? 0}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="result-summary">
+                            <div class="summary-item">
+                                <div class="summary-label">Percentage</div>
+                                <div class="summary-value">${(submission.percentage ?? 0).toFixed(2)}%</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Final Result</div>
+                                <div class="summary-value ${isPass ? 'text-green' : 'text-red'}">${isPass ? 'PASS' : 'FAIL'}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="signatures">
+                            <div class="sig-line">Candidate's Signature</div>
+                            <div class="sig-line">Authorized Signatory</div>
+                        </div>
                         
                         <div class="footer">
-                            <p>Generated on ${escapeHtml(format(new Date(), "PPpp"))}</p>
-                            <p>This is a computer generated report card and does not require a signature.</p>
+                            <p>This is a computer generated document. Date of Issue: ${escapeHtml(format(new Date(), "PP"))}</p>
                         </div>
                     </div>
                     <script>
