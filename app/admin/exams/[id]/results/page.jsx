@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Search, Download, Trophy, Users, Clock, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Search, Download, Trophy, Users, Clock, AlertCircle, CheckCircle2, XCircle, Printer } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card, { CardContent } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -92,26 +92,33 @@ export default function ExamResultsPage({ params }) {
         ? Math.max(...submissions.map(s => s.score || 0))
         : 0;
 
-    if (loading) return <LoadingSpinner fullPage />;
-    if (!exam) return <div className="p-10 text-center">Exam not found</div>;
-
-    return (
-        <div className="max-w-7xl mx-auto space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="sm" onClick={() => router.push("/admin/exams")} className="text-slate-400 hover:text-slate-600">
-                        <ArrowLeft size={18} />
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">{exam.title} Results</h1>
-                        <p className="text-slate-500">Student performance overview.</p>
-                    </div>
-                </div>
-                <div className="flex gap-3">
-                    {/* Export/Download placeholders could go here */}
-                </div>
-            </div>
+     if (loading) return <LoadingSpinner fullPage />;
+     if (!exam) return <div className="p-10 text-center">Exam not found</div>;
+ 
+     if (loading) return <LoadingSpinner fullPage />;
+     if (!exam) return <div className="p-10 text-center">Exam not found</div>;
+ 
+     if (loading) return <LoadingSpinner fullPage />;
+     if (!exam) return <div className="p-10 text-center">Exam not found</div>;
+ 
+      return (
+          <>
+          <div className="max-w-7xl mx-auto space-y-6">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                      <Button variant="ghost" size="sm" onClick={() => router.push("/admin/exams")} className="text-slate-400 hover:text-slate-600">
+                          <ArrowLeft size={18} />
+                      </Button>
+                      <div>
+                          <h1 className="text-2xl font-black text-slate-900 tracking-tight">{exam.title} Results</h1>
+                          <p className="text-slate-500">Student performance overview.</p>
+                      </div>
+                  </div>
+                  <div className="flex gap-3">
+                      {/* Export/Download placeholders could go here */}
+                  </div>
+              </div>
 
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -225,17 +232,27 @@ export default function ExamResultsPage({ params }) {
                 </div>
             </Card>
 
-            {/* Drawer for Detailed Results */}
-            <Drawer
-                isOpen={isDrawerOpen}
-                onClose={handleCloseDrawer}
-                title={detailedResult ? `${detailedResult.student?.fullName || "Student"}'s Results` : "Student Results"}
-            >
-                {drawerLoading && (
-                    <div className="flex items-center justify-center py-20">
-                        <LoadingSpinner />
-                    </div>
-                )}
+             {/* Drawer for Detailed Results */}
+             <Drawer
+                 isOpen={isDrawerOpen}
+                 onClose={handleCloseDrawer}
+                 title={detailedResult ? `${detailedResult.student?.fullName || "Student"}'s Results` : "Student Results"}
+                 >
+                 <div className="flex justify-end space-x-2 mb-4">
+                     <Button
+                         variant="outline"
+                         size="icon"
+                         onClick={() => window.print()}
+                         title="Print Report Card"
+                     >
+                         <Printer size={20} />
+                     </Button>
+                 </div>
+                 {drawerLoading && (
+                     <div className="flex items-center justify-center py-20">
+                         <LoadingSpinner />
+                     </div>
+                 )}
 
                 {drawerError && (
                     <div className="text-center py-10">
@@ -372,6 +389,195 @@ export default function ExamResultsPage({ params }) {
                     </div>
                 )}
             </Drawer>
-        </div>
-    );
-}
+            </div>
+            <style dangerouslySetInnerHTML={{ __html: `
+                @media print {
+                    /* Hide UI elements when printing */
+                    .no-print, button, .Drawer-trigger, .Drawer-overlay, .Drawer-content > .flex.justify-end {
+                        display: none !important;
+                    }
+                    
+                    /* Ensure content takes full width */
+                    .Drawer-content {
+                        margin: 0 !important;
+                        width: 100% !important;
+                        height: auto !important;
+                        max-height: none !important;
+                    }
+                    
+                    /* Page styling for report card */
+                    @page {
+                        margin: 0.5in;
+                        size: A4;
+                    }
+                    
+                    body {
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    
+                    /* Report card styling */
+                    .report-card {
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        color: #000;
+                        background: white;
+                        padding: 20px;
+                        margin: 0 auto;
+                        max-width: 800px;
+                        box-shadow: none;
+                        border: 1px solid #ddd;
+                    }
+                    
+                    .header {
+                        text-align: center;
+                        border-bottom: 2px solid #3B82F6;
+                        padding-bottom: 15px;
+                        margin-bottom: 20px;
+                    }
+                    
+                    .institute-info {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 15px;
+                        margin-bottom: 10px;
+                    }
+                    
+                    .institute-logo {
+                        height: 60px;
+                        width: auto;
+                    }
+                    
+                    .institute-name {
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #1F2937;
+                    }
+                    
+                    .student-info, .score-summary, .detailed-analysis {
+                        margin-bottom: 20px;
+                    }
+                    
+                    .section-title {
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: #3B82F6;
+                        border-bottom: 1px solid #E5E7EB;
+                        padding-bottom: 5px;
+                        margin-bottom: 15px;
+                    }
+                    
+                    .score-display {
+                        text-align: center;
+                        margin: 20px 0;
+                    }
+                    
+                    .score {
+                        font-size: 48px;
+                        font-weight: bold;
+                        color: #1F2937;
+                    }
+                    
+                    .percentage {
+                        font-size: 24px;
+                        font-weight: bold;
+                        margin-top: 10px;
+                    }
+                    
+                    .percentage.pass {
+                        color: #059669;
+                    }
+                    
+                    .percentage.fail {
+                        color: #DC2626;
+                    }
+                    
+                    .question-card {
+                        border: 1px solid #E5E7EB;
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin-bottom: 15px;
+                        page-break-inside: avoid;
+                    }
+                    
+                    .question-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 10px;
+                    }
+                    
+                    .question-number {
+                        font-weight: bold;
+                        color: #3B82F6;
+                    }
+                    
+                    .question-marks {
+                        background: #F3F4F6;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 14px;
+                    }
+                    
+                    .question-text {
+                        font-weight: 600;
+                        margin-bottom: 10px;
+                        color: #111827;
+                    }
+                    
+                    .answer-section {
+                        margin: 10px 0;
+                    }
+                    
+                    .answer-label {
+                        font-weight: 600;
+                        color: #374151;
+                    }
+                    
+                    .mcq-options {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                        gap: 8px;
+                        margin-top: 5px;
+                    }
+                    
+                    .mcq-option {
+                        padding: 8px 12px;
+                        border: 1px solid #D1D5DB;
+                        border-radius: 4px;
+                        background: #F9FAFB;
+                    }
+                    
+                    .mcq-option.correct {
+                        background: #D1FAE5;
+                        border-color: #10B981;
+                        color: #065F46;
+                    }
+                    
+                    .mcq-option.incorrect.selected {
+                        background: #FEE2E2;
+                        border-color: #EF4444;
+                        color: #991B1B;
+                    }
+                    
+                    .descriptive-answer {
+                        background: #F3F4F6;
+                        padding: 12px;
+                        border-radius: 4px;
+                        border-left: 3px solid #3B82F6;
+                        min-height: 60px;
+                    }
+                    
+                    .footer {
+                        margin-top: 30px;
+                        padding-top: 15px;
+                        border-top: 1px solid #E5E7EB;
+                        text-align: center;
+                        font-size: 14px;
+                        color: #6B7280;
+                    }
+                }
+             `}} />
+          </>
+       );
+ }
