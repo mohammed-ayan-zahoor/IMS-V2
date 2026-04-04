@@ -10,10 +10,12 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import Drawer from "@/components/ui/Drawer";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function ExamResultsPage({ params }) {
     const { id } = use(params);
     const router = useRouter();
+    const toast = useToast();
 
     const [loading, setLoading] = useState(true);
     const [exam, setExam] = useState(null);
@@ -92,12 +94,191 @@ export default function ExamResultsPage({ params }) {
         ? Math.max(...submissions.map(s => s.score || 0))
         : 0;
 
-     if (loading) return <LoadingSpinner fullPage />;
-     if (!exam) return <div className="p-10 text-center">Exam not found</div>;
- 
-     if (loading) return <LoadingSpinner fullPage />;
-     if (!exam) return <div className="p-10 text-center">Exam not found</div>;
- 
+    const handlePrintReportCard = async () => {
+        try {
+            // Fetch institute details for branding
+            const instRes = await fetch("/api/v1/institute");
+            let instituteData = null;
+            if (instRes.ok) {
+                const data = await instRes.json();
+                instituteData = data.institute;
+            }
+
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                toast.error("Please allow popups to print report card");
+                return;
+            }
+
+            // Data prep
+            const student = detailedResult?.student || {};
+            const submission = detailedResult?.submission || {};
+            const currentExam = detailedResult?.exam || exam || {};
+            const answers = submission.answers || [];
+            
+            const isPass = (submission.percentage ?? 0) >= 40;
+
+            const escapeHtml = (unsafe) => {
+                if (unsafe === null || unsafe === undefined) return "";
+                return String(unsafe)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            };
+
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>\${escapeHtml(student.fullName || 'Student')} - Report Card</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; padding: 20px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        .report-container { max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; padding: 30px; border-radius: 8px; }
+                        .header { display: flex; align-items: center; justify-content: center; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 20px; }
+                        .logo { max-height: 60px; max-width: 150px; margin-right: 20px; }
+                        .institute-info { text-align: left; }
+                        .institute-name { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; }
+                        .report-title { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #3b82f6; text-transform: uppercase; letter-spacing: 1px; }
+                        
+                        .student-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; background: #f8fafc; padding: 15px; border-radius: 6px; }
+                        .info-item { margin: 0; }
+                        .info-label { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: bold; }
+                        .info-value { font-size: 14px; font-weight: 600; color: #0f172a; }
+                        
+                        .score-box { text-align: center; margin-bottom: 30px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+                        .score-main { font-size: 48px; font-weight: 900; color: #0f172a; line-height: 1; margin-bottom: 10px; }
+                        .score-total { font-size: 20px; color: #64748b; font-weight: normal; }
+                        .score-percentage { font-size: 24px; font-weight: bold; }
+                        .text-green { color: #16a34a; }
+                        .text-red { color: #dc2626; }
+                        
+                        .section-title { font-size: 16px; font-weight: bold; padding-bottom: 5px; border-bottom: 1px solid #e2e8f0; margin-bottom: 15px; color: #0f172a; page-break-after: avoid; }
+                        
+                        .question { margin-bottom: 20px; page-break-inside: avoid; border: 1px solid #f1f5f9; padding: 15px; border-radius: 6px; }
+                        .q-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+                        .q-num { font-weight: bold; color: #3b82f6; }
+                        .q-marks { background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: #475569; }
+                        .q-text { font-weight: 600; margin-bottom: 10px; color: #1e293b; }
+                        
+                        .answer-box { font-size: 13px; line-height: 1.4; }
+                        .ans-correct { color: #16a34a; background: #f0fdf4; padding: 8px; border-radius: 4px; margin-bottom: 5px; border: 1px solid #bbf7d0; }
+                        .ans-incorrect { color: #dc2626; background: #fef2f2; padding: 8px; border-radius: 4px; border: 1px solid #fecaca; }
+                        .ans-missed { color: #64748b; background: #f8fafc; padding: 8px; border-radius: 4px; border: 1px solid #e2e8f0; }
+                        
+                        .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+                        
+                        @media print {
+                            @page { margin: 1cm; size: A4 portrait; }
+                            body { -webkit-print-color-adjust: exact; padding: 0; }
+                            .report-container { border: none; padding: 0; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="report-container">
+                        <div class="header">
+                            \${instituteData?.branding?.logo ? \`<img src="\${instituteData.branding.logo}" alt="Logo" class="logo" />\` : ''}
+                            <div class="institute-info">
+                                <h1 class="institute-name">\${escapeHtml(instituteData?.name || 'Institute Name')}</h1>
+                                <div style="font-size: 12px; color: #64748b; margin-top: 5px;">
+                                    \${escapeHtml(instituteData?.address?.street || '')} \${escapeHtml(instituteData?.address?.city || '')} 
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="report-title">EXAM REPORT CARD</div>
+                        
+                        <div class="student-grid">
+                            <div>
+                                <p class="info-label">Student Name</p>
+                                <p class="info-value">\${escapeHtml(student.fullName || '-')}</p>
+                            </div>
+                            <div>
+                                <p class="info-label">Exam Title</p>
+                                <p class="info-value">\${escapeHtml(currentExam.title || '-')}</p>
+                            </div>
+                            <div>
+                                <p class="info-label">Enrollment ID / Email</p>
+                                <p class="info-value">\${escapeHtml(student.enrollmentNumber || student.email || '-')}</p>
+                            </div>
+                            <div>
+                                <p class="info-label">Date Submitted</p>
+                                <p class="info-value">\${submission.submittedAt ? format(new Date(submission.submittedAt), "PPpp") : '-'}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="score-box">
+                            <div class="score-main">
+                                \${submission.score ?? 0} <span class="score-total">/ \${currentExam.totalMarks ?? 0}</span>
+                            </div>
+                            <div class="score-percentage \${isPass ? 'text-green' : 'text-red'}">
+                                \${(submission.percentage ?? 0).toFixed(1)}% \${isPass ? '(PASS)' : '(FAIL)'}
+                            </div>
+                        </div>
+                        
+                        <div class="section-title">Detailed Analysis</div>
+                        
+                        \${answers.map((ans, idx) => {
+                            const isCorrect = ans.isCorrect;
+                            const isSkipped = ans.yourAnswer === "" || ans.yourAnswer === undefined || ans.yourAnswer === null;
+                            let statusClass = isCorrect ? 'ans-correct' : isSkipped ? 'ans-missed' : 'ans-incorrect';
+                            
+                            let answerDetails = '';
+                            if (ans.type === 'mcq') {
+                                const selectedOpt = !isSkipped ? escapeHtml(ans.options[parseInt(ans.yourAnswer, 10)]) : 'None';
+                                const correctOpt = escapeHtml(ans.options[parseInt(ans.correctAnswer, 10)]);
+                                
+                                answerDetails = \`
+                                    <div class="\${statusClass}">
+                                        <strong>Your Answer:</strong> \${selectedOpt}
+                                    </div>
+                                    \${!isCorrect ? \`<div class="ans-correct" style="margin-top:5px;"><strong>Correct Answer:</strong> \${correctOpt}</div>\` : ''}
+                                \`;
+                            } else {
+                                answerDetails = \`
+                                    <div class="\${statusClass}">
+                                        <strong>Your Answer:</strong><br/>
+                                        \${escapeHtml(ans.yourAnswer || 'No answer provided')}
+                                    </div>
+                                    \${ans.correctAnswer ? \`<div class="ans-correct" style="margin-top:5px;"><strong>Correct Answer / Note:</strong><br/>\${escapeHtml(ans.correctAnswer)}</div>\` : ''}
+                                \`;
+                            }
+                            
+                            return \`
+                                <div class="question">
+                                    <div class="q-header">
+                                        <span class="q-num">Q\${idx + 1}.</span>
+                                        <span class="q-marks">\${ans.marksAwarded || 0} / \${ans.maxMarks || 0} Marks</span>
+                                    </div>
+                                    <div class="q-text">\${escapeHtml(ans.questionText)}</div>
+                                    <div class="answer-box">
+                                        \${answerDetails}
+                                    </div>
+                                </div>
+                            \`;
+                        }).join('')}
+                        
+                        <div class="footer">
+                            <p>Generated on \${escapeHtml(format(new Date(), "PPpp"))}</p>
+                            <p>This is a computer generated report card and does not require a signature.</p>
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() { setTimeout(() => { window.print(); }, 500); }
+                    </script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            
+        } catch (error) {
+            console.error("Print failed", error);
+            toast.error("Failed to generate print view");
+        }
+    };
+
      if (loading) return <LoadingSpinner fullPage />;
      if (!exam) return <div className="p-10 text-center">Exam not found</div>;
  
@@ -242,7 +423,7 @@ export default function ExamResultsPage({ params }) {
                      <Button
                          variant="outline"
                          size="icon"
-                         onClick={() => window.print()}
+                         onClick={handlePrintReportCard}
                          title="Print Report Card"
                      >
                          <Printer size={20} />
@@ -388,196 +569,8 @@ export default function ExamResultsPage({ params }) {
                         </div>
                     </div>
                 )}
-            </Drawer>
+             </Drawer>
             </div>
-            <style dangerouslySetInnerHTML={{ __html: `
-                @media print {
-                    /* Hide UI elements when printing */
-                    .no-print, button, .Drawer-trigger, .Drawer-overlay, .Drawer-content > .flex.justify-end {
-                        display: none !important;
-                    }
-                    
-                    /* Ensure content takes full width */
-                    .Drawer-content {
-                        margin: 0 !important;
-                        width: 100% !important;
-                        height: auto !important;
-                        max-height: none !important;
-                    }
-                    
-                    /* Page styling for report card */
-                    @page {
-                        margin: 0.5in;
-                        size: A4;
-                    }
-                    
-                    body {
-                        -webkit-print-color-adjust: exact;
-                        print-color-adjust: exact;
-                    }
-                    
-                    /* Report card styling */
-                    .report-card {
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        color: #000;
-                        background: white;
-                        padding: 20px;
-                        margin: 0 auto;
-                        max-width: 800px;
-                        box-shadow: none;
-                        border: 1px solid #ddd;
-                    }
-                    
-                    .header {
-                        text-align: center;
-                        border-bottom: 2px solid #3B82F6;
-                        padding-bottom: 15px;
-                        margin-bottom: 20px;
-                    }
-                    
-                    .institute-info {
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 15px;
-                        margin-bottom: 10px;
-                    }
-                    
-                    .institute-logo {
-                        height: 60px;
-                        width: auto;
-                    }
-                    
-                    .institute-name {
-                        font-size: 24px;
-                        font-weight: bold;
-                        color: #1F2937;
-                    }
-                    
-                    .student-info, .score-summary, .detailed-analysis {
-                        margin-bottom: 20px;
-                    }
-                    
-                    .section-title {
-                        font-size: 18px;
-                        font-weight: bold;
-                        color: #3B82F6;
-                        border-bottom: 1px solid #E5E7EB;
-                        padding-bottom: 5px;
-                        margin-bottom: 15px;
-                    }
-                    
-                    .score-display {
-                        text-align: center;
-                        margin: 20px 0;
-                    }
-                    
-                    .score {
-                        font-size: 48px;
-                        font-weight: bold;
-                        color: #1F2937;
-                    }
-                    
-                    .percentage {
-                        font-size: 24px;
-                        font-weight: bold;
-                        margin-top: 10px;
-                    }
-                    
-                    .percentage.pass {
-                        color: #059669;
-                    }
-                    
-                    .percentage.fail {
-                        color: #DC2626;
-                    }
-                    
-                    .question-card {
-                        border: 1px solid #E5E7EB;
-                        border-radius: 8px;
-                        padding: 15px;
-                        margin-bottom: 15px;
-                        page-break-inside: avoid;
-                    }
-                    
-                    .question-header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        margin-bottom: 10px;
-                    }
-                    
-                    .question-number {
-                        font-weight: bold;
-                        color: #3B82F6;
-                    }
-                    
-                    .question-marks {
-                        background: #F3F4F6;
-                        padding: 2px 8px;
-                        border-radius: 4px;
-                        font-size: 14px;
-                    }
-                    
-                    .question-text {
-                        font-weight: 600;
-                        margin-bottom: 10px;
-                        color: #111827;
-                    }
-                    
-                    .answer-section {
-                        margin: 10px 0;
-                    }
-                    
-                    .answer-label {
-                        font-weight: 600;
-                        color: #374151;
-                    }
-                    
-                    .mcq-options {
-                        display: grid;
-                        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-                        gap: 8px;
-                        margin-top: 5px;
-                    }
-                    
-                    .mcq-option {
-                        padding: 8px 12px;
-                        border: 1px solid #D1D5DB;
-                        border-radius: 4px;
-                        background: #F9FAFB;
-                    }
-                    
-                    .mcq-option.correct {
-                        background: #D1FAE5;
-                        border-color: #10B981;
-                        color: #065F46;
-                    }
-                    
-                    .mcq-option.incorrect.selected {
-                        background: #FEE2E2;
-                        border-color: #EF4444;
-                        color: #991B1B;
-                    }
-                    
-                    .descriptive-answer {
-                        background: #F3F4F6;
-                        padding: 12px;
-                        border-radius: 4px;
-                        border-left: 3px solid #3B82F6;
-                        min-height: 60px;
-                    }
-                    
-                    .footer {
-                        margin-top: 30px;
-                        padding-top: 15px;
-                        border-top: 1px solid #E5E7EB;
-                        text-align: center;
-                        font-size: 14px;
-                        color: #6B7280;
-                    }
-                }
-             `}} />
           </>
        );
  }
