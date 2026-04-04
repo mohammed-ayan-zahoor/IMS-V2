@@ -96,58 +96,80 @@ export default function EnquiriesPage() {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-100 bg-slate-50/50 text-xs uppercase tracking-wider text-slate-500 font-bold">
-                                        <th className="px-6 py-4">Student</th>
-                                        <th className="px-6 py-4">Contact</th>
-                                        <th className="px-6 py-4">Course Interest</th>
-                                        <th className="px-6 py-4">Status</th>
-                                        <th className="px-6 py-4">Next Action</th>
-                                    </tr>
+                                 <tr className="border-b border-slate-100 bg-slate-50/50 text-xs uppercase tracking-wider text-slate-500 font-bold">
+                                         <th className="px-6 py-4">Student</th>
+                                         <th className="px-6 py-4">Contact</th>
+                                         <th className="px-6 py-4">Course Interest</th>
+                                         <th className="px-6 py-4">Status</th>
+                                         <th className="px-6 py-4">Address</th>
+                                         <th className="px-6 py-4">Class</th>
+                                         <th className="px-6 py-4">Expected Confirmation</th>
+                                         <th className="px-6 py-4">Notes</th>
+                                         <th className="px-6 py-4">Next Action</th>
+                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredEnquiries.map(enq => (
-                                        <tr key={enq._id} className="group hover:bg-slate-50/80 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center font-bold text-sm shrink-0">
-                                                        {enq.studentName?.charAt(0) || '?'}
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-bold text-slate-900 text-sm">{enq.studentName || 'Unknown'}</h3>
-                                                        <p className="text-xs text-slate-500">{enq.fatherName ? `C/O ${enq.fatherName}` : 'Student'}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2 text-sm text-slate-700 font-medium">
-                                                    <Phone size={14} className="text-slate-400" />
-                                                    {enq.contactNumber}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <Badge variant="secondary" className="font-medium text-xs">
-                                                    {enq.course?.code || "Pending"}
-                                                </Badge>
-                                                <p className="text-[10px] text-slate-400 mt-1 font-semibold">{enq.course?.name}</p>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <Badge variant={getStatusVariant(enq.status)}>{enq.status}</Badge>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex flex-col gap-1">
-                                                    {enq.followUpDate && !isNaN(new Date(enq.followUpDate)) && (
-                                                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600">
-                                                            <Calendar size={12} />
-                                                            Follow-up: {format(new Date(enq.followUpDate), "MMM d")}
-                                                        </div>
-                                                    )}
-                                                    <span className="text-[10px] text-slate-400 font-bold">
-                                                        Enquired: {enq.enquiryDate && !isNaN(new Date(enq.enquiryDate)) ? format(new Date(enq.enquiryDate), "PP") : 'N/A'}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                     {filteredEnquiries.map(enq => (
+                                         <tr key={enq._id} className="group hover:bg-slate-50/80 transition-colors">
+                                             <td className="px-6 py-4">
+                                                 <div className="flex items-center gap-3">
+                                                     <div className="w-10 h-10 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center font-bold text-sm shrink-0">
+                                                         {enq.studentName?.charAt(0) || '?'}
+                                                     </div>
+                                                     <div>
+                                                         <h3 className="font-bold text-slate-900 text-sm">{enq.studentName || 'Unknown'}</h3>
+                                                         <p className="text-xs text-slate-500">{enq.fatherName ? `C/O ${enq.fatherName}` : 'Student'}</p>
+                                                     </div>
+                                                 </div>
+                                             </td>
+                                             <td className="px-6 py-4">
+                                                 <div className="flex items-center gap-2 text-sm text-slate-700 font-medium">
+                                                     <Phone size={14} className="text-slate-400" />
+                                                     {enq.contactNumber}
+                                                 </div>
+                                             </td>
+                                             <td className="px-6 py-4">
+                                                 <Badge variant="secondary" className="font-medium text-xs">
+                                                     {enq.course?.code || "Pending"}
+                                                 </Badge>
+                                                 <p className="text-[10px] text-slate-400 mt-1 font-semibold">{enq.course?.name}</p>
+                                             </td>
+                                             <td className="px-6 py-4">
+                                                 <Badge variant={getStatusVariant(enq.status)}>{enq.status}</Badge>
+                                             </td>
+                                             <td className="px-6 py-4">
+                                                 {enq.address || <span className="text-slate-400 italic">N/A</span>}
+                                             </td>
+                                             <td className="px-6 py-4">
+                                                 {enq.standard || <span className="text-slate-400 italic">N/A</span>}
+                                             </td>
+                                             <td className="px-6 py-4">
+                                                 {enq.expectedConfirmationDate && !isNaN(new Date(enq.expectedConfirmationDate)) ? (
+                                                     <span className="text-sm font-medium text-slate-700">{format(new Date(enq.expectedConfirmationDate), "PP")}</span>
+                                                 ) : (
+                                                     <span className="text-slate-400 italic">N/A</span>
+                                                 )}
+                                             </td>
+                                             <td className="px-6 py-4">
+                                                 <div className="text-[12px] text-slate-600 line-clamp-2 max-w-[200px]">
+                                                     {enq.notes || <span className="text-slate-400 italic">N/A</span>}
+                                                 </div>
+                                             </td>
+                                             <td className="px-6 py-4">
+                                                 <div className="flex flex-col gap-1">
+                                                     {enq.followUpDate && !isNaN(new Date(enq.followUpDate)) && (
+                                                         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600">
+                                                             <Calendar size={12} />
+                                                             Follow-up: {format(new Date(enq.followUpDate), "MMM d")}
+                                                         </div>
+                                                     )}
+                                                     <span className="text-[10px] text-slate-400 font-bold">
+                                                         Enquired: {enq.enquiryDate && !isNaN(new Date(enq.enquiryDate)) ? format(new Date(enq.enquiryDate), "PP") : 'N/A'}
+                                                     </span>
+                                                 </div>
+                                             </td>
+                                         </tr>
+                                     ))}
                                 </tbody>
                             </table>
                         </div>
