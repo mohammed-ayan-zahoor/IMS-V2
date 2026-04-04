@@ -132,7 +132,7 @@ export default function ExamResultsPage({ params }) {
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>\${escapeHtml(student.fullName || 'Student')} - Report Card</title>
+                    <title>${escapeHtml(student.fullName || 'Student')} - Report Card</title>
                     <style>
                         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; padding: 20px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                         .report-container { max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; padding: 30px; border-radius: 8px; }
@@ -179,11 +179,11 @@ export default function ExamResultsPage({ params }) {
                 <body>
                     <div class="report-container">
                         <div class="header">
-                            \${instituteData?.branding?.logo ? \`<img src="\${instituteData.branding.logo}" alt="Logo" class="logo" />\` : ''}
+                            ${instituteData?.branding?.logo ? `<img src="${instituteData.branding.logo}" alt="Logo" class="logo" />` : ''}
                             <div class="institute-info">
-                                <h1 class="institute-name">\${escapeHtml(instituteData?.name || 'Institute Name')}</h1>
+                                <h1 class="institute-name">${escapeHtml(instituteData?.name || 'Institute Name')}</h1>
                                 <div style="font-size: 12px; color: #64748b; margin-top: 5px;">
-                                    \${escapeHtml(instituteData?.address?.street || '')} \${escapeHtml(instituteData?.address?.city || '')} 
+                                    ${escapeHtml(instituteData?.address?.street || '')} ${escapeHtml(instituteData?.address?.city || '')} 
                                 </div>
                             </div>
                         </div>
@@ -193,34 +193,34 @@ export default function ExamResultsPage({ params }) {
                         <div class="student-grid">
                             <div>
                                 <p class="info-label">Student Name</p>
-                                <p class="info-value">\${escapeHtml(student.fullName || '-')}</p>
+                                <p class="info-value">${escapeHtml(student.fullName || '-')}</p>
                             </div>
                             <div>
                                 <p class="info-label">Exam Title</p>
-                                <p class="info-value">\${escapeHtml(currentExam.title || '-')}</p>
+                                <p class="info-value">${escapeHtml(currentExam.title || '-')}</p>
                             </div>
                             <div>
                                 <p class="info-label">Enrollment ID / Email</p>
-                                <p class="info-value">\${escapeHtml(student.enrollmentNumber || student.email || '-')}</p>
+                                <p class="info-value">${escapeHtml(student.enrollmentNumber || student.email || '-')}</p>
                             </div>
                             <div>
                                 <p class="info-label">Date Submitted</p>
-                                <p class="info-value">\${submission.submittedAt ? format(new Date(submission.submittedAt), "PPpp") : '-'}</p>
+                                <p class="info-value">${submission.submittedAt ? format(new Date(submission.submittedAt), "PPpp") : '-'}</p>
                             </div>
                         </div>
                         
                         <div class="score-box">
                             <div class="score-main">
-                                \${submission.score ?? 0} <span class="score-total">/ \${currentExam.totalMarks ?? 0}</span>
+                                ${submission.score ?? 0} <span class="score-total">/ ${currentExam.totalMarks ?? 0}</span>
                             </div>
-                            <div class="score-percentage \${isPass ? 'text-green' : 'text-red'}">
-                                \${(submission.percentage ?? 0).toFixed(1)}% \${isPass ? '(PASS)' : '(FAIL)'}
+                            <div class="score-percentage ${isPass ? 'text-green' : 'text-red'}">
+                                ${(submission.percentage ?? 0).toFixed(1)}% ${isPass ? '(PASS)' : '(FAIL)'}
                             </div>
                         </div>
                         
                         <div class="section-title">Detailed Analysis</div>
                         
-                        \${answers.map((ans, idx) => {
+                        ${answers.map((ans, idx) => {
                             const isCorrect = ans.isCorrect;
                             const isSkipped = ans.yourAnswer === "" || ans.yourAnswer === undefined || ans.yourAnswer === null;
                             let statusClass = isCorrect ? 'ans-correct' : isSkipped ? 'ans-missed' : 'ans-incorrect';
@@ -230,38 +230,38 @@ export default function ExamResultsPage({ params }) {
                                 const selectedOpt = !isSkipped ? escapeHtml(ans.options[parseInt(ans.yourAnswer, 10)]) : 'None';
                                 const correctOpt = escapeHtml(ans.options[parseInt(ans.correctAnswer, 10)]);
                                 
-                                answerDetails = \`
-                                    <div class="\${statusClass}">
-                                        <strong>Your Answer:</strong> \${selectedOpt}
+                                answerDetails = `
+                                    <div class="${statusClass}">
+                                        <strong>Your Answer:</strong> ${selectedOpt}
                                     </div>
-                                    \${!isCorrect ? \`<div class="ans-correct" style="margin-top:5px;"><strong>Correct Answer:</strong> \${correctOpt}</div>\` : ''}
-                                \`;
+                                    ${!isCorrect ? `<div class="ans-correct" style="margin-top:5px;"><strong>Correct Answer:</strong> ${correctOpt}</div>` : ''}
+                                `;
                             } else {
-                                answerDetails = \`
-                                    <div class="\${statusClass}">
+                                answerDetails = `
+                                    <div class="${statusClass}">
                                         <strong>Your Answer:</strong><br/>
-                                        \${escapeHtml(ans.yourAnswer || 'No answer provided')}
+                                        ${escapeHtml(ans.yourAnswer || 'No answer provided')}
                                     </div>
-                                    \${ans.correctAnswer ? \`<div class="ans-correct" style="margin-top:5px;"><strong>Correct Answer / Note:</strong><br/>\${escapeHtml(ans.correctAnswer)}</div>\` : ''}
-                                \`;
+                                    ${ans.correctAnswer ? `<div class="ans-correct" style="margin-top:5px;"><strong>Correct Answer / Note:</strong><br/>${escapeHtml(ans.correctAnswer)}</div>` : ''}
+                                `;
                             }
                             
-                            return \`
+                            return `
                                 <div class="question">
                                     <div class="q-header">
-                                        <span class="q-num">Q\${idx + 1}.</span>
-                                        <span class="q-marks">\${ans.marksAwarded || 0} / \${ans.maxMarks || 0} Marks</span>
+                                        <span class="q-num">Q${idx + 1}.</span>
+                                        <span class="q-marks">${ans.marksAwarded || 0} / ${ans.maxMarks || 0} Marks</span>
                                     </div>
-                                    <div class="q-text">\${escapeHtml(ans.questionText)}</div>
+                                    <div class="q-text">${escapeHtml(ans.questionText)}</div>
                                     <div class="answer-box">
-                                        \${answerDetails}
+                                        ${answerDetails}
                                     </div>
                                 </div>
-                            \`;
+                            `;
                         }).join('')}
                         
                         <div class="footer">
-                            <p>Generated on \${escapeHtml(format(new Date(), "PPpp"))}</p>
+                            <p>Generated on ${escapeHtml(format(new Date(), "PPpp"))}</p>
                             <p>This is a computer generated report card and does not require a signature.</p>
                         </div>
                     </div>
