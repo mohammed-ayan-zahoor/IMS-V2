@@ -42,7 +42,7 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { name, phone, designation } = body;
+        const { name, accountType, phone, accountNumber, designation } = body;
 
         // Validation
         if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -53,8 +53,14 @@ export async function POST(req) {
             return NextResponse.json({ error: "Name must not exceed 100 characters" }, { status: 400 });
         }
 
-        if (phone && (typeof phone !== 'string' || phone.trim().length > 20)) {
+        const type = accountType === 'Bank' ? 'Bank' : 'Person';
+
+        if (type === 'Person' && phone && (typeof phone !== 'string' || phone.trim().length > 20)) {
             return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
+        }
+
+        if (type === 'Bank' && accountNumber && (typeof accountNumber !== 'string' || accountNumber.trim().length > 50)) {
+            return NextResponse.json({ error: "Invalid account number" }, { status: 400 });
         }
 
         if (designation && (typeof designation !== 'string' || designation.trim().length > 100)) {
@@ -64,9 +70,15 @@ export async function POST(req) {
         await connectDB();
         const collectorData = {
             name: name.trim(),
-            phone: phone?.trim(),
+            accountType: type,
             designation: designation?.trim()
         };
+
+        if (type === 'Person') {
+            collectorData.phone = phone?.trim();
+        } else {
+            collectorData.accountNumber = accountNumber?.trim();
+        }
 
         if (instituteId) {
             collectorData.institute = instituteId;
@@ -80,7 +92,7 @@ export async function POST(req) {
                 action: 'collector.create',
                 resource: { type: 'Collector', id: collector._id },
                 institute: session.user.institute.id,
-                details: { name: collector.name }
+                details: { name: collector.name, accountType: collector.accountType }
             });
         } catch (auditError) {
             console.error('Audit log failed for collector creation:', auditError);

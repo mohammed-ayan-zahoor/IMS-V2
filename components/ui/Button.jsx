@@ -4,6 +4,7 @@ export default function Button({
     className,
     variant = "primary",
     size = "md",
+    fullWidth = false,
     children,
     ...props
 }) {
@@ -23,16 +24,18 @@ export default function Button({
 
     return (
         <button
+            {...props}
             type={props.type || "button"}
             className={cn(
                 "inline-flex items-center justify-center rounded-xl font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
+                fullWidth && "w-full",
                 variants[variant],
                 sizes[size],
                 className
             )}
-            {...props}
         >
             {children}
         </button>
     );
 }
+

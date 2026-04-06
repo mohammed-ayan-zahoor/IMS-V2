@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 import { Search, Filter, Plus, FileText, Video, Link as LinkIcon, Download, Trash2, Edit, X } from "lucide-react";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
@@ -24,6 +25,7 @@ export default function MaterialsPage() {
 
     // Filters
     const [selectedCourse, setSelectedCourse] = useState("");
+    const [selectedType, setSelectedType] = useState("all");
     const [search, setSearch] = useState("");
 
     // Modal State
@@ -74,6 +76,7 @@ export default function MaterialsPage() {
         try {
             let url = "/api/v1/materials?";
             if (selectedCourse) url += `courseId=${selectedCourse}&`;
+            if (selectedType !== 'all') url += `type=${selectedType}&`;
             if (search) url += `search=${search}`;
 
             const res = await fetch(url);
@@ -188,6 +191,31 @@ export default function MaterialsPage() {
         setIsModalOpen(true);
     };
 
+    const handleDownloadTracking = async (mat) => {
+        // Optimistic State Update for Instant Feedback
+        setMaterials(prev => prev.map(m => 
+            m._id === mat._id ? { ...m, downloadCount: (m.downloadCount || 0) + 1 } : m
+        ));
+
+        try {
+            const res = await fetch(`/api/v1/materials/${mat._id}/download`, { method: "POST" });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.url) window.open(data.url, '_blank');
+                // Sync with server count if needed
+                setMaterials(prev => prev.map(m => 
+                    m._id === mat._id ? { ...m, downloadCount: data.downloadCount } : m
+                ));
+            } else {
+                // If it fails, we should still try open the original URL for user convenience
+                if (mat.file?.url) window.open(mat.file.url, '_blank');
+            }
+        } catch (error) {
+            console.error("Tracking Error:", error);
+            if (mat.file?.url) window.open(mat.file.url, '_blank');
+        }
+    };
+
     const filteredBatches = batches.filter(b => !formData.course || b.course?._id === formData.course || b.course === formData.course);
 
     return (
@@ -202,80 +230,147 @@ export default function MaterialsPage() {
                 </Button>
             </div>
 
-            {/* Filters */}
-            <div className="flex gap-4 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                <div className="w-48">
-                    <Select
-                        value={selectedCourse}
-                        onChange={(val) => setSelectedCourse(val)}
-                        placeholder="All Courses"
-                        options={[
-                            { label: "All Courses", value: "" },
-                            ...courses.map(c => ({ label: c.name, value: c._id }))
-                        ]}
-                    />
+            {/* Filter Chips & Search Bar */}
+            <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                    {[
+                        { label: "All Resources", value: "all" },
+                        { label: "PDF Documents", value: "pdf" },
+                        { label: "Videos", value: "video" },
+                        { label: "Assignments", value: "assignment" },
+                        { label: "Reference", value: "reference" }
+                    ].map(chip => (
+                        <button
+                            key={chip.value}
+                            onClick={() => {
+                                if (chip.value === 'all') setSelectedType('all');
+                                else if (['pdf', 'video'].includes(chip.value)) setSelectedType(chip.value);
+                                else { /* Handle category filter if needed, or stick to type for now */ }
+                                setSelectedType(chip.value);
+                            }}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                selectedType === chip.value 
+                                ? 'bg-premium-blue text-white border-premium-blue shadow-md shadow-blue-500/20' 
+                                : 'bg-white text-slate-500 border-slate-200 hover:border-premium-blue/30'
+                            }`}
+                        >
+                            {chip.label}
+                        </button>
+                    ))}
                 </div>
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search materials..."
-                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg focus:ring-2 focus:ring-premium-blue/20 outline-none"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchMaterials()}
-                    />
+
+                <div className="flex gap-4 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm relative z-20">
+                    <div className="w-48 hidden md:block">
+                        <Select
+                            value={selectedCourse}
+                            onChange={(val) => setSelectedCourse(val)}
+                            placeholder="All Courses"
+                            options={[
+                                { label: "All Courses", value: "" },
+                                ...courses.map(c => ({ label: c.name, value: c._id }))
+                            ]}
+                        />
+                    </div>
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search by title or description..."
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border-none rounded-xl focus:ring-4 focus:ring-premium-blue/5 outline-none font-medium text-sm transition-all"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && fetchMaterials()}
+                        />
+                    </div>
                 </div>
             </div>
+
+            {/* Sub-header Stats */}
+            {!loading && materials.length > 0 && (
+                <div className="flex justify-between items-center px-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Showing {materials.length} Materials</p>
+                </div>
+            )}
 
             {/* Grid */}
             {loading ? <LoadingSpinner /> : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {materials.map(mat => (
-                        <Card key={mat._id} className="group hover:border-premium-blue/30 transition-all flex flex-col">
+                        <div 
+                            key={mat._id} 
+                            onClick={() => handleDownloadTracking(mat)}
+                            className="group relative bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-xl hover:-translate-y-1.5 hover:border-premium-blue/40 transition-all duration-300 cursor-pointer flex flex-col"
+                        >
                             <div className="flex justify-between items-start mb-4">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${mat.file?.type === 'pdf' ? 'bg-red-50 text-red-600' :
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300 shadow-sm ${
+                                    mat.file?.type === 'pdf' ? 'bg-red-50 text-red-600' :
                                     mat.file?.type === 'video' ? 'bg-purple-50 text-purple-600' :
-                                        'bg-blue-50 text-blue-600'
-                                    }`}>
-                                    {mat.file?.type === 'pdf' ? <FileText size={20} /> :
-                                        mat.file?.type === 'video' ? <Video size={20} /> :
-                                            <LinkIcon size={20} />}
+                                    'bg-blue-50 text-blue-600'
+                                }`}>
+                                    {mat.file?.type === 'pdf' ? <FileText size={24} /> :
+                                     mat.file?.type === 'video' ? <Video size={24} /> :
+                                     <LinkIcon size={24} />}
                                 </div>
-                                <div className="flex gap-2">
-                                    <Badge variant={mat.visibleToStudents ? "success" : "neutral"}>
-                                        {mat.visibleToStudents ? "Visible" : "Hidden"}
+                                <div className="flex flex-col items-end gap-2">
+                                    <Badge variant={mat.visibleToStudents ? "success" : "neutral"} className="font-black text-[10px] uppercase tracking-tighter">
+                                        <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${mat.visibleToStudents ? 'bg-white' : 'bg-slate-400'}`}></div>
+                                        {mat.visibleToStudents ? "Published" : "Hidden"}
                                     </Badge>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{mat.category}</span>
                                 </div>
                             </div>
 
-                            <h3 className="font-bold text-slate-900 mb-1 line-clamp-1">{mat.title}</h3>
-                            <p className="text-xs text-slate-500 mb-4 line-clamp-2">{mat.description || "No description"}</p>
+                            <div className="mb-4">
+                                <h3 className="font-black text-slate-900 text-lg tracking-tight mb-1 line-clamp-1 group-hover:text-premium-blue transition-colors">{mat.title}</h3>
+                                <p className="text-xs font-medium text-slate-500 line-clamp-2 min-h-[32px]">{mat.description || "No specific instructions provided."}</p>
+                            </div>
 
-                            <div className="mt-auto space-y-3 pt-4 border-t border-slate-50">
-                                <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
-                                    <span>{mat.course?.name}</span>
-                                    <span>{mat.batches?.length ? `${mat.batches.length} Batches` : "All Batches"}</span>
+                            <div className="mt-auto space-y-4">
+                                {/* Metadata Line */}
+                                <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-2 rounded-lg">
+                                    <span className="flex items-center gap-1"><FileText size={12} /> {mat.file?.type?.toUpperCase() || 'FILE'}</span>
+                                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                    <span>{mat.createdAt ? format(new Date(mat.createdAt), "MMM d, yyyy") : 'Recent'}</span>
+                                    <span className="w-1 h-1 rounded-full bg-slate-300 ml-auto"></span>
+                                    <span className="text-slate-500">{mat.downloadCount || 0} Downloads</span>
                                 </div>
-                                <div className="flex gap-2">
-                                    <Button size="sm" variant="outline" className="flex-1" onClick={() => handleEdit(mat)}>
-                                        <Edit size={14} className="mr-2" /> Edit
-                                    </Button>
-                                    <Button size="sm" variant="ghost" className="text-red-400 hover:bg-red-50 hover:text-red-600" onClick={() => handleDelete(mat._id)}>
-                                        <Trash2 size={16} />
-                                    </Button>
-                                    {mat.file?.url ? (
-                                        <a href={mat.file?.url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">
-                                            <Download size={16} />
-                                        </a>
-                                    ) : (
-                                        <div className="p-2 rounded-lg bg-slate-50 text-slate-300 cursor-not-allowed" aria-disabled="true">
-                                            <Download size={16} />
+
+                                <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleEdit(mat); }}
+                                            className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-premium-blue hover:border-premium-blue hover:bg-premium-blue/5 transition-all flex items-center justify-center shadow-sm"
+                                            title="Edit"
+                                        >
+                                            <Edit size={16} />
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleDelete(mat._id); }}
+                                            className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all flex items-center justify-center shadow-sm"
+                                            title="Delete"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2">
+                                        {mat.file?.url && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleDownloadTracking(mat); }}
+                                                className="w-9 h-9 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-all flex items-center justify-center shadow-md shadow-slate-900/10"
+                                                title="Download/Open"
+                                            >
+                                                <Download size={16} />
+                                            </button>
+                                        )}
+                                        <div className="flex flex-col text-right">
+                                            <span className="text-[10px] font-black text-slate-900 truncate max-w-[80px]">{mat.course?.name || "All Courses"}</span>
+                                            <span className="text-[9px] font-bold text-slate-400">{mat.batches?.length ? `${mat.batches.length} Batches` : "Global"}</span>
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
                             </div>
-                        </Card>
+                        </div>
                     ))}
                     {!loading && materials.length === 0 && (
                         <div className="col-span-full py-12 text-center text-slate-400 italic">

@@ -21,13 +21,15 @@ const AuditLogSchema = new Schema({
             'exam.create', 'exam.update', 'exam.delete', 'exam.publish',
             'user.password_reset', 'user.role_change', 'user.create', 'user.update', 'user.delete', 'user.login',
             'collector.create', 'collector.update', 'collector.delete',
-            'institute.create', 'institute.update', 'institute.delete',],
+            'institute.create', 'institute.update', 'institute.delete',
+            'expense_head.create', 'expense_head.delete',
+            'expense.create', 'expense.delete'],
         index: true
     },
     resource: {
         type: {
             type: String,
-            enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector']
+            enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense']
         },
         id: Schema.Types.ObjectId
     },

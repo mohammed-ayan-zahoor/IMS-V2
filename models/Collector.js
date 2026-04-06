@@ -13,6 +13,11 @@ const CollectorSchema = new Schema({
         required: true,
         trim: true
     },
+    accountType: {
+        type: String,
+        enum: ['Person', 'Bank'],
+        default: 'Person'
+    },
     phone: {
         type: String,
         trim: true
@@ -22,6 +27,10 @@ const CollectorSchema = new Schema({
         trim: true,
         lowercase: true
     },
+    accountNumber: {
+        type: String,
+        trim: true
+    },
     isActive: {
         type: Boolean,
         default: true
@@ -29,7 +38,6 @@ const CollectorSchema = new Schema({
     designation: String
 }, { timestamps: true });
 
-// Ensure unique name per institute
 CollectorSchema.index({ institute: 1, name: 1 }, { unique: true });
 
 export default mongoose.models.Collector || mongoose.model('Collector', CollectorSchema);

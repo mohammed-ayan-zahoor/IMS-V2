@@ -28,7 +28,8 @@ import {
     BarChart3,
     Database,
     RotateCcw,
-    MessageSquare
+    MessageSquare,
+    Receipt
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -60,6 +61,25 @@ export default function AdminLayout({ children }) {
         }
     }, [status, session, router]);
 
+    // Auto-expand group containing current path
+    useEffect(() => {
+        if (!expandedGroup && pathname) {
+            const activeGroup = menuGroups.find(g => 
+                g.items.some(i => {
+                    const href = i.href;
+                    // Note: getHref is defined below, but we can do a simple prefix check here
+                    const actualHref = href.startsWith("/admin") && pathname.startsWith("/instructor") 
+                        ? href.replace("/admin", "/instructor") 
+                        : href;
+                    return pathname === actualHref || pathname.startsWith(actualHref + "/");
+                })
+            );
+            if (activeGroup) {
+                setExpandedGroup(activeGroup.label);
+            }
+        }
+    }, [pathname]);
+
     const menuGroups = [
         {
             label: "Academic",
@@ -86,6 +106,15 @@ export default function AdminLayout({ children }) {
                 { label: "Online Exams", icon: FileSignature, href: "/admin/exams" },
                 { label: "Question Bank", icon: BookOpen, href: "/admin/question-bank" },
                 { label: "Materials", icon: FileText, href: "/admin/materials" },
+            ]
+        },
+        {
+            label: "Expense",
+            icon: Receipt,
+            items: [
+                { label: "Add Expense", icon: Plus, href: "/admin/expenses/add" },
+                { label: "Expense Master", icon: FileText, href: "/admin/expenses/master" },
+                { label: "Expense Report", icon: BarChart3, href: "/admin/expenses/report" },
             ]
         },
         {
@@ -218,7 +247,11 @@ export default function AdminLayout({ children }) {
 
                     {/* Groups */}
                     {menuGroups.map((group) => (
-                        <div key={group.label} className="space-y-1">
+                        <div 
+                            key={group.label} 
+                            className="space-y-1"
+                            onMouseEnter={() => setExpandedGroup(group.label)}
+                        >
                             <button
                                 onClick={() => toggleGroup(group.label)}
                                 className="flex items-center gap-2 w-full px-4 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 hover:text-premium-blue transition-colors mb-2"
