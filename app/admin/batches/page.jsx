@@ -169,10 +169,12 @@ export default function BatchesPage() {
                     <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Batch Scheduling</h1>
                     <p className="text-slate-400 mt-1 text-sm font-medium">Coordinate class schedules, track capacity and manage intakes.</p>
                 </div>
-                <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
-                    <Plus size={18} />
-                    <span>Create Batch</span>
-                </Button>
+                {session?.user?.role !== 'instructor' && (
+                    <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
+                        <Plus size={18} />
+                        <span>Create Batch</span>
+                    </Button>
+                )}
             </div>
 
             <Card className="transition-all border-transparent shadow-sm">
@@ -281,18 +283,22 @@ export default function BatchesPage() {
                                                     >
                                                         <MessageSquare size={16} />
                                                     </button>
-                                                    <button
-                                                        onClick={() => handleEditBatch(batch)}
-                                                        className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-premium-blue transition-colors"
-                                                    >
-                                                        <Edit size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteBatch(batch._id)}
-                                                        className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                    {session?.user?.role !== 'instructor' && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleEditBatch(batch)}
+                                                                className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-premium-blue transition-colors"
+                                                            >
+                                                                <Edit size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteBatch(batch._id)}
+                                                                className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

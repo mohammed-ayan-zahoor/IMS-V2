@@ -111,6 +111,7 @@ export default function AdminLayout({ children }) {
         {
             label: "Expense",
             icon: Receipt,
+            role: ["admin", "super_admin"],
             items: [
                 { label: "Add Expense", icon: Plus, href: "/admin/expenses/add" },
                 { label: "Expense Master", icon: FileText, href: "/admin/expenses/master" },
@@ -122,14 +123,15 @@ export default function AdminLayout({ children }) {
             icon: BarChart3,
             items: [
                 { label: "Attendance", icon: Calendar, href: "/admin/reports/attendance" },
-                { label: "Fees", icon: CreditCard, href: "/admin/fees" },
-                { label: "Collection History", icon: ReceiptText, href: "/admin/collections" },
-                { label: "Audit Logs", icon: History, href: "/admin/audit-logs" },
+                { label: "Fees", icon: CreditCard, href: "/admin/fees", role: ["admin", "super_admin"] },
+                { label: "Collection History", icon: ReceiptText, href: "/admin/collections", role: ["admin", "super_admin"] },
+                { label: "Audit Logs", icon: History, href: "/admin/audit-logs", role: ["admin", "super_admin"] },
             ]
         },
         {
             label: "Administration",
             icon: UserCog,
+            role: ["admin", "super_admin"],
             items: [
                 { label: "Accounts Master", icon: Building2, href: "/admin/accounts" },
                 { label: "User Management", icon: UserCog, href: "/admin/users" },
@@ -139,6 +141,7 @@ export default function AdminLayout({ children }) {
         {
             label: "Utility",
             icon: Database,
+            role: ["admin", "super_admin"],
             items: [
                 { label: "System Backup", icon: Database, href: "/admin/utility/backup" },
                 { label: "System Restore", icon: RotateCcw, href: "/admin/utility/restore" },
@@ -151,7 +154,11 @@ export default function AdminLayout({ children }) {
                 { label: "Messages", icon: MessageSquare, href: "/admin/chat" },
             ]
         },
-    ];
+    ].filter(group => !group.role || group.role.includes(session?.user?.role))
+     .map(group => ({
+         ...group,
+         items: group.items.filter(item => !item.role || item.role.includes(session?.user?.role))
+     }));
 
 
     if (session?.user?.role === "super_admin") {

@@ -171,14 +171,16 @@ export default function CoursesPage() {
                     <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Course Management</h1>
                     <p className="text-slate-400 mt-1 text-sm font-medium">Design curriculum, set fees and manage academic programs.</p>
                 </div>
-                <Button onClick={() => {
-                    setEditingCourse(null);
-                    setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" } });
-                    setIsAddModalOpen(true);
-                }} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
-                    <Plus size={18} />
-                    <span>Add New Course</span>
-                </Button>
+                {session?.user?.role !== 'instructor' && (
+                    <Button onClick={() => {
+                        setEditingCourse(null);
+                        setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" } });
+                        setIsAddModalOpen(true);
+                    }} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
+                        <Plus size={18} />
+                        <span>Add New Course</span>
+                    </Button>
+                )}
             </div>
 
             <Card className="transition-all border-transparent shadow-sm overflow-visible">
@@ -218,8 +220,8 @@ export default function CoursesPage() {
                                         <th className="px-6 py-4">Course Name</th>
                                         <th className="px-6 py-4">Code</th>
                                         <th className="px-6 py-4">Duration</th>
-                                        <th className="px-6 py-4">Total Fees</th>
-                                        <th className="px-6 py-4 text-right">Actions</th>
+                                        {session?.user?.role !== 'instructor' && <th className="px-6 py-4">Total Fees</th>}
+                                        {session?.user?.role !== 'instructor' && <th className="px-6 py-4 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -249,29 +251,34 @@ export default function CoursesPage() {
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-slate-400 font-normal">₹</span>
-                                                    {course.fees?.amount?.toLocaleString() || "0"}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); openEditModal(course); }}
-                                                        className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
-                                                        title="Edit Course"
-                                                    >
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setDeletingCourse(course); }}
-                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                                        title="Delete Course"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>                                            </td>
+                                            {session?.user?.role !== 'instructor' && (
+                                                <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-slate-400 font-normal">₹</span>
+                                                        {course.fees?.amount?.toLocaleString() || "0"}
+                                                    </div>
+                                                </td>
+                                            )}
+                                            {session?.user?.role !== 'instructor' && (
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); openEditModal(course); }}
+                                                            className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
+                                                            title="Edit Course"
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setDeletingCourse(course); }}
+                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                            title="Delete Course"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>
