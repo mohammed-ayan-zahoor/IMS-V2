@@ -164,20 +164,38 @@ export async function POST(req) {
             }
 
             const session = await mongoose.startSession();
-            session.startTransaction();
             try {
-                [user] = await User.create([userPayload], { session });
+                session.startTransaction();
+                try {
+                    const [userResult] = await User.create([userPayload], { session });
+                    user = userResult;
 
-                await Membership.create([{
-                    user: user._id,
-                    institute: targetInstituteId,
-                    role: requestedRole,
-                    isActive: true
-                }], { session });
-                await session.commitTransaction();
+                    await Membership.create([{
+                        user: user._id,
+                        institute: targetInstituteId,
+                        role: requestedRole,
+                        isActive: true
+                    }], { session });
+
+                    await session.commitTransaction();
+                } catch (err) {
+                    await session.abortTransaction();
+                    throw err;
+                }
             } catch (err) {
-                await session.abortTransaction();
-                throw err;
+                // FALLBACK for Standalone MongoDB (e.g. Local Dev without Replica Set)
+                if (err.message?.includes('Transaction numbers are only allowed on a replica set')) {
+                    console.warn("Retrying User Creation without transaction (Standalone MongoDB detected)");
+                    user = await User.create(userPayload);
+                    await Membership.create({
+                        user: user._id,
+                        institute: targetInstituteId,
+                        role: requestedRole,
+                        isActive: true
+                    });
+                } else {
+                    throw err;
+                }
             } finally {
                 session.endSession();
             }

@@ -11,6 +11,7 @@ import { User, Shield, UserCog, Mail, Phone, Plus, Search, Trash2, Lock } from "
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import Select from "@/components/ui/Select";
+import MultiSelect from "@/components/ui/MultiSelect";
 
 // Verified: Usage of Select component is compatible with onChange(value) signature.
 export default function UserManagementPage() {
@@ -135,6 +136,21 @@ export default function UserManagementPage() {
             }
         }
     }, [isCreateModalOpen, formData.role, availableBatches.length, availableCourses.length]);
+
+    const batchOptions = useMemo(() => {
+        const groups = {};
+        availableBatches.forEach(b => {
+            const courseName = b.course?.name || "Other Batches";
+            if (!groups[courseName]) groups[courseName] = [];
+            groups[courseName].push({ label: b.name, value: b._id });
+        });
+        return Object.entries(groups).map(([group, items]) => ({ group, items }));
+    }, [availableBatches]);
+
+    const courseOptions = useMemo(() => 
+        availableCourses.map(c => ({ label: c.name, value: c._id })),
+        [availableCourses]
+    );
 
     const handleCreateUser = async (e) => {
         e.preventDefault();
@@ -391,58 +407,34 @@ export default function UserManagementPage() {
 
                     {/* Instructor Assignments */}
                     {formData.role === 'instructor' && (
-                        <div className="space-y-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
-                            <h4 className="text-sm font-bold text-slate-700">Access Assignments</h4>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div>
-                                    <label htmlFor="assigned-batches" className="text-xs font-bold text-slate-500 mb-1 block">Assigned Batches (Select Multiple)</label>
-                                    <select
-                                        id="assigned-batches"
-                                        multiple
-                                        className="w-full p-2 border border-slate-200 rounded-md text-sm min-h-[100px]"
-                                        value={formData.assignedBatches}
-                                        onChange={(e) => {
-                                            const options = [...e.target.selectedOptions];
-                                            const values = options.map(option => option.value);
-                                            setFormData({ ...formData, assignedBatches: values });
-                                        }}
-                                    >
-                                        {availableBatches.length > 0 ? (
-                                            availableBatches.map(b => (
-                                                <option key={b._id} value={b._id}>{b.name}</option>
-                                            ))
-                                        ) : (
-                                            <option disabled>Loading batches or none found...</option>
-                                        )}
-                                    </select>
-                                    {availableBatches.length === 0 && <p className="text-xs text-slate-400 mt-1">No batches available</p>}
-                                    <p className="text-[10px] text-slate-400 mt-1">Hold Ctrl/Cmd to select multiple</p>
-                                </div>
-
-                                <div>
-                                    <label htmlFor="assigned-courses" className="text-xs font-bold text-slate-500 mb-1 block">Assigned Courses (Select Multiple)</label>
-                                    <select
-                                        id="assigned-courses"
-                                        multiple
-                                        className="w-full p-2 border border-slate-200 rounded-md text-sm min-h-[100px]"
-                                        value={formData.assignedCourses}
-                                        onChange={(e) => {
-                                            const options = [...e.target.selectedOptions];
-                                            const values = options.map(option => option.value);
-                                            setFormData({ ...formData, assignedCourses: values });
-                                        }}
-                                    >
-                                        {availableCourses.length > 0 ? (
-                                            availableCourses.map(c => (
-                                                <option key={c._id} value={c._id}>{c.name}</option>
-                                            ))
-                                        ) : (
-                                            <option disabled>Loading courses or none found...</option>
-                                        )}
-                                    </select>
-                                    {availableCourses.length === 0 && <p className="text-xs text-slate-400 mt-1">No courses available</p>}
-                                </div>
+                        <div className="space-y-5 p-5 bg-slate-50/50 rounded-2xl border border-slate-100 shadow-inner ring-1 ring-slate-100/50">
+                            <div className="flex items-center gap-2 mb-1">
+                                <Shield className="text-premium-blue" size={16} />
+                                <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-700">Access Assignments</h4>
                             </div>
+                            
+                            <div className="h-px bg-slate-200/40 w-full mb-4" />
+
+                            <div className="grid grid-cols-1 gap-5">
+                                <MultiSelect 
+                                    label="Assigned Batches"
+                                    placeholder="Search and select batches..."
+                                    options={batchOptions}
+                                    value={formData.assignedBatches}
+                                    onChange={(vals) => setFormData({ ...formData, assignedBatches: vals })}
+                                />
+
+                                <MultiSelect 
+                                    label="Assigned Courses"
+                                    placeholder="Search and select courses..."
+                                    options={courseOptions}
+                                    value={formData.assignedCourses}
+                                    onChange={(vals) => setFormData({ ...formData, assignedCourses: vals })}
+                                />
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-bold italic mt-2 flex items-center gap-1.5 opacity-80">
+                                <Plus size={10} /> Instructors can only access data for these assigned entities.
+                            </p>
                         </div>
                     )}
 
