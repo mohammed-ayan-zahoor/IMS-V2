@@ -186,10 +186,6 @@ export default function AdminLayout({ children }) {
 
     // Determine base path for links (admin vs instructor)
     const getBasePath = () => {
-        // If current path starts with /instructor, all links should use /instructor prefix
-        if (pathname?.startsWith("/instructor")) return "/instructor";
-        // Or if role is instructor (redundant but safe)
-        if (session?.user?.role === "instructor") return "/instructor";
         return "/admin";
     };
 

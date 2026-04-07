@@ -163,12 +163,33 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
                 {messages.map((msg, index) => {
                     const isSender = msg.sender?._id === currentUserId || msg.sender === currentUserId;
-                    const showName = isBatch && !isSender && (index === 0 || messages[index - 1]?.sender?._id !== msg.sender?._id);
+                    const isFirstInGroup = index === 0 || (messages[index - 1]?.sender?._id || messages[index - 1]?.sender) !== (msg.sender?._id || msg.sender);
+                    const showName = isBatch && !isSender && isFirstInGroup;
+                    const senderRole = msg.sender?.role;
 
                     return (
                         <div key={msg._id} className={`flex flex-col group ${isSender ? 'items-end' : 'items-start'}`}>
-                            {showName && (
-                                <span className="text-xs text-gray-500 ml-2 mb-1">
+                            {isFirstInGroup && (senderRole === 'admin' || senderRole === 'super_admin' || senderRole === 'instructor') && (
+                                <div className={`flex items-center gap-1.5 mb-1 mx-2 ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
+                                    {showName && (
+                                        <span className="text-[11px] font-bold text-slate-900 group-hover:text-premium-blue transition-colors">
+                                            {msg.sender?.profile?.firstName} {msg.sender?.profile?.lastName}
+                                        </span>
+                                    )}
+                                    {(senderRole === 'admin' || senderRole === 'super_admin') && (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-premium-blue/10 text-premium-blue border border-premium-blue/20">
+                                            Admin
+                                        </span>
+                                    )}
+                                    {senderRole === 'instructor' && (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                            Instructor
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            {showName && !senderRole?.includes('admin') && senderRole !== 'instructor' && (
+                                <span className="text-[11px] font-bold text-slate-500 ml-2 mb-1">
                                     {msg.sender?.profile?.firstName}
                                 </span>
                             )}

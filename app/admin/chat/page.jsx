@@ -16,7 +16,7 @@ export default async function AdminChatPage() {
     }
 
     // Double check role
-    if (!["admin", "super_admin", "staff"].includes(session.user.role)) {
+    if (!["admin", "super_admin", "staff", "instructor"].includes(session.user.role)) {
         redirect("/");
     }
 
