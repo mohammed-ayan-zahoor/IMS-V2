@@ -61,7 +61,7 @@ export default function FeesPage() {
     const [selectedCourse, setSelectedCourse] = useState("");
     const [selectedBatch, setSelectedBatch] = useState("");
     const [percentageFilter, setPercentageFilter] = useState("");
-    const [summary, setSummary] = useState({ total: 0, paid: 0, pending: 0 });
+    const [summary, setSummary] = useState({ total: 0, discount: 0, paid: 0, pending: 0 });
     const [currentPage, setCurrentPage] = useState(1);
     const rowsPerPage = 50;
 
@@ -280,6 +280,7 @@ export default function FeesPage() {
             "Enrollment No": fee.student?.enrollmentNumber || "N/A",
             "Batch": fee.batch?.name || "N/A",
             "Total Fee": fee.totalAmount || 0,
+            "Discount": fee.discount?.amount || 0,
             "Paid Amount": fee.paidAmount || 0,
             "Balance Amount": fee.balanceAmount || 0,
             "Status": (fee.balanceAmount || 0) <= 0 ? "Paid" : "Pending",
@@ -298,6 +299,7 @@ export default function FeesPage() {
                 { wch: 18 }, // Enrollment No
                 { wch: 20 }, // Batch
                 { wch: 12 }, // Total Fee
+                { wch: 12 }, // Discount
                 { wch: 12 }, // Paid
                 { wch: 12 }, // Balance
                 { wch: 12 }, // Status
@@ -315,9 +317,10 @@ export default function FeesPage() {
         // Calculate Summary
         const newSummary = filteredFees.reduce((acc, fee) => ({
             total: acc.total + (fee.totalAmount || 0),
+            discount: acc.discount + (fee.discount?.amount || 0),
             paid: acc.paid + (fee.paidAmount || 0),
             pending: acc.pending + (fee.balanceAmount || 0)
-        }), { total: 0, paid: 0, pending: 0 });
+        }), { total: 0, discount: 0, paid: 0, pending: 0 });
         setSummary(newSummary);
     }, [fees, search, selectedCourse, selectedBatch, batches, showOverdueOnly]); // Re-run when filters change
     return (
@@ -350,15 +353,26 @@ export default function FeesPage() {
 
 
             {/* Report Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="p-4 border-l-4 border-l-slate-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="p-4 border-l-4 border-l-slate-400">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Expected</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Gross</p>
                             <h3 className="text-2xl font-black text-slate-700 mt-1">₹{summary.total.toLocaleString()}</h3>
                         </div>
                         <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
                             <DollarSign size={20} />
+                        </div>
+                    </div>
+                </Card>
+                <Card className="p-4 border-l-4 border-l-rose-500">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs font-bold text-rose-600/70 uppercase tracking-wider">Total Discount</p>
+                            <h3 className="text-2xl font-black text-rose-600 mt-1">₹{summary.discount.toLocaleString()}</h3>
+                        </div>
+                        <div className="p-2 bg-rose-100 rounded-lg text-rose-600">
+                            <XCircle size={20} />
                         </div>
                     </div>
                 </Card>
@@ -486,6 +500,7 @@ export default function FeesPage() {
                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Batch</th>
                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Fee</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Discount</th>
                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Paid</th>
                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Balance</th>
                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
@@ -509,6 +524,9 @@ export default function FeesPage() {
                                                     </td>
                                                     <td className="px-6 py-4 text-sm font-bold text-slate-600">
                                                         ₹{fee.totalAmount?.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm font-bold text-rose-500">
+                                                        ₹{fee.discount?.amount?.toLocaleString() || 0}
                                                     </td>
                                                     <td className="px-6 py-4 text-sm font-bold text-emerald-600">
                                                         ₹{fee.paidAmount?.toLocaleString()}

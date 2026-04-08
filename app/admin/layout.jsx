@@ -96,6 +96,7 @@ export default function AdminLayout({ children }) {
             items: [
                 { label: "New Entry", icon: Plus, href: "/admin/enquiries/new" },
                 { label: "View Entry", icon: List, href: "/admin/enquiries" },
+                { label: "Online Enquiry", icon: List, href: "/admin/enquiries/applications" },
             ]
         },
         {

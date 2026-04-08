@@ -158,7 +158,11 @@ export class StudentService {
             // institute: instituteId // Enforce Scope conditionally
         };
         if (instituteId) {
-            query.institute = instituteId;
+            try {
+                query.institute = new mongoose.Types.ObjectId(instituteId);
+            } catch (e) {
+                query.institute = instituteId;
+            }
         }
 
         // Normalize isActive to handle both string and boolean inputs

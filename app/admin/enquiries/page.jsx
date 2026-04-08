@@ -138,12 +138,20 @@ export default function EnquiriesPage() {
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">Admission Enquiries</h1>
                     <p className="text-slate-500 mt-1 text-sm font-medium">Manage leads and follow-up actions efficiently.</p>
                 </div>
-                <Link href="/admin/enquiries/new">
-                    <Button className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10 font-bold">
-                        <Plus size={18} />
-                        <span>New Entry</span>
-                    </Button>
-                </Link>
+                <div className="flex items-center gap-3">
+                    <Link href="/admin/enquiries/applications">
+                        <Button variant="outline" className="flex items-center gap-2 border-premium-blue/20 text-premium-blue hover:bg-premium-blue/5 font-bold">
+                            <ArrowRight size={18} className="rotate-[-45deg]" />
+                            <span>Online Applications</span>
+                        </Button>
+                    </Link>
+                    <Link href="/admin/enquiries/new">
+                        <Button className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10 font-bold">
+                            <Plus size={18} />
+                            <span>New Entry</span>
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {error && (

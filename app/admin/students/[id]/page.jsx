@@ -34,12 +34,14 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useSession } from "next-auth/react";
 
 export default function StudentDetailsPage({ params }) {
     const router = useRouter();
     const toast = useToast();
     const confirm = useConfirm();
     const { id } = use(params);
+    const { data: session } = useSession();
 
     const [studentData, setStudentData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -513,23 +515,27 @@ export default function StudentDetailsPage({ params }) {
                 </Button>
 
                 <div className="flex gap-3">
-                    <Button
-                        variant="soft"
-                        size="sm"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                        onClick={handleDeleteStudent}
-                        disabled={isDeleting}
-                    >
-                        <Trash2 size={16} className="mr-2" />
-                        {isDeleting ? "Deleting..." : "Delete Student"}
-                    </Button>
-                    <Button
-                        size="sm"
-                        onClick={() => setIsEditModalOpen(true)}
-                    >
-                        <Edit size={16} className="mr-2" />
-                        Edit Profile
-                    </Button>
+                    {['admin', 'super_admin'].includes(session?.user?.role) && (
+                        <Button
+                            variant="soft"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={handleDeleteStudent}
+                            disabled={isDeleting}
+                        >
+                            <Trash2 size={16} className="mr-2" />
+                            {isDeleting ? "Deleting..." : "Delete Student"}
+                        </Button>
+                    )}
+                    {session?.user?.role !== 'instructor' && (
+                        <Button
+                            size="sm"
+                            onClick={() => setIsEditModalOpen(true)}
+                        >
+                            <Edit size={16} className="mr-2" />
+                            Edit Profile
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -577,18 +583,20 @@ export default function StudentDetailsPage({ params }) {
                 {/* Tabs */}
                 {/* ... existing tabs code ... */}
                 <div className="flex border-t border-slate-100 px-6">
-                    {["profile", "academic", "financial", "attendance"].map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`px-6 py-4 text-sm font-bold uppercase tracking-wide border-b-2 transition-all ${activeTab === tab
-                                ? "border-premium-blue text-premium-blue"
-                                : "border-transparent text-slate-400 hover:text-slate-600"
-                                }`}
-                        >
-                            {tab}
-                        </button>
-                    ))}
+                    {["profile", "academic", "financial", "attendance"]
+                        .filter(tab => session?.user?.role !== 'instructor' || tab !== 'financial')
+                        .map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-6 py-4 text-sm font-bold uppercase tracking-wide border-b-2 transition-all ${activeTab === tab
+                                    ? "border-premium-blue text-premium-blue"
+                                    : "border-transparent text-slate-400 hover:text-slate-600"
+                                    }`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
                 </div>
             </Card>
 
