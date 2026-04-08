@@ -452,7 +452,7 @@ export default function PublicAdmissionForm({ params }) {
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="text-sm font-black text-slate-800 leading-tight truncate">{c.name}</h4>
                                                         <p className="text-[9px] font-bold text-premium-blue uppercase mt-1">
-                                                            {institute.settings?.currency || "₹"} {c.fees?.amount?.toLocaleString() || c.fees?.toLocaleString() || "0"}
+                                                            ₹ {c.fees?.amount?.toLocaleString() || c.fees?.toLocaleString() || "0"}
                                                         </p>
                                                     </div>
                                                     {formData.course === c._id && (

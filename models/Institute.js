@@ -82,7 +82,7 @@ const InstituteSchema = new Schema({
     settings: {
         timezone: { type: String, default: 'UTC' },
         dateFormat: { type: String, default: 'YYYY-MM-DD' },
-        currency: { type: String, default: 'USD' },
+        currency: { type: String, default: 'INR' },
         language: { type: String, default: 'en' },
         receiptTemplate: {
             type: String,
