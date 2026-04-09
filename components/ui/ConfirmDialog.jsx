@@ -2,7 +2,7 @@
 
 import { AlertTriangle, HelpCircle, X } from "lucide-react";
 
-export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCancel, type = "danger" }) {
+export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCancel, type = "danger", confirmText }) {
     if (!isOpen) return null;
 
     return (
@@ -46,7 +46,7 @@ export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCan
                             }`}
                         autoFocus
                     >
-                        {type === 'danger' ? 'Confirm Delete' : 'Confirm'}
+                        {confirmText ? confirmText : (type === 'danger' ? 'Confirm Delete' : 'Confirm')}
                     </button>
                 </div>
             </div>

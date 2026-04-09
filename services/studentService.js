@@ -146,6 +146,29 @@ export class StudentService {
     }
 
     /**
+     * Disable/Enable student (Soft delete)
+     */
+    static async toggleStudentStatus(studentId, actorId) {
+        const student = await User.findOne({ _id: studentId, role: 'student' });
+        if (!student) throw new Error('Student not found');
+
+        const isDisabling = !student.deletedAt;
+        
+        student.deletedAt = isDisabling ? new Date() : null;
+        await student.save();
+
+        await createAuditLog({
+            actor: actorId,
+            action: isDisabling ? 'student.disable' : 'student.enable',
+            resource: { type: 'User', id: studentId },
+            institute: student.institute,
+            details: { name: student.fullName, email: student.email }
+        });
+
+        return student;
+    }
+
+    /**
      * Get all students with pagination and filters
      */
     static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, instituteId = null, actorId = null }) {
@@ -437,8 +460,8 @@ export class StudentService {
      * Get full student profile with batches and fees
      */
     static async getStudentProfile(studentId, actorId) {
-        // 1. Fetch Student Basic Info
-        const student = await User.findOne({ _id: studentId, role: 'student', deletedAt: null })
+        // 1. Fetch Student Basic Info (Include disabled students so admins can see their profile)
+        const student = await User.findOne({ _id: studentId, role: 'student' })
             .select('-passwordHash -passwordResetToken -passwordResetExpires');
 
         if (!student) {

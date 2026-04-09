@@ -6,11 +6,11 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 const ConfirmContext = createContext(null);
 
 export function ConfirmProvider({ children }) {
-    const [config, setConfig] = useState({ isOpen: false, title: "", message: "", type: "danger" });
+    const [config, setConfig] = useState({ isOpen: false, title: "", message: "", type: "danger", confirmText: "" });
     const resolver = useRef(null);
 
-    const confirm = useCallback(({ title, message, type = "danger" }) => {
-        setConfig({ isOpen: true, title, message, type });
+    const confirm = useCallback(({ title, message, type = "danger", confirmText = "" }) => {
+        setConfig({ isOpen: true, title, message, type, confirmText });
         return new Promise((resolve) => {
             resolver.current = resolve;
         });
@@ -34,6 +34,7 @@ export function ConfirmProvider({ children }) {
                 title={config.title}
                 message={config.message}
                 type={config.type}
+                confirmText={config.confirmText}
                 onConfirm={handleConfirm}
                 onCancel={handleCancel}
             />

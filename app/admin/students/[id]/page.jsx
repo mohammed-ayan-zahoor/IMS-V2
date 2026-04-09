@@ -71,6 +71,7 @@ export default function StudentDetailsPage({ params }) {
     const [collectors, setCollectors] = useState([]);
 
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isTogglingStatus, setIsTogglingStatus] = useState(false);
     const [deletingFeeId, setDeletingFeeId] = useState(null);
     const [isEnrolling, setIsEnrolling] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -443,6 +444,38 @@ export default function StudentDetailsPage({ params }) {
         }
     };
 
+    const handleToggleStatus = async () => {
+        const isCurrentlyActive = studentData?.student?.isActive;
+        const actionText = isCurrentlyActive ? "Disable" : "Enable";
+        
+        if (await confirm({
+            title: `${actionText} Student?`,
+            message: `Are you sure you want to ${actionText.toLowerCase()} this student? ${isCurrentlyActive ? 'They will no longer be able to log in.' : 'They will regain access to their account.'}`,
+            type: isCurrentlyActive ? "danger" : "info",
+            confirmText: `Confirm ${actionText}`
+        })) {
+            try {
+                setIsTogglingStatus(true);
+                const res = await fetch(`/api/v1/students/${id}/status`, {
+                    method: "PATCH"
+                });
+
+                if (res.ok) {
+                    toast.success(`Student ${actionText.toLowerCase()}d successfully`);
+                    fetchStudentDetails();
+                } else {
+                    const err = await res.json();
+                    toast.error(err.error || `Failed to ${actionText.toLowerCase()} student`);
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error(`Failed to ${actionText.toLowerCase()} student`);
+            } finally {
+                setIsTogglingStatus(false);
+            }
+        }
+    };
+
     // Upload State
     const [uploading, setUploading] = useState(false);
 
@@ -516,16 +549,28 @@ export default function StudentDetailsPage({ params }) {
 
                 <div className="flex gap-3">
                     {['admin', 'super_admin'].includes(session?.user?.role) && (
-                        <Button
-                            variant="soft"
-                            size="sm"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                            onClick={handleDeleteStudent}
-                            disabled={isDeleting}
-                        >
-                            <Trash2 size={16} className="mr-2" />
-                            {isDeleting ? "Deleting..." : "Delete Student"}
-                        </Button>
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className={student?.isActive ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50" : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"}
+                                onClick={handleToggleStatus}
+                                disabled={isTogglingStatus}
+                            >
+                                {student?.isActive ? <XCircle size={16} className="mr-2" /> : <CheckCircle size={16} className="mr-2" />}
+                                {isTogglingStatus ? "Processing..." : (student?.isActive ? "Disable Student" : "Enable Student")}
+                            </Button>
+                            <Button
+                                variant="soft"
+                                size="sm"
+                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                onClick={handleDeleteStudent}
+                                disabled={isDeleting}
+                            >
+                                <Trash2 size={16} className="mr-2" />
+                                {isDeleting ? "Deleting..." : "Delete Student"}
+                            </Button>
+                        </>
                     )}
                     {session?.user?.role !== 'instructor' && (
                         <Button
