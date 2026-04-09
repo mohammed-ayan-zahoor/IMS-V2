@@ -42,7 +42,8 @@ export async function POST(req) {
                 lastName: application.lastName,
                 phone: application.phone,
                 dateOfBirth: application.dateOfBirth,
-                address: application.address
+                address: application.address,
+                ...(application.photo && { avatar: application.photo })
             },
             guardianDetails: {
                 name: application.guardian.name,

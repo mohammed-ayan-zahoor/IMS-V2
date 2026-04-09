@@ -6,7 +6,7 @@ import {
     BookOpen, Users, Save, CheckCircle2, 
     ArrowRight, ArrowLeft, Info, BookCheck, GraduationCap,
     Clock, Globe, School, ShieldCheck, Check, ChevronRight,
-    Lock, Search
+    Lock, Search, Camera
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
@@ -32,6 +32,7 @@ export default function PublicAdmissionForm({ params }) {
     
     const [formData, setFormData] = useState({
         institute: instituteId,
+        photo: "",
         firstName: "",
         lastName: "",
         email: "",
@@ -86,6 +87,22 @@ export default function PublicAdmissionForm({ params }) {
         setSelectedCourse(course);
         setFormData({ ...formData, course: course._id });
         setErrors({ ...errors, course: null });
+    };
+
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error("Photo size must be less than 2MB");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setFormData({ ...formData, photo: reader.result });
+        };
+        reader.readAsDataURL(file);
     };
 
     const validateStep = () => {
@@ -307,9 +324,29 @@ export default function PublicAdmissionForm({ params }) {
                             {/* STEP 1: IDENTITY */}
                             {step === 1 && (
                                 <div className="space-y-6">
-                                    <div className="text-center sm:text-left">
-                                        <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2 italic">Who are you? 👤</h1>
-                                        <p className="text-slate-400 font-medium text-sm">Tell us your legal name and contact phone.</p>
+                                    <div className="text-center sm:text-left flex flex-col sm:flex-row justify-between items-center sm:items-start gap-6">
+                                        <div>
+                                            <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2 italic">Who are you? 👤</h1>
+                                            <p className="text-slate-400 font-medium text-sm">Tell us your legal name and contact phone.</p>
+                                        </div>
+                                        <div className="relative group cursor-pointer shrink-0">
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                onChange={handlePhotoChange} 
+                                            />
+                                            <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center overflow-hidden group-hover:border-premium-blue group-hover:bg-blue-50 transition-colors">
+                                                {formData.photo ? (
+                                                    <img src={formData.photo} alt="Student Preview" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <>
+                                                        <Camera size={20} className="text-slate-400 group-hover:text-premium-blue mb-1" />
+                                                        <span className="text-[9px] font-bold text-slate-400 group-hover:text-premium-blue uppercase tracking-wider">Photo</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <Input

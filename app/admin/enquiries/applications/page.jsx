@@ -308,7 +308,7 @@ export default function AdmissionApplicationsPage() {
                                                     <div className="flex items-center gap-2">
                                                         <Badge variant="primary" className="text-[9px]">{app.learningMode}</Badge>
                                                         <span className="text-[10px] text-slate-400 font-medium">
-                                                            Fee: ₹ {app.course?.fees?.toLocaleString()}
+                                                            Fee: ₹ {app.course?.fees?.amount?.toLocaleString() || app.course?.fees?.toLocaleString() || "0"}
                                                         </span>
                                                     </div>
                                                 </div>

@@ -3,6 +3,7 @@ import AdmissionApplication from "@/models/AdmissionApplication";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
+import cloudinary from "@/lib/cloudinary";
 
 export async function POST(req) {
     try {
@@ -14,6 +15,27 @@ export async function POST(req) {
         for (const field of requiredFields) {
             if (!body[field]) {
                 return NextResponse.json({ error: `Field '${field}' is required` }, { status: 400 });
+            }
+        }
+
+        // Handle Photo Upload via Cloudinary if provided as base64 string
+        if (body.photo && body.photo.startsWith('data:image')) {
+            try {
+                const uploadResponse = await new Promise((resolve, reject) => {
+                    const options = {
+                        folder: "ims_v2/uploads/admissions",
+                        resource_type: "image",
+                        transformation: [{ width: 500, height: 500, crop: "limit" }]
+                    };
+                    cloudinary.uploader.upload(body.photo, options, (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    });
+                });
+                body.photo = uploadResponse.secure_url;
+            } catch (uploadError) {
+                console.error("[Cloudinary Upload Error]:", uploadError);
+                return NextResponse.json({ error: "Failed to upload photo" }, { status: 500 });
             }
         }
 

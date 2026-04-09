@@ -54,6 +54,7 @@ const AdmissionApplicationSchema = new Schema({
         pincode: { type: String, required: true }
     },
     previousEducation: { type: String, trim: true },
+    photo: { type: String, trim: true },
     status: {
         type: String,
         enum: ['pending', 'converted', 'cancelled'],
