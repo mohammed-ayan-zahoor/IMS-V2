@@ -256,7 +256,6 @@ export default function AdminLayout({ children }) {
                         <div 
                             key={group.label} 
                             className="space-y-1"
-                            onMouseEnter={() => setExpandedGroup(group.label)}
                         >
                             <button
                                 onClick={() => toggleGroup(group.label)}
