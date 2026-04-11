@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import Select from "@/components/ui/Select";
-// Verified: Usage of Select component is compatible with onChange(value) signature.
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
+import SubjectSelect from "@/components/ui/SubjectSelect";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -18,11 +18,13 @@ export default function CreateExamPage() {
     const [courses, setCourses] = useState([]);
     const [batches, setBatches] = useState([]); // All batches
     const [filteredBatches, setFilteredBatches] = useState([]); // Filtered by course
+    const [subjects, setSubjects] = useState([]); // All subjects
 
     const [formData, setFormData] = useState({
         title: "",
         description: "",
         course: "",
+        subject: null, // nullable subject ID
         batches: [], // Array of batch IDs
         duration: 60,
         passingMarks: 0,
@@ -44,6 +46,9 @@ export default function CreateExamPage() {
         } else {
             setFilteredBatches([]);
         }
+        // Reset subject when course changes — the SubjectSelect component
+        // already handles filtering available subjects per-course
+        setFormData(prev => ({ ...prev, subject: null }));
     }, [formData.course, batches]);
 
     // Helper: Convert UTC string to Local DateTime string for input[type="datetime-local"]
@@ -84,14 +89,17 @@ export default function CreateExamPage() {
 
     const fetchDropdowns = async () => {
         try {
-            const [cRes, bRes] = await Promise.all([
+            const [cRes, bRes, sRes] = await Promise.all([
                 fetch("/api/v1/courses"),
-                fetch("/api/v1/batches")
+                fetch("/api/v1/batches"),
+                fetch("/api/v1/subjects")
             ]);
             const cData = await cRes.json();
             const bData = await bRes.json();
+            const sData = await sRes.json();
             setCourses(cData.courses || []);
             setBatches(bData.batches || []);
+            setSubjects(sData.subjects || []);
         } catch (error) {
             console.error("Failed to fetch dropdowns", error);
         }
@@ -139,6 +147,9 @@ export default function CreateExamPage() {
                     endTime: endTime.toISOString()
                 }
             };
+            if (!payload.subject) {
+                delete payload.subject;
+            }
 
             const res = await fetch("/api/v1/exams", {
                 method: "POST",
@@ -209,6 +220,13 @@ export default function CreateExamPage() {
                                 ]}
                             />
                         </div>
+                        <SubjectSelect
+                            value={formData.subject}
+                            onChange={(val) => setFormData({ ...formData, subject: val })}
+                            subjects={subjects}
+                            courses={courses}
+                            selectedCourse={formData.course}
+                        />
                         <Input
                             label="Duration (minutes) - Auto-calculated"
                             type="number"

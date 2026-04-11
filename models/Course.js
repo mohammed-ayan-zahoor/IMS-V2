@@ -29,6 +29,7 @@ const CourseSchema = new Schema({
         }
     },
     syllabus: [{ type: String, trim: true }],
+    subjects: [{ type: Schema.Types.ObjectId, ref: 'Subject' }],
     prerequisites: [{ type: Schema.Types.ObjectId, ref: 'Course' }],
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     deletedAt: { type: Date, index: true }
@@ -39,4 +40,7 @@ CourseSchema.index(
     { institute: 1, code: 1 },
     { unique: true, partialFilterExpression: { deletedAt: { $exists: false } } }
 ); // Code unique per institute (excluding soft-deleted)
-export default mongoose.models.Course || mongoose.model('Course', CourseSchema);
+// Delete cached model to prevent stale schema issues during Next.js hot-reloads.
+// Without this, schema changes (like adding 'subjects') are silently ignored.
+delete mongoose.models.Course;
+export default mongoose.model('Course', CourseSchema);

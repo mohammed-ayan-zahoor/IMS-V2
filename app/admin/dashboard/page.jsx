@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import {
     Users,
@@ -9,7 +10,9 @@ import {
     CreditCard,
     ArrowUpRight,
     TrendingUp,
-    Trophy
+    Trophy,
+    AlertCircle,
+    Clock
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -36,9 +39,11 @@ const StatCard = ({ title, value, icon: Icon, trend, color, softColor }) => (
 export default function AdminDashboard() {
 
     const [dashboardData, setDashboardData] = useState(null);
+    const [staleBatches, setStaleBatches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [dateString, setDateString] = useState("");
+    const { data: session } = useSession();
 
     // Set formatted date only on client side to avoid hydration mismatch
     useEffect(() => {
@@ -58,6 +63,14 @@ export default function AdminDashboard() {
                 const res = await fetch('/api/v1/dashboard/stats', {
                     signal: controller.signal
                 });
+                
+                // Fetch stale batches if user is instructor or admin
+                if (session && ['admin', 'super_admin', 'instructor'].includes(session.user.role)) {
+                    fetch('/api/v1/syllabus-progress/stale?days=7', { signal: controller.signal })
+                        .then(r => r.ok && r.json()).then(d => d && setStaleBatches(d.stale || []))
+                        .catch(() => {});
+                }
+
                 clearTimeout(timeoutId);
 
                 if (res.ok) {
@@ -81,7 +94,8 @@ export default function AdminDashboard() {
             clearTimeout(timeoutId);
             controller.abort();
         };
-    }, []);
+    }, [session]);
+
     const stats = [
         {
             title: "Students",
@@ -212,6 +226,33 @@ export default function AdminDashboard() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {session && ['admin', 'super_admin', 'instructor'].includes(session.user?.role) && staleBatches.length > 0 && (
+                    <Card className="border-border shadow-sm border-orange-200 lg:col-span-2">
+                        <CardHeader
+                            title={<span className="flex items-center gap-2 text-orange-600"><AlertCircle size={18} /> Inactive Syllabus Trackers</span>}
+                            subtitle={`You have ${staleBatches.length} batch(es) with no syllabus updates in the last 7 days.`}
+                        />
+                        <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                {staleBatches.map(pg => (
+                                    <div key={pg._id} className="p-3 rounded-lg border border-orange-100 bg-orange-50/50 flex items-start gap-3">
+                                        <div className="p-2 bg-orange-100 text-orange-600 rounded-md shrink-0">
+                                            <Clock size={16} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-800 line-clamp-1">{pg.batch?.name || 'Unknown Batch'}</p>
+                                            <p className="text-xs text-slate-500 line-clamp-1">{pg.subject?.name || 'Unknown Subject'}</p>
+                                            <p className="text-[10px] uppercase font-bold text-orange-600 mt-1">
+                                                {pg.lastActivityAt ? `Last active: ${new Date(pg.lastActivityAt).toLocaleDateString()}` : 'Never active'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </div>
     );

@@ -85,12 +85,13 @@ export class CourseService {
         if (instituteId) query.institute = instituteId;
 
         return await Course.find(query)
-            .populate('createdBy', 'profile.firstName profile.lastName');
+            .populate('createdBy', 'profile.firstName profile.lastName')
+            .lean();
     }
 
     static async updateCourse(id, data, actorId, instituteId) {
         await connectDB();
-        const allowedFields = ['code', 'name', 'duration', 'fees', 'description'];
+        const allowedFields = ['code', 'name', 'duration', 'fees', 'description', 'subjects'];
         const updateData = {};
         allowedFields.forEach(field => {
             if (data[field] !== undefined) {
@@ -108,7 +109,7 @@ export class CourseService {
             { _id: id, institute: instituteId, deletedAt: null },
             { $set: updateData },
             { new: true, runValidators: true }
-        );
+        ).lean();
         if (!course) {
             console.error(`[UpdateCourse] Failed. Course NOT found for ID: ${id} and Institute: ${instituteId}`);
             throw new Error("Course not found or access denied");

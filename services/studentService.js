@@ -479,6 +479,11 @@ export class StudentService {
         if (actorId) {
             const actor = await User.findById(actorId).select('role assignments');
             if (actor && actor.role === 'instructor') {
+                // Instructors cannot access disabled student profiles
+                if (student.deletedAt) {
+                    return null;
+                }
+
                 const assignedBatches = (actor.assignments?.batches || []).map(id => id.toString());
                 const assignedCourses = (actor.assignments?.courses || []).map(id => id.toString());
 

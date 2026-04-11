@@ -9,7 +9,7 @@ const QuestionSchema = new Schema({
         enum: ['mcq', 'true_false', 'short_answer', 'essay'],
         required: true
     },
-    subject: { type: String },
+    subject: { type: Schema.Types.ObjectId, ref: 'Subject', default: null },
     classLevel: { type: String }, // e.g., "Grade 10", "Undergraduate"
 
     course: { type: Schema.Types.ObjectId, ref: 'Course' },

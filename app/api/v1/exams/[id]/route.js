@@ -24,6 +24,7 @@ export async function GET(req, { params }) {
         const { id } = await params;
         const exam = await Exam.findById(id)
             .populate("course", "name code")
+            .populate("subject", "name code")
             .populate("batches", "name")
             .populate("questions");
 
@@ -82,6 +83,7 @@ export async function PATCH(req, { params }) {
         if (body.description !== undefined) exam.description = body.description;
         if (body.totalMarks !== undefined) exam.totalMarks = body.totalMarks;
         if (body.course !== undefined) exam.course = body.course;
+        if (body.subject !== undefined) exam.subject = body.subject;
         if (body.batches !== undefined) exam.batches = body.batches;
         if (body.duration !== undefined) exam.duration = body.duration;
 

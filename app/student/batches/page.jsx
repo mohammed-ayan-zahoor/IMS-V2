@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
-import { Calendar, Clock, MapPin, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, ChevronRight } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
 export default function StudentBatchesPage() {
@@ -121,6 +121,14 @@ export default function StudentBatchesPage() {
                                             )}
                                         </div>
                                     </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
+                                    <button
+                                        onClick={() => window.location.href = `/student/batches/${batch._id}`}
+                                        className="text-sm font-semibold text-premium-blue hover:text-premium-blue/80 flex items-center gap-1"
+                                    >
+                                        View Syllabus Progress <ChevronRight size={16} />
+                                    </button>
                                 </div>
                             </div>
                         </Card>

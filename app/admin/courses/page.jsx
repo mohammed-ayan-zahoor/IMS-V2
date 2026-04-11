@@ -20,7 +20,8 @@ import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
-import ConfirmDialog from "@/components/ui/ConfirmDialog"; // Import ConfirmDialog
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import MultiSelect from "@/components/ui/MultiSelect";
 import { useToast } from "@/contexts/ToastContext";
 
 export default function CoursesPage() {
@@ -44,11 +45,14 @@ export default function CoursesPage() {
         code: "",
         description: "",
         duration: { value: "", unit: "months" },
-        fees: { amount: "", currency: "INR" }
+        fees: { amount: "", currency: "INR" },
+        subjects: []
     });
+    const [allSubjects, setAllSubjects] = useState([]);
 
     useEffect(() => {
         fetchCourses();
+        fetchSubjects();
         if (session?.user?.role === 'super_admin') {
             fetchInstitutes();
         }
@@ -70,6 +74,21 @@ export default function CoursesPage() {
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
     }, []);
+
+    const fetchSubjects = async () => {
+        try {
+            const url = selectedInstitute
+                ? `/api/v1/subjects?instituteId=${selectedInstitute}`
+                : "/api/v1/subjects";
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                setAllSubjects(data.subjects || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch subjects", error);
+        }
+    };
 
     const fetchCourses = async () => {
         try {
@@ -106,7 +125,7 @@ export default function CoursesPage() {
             if (res.ok) {
                 setIsAddModalOpen(false);
                 setEditingCourse(null);
-                setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" } });
+                setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" }, subjects: [] });
                 fetchCourses();
                 toast.success(editingCourse ? "Course updated successfully" : "Course created successfully");
             } else {
@@ -152,7 +171,8 @@ export default function CoursesPage() {
             fees: {
                 amount: course.fees?.amount || "",
                 currency: course.fees?.currency || "INR"
-            }
+            },
+            subjects: course.subjects || []
         });
         setIsAddModalOpen(true);
         setActiveMenu(null);
@@ -174,7 +194,7 @@ export default function CoursesPage() {
                 {session?.user?.role !== 'instructor' && (
                     <Button onClick={() => {
                         setEditingCourse(null);
-                        setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" } });
+                        setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" }, subjects: [] });
                         setIsAddModalOpen(true);
                     }} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
                         <Plus size={18} />
@@ -292,7 +312,7 @@ export default function CoursesPage() {
                             actionLabel="Create Course"
                             onAction={() => {
                                 setEditingCourse(null);
-                                setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" } });
+                                setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" }, subjects: [] });
                                 setIsAddModalOpen(true);
                             }}
                         />
@@ -325,6 +345,14 @@ export default function CoursesPage() {
                             required
                         />
                     </div>
+                    
+                    <MultiSelect
+                        label="Subjects (Optional)"
+                        placeholder="Select subjects..."
+                        options={allSubjects.map(sub => ({ label: sub.name, value: sub._id }))}
+                        value={formData.subjects}
+                        onChange={(val) => setFormData({ ...formData, subjects: val })}
+                    />
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid grid-cols-2 gap-2">

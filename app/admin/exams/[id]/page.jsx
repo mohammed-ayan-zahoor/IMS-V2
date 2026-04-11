@@ -7,6 +7,7 @@ import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
+import SubjectSelect from "@/components/ui/SubjectSelect";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -16,14 +17,14 @@ export default function EditExamPage({ params }) {
     const { id } = use(params);
 
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [courses, setCourses] = useState([]);
-    const [filteredBatches, setFilteredBatches] = useState([]); // Filtered by course
+    const [subjects, setSubjects] = useState([]); // All subjects
 
     const [formData, setFormData] = useState({
         title: "",
         description: "",
         course: "",
+        subject: null, // New subject field
         batches: [], // Array of batch IDs
         duration: 60,
         duration: 60,
@@ -36,9 +37,10 @@ export default function EditExamPage({ params }) {
 
     const fetchInitialData = async () => {
         try {
-            const [coursesRes, examRes] = await Promise.all([
+            const [coursesRes, examRes, subjectsRes] = await Promise.all([
                 fetch("/api/v1/courses"),
-                fetch(`/api/v1/exams/${id}`)
+                fetch(`/api/v1/exams/${id}`),
+                fetch("/api/v1/subjects")
             ]);
 
             if (!coursesRes.ok || !examRes.ok) throw new Error("Failed to fetch initial data");
@@ -46,7 +48,14 @@ export default function EditExamPage({ params }) {
             const { courses: coursesData } = await coursesRes.json();
             const { exam } = await examRes.json();
 
+            let subjectsData = [];
+            if (subjectsRes.ok) {
+                const sData = await subjectsRes.json();
+                subjectsData = sData.subjects || [];
+            }
+
             setCourses(coursesData);
+            setSubjects(subjectsData);
 
             // Fetch batches if course is already selected
             if (exam.course) {
@@ -68,6 +77,7 @@ export default function EditExamPage({ params }) {
                 title: exam.title,
                 description: exam.description || "",
                 course: exam.course?._id || exam.course || "",
+                subject: exam.subject?._id || exam.subject || null,
                 batches: exam.batches ? exam.batches.map(b => b._id || b) : (exam.batch ? [exam.batch] : []), // Handle legacy batch
                 duration: exam.duration,
                 passingMarks: exam.passingMarks,
@@ -100,6 +110,7 @@ export default function EditExamPage({ params }) {
                 title: formData.title,
                 description: formData.description,
                 course: formData.course,
+                subject: formData.subject,
                 // batches: formData.batches, // Batches are usually handled separately or read-only here if complex?
                 // Actually, let's include them if the API accepts them.
                 duration: Number(formData.duration),
@@ -153,6 +164,13 @@ export default function EditExamPage({ params }) {
                             label="Exam Title"
                             value={formData.title}
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        />
+                        <SubjectSelect
+                            value={formData.subject}
+                            onChange={(val) => setFormData({ ...formData, subject: val })}
+                            subjects={subjects}
+                            courses={courses}
+                            selectedCourse={formData.course}
                         />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input

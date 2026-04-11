@@ -33,6 +33,7 @@ export async function GET(req) {
 
         const exams = await Exam.find(scopedQuery)
             .populate("course", "name code")
+            .populate("subject", "name")
             .populate("batches", "name")
             .sort({ createdAt: -1 });
 
@@ -64,6 +65,7 @@ export async function POST(req) {
         const allowedFields = {
             title: body.title,
             course: body.course,
+            subject: body.subject,
             batches: body.batches || (body.batch ? [body.batch] : []), // Support both for migration
             questions: body.questions || [],
             duration: body.duration,

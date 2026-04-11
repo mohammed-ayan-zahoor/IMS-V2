@@ -41,6 +41,7 @@ export async function GET(req) {
             deletedAt: null
         })
             .populate('course')
+            .populate('subject', 'name code')
             .populate('batches')
             .sort({ scheduledAt: -1 })
             .lean();

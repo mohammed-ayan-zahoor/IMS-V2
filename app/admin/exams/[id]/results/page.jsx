@@ -222,7 +222,7 @@ export default function ExamResultsPage({ params }) {
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td class="subject-col">${escapeHtml(currentExam.title || 'General Assessment')}</td>
+                                    <td class="subject-col">${escapeHtml(currentExam.subject?.name || currentExam.title || 'General Assessment')}</td>
                                     <td>${currentExam.totalMarks ?? 0}</td>
                                     <td>${submission.score ?? 0}</td>
                                 </tr>

@@ -35,8 +35,12 @@ export default function Select({
     }, []);
 
     const handleSelect = (optionValue) => {
-        onChange(optionValue);
         setIsOpen(false);
+        if (!onChange) return;
+        
+        if (typeof onChange === 'function') {
+            onChange(optionValue);
+        }
     };
 
     // We need to pass name to handleSelect to fully mimic event if needed, 

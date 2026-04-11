@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
 import {
     Calendar,
     Plus,
@@ -13,7 +15,8 @@ import {
     Filter,
     Edit,
     Trash2,
-    MessageSquare
+    MessageSquare,
+    ExternalLink
 } from "lucide-react";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
@@ -31,6 +34,7 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 export default function BatchesPage() {
     const toast = useToast();
     const confirm = useConfirm();
+    const router = useRouter();
     const [batches, setBatches] = useState([]);
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -261,6 +265,13 @@ export default function BatchesPage() {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => router.push(`/admin/batches/${batch._id}`)}
+                                                        className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-premium-blue transition-colors"
+                                                        title="View Details"
+                                                    >
+                                                        <ExternalLink size={16} />
+                                                    </button>
                                                     <button
                                                         onClick={async () => {
                                                             try {

@@ -5,6 +5,7 @@ const ExamSchema = new Schema({
     title: { type: String, required: true, trim: true },
     institute: { type: Schema.Types.ObjectId, ref: 'Institute', required: true, index: true },
     course: { type: Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
+    subject: { type: Schema.Types.ObjectId, ref: 'Subject', default: null, index: true },
     batches: [{ type: Schema.Types.ObjectId, ref: 'Batch', index: true }], // Changed to Array
 
     // Questions - STORE AS REFERENCES, NOT EMBEDDED

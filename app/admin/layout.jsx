@@ -87,6 +87,7 @@ export default function AdminLayout({ children }) {
             items: [
                 { label: "Students", icon: Users, href: "/admin/students" },
                 { label: "Courses", icon: BookOpen, href: "/admin/courses" },
+                { label: "Subjects", icon: BookOpen, href: "/admin/subjects" },
                 { label: "Batches", icon: Layers3, href: "/admin/batches" },
             ]
         },
@@ -123,6 +124,7 @@ export default function AdminLayout({ children }) {
             label: "Reports",
             icon: BarChart3,
             items: [
+                { label: "Follow-up Queue", icon: History, href: "/admin/reports/follow-ups" },
                 { label: "Attendance", icon: Calendar, href: "/admin/reports/attendance" },
                 { label: "Fees", icon: CreditCard, href: "/admin/fees", role: ["admin", "super_admin"] },
                 { label: "Collection History", icon: ReceiptText, href: "/admin/collections", role: ["admin", "super_admin"] },

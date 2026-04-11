@@ -174,6 +174,8 @@ function ExamCard({ exam, onAction }) {
                             {exam.title}
                         </h3>
                         <p className="text-xs font-semibold text-slate-500">
+                            {exam.subject ? <span className="text-premium-blue font-bold">{exam.subject.name}</span> : null}
+                            {exam.subject ? " • " : ""}
                             {exam.course?.name || "General"} • {exam.duration} mins
                         </p>
                     </div>

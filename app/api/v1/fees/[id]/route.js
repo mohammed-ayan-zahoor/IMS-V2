@@ -52,7 +52,9 @@ export async function GET(req, { params }) {
 export async function DELETE(req, { params }) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        if (!session || !["admin", "super_admin"].includes(session.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
         const { id } = await params;
         if (!Types.ObjectId.isValid(id)) {

@@ -23,7 +23,10 @@ import {
     Trash2,
     FileText,
     Percent,
-    Tag
+    Tag,
+    History,
+    MessageSquare,
+    Plus
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -86,7 +89,59 @@ export default function StudentDetailsPage({ params }) {
     const [attendanceData, setAttendanceData] = useState([]);
     const [attendanceStats, setAttendanceStats] = useState(null);
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [followUps, setFollowUps] = useState([]);
+    const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+    const [isSavingFollowUp, setIsSavingFollowUp] = useState(false);
+    const [followUpFormData, setFollowUpFormData] = useState({
+        method: "call",
+        status: "pending",
+        response: "",
+        nextActionDate: ""
+    });
 
+    useEffect(() => {
+        if (activeTab === "attendance") {
+            fetchAttendance();
+        } else if (activeTab === "follow-ups") {
+            fetchFollowUps();
+        }
+    }, [activeTab, currentMonth]);
+
+    const fetchFollowUps = async () => {
+        try {
+            const res = await fetch(`/api/v1/students/${id}/follow-ups`);
+            const data = await res.json();
+            setFollowUps(data.followUps || []);
+        } catch (error) {
+            console.error("Failed to fetch follow-ups", error);
+        }
+    };
+
+    const handleAddFollowUp = async (e) => {
+        e.preventDefault();
+        try {
+            setIsSavingFollowUp(true);
+            const res = await fetch(`/api/v1/students/${id}/follow-ups`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(followUpFormData)
+            });
+
+            if (res.ok) {
+                setIsFollowUpModalOpen(false);
+                setFollowUpFormData({ method: "call", status: "pending", response: "", nextActionDate: "" });
+                fetchFollowUps();
+                toast.success("Follow-up logged successfully!");
+            } else {
+                const err = await res.json();
+                toast.error(err.error || "Failed to log follow-up");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
+        } finally {
+            setIsSavingFollowUp(false);
+        }
+    };
     useEffect(() => {
         if (activeTab === "attendance") {
             fetchAttendance();
@@ -628,8 +683,12 @@ export default function StudentDetailsPage({ params }) {
                 {/* Tabs */}
                 {/* ... existing tabs code ... */}
                 <div className="flex border-t border-slate-100 px-6">
-                    {["profile", "academic", "financial", "attendance"]
-                        .filter(tab => session?.user?.role !== 'instructor' || tab !== 'financial')
+                    {["profile", "academic", "financial", "attendance", "follow-ups"]
+                        .filter(tab => {
+                            if (tab === 'financial' && session?.user?.role === 'instructor') return false;
+                            if (tab === 'follow-ups' && ['student', 'instructor'].includes(session?.user?.role)) return false;
+                            return true;
+                        })
                         .map((tab) => (
                             <button
                                 key={tab}
@@ -742,9 +801,9 @@ export default function StudentDetailsPage({ params }) {
                                                         <p className="text-xs text-slate-500">Original Total: ₹{originalTotal.toLocaleString()}</p>
                                                         {discountAmount > 0 && (
                                                             <div className="flex items-center gap-1.5">
-                                                                <p className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex items-center gap-1">
-                                                                    <Tag size={10} /> Discount: -₹{discountAmount.toLocaleString()}
-                                                                </p>
+                                                                 <p className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex items-center gap-1">
+                                                                     <Tag size={10} /> Discount: -₹{discountAmount.toLocaleString()}
+                                                                 </p>
                                                             </div>
                                                         )}
                                                     </div>
@@ -822,6 +881,67 @@ export default function StudentDetailsPage({ params }) {
                                 <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                                     <p className="text-slate-400 font-medium">No active enrollments found.</p>
                                     <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-widest">Enroll in a batch to see fee status</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === "follow-ups" && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between px-1">
+                            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                <History size={20} className="text-premium-blue" />
+                                Fee Follow-up History
+                            </h3>
+                            <Button size="sm" onClick={() => setIsFollowUpModalOpen(true)}>
+                                <Plus size={16} className="mr-2" />
+                                Log New Follow-up
+                            </Button>
+                        </div>
+
+                        {/* Follow-up Timeline */}
+                        <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+                            {followUps.length > 0 ? (
+                                followUps.map((fu, idx) => (
+                                    <div key={fu._id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                                        {/* Icon Dot */}
+                                        <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-100 group-[.is-active]:bg-premium-blue text-slate-500 group-[.is-active]:text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                                            <MessageSquare size={16} />
+                                        </div>
+                                        {/* Content Card */}
+                                        <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                                            <div className="flex items-center justify-between space-x-2 mb-1">
+                                                <div className="font-bold text-slate-900">{fu.staff?.fullName || 'Staff Member'}</div>
+                                                <time className="font-mono text-xs text-slate-500">{format(new Date(fu.date), "MMM d, yyyy")}</time>
+                                            </div>
+                                            <div className="flex gap-2 mb-2">
+                                                <Badge variant="soft" className="text-[10px] uppercase">{fu.method}</Badge>
+                                                <Badge 
+                                                    variant={fu.status === 'promised_payment' || fu.status === 'paid' ? 'success' : 'warning'} 
+                                                    className="text-[10px] uppercase"
+                                                >
+                                                    {fu.status.replace('_', ' ')}
+                                                </Badge>
+                                            </div>
+                                            <div className="text-slate-600 text-sm italic">
+                                                "{fu.response}"
+                                            </div>
+                                            {fu.nextActionDate && (
+                                                <div className="mt-3 pt-3 border-t border-dashed border-slate-100 flex items-center gap-2 text-[11px] font-bold text-premium-blue">
+                                                    <Calendar size={12} />
+                                                    Next Follow-up: {format(new Date(fu.nextActionDate), "MMM d, yyyy")}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                    <p className="text-slate-400 font-medium">No follow-up history found.</p>
+                                    <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-widest leading-loose">
+                                        Use follow-ups to track communication with students <br /> regarding pending fees and reminders.
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -1279,7 +1399,82 @@ export default function StudentDetailsPage({ params }) {
                     </div>
                 </form>
             </Modal>
-        </div >
+
+            {/* Follow-up Modal */}
+            <Modal
+                isOpen={isFollowUpModalOpen}
+                onClose={() => setIsFollowUpModalOpen(false)}
+                title="Log Fee Follow-up"
+            >
+                <form onSubmit={handleAddFollowUp} className="space-y-5">
+                    <div className="grid grid-cols-2 gap-4">
+                        <Select
+                            label="Method"
+                            value={followUpFormData.method}
+                            onChange={(val) => setFollowUpFormData({ ...followUpFormData, method: val })}
+                            options={[
+                                { label: 'Phone Call', value: 'call' },
+                                { label: 'WhatsApp', value: 'whatsapp' },
+                                { label: 'In-Person Visit', value: 'visit' },
+                                { label: 'Email', value: 'email' },
+                                { label: 'Other', value: 'other' }
+                            ]}
+                            required
+                        />
+                        <Select
+                            label="Outcome Status"
+                            value={followUpFormData.status}
+                            onChange={(val) => setFollowUpFormData({ ...followUpFormData, status: val })}
+                            options={[
+                                { label: 'Pending / No Answer', value: 'pending' },
+                                { label: 'Promised Payment', value: 'promised_payment' },
+                                { label: 'Not Reachable', value: 'not_reachable' },
+                                { label: 'Requested Callback', value: 'requested_callback' },
+                                { label: 'Refused / Issue', value: 'refused' },
+                                { label: 'Paid Immediately', value: 'paid' }
+                            ]}
+                            required
+                        />
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Conversation Response</label>
+                        <textarea
+                            className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-premium-blue/20 focus:border-premium-blue outline-none min-h-[100px]"
+                            placeholder="Write down what the student or parent said..."
+                            value={followUpFormData.response}
+                            onChange={(e) => setFollowUpFormData({ ...followUpFormData, response: e.target.value })}
+                            required
+                        />
+                    </div>
+
+                    <Input
+                        label="Next Follow-up Date (Optional Reminder)"
+                        type="date"
+                        value={followUpFormData.nextActionDate}
+                        onChange={(e) => setFollowUpFormData({ ...followUpFormData, nextActionDate: e.target.value })}
+                    />
+
+                    <div className="flex gap-3 pt-2">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            fullWidth
+                            onClick={() => setIsFollowUpModalOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            fullWidth
+                            disabled={isSavingFollowUp}
+                        >
+                            {isSavingFollowUp ? "Saving..." : "Save Follow-up"}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+        </div>
     );
 }
 
