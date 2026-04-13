@@ -26,7 +26,8 @@ import {
     Tag,
     History,
     MessageSquare,
-    Plus
+    Plus,
+    Printer
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -748,7 +749,14 @@ export default function StudentDetailsPage({ params }) {
                                                     <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{batch.course?.name}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
+                                            <div className="text-right flex items-center gap-2">
+                                                <Button size="xs"
+                                                    variant="outline"
+                                                    className="text-premium-blue h-6 px-2"
+                                                    onClick={() => router.push(`/admin/students/${id}/admission-form?batchId=${batch._id}`)}
+                                                >
+                                                    Print Form
+                                                </Button>
                                                 <Badge variant="primary" className="mb-2">{batch.enrollment?.status}</Badge>
                                                 <p className="text-xs text-slate-400 mb-2">
                                                     Enrolled: {batch.enrollment?.enrolledAt
