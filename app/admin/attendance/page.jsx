@@ -128,14 +128,6 @@ export default function AttendanceMarkingPage() {
         }));
     };
 
-    const markAll = (status) => {
-        const next = { ...attendanceData };
-        Object.keys(next).forEach(key => {
-            next[key].status = status;
-        });
-        setAttendanceData(next);
-    };
-
     const handleSave = async () => {
         try {
             setSaving(true);
