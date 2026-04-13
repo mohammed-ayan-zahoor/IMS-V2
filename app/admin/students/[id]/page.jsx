@@ -750,11 +750,12 @@ export default function StudentDetailsPage({ params }) {
                                                 </div>
                                             </div>
                                             <div className="text-right flex items-center gap-2">
-                                                <Button size="xs"
+                                                <Button size="sm"
                                                     variant="outline"
-                                                    className="text-premium-blue h-6 px-2"
+                                                    className="text-premium-blue border-blue-100 hover:bg-blue-50 hover:text-blue-700"
                                                     onClick={() => router.push(`/admin/students/${id}/admission-form?batchId=${batch._id}`)}
                                                 >
+                                                    <Printer size={15} className="mr-2" />
                                                     Print Form
                                                 </Button>
                                                 <Badge variant="primary" className="mb-2">{batch.enrollment?.status}</Badge>

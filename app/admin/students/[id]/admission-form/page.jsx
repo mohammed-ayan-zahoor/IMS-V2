@@ -65,24 +65,36 @@ function AdmissionFormContent() {
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-white">
-                <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
+                <div className="text-center">
+                    <Loader2 className="animate-spin h-8 w-8 text-blue-600 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">Loading admission form...</p>
+                </div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-                <p className="text-red-600 mb-4">{error}</p>
-                <Button onClick={() => window.history.back()}>Go Back</Button>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white p-4">
+                <div className="text-center max-w-md">
+                    <p className="text-red-600 font-medium mb-4">{error}</p>
+                    <Button onClick={() => window.history.back()} variant="outline">
+                        <ArrowLeft size={16} className="mr-2" /> Go Back
+                    </Button>
+                </div>
             </div>
         );
     }
 
-    if (!data?.student) {
+    if (!data || !data.student) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <p>Student not found</p>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white p-4">
+                <div className="text-center max-w-md">
+                    <p className="text-gray-600 mb-4">No student data found</p>
+                    <Button onClick={() => window.history.back()} variant="outline">
+                        <ArrowLeft size={16} className="mr-2" /> Go Back
+                    </Button>
+                </div>
             </div>
         );
     }
@@ -255,8 +267,8 @@ function AdmissionFormView({ data }) {
 
                 <div className="flex flex-col items-end gap-2">
                     <div className="w-24 h-28 border border-gray-400 flex items-center justify-center bg-gray-50 overflow-hidden">
-                        {student.profile?.avatar ? (
-                            <img src={student.profile.avatar} alt="Photo" className="w-full h-full object-cover" />
+                        {student.avatar ? (
+                            <img src={student.avatar} alt="Photo" className="w-full h-full object-cover" />
                         ) : (
                             <span className="text-[10px] text-gray-400">PASSPORT PHOTO</span>
                         )}
@@ -280,16 +292,33 @@ function AdmissionFormView({ data }) {
             <div className="data-grid">
                 <div className="field"><span className="label">Enrollment No.</span><span className="value">{student.enrollmentNumber || "N/A"}</span></div>
                 <div className="field"><span className="label">Date of Admission</span><span className="value">{batch?.enrollment?.enrolledAt ? format(new Date(batch.enrollment.enrolledAt), 'dd-MM-yyyy') : format(new Date(), 'dd-MM-yyyy')}</span></div>
-                <div className="field col-span-2"><span className="label">Student Name</span><span className="value font-bold uppercase">{student.profile?.firstName} {student.profile?.lastName}</span></div>
-                <div className="field"><span className="label">Date of Birth</span><span className="value">{student.profile?.dateOfBirth ? format(new Date(student.profile.dateOfBirth), 'dd-MM-yyyy') : "N/A"}</span></div>
-                <div className="field"><span className="label">Gender</span><span className="value">{student.profile?.gender || "N/A"}</span></div>
-                <div className="field"><span className="label">Mobile No.</span><span className="value">{student.profile?.phone || "N/A"}</span></div>
+                <div className="field col-span-2"><span className="label">Student Name</span><span className="value font-bold uppercase">{student.firstName} {student.lastName}</span></div>
+                <div className="field"><span className="label">Date of Birth</span><span className="value">{student.dateOfBirth ? format(new Date(student.dateOfBirth), 'dd-MM-yyyy') : "N/A"}</span></div>
+                <div className="field"><span className="label">Gender</span><span className="value">{student.gender || "N/A"}</span></div>
+                <div className="field"><span className="label">Mobile No.</span><span className="value">{student.phone || "N/A"}</span></div>
                 <div className="field"><span className="label">Email</span><span className="value">{student.email || "N/A"}</span></div>
                 <div className="field col-span-2">
                     <span className="label">Address</span>
                     <span className="value">
-                        {[student.profile?.address?.street, student.profile?.address?.city, student.profile?.address?.state].filter(Boolean).join(', ')} 
-                        {student.profile?.address?.pincode ? ` - ${student.profile.address.pincode}` : ''}
+                        {[student.address?.street, student.address?.city, student.address?.state].filter(Boolean).join(', ')} 
+                        {student.address?.pincode ? ` - ${student.address.pincode}` : ''}
+                    </span>
+                </div>
+            </div>
+
+            {/* Parent/Guardian Details */}
+            <h3 className="section-title">Parent / Guardian Details</h3>
+            <div className="data-grid">
+                <div className="field col-span-2"><span className="label">Student Name</span><span className="value font-bold uppercase">{student.firstName} {student.lastName}</span></div>
+                <div className="field"><span className="label">Date of Birth</span><span className="value">{student.dateOfBirth ? format(new Date(student.dateOfBirth), 'dd-MM-yyyy') : "N/A"}</span></div>
+                <div className="field"><span className="label">Gender</span><span className="value">{student.gender || "N/A"}</span></div>
+                <div className="field"><span className="label">Mobile No.</span><span className="value">{student.phone || "N/A"}</span></div>
+                <div className="field"><span className="label">Email</span><span className="value">{student.email || "N/A"}</span></div>
+                <div className="field col-span-2">
+                    <span className="label">Address</span>
+                    <span className="value">
+                        {[student.address?.street, student.address?.city, student.address?.state].filter(Boolean).join(', ')} 
+                        {student.address?.pincode ? ` - ${student.address.pincode}` : ''}
                     </span>
                 </div>
             </div>
