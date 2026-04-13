@@ -24,7 +24,7 @@ const AuditLogSchema = new Schema({
             'institute.create', 'institute.update', 'institute.delete',
             'expense_head.create', 'expense_head.delete',
             'expense.create', 'expense.delete',
-            'subject.create', 'subject.update', 'subject.delete'
+            'subject.create', 'subject.update', 'subject.delete', 'subject.syllabus_update', 'subject.syllabus_import'
         ],
         index: true
     },

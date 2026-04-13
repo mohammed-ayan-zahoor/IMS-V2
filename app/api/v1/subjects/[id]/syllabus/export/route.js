@@ -1,32 +1,36 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { getInstituteScope } from '@/middleware/instituteScope';
-import { SyllabusService } from '@/services/syllabusService';
+import { connectDB } from '@/lib/mongodb';
+import Subject from '@/models/Subject';
+import * as XLSX from 'xlsx';
 
 /** GET /api/v1/subjects/[id]/syllabus/export — Export syllabus as JSON */
 export async function GET(req, { params }) {
     try {
-        const { id } = await params;
-        const scope = await getInstituteScope(req);
-        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
+        const session = await getServerSession(authOptions);
+        if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const syllabus = await SyllabusService.getSyllabus(id, scope.instituteId);
+        const { id } = await params;
         
-        const subjectRes = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/v1/subjects/${id}`);
-        const subjectData = await subjectRes.json();
-        const subjectName = subjectData.subject?.name || 'syllabus';
+        await connectDB();
+        
+        const subject = await Subject.findById(id).lean();
+        if (!subject) {
+            return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
+        }
 
         return NextResponse.json({
-            subject: subjectName,
-            subjectCode: subjectData.subject?.code || '',
-            syllabus: syllabus,
+            subject: subject.name,
+            subjectCode: subject.code || '',
+            syllabus: subject.syllabus || [],
             exportedAt: new Date().toISOString(),
             version: '1.0'
         });
     } catch (error) {
+        console.error('Export syllabus error:', error);
         return NextResponse.json({ error: error.message }, { status: 400 });
     }
 }
