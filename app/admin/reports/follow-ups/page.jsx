@@ -10,7 +10,8 @@ import {
     Search,
     AlertCircle,
     UserCheck,
-    Users
+    Users,
+    Download
 } from "lucide-react";
 import { format, isPast, isToday } from "date-fns";
 import Link from "next/link";
@@ -27,6 +28,8 @@ export default function FollowUpQueuePage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [typeFilter, setTypeFilter] = useState("all");
+    const [exportDate, setExportDate] = useState(format(new Date(), "yyyy-MM-dd"));
+    const [isExporting, setIsExporting] = useState(false);
 
     useEffect(() => {
         fetchQueue();
@@ -54,6 +57,32 @@ export default function FollowUpQueuePage() {
         const matchesType = typeFilter === "all" || item.type === typeFilter;
         return matchesSearch && matchesType;
     });
+
+    const handleExport = async () => {
+        try {
+            setIsExporting(true);
+            const res = await fetch(`/api/v1/reports/follow-ups/export?date=${exportDate}`);
+            if (!res.ok) throw new Error("Export failed");
+            
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `followups_${exportDate}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error("Export failed", error);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const setToday = () => {
+        setExportDate(format(new Date(), "yyyy-MM-dd"));
+    };
 
     if (loading) return <LoadingSpinner fullPage />;
 
@@ -118,6 +147,35 @@ export default function FollowUpQueuePage() {
                     <FilterButton active={typeFilter === "Student"} onClick={() => setTypeFilter("Student")}>Students</FilterButton>
                 </div>
             </div>
+
+            {/* Export Controls */}
+            <Card className="p-4 border-slate-200">
+                <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <label className="text-sm font-bold text-slate-600">Export Date:</label>
+                        <input 
+                            type="date" 
+                            value={exportDate}
+                            onChange={(e) => setExportDate(e.target.value)}
+                            className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-premium-blue/10 focus:border-premium-blue outline-none"
+                        />
+                        <button
+                            onClick={setToday}
+                            className="px-4 py-2 text-xs font-bold text-premium-blue hover:bg-premium-blue/10 rounded-xl transition-colors"
+                        >
+                            Today
+                        </button>
+                    </div>
+                    <Button 
+                        onClick={handleExport}
+                        disabled={isExporting}
+                        className="flex items-center gap-2"
+                    >
+                        <Download size={16} />
+                        {isExporting ? "Exporting..." : "Export"}
+                    </Button>
+                </div>
+            </Card>
 
             {/* Queue List */}
             <Card className="overflow-hidden border-none shadow-xl shadow-slate-200/50">
