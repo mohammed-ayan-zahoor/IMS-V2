@@ -81,23 +81,8 @@ export async function GET(req, { params }) {
                 _id: student._id,
                 enrollmentNumber: student.enrollmentNumber,
                 email: student.email,
-                firstName: student.profile?.firstName,
-                lastName: student.profile?.lastName,
-                phone: student.profile?.phone,
-                dateOfBirth: student.profile?.dateOfBirth,
-                gender: student.profile?.gender,
-                avatar: student.profile?.avatar,
-                address: {
-                    street: student.profile?.address?.street || '',
-                    city: student.profile?.address?.city || '',
-                    state: student.profile?.address?.state || '',
-                    pincode: student.profile?.address?.pincode || ''
-                },
-                guardianDetails: {
-                    name: student.guardianDetails?.name || '',
-                    phone: student.guardianDetails?.phone || '',
-                    relation: student.guardianDetails?.relation || ''
-                },
+                profile: student.profile,
+                guardianDetails: student.guardianDetails,
                 createdAt: student.createdAt
             },
             batches: batches.map(b => ({
