@@ -170,6 +170,22 @@ export default function AttendanceMarkingPage() {
         }
     };
 
+    const markAll = (status) => {
+        if (students.length === 0) {
+            toast.error("No students to mark");
+            return;
+        }
+        const newData = { ...attendanceData };
+        students.forEach(enrollment => {
+            const sId = enrollment.student?._id || enrollment.student;
+            if (sId) {
+                newData[sId] = { ...newData[sId], status };
+            }
+        });
+        setAttendanceData(newData);
+        toast.success(`All marked as ${status}`);
+    };
+
     // Filter Logic
     const filteredStudents = students.filter(e => {
         const name = e.student?.profile ? `${e.student.profile.firstName} ${e.student.profile.lastName}` : "Unknown";
@@ -239,6 +255,9 @@ export default function AttendanceMarkingPage() {
                             <div className="flex items-center gap-2">
                                 <Button variant="outline" size="sm" onClick={() => markAll('present')} className="text-emerald-600 border-emerald-100 hover:bg-emerald-50">
                                     <CheckCircle2 size={16} className="mr-2" /> Mark All Present
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => markAll('absent')} className="text-red-600 border-red-100 hover:bg-red-50">
+                                    <XCircle size={16} className="mr-2" /> Mark All Absent
                                 </Button>
                                 <Button onClick={handleSave} disabled={saving} className="bg-premium-blue hover:bg-premium-blue/90 shadow-lg shadow-blue-500/20">
                                     {saving ? "Saving..." : <><Save size={18} className="mr-2" /> Save Attendance</>}

@@ -28,26 +28,42 @@ export async function GET(req) {
         const subject = searchParams.get('subject');
         const difficulty = searchParams.get('difficulty');
         const type = searchParams.get('type');
+        const course = searchParams.get('course');
+        const batch = searchParams.get('batch');
+        const search = searchParams.get('search');
 
         const filter = { isActive: true, institute: scope.instituteId };
 
         // Validate and apply filters
         if (subject) {
-            filter.subject = subject; // Subject is free text but we could sanitize if needed
+            filter.subject = subject;
         }
 
         if (difficulty) {
             if (ALLOWED_DIFFICULTIES.includes(difficulty)) {
                 filter.difficulty = difficulty;
             }
-            // Else ignore invalid difficulty or return 400? 
-            // "only add to filter when valid, and otherwise ignore" per instructions
         }
 
         if (type) {
             if (ALLOWED_TYPES.includes(type)) {
                 filter.type = type;
             }
+        }
+
+        if (course && mongoose.Types.ObjectId.isValid(course)) {
+            filter.course = new mongoose.Types.ObjectId(course);
+        }
+
+        if (batch && mongoose.Types.ObjectId.isValid(batch)) {
+            filter.batch = new mongoose.Types.ObjectId(batch);
+        }
+
+        if (search) {
+            filter.$or = [
+                { text: { $regex: search, $options: 'i' } },
+                { subject: { $regex: search, $options: 'i' } }
+            ];
         }
 
         const questions = await Question.find(filter)

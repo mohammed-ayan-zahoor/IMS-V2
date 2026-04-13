@@ -33,7 +33,8 @@ export default function QuestionBankPage() {
     const [filters, setFilters] = useState({
         course: "",
         batch: "",
-        type: ""
+        type: "",
+        search: ""
     });
 
     useEffect(() => {
@@ -177,7 +178,12 @@ export default function QuestionBankPage() {
                         <label className="text-xs font-bold text-slate-500 uppercase">Search</label>
                         <div className="relative mt-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                            <Input placeholder="Search questions..." className="pl-9 h-10" />
+                            <Input 
+                                placeholder="Search questions..." 
+                                className="pl-9 h-10" 
+                                value={filters.search}
+                                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                            />
                         </div>
                     </div>
                 </CardContent>
