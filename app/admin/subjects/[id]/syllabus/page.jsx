@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
     ChevronDown, ChevronRight, Plus, Trash2, GripVertical, Save,
-    BookOpen, ArrowLeft, FileText, List as ListIcon
+    BookOpen, ArrowLeft, FileText, List as ListIcon, Upload, Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
@@ -28,6 +28,7 @@ export default function SyllabusBuilderPage() {
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [expandedChapters, setExpandedChapters] = useState({});
+    const [importing, setImporting] = useState(false);
 
     // Fetch subject + syllabus
     useEffect(() => {
@@ -198,6 +199,131 @@ export default function SyllabusBuilderPage() {
         }
     };
 
+    // ── Export ─────────────────────────────────────────────────────────────────
+    const handleExport = async () => {
+        try {
+            const res = await fetch(`/api/v1/subjects/${subjectId}/syllabus/export`);
+            if (!res.ok) throw new Error("Export failed");
+            const data = await res.json();
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `syllabus_${subject?.name || 'export'}_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success("Syllabus exported successfully");
+        } catch (e) {
+            console.error("Export error:", e);
+            toast.error("Failed to export syllabus");
+        }
+    };
+
+    // ── Import ─────────────────────────────────────────────────────────────────
+    const handleImport = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setImporting(true);
+            const text = await file.text();
+            const data = JSON.parse(text);
+            
+            if (!data.syllabus || !Array.isArray(data.syllabus)) {
+                throw new Error("Invalid file format");
+            }
+
+            const res = await fetch(`/api/v1/subjects/${subjectId}/syllabus/import`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    syllabus: data.syllabus,
+                    mode: "replace" 
+                })
+            });
+
+            if (!res.ok) throw new Error("Import failed");
+            
+            const result = await res.json();
+            const newSyllabus = result.syllabus || [];
+            
+            setChapters(newSyllabus.map((ch, idx) => ({
+                ...ch,
+                _tmpId: ch._id || `saved_${idx}`,
+                topics: (ch.topics || []).map((tp, tIdx) => ({
+                    ...tp,
+                    _tmpId: tp._id || `saved_${idx}_${tIdx}`,
+                    subTopics: (tp.subTopics || []).map((st, sIdx) => ({
+                        ...st,
+                        _tmpId: st._id || `saved_${idx}_${tIdx}_${sIdx}`
+                    }))
+                }))
+            })));
+
+            toast.success("Syllabus imported successfully");
+        } catch (err) {
+            console.error("Import error:", err);
+            toast.error("Failed to import syllabus. Invalid file format.");
+        } finally {
+            setImporting(false);
+            e.target.value = "";
+        }
+    };
+
+    // ── Merge ─────────────────────────────────────────────────────────────────
+    const handleMerge = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setImporting(true);
+            const text = await file.text();
+            const data = JSON.parse(text);
+            
+            if (!data.syllabus || !Array.isArray(data.syllabus)) {
+                throw new Error("Invalid file format");
+            }
+
+            const res = await fetch(`/api/v1/subjects/${subjectId}/syllabus/import`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    syllabus: data.syllabus,
+                    mode: "merge" 
+                })
+            });
+
+            if (!res.ok) throw new Error("Merge failed");
+            
+            const result = await res.json();
+            const newSyllabus = result.syllabus || [];
+            
+            setChapters(newSyllabus.map((ch, idx) => ({
+                ...ch,
+                _tmpId: ch._id || `saved_${idx}`,
+                topics: (ch.topics || []).map((tp, tIdx) => ({
+                    ...tp,
+                    _tmpId: tp._id || `saved_${idx}_${tIdx}`,
+                    subTopics: (tp.subTopics || []).map((st, sIdx) => ({
+                        ...st,
+                        _tmpId: st._id || `saved_${idx}_${tIdx}_${sIdx}`
+                    }))
+                }))
+            })));
+
+            toast.success("Syllabus merged successfully");
+        } catch (err) {
+            console.error("Merge error:", err);
+            toast.error("Failed to merge syllabus. Invalid file format.");
+        } finally {
+            setImporting(false);
+            e.target.value = "";
+        }
+    };
+
     if (loading) return <LoadingSpinner fullPage />;
 
     return (
@@ -213,10 +339,44 @@ export default function SyllabusBuilderPage() {
                         <p className="text-slate-400 mt-1 text-sm font-medium">{subject?.name} • {subject?.code}</p>
                     </div>
                 </div>
-                <Button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md">
-                    <Save size={18} />
-                    <span>{saving ? "Saving..." : "Save Syllabus"}</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="file"
+                        accept=".json"
+                        onChange={handleImport}
+                        className="hidden"
+                        id="import-syllabus"
+                        disabled={importing}
+                    />
+                    <label htmlFor="import-syllabus" className="cursor-pointer">
+                        <Button variant="outline" size="sm" as="span" className="flex items-center gap-2 pointer-events-none">
+                            <Upload size={16} />
+                            <span>Import</span>
+                        </Button>
+                    </label>
+                    <input
+                        type="file"
+                        accept=".json"
+                        onChange={handleMerge}
+                        className="hidden"
+                        id="merge-syllabus"
+                        disabled={importing}
+                    />
+                    <label htmlFor="merge-syllabus" className="cursor-pointer">
+                        <Button variant="outline" size="sm" as="span" className="flex items-center gap-2 pointer-events-none">
+                            <Upload size={16} />
+                            <span>Merge</span>
+                        </Button>
+                    </label>
+                    <Button variant="outline" size="sm" onClick={handleExport} className="flex items-center gap-2">
+                        <Download size={16} />
+                        <span>Export</span>
+                    </Button>
+                    <Button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md">
+                        <Save size={18} />
+                        <span>{saving ? "Saving..." : "Save Syllabus"}</span>
+                    </Button>
+                </div>
             </div>
 
             {/* Content Builder Area */}
