@@ -259,7 +259,7 @@ function AdmissionFormView({ data }) {
             <div className="watermark">OFFICIAL DOCUMENT</div>
 
             {/* Header */}
-            <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
+            <div className="flex justify-between items-start border-b border-black pb-4 mb-4">
                 <div className="flex-1">
                     {institute?.logo && (
                         <img src={institute.logo} alt="Logo" className="h-12 mb-2" />
@@ -290,7 +290,7 @@ function AdmissionFormView({ data }) {
             </div>
 
             <div className="text-center mb-6">
-                <h2 className="text-base font-black tracking-[0.2em] border-y border-black py-1">ADMISSION FORM</h2>
+                <h2 className="text-base font-black tracking-[0.2em] border-b border-black py-2">ADMISSION FORM</h2>
             </div>
 
             {/* Student Details */}
@@ -326,35 +326,9 @@ function AdmissionFormView({ data }) {
                         <div className="field"><span className="label">Course Code</span><span className="value">{batch.course?.code || "N/A"}</span></div>
                         <div className="field"><span className="label">Batch Name</span><span className="value font-semibold">{batch.name}</span></div>
                         <div className="field"><span className="label">Start Date</span><span className="value">{batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), 'dd-MM-yyyy') : "N/A"}</span></div>
+                        <div className="field"><span className="label">Course Fee</span><span className="value font-bold">₹{totalAmount.toLocaleString()}</span></div>
                     </div>
                 </>
-            )}
-
-            {/* Fee Structure */}
-            {fee && (
-                <div className="mt-4">
-                    <h3 className="section-title">Fee Summary</h3>
-                    <div className="border border-gray-300 rounded overflow-hidden">
-                        <div className="grid grid-cols-2 bg-gray-50 border-b border-gray-300 font-bold px-3 py-1.5 uppercase text-[9px]">
-                            <span>Description</span>
-                            <span className="text-right">Amount (INR)</span>
-                        </div>
-                        <div className="grid grid-cols-2 px-3 py-1 border-b border-gray-100">
-                            <span>Total Course Fee</span>
-                            <span className="text-right">₹{totalAmount.toLocaleString()}</span>
-                        </div>
-                        {discount > 0 && (
-                            <div className="grid grid-cols-2 px-3 py-1 border-b border-gray-100 text-red-600">
-                                <span>Applicable Discount</span>
-                                <span className="text-right">- ₹{discount.toLocaleString()}</span>
-                            </div>
-                        )}
-                        <div className="grid grid-cols-2 px-3 py-1.5 bg-gray-100 font-bold">
-                            <span>Net Payable Amount</span>
-                            <span className="text-right">₹{netAmount.toLocaleString()}</span>
-                        </div>
-                    </div>
-                </div>
             )}
 
             {/* Terms & Conditions */}
