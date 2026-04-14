@@ -101,12 +101,12 @@ export default function AdminDashboard() {
             title: "Students",
             value: loading ? "-" : (dashboardData?.counts?.students || 0).toLocaleString(),
             icon: Users,
-            trend: "+0%", // Real trend calculation requires historical data
+            trend: "+0%",
             softColor: "bg-soft-purple"
         },
         {
-            title: "Teachers",
-            value: loading ? "-" : (dashboardData?.counts?.teachers || 0).toLocaleString(),
+            title: "Courses Enrolled",
+            value: loading ? "-" : (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(),
             icon: BookOpen,
             trend: "+0%",
             softColor: "bg-soft-yellow"
@@ -119,9 +119,9 @@ export default function AdminDashboard() {
             softColor: "bg-soft-blue"
         },
         {
-            title: "Awards",
-            value: loading ? "-" : (dashboardData?.counts?.awards || 0).toLocaleString(),
-            icon: Trophy,
+            title: "Total Enquiries",
+            value: loading ? "-" : (dashboardData?.counts?.enquiries || 0).toLocaleString(),
+            icon: TrendingUp,
             trend: "+0%",
             softColor: "bg-soft-emerald"
         },
@@ -191,38 +191,115 @@ export default function AdminDashboard() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-border shadow-sm">
+                <Card className="border-border shadow-sm overflow-hidden">
                     <CardHeader
-                        title="System Status"
-                        subtitle="Real-time infrastructure health and tasks"
+                        title="Top Courses"
+                        subtitle="Ranked by active student enrollments"
                     />
-                    <CardContent>
-                        <div className="space-y-8">
-                            <div className="flex items-center gap-4">
-                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                                <div className="flex-1">
-                                    <div className="flex justify-between items-end mb-2">
-                                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Database Cluster</p>
-                                        <p className="text-[10px] font-black text-emerald-600/70">CONNECTED</p>
+                    <CardContent className="pt-0">
+                        <div className="space-y-4 pt-4">
+                            {loading ? (
+                                <div className="py-8 text-center text-slate-400 text-sm italic">Analyzing course intelligence...</div>
+                            ) : dashboardData?.topCourses?.length === 0 ? (
+                                <div className="py-12 text-center">
+                                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-50 text-slate-300 mb-4">
+                                        <BookOpen size={24} />
                                     </div>
-                                    <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden border border-slate-100">
-                                        <div className="bg-emerald-400 h-full w-[100%] rounded-full shadow-[0_0_8px_rgba(52,211,153,0.2)]" />
-                                    </div>
+                                    <p className="text-sm font-bold text-slate-500 tracking-tight">No course activity yet.</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Start enrolling students to see insights.</p>
                                 </div>
-                            </div>
+                            ) : (() => {
+                                if (!dashboardData?.topCourses) return null;
+                                const maxStudents = dashboardData.topCourses[0]?.totalStudents || 1;
+                                return dashboardData.topCourses.map((course, index) => {
+                                    const percentage = Math.round((course.totalStudents / maxStudents) * 100);
+                                    const isTie = dashboardData.topCourses.length > 1 && 
+                                                 dashboardData.topCourses.every(c => c.totalStudents === dashboardData.topCourses[0].totalStudents);
 
-                            <div className="flex items-center gap-4">
-                                <div className="w-2.5 h-2.5 rounded-full bg-premium-blue/60" />
-                                <div className="flex-1">
-                                    <div className="flex justify-between items-end mb-2">
-                                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Auth Gateway</p>
-                                        <p className="text-[10px] font-black text-premium-blue/70">SECURE</p>
-                                    </div>
-                                    <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden border border-slate-100">
-                                        <div className="bg-premium-blue/40 h-full w-[100%] rounded-full shadow-[0_0_8px_rgba(59,130,246,0.1)]" />
-                                    </div>
-                                </div>
-                            </div>
+                                    // Demand Badge Logic
+                                    let badge = null;
+                                    if (!isTie) {
+                                        if (percentage >= 80) badge = { text: "🔥 Hot Demand", color: "text-orange-600 bg-orange-50 border-orange-100" };
+                                        else if (percentage <= 40) badge = { text: "⚠️ Needs Attention", color: "text-slate-500 bg-slate-50 border-slate-100" };
+                                    }
+
+                                    return (
+                                        <a 
+                                            href={`/admin/courses`} 
+                                            key={course._id} 
+                                            className={cn(
+                                                "flex flex-col gap-3 p-4 rounded-xl border transition-all duration-300 group cursor-pointer block",
+                                                index === 0 
+                                                    ? "bg-gradient-to-br from-premium-blue/[0.04] to-premium-blue/[0.01] border-premium-blue/20 shadow-sm scale-[1.02] sm:scale-[1.04] hover:scale-[1.06]" 
+                                                    : "bg-white border-slate-100 hover:border-premium-blue/20 hover:shadow-md hover:-translate-y-0.5"
+                                            )}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className={cn(
+                                                        "w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-black tracking-tighter shadow-sm shrink-0 transition-transform group-hover:rotate-3",
+                                                        index === 0 ? "bg-premium-blue text-white ring-4 ring-premium-blue/10" : "bg-slate-50 text-slate-400 border border-slate-100"
+                                                    )}>
+                                                        #{index + 1}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={cn(
+                                                                "text-sm font-bold tracking-tight line-clamp-1 transition-colors",
+                                                                index === 0 ? "text-slate-900" : "text-slate-700 group-hover:text-premium-blue"
+                                                            )}>
+                                                                {course.name}
+                                                            </span>
+                                                            {badge && (
+                                                                <span className={cn("text-[8px] font-black px-1.5 py-0.5 rounded-full border border-transparent uppercase tracking-wider whitespace-nowrap", badge.color)}>
+                                                                    {badge.text}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                                                            Growth Rank {index + 1}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-end shrink-0">
+                                                    <span className={cn(
+                                                        "text-sm font-black tracking-tight",
+                                                        index === 0 ? "text-premium-blue" : "text-slate-700"
+                                                    )}>
+                                                        {course.totalStudents || 0}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                                                        Students
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Relative Strength Progress Bar */}
+                                            <div className="w-full space-y-1.5">
+                                                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                    <motion.div 
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${percentage}%` }}
+                                                        transition={{ duration: 0.8, delay: index * 0.1 }}
+                                                        className={cn(
+                                                            "h-full rounded-full shadow-sm",
+                                                            index === 0 ? "bg-premium-blue" : "bg-premium-blue/40"
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-tighter italic">
+                                                    <span className="text-slate-300">
+                                                        {isTie && index !== 0 ? "Equal performance" : ""}
+                                                    </span>
+                                                    <span className="text-slate-300">
+                                                        {percentage}% relative strength
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    );
+                                });
+                            })()}
                         </div>
                     </CardContent>
                 </Card>

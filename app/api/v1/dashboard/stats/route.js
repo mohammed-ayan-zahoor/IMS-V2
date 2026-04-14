@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
-import { getInstituteScope, addInstituteFilter } from "@/middleware/instituteScope";
+import Batch from "@/models/Batch";
+import Course from "@/models/Course";
+import Enquiry from "@/models/Enquiry";
+import mongoose from "mongoose";
+import { getInstituteScope } from "@/middleware/instituteScope";
 
 export async function GET(req) {
     try {
@@ -15,16 +19,14 @@ export async function GET(req) {
         const { searchParams } = new URL(req.url);
         const targetInstParam = searchParams.get("instituteId");
 
-        // Hybrid Scoping Logic for Stats:
-        // 1. If Super Admin and global view requested -> No institute filter
-        // 2. Otherwise -> Scoped View (Membership OR legacy institute field)
         const isGlobalView = scope.isSuperAdmin && (targetInstParam === "all" || !targetInstParam);
 
         let hybridBaseQuery = { deletedAt: null };
+        let instituteQuery = { deletedAt: null };
 
         if (!isGlobalView) {
-            const mongoose = (await import("mongoose")).default;
             const safeInstituteId = new mongoose.Types.ObjectId(scope.instituteId);
+            instituteQuery.institute = safeInstituteId;
 
             const Membership = (await import("@/models/Membership")).default;
             const memberships = await Membership.find({
@@ -41,48 +43,77 @@ export async function GET(req) {
                 deletedAt: null
             };
         }
-        // Run counts in parallel
-        // 1. Students
-        const studentsCountPromise = User.countDocuments({
-            ...hybridBaseQuery,
-            role: 'student'
-        });
 
-        // 2. Teachers (Instructors)
-        const teachersCountPromise = User.countDocuments({
-            ...hybridBaseQuery,
-            role: 'instructor'
-        });
+        // Parallel stats retrieval
+        // 1. User Counts (Students, Staff)
+        const studentsCountPromise = User.countDocuments({ ...hybridBaseQuery, role: 'student' });
+        const staffCountPromise = User.countDocuments({ ...hybridBaseQuery, role: { $in: ['admin', 'staff'] } });
 
-        // 3. Staff (Admins/Other)
-        const staffCountPromise = User.countDocuments({
-            ...hybridBaseQuery,
-            role: { $in: ['admin', 'staff'] }
-        });
+        // 2. Total Enrollments (Sum of student counts across all active batches)
+        const totalEnrollmentsPromise = Batch.aggregate([
+            { $match: instituteQuery },
+            { $project: { enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
+            { $group: { _id: null, total: { $sum: "$enrollmentCount" } } }
+        ]);
 
-        // 4. Recent Admissions
-        const recentAdmissionsPromise = User.find({
-            ...hybridBaseQuery,
-            role: 'student'
-        })
+        // 3. Enquiry Count
+        const enquiriesCountPromise = Enquiry.countDocuments(instituteQuery);
+
+        // 4. Top Courses (Leaderboard)
+        const topCoursesPromise = Batch.aggregate([
+            { $match: instituteQuery },
+            { $project: { course: 1, enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
+            { $group: { _id: "$course", totalStudents: { $sum: "$enrollmentCount" } } },
+            { $sort: { totalStudents: -1 } },
+            { $limit: 5 },
+            {
+                $lookup: {
+                    from: "courses",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "courseData"
+                }
+            },
+            { $unwind: "$courseData" },
+            {
+                $project: {
+                    _id: 1,
+                    name: "$courseData.name",
+                    totalStudents: 1
+                }
+            }
+        ]);
+
+        // 5. Recent Admissions
+        const recentAdmissionsPromise = User.find({ ...hybridBaseQuery, role: 'student' })
             .select('profile.firstName profile.lastName email role createdAt enrollmentNumber')
             .sort({ createdAt: -1 })
             .limit(5);
 
-        const [studentsCount, teachersCount, staffCount, recentAdmissions] = await Promise.all([
+        const [
+            studentsCount, 
+            staffCount, 
+            totalEnrollmentsResult, 
+            enquiriesCount, 
+            topCourses, 
+            recentAdmissions
+        ] = await Promise.all([
             studentsCountPromise,
-            teachersCountPromise,
             staffCountPromise,
+            totalEnrollmentsPromise,
+            enquiriesCountPromise,
+            topCoursesPromise,
             recentAdmissionsPromise
         ]);
 
         return NextResponse.json({
             counts: {
                 students: studentsCount,
-                teachers: teachersCount,
+                coursesEnrolled: totalEnrollmentsResult[0]?.total || 0,
                 staff: staffCount,
-                awards: 0 // Placeholder until Awards feature exists
+                enquiries: enquiriesCount
             },
+            topCourses,
             recentAdmissions
         });
 
