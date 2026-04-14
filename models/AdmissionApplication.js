@@ -60,7 +60,8 @@ const AdmissionApplicationSchema = new Schema({
         enum: ['pending', 'converted', 'cancelled'],
         default: 'pending'
     },
-    notes: { type: String, trim: true }
+    notes: { type: String, trim: true },
+    referredBy: { type: String, trim: true }
 }, { timestamps: true });
 
 AdmissionApplicationSchema.index({ email: 1, institute: 1 });

@@ -59,6 +59,7 @@ const UserSchema = new Schema({
         phone: String,
         relation: { type: String, enum: ['father', 'mother', 'guardian', 'other'] }
     },
+    referredBy: { type: String, trim: true },
     // Security
     passwordResetToken: String,
     passwordResetExpires: Date,

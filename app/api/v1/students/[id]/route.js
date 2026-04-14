@@ -78,6 +78,10 @@ export async function PATCH(req, { params }) {
             updates.guardianDetails = body.guardianDetails;
         }
 
+        if (body.referredBy !== undefined) {
+            updates.referredBy = body.referredBy;
+        }
+
         if (Object.keys(updates).length === 0) {
             return NextResponse.json({ error: "No valid updates provided" }, { status: 400 });
         }

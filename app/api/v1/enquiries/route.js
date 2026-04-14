@@ -61,13 +61,14 @@ export async function POST(req) {
         if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const body = await req.json();
-        let { studentName, fatherName, contactNumber, course, standard, address, expectedConfirmationDate, followUpDate, notes } = body;
+        let { studentName, fatherName, contactNumber, course, standard, address, expectedConfirmationDate, followUpDate, notes, referredBy } = body;
 
         // Sanitization & Validation
         studentName = studentName?.trim();
         fatherName = fatherName?.trim();
         contactNumber = contactNumber?.trim();
         notes = notes?.trim();
+        referredBy = referredBy?.trim();
 
         // 1. Name Validation (Letters, spaces, hyphens only, max 50 chars)
         const nameRegex = /^[a-zA-Z\s\-]{2,50}$/;
@@ -122,6 +123,7 @@ export async function POST(req) {
             expectedConfirmationDate: expectedConfirmationDate ? new Date(expectedConfirmationDate) : null,
             followUpDate: followUpDate ? new Date(followUpDate) : null,
             notes: notes?.substring(0, 500), // Truncate notes
+            referredBy: referredBy?.substring(0, 100), // Truncate referredBy
             createdBy: session.user.id
         });
 

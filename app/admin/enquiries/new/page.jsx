@@ -32,7 +32,8 @@ export default function NewEnquiryPage() {
         enquiryDate: new Date().toISOString().split("T")[0],
         expectedConfirmationDate: getFutureDate(7), // +7 days auto
         followUpDate: getFutureDate(2),           // +2 days auto
-        notes: ""
+        notes: "",
+        referredBy: ""
     });
 
     useEffect(() => {
@@ -145,6 +146,12 @@ export default function NewEnquiryPage() {
                                         placeholder="e.g. 10th, 12th, or Degree"
                                         value={formData.standard}
                                         onChange={(e) => setFormData({ ...formData, standard: e.target.value })}
+                                    />
+                                    <Input
+                                        label="Referred By"
+                                        placeholder="Name of person or source"
+                                        value={formData.referredBy}
+                                        onChange={(e) => setFormData({ ...formData, referredBy: e.target.value })}
                                     />
                                 </div>
                             </div>

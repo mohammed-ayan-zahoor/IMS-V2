@@ -187,6 +187,7 @@ export default function EnquiriesPage() {
                                     <th className="px-4 py-3">Contact</th>
                                     <th className="px-4 py-3">Course Interest</th>
                                     <th className="px-4 py-3">Status</th>
+                                    <th className="px-4 py-3">Referred By</th>
                                     <th className="px-4 py-3">Notes</th>
                                     <th className="px-4 py-3">Next Action</th>
                                     <th className="px-4 py-3 text-right pr-5">Quick Actions</th>
@@ -223,6 +224,11 @@ export default function EnquiriesPage() {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <Badge variant={getStatusVariant(enq.status)} className="font-black text-[10px] uppercase shadow-sm">{enq.status}</Badge>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="text-[12px] font-bold text-slate-700">
+                                                    {enq.referredBy || <span className="text-slate-300 italic font-normal">—</span>}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="text-[11px] font-medium text-slate-500 line-clamp-2 max-w-[180px]">

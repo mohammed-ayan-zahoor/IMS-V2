@@ -17,7 +17,7 @@ export class StudentService {
      */
     static async createStudent(data, actorId) {
         try {
-            const { email, password, profile, guardianDetails, institute } = data; // Destructure institute
+            const { email, password, profile, guardianDetails, institute, referredBy } = data; // Destructure referredBy
 
             if (!institute) {
                 throw new Error('Institute context required for student creation');
@@ -48,6 +48,7 @@ export class StudentService {
                 role: 'student',
                 profile,
                 guardianDetails,
+                referredBy: referredBy?.substring(0, 100),
                 institute: institute // Add Institute
             });
 

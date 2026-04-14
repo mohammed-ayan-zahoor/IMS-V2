@@ -32,6 +32,7 @@ const EnquirySchema = new Schema({
     expectedConfirmationDate: { type: Date },
     followUpDate: { type: Date },
     notes: { type: String, trim: true },
+    referredBy: { type: String, trim: true }, // Name of student/staff/source who referred
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

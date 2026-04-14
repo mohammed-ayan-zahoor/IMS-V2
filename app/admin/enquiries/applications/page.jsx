@@ -285,6 +285,7 @@ export default function AdmissionApplicationsPage() {
                                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-left">Applicant</th>
                                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-left">Course</th>
                                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-left">Applied On</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-left">Referred By</th>
                                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -316,6 +317,11 @@ export default function AdmissionApplicationsPage() {
                                             <td className="px-6 py-4">
                                                 <p className="text-xs font-bold text-slate-600">{format(new Date(app.createdAt), "PP")}</p>
                                                 <p className="text-[10px] font-medium text-slate-400">{format(new Date(app.createdAt), "p")}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-[12px] font-bold text-slate-700">
+                                                    {app.referredBy || <span className="text-slate-300 italic font-normal">—</span>}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
@@ -462,6 +468,16 @@ export default function AdmissionApplicationsPage() {
                                 <div className="text-sm font-medium text-slate-600 leading-relaxed">
                                     {selectedApplication.address.street}<br />
                                     {selectedApplication.address.city}, {selectedApplication.address.state} - {selectedApplication.address.pincode}
+                                </div>
+                            </div>
+
+                            {/* Referral Info */}
+                            <div className="space-y-4">
+                                <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">
+                                    <Users size={12} /> Referral Source
+                                </h4>
+                                <div className="text-sm font-bold text-slate-700">
+                                    {selectedApplication.referredBy || "Self / Not Specified"}
                                 </div>
                             </div>
                         </div>

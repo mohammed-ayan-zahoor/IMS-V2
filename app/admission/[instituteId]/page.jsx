@@ -53,7 +53,8 @@ export default function PublicAdmissionForm({ params }) {
             pincode: ""
         },
         previousEducation: "",
-        notes: ""
+        notes: "",
+        referredBy: ""
     });
 
     const [selectedCourse, setSelectedCourse] = useState(null);
@@ -641,6 +642,16 @@ export default function PublicAdmissionForm({ params }) {
                                                 </div>
                                             </div>
                                             <button onClick={() => setStep(3)} className="text-[10px] font-black text-premium-blue uppercase hover:underline">Change</button>
+                                        </div>
+
+                                        <div className="space-y-2 pt-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">How did you hear about us? (Referred By)</label>
+                                            <input
+                                                className="w-full bg-white border border-slate-100 rounded-2xl h-12 px-4 shadow-sm outline-none focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
+                                                placeholder="Friend name, Social Media, etc."
+                                                value={formData.referredBy}
+                                                onChange={(e) => setFormData({ ...formData, referredBy: e.target.value })}
+                                            />
                                         </div>
 
                                         <div className="space-y-2 pt-2">

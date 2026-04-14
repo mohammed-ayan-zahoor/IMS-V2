@@ -27,7 +27,8 @@ import {
     History,
     MessageSquare,
     Plus,
-    Printer
+    Printer,
+    UserPlus
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -82,7 +83,8 @@ export default function StudentDetailsPage({ params }) {
     const [formData, setFormData] = useState({
         email: "",
         profile: { firstName: "", lastName: "", phone: "", dateOfBirth: "", address: {} },
-        guardianDetails: { name: "", relation: "", phone: "" }
+        guardianDetails: { name: "", relation: "", phone: "" },
+        referredBy: ""
     });
 
 
@@ -202,7 +204,8 @@ export default function StudentDetailsPage({ params }) {
                         address: { ...defaultAddress, ...(data.student.profile?.address || {}) },
                         avatar: data.student.profile?.avatar || ""
                     },
-                    guardianDetails: data.student.guardianDetails || { name: "", relation: "", phone: "" }
+                    guardianDetails: data.student.guardianDetails || { name: "", relation: "", phone: "" },
+                    referredBy: data.student.referredBy || ""
                 });
             }
         } catch (error) {
@@ -714,6 +717,7 @@ export default function StudentDetailsPage({ params }) {
                                 <InfoRow label="Phone" value={student.profile?.phone} icon={Phone} />
                                 <InfoRow label="Address" value={formatAddress(student.profile?.address)} icon={MapPin} />
                                 <InfoRow label="Date of Birth" value={student.profile?.dateOfBirth ? format(new Date(student.profile.dateOfBirth), "PPP") : "Not set"} icon={Calendar} />
+                                <InfoRow label="Referred By" value={student.referredBy || "Self / Unknown"} icon={UserPlus} />
                             </div>
                         </Card>
                         <Card title="Guardian Information">
@@ -1185,6 +1189,13 @@ export default function StudentDetailsPage({ params }) {
                             label="Guardian Contact"
                             value={formData.guardianDetails.phone}
                             onChange={(e) => setFormData({ ...formData, guardianDetails: { ...formData.guardianDetails, phone: e.target.value } })}
+                        />
+                        <Input
+                            id="referredBy"
+                            label="Referred By"
+                            placeholder="e.g. Current Student, Staff Name, or Marketing Source"
+                            value={formData.referredBy}
+                            onChange={(e) => setFormData({ ...formData, referredBy: e.target.value })}
                         />
                     </div>
 
