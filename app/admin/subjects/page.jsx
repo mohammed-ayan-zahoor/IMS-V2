@@ -128,69 +128,59 @@ export default function SubjectsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-100">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Subject Management</h1>
-                    <p className="text-slate-400 mt-1 text-sm font-medium">Create and organize academic subjects for courses and exams.</p>
-                </div>
+            {/* Page Action Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                <div /> {/* Spacer for Title in Global Header */}
                 {session?.user?.role !== 'instructor' && (
-                    <Button onClick={() => {
-                        setEditingSubject(null);
-                        setFormData({ name: "", code: "", description: "" });
-                        setIsAddModalOpen(true);
-                    }} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
-                        <Plus size={18} />
+                    <Button 
+                        onClick={() => {
+                            setEditingSubject(null);
+                            setFormData({ name: "", code: "", description: "" });
+                            setIsAddModalOpen(true);
+                        }} 
+                        size="md" 
+                        className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
+                    >
+                        <Plus size={18} strokeWidth={2.5} />
                         <span>Add New Subject</span>
                     </Button>
                 )}
             </div>
 
-            <Card className="transition-all border-transparent shadow-sm overflow-visible">
-                <CardHeader className="flex-row items-center gap-4 space-y-0">
-                    <div className="flex-1 max-w-md relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/50 transition-colors group-focus-within:text-premium-blue" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search subjects..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
-                        />
-                    </div>
-                </CardHeader>
+            <Card className="overflow-hidden border-none shadow-premium">
                 <CardContent className="p-0">
                     {loading ? (
-                        <LoadingSpinner />
+                        <div className="p-12 flex justify-center"><LoadingSpinner /></div>
                     ) : filteredSubjects.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-100 bg-slate-50/50 text-xs uppercase tracking-wider text-slate-500 font-bold">
-                                        <th className="px-6 py-4">Subject Name</th>
-                                        <th className="px-6 py-4">Code</th>
-                                        {session?.user?.role !== 'instructor' && <th className="px-6 py-4 text-right">Actions</th>}
+                                    <tr className="border-b border-slate-100 bg-white">
+                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Subject Name</th>
+                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Code</th>
+                                        {session?.user?.role !== 'instructor' && <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-slate-50">
                                     {filteredSubjects.map(subject => (
-                                        <tr key={subject._id} className="group hover:bg-slate-50/80 transition-colors">
+                                        <tr key={subject._id} className="group hover:bg-[#F9FAFB] transition-all duration-200">
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shrink-0">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-lg bg-blue-50/80 text-blue-600 flex items-center justify-center border border-blue-100/50 shrink-0">
                                                         <BookOpen size={18} />
                                                     </div>
                                                     <div>
-                                                        <h3 className="font-bold text-slate-900 text-sm">{subject.name}</h3>
-                                                        <p className="text-xs text-slate-500 line-clamp-1 max-w-[250px]">{subject.description || "No description"}</p>
+                                                        <h3 className="font-bold text-slate-900 text-[14px] leading-tight">{subject.name}</h3>
+                                                        <p className="text-[12px] text-slate-500 font-medium mt-0.5 line-clamp-1 max-w-[300px]">{subject.description || "No description provided"}</p>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <Badge variant="primary" className="font-mono text-[10px]">{subject.code}</Badge>
+                                                <Badge variant="code">{subject.code}</Badge>
                                             </td>
                                             {session?.user?.role !== 'instructor' && (
                                                 <td className="px-6 py-4 text-right">
-                                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); router.push(`/admin/subjects/${subject._id}/syllabus`); }}
                                                             className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
@@ -221,17 +211,29 @@ export default function SubjectsPage() {
                             </table>
                         </div>
                     ) : (
-                        <EmptyState
-                            icon={BookOpen}
-                            title="No subjects found"
-                            description="Create your first subject to get started."
-                            actionLabel="Create Subject"
-                            onAction={() => {
-                                setEditingSubject(null);
-                                setFormData({ name: "", code: "", description: "" });
-                                setIsAddModalOpen(true);
-                            }}
-                        />
+                        <div className="py-20 flex flex-col items-center text-center">
+                            <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 mb-4">
+                                <BookOpen size={32} />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">No subjects yet</h3>
+                            <p className="text-sm text-slate-500 font-medium max-w-[240px] mt-1">
+                                Create your first academic subject to start building curriculum.
+                            </p>
+                            {session?.user?.role !== 'instructor' && (
+                                <Button 
+                                    onClick={() => {
+                                        setEditingSubject(null);
+                                        setFormData({ name: "", code: "", description: "" });
+                                        setIsAddModalOpen(true);
+                                    }}
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-6"
+                                >
+                                    Add Subject
+                                </Button>
+                            )}
+                        </div>
                     )}
                 </CardContent>
             </Card>

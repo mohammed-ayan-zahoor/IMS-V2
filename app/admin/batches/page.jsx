@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 import {
     Calendar,
@@ -13,7 +14,7 @@ import {
     BookOpen,
     Clock,
     Filter,
-    Edit,
+    Edit2,
     Trash2,
     MessageSquare,
     ExternalLink
@@ -168,106 +169,117 @@ export default function BatchesPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-100">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Batch Scheduling</h1>
-                    <p className="text-slate-400 mt-1 text-sm font-medium">Coordinate class schedules, track capacity and manage intakes.</p>
-                </div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                <div />
                 {session?.user?.role !== 'instructor' && (
-                    <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
-                        <Plus size={18} />
+                    <Button 
+                        onClick={() => {
+                            setEditingBatch(null);
+                            setFormData({ name: "", course: "", schedule: { startDate: "", endDate: "", timing: "", days: [] }, capacity: 30, instructor: "", status: "active" });
+                            setIsAddModalOpen(true);
+                        }} 
+                        size="md" 
+                        className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
+                    >
+                        <Plus size={18} strokeWidth={2.5} />
                         <span>Create Batch</span>
                     </Button>
                 )}
             </div>
 
-            <Card className="transition-all border-transparent shadow-sm">
-                <CardHeader className="flex-row items-center gap-4 space-y-0">
-                    <div className="flex-1 max-w-md relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/50 transition-colors group-focus-within:text-premium-blue" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search batches..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
-                        />
+            <Card className="overflow-hidden border-none shadow-premium">
+                <CardHeader className="flex-col md:flex-row items-stretch md:items-center gap-4 space-y-0 bg-[#F9FAFB]/50 border-b border-slate-100">
+                    <div className="flex flex-wrap items-center gap-3 w-full">
+                        {institutes.length > 0 && (
+                            <div className="min-w-[200px]">
+                                <Select
+                                    value={selectedInstitute}
+                                    onChange={(val) => setSelectedInstitute(val)}
+                                    placeholder="All Institutes"
+                                    buttonClassName="bg-white border-slate-200"
+                                    options={[
+                                        { label: "All Institutes", value: "" },
+                                        ...institutes.map(i => ({ label: i.name, value: i._id }))
+                                    ]}
+                                />
+                            </div>
+                        )}
+                        <div className="flex-1" />
+                        <Badge variant="hot" className="bg-orange-50 text-orange-600 font-mono text-[10px]">
+                            {filteredBatches.length} Active Batches
+                        </Badge>
                     </div>
-                    {institutes.length > 0 && (
-                        <div className="min-w-[200px]">
-                            <Select
-                                value={selectedInstitute}
-                                onChange={(val) => setSelectedInstitute(val)}
-                                placeholder="All Institutes"
-                                options={[
-                                    { label: "All Institutes", value: "" },
-                                    ...institutes.map(i => ({ label: i.name, value: i._id }))
-                                ]}
-                            />
-                        </div>
-                    )}
                 </CardHeader>
+
                 <CardContent className="p-0">
                     {loading ? (
-                        <LoadingSpinner />
+                        <div className="p-12 flex justify-center"><LoadingSpinner /></div>
                     ) : filteredBatches.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-white border-y border-slate-100">
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Batch Name</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Course</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Schedule</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Occupancy</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                    <tr className="border-b border-slate-100 bg-white">
+                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Batch Name</th>
+                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Course Detail</th>
+                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Schedule</th>
+                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Occupancy</th>
+                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-slate-50">
                                     {filteredBatches.map((batch) => (
-                                        <tr key={batch._id} className="group hover:bg-slate-50/50 transition-colors">
+                                        <tr key={batch._id} className="group hover:bg-[#F9FAFB] transition-all duration-200">
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-premium-blue/10 flex items-center justify-center text-premium-blue font-bold border border-premium-blue/20">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-lg bg-blue-50/80 text-blue-600 flex items-center justify-center border border-blue-100/50 shrink-0">
                                                         <Calendar size={18} />
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-bold text-slate-900">{batch.name}</p>
-                                                        <p className="text-[11px] font-medium text-slate-400">
+                                                        <h3 className="font-bold text-slate-900 text-[14px] leading-tight">{batch.name}</h3>
+                                                        <p className="text-[12px] text-slate-400 font-medium mt-0.5">
                                                             Starts {batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), "MMM d, yyyy") : "TBD"}
                                                         </p>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <Badge variant="primary" className="font-mono text-[10px] uppercase">
-                                                    {batch.course?.code || "N/A"}
-                                                </Badge>
-                                                <p className="text-[10px] text-slate-400 font-bold mt-1 truncate max-w-[150px]">{batch.course?.name}</p>
+                                                <Badge variant="code">{batch.course?.code || "N/A"}</Badge>
+                                                <p className="text-[11px] text-slate-500 font-bold mt-1.5 truncate max-w-[150px]">{batch.course?.name}</p>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2 text-slate-600 text-xs font-bold">
-                                                    <Clock size={14} className="text-slate-400" />
-                                                    <span>{batch.schedule?.description || "N/A"}</span>
+                                                <div className="flex flex-col gap-1.5">
+                                                    <div className="flex items-center gap-2 text-slate-700 text-[12px] font-bold">
+                                                        <Clock size={14} className="text-slate-400" />
+                                                        <span>{batch.schedule?.timing || "No time set"}</span>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {batch.schedule?.days?.map(day => (
+                                                            <span key={day} className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                                                                {day.substring(0, 3)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex-1 w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-premium-blue/80 rounded-full"
-                                                            style={{ width: `${Math.min(((batch.activeEnrollmentCount || 0) / batch.capacity) * 100, 100)}%` }}
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[60px]">
+                                                        <div 
+                                                            className={cn(
+                                                                "h-full transition-all duration-500",
+                                                                ((batch.activeEnrollmentCount || 0) / batch.capacity) > 0.8 ? "bg-rose-500" : "bg-emerald-500"
+                                                            )}
+                                                            style={{ width: `${Math.min(100, ((batch.activeEnrollmentCount || 0) / batch.capacity) * 100)}%` }}
                                                         />
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-slate-500">
-                                                        {batch.activeEnrollmentCount || 0}/{batch.capacity}
-                                                    </span>
+                                                    <span className="text-[11px] font-black text-slate-900">{batch.activeEnrollmentCount || 0}/{batch.capacity}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
+                                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
                                                     <button
                                                         onClick={() => router.push(`/admin/batches/${batch._id}`)}
-                                                        className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-premium-blue transition-colors"
+                                                        className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
                                                         title="View Details"
                                                     >
                                                         <ExternalLink size={16} />
@@ -289,22 +301,31 @@ export default function BatchesPage() {
                                                                 toast.error("Failed to start batch chat");
                                                             }
                                                         }}
-                                                        className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-green-500 transition-colors"
+                                                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                                                         title="Broadcast to Batch"
                                                     >
                                                         <MessageSquare size={16} />
                                                     </button>
+                                                    <button
+                                                        onClick={() => router.push(`/admin/attendance?batchId=${batch._id}`)}
+                                                        className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
+                                                        title="Mark Attendance"
+                                                    >
+                                                        <Calendar size={16} />
+                                                    </button>
                                                     {session?.user?.role !== 'instructor' && (
                                                         <>
                                                             <button
-                                                                onClick={() => handleEditBatch(batch)}
-                                                                className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-premium-blue transition-colors"
+                                                                onClick={(e) => { e.stopPropagation(); openEditModal(batch); }}
+                                                                className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
+                                                                title="Edit Batch"
                                                             >
-                                                                <Edit size={16} />
+                                                                <Edit2 size={16} />
                                                             </button>
                                                             <button
-                                                                onClick={() => handleDeleteBatch(batch._id)}
-                                                                className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
+                                                                onClick={(e) => { e.stopPropagation(); setDeletingBatch(batch); }}
+                                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                                title="Delete Batch"
                                                             >
                                                                 <Trash2 size={16} />
                                                             </button>

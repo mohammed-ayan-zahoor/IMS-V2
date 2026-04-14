@@ -148,7 +148,13 @@ export default function SettingsPage() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Institute Settings</h1>
+            {/* Page Action Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                <div>
+                    <h1 className="text-xl font-bold text-slate-900 tracking-tight">Institute Settings</h1>
+                    <p className="text-[12px] text-slate-400 font-medium tracking-tight">Manage institute branding, contacts and system preferences</p>
+                </div>
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
 

@@ -19,59 +19,18 @@
   --color-soft-status-green: #ecfdf5;
   --color-soft-status-blue: #eff6ff;
   --color-soft-status-amber: #fffbeb;
+
+  --radius-premium: 14px;
+  --shadow-premium: 0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #0f172a;
-  --muted: #64748b;
-  --accent: #2563eb;
-  --border: #e2e8f0;
+  --background: #F7F8FA; /* Soft premium gray */
+  --foreground: #111827;
+  --muted: #6b7280;
+  --accent: #3b82f6;
+  --border: #f1f5f9;
   --card: #ffffff;
-
-  --glass-bg: rgba(255, 255, 255, 0.8);
-  --glass-border: rgba(148, 163, 184, 0.2);
-  --glass-hover: rgba(148, 163, 184, 0.05);
-}
-
-.bg-academic {
-  background-color: #ffffff;
-  background-image:
-    radial-gradient(#e2e8f0 0.8px, transparent 0.8px),
-    radial-gradient(#e2e8f0 0.8px, #ffffff 0.8px);
-  background-size: 32px 32px;
-  background-position: 0 0, 16px 16px;
-}
-
-.bg-blueprint {
-  background-color: #f8fafc;
-  background-image:
-    linear-gradient(#f1f5f9 1px, transparent 1px),
-    linear-gradient(90deg, #f1f5f9 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-
-.soft-active {
-  background-color: #f8fafc;
-  color: #3b82f6 !important;
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.1);
-}
-
-.text-soft-green {
-  color: #059669;
-}
-
-.text-soft-blue {
-  color: #2563eb;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--glass-hover);
-}
-
-
-.bg-soft-blue-bar {
-  background-color: #3b82f6;
 }
 
 body {
@@ -80,25 +39,66 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  font-size: 14px;
 }
 
-/* Institutional Card Style - Fast & Clean */
-.glass {
+/* Section Labels */
+.section-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+
+/* Metric Typography */
+.metric-value {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Card Style Overhaul */
+.premium-card {
   background-color: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  border-radius: 16px;
+  border: none;
+  box-shadow: var(--shadow-premium);
+  border-radius: var(--radius-premium);
 }
 
-.glass-hover:hover {
-  border-color: var(--accent);
-  background: var(--glass-hover);
-  transition: all 0.2s ease;
+.premium-card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Custom Scrollbar - Minimal Institutional */
+.soft-active {
+  background-color: #eff6ff;
+  color: #3b82f6 !important;
+}
+
+/* Divider */
+.divider {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Search Bar Pill */
+.search-pill {
+  background-color: #f3f4f6;
+  border-radius: 9999px;
+  border: none;
+}
+
+/* Status variants */
+.status-success { background-color: #ecfdf5; color: #065f46; }
+.status-error { background-color: #fef2f2; color: #991b1b; }
+.status-warning { background-color: #fffbeb; color: #92400e; }
+.status-hot { background-color: #fff7ed; color: #c2410c; }
+
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -106,58 +106,23 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--muted);
-  border-radius: 5px;
+  background: #e5e7eb;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.5s ease forwards;
-}
-
-/* Fix for Browser Autofill Styles */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px var(--background) inset !important;
-  -webkit-text-fill-color: var(--foreground) !important;
-  transition: background-color 5000s ease-in-out 0s;
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  /* IE and Edge */
-  scrollbar-width: none;
-  /* Firefox */
+  background: #d1d5db;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-  /* Chrome, Safari and Opera */
 }
 
-/* Safe area padding for notched phones */
-.pb-safe {
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.pt-safe {
-  padding-top: max(0.75rem, env(safe-area-inset-top));
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
 }

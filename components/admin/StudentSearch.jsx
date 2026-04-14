@@ -98,11 +98,12 @@ export default function StudentSearch() {
                     aria-controls="student-search-results"
                     aria-autocomplete="list"
                     aria-haspopup="listbox"
-                    placeholder="Search students by name, email or ID..."
+                    id="global-student-search"
+                    placeholder="Search students..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => query.trim() && results.length > 0 && setIsOpen(true)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-medium placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-premium-blue/5 focus:border-premium-blue transition-all shadow-sm"
+                    className="w-full pl-10 pr-10 py-2 bg-[#f3f4f6] border-none rounded-full text-[13px] font-medium placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-premium-blue/10 transition-all"
                 />
                 {loading && (
                     <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-premium-blue animate-spin" size={18} />

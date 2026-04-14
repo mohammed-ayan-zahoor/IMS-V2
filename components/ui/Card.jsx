@@ -1,10 +1,11 @@
 import { cn } from "@/lib/utils";
 
-export default function Card({ className, children, ...props }) {
+export default function Card({ className, children, padding = "p-6", ...props }) {
     return (
         <div
             className={cn(
-                "glass rounded-2xl p-6 relative",
+                "premium-card relative",
+                padding,
                 className
             )}
             {...props}
@@ -16,9 +17,9 @@ export default function Card({ className, children, ...props }) {
 
 export function CardHeader({ className, title, subtitle, children }) {
     return (
-        <div className={cn("space-y-1.5 mb-6", className)}>
-            {title && <h3 className="text-xl font-bold tracking-tight">{title}</h3>}
-            {subtitle && <p className="text-sm text-foreground/60">{subtitle}</p>}
+        <div className={cn("space-y-1 mb-6", className)}>
+            {title && <h3 className="text-[17px] font-bold tracking-tight text-slate-900">{title}</h3>}
+            {subtitle && <p className="text-[13px] text-slate-500 font-medium">{subtitle}</p>}
             {children}
         </div>
     );

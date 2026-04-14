@@ -9,17 +9,17 @@ export default function Button({
     ...props
 }) {
     const variants = {
-        primary: "bg-premium-blue text-white hover:bg-blue-600 shadow-sm",
-        secondary: "bg-premium-purple text-white hover:bg-purple-600 shadow-sm",
-        outline: "border border-border hover:bg-slate-50 text-foreground",
-        ghost: "hover:bg-slate-50 text-foreground",
-        danger: "bg-red-600 text-white hover:bg-red-700 shadow-sm",
+        primary: "bg-[#111827] text-white hover:opacity-90 shadow-sm",
+        secondary: "bg-premium-blue text-white hover:bg-blue-600 shadow-sm",
+        outline: "border border-slate-200 hover:bg-slate-50 text-slate-700",
+        ghost: "hover:bg-slate-50 text-slate-600",
+        danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-sm",
     };
 
     const sizes = {
         sm: "px-3 py-1.5 text-xs",
-        md: "px-4 py-2 text-sm",
-        lg: "px-6 py-3 text-base",
+        md: "px-5 py-2.5 text-[13px]",
+        lg: "px-8 py-3.5 text-base",
     };
 
     return (
@@ -27,7 +27,7 @@ export default function Button({
             {...props}
             type={props.type || "button"}
             className={cn(
-                "inline-flex items-center justify-center rounded-xl font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
+                "inline-flex items-center justify-center rounded-full font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
                 fullWidth && "w-full",
                 variants[variant],
                 sizes[size],

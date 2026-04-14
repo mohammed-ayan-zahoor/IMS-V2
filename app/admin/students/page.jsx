@@ -426,46 +426,35 @@ export default function StudentsPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header ... */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-100">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Student Management</h1>
-                    <p className="text-slate-400 mt-1 text-sm font-medium">Manage admissions, enrollments and student records across batches.</p>
-                </div>
+            {/* Page Action Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                <div /> {/* Spacer for Title in Global Header */}
                 <div className="flex items-center gap-2">
-                    <Button onClick={() => setIsImportModalOpen(true)} variant="outline" className="flex items-center gap-2">
-                        <FileSpreadsheet size={18} />
-                        <span>Import</span>
+                    <Button onClick={() => setIsImportModalOpen(true)} variant="outline" size="md" className="hidden sm:flex items-center gap-2 border-slate-200">
+                        <Upload size={16} />
+                        <span>Import Students</span>
                     </Button>
-                    <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md shadow-blue-500/10">
-                        <UserPlus size={18} />
+                    <Button 
+                        onClick={() => setIsAddModalOpen(true)} 
+                        size="md" 
+                        className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
+                    >
+                        <Plus size={18} strokeWidth={2.5} />
                         <span>New Admission</span>
                     </Button>
                 </div>
             </div>
 
-            <Card className="transition-all border-transparent shadow-sm">
-                {/* Card Header ... */}
-                <CardHeader className="flex-col md:flex-row items-stretch md:items-center gap-4 space-y-0">
-                    <div className="flex-1 relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/50 transition-colors group-focus-within:text-premium-blue" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search by name, email or enrollment ID..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
-                        />
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
+            <Card className="overflow-hidden border-none shadow-premium">
+                <CardHeader className="flex-col md:flex-row items-stretch md:items-center gap-4 space-y-0 bg-[#F9FAFB]/50 border-b border-slate-100">
+                    <div className="flex flex-wrap items-center gap-3 w-full">
                         <div className="min-w-[160px] max-w-xs">
                             <Select
                                 value={filters.courseId}
                                 onChange={(val) => setFilters({ ...filters, courseId: val })}
                                 placeholder="All Courses"
                                 className="w-auto"
-                                buttonClassName="w-auto min-w-full"
+                                buttonClassName="w-auto min-w-full bg-white border-slate-200"
                                 options={[
                                     { label: "All Courses", value: "" },
                                     ...courses.map(c => ({ label: c.name, value: c._id }))
@@ -479,7 +468,7 @@ export default function StudentsPage() {
                                 onChange={(val) => setFilters({ ...filters, batchId: val })}
                                 placeholder="All Batches"
                                 className="w-auto"
-                                buttonClassName="w-auto min-w-full"
+                                buttonClassName="w-auto min-w-full bg-white border-slate-200"
                                 options={[
                                     { label: "All Batches", value: "" },
                                     ...batches.map(b => ({ label: b.name, value: b._id }))
@@ -492,6 +481,7 @@ export default function StudentsPage() {
                                 value={filters.isActive}
                                 onChange={(val) => setFilters({ ...filters, isActive: val })}
                                 placeholder="All Status"
+                                buttonClassName="bg-white border-slate-200"
                                 options={[
                                     { label: "All Status", value: "" },
                                     { label: "Active Only", value: "true" },

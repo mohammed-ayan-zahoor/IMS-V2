@@ -186,13 +186,14 @@ export default function AttendanceMarkingPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-100">
+            {/* Page Action Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Mark Attendance</h1>
-                    <p className="text-slate-400 mt-1 text-sm font-medium">Daily attendance tracking for batches.</p>
+                    <h1 className="text-xl font-bold text-slate-900 tracking-tight">Mark Attendance</h1>
+                    <p className="text-[12px] text-slate-400 font-medium tracking-tight">Daily attendance tracking for batches</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* Controls could go here */}
+                    {/* Page specific controls could continue here */}
                 </div>
             </div>
 

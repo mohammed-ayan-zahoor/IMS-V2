@@ -325,17 +325,18 @@ export default function FeesPage() {
     }, [fees, search, selectedCourse, selectedBatch, batches, showOverdueOnly]); // Re-run when filters change
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-100">
+            {/* Page Action Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Fee Ledger</h1>
-                    <p className="text-slate-400 mt-1 text-sm font-medium">Track incoming payments, manage dues and view financial status.</p>
+                    <h1 className="text-xl font-bold text-slate-900 tracking-tight">Fee Ledger</h1>
+                    <p className="text-[12px] text-slate-400 font-medium tracking-tight">Track incoming payments and financial status</p>
                 </div>
                 <div className="flex gap-2">
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleExport('csv')}
-                        className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
+                        className="flex items-center gap-2"
                     >
                         <span className="font-mono text-xs font-bold">CSV</span>
                     </Button>
@@ -345,8 +346,8 @@ export default function FeesPage() {
                         onClick={() => handleExport('xlsx')}
                         className="flex items-center gap-2"
                     >
-                        <DollarSign size={16} className="text-emerald-600" />
-                        Export Excel
+                        <DollarSign size={14} className="text-emerald-600" />
+                        <span>Export Excel</span>
                     </Button>
                 </div>
             </div>
