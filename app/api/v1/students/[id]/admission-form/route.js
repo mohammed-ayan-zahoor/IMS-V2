@@ -3,10 +3,44 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
+import Course from "@/models/Course";
 import Batch from "@/models/Batch";
 import Fee from "@/models/Fee";
+import Institute from "@/models/Institute";
 import mongoose from "mongoose";
 import { getInstituteScope } from "@/middleware/instituteScope";
+
+// Robust Institute Mapper (DTO)
+function mapInstitute(inst) {
+    if (!inst) return {
+        name: 'Institute Name',
+        address: {},
+        phone: 'N/A',
+        email: 'N/A',
+        logo: ''
+    };
+
+    return {
+        name: inst.name || 'Institute Name',
+        address: {
+            street: inst.address?.street || inst.address?.line1 || '',
+            city: inst.address?.city || inst.address?.district || '',
+            state: inst.address?.state || '',
+            pincode: inst.address?.pincode || inst.address?.postalCode || ''
+        },
+        phone: inst.contactPhone 
+            || inst.phone 
+            || inst.mobile 
+            || inst.phoneNumber 
+            || inst.contactNumber 
+            || "N/A",
+        email: inst.contactEmail 
+            || inst.email 
+            || inst.emailAddress 
+            || "N/A",
+        logo: inst.branding?.logo || inst.logo || ''
+    };
+}
 
 export async function GET(req, { params }) {
     try {
@@ -23,10 +57,6 @@ export async function GET(req, { params }) {
         
         const scope = await getInstituteScope(req);
         const instituteId = scope?.instituteId;
-
-        if (!instituteId && session.user.role !== 'super_admin') {
-            return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
-        }
 
         const query = { _id: id, role: 'student' };
         if (instituteId) {
@@ -52,7 +82,7 @@ export async function GET(req, { params }) {
         }
 
         const foundBatches = await Batch.find(batchQuery)
-            .populate('course', 'name code')
+            .populate('course', 'name code duration')
             .lean();
         
         batches = foundBatches;
@@ -67,10 +97,13 @@ export async function GET(req, { params }) {
         }
 
         let institute = null;
-        if (student.institute) {
+        const instId = student.institute || instituteId;
+        
+        if (instId) {
             try {
-                const Institute = (await import('@/models/Institute')).default;
-                institute = await Institute.findById(student.institute).lean();
+                // Manually import to ensure model registration
+                const InstituteModel = mongoose.models.Institute || (await import('@/models/Institute')).default;
+                institute = await InstituteModel.findById(instId).lean();
             } catch (e) {
                 console.error("Institute fetch error:", e);
             }
@@ -81,8 +114,21 @@ export async function GET(req, { params }) {
                 _id: student._id,
                 enrollmentNumber: student.enrollmentNumber,
                 email: student.email,
-                profile: student.profile,
-                guardianDetails: student.guardianDetails,
+                
+                // Flattened Profile
+                firstName: student.profile?.firstName,
+                lastName: student.profile?.lastName,
+                phone: student.profile?.phone,
+                dateOfBirth: student.profile?.dateOfBirth,
+                gender: student.profile?.gender,
+                avatar: student.profile?.avatar,
+                address: student.profile?.address || {},
+
+                // Flattened Guardian
+                guardianName: student.guardianDetails?.name,
+                guardianPhone: student.guardianDetails?.phone,
+                guardianRelation: student.guardianDetails?.relation,
+
                 createdAt: student.createdAt
             },
             batches: batches.map(b => ({
@@ -97,15 +143,8 @@ export async function GET(req, { params }) {
                 discount: f.discount,
                 installments: f.installments
             })),
-            institute: institute ? {
-                name: institute.name,
-                address: institute.address,
-                phone: institute.contactPhone || institute.phone,
-                email: institute.contactEmail || institute.email,
-                logo: institute.branding?.logo || institute.logo
-            } : null
+            institute: mapInstitute(institute)
         });
-
     } catch (error) {
         console.error("Error fetching admission form data:", error);
         return NextResponse.json({ error: error.message || "Failed to fetch data" }, { status: 500 });

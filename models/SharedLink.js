@@ -55,7 +55,6 @@ const SharedLinkSchema = new Schema({
 });
 
 // Index for performance
-SharedLinkSchema.index({ slug: 1 });
-SharedLinkSchema.index({ isActive: 1 });
+// Note: slug and isActive are already indexed inline in the schema definition
 
 export default mongoose.models.SharedLink || mongoose.model('SharedLink', SharedLinkSchema);

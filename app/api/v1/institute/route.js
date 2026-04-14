@@ -64,7 +64,7 @@ export async function PATCH(req) {
             if (body.address.street) updateData.address.street = body.address.street;
             if (body.address.city) updateData.address.city = body.address.city;
             if (body.address.state) updateData.address.state = body.address.state;
-            if (body.address.postalCode) updateData.address.postalCode = body.address.postalCode;
+            if (body.address.pincode) updateData.address.pincode = body.address.pincode;
             if (body.address.country) updateData.address.country = body.address.country;
             // Add other allowed address fields
         } if (body.contactEmail) updateData.contactEmail = body.contactEmail;
