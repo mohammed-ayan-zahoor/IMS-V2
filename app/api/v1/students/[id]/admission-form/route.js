@@ -100,9 +100,9 @@ export async function GET(req, { params }) {
             institute: institute ? {
                 name: institute.name,
                 address: institute.address,
-                phone: institute.phone,
-                email: institute.email,
-                logo: institute.logo
+                phone: institute.contactPhone || institute.phone,
+                email: institute.contactEmail || institute.email,
+                logo: institute.branding?.logo || institute.logo
             } : null
         });
 

@@ -35,6 +35,7 @@ const UserSchema = new Schema({
             firstName: { type: String, required: true },
             lastName: { type: String, required: true },
             phone: { type: String, match: [/^\+?[\d\s-()]+$/, 'Invalid phone number'] },
+            gender: { type: String, enum: ['Male', 'Female', 'Other', 'Not Specified'] },
             avatar: String,
             dateOfBirth: Date,
             address: {
