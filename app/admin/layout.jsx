@@ -179,12 +179,12 @@ export default function AdminLayout({ children }) {
         <div className="flex bg-[#f9fafb] text-[#111827] h-screen overflow-hidden">
             {/* Sidebar Overlay */}
             {isSidebarOpen && (
-                <div onClick={() => setIsSidebarOpen(false)} className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[80]" />
+                <div onClick={() => setIsSidebarOpen(false)} className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] no-print" />
             )}
 
             {/* Sidebar */}
             <aside className={cn(
-                "w-60 h-full bg-white border-r border-[#f1f5f9] flex flex-col fixed inset-y-0 left-0 z-[90] transition-transform duration-300 lg:static lg:translate-x-0",
+                "w-60 h-full bg-white border-r border-[#f1f5f9] flex flex-col fixed inset-y-0 left-0 z-[90] transition-transform duration-300 lg:static lg:translate-x-0 no-print",
                 isSidebarOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 {/* Logo Area */}
@@ -265,7 +265,7 @@ export default function AdminLayout({ children }) {
             {/* Main Wrapper */}
             <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
                 {/* Global Header */}
-                <header className="h-20 bg-white border-b border-[#f1f5f9] flex items-center justify-between px-8 shrink-0">
+                <header className="h-20 bg-white border-b border-[#f1f5f9] flex items-center justify-between px-8 shrink-0 no-print">
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-[#6b7280] hover:text-[#111827] mr-2">
                             <Menu size={20} />
@@ -310,7 +310,7 @@ export default function AdminLayout({ children }) {
 
                 {/* Main Content Area - 3 Zone Implementation */}
                 <main className="flex-1 flex overflow-hidden">
-                    <div className="flex-1 overflow-y-auto p-8 bg-[#f9fafb] scrollbar-hide">
+                    <div className="flex-1 overflow-y-auto p-8 bg-[#f9fafb] scrollbar-hide print-reset">
                         <div className={cn(
                             "mx-auto space-y-8 animate-fade-in",
                             isDashboard ? "w-full" : "max-w-7xl"

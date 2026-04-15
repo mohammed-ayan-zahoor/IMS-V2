@@ -121,13 +121,13 @@ function AdmissionFormContent() {
                 </Button>
             </div>
 
-            <div className={`admission-form-container min-h-screen bg-gray-100 p-4 sm:p-8 no-print`}>
-                <div className="max-w-[210mm] mx-auto bg-white shadow-2xl overflow-hidden print:shadow-none print:m-0">
+            <div className="admission-form-container min-h-screen bg-gray-100 p-4 sm:p-8 no-print">
+                <div className="max-w-[210mm] mx-auto bg-white shadow-2xl overflow-hidden">
                     <AdmissionFormView data={data} />
                 </div>
             </div>
 
-            <div className="only-print hidden print:block">
+            <div className="only-print hidden print:block print:m-0 print:p-0">
                 <AdmissionFormView data={data} />
             </div>
 
