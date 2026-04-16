@@ -83,7 +83,7 @@ const CertificateSchema = new Schema({
 
 
 //ensure certificate uniqueness per system
-CertificateSchema.index({ certificateNumber: 1 }, { unique: true });
+// (Redundant index removed, already defined in schema fields)
 
 //fast lookup certificate by students
 CertificateSchema.index({ studentId: 1, createdAt: -1 });
