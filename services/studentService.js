@@ -172,7 +172,7 @@ export class StudentService {
     /**
      * Get all students with pagination and filters
      */
-    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, instituteId = null, actorId = null }) {
+    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, status = null, instituteId = null, actorId = null }) {
         // if (!instituteId) throw new Error('Institute context required for fetching students'); // Allow global view
 
         const skip = (page - 1) * limit;
@@ -208,7 +208,10 @@ export class StudentService {
             query.deletedAt = null;
         }
 
-        // Filter by batch or course
+        // Filter by student lifecycle status (ACTIVE, COMPLETED, DROPPED)
+        if (status && ['ACTIVE', 'COMPLETED', 'DROPPED'].includes(status)) {
+            query.status = status;
+        }
         if (batchId || courseId) {
             const batchQuery = { deletedAt: null }; // Scope Batch Search
             if (instituteId) batchQuery.institute = instituteId;
@@ -275,8 +278,15 @@ export class StudentService {
 
         const total = await User.countDocuments(query);
 
+        // Format students with name field for UI
+        const formattedStudents = students.map(student => {
+            const studentObj = student.toObject();
+            studentObj.name = `${student.profile.firstName} ${student.profile.lastName}`.trim();
+            return studentObj;
+        });
+
         return {
-            students,
+            students: formattedStudents,
             pagination: {
                 total,
                 page,

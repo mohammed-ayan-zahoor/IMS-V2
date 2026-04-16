@@ -31,6 +31,7 @@ export async function GET(req) {
         const batchId = searchParams.get("batchId");
         const courseId = searchParams.get("courseId");
         const isActive = searchParams.get("isActive");
+        const status = searchParams.get("status");
 
         const data = await StudentService.getStudents({
             page,
@@ -40,6 +41,7 @@ export async function GET(req) {
             batchId,
             courseId,
             isActive,
+            status,
             instituteId: isGlobalView ? null : (targetInstParam || scope.instituteId),
             actorId: session.user.id
         });
