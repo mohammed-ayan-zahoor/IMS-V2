@@ -10,7 +10,7 @@ import bcrypt from "bcryptjs";
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || session.user.role !== "super_admin") {
+        if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -19,10 +19,34 @@ export async function GET(req) {
         const search = searchParams.get("search") || "";
         const status = searchParams.get("status");
 
-        const query = {};
+        let query = {};
+        
+        // Super admin sees all institutes
+        // Admin sees only institutes they have access to
+        if (session.user.role !== "super_admin") {
+            if (session.user.role !== "admin") {
+                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            }
+            
+            // For admins: get institutes from Membership model
+            const Membership = (await import("@/models/Membership")).default;
+            const memberships = await Membership.find({
+                user: session.user.id,
+                isActive: true
+            }).select('institute');
+            
+            const instituteIds = memberships.map(m => m.institute);
+            
+            if (instituteIds.length === 0) {
+                return NextResponse.json({ institutes: [] });
+            }
+            
+            query._id = { $in: instituteIds };
+        }
+        
         if (search) {
             const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const escapedSearch = escapeRegex(search); // Escape special regex characters
+            const escapedSearch = escapeRegex(search);
             query.$or = [
                 { name: { $regex: escapedSearch, $options: "i" } },
                 { code: { $regex: escapedSearch, $options: "i" } }

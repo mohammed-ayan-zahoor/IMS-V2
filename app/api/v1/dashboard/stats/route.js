@@ -107,7 +107,7 @@ export async function GET(req) {
 
         // 5. Recent Admissions
         const recentAdmissionsPromise = User.find({ ...hybridBaseQuery, role: 'student' })
-            .select('profile.firstName profile.lastName email role createdAt enrollmentNumber')
+            .select('profile.firstName profile.lastName email role createdAt enrollmentNumber status')
             .sort({ createdAt: -1 })
             .limit(5);
 
