@@ -31,7 +31,12 @@ async function runMigration() {
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB');
 
-    const User = require('../models/User');
+    // Define User schema directly for this migration
+    const userSchema = new mongoose.Schema(
+      {},
+      { collection: 'users', strict: false }
+    );
+    const User = mongoose.model('User', userSchema);
     
     // Count students before migration
     const totalStudents = await User.countDocuments({ role: 'student' });
