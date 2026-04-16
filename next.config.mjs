@@ -41,6 +41,10 @@ const nextConfig = {
       },
     ];
   },
+  experimental: {
+    // Silence the workspace root warning by explicitly setting the root to the current directory
+    outputFileTracingRoot: process.cwd(),
+  },
 };
 
 export default nextConfig;
