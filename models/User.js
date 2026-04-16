@@ -67,7 +67,34 @@ const UserSchema = new Schema({
     lastLogin: Date,
     // Soft delete
     deletedAt: { type: Date, index: true, default: null },
-    deletedBy: { type: Schema.Types.ObjectId, ref: 'User' }
+    deletedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    status: {
+        type: String,
+        enum: ['ACTIVE', 'COMPLETED', 'DROPPED', 'PAUSED'],
+        default: 'ACTIVE',
+        index: true,
+        validate: {
+            validator: function (value) {
+                // if the role is not student, status should always be ACTIVE
+                if (this.role !== 'student' && value !== 'ACTIVE') return false;
+                return true; // For students, any status is valid
+            },
+            message: 'only students can have life cycle statuses'
+        }
+    },
+    completedAt: {
+        type: Date,
+        default: null
+    },
+    certificateId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Certificate',
+        default: null
+    },
+    completionReason: {
+        type: String,
+        trim: true,
+    }
 }, {
     timestamps: true,
     toJSON: { virtuals: true },
@@ -123,6 +150,20 @@ UserSchema.pre('save', async function () {
             this.assignments = { batches: [], courses: [] };
         }
     }
+
+    // 3. Completion Logic Enforcement
+    if (this.isModified('status')) {
+        if (this.status === 'COMPLETED') {
+            if (!this.completedAt) {
+                this.completedAt = new Date(); // auto-fix
+            }
+        } else if (this.isDirectModified('status')) {
+            // If status changed away from COMPLETED (only if it was previously completed)
+            // We use a simple check or rely on the fact that these should be null for other statuses
+            this.completedAt = null;
+            this.certificateId = null;
+        }
+    }
 });
 
 // Indexes
@@ -131,6 +172,8 @@ UserSchema.index({ 'profile.firstName': 'text', 'profile.lastName': 'text' });
 // Multikey indexes for fast lookup of "Which users are assigned to Batch X?"
 UserSchema.index({ 'assignments.batches': 1 });
 UserSchema.index({ 'assignments.courses': 1 });
+// Dashboard efficiency
+UserSchema.index({ institute: 1, status: 1, role: 1 });
 
 // Force re-compilation of model to ensure virtuals and hooks are updated in Dev
 // if (mongoose.models.User) {

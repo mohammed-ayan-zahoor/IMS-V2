@@ -154,3 +154,49 @@ body {
     background: white !important;
   }
 }
+
+/* --- Mobile / Tablet Optimizations --- */
+
+/* Safe Area Insets */
+.safe-pt {
+  padding-top: env(safe-area-inset-top, 20px);
+}
+.safe-pb {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* Tablet / Large Phone Centering */
+.student-app-container {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .student-app-container {
+    max-width: 700px;
+  }
+}
+
+@media (max-width: 640px) {
+  .student-app-container {
+    max-width: 100%;
+  }
+}
+
+/* Stat Grid min-width fix */
+.stat-box-mobile {
+  min-width: 130px;
+  flex: 1 1 130px;
+}
+
+/* Smooth Horizontal Scroll for Tables */
+.table-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+.table-scroll-wrapper::-webkit-scrollbar {
+  display: none;
+}

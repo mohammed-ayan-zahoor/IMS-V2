@@ -34,16 +34,30 @@ const StatCard = ({ title, value, icon: Icon, trend, trendType = "up" }) => (
             <div className="flex items-center gap-1.5 mt-2">
                 <span className={cn(
                     "px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shadow-sm",
-                    trendType === "up" ? "status-success" : "status-error"
+                    trendType === "up" ? "status-success" : trendType === "down" ? "status-error" : "bg-slate-100 text-slate-500"
                 )}>
-                    {trendType === "up" ? <TrendingUp size={10} /> : <TrendingUp size={10} className="rotate-180" />}
+                    {trendType === "up" ? <TrendingUp size={10} /> : trendType === "down" ? <TrendingUp size={10} className="rotate-180" /> : <Clock size={10} />}
                     {trend}
                 </span>
-                <span className="text-[11px] text-slate-400 font-medium">vs last month</span>
+                <span className="text-[11px] text-slate-400 font-medium">
+                    {trend.includes('%') ? 'vs last month' : 'summary'}
+                </span>
             </div>
         </div>
     </Card>
 );
+
+const getStatusBadge = (status) => {
+    const statusConfig = {
+        'ACTIVE': { variant: 'success', label: 'Active' },
+        'COMPLETED': { variant: 'info', label: 'Completed' },
+        'DROPPED': { variant: 'error', label: 'Dropped' },
+        'PAUSED': { variant: 'warning', label: 'Paused' }
+    };
+    const config = statusConfig[status] || statusConfig['ACTIVE'];
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+};
+
 
 export default function AdminDashboard() {
     const [dashboardData, setDashboardData] = useState(null);
@@ -66,11 +80,29 @@ export default function AdminDashboard() {
 
     const stats = [
         { 
-            title: "STUDENTS", 
-            value: loading ? "0" : (dashboardData?.counts?.students || 0).toLocaleString(), 
+            title: "ACTIVE STUDENTS", 
+            value: loading ? "0" : (dashboardData?.counts?.activeStudents || 0).toLocaleString(), 
             icon: Users, 
             trend: `${dashboardData?.trends?.student >= 0 ? '+' : ''}${dashboardData?.trends?.student || 0}%`, 
             trendType: (dashboardData?.trends?.student || 0) >= 0 ? "up" : "down" 
+        },
+        { 
+            title: "COMPLETED", 
+            value: loading ? "0" : (dashboardData?.counts?.completedStudents || 0).toLocaleString(), 
+            icon: Trophy, 
+            trend: dashboardData?.counts?.totalStudents > 0 
+                ? `${Math.round((dashboardData.counts.completedStudents / dashboardData.counts.totalStudents) * 100)}%`
+                : "0%",
+            trendType: "neutral" 
+        },
+        { 
+            title: "DROPPED", 
+            value: loading ? "0" : (dashboardData?.counts?.droppedStudents || 0).toLocaleString(), 
+            icon: AlertCircle, 
+            trend: dashboardData?.counts?.totalStudents > 0 
+                ? `${Math.round((dashboardData.counts.droppedStudents / dashboardData.counts.totalStudents) * 100)}%`
+                : "0%",
+            trendType: "neutral" 
         },
         { 
             title: "ENROLLMENTS", 
@@ -95,10 +127,12 @@ export default function AdminDashboard() {
         }
     ];
 
+
+
     return (
         <div className="space-y-10">
             {/* Metric Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {stats.map((stat) => (
                     <motion.div
                         key={stat.title}
@@ -138,7 +172,7 @@ export default function AdminDashboard() {
                                         <p className="text-[12px] text-slate-400 font-medium">#{student.enrollmentNumber}</p>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <Badge variant="success">Active</Badge>
+                                        {getStatusBadge(student.status || 'ACTIVE')}
                                         <ChevronRight size={14} className="text-slate-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                                     </div>
                                 </div>
@@ -246,6 +280,41 @@ export default function AdminDashboard() {
                     })}
                 </div>
             </Card>
+
+            {/* Student Lifecycle Overview */}
+            <Card className="premium-card">
+                <CardHeader 
+                    title="Student Lifecycle Distribution" 
+                    subtitle="Current status breakdown across entire institution"
+                />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-4">
+                    <div className="text-center">
+                        <div className="text-3xl font-black text-slate-900 leading-tight">
+                            {dashboardData?.counts?.activeRate?.toFixed(1) || 0}%
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-2">Active Engagement</p>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-3xl font-black text-green-600 leading-tight">
+                            {dashboardData?.counts?.completionRate?.toFixed(1) || 0}%
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-2">Completion Success</p>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-3xl font-black text-red-600 leading-tight">
+                            {dashboardData?.counts?.droppedRate?.toFixed(1) || 0}%
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-2">Discontinuation</p>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-3xl font-black text-slate-400 leading-tight">
+                            {dashboardData?.counts?.totalStudents || 0}
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-2">Total Managed</p>
+                    </div>
+                </div>
+            </Card>
         </div>
     );
 }
+

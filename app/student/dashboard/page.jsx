@@ -16,6 +16,7 @@ import {
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import Skeleton, { SkeletonCard, SkeletonBanner } from "@/components/shared/Skeleton";
 
 const QuickStat = ({ title, value, label, icon: Icon, softColor }) => (
     <Card className={cn("flex flex-col justify-between transition-all cursor-default border-transparent shadow-sm", softColor)}>
@@ -74,29 +75,34 @@ export default function StudentDashboard() {
     };
 
     if (loading) return (
-        <div className="space-y-10 animate-pulse">
+        <div className="space-y-10">
             {/* Header Skeleton */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div className="space-y-2">
-                    <div className="h-8 w-48 bg-slate-200 rounded-lg"></div>
-                    <div className="h-4 w-64 bg-slate-100 rounded-lg"></div>
+                <div className="flex items-center gap-5">
+                    <Skeleton className="w-24 h-24 rounded-2xl" />
+                    <div className="space-y-3">
+                        <Skeleton className="h-9 w-64" />
+                        <Skeleton className="h-4 w-48" />
+                    </div>
                 </div>
-                <div className="h-9 w-32 bg-slate-200 rounded-lg"></div>
+                <Skeleton className="h-10 w-32 rounded-xl" />
             </div>
 
             {/* Stats Grid Skeleton */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-32 bg-slate-50 rounded-2xl border border-slate-100"></div>
+                    <Skeleton key={i} className="h-32 rounded-2xl" />
                 ))}
             </div>
 
             {/* Content Grid Skeleton */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 h-96 bg-slate-50 rounded-2xl border border-slate-100"></div>
+                <div className="lg:col-span-2">
+                    <Skeleton className="h-[400px] w-full rounded-3xl" />
+                </div>
                 <div className="space-y-8">
-                    <div className="h-64 bg-slate-50 rounded-2xl border border-slate-100"></div>
-                    <div className="h-32 bg-slate-800/10 rounded-xl"></div>
+                    <Skeleton className="h-[300px] w-full rounded-3xl" />
+                    <SkeletonBanner />
                 </div>
             </div>
         </div>
@@ -113,7 +119,7 @@ export default function StudentDashboard() {
     }
     const stats = [
         { title: "Attendance", value: `${data.attendance}%`, label: "Presence", icon: CheckCircle2, softColor: "bg-emerald-50 text-emerald-600" },
-        { title: "Exams Taken", value: (data.examsTaken || 0).toString().padStart(2, '0'), label: "Completed", icon: Trophy, softColor: "bg-purple-50 text-purple-600" },
+        { title: "Exams Taken", value: data.examsTaken > 0 ? data.examsTaken.toString().padStart(2, '0') : "—", label: "Completed", icon: Trophy, softColor: "bg-purple-50 text-purple-600" },
         { title: "Resources", value: (data.materialsCount || 0).toString(), label: "Available", icon: BookOpen, softColor: "bg-blue-50 text-blue-600" },
         { title: "Study Hours", value: "124", label: "This Month", icon: Clock, softColor: "bg-yellow-50 text-amber-600" }, // Mock for now
     ];
@@ -125,9 +131,9 @@ export default function StudentDashboard() {
                 <div className="flex items-center gap-5">
                     <div className="w-24 h-24 rounded-2xl bg-white border-4 border-white shadow-xl shadow-slate-200/50 overflow-hidden shrink-0 relative z-10">
                         {session?.user?.image ? (
-                            <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
+                            <img src={session.user.image} alt="Profile" className="w-full h-full object-cover rounded-xl" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400 font-bold text-2xl">
+                            <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-300 font-bold text-2xl">
                                 {session?.user?.name?.[0]}
                             </div>
                         )}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import Skeleton from "@/components/shared/Skeleton";
 import { CreditCard, Calendar, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 
 export default function StudentFeesPage() {
@@ -39,7 +39,16 @@ export default function StudentFeesPage() {
         return () => controller.abort();
     }, []);
 
-    if (loading) return <LoadingSpinner fullPage />;
+    if (loading) return (
+        <div className="space-y-8">
+            <div className="space-y-3">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-64 rounded-3xl" />
+            <Skeleton className="h-64 rounded-3xl" />
+        </div>
+    );
 
     if (error) {
         return (
@@ -82,7 +91,12 @@ export default function StudentFeesPage() {
                             <div className="mb-8">
                                 <div className="flex justify-between text-sm font-bold mb-2">
                                     <span className="text-emerald-600">Paid: ₹{fee.paidAmount.toLocaleString()}</span>
-                                    <span className="text-slate-400">Balance: ₹{fee.balanceAmount.toLocaleString()}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                            {Math.round((fee.paidAmount / (fee.totalAmount - (fee.discount?.amount || 0))) * 100)}% Paid
+                                        </span>
+                                        <span className="text-slate-400">Balance: ₹{fee.balanceAmount.toLocaleString()}</span>
+                                    </div>
                                 </div>
                                 <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
                                     <div
@@ -94,40 +108,43 @@ export default function StudentFeesPage() {
                                                 }%`
                                         }}
                                     />
-                                </div>                            </div>
+                                </div>
+                            </div>
 
                             {/* Installments Table */}
-                            <div className="border border-slate-100 rounded-xl overflow-hidden">
-                                <table className="w-full text-left text-sm">
-                                    <thead className="bg-slate-50 border-b border-slate-100">
-                                        <tr>
-                                            <th className="px-5 py-3 font-bold text-slate-500 uppercase text-xs">Due Date</th>
-                                            <th className="px-5 py-3 font-bold text-slate-500 uppercase text-xs">Amount</th>
-                                            <th className="px-5 py-3 font-bold text-slate-500 uppercase text-xs">Method</th>
-                                            <th className="px-5 py-3 font-bold text-slate-500 uppercase text-xs text-right">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {fee.installments?.map((inst, idx) => (
-                                            <tr key={idx} className="hover:bg-slate-50/50">
-                                                <td className="px-5 py-3 font-medium text-slate-700">
-                                                    {new Date(inst.dueDate).toLocaleDateString()}
-                                                </td>
-                                                <td className="px-5 py-3 font-bold text-slate-900">
-                                                    ₹{inst.amount.toLocaleString()}
-                                                </td>
-                                                <td className="px-5 py-3 text-slate-500 capitalize">
-                                                    {inst.paymentMethod ? inst.paymentMethod.replace('_', ' ') : '-'}
-                                                </td>
-                                                <td className="px-5 py-3 text-right">
-                                                    <div className="inline-flex justify-end">
-                                                        <InstallmentStatusBadge status={inst.status} />
-                                                    </div>
-                                                </td>
+                            <div className="border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/30">
+                                <div className="table-scroll-wrapper">
+                                    <table className="w-full text-left text-sm min-w-[500px]">
+                                        <thead className="bg-slate-50 border-b border-slate-100 italic">
+                                            <tr>
+                                                <th className="px-6 py-4 font-black text-slate-500 uppercase text-[10px] tracking-widest">Due Date</th>
+                                                <th className="px-6 py-4 font-black text-slate-500 uppercase text-[10px] tracking-widest">Amount</th>
+                                                <th className="px-6 py-4 font-black text-slate-500 uppercase text-[10px] tracking-widest">Method</th>
+                                                <th className="px-6 py-4 font-black text-slate-500 uppercase text-[10px] tracking-widest text-right">Status</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 bg-white">
+                                            {fee.installments?.map((inst, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="px-6 py-4 font-bold text-slate-700">
+                                                        {new Date(inst.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </td>
+                                                    <td className="px-6 py-4 font-black text-slate-900">
+                                                        ₹{inst.amount.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-tighter">
+                                                        {inst.paymentMethod ? inst.paymentMethod.replace('_', ' ') : '-'}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="inline-flex justify-end">
+                                                            <InstallmentStatusBadge status={inst.status} />
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </Card>

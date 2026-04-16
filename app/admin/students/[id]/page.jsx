@@ -95,6 +95,7 @@ export default function StudentDetailsPage({ params }) {
     const [followUps, setFollowUps] = useState([]);
     const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
     const [isSavingFollowUp, setIsSavingFollowUp] = useState(false);
+    const [isResettingPassword, setIsResettingPassword] = useState(false);
     const [followUpFormData, setFollowUpFormData] = useState({
         method: "call",
         status: "pending",
@@ -592,6 +593,36 @@ export default function StudentDetailsPage({ params }) {
         }
     };
 
+    const handleResetPassword = async () => {
+        if (await confirm({
+            title: "Reset Password?",
+            message: "Are you sure you want to reset this student's password to the default institution password? (Student@123)",
+            type: "warning",
+            confirmText: "Yes, Reset Password"
+        })) {
+            try {
+                setIsResettingPassword(true);
+                const res = await fetch(`/api/v1/users/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ password: "Student@123" })
+                });
+
+                if (res.ok) {
+                    toast.success("Password has been reset to Student@123");
+                } else {
+                    const err = await res.json();
+                    toast.error(err.error || "Failed to reset password");
+                }
+            } catch (error) {
+                console.error("Reset error:", error);
+                toast.error("Failed to reset password");
+            } finally {
+                setIsResettingPassword(false);
+            }
+        }
+    };
+
     if (loading) return <LoadingSpinner fullPage />;
     if (!studentData) return <div className="p-10 text-center text-slate-400">Student not found</div>;
 
@@ -632,13 +663,25 @@ export default function StudentDetailsPage({ params }) {
                         </>
                     )}
                     {session?.user?.role !== 'instructor' && (
-                        <Button
-                            size="sm"
-                            onClick={() => setIsEditModalOpen(true)}
-                        >
-                            <Edit size={16} className="mr-2" />
-                            Edit Profile
-                        </Button>
+                        <>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-slate-600 border-slate-200 hover:bg-slate-50"
+                                onClick={handleResetPassword}
+                                disabled={isResettingPassword}
+                            >
+                                <Lock size={16} className="mr-2 text-slate-400" />
+                                {isResettingPassword ? "Resetting..." : "Reset Password"}
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => setIsEditModalOpen(true)}
+                            >
+                                <Edit size={16} className="mr-2" />
+                                Edit Profile
+                            </Button>
+                        </>
                     )}
                 </div>
             </div>

@@ -7,6 +7,11 @@ import Enquiry from "@/models/Enquiry";
 import mongoose from "mongoose";
 import { getInstituteScope } from "@/middleware/instituteScope";
 
+// Simple cache: reuse data for 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const statsCache = new Map();
+
+
 export async function GET(req) {
     try {
         await connectDB();
@@ -20,6 +25,15 @@ export async function GET(req) {
         const targetInstParam = searchParams.get("instituteId");
 
         const isGlobalView = scope.isSuperAdmin && (targetInstParam === "all" || !targetInstParam);
+        
+        // Check Cache
+        const cacheKey = `stats_${scope.instituteId}_${isGlobalView ? 'global' : 'scoped'}`;
+        const cachedEntry = statsCache.get(cacheKey);
+        const nowTime = Date.now();
+        if (cachedEntry && (nowTime - cachedEntry.timestamp) < CACHE_DURATION) {
+            return NextResponse.json(cachedEntry.data);
+        }
+
 
         let hybridBaseQuery = { $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] };
         let instituteQuery = { $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] };
@@ -51,6 +65,9 @@ export async function GET(req) {
         // Parallel stats retrieval
         // 1. User Counts (Students, Staff)
         const studentsCountPromise = User.countDocuments({ ...hybridBaseQuery, role: 'student' });
+        const activeStudentsCountPromise = User.countDocuments({ ...hybridBaseQuery, role: 'student', status: 'ACTIVE' });
+        const completedStudentsCountPromise = User.countDocuments({ ...hybridBaseQuery, role: 'student', status: 'COMPLETED' });
+        const droppedStudentsCountPromise = User.countDocuments({ ...hybridBaseQuery, role: 'student', status: 'DROPPED' });
         const staffCountPromise = User.countDocuments({ ...hybridBaseQuery, role: { $in: ['admin', 'staff'] } });
 
         // 2. Total Enrollments (Sum of student counts across all active batches)
@@ -147,7 +164,10 @@ export async function GET(req) {
         };
 
         const [
-            studentsCount, 
+            totalStudentsCount, 
+            activeStudentsCount,
+            completedStudentsCount,
+            droppedStudentsCount,
             staffCount, 
             totalEnrollmentsResult, 
             enquiriesCount, 
@@ -155,9 +175,13 @@ export async function GET(req) {
             recentAdmissions,
             revenueTrends,
             studentGrowth,
-            enquiryGrowth
+            enquiryGrowth,
+            enrollmentGrowth
         ] = await Promise.all([
             studentsCountPromise,
+            activeStudentsCountPromise,
+            completedStudentsCountPromise,
+            droppedStudentsCountPromise,
             staffCountPromise,
             totalEnrollmentsPromise,
             enquiriesCountPromise,
@@ -165,7 +189,8 @@ export async function GET(req) {
             recentAdmissionsPromise,
             revenueTrendsPromise,
             getGrowth(User, { ...hybridBaseQuery, role: 'student' }),
-            getGrowth(Enquiry, instituteQuery)
+            getGrowth(Enquiry, instituteQuery),
+            getGrowth(Batch, { ...instituteQuery, enrolledStudents: { $exists: true, $not: { $size: 0 } } })
         ]);
 
         // Map revenue trends to fill missing months
@@ -187,26 +212,50 @@ export async function GET(req) {
 
         const totalRevenue = formattedRevenue.reduce((sum, r) => sum + r.total, 0);
 
-        return NextResponse.json({
+        const responseData = {
             counts: {
-                students: studentsCount,
+                students: totalStudentsCount, // Backward compatibility
+                totalStudents: totalStudentsCount,
+                activeStudents: activeStudentsCount,
+                completedStudents: completedStudentsCount,
+                droppedStudents: droppedStudentsCount,
                 coursesEnrolled: totalEnrollmentsResult[0]?.total || 0,
                 staff: staffCount,
-                enquiries: enquiriesCount
+                enquiries: enquiriesCount,
+                completionRate: totalStudentsCount > 0 ? parseFloat(((completedStudentsCount / totalStudentsCount) * 100).toFixed(2)) : 0,
+                droppedRate: totalStudentsCount > 0 ? parseFloat(((droppedStudentsCount / totalStudentsCount) * 100).toFixed(2)) : 0,
+                activeRate: totalStudentsCount > 0 ? parseFloat(((activeStudentsCount / totalStudentsCount) * 100).toFixed(2)) : 0
             },
             trends: {
                 student: studentGrowth,
                 enquiry: enquiryGrowth,
-                enrollment: 0 // Default to zero for now
+                enrollment: enrollmentGrowth
             },
             topCourses,
             recentAdmissions,
             revenueTrends: formattedRevenue,
             totalRevenue
-        });
+        };
+
+        // Cache the response
+        statsCache.set(cacheKey, { data: responseData, timestamp: Date.now() });
+
+        return NextResponse.json(responseData);
 
     } catch (error) {
         console.error("Dashboard Stats Error:", error);
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+
+        if (error.name === 'CastError') {
+            return NextResponse.json({ error: "Invalid ID format" }, { status: 400 });
+        }
+
+        if (error.message.includes('Unauthorized')) {
+            return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
+        }
+
+        return NextResponse.json({ 
+            error: "Internal server error", 
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined 
+        }, { status: 500 });
     }
 }

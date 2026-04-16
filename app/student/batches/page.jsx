@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
-import { Calendar, Clock, MapPin, Users, ChevronRight } from "lucide-react";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { Calendar, Clock, MapPin, Users, ChevronRight, ArrowLeft } from "lucide-react";
+import Skeleton, { SkeletonCard } from "@/components/shared/Skeleton";
 
 export default function StudentBatchesPage() {
     const [batches, setBatches] = useState([]);
@@ -52,7 +52,17 @@ export default function StudentBatchesPage() {
         return { label: "Active", className: "bg-green-100 text-green-700" };
     };
 
-    if (loading) return <LoadingSpinner fullPage />;
+    if (loading) return (
+        <div className="space-y-6">
+            <div className="space-y-3">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-4 w-64" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
+            </div>
+        </div>
+    );
 
     if (error) {
         return (
@@ -69,10 +79,18 @@ export default function StudentBatchesPage() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
-            <div>
-                <h1 className="text-2xl font-black text-slate-900">My Batches</h1>
-                <p className="text-slate-500">View your current enrollments and schedules.</p>
+        <div className="space-y-6">
+            <div className="flex items-center gap-4">
+                <button 
+                    onClick={() => window.location.href = '/student/dashboard'}
+                    className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-premium-blue hover:border-premium-blue transition-all shadow-sm"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900">My Batches</h1>
+                    <p className="text-slate-500 font-medium">View your current enrollments and schedules.</p>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -109,11 +127,15 @@ export default function StudentBatchesPage() {
                                         <Clock size={16} className="text-slate-400 mt-0.5" />
                                         <div>
                                             {Array.isArray(batch.schedule?.daysOfWeek) && batch.schedule.daysOfWeek.length > 0 ? (
-                                                batch.schedule.daysOfWeek
-                                                    .filter(d => Number.isInteger(d) && d >= 0 && d <= 6)
-                                                    .map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d])
-                                                    .join(', ') || "Days TBD"
-                                            ) : "Days TBD"}
+                                                <span className="font-bold text-slate-700">
+                                                    {batch.schedule.daysOfWeek
+                                                        .filter(d => Number.isInteger(d) && d >= 0 && d <= 6)
+                                                        .map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d])
+                                                        .join(', ')}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-400 italic">Schedule TBD</span>
+                                            )}
                                             {batch.schedule?.timeSlot?.start && (
                                                 <div className="text-xs font-medium mt-1">
                                                     {batch.schedule.timeSlot.start} - {batch.schedule.timeSlot.end}

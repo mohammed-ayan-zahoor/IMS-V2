@@ -383,7 +383,7 @@ export default function MaterialsPage() {
             {/* Create/Edit Modal */}
             {isModalOpen && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in"
+                    className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/60 backdrop-blur-md p-4 py-10 overflow-y-auto animate-in fade-in"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="modal-title"
@@ -391,7 +391,7 @@ export default function MaterialsPage() {
                         if (e.key === 'Escape') setIsModalOpen(false);
                     }}
                 >
-                    <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                    <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col my-auto border border-white/20">
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                             <h2 id="modal-title" className="text-lg font-bold text-slate-900">{editingId ? "Edit Material" : "Add New Material"}</h2>
                             <button
@@ -405,28 +405,26 @@ export default function MaterialsPage() {
                             </button>
                         </div>
 
-                        <div className="p-6 overflow-y-auto space-y-4">
+                        <div className="p-5 overflow-y-auto space-y-5">
                             <Input
                                 label="Title"
                                 value={formData.title}
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                placeholder="Enter material title..."
                                 required
                             />
-                            {/* ... Fields ... */}
-                            {/* Re-use existing inputs logic implicitly by not changing internal block structure too much if possible, 
-                                but here I must provide the block content for replace_file_content.
-                                I will replicate the content.
-                            */}
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Description</label>
+                            
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Description</label>
                                 <textarea
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-premium-blue/10 text-sm min-h-[80px]"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-premium-blue/10 text-sm min-h-[70px] transition-all font-medium placeholder:text-slate-400"
+                                    placeholder="Optional instructions for students..."
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-5">
                                 <div className="space-y-1">
                                     <Select
                                         label="Type"
@@ -455,8 +453,8 @@ export default function MaterialsPage() {
                                 </div>
                             </div>
 
-                            <div className="space-y-4 border p-4 rounded-xl bg-slate-50/50">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Resource Source</label>
+                            <div className="space-y-4 border border-slate-100 p-5 rounded-2xl bg-slate-50/50">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Resource Source</label>
 
                                 <div className="flex gap-2">
                                     <button
@@ -542,11 +540,11 @@ export default function MaterialsPage() {
                             </div>
 
                             {formData.course && (
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Assign Batches (Optional)</label>
-                                    <div className="grid grid-cols-2 gap-2 max-h-[100px] overflow-y-auto border rounded-lg p-2">
+                                <div className="space-y-2.5">
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Assign Batches (Optional)</label>
+                                    <div className="grid grid-cols-2 gap-3 max-h-[120px] overflow-y-auto border border-slate-100 rounded-xl p-3 bg-white/50">
                                         {filteredBatches.map(batch => (
-                                            <label key={batch._id} className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                                            <label key={batch._id} className="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer hover:text-premium-blue transition-colors group">
                                                 <input
                                                     type="checkbox"
                                                     checked={formData.batches.includes(batch._id)}
@@ -556,30 +554,30 @@ export default function MaterialsPage() {
                                                             : [...formData.batches, batch._id];
                                                         setFormData({ ...formData, batches: newBatches });
                                                     }}
-                                                    className="rounded text-premium-blue"
+                                                    className="w-4 h-4 rounded text-premium-blue border-slate-300 focus:ring-premium-blue/20"
                                                 />
-                                                {batch.name}
+                                                <span className="font-medium">{batch.name}</span>
                                             </label>
                                         ))}
                                     </div>
-                                    <p className="text-[10px] text-slate-400">Specify batches to limit visibility. Leave empty to show to all students in this course.</p>
+                                    <p className="text-[10px] text-slate-400 font-medium italic ml-1 select-none">Leave empty to show to all students in this course.</p>
                                 </div>
                             )}
 
-                            <label className="flex items-center gap-2 pt-2 cursor-pointer">
+                            <label className="flex items-center gap-3 pt-2 cursor-pointer group">
                                 <input
                                     type="checkbox"
                                     checked={formData.visibleToStudents}
                                     onChange={(e) => setFormData({ ...formData, visibleToStudents: e.target.checked })}
-                                    className="rounded text-premium-blue"
+                                    className="w-5 h-5 rounded text-premium-blue border-slate-300 focus:ring-premium-blue/20"
                                 />
-                                <span className="text-sm font-bold text-slate-700">Visible to Students</span>
+                                <span className="text-sm font-bold text-slate-700 group-hover:text-premium-blue transition-colors">Visible to Students</span>
                             </label>
 
                         </div>
-                        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={saving}>
+                        <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="text-slate-500 font-bold">Cancel</Button>
+                            <Button type="submit" disabled={saving} className="px-8 shadow-md">
                                 {saving ? "Saving..." : editingId ? "Save Changes" : "Create Material"}
                             </Button>
                         </div>

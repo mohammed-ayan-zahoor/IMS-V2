@@ -3,9 +3,10 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { User, Lock, Save, Camera, Mail, Building } from "lucide-react";
+import { User, Lock, Save, Camera, Mail, Building, CheckCircle2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Badge from "@/components/ui/Badge";
 import * as z from "zod";
 
 import Card from "@/components/ui/Card";
@@ -29,9 +30,39 @@ export default function StudentSettingsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const toast = useToast();
 
-    // ... (form setup remains)
+    const {
+        register,
+        handleSubmit,
+        reset,
+        formState: { errors },
+    } = useForm({
+        resolver: zodResolver(passwordSchema),
+    });
 
-    // ... (onChangePassword remains)
+    const onChangePassword = async (data) => {
+        setIsLoading(true);
+        try {
+            const res = await fetch("/api/v1/auth/student/change-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    currentPassword: data.currentPassword,
+                    newPassword: data.newPassword,
+                }),
+            });
+            const result = await res.json();
+            if (res.ok) {
+                toast.success("Password updated successfully");
+                reset();
+            } else {
+                toast.error(result.error || "Failed to update password");
+            }
+        } catch (error) {
+            toast.error("An error occurred. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (status === "unauthenticated") {
@@ -75,29 +106,22 @@ export default function StudentSettingsPage() {
                         </div>
 
                         <div className="space-y-4">
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-400 uppercase">Full Name</label>
-                                <div className="p-3 bg-slate-50 rounded-xl font-medium text-slate-700 flex items-center gap-3 border border-slate-100">
-                                    <User size={16} className="text-slate-400 shrink-0" />
-                                    {session.user?.name ?? "Unknown"}
-                                </div>
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Institutional Data</h3>
+                                <Badge variant="success" className="text-[10px] py-0 px-2 flex items-center gap-1 opacity-80">
+                                    <CheckCircle2 size={10} /> Verified
+                                </Badge>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <ProfileItem label="Full Name" value={session.user?.name ?? "Unknown"} icon={User} />
+                                <ProfileItem label="Email Address" value={session.user?.email ?? "—"} icon={Mail} />
+                                <ProfileItem label="Institute" value={session.user?.institute?.name || "Not Assigned"} icon={Building} />
                             </div>
 
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-400 uppercase">Email Address</label>
-                                <div className="p-3 bg-slate-50 rounded-xl font-medium text-slate-700 flex items-center gap-3 border border-slate-100">
-                                    <Mail size={16} className="text-slate-400 shrink-0" />
-                                    {session.user?.email ?? "—"}
-                                </div>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-400 uppercase">Institute</label>
-                                <div className="p-3 bg-slate-50 rounded-xl font-medium text-slate-700 flex items-center gap-3 border border-slate-100">
-                                    <Building size={16} className="text-slate-400 shrink-0" />
-                                    {session.user?.institute?.name || "Not Assigned"}
-                                </div>
-                            </div>
+                            <p className="text-[10px] text-slate-400 italic text-center pt-2">
+                                To update your official records, please contact the administration office.
+                            </p>
                         </div>
                     </div>
                 </Card>
@@ -146,3 +170,20 @@ export default function StudentSettingsPage() {
         </div>
     );
 }
+
+function ProfileItem({ label, value, icon: Icon }) {
+    return (
+        <div className="group">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter ml-1">
+                {label}
+            </label>
+            <div className="mt-1 p-3.5 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center gap-3 transition-colors hover:bg-slate-50">
+                <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 shrink-0 shadow-sm">
+                    <Icon size={14} />
+                </div>
+                <span className="text-sm font-bold text-slate-700 truncate">{value}</span>
+            </div>
+        </div>
+    );
+}
+

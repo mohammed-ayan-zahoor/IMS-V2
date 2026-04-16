@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import Skeleton from "@/components/shared/Skeleton";
 import {
     CheckCircle2,
     XCircle,
@@ -67,7 +67,21 @@ export default function StudentAttendancePage() {
 
     const attendanceRate = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
 
-    if (loading) return <LoadingSpinner fullPage />;
+    if (loading) return (
+        <div className="space-y-10">
+            <div className="flex flex-col md:flex-row justify-between gap-6">
+                <div className="space-y-3">
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="h-4 w-64" />
+                </div>
+                <Skeleton className="h-10 w-48 rounded-xl" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+            </div>
+            <Skeleton className="h-[400px] w-full rounded-3xl" />
+        </div>
+    );
 
     if (error) {
         return (
@@ -108,12 +122,12 @@ export default function StudentAttendancePage() {
             </div>
 
             {/* Stats Overview */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="flex flex-wrap gap-4">
                 <StatsBadge label="Present" value={stats.present} total={stats.total} color="emerald" />
                 <StatsBadge label="Absent" value={stats.absent} total={stats.total} color="red" />
                 <StatsBadge label="Late" value={stats.late} total={stats.total} color="amber" />
                 <StatsBadge label="Excused" value={stats.excused} total={stats.total} color="blue" />
-                <div className="px-4 py-4 rounded-2xl border border-slate-200 bg-white flex flex-col items-center justify-center shadow-sm">
+                <div className="stat-box-mobile px-4 py-4 rounded-2xl border border-slate-200 bg-white flex flex-col items-center justify-center shadow-sm">
                     <span className="text-2xl font-black text-slate-700">
                         {attendanceRate}%
                     </span>
@@ -122,11 +136,11 @@ export default function StudentAttendancePage() {
             </div>
 
             {/* Calendar Grid */}
-            <Card className="p-6">
+            <Card className="p-2 md:p-6 overflow-hidden">
                 <div className="grid grid-cols-7 gap-1 mb-2">
                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
-                        <div key={day} className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest py-2">
-                            {day}
+                        <div key={day} className="text-center text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest py-2">
+                            {day.slice(0, 3)}
                         </div>
                     ))}
                 </div>
@@ -162,8 +176,8 @@ export default function StudentAttendancePage() {
                             <div
                                 key={idx}
                                 className={`
-                                    min-h-[100px] p-3 rounded-xl flex flex-col items-start justify-between transition-all
-                                    ${isCurrentMonth ? statusColor : "opacity-30 bg-slate-50"}
+                                    min-h-[80px] md:min-h-[110px] p-2 md:p-4 rounded-xl flex flex-col items-start justify-between transition-all border
+                                    ${isCurrentMonth ? statusColor : "opacity-30 bg-slate-50 border-transparent"}
                                 `}
                             >
                                 <span className={`text-sm font-bold ${isCurrentMonth ? "text-slate-700" : "text-slate-300"}`}>
@@ -175,8 +189,8 @@ export default function StudentAttendancePage() {
                                             {icon}
                                             <span className="text-xs font-bold capitalize">{record.status}</span>
                                         </div>
-                                        <div className="text-[10px] font-medium opacity-80 truncate" title={record.batchName}>
-                                            {record.batchName}
+                                        <div className="text-[9px] font-bold opacity-70 truncate line-clamp-1 mt-1 uppercase" title={record.batchName}>
+                                            {record.batchName?.split(' ')[0]}
                                         </div>
                                     </div>
                                 )}
@@ -198,7 +212,7 @@ function StatsBadge({ label, value, total, color }) {
     };
 
     return (
-        <div className={`px-4 py-4 rounded-2xl border ${colors[color]} flex flex-col items-center justify-center shadow-sm`}>
+        <div className={`stat-box-mobile px-4 py-4 rounded-2xl border ${colors[color]} flex flex-col items-center justify-center shadow-sm`}>
             <span className="text-2xl font-black">{value}</span>
             <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">{label}</span>
         </div>

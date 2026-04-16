@@ -84,6 +84,7 @@ export default function ChatLayout({ currentUserId }) {
                     activeConversation={activeConversation}
                     onSelectConversation={setActiveConversation}
                     currentUserId={currentUserId}
+                    isLoading={isLoading}
                 />
             </div>
 
