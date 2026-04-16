@@ -32,7 +32,10 @@ import {
     Receipt,
     Bell,
     Search as SearchIcon,
-    PlusCircle
+    PlusCircle,
+    CheckCircle2,
+    Award,
+    TrendingUp
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -124,6 +127,9 @@ export default function AdminLayout({ children }) {
             items: [
                 { label: "Accounts Master", icon: Building2, href: "/admin/accounts" },
                 { label: "User Management", icon: UserCog, href: "/admin/users" },
+                { label: "Completion Tracking", icon: CheckCircle2, href: "/admin/completion-tracking" },
+                { label: "Certificate Management", icon: Award, href: "/admin/certificate-management" },
+                { label: "Completion Analytics", icon: TrendingUp, href: "/admin/completion-analytics" },
                 { label: "Settings", icon: Settings, href: "/admin/settings" },
             ]
         }
