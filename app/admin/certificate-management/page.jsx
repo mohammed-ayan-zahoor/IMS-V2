@@ -42,7 +42,7 @@ const CertificateManagementPage = () => {
         );
         if (res.ok) {
           const data = await res.json();
-          setStudents(data.data || []);
+          setStudents(data.students || []);
         } else {
           toast.error("Failed to load students");
         }

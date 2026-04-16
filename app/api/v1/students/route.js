@@ -46,7 +46,7 @@ export async function GET(req) {
             actorId: session.user.id
         });
 
-        return NextResponse.json({ data: data.students, pagination: data.pagination });
+        return NextResponse.json(data);
     } catch (error) {
         console.error("API Error [Students GET]:", error);
         return NextResponse.json({ error: "An internal error occurred" }, { status: 500 });
