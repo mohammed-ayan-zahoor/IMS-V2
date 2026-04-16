@@ -490,7 +490,7 @@ export default function StudentsPage() {
                             />
                         </div>
 
-                        {institutes.length > 0 && (
+                        {session?.user?.role === 'super_admin' && institutes.length > 0 && (
                             <div className="min-w-[180px] max-w-xs">
                                 <Select
                                     value={filters.instituteId}
