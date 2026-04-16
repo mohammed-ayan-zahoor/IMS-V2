@@ -18,9 +18,10 @@
  */
 
 const mongoose = require('mongoose');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 
-const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ims_v2';
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ims-v2';
 
 async function runMigration() {
   try {
