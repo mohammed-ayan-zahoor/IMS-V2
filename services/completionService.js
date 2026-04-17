@@ -370,3 +370,121 @@ export const getCompletionReport = async (institutionId, { status, startDate, en
         return { success: false, message: error.message, code: 500 };
     }
 };
+
+/**
+ * Mark batch enrollment as completed and update global student status
+ * This handles the per-batch completion workflow
+ */
+export const markBatchEnrollmentCompleted = async (batchId, studentIds, adminId, reason = '', req = null) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
+    try {
+        if (!Array.isArray(studentIds) || studentIds.length === 0) {
+            throw new Error('Invalid student IDs provided');
+        }
+
+        const Batch = mongoose.model('Batch');
+        const { StudentService } = await import('./studentService.js');
+
+        // Find the batch
+        const batch = await Batch.findById(batchId).session(session);
+        if (!batch) {
+            throw new Error('Batch not found');
+        }
+
+        const results = {
+            successCount: 0,
+            completedCount: 0,
+            remainingActiveCount: 0,
+            globalStatusUpdated: [],
+            errors: []
+        };
+
+        // Mark each student's enrollment as completed
+        for (const studentId of studentIds) {
+            try {
+                const student = await User.findById(studentId).session(session);
+                if (!student) {
+                    results.errors.push({ studentId, error: 'Student not found' });
+                    continue;
+                }
+
+                // Find and update the enrollment in the batch
+                const enrollment = batch.enrolledStudents.find(
+                    e => e.student.toString() === studentId.toString()
+                );
+
+                if (!enrollment) {
+                    results.errors.push({ studentId, error: 'Student not enrolled in this batch' });
+                    continue;
+                }
+
+                if (enrollment.status === 'completed') {
+                    results.errors.push({ studentId, error: 'Student already marked as completed in this batch' });
+                    continue;
+                }
+
+                // Mark enrollment as completed
+                enrollment.status = 'completed';
+                enrollment.completedAt = new Date();
+
+                results.successCount++;
+
+                // Check and update global status
+                await batch.save({ session });
+                const newGlobalStatus = await StudentService.checkAndUpdateGlobalStatus(studentId);
+
+                if (newGlobalStatus === 'COMPLETED') {
+                    results.completedCount++;
+                    results.globalStatusUpdated.push({ studentId, status: 'COMPLETED' });
+                } else {
+                    results.remainingActiveCount++;
+                }
+
+                // Audit logging
+                if (adminId) {
+                    await createAuditLog({
+                        actor: adminId,
+                        action: 'enrollment.complete',
+                        resource: { type: 'Batch', id: batchId },
+                        institute: batch.institute,
+                        details: {
+                            studentId,
+                            studentName: `${student.profile.firstName} ${student.profile.lastName}`,
+                            batchId,
+                            reason,
+                            globalStatusChanged: newGlobalStatus === 'COMPLETED'
+                        },
+                        req
+                    });
+                }
+
+            } catch (error) {
+                results.errors.push({ studentId, error: error.message });
+            }
+        }
+
+        await session.commitTransaction();
+
+        return {
+            success: results.errors.length < studentIds.length,
+            ...results
+        };
+
+    } catch (error) {
+        await session.abortTransaction();
+        return {
+            success: false,
+            message: error.message,
+            code: 400,
+            successCount: 0,
+            completedCount: 0,
+            remainingActiveCount: 0,
+            globalStatusUpdated: [],
+            errors: [error.message]
+        };
+    } finally {
+        session.endSession();
+    }
+};

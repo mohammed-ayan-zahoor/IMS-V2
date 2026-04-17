@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -14,7 +14,9 @@ import {
   Download, 
   Eye,
   RefreshCw,
-  Calendar
+  Calendar,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { motion } from "framer-motion";
@@ -23,52 +25,147 @@ const CertificateManagementPage = () => {
   const { data: session } = useSession();
   const toast = useToast();
 
+  // State Management
   const [students, setStudents] = useState([]);
-  const [filteredStudents, setFilteredStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudents, setSelectedStudents] = useState(new Set());
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("COMPLETED");
   const [bulkGenerating, setBulkGenerating] = useState(false);
 
-  // Fetch completed students
+  // Search & Filter State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("COMPLETED");
+  const [courseId, setCourseId] = useState("");
+  const [batchId, setBatchId] = useState("");
+
+  // Pagination State
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 25,
+    total: 0,
+    pages: 1
+  });
+
+  // Filter Data State
+  const [courses, setCourses] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [courseLoading, setCourseLoading] = useState(false);
+  const [batchLoading, setBatchLoading] = useState(false);
+
+  // Debounce & Abort Controller
+  const searchTimeoutRef = useRef(null);
+  const abortControllerRef = useRef(null);
+
+  // Fetch courses and batches on mount
   useEffect(() => {
-    const fetchStudents = async () => {
+    const fetchFilterData = async () => {
       try {
-        setLoading(true);
-        const res = await fetch(
-          `/api/v1/students?status=${statusFilter}&role=student`,
-          { headers: { Accept: "application/json" } }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setStudents(data.students || []);
-        } else {
-          toast.error("Failed to load students");
+        setCourseLoading(true);
+        setBatchLoading(true);
+        
+        const [coursesRes, batchesRes] = await Promise.all([
+          fetch("/api/v1/courses", { headers: { Accept: "application/json" } }),
+          fetch("/api/v1/batches", { headers: { Accept: "application/json" } })
+        ]);
+
+        if (coursesRes.ok) {
+          const data = await coursesRes.json();
+          setCourses(data.courses || []);
+        }
+
+        if (batchesRes.ok) {
+          const data = await batchesRes.json();
+          setBatches(data.batches || []);
         }
       } catch (error) {
-        console.error("Error fetching students:", error);
-        toast.error("Error loading students");
+        console.error("Error fetching filter data:", error);
       } finally {
-        setLoading(false);
+        setCourseLoading(false);
+        setBatchLoading(false);
       }
     };
 
-    fetchStudents();
-  }, [statusFilter, toast]);
+    fetchFilterData();
+  }, []);
 
-  // Filter students based on search term
+  // Main fetch students function
+  const fetchStudents = useCallback(async (pageNum = 1) => {
+    // Cancel previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: pagination.limit.toString(),
+        status: statusFilter,
+        search: searchTerm,
+        ...(courseId && { courseId }),
+        ...(batchId && { batchId }),
+        role: "student"
+      });
+
+      const res = await fetch(`/api/v1/students?${params.toString()}`, {
+        headers: { Accept: "application/json" },
+        signal: abortControllerRef.current.signal,
+        cache: "no-store"
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setStudents(data.students || []);
+      
+      if (data.pagination) {
+        setPagination(prev => ({
+          ...prev,
+          page: data.pagination.page,
+          total: data.pagination.total,
+          pages: data.pagination.pages
+        }));
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        console.error("Error fetching students:", error);
+        toast.error("Failed to load students");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, searchTerm, courseId, batchId, pagination.limit, toast]);
+
+  // Debounced search
   useEffect(() => {
-    const filtered = students.filter((student) => {
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        student.name?.toLowerCase().includes(searchLower) ||
-        student.email?.toLowerCase().includes(searchLower) ||
-        student._id?.includes(searchTerm)
-      );
-    });
-    setFilteredStudents(filtered);
-  }, [searchTerm, students]);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setPagination(prev => ({ ...prev, page: 1 }));
+      fetchStudents(1);
+    }, 500);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm, fetchStudents]);
+
+  // Fetch on filter/status change
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    fetchStudents(1);
+  }, [statusFilter, courseId, batchId, fetchStudents]);
+
+  // Fetch on page change
+  useEffect(() => {
+    fetchStudents(pagination.page);
+  }, [pagination.page, fetchStudents]);
 
   // Toggle student selection
   const toggleStudentSelection = useCallback((studentId) => {
@@ -83,15 +180,15 @@ const CertificateManagementPage = () => {
     });
   }, []);
 
-  // Select/deselect all visible students
+  // Select/deselect all on current page
   const toggleSelectAll = useCallback(() => {
-    if (selectedStudents.size === filteredStudents.length && selectedStudents.size > 0) {
+    if (selectedStudents.size === students.length && students.length > 0) {
       setSelectedStudents(new Set());
     } else {
-      const allIds = new Set(filteredStudents.map((s) => s._id));
+      const allIds = new Set(students.map((s) => s._id));
       setSelectedStudents(allIds);
     }
-  }, [filteredStudents, selectedStudents]);
+  }, [students, selectedStudents]);
 
   // Bulk generate certificates
   const handleBulkGenerateCertificates = async () => {
@@ -119,11 +216,7 @@ const CertificateManagementPage = () => {
         setSelectedStudents(new Set());
         
         // Refresh students list
-        setStudents((prev) =>
-          prev.map((s) =>
-            selectedStudents.has(s._id) ? { ...s, certificateId: true } : s
-          )
-        );
+        fetchStudents(pagination.page);
       } else {
         toast.error(result.error || "Failed to generate certificates");
         if (result.errors && result.errors.length > 0) {
@@ -151,11 +244,7 @@ const CertificateManagementPage = () => {
 
       if (res.ok) {
         toast.success("Certificate generated successfully");
-        setStudents((prev) =>
-          prev.map((s) =>
-            s._id === studentId ? { ...s, certificateId: true } : s
-          )
-        );
+        fetchStudents(pagination.page);
       } else {
         toast.error("Failed to generate certificate");
       }
@@ -198,6 +287,10 @@ const CertificateManagementPage = () => {
     });
   };
 
+  // Calculate pagination info
+  const startIdx = (pagination.page - 1) * pagination.limit + 1;
+  const endIdx = Math.min(pagination.page * pagination.limit, pagination.total);
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -230,7 +323,7 @@ const CertificateManagementPage = () => {
         transition={{ duration: 0.3, delay: 0.1 }}
       >
         <Card padding="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <Input
               placeholder="Search by name, email, or ID..."
               value={searchTerm}
@@ -245,6 +338,24 @@ const CertificateManagementPage = () => {
                 { value: "ACTIVE", label: "Active Students" },
                 { value: "DROPPED", label: "Dropped Students" },
               ]}
+            />
+            <Select
+              value={courseId}
+              onChange={(value) => setCourseId(value)}
+              options={[
+                { value: "", label: "All Courses" },
+                ...(courseLoading ? [] : courses.map(c => ({ label: c.name, value: c._id })))
+              ]}
+              disabled={courseLoading}
+            />
+            <Select
+              value={batchId}
+              onChange={(value) => setBatchId(value)}
+              options={[
+                { value: "", label: "All Batches" },
+                ...(batchLoading ? [] : batches.map(b => ({ label: b.name, value: b._id })))
+              ]}
+              disabled={batchLoading}
             />
           </div>
 
@@ -289,7 +400,7 @@ const CertificateManagementPage = () => {
             <div className="flex items-center justify-center p-12">
               <Loader className="animate-spin text-slate-400" />
             </div>
-          ) : filteredStudents.length === 0 ? (
+          ) : students.length === 0 ? (
             <div className="flex items-center justify-center p-12">
               <div className="text-center">
                 <AlertCircle className="mx-auto mb-3 text-slate-300" size={32} />
@@ -305,8 +416,8 @@ const CertificateManagementPage = () => {
                     <input
                       type="checkbox"
                       checked={
-                        selectedStudents.size === filteredStudents.length &&
-                        filteredStudents.length > 0
+                        selectedStudents.size === students.length &&
+                        students.length > 0
                       }
                       onChange={toggleSelectAll}
                       className="rounded border-slate-300"
@@ -322,7 +433,7 @@ const CertificateManagementPage = () => {
 
               {/* Table Body */}
               <div className="divide-y divide-slate-200">
-                {filteredStudents.map((student) => (
+                {students.map((student) => (
                   <div
                     key={student._id}
                     className={`grid grid-cols-12 gap-4 p-4 hover:bg-slate-50 transition-colors ${
@@ -393,6 +504,55 @@ const CertificateManagementPage = () => {
                   </div>
                 ))}
               </div>
+
+              {/* Pagination Controls */}
+              <div className="border-t border-slate-200 p-4 flex justify-between items-center bg-slate-50">
+                <div className="text-sm text-slate-600">
+                  {pagination.total > 0 
+                    ? `Showing ${startIdx}-${endIdx} of ${pagination.total} students`
+                    : "No students"
+                  }
+                </div>
+                
+                <div className="flex gap-2 items-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                    disabled={pagination.page === 1 || loading}
+                    icon={<ChevronLeft size={16} />}
+                  >
+                    Previous
+                  </Button>
+                  
+                  <div className="text-sm font-medium">
+                    Page {pagination.page} of {pagination.pages}
+                  </div>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
+                    disabled={pagination.page === pagination.pages || loading}
+                    icon={<ChevronRight size={16} />}
+                  >
+                    Next
+                  </Button>
+
+                  <Select
+                    value={pagination.limit.toString()}
+                    onChange={(value) => {
+                      setPagination(prev => ({ ...prev, limit: parseInt(value), page: 1 }));
+                    }}
+                    options={[
+                      { value: "10", label: "10 per page" },
+                      { value: "25", label: "25 per page" },
+                      { value: "50", label: "50 per page" }
+                    ]}
+                    buttonClassName="min-w-fit"
+                  />
+                </div>
+              </div>
             </>
           )}
         </Card>
@@ -414,6 +574,7 @@ const CertificateManagementPage = () => {
                 <li>Click the refresh icon to generate a certificate for a student</li>
                 <li>Click the download icon to download an already generated certificate</li>
                 <li>Only completed students can have certificates generated</li>
+                <li>Filter by Course or Batch to refine your selection</li>
               </ul>
             </div>
           </div>

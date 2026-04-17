@@ -272,7 +272,7 @@ export class StudentService {
         }
 
         const students = await User.find(query)
-            .sort({ createdAt: -1 })
+            .sort({ 'profile.firstName': 1, 'profile.lastName': 1 })
             .skip(skip)
             .limit(limit);
 
@@ -664,5 +664,66 @@ export class StudentService {
         );
 
         return isAssigned;
+    }
+
+    /**
+     * Check and update global student lifecycle status based on batch enrollment statuses
+     * Rule: COMPLETED if student has zero active enrollments AND at least one completed enrollment
+     * Ignores dropped enrollments in the calculation
+     */
+    static async checkAndUpdateGlobalStatus(studentId) {
+        try {
+            const student = await User.findById(studentId);
+            if (!student) {
+                throw new Error('Student not found');
+            }
+
+            // Get all non-deleted batches where student is enrolled
+            const batches = await Batch.find({
+                'enrolledStudents.student': studentId,
+                deletedAt: null
+            }).select('enrolledStudents');
+
+            if (!batches || batches.length === 0) {
+                // No active enrollments, don't change status
+                return student.status;
+            }
+
+            // Extract enrollment statuses for this student
+            const enrollmentStatuses = [];
+            batches.forEach(batch => {
+                const enrollment = batch.enrolledStudents.find(
+                    e => e.student.toString() === studentId.toString()
+                );
+                if (enrollment && enrollment.status) {
+                    enrollmentStatuses.push(enrollment.status);
+                }
+            });
+
+            // Check conditions for global COMPLETED status
+            const hasActiveEnrollment = enrollmentStatuses.includes('active');
+            const hasCompletedEnrollment = enrollmentStatuses.includes('completed');
+
+            let newStatus = student.status; // Default: no change
+
+            if (!hasActiveEnrollment && hasCompletedEnrollment) {
+                // No active enrollments AND at least one completed → Set to COMPLETED
+                newStatus = 'COMPLETED';
+            } else if (hasActiveEnrollment) {
+                // Has at least one active enrollment → Ensure status is ACTIVE
+                newStatus = 'ACTIVE';
+            }
+
+            // Update only if status changed
+            if (newStatus !== student.status) {
+                student.status = newStatus;
+                await student.save();
+            }
+
+            return newStatus;
+        } catch (error) {
+            console.error(`Error checking global status for student ${studentId}:`, error);
+            throw error;
+        }
     }
 }
