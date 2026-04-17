@@ -326,7 +326,6 @@ const CompletionTrackingPage = () => {
               placeholder="Search by name, email, or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              icon={true}
             />
             <Select
               value={statusFilter}
