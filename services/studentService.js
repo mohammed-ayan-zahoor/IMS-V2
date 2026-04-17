@@ -218,8 +218,21 @@ export class StudentService {
             if (batchId) batchQuery._id = batchId;
             if (courseId) batchQuery.course = courseId;
 
-            const batches = await Batch.find(batchQuery).select('enrolledStudents.student');
-            const studentIds = batches.flatMap(b => b.enrolledStudents.map(e => e.student));
+            const batches = await Batch.find(batchQuery).select('enrolledStudents.student enrolledStudents.status');
+            
+            // Map student lifecycle status to enrollment status
+            const statusMap = {
+                'ACTIVE': 'active',
+                'COMPLETED': 'completed',
+                'DROPPED': 'dropped'
+            };
+            const targetEnrollmentStatus = status && statusMap[status];
+
+            const studentIds = batches.flatMap(b => 
+                b.enrolledStudents
+                    .filter(e => !targetEnrollmentStatus || e.status === targetEnrollmentStatus)
+                    .map(e => e.student)
+            );
 
             query._id = { $in: studentIds };
         }
@@ -671,9 +684,9 @@ export class StudentService {
      * Rule: COMPLETED if student has zero active enrollments AND at least one completed enrollment
      * Ignores dropped enrollments in the calculation
      */
-    static async checkAndUpdateGlobalStatus(studentId) {
+    static async checkAndUpdateGlobalStatus(studentId, session = null) {
         try {
-            const student = await User.findById(studentId);
+            const student = await User.findById(studentId).session(session);
             if (!student) {
                 throw new Error('Student not found');
             }
@@ -682,7 +695,7 @@ export class StudentService {
             const batches = await Batch.find({
                 'enrolledStudents.student': studentId,
                 deletedAt: null
-            }).select('enrolledStudents');
+            }).session(session).select('enrolledStudents');
 
             if (!batches || batches.length === 0) {
                 // No active enrollments, don't change status

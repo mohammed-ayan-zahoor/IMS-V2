@@ -428,12 +428,17 @@ export const markBatchEnrollmentCompleted = async (batchId, studentIds, adminId,
                 // Mark enrollment as completed
                 enrollment.status = 'completed';
                 enrollment.completedAt = new Date();
+                
+                // Inform Mongoose that the array has changed
+                batch.markModified('enrolledStudents');
 
                 results.successCount++;
 
-                // Check and update global status
+                // Save batch changes first within the session
                 await batch.save({ session });
-                const newGlobalStatus = await StudentService.checkAndUpdateGlobalStatus(studentId);
+
+                // Check and update global status using same session
+                const newGlobalStatus = await StudentService.checkAndUpdateGlobalStatus(studentId, session);
 
                 if (newGlobalStatus === 'COMPLETED') {
                     results.completedCount++;

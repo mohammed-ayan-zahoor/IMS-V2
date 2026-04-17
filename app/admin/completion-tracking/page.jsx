@@ -221,7 +221,7 @@ const CompletionTrackingPage = () => {
     await performBulkMark();
   };
 
-  const performBulkMark = async () => {
+   const performBulkMark = async () => {
     setShowConfirmModal(false);
     try {
       setBulkMarking(true);
@@ -233,6 +233,7 @@ const CompletionTrackingPage = () => {
         body: JSON.stringify({
           studentIds,
           reason: completionReason,
+          batchId: batchId || null,
         }),
       });
 
@@ -245,8 +246,10 @@ const CompletionTrackingPage = () => {
         setSelectedStudents(new Set());
         setCompletionReason("");
         
-        // Refresh the current page
-        fetchStudents(pagination.page);
+        // Switch to COMPLETED filter to show the newly completed students
+        setStatusFilter("COMPLETED");
+        setPagination(prev => ({ ...prev, page: 1 }));
+        fetchStudents(1);
       } else {
         toast.error(result.error || "Failed to mark students as completed");
         if (result.errors && result.errors.length > 0) {
@@ -261,29 +264,33 @@ const CompletionTrackingPage = () => {
     }
   };
 
-  // Mark individual student as completed
-  const markStudentCompleted = async (studentId) => {
-    try {
-      const res = await fetch("/api/v1/students/bulk-mark-completed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentIds: [studentId],
-          reason: "Marked as completed via completion tracking",
-        }),
-      });
+   // Mark individual student as completed
+   const markStudentCompleted = async (studentId) => {
+     try {
+       const res = await fetch("/api/v1/students/bulk-mark-completed", {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({
+           studentIds: [studentId],
+           reason: "Marked as completed via completion tracking",
+           batchId: batchId || null,
+         }),
+       });
 
-      if (res.ok) {
-        toast.success("Student marked as completed");
-        fetchStudents(pagination.page);
-      } else {
-        toast.error("Failed to mark student as completed");
-      }
-    } catch (error) {
-      console.error("Error marking student completed:", error);
-      toast.error("Error marking student as completed");
-    }
-  };
+       if (res.ok) {
+         toast.success("Student marked as completed");
+         // Switch to COMPLETED filter to show the newly completed student
+         setStatusFilter("COMPLETED");
+         setPagination(prev => ({ ...prev, page: 1 }));
+         fetchStudents(1);
+       } else {
+         toast.error("Failed to mark student as completed");
+       }
+     } catch (error) {
+       console.error("Error marking student completed:", error);
+       toast.error("Error marking student as completed");
+     }
+   };
 
   // Calculate pagination info
   const startIdx = (pagination.page - 1) * pagination.limit + 1;
