@@ -11,26 +11,32 @@ export const markStudentCompleted = async (studentId, adminId, reason = '', req 
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
+        console.log(`[markStudentCompleted] Starting for student: ${studentId}`);
         const student = await User.findById(studentId).session(session);
 
         if (!student) {
+            console.log(`[markStudentCompleted] Student not found: ${studentId}`);
             throw new Error('Student not found');
         }
 
         if (student.role !== 'student') {
+            console.log(`[markStudentCompleted] User is not a student: ${student.role}`);
             throw new Error('User is not a student');
         }
 
         if (student.status !== 'ACTIVE') {
+            console.log(`[markStudentCompleted] Student not ACTIVE, current status: ${student.status}`);
             throw new Error(`Cannot complete student with status: ${student.status}`);
         }
 
+        console.log(`[markStudentCompleted] Marking student ${studentId} as COMPLETED`);
         const oldStatus = student.status;
         student.status = 'COMPLETED';
         student.completedAt = new Date();
         student.completionReason = reason;
 
         await student.save({ session });
+        console.log(`[markStudentCompleted] Student saved successfully`);
 
         // Audit Logging
         if (adminId) {
@@ -45,9 +51,11 @@ export const markStudentCompleted = async (studentId, adminId, reason = '', req 
         }
 
         await session.commitTransaction();
+        console.log(`[markStudentCompleted] Transaction committed successfully`);
         return { success: true, message: 'Student marked as completed', student };
 
     } catch (error) {
+        console.error(`[markStudentCompleted] Error:`, error.message);
         await session.abortTransaction();
         const statusCode = error.message.includes('not found') ? 404 : 400;
         return { success: false, message: error.message, code: statusCode };

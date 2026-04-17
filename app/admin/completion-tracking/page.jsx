@@ -251,9 +251,11 @@ const CompletionTrackingPage = () => {
         setPagination(prev => ({ ...prev, page: 1 }));
         fetchStudents(1);
       } else {
-        toast.error(result.error || "Failed to mark students as completed");
+        const errorMsg = result.error || "Failed to mark students as completed";
+        toast.error(errorMsg);
+        console.error("Bulk mark error:", { status: res.status, result });
         if (result.errors && result.errors.length > 0) {
-          console.error("Errors:", result.errors);
+          console.error("Individual errors:", result.errors);
         }
       }
     } catch (error) {
@@ -277,6 +279,8 @@ const CompletionTrackingPage = () => {
          }),
        });
 
+       const result = await res.json();
+
        if (res.ok) {
          toast.success("Student marked as completed");
          // Switch to COMPLETED filter to show the newly completed student
@@ -284,7 +288,8 @@ const CompletionTrackingPage = () => {
          setPagination(prev => ({ ...prev, page: 1 }));
          fetchStudents(1);
        } else {
-         toast.error("Failed to mark student as completed");
+         toast.error(result.error || "Failed to mark student as completed");
+         console.error("API Error:", result);
        }
      } catch (error) {
        console.error("Error marking student completed:", error);
