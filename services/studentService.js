@@ -686,7 +686,7 @@ export class StudentService {
      */
     static async checkAndUpdateGlobalStatus(studentId, session = null) {
         try {
-            const student = await User.findById(studentId).session(session);
+            const student = await User.findById(studentId);
             if (!student) {
                 throw new Error('Student not found');
             }
@@ -695,7 +695,7 @@ export class StudentService {
             const batches = await Batch.find({
                 'enrolledStudents.student': studentId,
                 deletedAt: null
-            }).session(session).select('enrolledStudents');
+            }).select('enrolledStudents');
 
             if (!batches || batches.length === 0) {
                 // No active enrollments, don't change status

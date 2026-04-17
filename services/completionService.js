@@ -8,11 +8,9 @@ import { createAuditLog } from './auditService.js';
  * 1. Mark student as COMPLETED
  */
 export const markStudentCompleted = async (studentId, adminId, reason = '', req = null) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
     try {
         console.log(`[markStudentCompleted] Starting for student: ${studentId}`);
-        const student = await User.findById(studentId).session(session);
+        const student = await User.findById(studentId);
 
         if (!student) {
             console.log(`[markStudentCompleted] Student not found: ${studentId}`);
@@ -35,7 +33,7 @@ export const markStudentCompleted = async (studentId, adminId, reason = '', req 
         student.completedAt = new Date();
         student.completionReason = reason;
 
-        await student.save({ session });
+        await student.save();
         console.log(`[markStudentCompleted] Student saved successfully`);
 
         // Audit Logging
@@ -50,17 +48,13 @@ export const markStudentCompleted = async (studentId, adminId, reason = '', req 
             });
         }
 
-        await session.commitTransaction();
-        console.log(`[markStudentCompleted] Transaction committed successfully`);
+        console.log(`[markStudentCompleted] Operation completed successfully`);
         return { success: true, message: 'Student marked as completed', student };
 
     } catch (error) {
         console.error(`[markStudentCompleted] Error:`, error.message);
-        await session.abortTransaction();
         const statusCode = error.message.includes('not found') ? 404 : 400;
         return { success: false, message: error.message, code: statusCode };
-    } finally {
-        session.endSession();
     }
 };
 
@@ -70,10 +64,8 @@ export const markStudentCompleted = async (studentId, adminId, reason = '', req 
  * 2. Generate Certificate
  */
 export const generateCertificate = async (studentId, adminId, templateType = 'STANDARD', metadata = {}, req = null) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
     try {
-        const student = await User.findById(studentId).session(session);
+        const student = await User.findById(studentId);
 
         if (!student) {
             throw new Error('Student not found');
@@ -88,17 +80,17 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
         }
 
         // Create certificate (auto-generates certificateNumber via pre-save hook)
-        const certificate = await Certificate.create([{
+        const certificate = await Certificate.create({
             studentId: student._id,
             institutionId: student.institute,
             templateType,
             metadata,
             status: 'GENERATED'
-        }], { session });
+        });
 
         // Link certificate to user
-        student.certificateId = certificate[0]._id;
-        await student.save({ session });
+        student.certificateId = certificate._id;
+        await student.save();
 
         // Audit Logging
         if (adminId) {
@@ -106,26 +98,21 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
                 actor: adminId,
                 action: 'certificate.generate',
                 resource: { type: 'Student', id: student._id },
-                details: { certificateId: certificate[0]._id, certificateNumber: certificate[0].certificateNumber },
+                details: { certificateId: certificate._id, certificateNumber: certificate.certificateNumber },
                 institute: student.institute,
                 req
             });
         }
 
-        await session.commitTransaction();
-
         return {
             success: true,
             message: 'Certificate generated',
-            certificate: certificate[0]
+            certificate: certificate
         };
 
     } catch (error) {
-        await session.abortTransaction();
         const statusCode = error.message.includes('not found') ? 404 : 400;
         return { success: false, message: error.message, code: statusCode };
-    } finally {
-        session.endSession();
     }
 };
 
@@ -135,10 +122,8 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
  * 3. Mark student as DROPPED
  */
 export const markStudentDropped = async (studentId, adminId, reason = '', req = null) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
     try {
-        const student = await User.findById(studentId).session(session);
+        const student = await User.findById(studentId);
 
         if (!student) {
             throw new Error('Student not found');
@@ -152,7 +137,7 @@ export const markStudentDropped = async (studentId, adminId, reason = '', req = 
         student.status = 'DROPPED';
         student.completionReason = reason;
 
-        await student.save({ session });
+        await student.save();
 
         // Audit Logging
         if (adminId) {
@@ -166,16 +151,11 @@ export const markStudentDropped = async (studentId, adminId, reason = '', req = 
             });
         }
 
-        await session.commitTransaction();
-
         return { success: true, message: 'Student marked as dropped' };
 
     } catch (error) {
-        await session.abortTransaction();
         const statusCode = error.message.includes('not found') ? 404 : 400;
         return { success: false, message: error.message, code: statusCode };
-    } finally {
-        session.endSession();
     }
 };
 
@@ -184,20 +164,18 @@ export const markStudentDropped = async (studentId, adminId, reason = '', req = 
  * 3.1. Revert student status (e.g., from COMPLETED to ACTIVE)
  */
 export const revertStudentStatus = async (studentId, adminId, newStatus = 'ACTIVE', req = null) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
     try {
         if (!['ACTIVE', 'PAUSED'].includes(newStatus)) {
             throw new Error('Cannot revert to status: ' + newStatus);
         }
 
-        const student = await User.findById(studentId).session(session);
+        const student = await User.findById(studentId);
         if (!student) throw new Error('Student not found');
 
         const oldStatus = student.status;
         student.status = newStatus;
         // completion data cleared by User model pre-save hook
-        await student.save({ session });
+        await student.save();
 
         // Audit Logging
         if (adminId) {
@@ -211,15 +189,10 @@ export const revertStudentStatus = async (studentId, adminId, newStatus = 'ACTIV
             });
         }
 
-        await session.commitTransaction();
-
         return { success: true, message: 'Student status reverted' };
     } catch (error) {
-        await session.abortTransaction();
         const statusCode = error.message.includes('not found') ? 404 : 400;
         return { success: false, message: error.message, code: statusCode };
-    } finally {
-        session.endSession();
     }
 };
 
@@ -384,9 +357,6 @@ export const getCompletionReport = async (institutionId, { status, startDate, en
  * This handles the per-batch completion workflow
  */
 export const markBatchEnrollmentCompleted = async (batchId, studentIds, adminId, reason = '', req = null) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    
     try {
         if (!Array.isArray(studentIds) || studentIds.length === 0) {
             throw new Error('Invalid student IDs provided');
@@ -396,7 +366,7 @@ export const markBatchEnrollmentCompleted = async (batchId, studentIds, adminId,
         const { StudentService } = await import('./studentService.js');
 
         // Find the batch
-        const batch = await Batch.findById(batchId).session(session);
+        const batch = await Batch.findById(batchId);
         if (!batch) {
             throw new Error('Batch not found');
         }
@@ -412,7 +382,7 @@ export const markBatchEnrollmentCompleted = async (batchId, studentIds, adminId,
         // Mark each student's enrollment as completed
         for (const studentId of studentIds) {
             try {
-                const student = await User.findById(studentId).session(session);
+                const student = await User.findById(studentId);
                 if (!student) {
                     results.errors.push({ studentId, error: 'Student not found' });
                     continue;
@@ -442,11 +412,11 @@ export const markBatchEnrollmentCompleted = async (batchId, studentIds, adminId,
 
                 results.successCount++;
 
-                // Save batch changes first within the session
-                await batch.save({ session });
+                // Save batch changes
+                await batch.save();
 
-                // Check and update global status using same session
-                const newGlobalStatus = await StudentService.checkAndUpdateGlobalStatus(studentId, session);
+                // Check and update global status (no session parameter)
+                const newGlobalStatus = await StudentService.checkAndUpdateGlobalStatus(studentId, null);
 
                 if (newGlobalStatus === 'COMPLETED') {
                     results.completedCount++;
@@ -478,15 +448,12 @@ export const markBatchEnrollmentCompleted = async (batchId, studentIds, adminId,
             }
         }
 
-        await session.commitTransaction();
-
         return {
             success: results.errors.length < studentIds.length,
             ...results
         };
 
     } catch (error) {
-        await session.abortTransaction();
         return {
             success: false,
             message: error.message,
@@ -497,7 +464,5 @@ export const markBatchEnrollmentCompleted = async (batchId, studentIds, adminId,
             globalStatusUpdated: [],
             errors: [error.message]
         };
-    } finally {
-        session.endSession();
     }
 };
