@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { FileText, Link as LinkIcon, AlertTriangle, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { FileText, Link as LinkIcon, AlertTriangle, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -15,7 +15,9 @@ export default function PdfViewer({ file, onClose }) {
     const [pageNumber, setPageNumber] = useState(1);
     const [scale, setScale] = useState(1.0);
     const [loading, setLoading] = useState(true);
-    const [pageWidth, setPageWidth] = useState(null);
+    const [pageWidth, setPageWidth] = useState(800); // Initialize with default width
+    const [error, setError] = useState(null);
+    const [retryCount, setRetryCount] = useState(0);
 
     const modalRef = useRef(null);
     const containerRef = useRef(null);
@@ -23,13 +25,37 @@ export default function PdfViewer({ file, onClose }) {
     function onDocumentLoadSuccess({ numPages }) {
         setNumPages(numPages);
         setLoading(false);
+        setError(null);
+    }
+
+    function onDocumentLoadError(error) {
+        setError("Failed to load PDF. Please try again.");
+        setLoading(false);
+        console.error("PDF load error:", error);
+    }
+
+    function handleRetry() {
+        setError(null);
+        setLoading(true);
+        setRetryCount(prev => prev + 1);
     }
 
     // Reset pagination when file changes
     useEffect(() => {
         setPageNumber(1);
         setLoading(true);
+        setError(null);
+        setRetryCount(0);
     }, [file]);
+
+    // Lock/unlock body scroll when modal opens/closes
+    useEffect(() => {
+        const originalStyle = window.getComputedStyle(document.body).overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, []);
 
     // Resize Observer for responsive PDF width
     useEffect(() => {
@@ -38,8 +64,8 @@ export default function PdfViewer({ file, onClose }) {
         const resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 if (entry.contentRect) {
-                    // Subtract padding (48px = 3rem) for better fit
-                    setPageWidth(entry.contentRect.width - 48);
+                    // Subtract minimal padding (16px) for better PDF view
+                    setPageWidth(Math.max(400, entry.contentRect.width - 16));
                 }
             }
         });
@@ -49,10 +75,22 @@ export default function PdfViewer({ file, onClose }) {
         return () => {
             resizeObserver.disconnect();
         };
-    }, []);
+    }, [containerRef]);
+
+    // Keyboard navigation and accessibility
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') onClose();
+
+            // Arrow key navigation
+            if (e.key === 'ArrowLeft' && pageNumber > 1) {
+                e.preventDefault();
+                setPageNumber(p => Math.max(1, p - 1));
+            }
+            if (e.key === 'ArrowRight' && pageNumber < (numPages || 1)) {
+                e.preventDefault();
+                setPageNumber(p => Math.min(numPages || 1, p + 1));
+            }
 
             // Focus Trap
             if (e.key === 'Tab' && modalRef.current) {
@@ -86,9 +124,9 @@ export default function PdfViewer({ file, onClose }) {
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
-            if (previousActiveElement) previousActiveElement.focus();
+            if (previousActiveElement && previousActiveElement.focus) previousActiveElement.focus();
         };
-    }, [onClose]);
+    }, [onClose, pageNumber, numPages]);
 
     return (
         <div
@@ -126,6 +164,7 @@ export default function PdfViewer({ file, onClose }) {
                             onClick={() => setPageNumber(p => Math.max(1, p - 1))}
                             disabled={pageNumber <= 1}
                             className="flex items-center gap-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            title="Previous page (← arrow)"
                         >
                             <ChevronLeft size={16} />
                         </button>
@@ -136,6 +175,7 @@ export default function PdfViewer({ file, onClose }) {
                             onClick={() => setPageNumber(p => Math.min(numPages || 1, p + 1))}
                             disabled={pageNumber >= (numPages || 1)}
                             className="flex items-center gap-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            title="Next page (→ arrow)"
                         >
                             <ChevronRight size={16} />
                         </button>
@@ -182,33 +222,60 @@ export default function PdfViewer({ file, onClose }) {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 bg-slate-100 overflow-auto flex justify-center p-4 md:p-8 relative" ref={containerRef}>
-                    <Document
-                        file={file.file?.url}
-                        onLoadSuccess={onDocumentLoadSuccess}
-                        loading={
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <LoadingSpinner />
+                <div className="flex-1 bg-slate-100 overflow-auto flex flex-col justify-center items-center p-2 md:p-4 relative" ref={containerRef}>
+                    {error ? (
+                        <div className="flex flex-col items-center justify-center h-full text-slate-500 p-4 text-center gap-4">
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                                <AlertTriangle size={36} />
                             </div>
-                        }
-                        error={
-                            <div className="flex flex-col items-center justify-center h-full text-slate-500 p-4 text-center">
-                                <AlertTriangle size={36} className="mb-4 text-slate-400" />
-                                <p className="font-medium">Failed to load PDF.</p>
-                                <a href={file.file?.url} target="_blank" className="text-premium-blue hover:underline text-sm mt-2">Download file</a>
+                            <div>
+                                <p className="font-bold text-lg text-slate-700">{error}</p>
+                                <p className="text-sm text-slate-500 mt-2">Try refreshing or download the file directly.</p>
                             </div>
-                        }
-                        className="shadow-xl"
-                    >
-                        <Page
-                            pageNumber={pageNumber}
-                            scale={scale}
-                            width={pageWidth}
-                            renderTextLayer={true}
-                            renderAnnotationLayer={true}
-                            className="bg-white"
-                        />
-                    </Document>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleRetry}
+                                    className="flex items-center gap-2 px-4 py-2 bg-premium-blue text-white rounded-lg text-sm font-bold hover:bg-premium-blue/90 transition-colors"
+                                >
+                                    <RotateCcw size={16} />
+                                    Retry
+                                </button>
+                                <a
+                                    href={file.file?.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-300 transition-colors"
+                                >
+                                    Download
+                                </a>
+                            </div>
+                        </div>
+                    ) : (
+                        <Document
+                            file={file.file?.url}
+                            onLoadSuccess={onDocumentLoadSuccess}
+                            onLoadError={onDocumentLoadError}
+                            key={`${file._id}-${retryCount}`}
+                            loading={
+                                <div className="flex flex-col items-center justify-center gap-4">
+                                    <LoadingSpinner />
+                                    <p className="text-sm text-slate-500">Loading PDF...</p>
+                                </div>
+                            }
+                            className="shadow-xl"
+                        >
+                            {!error && pageWidth && (
+                                <Page
+                                    pageNumber={pageNumber}
+                                    scale={scale}
+                                    width={pageWidth}
+                                    renderTextLayer={true}
+                                    renderAnnotationLayer={true}
+                                    className="bg-white shadow-lg"
+                                />
+                            )}
+                        </Document>
+                    )}
                 </div>
 
                 {/* Footer Controls - Desktop Only */}
@@ -217,6 +284,7 @@ export default function PdfViewer({ file, onClose }) {
                         onClick={() => setPageNumber(p => Math.max(1, p - 1))}
                         disabled={pageNumber <= 1}
                         className="flex items-center gap-2 px-3 md:px-4 py-2 border border-slate-200 rounded-xl text-xs md:text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                        title="Previous page (← arrow)"
                     >
                         <ChevronLeft size={16} />
                         <span>Previous</span>
@@ -228,10 +296,14 @@ export default function PdfViewer({ file, onClose }) {
                         onClick={() => setPageNumber(p => Math.min(numPages || 1, p + 1))}
                         disabled={pageNumber >= (numPages || 1)}
                         className="flex items-center gap-2 px-3 md:px-4 py-2 border border-slate-200 rounded-xl text-xs md:text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                        title="Next page (→ arrow)"
                     >
                         <span>Next</span>
                         <ChevronRight size={16} />
                     </button>
+                    <div className="text-xs text-slate-400 ml-4 hidden lg:block">
+                        💡 Use ← → arrow keys to navigate
+                    </div>
                 </div>
             </div>
         </div>
