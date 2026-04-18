@@ -120,6 +120,27 @@ export default function PdfViewer({ file, onClose }) {
                         </button>
                     </div>
 
+                    {/* Mobile Navigation Controls */}
+                    <div className="flex items-center gap-2 md:hidden w-full justify-center">
+                        <button
+                            onClick={() => setPageNumber(p => Math.max(1, p - 1))}
+                            disabled={pageNumber <= 1}
+                            className="flex items-center gap-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <span className="text-xs font-medium text-slate-500">
+                            {pageNumber} / {numPages || '--'}
+                        </span>
+                        <button
+                            onClick={() => setPageNumber(p => Math.min(numPages || 1, p + 1))}
+                            disabled={pageNumber >= (numPages || 1)}
+                            className="flex items-center gap-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+
                     {/* Controls Config */}
                     <div className="flex items-center justify-between w-full md:w-auto gap-4">
                         <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg self-center mx-auto md:mx-0">
@@ -190,15 +211,15 @@ export default function PdfViewer({ file, onClose }) {
                     </Document>
                 </div>
 
-                {/* Footer Controls */}
-                <div className="p-3 md:p-4 border-t border-slate-100 bg-white flex justify-between md:justify-center items-center gap-2 md:gap-4 z-10 flex-wrap">
+                {/* Footer Controls - Desktop Only */}
+                <div className="hidden md:flex p-3 md:p-4 border-t border-slate-100 bg-white justify-center items-center gap-4 z-10">
                     <button
                         onClick={() => setPageNumber(p => Math.max(1, p - 1))}
                         disabled={pageNumber <= 1}
                         className="flex items-center gap-2 px-3 md:px-4 py-2 border border-slate-200 rounded-xl text-xs md:text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                     >
                         <ChevronLeft size={16} />
-                        <span className="hidden sm:inline">Previous</span>
+                        <span>Previous</span>
                     </button>
                     <span className="text-xs md:text-sm font-medium text-slate-500 flex-shrink-0">
                         {pageNumber} / {numPages || '--'}
@@ -208,7 +229,7 @@ export default function PdfViewer({ file, onClose }) {
                         disabled={pageNumber >= (numPages || 1)}
                         className="flex items-center gap-2 px-3 md:px-4 py-2 border border-slate-200 rounded-xl text-xs md:text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                     >
-                        <span className="hidden sm:inline">Next</span>
+                        <span>Next</span>
                         <ChevronRight size={16} />
                     </button>
                 </div>
