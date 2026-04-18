@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { StudentService } from "@/services/studentService";
 import { getInstituteScope } from "@/middleware/instituteScope";
+import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
 
 export async function POST(req, { params }) {
     try {
@@ -28,6 +29,9 @@ export async function POST(req, { params }) {
         await connectDB();
 
         const result = await StudentService.enrollInBatch(id, batchId, session.user.id, scope.instituteId);
+
+        // Clear dashboard cache since student enrollment status may have changed
+        clearDashboardCache(scope.instituteId);
 
         return NextResponse.json({
             message: "Student enrolled successfully",
@@ -62,6 +66,9 @@ export async function DELETE(req, { params }) {
 
         await connectDB();
         await StudentService.unenrollFromBatch(id, batchId, session.user.id, scope.instituteId);
+
+        // Clear dashboard cache since student enrollment status may have changed
+        clearDashboardCache(scope.instituteId);
 
         return NextResponse.json({ success: true, message: "Student unenrolled successfully" });
 

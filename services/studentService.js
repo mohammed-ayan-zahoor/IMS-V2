@@ -413,6 +413,9 @@ export class StudentService {
                 console.error("Audit Log Error (Batch Enroll):", auditError);
             }
 
+            // Check and update global status - if student was COMPLETED and now has active enrollment, revert to ACTIVE
+            await this.checkAndUpdateGlobalStatus(studentId, null);
+
             return { student, batch, fee: fee[0] };
         } catch (error) {
             await session.abortTransaction();
@@ -477,6 +480,9 @@ export class StudentService {
             institute: instituteId || student.institute,
             details: { studentName: student.fullName, batchName: batch.name }
         });
+
+        // Check and update global status - if student was COMPLETED and now has active enrollment, revert to ACTIVE
+        await this.checkAndUpdateGlobalStatus(studentId, null);
 
         return { student, batch, fee };
     }
@@ -650,6 +656,9 @@ export class StudentService {
                 feesCancelled: cancelResult.modifiedCount
             }
         });
+
+        // Check and update global status - if student now has no active enrollments, they may revert based on their enrollment history
+        await this.checkAndUpdateGlobalStatus(studentId, null);
 
         return true;
     }
