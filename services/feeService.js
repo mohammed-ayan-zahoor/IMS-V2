@@ -418,6 +418,85 @@ export class FeeService {
         return fee;
     }
 
+    static async addExtraCharges(feeId, chargesData, actorId) {
+        await connectDB();
+        const fee = await FeeDb.findById(feeId).populate('student').populate('batch');
+        if (!fee) throw new Error("Fee record not found");
+
+        const amountValue = typeof chargesData === 'object' ? chargesData.amount : chargesData;
+        const chargeAmount = parseFloat(amountValue) || 0;
+
+        if (chargeAmount < 0) {
+            throw new Error("Extra charge amount cannot be negative.");
+        }
+
+        if (chargeAmount === 0) {
+            throw new Error("Extra charge amount must be greater than zero.");
+        }
+
+        // Cannot add extra charges to a fully paid or cancelled fee
+        if (fee.status === 'paid') {
+            throw new Error("Cannot add extra charges to a fully paid fee. Please contact support if needed.");
+        }
+
+        if (fee.status === 'cancelled') {
+            throw new Error("Cannot add extra charges to a cancelled fee.");
+        }
+
+        fee.extraCharges = {
+            amount: chargeAmount,
+            reason: typeof chargesData === 'object' ? chargesData.reason : 'Extra Charge',
+            appliedBy: actorId,
+            appliedAt: new Date()
+        };
+
+        // Calculate the new final amount
+        const newFinalAmount = fee.totalAmount - (fee.discount?.amount || 0) + chargeAmount;
+
+        // If we have installments, add the charge to the last pending installment
+        if (fee.installments && fee.installments.length > 0) {
+            const pendingInstallments = fee.installments.filter(i => i.status !== 'paid');
+
+            if (pendingInstallments.length > 0) {
+                // Add charge to the last pending installment
+                const lastPending = pendingInstallments[pendingInstallments.length - 1];
+                lastPending.amount = lastPending.amount + chargeAmount;
+                // Mark the array as modified so Mongoose detects the change
+                fee.markModified('installments');
+            } else {
+                // All installments are paid, create a new pending installment
+                fee.installments.push({
+                    amount: chargeAmount,
+                    dueDate: new Date(new Date().setDate(new Date().getDate() + 7)), // Due in 7 days
+                    status: 'pending'
+                });
+            }
+        } else {
+            // No installments yet, create first one with the new final amount
+            fee.installments = [{
+                amount: newFinalAmount,
+                dueDate: new Date(new Date().setDate(new Date().getDate() + 7)), // Due in 7 days
+                status: 'pending'
+            }];
+        }
+
+        await fee.save();
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'fee.extra_charges',
+            resource: { type: 'Fee', id: fee._id },
+            institute: fee.institute,
+            details: {
+                student: fee.student?._id,
+                amount: chargeAmount,
+                reason: typeof chargesData === 'object' ? chargesData.reason : 'Extra Charge'
+            }
+        });
+
+        return fee;
+    }
+
     static async cancelFee(feeId, actorId) {
         await connectDB();
         const fee = await FeeDb.findById(feeId).populate('student');

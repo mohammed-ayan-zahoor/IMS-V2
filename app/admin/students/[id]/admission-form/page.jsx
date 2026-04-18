@@ -257,8 +257,9 @@ function AdmissionFormView({ data }) {
     };
 
     const totalAmount = Number(fee?.totalAmount) || 0;
-    const discount = Number(fee?.discount) || 0;
-    const netAmount = totalAmount - discount;
+    const discount = Number(fee?.discount?.amount || fee?.discount) || 0;
+    const extraCharges = Number(fee?.extraCharges?.amount || 0) || 0;
+    const netAmount = totalAmount - discount + extraCharges;
 
     return (
         <div className="admission-form-view mx-auto">
@@ -332,8 +333,19 @@ function AdmissionFormView({ data }) {
                         <div className="field"><span className="label">Course Code</span><span className="value">{batch.course?.code || "N/A"}</span></div>
                         <div className="field"><span className="label">Batch Name</span><span className="value font-semibold">{batch.name}</span></div>
                         <div className="field"><span className="label">Start Date</span><span className="value">{batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), 'dd-MM-yyyy') : "N/A"}</span></div>
-                        <div className="field"><span className="label">Duration</span><span className="value uppercase">{batch.course?.duration?.value} {batch.course?.duration?.unit || "Months"}</span></div>
-                        <div className="field"><span className="label">Course Fee</span><span className="value font-bold">₹{totalAmount.toLocaleString()}</span></div>
+                         <div className="field"><span className="label">Duration</span><span className="value uppercase">{batch.course?.duration?.value} {batch.course?.duration?.unit || "Months"}</span></div>
+                         <div className="field"><span className="label">Course Fee</span><span className="value font-bold">₹{totalAmount.toLocaleString()}</span></div>
+                         {(discount > 0 || extraCharges > 0) && (
+                             <>
+                                 {discount > 0 && (
+                                     <div className="field"><span className="label">Discount</span><span className="value font-bold text-red-600">- ₹{discount.toLocaleString()}</span></div>
+                                 )}
+                                 {extraCharges > 0 && (
+                                     <div className="field"><span className="label">Extra Charges</span><span className="value font-bold text-orange-600">+ ₹{extraCharges.toLocaleString()}</span></div>
+                                 )}
+                                 <div className="field"><span className="label">Net Amount Due</span><span className="value font-bold text-emerald-600">₹{netAmount.toLocaleString()}</span></div>
+                             </>
+                         )}
                     </div>
                 </>
             )}

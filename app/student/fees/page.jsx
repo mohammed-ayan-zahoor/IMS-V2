@@ -79,7 +79,7 @@ export default function StudentFeesPage() {
                                         {fee.batch?.name || "Course Fee"}
                                     </h2>
                                     <p className="text-sm font-medium text-slate-400 mt-1">
-                                        Total Payable: ₹{(fee.totalAmount - (fee.discount?.amount || 0)).toLocaleString()}
+                                        Total Payable: ₹{(fee.totalAmount - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0)).toLocaleString()}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -93,7 +93,7 @@ export default function StudentFeesPage() {
                                     <span className="text-emerald-600">Paid: ₹{fee.paidAmount.toLocaleString()}</span>
                                     <div className="flex items-center gap-2">
                                         <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                                            {Math.round((fee.paidAmount / (fee.totalAmount - (fee.discount?.amount || 0))) * 100)}% Paid
+                                            {Math.round((fee.paidAmount / (fee.totalAmount - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0))) * 100)}% Paid
                                         </span>
                                         <span className="text-slate-400">Balance: ₹{fee.balanceAmount.toLocaleString()}</span>
                                     </div>
@@ -102,8 +102,8 @@ export default function StudentFeesPage() {
                                     <div
                                         className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
                                         style={{
-                                            width: `${fee.totalAmount - (fee.discount?.amount || 0) > 0
-                                                ? (fee.paidAmount / (fee.totalAmount - (fee.discount?.amount || 0))) * 100
+                                            width: `${fee.totalAmount - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0) > 0
+                                                ? (fee.paidAmount / (fee.totalAmount - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0))) * 100
                                                 : 0
                                                 }%`
                                         }}

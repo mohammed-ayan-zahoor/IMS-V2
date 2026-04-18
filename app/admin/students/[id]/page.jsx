@@ -368,6 +368,10 @@ export default function StudentDetailsPage({ params }) {
     const [discountData, setDiscountData] = useState({ amount: "", reason: "" });
     const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
 
+    const [isExtraChargesModalOpen, setIsExtraChargesModalOpen] = useState(false);
+    const [extraChargesData, setExtraChargesData] = useState({ amount: "", reason: "" });
+    const [isApplyingExtraCharges, setIsApplyingExtraCharges] = useState(false);
+
     const handleApplyDiscount = async (e) => {
         e.preventDefault();
         if (!selectedFee || selectedFee._id === "new") {
@@ -416,6 +420,54 @@ export default function StudentDetailsPage({ params }) {
             toast.error(error.message || "Discount failed");
         } finally {
             setIsApplyingDiscount(false);
+        }
+    };
+
+    const handleAddExtraCharges = async (e) => {
+        e.preventDefault();
+        if (!selectedFee || selectedFee._id === "new") {
+            toast.error("Please record a payment first to create a fee record before adding extra charges.");
+            return;
+        }
+
+        const amount = parseFloat(extraChargesData.amount);
+        if (isNaN(amount) || amount <= 0 || !Number.isFinite(amount)) {
+            toast.error("Please enter a valid amount greater than zero.");
+            return;
+        }
+
+        if (!extraChargesData.reason || !extraChargesData.reason.trim()) {
+            toast.error("Please provide a reason for the extra charges (e.g., 'Late Fine', 'Extra Materials').");
+            return;
+        }
+
+        try {
+            setIsApplyingExtraCharges(true);
+            const res = await fetch(`/api/v1/fees/${selectedFee._id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    extraCharges: {
+                        amount: amount,
+                        reason: extraChargesData.reason
+                    }
+                })
+            });
+
+            if (res.ok) {
+                setIsExtraChargesModalOpen(false);
+                setExtraChargesData({ amount: "", reason: "" });
+                fetchStudentDetails();
+                toast.success("Extra charges added successfully!");
+            } else {
+                const err = await res.json();
+                toast.error(err.error || "Failed to add extra charges");
+            }
+        } catch (error) {
+            console.error("Extra charges error:", error);
+            toast.error(error.message || "Failed to add extra charges");
+        } finally {
+            setIsApplyingExtraCharges(false);
         }
     };
 
@@ -856,13 +908,20 @@ export default function StudentDetailsPage({ params }) {
                                                     <h4 className="font-bold text-slate-900">{batch.name}</h4>
                                                     <div className="flex flex-col gap-0.5">
                                                         <p className="text-xs text-slate-500">Original Total: ₹{originalTotal.toLocaleString()}</p>
-                                                        {discountAmount > 0 && (
-                                                            <div className="flex items-center gap-1.5">
-                                                                 <p className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex items-center gap-1">
-                                                                     <Tag size={10} /> Discount: -₹{discountAmount.toLocaleString()}
-                                                                 </p>
-                                                            </div>
-                                                        )}
+                                                         {discountAmount > 0 && (
+                                                             <div className="flex items-center gap-1.5">
+                                                                  <p className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex items-center gap-1">
+                                                                      <Tag size={10} /> Discount: -₹{discountAmount.toLocaleString()}
+                                                                  </p>
+                                                             </div>
+                                                         )}
+                                                         {fee?.extraCharges?.amount > 0 && (
+                                                             <div className="flex items-center gap-1.5">
+                                                                  <p className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100 flex items-center gap-1">
+                                                                      <Tag size={10} /> Extra Charges: +₹{fee.extraCharges.amount.toLocaleString()}
+                                                                  </p>
+                                                             </div>
+                                                         )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -894,6 +953,22 @@ export default function StudentDetailsPage({ params }) {
                                                                 title="Apply Discount"
                                                             >
                                                                 <Percent size={14} />
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                                                                onClick={() => {
+                                                                    setSelectedFee(fee);
+                                                                    setExtraChargesData({
+                                                                        amount: fee.extraCharges?.amount || "",
+                                                                        reason: fee.extraCharges?.reason || ""
+                                                                    });
+                                                                    setIsExtraChargesModalOpen(true);
+                                                                }}
+                                                                title="Add Extra Charges"
+                                                            >
+                                                                <Plus size={14} />
                                                             </Button>
                                                             <Button
                                                                 size="sm"
@@ -1455,10 +1530,57 @@ export default function StudentDetailsPage({ params }) {
                         />
                     </div>
 
+                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
+                         <Button type="button" variant="ghost" onClick={() => setIsDiscountModalOpen(false)}>Cancel</Button>
+                         <Button type="submit" disabled={isApplyingDiscount} className="bg-amber-500 hover:bg-amber-600 border-none text-white font-bold px-4 py-2 rounded-lg">
+                             {isApplyingDiscount ? "Applying..." : "Apply Discount"}
+                         </Button>
+                     </div>
+                 </form>
+             </Modal>
+
+            {/* Extra Charges Modal */}
+            <Modal
+                isOpen={isExtraChargesModalOpen}
+                onClose={() => setIsExtraChargesModalOpen(false)}
+                title="Add Extra Charges"
+            >
+                <form onSubmit={handleAddExtraCharges} className="space-y-6">
+                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-4">
+                        <p className="text-xs text-orange-600 font-bold uppercase tracking-wider mb-1">Applying For</p>
+                        <p className="text-sm font-bold text-slate-900">{selectedFee?.batch?.name}</p>
+                        <p className="text-xs text-slate-500">Current Balance: ₹{selectedFee?.balanceAmount?.toLocaleString() || 0}</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <Input
+                            label="Extra Charge Amount (₹)"
+                            type="number"
+                            placeholder="Amount to add"
+                            value={extraChargesData.amount}
+                            onChange={(e) => setExtraChargesData({ ...extraChargesData, amount: e.target.value })}
+                            required
+                            min="0"
+                        />
+
+                        <Input
+                            label="Reason for Extra Charges"
+                            placeholder="e.g. Late Fine, Extra Materials, Damage Fee, etc."
+                            value={extraChargesData.reason}
+                            onChange={(e) => setExtraChargesData({ ...extraChargesData, reason: e.target.value })}
+                            required
+                        />
+                    </div>
+
+                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-xs text-blue-700">
+                        <p className="font-bold mb-1">How it works:</p>
+                        <p>The extra charges will be added to the last pending installment. If all installments are paid, a new one will be created.</p>
+                    </div>
+
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
-                        <Button type="button" variant="ghost" onClick={() => setIsDiscountModalOpen(false)}>Cancel</Button>
-                        <Button type="submit" disabled={isApplyingDiscount} className="bg-amber-500 hover:bg-amber-600 border-none text-white font-bold px-4 py-2 rounded-lg">
-                            {isApplyingDiscount ? "Applying..." : "Apply Discount"}
+                        <Button type="button" variant="ghost" onClick={() => setIsExtraChargesModalOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isApplyingExtraCharges} className="bg-orange-500 hover:bg-orange-600 border-none text-white font-bold px-4 py-2 rounded-lg">
+                            {isApplyingExtraCharges ? "Adding..." : "Add Extra Charges"}
                         </Button>
                     </div>
                 </form>

@@ -14,7 +14,8 @@ const formatCurrency = (amount) => {
 };
 
 const calculateBalance = (fee) => {
-    return (fee.totalAmount - (fee.discount?.amount || 0)) - (fee.paidAmount || 0);
+    const finalAmount = fee.totalAmount - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0);
+    return finalAmount - (fee.paidAmount || 0);
 };
 
 export default function ReceiptPage({ params }) {
@@ -277,6 +278,12 @@ function ClassicReceipt({ fee }) {
                             <span className="font-bold">- {formatCurrency(fee.discount.amount)}</span>
                         </div>
                     )}
+                    {fee.extraCharges?.amount > 0 && (
+                        <div className="flex justify-between text-sm text-orange-500">
+                            <span className="font-medium">Extra Charges ({fee.extraCharges.reason || 'Additional Charges'})</span>
+                            <span className="font-bold">+ {formatCurrency(fee.extraCharges.amount)}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between text-base border-t border-slate-100 pt-3 font-black text-slate-900">
                         <span>Paid Amount</span>
                         <span className="text-emerald-600">{formatCurrency(fee.paidAmount)}</span>
@@ -363,6 +370,12 @@ function CompactSlip({ fee, isCopy = false }) {
                     <div className="flex justify-between items-baseline px-1 mb-2">
                         <span className="text-[9px] font-bold text-slate-400 uppercase italic">Applied Discount: {fee.discount.reason || 'General Discount'}</span>
                         <span className="text-[10px] font-black text-red-500">-{formatCurrency(fee.discount.amount)}</span>
+                    </div>
+                )}
+                {fee.extraCharges?.amount > 0 && (
+                    <div className="flex justify-between items-baseline px-1 mb-2">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase italic">Extra Charges: {fee.extraCharges.reason || 'Additional Charges'}</span>
+                        <span className="text-[10px] font-black text-orange-500">+{formatCurrency(fee.extraCharges.amount)}</span>
                     </div>
                 )}
                 <div className="bg-slate-50 rounded-lg p-3 flex justify-between items-end border border-slate-100">

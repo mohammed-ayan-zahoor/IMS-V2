@@ -281,6 +281,8 @@ export default function FeesPage() {
             "Batch": fee.batch?.name || "N/A",
             "Total Fee": fee.totalAmount || 0,
             "Discount": fee.discount?.amount || 0,
+            "Extra Charges": fee.extraCharges?.amount || 0,
+            "Payable Amount": (fee.totalAmount || 0) - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0),
             "Paid Amount": fee.paidAmount || 0,
             "Balance Amount": fee.balanceAmount || 0,
             "Status": (fee.balanceAmount || 0) <= 0 ? "Paid" : "Pending",
@@ -300,6 +302,8 @@ export default function FeesPage() {
                 { wch: 20 }, // Batch
                 { wch: 12 }, // Total Fee
                 { wch: 12 }, // Discount
+                { wch: 12 }, // Extra Charges
+                { wch: 12 }, // Payable Amount
                 { wch: 12 }, // Paid
                 { wch: 12 }, // Balance
                 { wch: 12 }, // Status
@@ -318,9 +322,10 @@ export default function FeesPage() {
         const newSummary = filteredFees.reduce((acc, fee) => ({
             total: acc.total + (fee.totalAmount || 0),
             discount: acc.discount + (fee.discount?.amount || 0),
+            extraCharges: acc.extraCharges + (fee.extraCharges?.amount || 0),
             paid: acc.paid + (fee.paidAmount || 0),
             pending: acc.pending + (fee.balanceAmount || 0)
-        }), { total: 0, discount: 0, paid: 0, pending: 0 });
+        }), { total: 0, discount: 0, extraCharges: 0, paid: 0, pending: 0 });
         setSummary(newSummary);
     }, [fees, search, selectedCourse, selectedBatch, batches, showOverdueOnly]); // Re-run when filters change
     return (
@@ -354,7 +359,7 @@ export default function FeesPage() {
 
 
             {/* Report Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card className="p-4 border-l-4 border-l-slate-400">
                     <div className="flex justify-between items-start">
                         <div>
@@ -374,6 +379,17 @@ export default function FeesPage() {
                         </div>
                         <div className="p-2 bg-rose-100 rounded-lg text-rose-600">
                             <XCircle size={20} />
+                        </div>
+                    </div>
+                </Card>
+                <Card className="p-4 border-l-4 border-l-orange-500">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs font-bold text-orange-600/70 uppercase tracking-wider">Extra Charges</p>
+                            <h3 className="text-2xl font-black text-orange-600 mt-1">₹{(summary.extraCharges || 0).toLocaleString()}</h3>
+                        </div>
+                        <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
+                            <AlertCircle size={20} />
                         </div>
                     </div>
                 </Card>
@@ -498,14 +514,15 @@ export default function FeesPage() {
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="bg-white border-y border-slate-100">
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Batch</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Fee</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Discount</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Paid</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Balance</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
-                                            </tr>
+                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
+                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Batch</th>
+                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Fee</th>
+                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Discount</th>
+                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Extra Charges</th>
+                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Paid</th>
+                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Balance</th>
+                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {paginatedFees.map((fee) => (
@@ -527,11 +544,14 @@ export default function FeesPage() {
                                                         ₹{fee.totalAmount?.toLocaleString()}
                                                     </td>
                                                     <td className="px-6 py-4 text-sm font-bold text-rose-500">
-                                                        ₹{fee.discount?.amount?.toLocaleString() || 0}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm font-bold text-emerald-600">
-                                                        ₹{fee.paidAmount?.toLocaleString()}
-                                                    </td>
+                                                         ₹{fee.discount?.amount?.toLocaleString() || 0}
+                                                     </td>
+                                                     <td className="px-6 py-4 text-sm font-bold text-orange-500">
+                                                         ₹{fee.extraCharges?.amount?.toLocaleString() || 0}
+                                                     </td>
+                                                     <td className="px-6 py-4 text-sm font-bold text-emerald-600">
+                                                         ₹{fee.paidAmount?.toLocaleString()}
+                                                     </td>
                                                     <td className="px-6 py-4">
                                                         {!fee.hasFeeRecord ? (
                                                             <Badge className="bg-slate-100 text-slate-500 border-slate-200">

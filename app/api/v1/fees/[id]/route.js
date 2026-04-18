@@ -125,7 +125,7 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Fee record not found" }, { status: 404 });
         }
 
-        // Currently we only support updating discount through this route
+        // Handle discount update
         if ('discount' in body) {
             // Validate discount value (support both raw number and object, handle strings from UI)
             const rawValue = typeof body.discount === 'object' ? body.discount.amount : body.discount;
@@ -149,6 +149,23 @@ export async function PATCH(req, { params }) {
                     newValue: body.discount
                 }
             });
+
+            return NextResponse.json({ success: true, fee });
+        }
+
+        // Handle extra charges (markup) update
+        if ('extraCharges' in body) {
+            // Validate extra charges value (support both raw number and object)
+            const rawValue = typeof body.extraCharges === 'object' ? body.extraCharges.amount : body.extraCharges;
+            const chargesValue = parseFloat(rawValue);
+
+            if (isNaN(chargesValue) || chargesValue < 0) {
+                return NextResponse.json({ error: "Invalid extra charges value" }, { status: 400 });
+            }
+
+            const fee = await FeeService.addExtraCharges(id, body.extraCharges, session.user.id);
+
+            // Audit log is already created in FeeService.addExtraCharges
 
             return NextResponse.json({ success: true, fee });
         }

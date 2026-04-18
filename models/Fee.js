@@ -44,6 +44,12 @@ const FeeSchema = new Schema({
         appliedBy: { type: Schema.Types.ObjectId, ref: 'User' },
         appliedAt: Date
     },
+    extraCharges: {
+        amount: { type: Number, default: 0, min: 0 },
+        reason: String,
+        appliedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+        appliedAt: Date
+    },
     installments: [InstallmentSchema],
     paidAmount: { type: Number, default: 0 },
     balanceAmount: { type: Number, default: 0 },
@@ -64,12 +70,12 @@ FeeSchema.pre('save', async function () {
     // Validate installment amounts sum
     if (this.installments && this.installments.length > 0) {
         const installmentsTotal = this.installments.reduce((sum, i) => sum + i.amount, 0);
-        const expectedTotal = this.totalAmount - (this.discount?.amount || 0);
+        const expectedTotal = this.totalAmount - (this.discount?.amount || 0) + (this.extraCharges?.amount || 0);
         const EPSILON = 0.01; // 1 cent tolerance
 
         if (Math.abs(installmentsTotal - expectedTotal) > EPSILON) {
             throw new Error(
-                `Installments total (${installmentsTotal}) must equal fee amount after discount (${expectedTotal})`
+                `Installments total (${installmentsTotal}) must equal fee amount after discount and extra charges (${expectedTotal})`
             );
         }
     }
@@ -78,7 +84,7 @@ FeeSchema.pre('save', async function () {
         .filter(i => i.status === 'paid')
         .reduce((sum, i) => sum + i.amount, 0);
 
-    const finalAmount = this.totalAmount - (this.discount?.amount || 0);
+    const finalAmount = this.totalAmount - (this.discount?.amount || 0) + (this.extraCharges?.amount || 0);
     this.balanceAmount = Math.max(0, finalAmount - this.paidAmount);
 
     // Update status (skip if explicitly cancelled)
