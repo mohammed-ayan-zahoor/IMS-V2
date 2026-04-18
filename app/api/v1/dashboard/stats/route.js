@@ -9,7 +9,19 @@ import { getInstituteScope } from "@/middleware/instituteScope";
 
 // Simple cache: reuse data for 5 minutes
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const statsCache = new Map();
+export const statsCache = new Map();
+
+// Helper function to clear cache for an institute
+export function clearDashboardCache(instituteId = null) {
+    if (instituteId) {
+        // Clear cache for specific institute (both scoped and global)
+        statsCache.delete(`stats_${instituteId}_scoped`);
+        statsCache.delete(`stats_${instituteId}_global`);
+    } else {
+        // Clear all cache
+        statsCache.clear();
+    }
+}
 
 
 export async function GET(req) {

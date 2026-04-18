@@ -64,18 +64,30 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const { data: session } = useSession();
 
+    const fetchStats = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch('/api/v1/dashboard/stats');
+            if (res.ok) setDashboardData(await res.json());
+        } catch (error) {
+            console.error("Dashboard fetch error:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const res = await fetch('/api/v1/dashboard/stats');
-                if (res.ok) setDashboardData(await res.json());
-            } catch (error) {
-                console.error("Dashboard fetch error:", error);
-            } finally {
-                setLoading(false);
+        fetchStats();
+        
+        // Refetch stats when page becomes visible (e.g., when returning from completion-tracking page)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchStats();
             }
         };
-        fetchStats();
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
     const stats = [

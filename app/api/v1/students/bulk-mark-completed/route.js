@@ -6,6 +6,7 @@ import { markStudentCompleted, markBatchEnrollmentCompleted } from "@/services/c
 import { createAuditLog } from "@/services/auditService";
 import { getInstituteScope } from "@/middleware/instituteScope";
 import { NextResponse } from "next/server";
+import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
 
 export async function POST(req) {
     try {
@@ -120,6 +121,11 @@ export async function POST(req) {
                 }
             }
             results = { success: outcome.successCount > 0, ...outcome };
+        }
+
+        // Clear dashboard cache on successful completion
+        if (results.success && results.successCount > 0) {
+            clearDashboardCache(targetInstituteId);
         }
 
         return NextResponse.json({
