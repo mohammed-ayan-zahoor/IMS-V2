@@ -23,11 +23,12 @@ export async function GET(req, { params }) {
         }
 
         const user = session.user;
-        const certificateId = params.id;
+        const { id } = await params;
+        const certificateId = id;
 
         // 2. Fetch certificate
         const certificate = await Certificate.findById(certificateId)
-            .populate('studentId', 'firstName lastName email')
+            .populate('studentId', 'profile.firstName profile.lastName email')
             .populate('institutionId', 'name');
 
         if (!certificate) {
@@ -64,8 +65,10 @@ export async function GET(req, { params }) {
         }
 
         // 4. Prepare certificate data for PDF generation
+        const studentFirstName = certificate.studentId?.profile?.firstName || '';
+        const studentLastName = certificate.studentId?.profile?.lastName || '';
         const certData = {
-            studentName: `${certificate.studentId.firstName} ${certificate.studentId.lastName}`,
+            studentName: `${studentFirstName} ${studentLastName}`.trim(),
             courseName: certificate.metadata?.courseName || 'Course Completion',
             certificateNumber: certificate.certificateNumber,
             issueDate: certificate.issueDate,

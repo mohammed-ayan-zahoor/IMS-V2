@@ -31,6 +31,22 @@ const CertificateSchema = new Schema({
         default: 'STANDARD',
     },
 
+    // Template configuration used for this certificate
+    template: {
+        type: Schema.Types.Mixed,
+        default: null,
+        /*
+    Example:
+    {
+        templateId: ObjectId,
+        templateName: "Modern",
+        styles: {...},
+        placeholders: {...},
+        htmlTemplate: null
+    }
+*/
+    },
+
     issueDate: {
         type: Date,
         default: Date.now,
@@ -95,12 +111,5 @@ CertificateSchema.virtual('isExpired').get(function () {
     return new Date() > this.expiryDate;
 });
 
-//optional - auto generate certificate number if not provided
-CertificateSchema.pre('save', function (next) {
-    if (this.isNew && !this.certificateNumber) {
-        this.certificateNumber = `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    }
-    next();
-});
 
 export default mongoose.models.Certificate || mongoose.model('Certificate', CertificateSchema);

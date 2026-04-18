@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Certificate from '../models/Certificate.js';
+import CertificateTemplate from '../models/CertificateTemplate.js';
 import { createAuditLog } from './auditService.js';
 
 
@@ -63,7 +64,7 @@ export const markStudentCompleted = async (studentId, adminId, reason = '', req 
 /**
  * 2. Generate Certificate
  */
-export const generateCertificate = async (studentId, adminId, templateType = 'STANDARD', metadata = {}, req = null) => {
+export const generateCertificate = async (studentId, adminId, templateType = 'STANDARD', metadata = {}, templateId = null, req = null) => {
     try {
         const student = await User.findById(studentId);
 
@@ -75,15 +76,60 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
             throw new Error('Student has no associated institution');
         }
 
-        if (student.status !== 'COMPLETED') {
-            throw new Error('Student must be COMPLETED before generating certificate');
+        // Allow certificate generation for both COMPLETED and ACTIVE students
+        if (!['COMPLETED', 'ACTIVE'].includes(student.status)) {
+            throw new Error(`Cannot generate certificate for student with status: ${student.status}`);
         }
 
-        // Create certificate (auto-generates certificateNumber via pre-save hook)
+        // Get template information if templateId is provided
+        let template = null;
+        let templateData = null;
+        
+        if (templateId) {
+            template = await CertificateTemplate.findOne({
+                _id: templateId,
+                institute: student.institute,
+                deletedAt: null
+            }).lean();
+            
+            if (template) {
+                templateData = {
+                    templateId: template._id,
+                    templateName: template.name,
+                    styles: template.styles,
+                    placeholders: template.placeholders,
+                    htmlTemplate: template.htmlTemplate
+                };
+            }
+        } else {
+            // Try to use default template if no templateId provided
+            template = await CertificateTemplate.findOne({
+                institute: student.institute,
+                isDefault: true,
+                deletedAt: null
+            }).lean();
+            
+            if (template) {
+                templateData = {
+                    templateId: template._id,
+                    templateName: template.name,
+                    styles: template.styles,
+                    placeholders: template.placeholders,
+                    htmlTemplate: template.htmlTemplate
+                };
+            }
+        }
+
+        // Generate certificateNumber explicitly to avoid pre-save hook issues
+        const certificateNumber = `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+        // Create certificate with explicit certificateNumber
         const certificate = await Certificate.create({
             studentId: student._id,
             institutionId: student.institute,
+            certificateNumber: certificateNumber,
             templateType,
+            template: templateData,
             metadata,
             status: 'GENERATED'
         });
@@ -98,7 +144,7 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
                 actor: adminId,
                 action: 'certificate.generate',
                 resource: { type: 'Student', id: student._id },
-                details: { certificateId: certificate._id, certificateNumber: certificate.certificateNumber },
+                details: { certificateId: certificate._id, certificateNumber: certificate.certificateNumber, templateId: templateData?.templateId },
                 institute: student.institute,
                 req
             });

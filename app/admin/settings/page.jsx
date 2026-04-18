@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/contexts/ToastContext";
+import CertificateTemplateManager from "@/components/admin/CertificateTemplateManager";
 
 export default function SettingsPage() {
     const toast = useToast();
@@ -342,6 +343,11 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </Card>
+
+                {/* Certificate Templates */}
+                <div>
+                    <CertificateTemplateManager />
+                </div>
 
                 {/* Data Management */}
                 <Card title="Data Management">

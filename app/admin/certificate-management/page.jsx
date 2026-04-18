@@ -30,10 +30,13 @@ const CertificateManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedStudents, setSelectedStudents] = useState(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
 
-  // Search & Filter State
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("COMPLETED");
+   // Search & Filter State
+   const [searchTerm, setSearchTerm] = useState("");
+   const [statusFilter, setStatusFilter] = useState("ACTIVE");
   const [courseId, setCourseId] = useState("");
   const [batchId, setBatchId] = useState("");
 
@@ -55,32 +58,47 @@ const CertificateManagementPage = () => {
   const searchTimeoutRef = useRef(null);
   const abortControllerRef = useRef(null);
 
-  // Fetch courses and batches on mount
-  useEffect(() => {
-    const fetchFilterData = async () => {
-      try {
-        setCourseLoading(true);
-        setBatchLoading(true);
-        
-        const [coursesRes, batchesRes] = await Promise.all([
-          fetch("/api/v1/courses", { headers: { Accept: "application/json" } }),
-          fetch("/api/v1/batches", { headers: { Accept: "application/json" } })
-        ]);
+   // Fetch courses and batches on mount
+   useEffect(() => {
+     const fetchFilterData = async () => {
+       try {
+         setCourseLoading(true);
+         setBatchLoading(true);
+         setTemplatesLoading(true);
+         
+         const [coursesRes, batchesRes, templatesRes] = await Promise.all([
+           fetch("/api/v1/courses", { headers: { Accept: "application/json" } }),
+           fetch("/api/v1/batches", { headers: { Accept: "application/json" } }),
+           fetch("/api/v1/certificate-templates", { headers: { Accept: "application/json" } })
+         ]);
 
-        if (coursesRes.ok) {
-          const data = await coursesRes.json();
-          setCourses(data.courses || []);
-        }
+         if (coursesRes.ok) {
+           const data = await coursesRes.json();
+           setCourses(data.courses || []);
+         }
 
-        if (batchesRes.ok) {
-          const data = await batchesRes.json();
-          setBatches(data.batches || []);
-        }
-      } catch (error) {
-        console.error("Error fetching filter data:", error);
-      } finally {
-        setCourseLoading(false);
-        setBatchLoading(false);
+         if (batchesRes.ok) {
+           const data = await batchesRes.json();
+           setBatches(data.batches || []);
+         }
+
+         if (templatesRes.ok) {
+           const data = await templatesRes.json();
+           setTemplates(data.data || []);
+           // Set the default template if available
+           const defaultTemplate = data.data?.find(t => t.isDefault);
+           if (defaultTemplate) {
+             setSelectedTemplateId(defaultTemplate._id);
+           } else if (data.data?.length > 0) {
+             setSelectedTemplateId(data.data[0]._id);
+           }
+         }
+       } catch (error) {
+         console.error("Error fetching filter data:", error);
+       } finally {
+         setCourseLoading(false);
+         setBatchLoading(false);
+         setTemplatesLoading(false);
       }
     };
 
@@ -191,68 +209,90 @@ const CertificateManagementPage = () => {
   }, [students, selectedStudents]);
 
   // Bulk generate certificates
-  const handleBulkGenerateCertificates = async () => {
-    if (selectedStudents.size === 0) {
-      toast.warning("Please select students to generate certificates for");
-      return;
-    }
+   const handleBulkGenerateCertificates = async () => {
+     if (selectedStudents.size === 0) {
+       toast.warning("Please select students to generate certificates for");
+       return;
+     }
 
-    try {
-      setBulkGenerating(true);
-      const studentIds = Array.from(selectedStudents);
+     try {
+       setBulkGenerating(true);
+       const studentIds = Array.from(selectedStudents);
 
-      const res = await fetch("/api/v1/students/bulk-generate-certificates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentIds }),
-      });
+       const res = await fetch("/api/v1/students/bulk-generate-certificates", {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ 
+           studentIds,
+           templateId: selectedTemplateId 
+         }),
+       });
 
-      const result = await res.json();
+       const result = await res.json();
 
-      if (res.ok) {
-        toast.success(
-          `Successfully generated ${result.successCount} certificate(s)`
-        );
-        setSelectedStudents(new Set());
-        
-        // Refresh students list
-        fetchStudents(pagination.page);
-      } else {
-        toast.error(result.error || "Failed to generate certificates");
-        if (result.errors && result.errors.length > 0) {
-          console.error("Errors:", result.errors);
-        }
-      }
-    } catch (error) {
-      console.error("Error generating certificates:", error);
-      toast.error("Error generating certificates");
-    } finally {
-      setBulkGenerating(false);
-    }
-  };
+       if (res.ok) {
+         if (result.successCount > 0) {
+           toast.success(
+             `Successfully generated ${result.successCount} certificate(s)`
+           );
+         }
+         
+         if (result.failedCount > 0) {
+           toast.error(
+             `Failed to generate ${result.failedCount} certificate(s). ${result.errors.map(e => `${e.name}: ${e.error}`).join('; ')}`
+           );
+         }
+         
+         setSelectedStudents(new Set());
+         
+         // Refresh students list
+         fetchStudents(pagination.page);
+       } else {
+         toast.error(result.error || "Failed to generate certificates");
+         if (result.errors && result.errors.length > 0) {
+           console.error("Errors:", result.errors);
+         }
+       }
+     } catch (error) {
+       console.error("Error generating certificates:", error);
+       toast.error("Error generating certificates");
+     } finally {
+       setBulkGenerating(false);
+     }
+   };
 
-  // Generate certificate for individual student
-  const generateCertificateForStudent = async (studentId) => {
-    try {
-      const res = await fetch("/api/v1/students/bulk-generate-certificates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentIds: [studentId] }),
-      });
+   // Generate certificate for individual student
+   const generateCertificateForStudent = async (studentId) => {
+     try {
+       const res = await fetch("/api/v1/students/bulk-generate-certificates", {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ 
+           studentIds: [studentId],
+           templateId: selectedTemplateId 
+         }),
+       });
 
-      const result = await res.json();
+       const result = await res.json();
 
-      if (res.ok) {
-        toast.success("Certificate generated successfully");
-        fetchStudents(pagination.page);
-      } else {
-        toast.error("Failed to generate certificate");
-      }
-    } catch (error) {
-      console.error("Error generating certificate:", error);
-      toast.error("Error generating certificate");
-    }
-  };
+       if (res.ok) {
+         if (result.successCount > 0) {
+           toast.success("Certificate generated successfully");
+         }
+         
+         if (result.failedCount > 0) {
+           toast.error(`Failed: ${result.errors[0]?.error || 'Unknown error'}`);
+         }
+         
+         fetchStudents(pagination.page);
+       } else {
+         toast.error(result.error || "Failed to generate certificate");
+       }
+     } catch (error) {
+       console.error("Error generating certificate:", error);
+       toast.error("Error generating certificate");
+     }
+   };
 
   // Download certificate for student
   const downloadCertificate = async (certificateId) => {
@@ -365,6 +405,33 @@ const CertificateManagementPage = () => {
               ]}
               disabled={batchLoading}
             />
+          </div>
+
+          {/* Certificate Template Selection */}
+          <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex-1">
+              <label className="text-sm font-bold text-slate-700 block mb-2">
+                Certificate Template
+              </label>
+              <select
+                value={selectedTemplateId || ""}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                disabled={templatesLoading || templates.length === 0}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
+              >
+                <option value="">
+                  {templatesLoading ? "Loading templates..." : "Select a template"}
+                </option>
+                {templates.map(template => (
+                  <option key={template._id} value={template._id}>
+                    {template.name} {template.isDefault ? "(Default)" : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1">
+                {templates.length === 0 ? "No templates available. Create one in settings first." : "Select the template to use for certificate generation"}
+              </p>
+            </div>
           </div>
 
           {/* Bulk Actions */}

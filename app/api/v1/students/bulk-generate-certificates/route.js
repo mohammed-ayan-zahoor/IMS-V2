@@ -1,13 +1,23 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { connectDB } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import { generateCertificate } from "@/services/completionService";
 import AuditLog from "@/models/AuditLog";
+import { getInstituteScope } from "@/middleware/instituteScope";
 
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log("=> Bulk Certificate API:", {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userRole: session?.user?.role,
+        userInstitute: session?.user?.institute,
+      });
+    }
 
     if (!session?.user) {
       return Response.json(
@@ -24,7 +34,7 @@ export async function POST(req) {
       );
     }
 
-    const { studentIds } = await req.json();
+    const { studentIds, templateId } = await req.json();
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       return Response.json(
@@ -35,26 +45,33 @@ export async function POST(req) {
 
     await connectDB();
 
+    // Verify institute scope
+    const scope = await getInstituteScope(req);
+    if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
+      return Response.json(
+        { error: "Unauthorized - Institute scope not verified" },
+        { status: 401 }
+      );
+    }
+
     // Fetch students to verify access and existence
     const students = await User.find({
       _id: { $in: studentIds },
       role: "student",
-      status: "COMPLETED",
+      deletedAt: null, // Only include active (non-deleted) students
     });
 
     if (students.length === 0) {
       return Response.json(
-        { error: "No completed students found" },
+        { error: "No active students found" },
         { status: 400 }
       );
     }
 
-    // For admin role, verify institute access
-    let instituteId = session.user.instituteId;
-    if (session.user.role === "admin") {
-      // Verify all students belong to admin's institute
+    // Verify all students belong to the user's institute
+    if (!scope.isSuperAdmin) {
       const unauthorizedCount = students.filter(
-        (s) => s.institute?.toString() !== instituteId
+        (s) => s.institute?.toString() !== scope.instituteId
       ).length;
       if (unauthorizedCount > 0) {
         return Response.json(
@@ -63,6 +80,8 @@ export async function POST(req) {
         );
       }
     }
+
+    const instituteId = scope.instituteId;
 
     const results = {
       successCount: 0,
@@ -73,10 +92,27 @@ export async function POST(req) {
     // Process each student
     for (const student of students) {
       try {
-        await generateCertificate(
-          student._id,
-          session.user.id
-        );
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`=> Generating certificate for student: ${student._id}, status: ${student.status}`);
+        }
+        
+         const result = await generateCertificate(
+           student._id,
+           session.user.id,
+           'STANDARD',
+           {},
+           templateId,
+           req
+         );
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`=> Certificate generation result:`, result);
+        }
+        
+        if (!result.success) {
+          throw new Error(result.message || 'Certificate generation failed');
+        }
+        
         results.successCount++;
 
         // Log action
@@ -93,6 +129,10 @@ export async function POST(req) {
           },
         });
       } catch (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error(`=> Certificate generation error for ${student._id}:`, error.message);
+        }
+        
         results.failedCount++;
         results.errors.push({
           studentId: student._id,
