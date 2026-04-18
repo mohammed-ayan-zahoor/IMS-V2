@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Loader2, Star } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Edit, Trash2, Loader2, Star, Upload, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -11,72 +11,23 @@ export default function CertificateTemplateManager() {
     const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [templates, setTemplates] = useState([]);
-    const [showForm, setShowForm] = useState(false);
+    const [showEditor, setShowEditor] = useState(false);
     const [editingId, setEditingId] = useState(null);
-    const [isSaving, setIsSaving] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef(null);
 
-    // Form state
+    // Editor state
     const [form, setForm] = useState({
         name: "",
-        description: "",
-        type: "CUSTOM",
-        isDefault: false,
-        styles: {
-            backgroundColor: "linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%)",
-            borderColor: "#2c5aa0",
-            borderWidth: 3,
-            fontFamily: "Georgia, serif",
-            titleColor: "#2c5aa0",
-            titleFontSize: 48,
-            textColor: "#555",
-            accentColor: "#2c5aa0"
-        },
+        templateImage: null,
+        imageUrl: "",
         placeholders: {
-            studentName: {
-                enabled: true,
-                label: "Student Name",
-                fontSize: 36,
-                fontWeight: "bold",
-                color: "#2c5aa0",
-                decoration: "underline",
-                position: { top: 45, left: 50, width: 80 }
-            },
-            courseName: {
-                enabled: true,
-                label: "Course Name",
-                fontSize: 18,
-                fontWeight: "600",
-                color: "#2c5aa0",
-                position: { top: 55, left: 50, width: 80 }
-            },
-            issueDate: {
-                enabled: true,
-                label: "Date Issued",
-                fontSize: 14,
-                color: "#555",
-                position: { bottom: 15, left: 50, width: 80 }
-            },
-            certificateNumber: {
-                enabled: true,
-                label: "Certificate #",
-                fontSize: 12,
-                color: "#999",
-                position: { bottom: 20, right: 15, width: 20 }
-            },
-            instituteName: {
-                enabled: true,
-                label: "Institution Name",
-                fontSize: 14,
-                fontWeight: "600",
-                color: "#2c5aa0",
-                position: { top: 10, left: 50, width: 80 }
-            },
-            signatureBlock: {
-                enabled: true,
-                label: "Authorized Signature",
-                position: { bottom: 15, left: 10, width: 20 }
-            }
-        }
+            studentName: { x: 50, y: 45, enabled: true },
+            courseName: { x: 50, y: 55, enabled: true },
+            issueDate: { x: 50, y: 85, enabled: true },
+            certificateNumber: { x: 85, y: 85, enabled: true }
+        },
+        isDefault: false
     });
 
     useEffect(() => {
@@ -98,15 +49,64 @@ export default function CertificateTemplateManager() {
         }
     };
 
+    const handleImageUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            toast.error("Please select an image file");
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Image size must be less than 5MB");
+            return;
+        }
+
+        setUploadingImage(true);
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("fileType", "certificate-template");
+
+        try {
+            const res = await fetch("/api/upload", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                setForm(prev => ({
+                    ...prev,
+                    templateImage: file,
+                    imageUrl: data.url
+                }));
+                toast.success("Image uploaded successfully");
+            } else {
+                toast.error(data.error || "Upload failed");
+            }
+        } catch (error) {
+            console.error("Upload error:", error);
+            toast.error("Failed to upload image");
+        } finally {
+            setUploadingImage(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
     const handleSaveTemplate = async (e) => {
         e.preventDefault();
-        
+
         if (!form.name.trim()) {
             toast.error("Template name is required");
             return;
         }
 
-        setIsSaving(true);
+        if (!form.imageUrl) {
+            toast.error("Please upload a template image");
+            return;
+        }
+
         try {
             const method = editingId ? "PUT" : "POST";
             const url = editingId 
@@ -116,24 +116,28 @@ export default function CertificateTemplateManager() {
             const res = await fetch(url, {
                 method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form)
+                body: JSON.stringify({
+                    name: form.name,
+                    type: "CUSTOM",
+                    imageUrl: form.imageUrl,
+                    placeholders: form.placeholders,
+                    isDefault: form.isDefault
+                })
             });
 
             const data = await res.json();
-            
+
             if (res.ok) {
                 toast.success(editingId ? "Template updated successfully" : "Template created successfully");
                 fetchTemplates();
                 resetForm();
-                setShowForm(false);
+                setShowEditor(false);
             } else {
                 toast.error(data.error || "Failed to save template");
             }
         } catch (error) {
             console.error("Error saving template:", error);
             toast.error("Failed to save template");
-        } finally {
-            setIsSaving(false);
         }
     };
 
@@ -146,7 +150,7 @@ export default function CertificateTemplateManager() {
             });
 
             const data = await res.json();
-            
+
             if (res.ok) {
                 toast.success("Template deleted successfully");
                 fetchTemplates();
@@ -168,7 +172,7 @@ export default function CertificateTemplateManager() {
             });
 
             const data = await res.json();
-            
+
             if (res.ok) {
                 toast.success("Default template set successfully");
                 fetchTemplates();
@@ -183,77 +187,38 @@ export default function CertificateTemplateManager() {
 
     const handleEditTemplate = (template) => {
         setEditingId(template._id);
-        setForm(template);
-        setShowForm(true);
+        setForm({
+            name: template.name,
+            templateImage: null,
+            imageUrl: template.imageUrl || template.styles?.backgroundImage || "",
+            placeholders: template.placeholders || {
+                studentName: { x: 50, y: 45, enabled: true },
+                courseName: { x: 50, y: 55, enabled: true },
+                issueDate: { x: 50, y: 85, enabled: true },
+                certificateNumber: { x: 85, y: 85, enabled: true }
+            },
+            isDefault: template.isDefault
+        });
+        setShowEditor(true);
     };
 
     const resetForm = () => {
         setEditingId(null);
         setForm({
             name: "",
-            description: "",
-            type: "CUSTOM",
-            isDefault: false,
-            styles: {
-                backgroundColor: "linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%)",
-                borderColor: "#2c5aa0",
-                borderWidth: 3,
-                fontFamily: "Georgia, serif",
-                titleColor: "#2c5aa0",
-                titleFontSize: 48,
-                textColor: "#555",
-                accentColor: "#2c5aa0"
-            },
+            templateImage: null,
+            imageUrl: "",
             placeholders: {
-                studentName: {
-                    enabled: true,
-                    label: "Student Name",
-                    fontSize: 36,
-                    fontWeight: "bold",
-                    color: "#2c5aa0",
-                    decoration: "underline",
-                    position: { top: 45, left: 50, width: 80 }
-                },
-                courseName: {
-                    enabled: true,
-                    label: "Course Name",
-                    fontSize: 18,
-                    fontWeight: "600",
-                    color: "#2c5aa0",
-                    position: { top: 55, left: 50, width: 80 }
-                },
-                issueDate: {
-                    enabled: true,
-                    label: "Date Issued",
-                    fontSize: 14,
-                    color: "#555",
-                    position: { bottom: 15, left: 50, width: 80 }
-                },
-                certificateNumber: {
-                    enabled: true,
-                    label: "Certificate #",
-                    fontSize: 12,
-                    color: "#999",
-                    position: { bottom: 20, right: 15, width: 20 }
-                },
-                instituteName: {
-                    enabled: true,
-                    label: "Institution Name",
-                    fontSize: 14,
-                    fontWeight: "600",
-                    color: "#2c5aa0",
-                    position: { top: 10, left: 50, width: 80 }
-                },
-                signatureBlock: {
-                    enabled: true,
-                    label: "Authorized Signature",
-                    position: { bottom: 15, left: 10, width: 20 }
-                }
-            }
+                studentName: { x: 50, y: 45, enabled: true },
+                courseName: { x: 50, y: 55, enabled: true },
+                issueDate: { x: 50, y: 85, enabled: true },
+                certificateNumber: { x: 85, y: 85, enabled: true }
+            },
+            isDefault: false
         });
     };
 
-    const handleUpdatePlaceholder = (key, field, value) => {
+    const handlePlaceholderChange = (key, field, value) => {
         setForm(prev => ({
             ...prev,
             placeholders: {
@@ -262,16 +227,6 @@ export default function CertificateTemplateManager() {
                     ...prev.placeholders[key],
                     [field]: value
                 }
-            }
-        }));
-    };
-
-    const handleUpdateStyle = (key, value) => {
-        setForm(prev => ({
-            ...prev,
-            styles: {
-                ...prev.styles,
-                [key]: value
             }
         }));
     };
@@ -285,277 +240,290 @@ export default function CertificateTemplateManager() {
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-lg font-bold text-slate-900">Certificate Templates</h3>
-                    <p className="text-xs text-slate-500 mt-1">Create and manage customizable certificate templates</p>
+        <Card>
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b pb-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900">Certificate Templates</h3>
+                        <p className="text-xs text-slate-500 mt-1">Upload certificate design images and position placeholders</p>
+                    </div>
+                    {!showEditor && (
+                        <Button 
+                            type="button"
+                            onClick={() => setShowEditor(true)}
+                            className="flex items-center gap-2"
+                        >
+                            <Plus size={16} /> New Template
+                        </Button>
+                    )}
                 </div>
-                {!showForm && (
-                    <Button 
-                        type="button"
-                        onClick={() => setShowForm(true)}
-                        className="flex items-center gap-2"
-                    >
-                        <Plus size={16} /> New Template
-                    </Button>
-                )}
-            </div>
 
-            {/* Templates List or Form */}
-            {showForm ? (
-                <Card>
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between border-b pb-4">
+                {/* Templates List or Editor */}
+                {showEditor ? (
+                    <div className="space-y-6 border-t pt-6">
+                        <div className="flex items-center justify-between mb-4">
                             <h4 className="font-bold text-slate-900">
                                 {editingId ? "Edit Template" : "Create New Template"}
                             </h4>
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setShowForm(false);
+                                    setShowEditor(false);
                                     resetForm();
                                 }}
-                                className="text-slate-400 hover:text-slate-600 text-xl"
+                                className="text-slate-400 hover:text-slate-600"
                             >
-                                ✕
+                                <X size={20} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveTemplate} className="space-y-6">
-                            {/* Basic Info */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Left: Form */}
+                            <div className="space-y-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-slate-700">Template Name *</label>
                                     <input
                                         type="text"
                                         value={form.name}
                                         onChange={e => setForm({ ...form, name: e.target.value })}
-                                        placeholder="e.g., Modern, Elegant"
+                                        placeholder="e.g., Modern Certificates"
                                         className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all"
                                     />
                                 </div>
+
                                 <div className="space-y-2">
-                                    <label className="text-sm font-bold text-slate-700">Type</label>
-                                    <select
-                                        value={form.type}
-                                        onChange={e => setForm({ ...form, type: e.target.value })}
-                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all"
+                                    <label className="text-sm font-bold text-slate-700">Design Image *</label>
+                                    <div
+                                        onClick={() => !uploadingImage && fileInputRef.current?.click()}
+                                        className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:border-premium-blue hover:bg-premium-blue/5 transition-all"
                                     >
-                                        <option value="STANDARD">Standard</option>
-                                        <option value="MODERN">Modern</option>
-                                        <option value="ELEGANT">Elegant</option>
-                                        <option value="PROFESSIONAL">Professional</option>
-                                        <option value="CUSTOM">Custom</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700">Description</label>
-                                <textarea
-                                    value={form.description}
-                                    onChange={e => setForm({ ...form, description: e.target.value })}
-                                    placeholder="Brief description of this template"
-                                    rows={2}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all resize-none"
-                                />
-                            </div>
-
-                            {/* Style Section */}
-                            <div className="border-t pt-4">
-                                <h5 className="font-bold text-slate-900 mb-4">Certificate Styles</h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-slate-700">Border Color</label>
-                                        <input
-                                            type="color"
-                                            value={form.styles.borderColor}
-                                            onChange={e => handleUpdateStyle("borderColor", e.target.value)}
-                                            className="w-full h-10 rounded-lg cursor-pointer"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-slate-700">Title Color</label>
-                                        <input
-                                            type="color"
-                                            value={form.styles.titleColor}
-                                            onChange={e => handleUpdateStyle("titleColor", e.target.value)}
-                                            className="w-full h-10 rounded-lg cursor-pointer"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-slate-700">Text Color</label>
-                                        <input
-                                            type="color"
-                                            value={form.styles.textColor}
-                                            onChange={e => handleUpdateStyle("textColor", e.target.value)}
-                                            className="w-full h-10 rounded-lg cursor-pointer"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-slate-700">Accent Color</label>
-                                        <input
-                                            type="color"
-                                            value={form.styles.accentColor}
-                                            onChange={e => handleUpdateStyle("accentColor", e.target.value)}
-                                            className="w-full h-10 rounded-lg cursor-pointer"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Placeholders Section */}
-                            <div className="border-t pt-4">
-                                <h5 className="font-bold text-slate-900 mb-4">Certificate Elements</h5>
-                                <div className="space-y-4">
-                                    {Object.entries(form.placeholders).map(([key, placeholder]) => (
-                                        <div key={key} className="bg-slate-50 p-4 rounded-lg space-y-3">
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={placeholder.enabled}
-                                                    onChange={e => handleUpdatePlaceholder(key, "enabled", e.target.checked)}
-                                                    className="w-4 h-4 rounded accent-premium-blue"
-                                                />
-                                                <label className="font-bold text-slate-700">{placeholder.label}</label>
+                                        {uploadingImage ? (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <Loader2 className="animate-spin text-premium-blue" size={24} />
+                                                <p className="text-sm text-slate-500">Uploading...</p>
                                             </div>
-                                            
-                                            {placeholder.enabled && (
-                                                <div className="grid grid-cols-2 gap-3 ml-7">
-                                                    {placeholder.fontSize !== undefined && (
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-600">Font Size</label>
-                                                            <input
-                                                                type="number"
-                                                                value={placeholder.fontSize}
-                                                                onChange={e => handleUpdatePlaceholder(key, "fontSize", parseInt(e.target.value))}
-                                                                className="w-full px-2 py-1 text-xs rounded border border-slate-200 focus:border-premium-blue outline-none"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                    {placeholder.color && (
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-600">Color</label>
-                                                            <input
-                                                                type="color"
-                                                                value={placeholder.color}
-                                                                onChange={e => handleUpdatePlaceholder(key, "color", e.target.value)}
-                                                                className="w-full h-7 rounded-lg cursor-pointer"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+                                        ) : form.imageUrl ? (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <div className="text-2xl">✓</div>
+                                                <p className="text-xs text-green-600 font-bold">Image uploaded</p>
+                                                <p className="text-xs text-slate-500">Click to change</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <Upload size={24} className="text-slate-400" />
+                                                <p className="text-sm font-bold text-slate-700">Upload Template Image</p>
+                                                <p className="text-xs text-slate-500">PNG or JPG, max 5MB</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                        className="hidden"
+                                        disabled={uploadingImage}
+                                    />
+                                </div>
+
+                                <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.isDefault}
+                                        onChange={e => setForm({ ...form, isDefault: e.target.checked })}
+                                        className="w-4 h-4 rounded accent-premium-blue"
+                                    />
+                                    <label className="text-sm font-bold text-slate-700">Set as default template</label>
                                 </div>
                             </div>
 
-                            {/* Set as Default */}
-                            <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                <input
-                                    type="checkbox"
-                                    checked={form.isDefault}
-                                    onChange={e => setForm({ ...form, isDefault: e.target.checked })}
-                                    className="w-4 h-4 rounded accent-premium-blue"
-                                />
-                                <label className="text-sm font-bold text-slate-700">Set as default template</label>
-                            </div>
+                            {/* Right: Preview and Placeholder Editor */}
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-slate-700">Preview & Placeholders</label>
+                                    
+                                    {form.imageUrl ? (
+                                        <div className="space-y-4">
+                                            {/* Preview */}
+                                            <div className="relative border rounded-lg overflow-hidden bg-slate-100 aspect-[8.5/11]">
+                                                <img
+                                                    src={form.imageUrl}
+                                                    alt="Template preview"
+                                                    className="w-full h-full object-cover"
+                                                />
+                                                {/* Placeholder markers */}
+                                                {Object.entries(form.placeholders).map(([key, placeholder]) =>
+                                                    placeholder.enabled ? (
+                                                        <div
+                                                            key={key}
+                                                            className="absolute w-20 h-8 border-2 border-amber-400 bg-amber-400/10 flex items-center justify-center text-xs font-bold text-amber-700 pointer-events-none"
+                                                            style={{
+                                                                left: `${placeholder.x}%`,
+                                                                top: `${placeholder.y}%`,
+                                                                transform: 'translate(-50%, -50%)'
+                                                            }}
+                                                        >
+                                                            {key.split(/(?=[A-Z])/).join('\n')}
+                                                        </div>
+                                                    ) : null
+                                                )}
+                                            </div>
 
-                            {/* Actions */}
-                            <div className="flex gap-3 pt-4 border-t">
-                                <Button 
-                                    type="submit" 
-                                    disabled={isSaving}
-                                    className="flex-1"
-                                >
-                                    {isSaving ? (
-                                        <>
-                                            <Loader2 className="animate-spin mr-2" size={16} /> Saving...
-                                        </>
+                                            {/* Placeholder Controls */}
+                                            <div className="bg-slate-50 rounded-lg p-3 space-y-3 max-h-48 overflow-y-auto">
+                                                {Object.entries(form.placeholders).map(([key, placeholder]) => (
+                                                    <div key={key} className="space-y-2 pb-2 border-b last:border-b-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={placeholder.enabled}
+                                                                onChange={e => handlePlaceholderChange(key, "enabled", e.target.checked)}
+                                                                className="w-3 h-3 rounded accent-premium-blue"
+                                                            />
+                                                            <label className="text-xs font-bold text-slate-700 flex-1">
+                                                                {key}
+                                                            </label>
+                                                        </div>
+                                                        {placeholder.enabled && (
+                                                            <div className="grid grid-cols-2 gap-2 ml-5">
+                                                                <input
+                                                                    type="range"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={placeholder.x}
+                                                                    onChange={e => handlePlaceholderChange(key, "x", parseInt(e.target.value))}
+                                                                    className="col-span-2 w-full h-1.5"
+                                                                    title="X position"
+                                                                />
+                                                                <label className="text-xs text-slate-500">X: {placeholder.x}%</label>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={placeholder.x}
+                                                                    onChange={e => handlePlaceholderChange(key, "x", parseInt(e.target.value))}
+                                                                    className="w-full px-2 py-1 text-xs rounded border border-slate-200 outline-none"
+                                                                />
+                                                                <input
+                                                                    type="range"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={placeholder.y}
+                                                                    onChange={e => handlePlaceholderChange(key, "y", parseInt(e.target.value))}
+                                                                    className="col-span-2 w-full h-1.5"
+                                                                    title="Y position"
+                                                                />
+                                                                <label className="text-xs text-slate-500">Y: {placeholder.y}%</label>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={placeholder.y}
+                                                                    onChange={e => handlePlaceholderChange(key, "y", parseInt(e.target.value))}
+                                                                    className="w-full px-2 py-1 text-xs rounded border border-slate-200 outline-none"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     ) : (
-                                        editingId ? "Update Template" : "Create Template"
+                                        <div className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center">
+                                            <p className="text-sm text-slate-500">Upload an image to preview and position placeholders</p>
+                                        </div>
                                     )}
-                                </Button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowForm(false);
-                                        resetForm();
-                                    }}
-                                    className="px-6 py-2 rounded-lg border border-slate-200 font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                                >
-                                    Cancel
-                                </button>
+                                </div>
                             </div>
-                        </form>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 pt-4 border-t">
+                            <button
+                                type="button"
+                                onClick={handleSaveTemplate}
+                                className="flex-1 px-6 py-2 bg-premium-blue text-white font-bold rounded-lg hover:bg-premium-blue/90 transition-colors flex items-center justify-center gap-2"
+                            >
+                                {editingId ? "Update Template" : "Create Template"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowEditor(false);
+                                    resetForm();
+                                }}
+                                className="flex-1 px-6 py-2 rounded-lg border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     </div>
-                </Card>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {templates.length === 0 ? (
-                        <Card className="col-span-full p-12 text-center">
-                            <p className="text-slate-500 text-sm font-medium">No templates yet. Create your first certificate template to get started.</p>
-                        </Card>
-                    ) : (
-                        templates.map(template => (
-                            <Card key={template._id} className="p-4">
-                                <div className="space-y-3">
-                                    <div className="flex items-start justify-between gap-2">
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {templates.length === 0 ? (
+                            <div className="col-span-full p-12 text-center">
+                                <p className="text-slate-500 text-sm font-medium">No templates yet. Create your first certificate template to get started.</p>
+                            </div>
+                        ) : (
+                            templates.map(template => (
+                                <div key={template._id} className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                                    {/* Template Preview */}
+                                    <div className="relative bg-slate-100 aspect-[8.5/11] overflow-hidden">
+                                        {template.imageUrl && (
+                                            <img
+                                                src={template.imageUrl}
+                                                alt={template.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        )}
+                                    </div>
+
+                                    {/* Template Info */}
+                                    <div className="p-4 space-y-3">
                                         <div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 mb-1">
                                                 <h4 className="font-bold text-slate-900">{template.name}</h4>
                                                 {template.isDefault && (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold">
-                                                        <Star size={12} /> Default
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-bold">
+                                                        <Star size={10} /> Default
                                                     </span>
                                                 )}
                                             </div>
-                                            {template.description && (
-                                                <p className="text-xs text-slate-500 mt-1">{template.description}</p>
-                                            )}
                                         </div>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2 pt-2 border-t">
-                                        <span className="inline-block px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded font-bold">
-                                            {template.type}
-                                        </span>
-                                    </div>
 
-                                    <div className="flex gap-2 pt-2">
-                                        {!template.isDefault && (
+                                        <div className="flex gap-2">
+                                            {!template.isDefault && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetDefault(template._id)}
+                                                    className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors text-xs font-bold"
+                                                >
+                                                    <Star size={12} /> Default
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
-                                                onClick={() => handleSetDefault(template._id)}
-                                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors text-xs font-bold"
+                                                onClick={() => handleEditTemplate(template)}
+                                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-xs font-bold"
                                             >
-                                                <Star size={14} /> Set Default
+                                                <Edit size={12} /> Edit
                                             </button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => handleEditTemplate(template)}
-                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-xs font-bold"
-                                        >
-                                            <Edit size={14} /> Edit
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleDeleteTemplate(template._id)}
-                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-bold"
-                                        >
-                                            <Trash2 size={14} /> Delete
-                                        </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteTemplate(template._id)}
+                                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-bold"
+                                            >
+                                                <Trash2 size={12} /> Delete
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </Card>
-                        ))
-                    )}
-                </div>
-            )}
-        </div>
+                            ))
+                        )}
+                    </div>
+                )}
+            </div>
+        </Card>
     );
 }

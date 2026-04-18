@@ -25,7 +25,13 @@ const CertificateTemplateSchema = new Schema({
     type: {
         type: String,
         enum: ['STANDARD', 'MODERN', 'ELEGANT', 'PROFESSIONAL', 'CUSTOM'],
-        default: 'STANDARD'
+        default: 'CUSTOM'
+    },
+
+    // Template design image
+    imageUrl: {
+        type: String,
+        default: null
     },
 
     // Default template for this institute (only one can be default)
@@ -34,94 +40,28 @@ const CertificateTemplateSchema = new Schema({
         default: false
     },
 
-    // CSS styling for the certificate
-    styles: {
-        backgroundColor: { type: String, default: 'linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%)' },
-        borderColor: { type: String, default: '#2c5aa0' },
-        borderWidth: { type: Number, default: 3 },
-        fontFamily: { type: String, default: 'Georgia, serif' },
-        titleColor: { type: String, default: '#2c5aa0' },
-        titleFontSize: { type: Number, default: 48 },
-        textColor: { type: String, default: '#555' },
-        accentColor: { type: String, default: '#2c5aa0' }
-    },
-
-    // Placeholder positions and formatting
+    // Placeholder positions (percentage-based coordinates)
     placeholders: {
         studentName: {
             enabled: { type: Boolean, default: true },
-            label: { type: String, default: 'Student Name' },
-            fontSize: { type: Number, default: 36 },
-            fontWeight: { type: String, default: 'bold' },
-            color: { type: String, default: '#2c5aa0' },
-            decoration: { type: String, default: 'underline' },
-            position: {
-                top: { type: Number, default: 45 }, // percentage
-                left: { type: Number, default: 50 },
-                width: { type: Number, default: 80 }
-            }
+            x: { type: Number, default: 50 }, // percentage
+            y: { type: Number, default: 45 }  // percentage
         },
         courseName: {
             enabled: { type: Boolean, default: true },
-            label: { type: String, default: 'Course Name' },
-            fontSize: { type: Number, default: 18 },
-            fontWeight: { type: String, default: '600' },
-            color: { type: String, default: '#2c5aa0' },
-            position: {
-                top: { type: Number, default: 55 },
-                left: { type: Number, default: 50 },
-                width: { type: Number, default: 80 }
-            }
+            x: { type: Number, default: 50 },
+            y: { type: Number, default: 55 }
         },
         issueDate: {
             enabled: { type: Boolean, default: true },
-            label: { type: String, default: 'Date Issued' },
-            fontSize: { type: Number, default: 14 },
-            color: { type: String, default: '#555' },
-            position: {
-                bottom: { type: Number, default: 15 },
-                left: { type: Number, default: 50 },
-                width: { type: Number, default: 80 }
-            }
+            x: { type: Number, default: 50 },
+            y: { type: Number, default: 85 }
         },
         certificateNumber: {
             enabled: { type: Boolean, default: true },
-            label: { type: String, default: 'Certificate #' },
-            fontSize: { type: Number, default: 12 },
-            color: { type: String, default: '#999' },
-            position: {
-                bottom: { type: Number, default: 20 },
-                right: { type: Number, default: 15 },
-                width: { type: Number, default: 20 }
-            }
-        },
-        instituteName: {
-            enabled: { type: Boolean, default: true },
-            label: { type: String, default: 'Institution Name' },
-            fontSize: { type: Number, default: 14 },
-            fontWeight: { type: String, default: '600' },
-            color: { type: String, default: '#2c5aa0' },
-            position: {
-                top: { type: Number, default: 10 },
-                left: { type: Number, default: 50 },
-                width: { type: Number, default: 80 }
-            }
-        },
-        signatureBlock: {
-            enabled: { type: Boolean, default: true },
-            label: { type: String, default: 'Authorized Signature' },
-            position: {
-                bottom: { type: Number, default: 15 },
-                left: { type: Number, default: 10 },
-                width: { type: Number, default: 20 }
-            }
+            x: { type: Number, default: 85 },
+            y: { type: Number, default: 85 }
         }
-    },
-
-    // HTML template for custom rendering
-    htmlTemplate: {
-        type: String,
-        default: null
     },
 
     // Created and managed by
