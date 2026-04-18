@@ -255,22 +255,31 @@ const CertificateManagementPage = () => {
   };
 
   // Download certificate for student
-  const downloadCertificate = async (studentId) => {
+  const downloadCertificate = async (certificateId) => {
     try {
-      const res = await fetch(`/api/v1/students/certificates/${studentId}`);
+      const res = await fetch(`/api/v1/students/certificates/${certificateId}/download`);
       if (res.ok) {
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `certificate-${studentId}.pdf`;
+        
+        // Extract filename from Content-Disposition header if available
+        const disposition = res.headers.get('Content-Disposition');
+        let filename = 'certificate.pdf';
+        if (disposition) {
+          const matches = disposition.match(/filename="(.+?)"/);
+          if (matches) filename = matches[1];
+        }
+        
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        toast.success("Certificate downloaded");
+        toast.success("Certificate downloaded successfully");
       } else {
-        toast.error("Failed to download certificate");
+        toast.error("Failed to download certificate. Please ensure it has been generated.");
       }
     } catch (error) {
       console.error("Error downloading certificate:", error);
@@ -477,7 +486,7 @@ const CertificateManagementPage = () => {
                     <div className="col-span-2 flex items-center gap-2">
                       {student.certificateId ? (
                         <button
-                          onClick={() => downloadCertificate(student._id)}
+                          onClick={() => downloadCertificate(student.certificateId)}
                           className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           title="Download certificate"
                         >

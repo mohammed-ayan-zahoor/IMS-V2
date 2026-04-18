@@ -58,15 +58,7 @@ const CertificateSchema = new Schema({
     pdfUrl: {
         type: String,
         required: false,
-        validate: {
-            validator: function (v) {
-                if (this.status === 'ISSUED' && !v) {
-                    return false;
-                }
-                return true;
-            },
-            message: 'pdfUrl required for ISSUED certificates'
-        }
+        default: null
     },
 
     status: {
