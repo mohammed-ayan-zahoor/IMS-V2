@@ -269,65 +269,88 @@ export default function FeesPage() {
 
 
 
-    const handleExport = (formatType = 'xlsx') => {
-        if (!filteredFees.length) {
-            toast.error("No data to export");
-            return;
-        }
+     const handleExport = (formatType = 'xlsx') => {
+         if (!filteredFees.length) {
+             toast.error("No data to export");
+             return;
+         }
 
-        const dataToExport = filteredFees.map(fee => ({
-            "Student Name": `${fee.student?.profile?.firstName || ''} ${fee.student?.profile?.lastName || ''}`.trim(),
-            "Enrollment No": fee.student?.enrollmentNumber || "N/A",
-            "Batch": fee.batch?.name || "N/A",
-            "Total Fee": fee.totalAmount || 0,
-            "Discount": fee.discount?.amount || 0,
-            "Extra Charges": fee.extraCharges?.amount || 0,
-            "Payable Amount": (fee.totalAmount || 0) - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0),
-            "Paid Amount": fee.paidAmount || 0,
-            "Balance Amount": fee.balanceAmount || 0,
-            "Status": (fee.balanceAmount || 0) <= 0 ? "Paid" : "Pending",
-            "Installments": fee.installments?.length || 0,
-            "Next Due Date": fee.installments?.find(i => i.status === 'pending')?.dueDate ? format(new Date(fee.installments.find(i => i.status === 'pending').dueDate), 'yyyy-MM-dd') : "N/A"
-        }));
+         const dataToExport = filteredFees.map(fee => {
+             const baseAmount = fee.totalAmount || 0;
+             const discount = fee.discount?.amount || 0;
+             const extraCharges = fee.extraCharges?.amount || 0;
+             const grossAmount = baseAmount - discount + extraCharges;
+             const paidAmount = fee.paidAmount || 0;
+             const balanceAmount = fee.balanceAmount || 0;
+             const pendingInstallment = fee.installments?.find(i => i.status === 'pending');
 
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Fee Ledger");
+             return {
+                 "Student Name": `${fee.student?.profile?.firstName || ''} ${fee.student?.profile?.lastName || ''}`.trim(),
+                 "Enrollment No": fee.student?.enrollmentNumber || "N/A",
+                 "Batch": fee.batch?.name || "N/A",
+                 "Base Fee": baseAmount,
+                 "Discount (-)": discount,
+                 "Discount Reason": fee.discount?.reason || "N/A",
+                 "Extra Charges (+)": extraCharges,
+                 "Charges Reason": fee.extraCharges?.reason || "N/A",
+                 "Total Gross": grossAmount,
+                 "Paid Amount": paidAmount,
+                 "Balance Amount": balanceAmount,
+                 "Payment %": grossAmount > 0 ? Math.round((paidAmount / grossAmount) * 100) : 0,
+                 "Status": balanceAmount <= 0 ? "Paid" : "Pending",
+                 "Pending Installments": fee.installments?.filter(i => i.status === 'pending').length || 0,
+                 "Next Due Date": pendingInstallment?.dueDate ? format(new Date(pendingInstallment.dueDate), 'yyyy-MM-dd') : "N/A"
+             };
+         });
 
-        // Auto-width columns (Enterprise Polish)
-        if (formatType === 'xlsx') {
-            worksheet["!cols"] = [
-                { wch: 25 }, // Student Name
-                { wch: 18 }, // Enrollment No
-                { wch: 20 }, // Batch
-                { wch: 12 }, // Total Fee
-                { wch: 12 }, // Discount
-                { wch: 12 }, // Extra Charges
-                { wch: 12 }, // Payable Amount
-                { wch: 12 }, // Paid
-                { wch: 12 }, // Balance
-                { wch: 12 }, // Status
-                { wch: 12 }, // Installments
-                { wch: 16 }  // Next Due Date
-            ];
-        }
+         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+         const workbook = XLSX.utils.book_new();
+         XLSX.utils.book_append_sheet(workbook, worksheet, "Fee Ledger");
 
-        const fileName = `Fee_Ledger_Export_${format(new Date(), 'yyyy-MM-dd')}.${formatType}`;
-        XLSX.writeFile(workbook, fileName);
-        toast.success(`Export started (${formatType.toUpperCase()})`);
-    };
+         // Auto-width columns (Enterprise Polish)
+         if (formatType === 'xlsx') {
+             worksheet["!cols"] = [
+                 { wch: 25 }, // Student Name
+                 { wch: 18 }, // Enrollment No
+                 { wch: 18 }, // Batch
+                 { wch: 12 }, // Base Fee
+                 { wch: 12 }, // Discount (-)
+                 { wch: 20 }, // Discount Reason
+                 { wch: 12 }, // Extra Charges (+)
+                 { wch: 20 }, // Charges Reason
+                 { wch: 12 }, // Total Gross
+                 { wch: 12 }, // Paid Amount
+                 { wch: 12 }, // Balance Amount
+                 { wch: 12 }, // Payment %
+                 { wch: 12 }, // Status
+                 { wch: 15 }, // Pending Installments
+                 { wch: 16 }  // Next Due Date
+             ];
+         }
 
-    useEffect(() => {
-        // Calculate Summary
-        const newSummary = filteredFees.reduce((acc, fee) => ({
-            total: acc.total + (fee.totalAmount || 0),
-            discount: acc.discount + (fee.discount?.amount || 0),
-            extraCharges: acc.extraCharges + (fee.extraCharges?.amount || 0),
-            paid: acc.paid + (fee.paidAmount || 0),
-            pending: acc.pending + (fee.balanceAmount || 0)
-        }), { total: 0, discount: 0, extraCharges: 0, paid: 0, pending: 0 });
-        setSummary(newSummary);
-    }, [fees, search, selectedCourse, selectedBatch, batches, showOverdueOnly]); // Re-run when filters change
+         const fileName = `Fee_Ledger_Export_${format(new Date(), 'yyyy-MM-dd')}.${formatType}`;
+         XLSX.writeFile(workbook, fileName);
+         toast.success(`Export started (${formatType.toUpperCase()})`);
+     };
+
+     useEffect(() => {
+         // Calculate Summary
+         const newSummary = filteredFees.reduce((acc, fee) => {
+             const baseFee = fee.totalAmount || 0;
+             const discount = fee.discount?.amount || 0;
+             const extraCharges = fee.extraCharges?.amount || 0;
+             const grossAmount = baseFee - discount + extraCharges; // Total Gross = base - discount + charges
+             
+             return {
+                 total: acc.total + grossAmount, // This is the GROSS (after discount and charges)
+                 discount: acc.discount + discount,
+                 extraCharges: acc.extraCharges + extraCharges,
+                 paid: acc.paid + (fee.paidAmount || 0),
+                 pending: acc.pending + (fee.balanceAmount || 0)
+             };
+         }, { total: 0, discount: 0, extraCharges: 0, paid: 0, pending: 0 });
+         setSummary(newSummary);
+     }, [fees, search, selectedCourse, selectedBatch, batches, showOverdueOnly]); // Re-run when filters change
     return (
         <div className="space-y-6">
             {/* Page Action Bar */}
