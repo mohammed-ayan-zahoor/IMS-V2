@@ -27,16 +27,17 @@ export async function POST(req, { params }) {
 
         const studentId = params.id;
         const body = await req.json();
-        const { templateType, metadata } = body;
+        const { templateType, metadata, templateId } = body;
 
-        // 3. Request logic
-        const result = await generateCertificate(
-            studentId, 
-            user.id, 
-            templateType || 'STANDARD', 
-            metadata || {}, 
-            req
-        );
+         // 3. Request logic
+         const result = await generateCertificate(
+             studentId, 
+             user.id, 
+             templateType || 'STANDARD', 
+             metadata || {},
+             templateId,
+             req
+         );
 
         if (!result.success) {
             return NextResponse.json(result, { status: result.code || 400 });
