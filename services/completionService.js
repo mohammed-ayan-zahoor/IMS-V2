@@ -95,15 +95,15 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
             _id: batchId,
             institute: student.institute,
             deletedAt: null
-        }).populate('course');
+        }).populate('course').populate('enrolledStudents.student', 'profile.firstName profile.lastName');
 
         if (!batch) {
             throw new Error('Batch not found or does not belong to this institution');
         }
 
         // Verify student is enrolled in this batch
-        const isEnrolled = batch.enrolledStudents.some(
-            e => e.student.toString() === studentId.toString()
+        const isEnrolled = batch.enrolledStudents && batch.enrolledStudents.some(
+            e => e && e.student && e.student._id.toString() === studentId.toString()
         );
 
         if (!isEnrolled) {

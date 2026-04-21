@@ -59,6 +59,10 @@ const CertificateManagementPage = () => {
   const [studentBatches, setStudentBatches] = useState({}); // cache of studentId -> batches
   const [loadingBatches, setLoadingBatches] = useState({}); // track which students are loading batches
 
+  // Debounce & Abort Controller
+  const searchTimeoutRef = useRef(null);
+  const abortControllerRef = useRef(null);
+
    // Fetch courses and batches on mount
    useEffect(() => {
      const fetchFilterData = async () => {

@@ -208,17 +208,30 @@ export class BatchService {
     static async getBatches(filters = {}, instituteId) {
         // if (!instituteId) throw new Error("Institute context missing"); // Allow global view
         await connectDB();
-        const allowedFilters = ['course', 'instructor'];
+        const allowedFilters = ['course', 'instructor', 'enrolledStudents'];
         const safeFilters = {};
         Object.keys(filters).forEach(key => {
             if (allowedFilters.includes(key)) safeFilters[key] = filters[key];
         });
 
-        const query = { deletedAt: null, ...safeFilters };
+        const query = { deletedAt: null };
         if (instituteId) query.institute = instituteId;
+
+        // Handle enrolledStudents filter - find batches where a specific student is enrolled
+        if (safeFilters.enrolledStudents) {
+            query['enrolledStudents.student'] = safeFilters.enrolledStudents;
+        }
+
+        // Add other safe filters
+        Object.keys(safeFilters).forEach(key => {
+            if (key !== 'enrolledStudents') {
+                query[key] = safeFilters[key];
+            }
+        });
 
         const batches = await Batch.find(query)
             .populate('course')
+            .populate('enrolledStudents.student', 'profile.firstName profile.lastName enrollmentNumber')
             .populate('instructor', 'profile.firstName profile.lastName')
             .sort({ 'schedule.startDate': -1 });
 

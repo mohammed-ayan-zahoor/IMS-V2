@@ -10,9 +10,11 @@ export async function GET(req) {
         const { searchParams } = new URL(req.url);
         const courseId = searchParams.get('courseId');
         const targetInstParam = searchParams.get('instituteId');
+        const enrolledStudents = searchParams.get('enrolledStudents');
 
         const filters = {};
         if (courseId) filters.course = courseId;
+        if (enrolledStudents) filters.enrolledStudents = enrolledStudents;
 
         const scope = await getInstituteScope(req);
         if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
