@@ -52,12 +52,13 @@ const CertificateManagementPage = () => {
   const [courses, setCourses] = useState([]);
   const [batches, setBatches] = useState([]);
   const [courseLoading, setCourseLoading] = useState(false);
-  const [batchLoading, setBatchLoading] = useState(false);
+   const [batchLoading, setBatchLoading] = useState(false);
 
-  // State for batch selection menu
-  const [batchMenuOpen, setBatchMenuOpen] = useState(null); // studentId that has menu open
-  const [studentBatches, setStudentBatches] = useState({}); // cache of studentId -> batches
-  const [loadingBatches, setLoadingBatches] = useState({}); // track which students are loading batches
+   // State for batch selection menu
+   const [batchMenuOpen, setBatchMenuOpen] = useState(null); // studentId that has menu open
+   const [studentBatches, setStudentBatches] = useState({}); // cache of studentId -> batches
+   const [loadingBatches, setLoadingBatches] = useState({}); // track which students are loading batches
+   const [batchCertificates, setBatchCertificates] = useState({}); // Track certificate IDs per batch: { "studentId:batchId": certId }
 
   // Debounce & Abort Controller
   const searchTimeoutRef = useRef(null);
@@ -270,7 +271,7 @@ const CertificateManagementPage = () => {
    const generateCertificateForStudent = async (studentId, batchId) => {
       if (!batchId) {
         toast.error("Batch ID is required");
-        return;
+        return null;
       }
 
       try {
@@ -289,6 +290,13 @@ const CertificateManagementPage = () => {
         if (res.ok) {
           if (result.successCount > 0) {
             toast.success("Certificate generated successfully");
+            // Store the batch-specific certificate ID
+            if (result.certificates && result.certificates.length > 0) {
+              const certInfo = result.certificates[0];
+              const key = `${studentId}:${batchId}`;
+              setBatchCertificates(prev => ({ ...prev, [key]: certInfo.certificateId }));
+              return certInfo.certificateId;
+            }
           }
           
           if (result.failedCount > 0) {
@@ -303,6 +311,7 @@ const CertificateManagementPage = () => {
         console.error("Error generating certificate:", error);
         toast.error("Error generating certificate");
       }
+      return null;
     };
 
     // Fetch batches for a student
@@ -347,58 +356,70 @@ const CertificateManagementPage = () => {
          return;
        }
 
-       // If only one batch, auto-select
-       if (batches.length === 1) {
-         await regenerateAndDownload(studentId, certificateId, batches[0]._id);
-       } else {
-         // Multiple batches - open menu to select
-         setBatchMenuOpen(studentId);
-       }
+        // If only one batch, auto-select
+        if (batches.length === 1) {
+          await regenerateAndDownload(studentId, batches[0]._id);
+        } else {
+          // Multiple batches - open menu to select
+          setBatchMenuOpen(studentId);
+        }
      } catch (error) {
        console.error("Error in downloadCertificate:", error);
        toast.error("Error preparing certificate download");
      }
    };
 
-   // Regenerate certificate with new template and download
-   const regenerateAndDownload = async (studentId, certificateId, batchId) => {
-     try {
-       // Step 1: Regenerate certificate with latest template
-       await generateCertificateForStudent(studentId, batchId);
-       
-       // Step 2: Download the regenerated certificate
-       const res = await fetch(`/api/v1/students/certificates/${certificateId}/download`);
-       if (res.ok) {
-         const blob = await res.blob();
-         const url = window.URL.createObjectURL(blob);
-         const a = document.createElement("a");
-         a.href = url;
-         
-         // Extract filename from Content-Disposition header if available
-         const disposition = res.headers.get('Content-Disposition');
-         let filename = 'certificate.pdf';
-         if (disposition) {
-           const matches = disposition.match(/filename="(.+?)"/);
-           if (matches) filename = matches[1];
-         }
-         
-         a.download = filename;
-         document.body.appendChild(a);
-         a.click();
-         window.URL.revokeObjectURL(url);
-         document.body.removeChild(a);
-         toast.success("Certificate regenerated and downloaded");
-       } else {
-         toast.error("Failed to download certificate");
-       }
-       
-       // Close batch menu
-       setBatchMenuOpen(null);
-     } catch (error) {
-       console.error("Error regenerating and downloading certificate:", error);
-       toast.error("Error regenerating certificate");
-     }
-   };
+    // Regenerate certificate with new template and download
+    const regenerateAndDownload = async (studentId, batchId) => {
+      try {
+        // Step 1: Regenerate certificate with latest template
+        const certificateId = await generateCertificateForStudent(studentId, batchId);
+        
+        // Use the returned certificate ID, or fall back to cached one
+        let certIdToDownload = certificateId;
+        if (!certIdToDownload) {
+          const key = `${studentId}:${batchId}`;
+          certIdToDownload = batchCertificates[key];
+        }
+        
+        if (!certIdToDownload) {
+          toast.error("Could not determine certificate ID");
+          return;
+        }
+        
+        // Step 2: Download the regenerated certificate
+        const res = await fetch(`/api/v1/students/certificates/${certIdToDownload}/download`);
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          
+          // Extract filename from Content-Disposition header if available
+          const disposition = res.headers.get('Content-Disposition');
+          let filename = 'certificate.pdf';
+          if (disposition) {
+            const matches = disposition.match(/filename="(.+?)"/);
+            if (matches) filename = matches[1];
+          }
+          
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          toast.success("Certificate regenerated and downloaded");
+        } else {
+          toast.error("Failed to download certificate");
+        }
+        
+        // Close batch menu
+        setBatchMenuOpen(null);
+      } catch (error) {
+        console.error("Error regenerating and downloading certificate:", error);
+        toast.error("Error regenerating certificate");
+      }
+    };
 
   const formatDate = (date) => {
     if (!date) return "N/A";
@@ -645,7 +666,7 @@ const CertificateManagementPage = () => {
                               {studentBatches[student._id].map((batch) => (
                                 <button
                                   key={batch._id}
-                                  onClick={() => regenerateAndDownload(student._id, student.certificateId, batch._id)}
+                                  onClick={() => regenerateAndDownload(student._id, batch._id)}
                                   className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 first:rounded-t-lg last:rounded-b-lg"
                                 >
                                   {batch.name}

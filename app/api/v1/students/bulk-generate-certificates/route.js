@@ -90,38 +90,45 @@ export async function POST(req) {
 
     const instituteId = scope.instituteId;
 
-    const results = {
-      successCount: 0,
-      failedCount: 0,
-      errors: [],
-    };
+     const results = {
+       successCount: 0,
+       failedCount: 0,
+       errors: [],
+       certificates: [], // Store generated certificate IDs for batch-specific tracking
+     };
 
-    // Process each student
-    for (const student of students) {
-      try {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`=> Generating certificate for student: ${student._id}, status: ${student.status}`);
-        }
-        
-         const result = await generateCertificate(
-            student._id,
-            session.user.id,
-            'STANDARD',
-            {},
-            templateId,
-            batchId,
-            req
-          );
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`=> Certificate generation result:`, result);
-        }
-        
-        if (!result.success) {
-          throw new Error(result.message || 'Certificate generation failed');
-        }
-        
-        results.successCount++;
+     // Process each student
+     for (const student of students) {
+       try {
+         if (process.env.NODE_ENV === 'development') {
+           console.log(`=> Generating certificate for student: ${student._id}, status: ${student.status}`);
+         }
+         
+          const result = await generateCertificate(
+             student._id,
+             session.user.id,
+             'STANDARD',
+             {},
+             templateId,
+             batchId,
+             req
+           );
+         
+         if (process.env.NODE_ENV === 'development') {
+           console.log(`=> Certificate generation result:`, result);
+         }
+         
+         if (!result.success) {
+           throw new Error(result.message || 'Certificate generation failed');
+         }
+         
+         results.successCount++;
+         // Store the generated certificate ID along with the batch ID
+         results.certificates.push({
+           studentId: student._id,
+           certificateId: result.certificate._id,
+           batchId: batchId
+         });
 
         // Log action
          await AuditLog.create({
