@@ -17,7 +17,7 @@ const AuditLogSchema = new Schema({
             'certificate.generate', 'certificate.revoke',
             'course.create', 'course.update', 'course.delete',
             'batch.create', 'batch.update', 'batch.delete', 'batch.enroll', 'batch.remove_student', 'batch.course_transfer',
-            'fee.create', 'fee.update', 'fee.payment', 'fee.delete', 'fee.discount',
+            'fee.create', 'fee.update', 'fee.payment', 'fee.delete', 'fee.discount', 'fee.extra_charges', 'fee.cancel',
             'material.upload', 'material.delete',
             'attendance.mark', 'attendance.update',
             'exam.create', 'exam.update', 'exam.delete', 'exam.publish',
