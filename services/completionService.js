@@ -64,8 +64,11 @@ export const markStudentCompleted = async (studentId, adminId, reason = '', req 
 /**
  * 2. Generate Certificate
  */
-export const generateCertificate = async (studentId, adminId, templateType = 'STANDARD', metadata = {}, templateId = null, req = null) => {
+export const generateCertificate = async (studentId, adminId, templateType = 'STANDARD', metadata = {}, templateId = null, batchId = null, req = null) => {
     try {
+        const Batch = mongoose.model('Batch');
+        const Course = mongoose.model('Course');
+
         const student = await User.findById(studentId);
 
         if (!student) {
@@ -80,6 +83,40 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
         if (!['COMPLETED', 'ACTIVE'].includes(student.status)) {
             throw new Error(`Cannot generate certificate for student with status: ${student.status}`);
         }
+
+        // Validate batch exists and student is enrolled in it
+        if (!batchId) {
+            throw new Error('Batch ID is required to generate course-specific certificates');
+        }
+
+        const batch = await Batch.findOne({
+            _id: batchId,
+            institute: student.institute,
+            deletedAt: null
+        }).populate('course');
+
+        if (!batch) {
+            throw new Error('Batch not found or does not belong to this institution');
+        }
+
+        // Verify student is enrolled in this batch
+        const isEnrolled = batch.enrolledStudents.some(
+            e => e.student.toString() === studentId.toString()
+        );
+
+        if (!isEnrolled) {
+            throw new Error('Student is not enrolled in the specified batch');
+        }
+
+        // Populate metadata with course information from batch
+        const enrichedMetadata = {
+            ...metadata,
+            batchId: batch._id,
+            batchName: batch.name,
+            courseName: batch.course?.name || 'Unknown Course',
+            courseId: batch.course?._id,
+            generatedAt: new Date()
+        };
 
         // Get template information if templateId is provided
         let template = null;
@@ -130,7 +167,7 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
             certificateNumber: certificateNumber,
             templateType,
             template: templateData,
-            metadata,
+            metadata: enrichedMetadata,
             status: 'GENERATED'
         });
 
@@ -144,7 +181,14 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
                 actor: adminId,
                 action: 'certificate.generate',
                 resource: { type: 'Student', id: student._id },
-                details: { certificateId: certificate._id, certificateNumber: certificate.certificateNumber, templateId: templateData?.templateId },
+                details: { 
+                    certificateId: certificate._id, 
+                    certificateNumber: certificate.certificateNumber, 
+                    templateId: templateData?.templateId,
+                    batchId: batch._id,
+                    batchName: batch.name,
+                    courseName: batch.course?.name
+                },
                 institute: student.institute,
                 req
             });

@@ -7,6 +7,7 @@ import { generateCertificate } from '@/services/completionService';
 /**
  * POST /api/v1/students/[id]/generate-certificate
  * Auth: Admin only
+ * Required: batchId to specify which course the certificate is for
  */
 export async function POST(req, { params }) {
     try {
@@ -27,17 +28,26 @@ export async function POST(req, { params }) {
 
         const studentId = params.id;
         const body = await req.json();
-        const { templateType, metadata, templateId } = body;
+        const { templateType, metadata, templateId, batchId } = body;
 
-         // 3. Request logic
-         const result = await generateCertificate(
-             studentId, 
-             user.id, 
-             templateType || 'STANDARD', 
-             metadata || {},
-             templateId,
-             req
-         );
+        // 3. Validate required fields
+        if (!batchId) {
+            return NextResponse.json({ 
+                success: false, 
+                message: 'Batch ID is required to specify which course the certificate is for' 
+            }, { status: 400 });
+        }
+
+        // 4. Request logic
+        const result = await generateCertificate(
+            studentId, 
+            user.id, 
+            templateType || 'STANDARD', 
+            metadata || {},
+            templateId,
+            batchId,
+            req
+        );
 
         if (!result.success) {
             return NextResponse.json(result, { status: result.code || 400 });

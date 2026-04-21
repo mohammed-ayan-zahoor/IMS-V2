@@ -34,11 +34,18 @@ export async function POST(req) {
       );
     }
 
-    const { studentIds, templateId } = await req.json();
+    const { studentIds, templateId, batchId } = await req.json();
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       return Response.json(
         { error: "studentIds array is required and must not be empty" },
+        { status: 400 }
+      );
+    }
+
+    if (!batchId) {
+      return Response.json(
+        { error: "batchId is required to specify which course the certificates are for" },
         { status: 400 }
       );
     }
@@ -97,13 +104,14 @@ export async function POST(req) {
         }
         
          const result = await generateCertificate(
-           student._id,
-           session.user.id,
-           'STANDARD',
-           {},
-           templateId,
-           req
-         );
+            student._id,
+            session.user.id,
+            'STANDARD',
+            {},
+            templateId,
+            batchId,
+            req
+          );
         
         if (process.env.NODE_ENV === 'development') {
           console.log(`=> Certificate generation result:`, result);
