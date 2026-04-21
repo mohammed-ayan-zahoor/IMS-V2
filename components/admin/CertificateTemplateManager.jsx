@@ -767,9 +767,11 @@ export default function CertificateTemplateManager() {
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Placeholders</label>
                                     <div className="space-y-1.5">
                                         {Object.entries(form.placeholders).map(([key, placeholder]) => {
-                                            const meta = PLACEHOLDER_META[key];
-                                            const Icon = meta.icon;
-                                            const isSelected = selectedPlaceholder === key;
+                                             const meta = PLACEHOLDER_META[key];
+                                             // Skip placeholders without metadata
+                                             if (!meta) return null;
+                                             const Icon = meta.icon;
+                                             const isSelected = selectedPlaceholder === key;
 
                                             return (
                                                 <div
