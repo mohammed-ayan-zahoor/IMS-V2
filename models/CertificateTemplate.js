@@ -40,27 +40,91 @@ const CertificateTemplateSchema = new Schema({
         default: false
     },
 
-    // Placeholder positions (percentage-based coordinates)
+    // Placeholder positions and styles (percentage-based coordinates + typography)
     placeholders: {
         studentName: {
             enabled: { type: Boolean, default: true },
             x: { type: Number, default: 50 }, // percentage
-            y: { type: Number, default: 45 }  // percentage
+            y: { type: Number, default: 45 }, // percentage
+            fontSize: { type: Number, default: 48 }, // px (relative to 1000px reference width)
+            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins"] },
+            fontWeight: { type: String, default: "bold", enum: ["normal", "bold"] },
+            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
+            color: { type: String, default: "#000000" }, // hex color
+            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
+            maxWidth: { type: Number, default: 80 } // % of image width
         },
         courseName: {
             enabled: { type: Boolean, default: true },
             x: { type: Number, default: 50 },
-            y: { type: Number, default: 55 }
+            y: { type: Number, default: 55 },
+            fontSize: { type: Number, default: 32 },
+            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins"] },
+            fontWeight: { type: String, default: "normal", enum: ["normal", "bold"] },
+            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
+            color: { type: String, default: "#000000" },
+            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
+            maxWidth: { type: Number, default: 80 }
         },
         issueDate: {
             enabled: { type: Boolean, default: true },
             x: { type: Number, default: 50 },
-            y: { type: Number, default: 85 }
+            y: { type: Number, default: 85 },
+            fontSize: { type: Number, default: 24 },
+            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins"] },
+            fontWeight: { type: String, default: "normal", enum: ["normal", "bold"] },
+            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
+            color: { type: String, default: "#000000" },
+            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
+            maxWidth: { type: Number, default: 80 }
         },
         certificateNumber: {
             enabled: { type: Boolean, default: true },
             x: { type: Number, default: 85 },
-            y: { type: Number, default: 85 }
+            y: { type: Number, default: 85 },
+            fontSize: { type: Number, default: 20 },
+            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins"] },
+            fontWeight: { type: String, default: "normal", enum: ["normal", "bold"] },
+            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
+            color: { type: String, default: "#000000" },
+            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
+            maxWidth: { type: Number, default: 80 }
+        },
+        duration: {
+            enabled: { type: Boolean, default: false },
+            x: { type: Number, default: 50 },
+            y: { type: Number, default: 65 },
+            fontSize: { type: Number, default: 20 },
+            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins"] },
+            fontWeight: { type: String, default: "normal", enum: ["normal", "bold"] },
+            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
+            color: { type: String, default: "#000000" },
+            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
+            maxWidth: { type: Number, default: 80 }
+        },
+        grade: {
+            enabled: { type: Boolean, default: false },
+            x: { type: Number, default: 50 },
+            y: { type: Number, default: 70 },
+            fontSize: { type: Number, default: 28 },
+            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins"] },
+            fontWeight: { type: String, default: "bold", enum: ["normal", "bold"] },
+            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
+            color: { type: String, default: "#000000" },
+            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
+            maxWidth: { type: Number, default: 80 }
+        },
+        instituteName: {
+            enabled: { type: Boolean, default: false },
+            x: { type: Number, default: 50 },
+            y: { type: Number, default: 10 },
+            fontSize: { type: Number, default: 24 },
+            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins"] },
+            fontWeight: { type: String, default: "normal", enum: ["normal", "bold"] },
+            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
+            color: { type: String, default: "#000000" },
+            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
+            maxWidth: { type: Number, default: 80 }
         }
     },
 
@@ -83,9 +147,9 @@ const CertificateTemplateSchema = new Schema({
 CertificateTemplateSchema.index({ institute: 1, isDefault: 1 }, { partialFilterExpression: { isDefault: true, deletedAt: null } });
 
 // Pre-save hook to ensure only one default template per institute
-CertificateTemplateSchema.pre('save', async function(next) {
+CertificateTemplateSchema.pre('save', async function() {
     if (this.isDefault && !this.isModified('isDefault')) {
-        return next();
+        return;
     }
 
     if (this.isDefault) {
@@ -95,7 +159,6 @@ CertificateTemplateSchema.pre('save', async function(next) {
             { isDefault: false }
         );
     }
-    next();
 });
 
 export default mongoose.models.CertificateTemplate || mongoose.model('CertificateTemplate', CertificateTemplateSchema);
