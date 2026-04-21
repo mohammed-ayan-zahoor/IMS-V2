@@ -66,6 +66,7 @@ export async function GET(req, { params }) {
         }
 
         // 4. Prepare certificate data for PDF generation
+        // Always use the latest template and metadata from the certificate
         const studentFirstName = certificate.studentId?.profile?.firstName || '';
         const studentLastName = certificate.studentId?.profile?.lastName || '';
         const certData = {
@@ -77,15 +78,15 @@ export async function GET(req, { params }) {
             duration: certificate.metadata?.duration || ''
         };
 
-        // 5. Generate PDF - use template if available, otherwise use legacy HTML-based
+        // 5. Generate PDF - always fetch fresh template to get latest design
         let pdfBuffer;
         
         if (certificate.template?.templateId) {
-            // Fetch the template
+            // Always fetch the latest template from database to ensure latest design is used
             const template = await CertificateTemplate.findById(certificate.template.templateId);
             
             if (template && template.imageUrl) {
-                // Use image-based template
+                // Use image-based template with latest design
                 pdfBuffer = await generateCertificatePDFFromTemplate(certData, template);
             } else {
                 // Template not found or missing image, fall back to HTML

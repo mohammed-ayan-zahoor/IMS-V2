@@ -18,6 +18,13 @@ const CertificateSchema = new Schema({
         index: true
     },
 
+    batchId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Batch',
+        default: null,
+        index: true
+    },
+
     certificateNumber: {
         type: String,
         required: true,
@@ -95,6 +102,9 @@ const CertificateSchema = new Schema({
 
 //fast lookup certificate by students
 CertificateSchema.index({ studentId: 1, createdAt: -1 });
+
+// Unique index for student+batch combination to ensure only one cert per student per batch
+CertificateSchema.index({ studentId: 1, batchId: 1 }, { sparse: true });
 
 //fast lookup institution level reports
 CertificateSchema.index({ institutionId: 1, createdAt: -1 });

@@ -63,6 +63,8 @@ export const markStudentCompleted = async (studentId, adminId, reason = '', req 
 
 /**
  * 2. Generate Certificate
+ * If a certificate already exists for this student+batch, it will be updated (regenerated)
+ * If not, a new one will be created
  */
 export const generateCertificate = async (studentId, adminId, templateType = 'STANDARD', metadata = {}, templateId = null, batchId = null, req = null) => {
     try {
@@ -157,29 +159,46 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
             }
         }
 
-        // Generate certificateNumber explicitly to avoid pre-save hook issues
-        const certificateNumber = `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-
-        // Create certificate with explicit certificateNumber
-        const certificate = await Certificate.create({
+        // Check if certificate already exists for this student+batch combination
+        let certificate = await Certificate.findOne({
             studentId: student._id,
-            institutionId: student.institute,
-            certificateNumber: certificateNumber,
-            templateType,
-            template: templateData,
-            metadata: enrichedMetadata,
-            status: 'GENERATED'
+            batchId: batch._id
         });
 
-        // Link certificate to user
-        student.certificateId = certificate._id;
-        await student.save();
+        if (certificate) {
+            // Certificate exists - update it (regeneration scenario)
+            certificate.templateType = templateType;
+            certificate.template = templateData;
+            certificate.metadata = enrichedMetadata;
+            certificate.issueDate = new Date();
+            certificate.status = 'GENERATED';
+            await certificate.save();
+        } else {
+            // Certificate doesn't exist - create new one
+            const certificateNumber = `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+            certificate = await Certificate.create({
+                studentId: student._id,
+                institutionId: student.institute,
+                batchId: batch._id,
+                certificateNumber: certificateNumber,
+                templateType,
+                template: templateData,
+                metadata: enrichedMetadata,
+                status: 'GENERATED'
+            });
+
+            // Link certificate to user (for backward compatibility)
+            student.certificateId = certificate._id;
+            await student.save();
+        }
 
         // Audit Logging
         if (adminId) {
+            const isRegeneration = certificate.createdAt && new Date(certificate.createdAt).getTime() < new Date().getTime() - 1000;
             await createAuditLog({
                 actor: adminId,
-                action: 'certificate.generate',
+                action: isRegeneration ? 'certificate.regenerate' : 'certificate.generate',
                 resource: { type: 'Student', id: student._id },
                 details: { 
                     certificateId: certificate._id, 
@@ -205,6 +224,7 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
         return { success: false, message: error.message, code: statusCode };
     }
 };
+
 
 
 
