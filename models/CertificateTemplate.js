@@ -148,16 +148,25 @@ CertificateTemplateSchema.index({ institute: 1, isDefault: 1 }, { partialFilterE
 
 // Pre-save hook to ensure only one default template per institute
 CertificateTemplateSchema.pre('save', async function() {
-    if (this.isDefault && !this.isModified('isDefault')) {
+    // Only proceed if this template is being set as default
+    if (!this.isDefault) {
         return;
     }
 
-    if (this.isDefault) {
-        // Remove default flag from other templates in the same institute
+    // If isDefault hasn't changed, skip the update
+    if (!this.isModified('isDefault')) {
+        return;
+    }
+
+    // Remove default flag from other templates in the same institute
+    try {
         await this.constructor.updateMany(
             { institute: this.institute, _id: { $ne: this._id }, deletedAt: null },
             { isDefault: false }
         );
+    } catch (error) {
+        console.error('Error updating other templates:', error);
+        throw error;
     }
 });
 
