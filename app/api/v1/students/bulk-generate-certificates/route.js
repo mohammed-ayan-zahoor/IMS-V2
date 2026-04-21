@@ -164,6 +164,7 @@ export async function POST(req) {
       successCount: results.successCount,
       failedCount: results.failedCount,
       errors: results.errors,
+      certificates: results.certificates, // Include generated certificate IDs
     });
   } catch (error) {
     console.error("Bulk generate certificates error:", error);
