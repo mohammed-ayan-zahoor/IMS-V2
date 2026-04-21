@@ -63,6 +63,7 @@ export async function POST(req) {
             description,
             type = "CUSTOM",
             isDefault = false,
+            imageUrl = null,
             styles = {},
             placeholders = {},
             htmlTemplate = null
@@ -95,6 +96,7 @@ export async function POST(req) {
             description: description?.trim(),
             type,
             isDefault,
+            imageUrl,
             styles,
             placeholders,
             htmlTemplate,
