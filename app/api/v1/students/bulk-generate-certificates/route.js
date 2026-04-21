@@ -116,18 +116,20 @@ export async function POST(req) {
         results.successCount++;
 
         // Log action
-        await AuditLog.create({
-          action: "CERTIFICATE_GENERATED",
-          entityType: "Certificate",
-          entityId: student._id,
-          userId: session.user.id,
-          institute: instituteId,
-          details: {
-            studentName: student.name,
-            studentId: student._id,
-            timestamp: new Date(),
-          },
-        });
+         await AuditLog.create({
+           action: "certificate.generate",
+           resource: {
+             type: "Student",
+             id: student._id,
+           },
+           actor: session.user.id,
+           institute: instituteId,
+           details: {
+             studentName: student.name,
+             studentId: student._id,
+             timestamp: new Date(),
+           },
+         });
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
           console.error(`=> Certificate generation error for ${student._id}:`, error.message);

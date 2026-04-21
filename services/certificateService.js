@@ -1,10 +1,190 @@
 import puppeteer from 'puppeteer';
 import path from 'path';
+import fs from 'fs';
+import { createCanvas, loadImage, registerFont } from 'canvas';
+import fetch from 'node-fetch';
 
 /**
  * Certificate Service - Handles on-demand certificate PDF generation
+ * Supports both HTML-based (legacy) and image-based (template) certificates
  * Generates PDFs on-the-fly without storing files on disk
  */
+
+// Register bundled Google Fonts
+const fontDir = path.join(process.cwd(), 'public', 'fonts');
+const fonts = [
+    { name: 'Roboto', path: path.join(fontDir, 'Roboto-Regular.ttf') },
+    { name: 'Roboto Bold', path: path.join(fontDir, 'Roboto-Bold.ttf') },
+    { name: 'Inter', path: path.join(fontDir, 'Inter-Regular.ttf') },
+    { name: 'Lora', path: path.join(fontDir, 'Lora-Regular.ttf') },
+    { name: 'Poppins', path: path.join(fontDir, 'Poppins-Regular.ttf') }
+];
+
+fonts.forEach(font => {
+    try {
+        if (fs.existsSync(font.path)) {
+            registerFont(font.path, { family: font.name });
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`✓ Registered font: ${font.name}`);
+            }
+        } else {
+            console.warn(`⚠ Font file not found: ${font.path} - will use system fallback`);
+        }
+    } catch (error) {
+        console.warn(`⚠ Could not register font ${font.name}: ${error.message} - will use system fallback`);
+    }
+});
+
+/**
+ * Builds font string for canvas context
+ */
+const buildFontString = (fontSize, fontWeight, fontStyle, fontFamily) => {
+    const style = fontStyle === 'italic' ? 'italic ' : '';
+    const weight = fontWeight === 'bold' ? 'bold ' : '';
+    return `${style}${weight}${fontSize}px "${fontFamily}"`;
+};
+
+/**
+ * Generates certificate PDF using image template with overlaid text
+ */
+export const generateCertificatePDFFromTemplate = async (certificateData, template) => {
+    const {
+        studentName,
+        courseName,
+        certificateNumber,
+        issueDate,
+        duration,
+        grade,
+        instituteName
+    } = certificateData;
+
+    const formattedDate = new Date(issueDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    try {
+         // 1. Fetch the template image
+         if (!template.imageUrl) {
+             throw new Error('Template image URL is missing');
+         }
+
+         // Convert relative URLs to absolute URLs
+         let absoluteImageUrl = template.imageUrl;
+         if (template.imageUrl.startsWith('/')) {
+             const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+             absoluteImageUrl = new URL(template.imageUrl, baseUrl).toString();
+         }
+
+         const imageResponse = await fetch(absoluteImageUrl);
+        if (!imageResponse.ok) {
+            throw new Error(`Failed to fetch template image: ${imageResponse.statusText}`);
+        }
+        const imageBuffer = await imageResponse.buffer();
+        const image = await loadImage(imageBuffer);
+
+        // 2. Create canvas matching image dimensions
+        const canvas = createCanvas(image.width, image.height);
+        const ctx = canvas.getContext('2d');
+
+        // Draw the template image
+        ctx.drawImage(image, 0, 0);
+
+        // 3. Reference width for scaling fonts (assumes 1000px reference)
+        const referenceWidth = 1000;
+        const scaleRatio = image.width / referenceWidth;
+
+        // 4. Overlay text at placeholder positions
+        const placeholders = template.placeholders;
+        const dataMap = {
+            studentName: { text: studentName, placeholder: placeholders.studentName },
+            courseName: { text: courseName, placeholder: placeholders.courseName },
+            issueDate: { text: formattedDate, placeholder: placeholders.issueDate },
+            certificateNumber: { text: `Cert #${certificateNumber}`, placeholder: placeholders.certificateNumber },
+            duration: { text: duration || '', placeholder: placeholders.duration },
+            grade: { text: grade || '', placeholder: placeholders.grade },
+            instituteName: { text: instituteName, placeholder: placeholders.instituteName }
+        };
+
+        Object.entries(dataMap).forEach(([key, { text, placeholder }]) => {
+            if (!text || !placeholder?.enabled) return;
+
+            const p = placeholder;
+            const x = (p.x / 100) * image.width;
+            const y = (p.y / 100) * image.height;
+            
+            // Scale font size relative to canvas width
+            const scaledFontSize = Math.round((p.fontSize || 24) * scaleRatio);
+            
+            // Build and apply font
+            const fontStr = buildFontString(scaledFontSize, p.fontWeight, p.fontStyle, p.fontFamily);
+            ctx.font = fontStr;
+            ctx.fillStyle = p.color || '#000000';
+            ctx.textAlign = p.textAlign || 'center';
+            
+            // Draw text
+            ctx.fillText(text, x, y);
+        });
+
+        // 5. Convert canvas to image buffer (PNG)
+        const pngBuffer = canvas.toBuffer('image/png');
+
+        // 6. Convert PNG to PDF using puppeteer
+        const browser = await puppeteer.launch({
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+
+        const page = await browser.newPage();
+        
+        // Convert PNG buffer to base64 data URL
+        const base64Image = pngBuffer.toString('base64');
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
+                    img {
+                        max-width: 100%;
+                        height: auto;
+                        display: block;
+                    }
+                </style>
+            </head>
+            <body>
+                <img src="data:image/png;base64,${base64Image}" />
+            </body>
+            </html>
+        `;
+
+        await page.setContent(html, { waitUntil: 'networkidle0' });
+        
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            landscape: true,
+            margin: {
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0
+            }
+        });
+
+        await browser.close();
+
+        return pdfBuffer;
+
+    } catch (error) {
+        console.error('Error generating certificate from template:', error);
+        throw new Error(`Failed to generate certificate from template: ${error.message}`);
+    }
+};
 
 export const generateCertificatePDF = async (certificateData) => {
     const {
