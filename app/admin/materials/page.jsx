@@ -38,7 +38,7 @@ export default function MaterialsPage() {
         return {
             title: "",
             description: "",
-            course: "",
+            courses: [], // Changed from single course to array
             batches: [],
             category: "lecture",
             fileUrl: "",
@@ -97,8 +97,8 @@ export default function MaterialsPage() {
             toast.error("Title is required");
             return;
         }
-        if (!formData.course) {
-            toast.error("Course is required");
+        if (formData.courses.length === 0) {
+            toast.error("Select at least one course");
             return;
         }
         if (!formData.fileUrl?.trim()) {
@@ -112,7 +112,8 @@ export default function MaterialsPage() {
             const payload = {
                 title: formData.title.trim(),
                 description: formData.description?.trim(),
-                course: formData.course,
+                courses: formData.courses, // Array of courses
+                course: formData.courses[0], // Keep first course for backwards compatibility
                 batches: formData.batches,
                 category: formData.category,
                 visibleToStudents: formData.visibleToStudents,
@@ -180,7 +181,7 @@ export default function MaterialsPage() {
         setFormData({
             title: mat.title,
             description: mat.description || "",
-            course: mat.course?._id || mat.course,
+            courses: mat.courses?.length > 0 ? mat.courses.map(c => (typeof c === 'object' ? c._id : c)) : (mat.course ? [typeof mat.course === 'object' ? mat.course._id : mat.course] : []),
             batches: mat.batches.map(b => b._id || b),
             category: mat.category,
             fileUrl: mat.file?.url || "",
@@ -216,7 +217,11 @@ export default function MaterialsPage() {
         }
     };
 
-    const filteredBatches = batches.filter(b => !formData.course || b.course?._id === formData.course || b.course === formData.course);
+    const filteredBatches = batches.filter(b => {
+        if (formData.courses.length === 0) return false;
+        const batchCourseId = b.course?._id || b.course;
+        return formData.courses.includes(batchCourseId);
+    });
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
@@ -528,39 +533,53 @@ export default function MaterialsPage() {
                             </div>
 
                             <div className="space-y-1">
-                                <Select
-                                    label="Course"
-                                    value={formData.course}
-                                    onChange={(val) => setFormData({ ...formData, course: val, batches: [] })}
-                                    options={[
-                                        { label: "Select Course", value: "" },
-                                        ...courses.map(c => ({ label: c.name, value: c._id }))
-                                    ]}
-                                />
+                                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Courses (Select at least one)</label>
+                                <div className="grid grid-cols-2 gap-2 max-h-[120px] overflow-y-auto border border-slate-100 rounded-xl p-3 bg-white/50">
+                                    {courses.map(course => (
+                                        <label key={course._id} className="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer hover:text-premium-blue transition-colors group">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.courses.includes(course._id)}
+                                                onChange={() => {
+                                                    const newCourses = formData.courses.includes(course._id)
+                                                        ? formData.courses.filter(c => c !== course._id)
+                                                        : [...formData.courses, course._id];
+                                                    setFormData({ ...formData, courses: newCourses, batches: [] });
+                                                }}
+                                                className="w-4 h-4 rounded text-premium-blue border-slate-300 focus:ring-premium-blue/20"
+                                            />
+                                            <span className="font-medium">{course.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
 
-                            {formData.course && (
+                            {formData.courses.length > 0 && (
                                 <div className="space-y-2.5">
                                     <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Assign Batches (Optional)</label>
                                     <div className="grid grid-cols-2 gap-3 max-h-[120px] overflow-y-auto border border-slate-100 rounded-xl p-3 bg-white/50">
-                                        {filteredBatches.map(batch => (
-                                            <label key={batch._id} className="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer hover:text-premium-blue transition-colors group">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.batches.includes(batch._id)}
-                                                    onChange={() => {
-                                                        const newBatches = formData.batches.includes(batch._id)
-                                                            ? formData.batches.filter(b => b !== batch._id)
-                                                            : [...formData.batches, batch._id];
-                                                        setFormData({ ...formData, batches: newBatches });
-                                                    }}
-                                                    className="w-4 h-4 rounded text-premium-blue border-slate-300 focus:ring-premium-blue/20"
-                                                />
-                                                <span className="font-medium">{batch.name}</span>
-                                            </label>
-                                        ))}
+                                        {filteredBatches.length > 0 ? (
+                                            filteredBatches.map(batch => (
+                                                <label key={batch._id} className="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer hover:text-premium-blue transition-colors group">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.batches.includes(batch._id)}
+                                                        onChange={() => {
+                                                            const newBatches = formData.batches.includes(batch._id)
+                                                                ? formData.batches.filter(b => b !== batch._id)
+                                                                : [...formData.batches, batch._id];
+                                                            setFormData({ ...formData, batches: newBatches });
+                                                        }}
+                                                        className="w-4 h-4 rounded text-premium-blue border-slate-300 focus:ring-premium-blue/20"
+                                                    />
+                                                    <span className="font-medium">{batch.name}</span>
+                                                </label>
+                                            ))
+                                        ) : (
+                                            <p className="text-xs text-slate-400 col-span-2 italic">No batches found for selected courses</p>
+                                        )}
                                     </div>
-                                    <p className="text-[10px] text-slate-400 font-medium italic ml-1 select-none">Leave empty to show to all students in this course.</p>
+                                    <p className="text-[10px] text-slate-400 font-medium italic ml-1 select-none">Leave empty to show to all students in these courses.</p>
                                 </div>
                             )}
 

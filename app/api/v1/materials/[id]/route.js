@@ -17,6 +17,7 @@ export async function GET(req, { params }) {
         const { id } = await params;
         const material = await Material.findById(id) // consistent hard-delete strategy
             .populate('course', 'name')
+            .populate('courses', 'name')
             .populate('batches', 'name');
 
         if (!material) {
@@ -48,6 +49,13 @@ export async function PATCH(req, { params }) {
         delete body.uploadedBy; // Prevent changing owner
         delete body.createdAt;
         delete body.deletedAt; // Prevent manual restoration
+
+        // Handle courses field - convert single course to courses array if needed
+        if (body.courses && Array.isArray(body.courses) && body.courses.length > 0) {
+            body.course = body.courses[0]; // Keep first course for backwards compatibility
+        } else if (body.course && !body.courses) {
+            body.courses = [body.course]; // If only course is provided, create courses array
+        }
 
         const material = await Material.findByIdAndUpdate(
             id, // consistent hard-delete strategy

@@ -152,6 +152,7 @@ export async function GET(req) {
 
         const materials = await Material.find(query)
             .populate('course', 'name')
+            .populate('courses', 'name')
             .populate('batches', 'name')
             .populate('uploadedBy', 'profile.firstName profile.lastName')
             .sort({ createdAt: -1 });
@@ -174,9 +175,10 @@ export async function POST(req) {
         await connectDB();
         const body = await req.json();
 
-        // Validate basic fields
-        if (!body.title || !body.file?.url || !body.course) {
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        // Validate basic fields - support both single course and multiple courses
+        const courses = body.courses || (body.course ? [body.course] : null);
+        if (!body.title || !body.file?.url || !courses || courses.length === 0) {
+            return NextResponse.json({ error: "Missing required fields: title, file.url, and at least one course" }, { status: 400 });
         }
 
         // Prevent mass assignment by picking allowed fields
@@ -191,8 +193,9 @@ export async function POST(req) {
                 type: body.file.type,
                 size: body.file.size
             },
-            course: body.course,
-            batches: body.batches, // Array of IDs
+            courses: courses, // Array of course IDs
+            course: courses[0], // Keep first course for backwards compatibility
+            batches: body.batches || [], // Array of IDs
             visibleToStudents: !!body.visibleToStudents,
             tags: Array.isArray(body.tags) ? body.tags : []
         };
@@ -222,7 +225,7 @@ export async function POST(req) {
             resource: { type: 'Material', id: material._id },
             details: {
                 title: material.title,
-                course: material.course,
+                courses: material.courses,
                 type: material.type,
                 batches: material.batches
             },
