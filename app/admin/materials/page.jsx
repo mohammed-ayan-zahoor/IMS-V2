@@ -219,8 +219,11 @@ export default function MaterialsPage() {
 
     const filteredBatches = batches.filter(b => {
         if (formData.courses.length === 0) return false;
-        const batchCourseId = b.course?._id || b.course;
-        return formData.courses.includes(batchCourseId);
+        const batchCourseId = typeof b.course === 'object' ? b.course._id : b.course;
+        return formData.courses.some(courseId => {
+            const courseIdStr = typeof courseId === 'object' ? courseId._id : courseId;
+            return String(batchCourseId) === String(courseIdStr);
+        });
     });
 
     return (
