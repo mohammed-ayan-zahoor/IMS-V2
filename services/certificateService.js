@@ -17,7 +17,8 @@ const fonts = [
     { name: 'Roboto Bold', path: path.join(fontDir, 'Roboto-Bold.ttf') },
     { name: 'Inter', path: path.join(fontDir, 'Inter-Regular.ttf') },
     { name: 'Lora', path: path.join(fontDir, 'Lora-Regular.ttf') },
-    { name: 'Poppins', path: path.join(fontDir, 'Poppins-Regular.ttf') }
+    { name: 'Poppins', path: path.join(fontDir, 'Poppins-Regular.ttf') },
+    { name: 'Courgette', path: path.join(fontDir, 'Courgette-Regular.ttf') }
 ];
 
 fonts.forEach(font => {
@@ -117,8 +118,14 @@ export const generateCertificatePDFFromTemplate = async (certificateData, templa
             // Scale font size relative to canvas width
             const scaledFontSize = Math.round((p.fontSize || 24) * scaleRatio);
             
+            // Use Courgette (cursive) font for student name, or use custom font family from placeholder
+            let fontFamily = p.fontFamily || 'Roboto';
+            if (key === 'studentName' && !p.fontFamily) {
+                fontFamily = 'Courgette'; // Stylish cursive font for names
+            }
+            
             // Build and apply font
-            const fontStr = buildFontString(scaledFontSize, p.fontWeight, p.fontStyle, p.fontFamily);
+            const fontStr = buildFontString(scaledFontSize, p.fontWeight, p.fontStyle, fontFamily);
             ctx.font = fontStr;
             ctx.fillStyle = p.color || '#000000';
             ctx.textAlign = p.textAlign || 'center';
