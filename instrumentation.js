@@ -1,8 +1,9 @@
-import { cleanupOrphanedFiles } from "@/lib/fileCleanup";
-
 export async function register() {
     if (process.env.NEXT_RUNTIME === "nodejs") {
         console.log("[Init] Setting up orphaned file cleanup scheduler...");
+
+        // Dynamically import only in Node.js runtime
+        const { cleanupOrphanedFiles } = await import("@/lib/fileCleanup");
 
         // Run cleanup immediately on startup (after a short delay to let the app initialize)
         setTimeout(async () => {

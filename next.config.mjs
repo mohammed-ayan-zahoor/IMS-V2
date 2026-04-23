@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   instrumentationHook: true,
+  outputFileTracingRoot: process.cwd(),
   async rewrites() {
     return [
       {
@@ -45,10 +46,6 @@ const nextConfig = {
         ],
       },
     ];
-  },
-  experimental: {
-    // Silence the workspace root warning by explicitly setting the root to the current directory
-    outputFileTracingRoot: process.cwd(),
   },
 };
 

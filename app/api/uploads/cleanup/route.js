@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { cleanupOrphanedFiles, getOrphanedFilesStats } from "@/lib/fileCleanup";
 
+export const runtime = "nodejs";
+
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
