@@ -310,6 +310,7 @@ export default function CertificateTemplateManager() {
     const [selectedPlaceholder, setSelectedPlaceholder] = useState(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [zoom, setZoom] = useState(100);
+    const [imageLoadError, setImageLoadError] = useState(false);
     const fileInputRef = useRef(null);
     const canvasRef = useRef(null);
     const canvasContainerRef = useRef(null);
@@ -374,6 +375,7 @@ export default function CertificateTemplateManager() {
 
             const data = await res.json();
             if (res.ok) {
+                setImageLoadError(false);
                 setForm(prev => ({
                     ...prev,
                     templateImage: file,
@@ -485,6 +487,7 @@ export default function CertificateTemplateManager() {
 
     const handleEditTemplate = (template) => {
         setEditingId(template._id);
+        setImageLoadError(false);
         setForm({
             name: template.name,
             templateImage: null,
@@ -504,6 +507,7 @@ export default function CertificateTemplateManager() {
         setEditingId(null);
         setSelectedPlaceholder(null);
         setZoom(100);
+        setImageLoadError(false);
         setForm({
             name: "",
             templateImage: null,
@@ -1030,6 +1034,15 @@ export default function CertificateTemplateManager() {
                                                             )}
                                                             draggable={false}
                                                             onDragStart={e => e.preventDefault()}
+                                                            onError={(e) => {
+                                                                console.error("Failed to load template image:", form.imageUrl);
+                                                                setImageLoadError(true);
+                                                                e.target.style.display = "none";
+                                                            }}
+                                                            onLoad={() => {
+                                                                console.log("Template image loaded successfully:", form.imageUrl);
+                                                                setImageLoadError(false);
+                                                            }}
                                                         />
 
                                                         {/* Draggable Placeholders */}
@@ -1049,6 +1062,31 @@ export default function CertificateTemplateManager() {
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            {/* Image Load Error Message */}
+                                            {imageLoadError && (
+                                                <div className="absolute inset-0 rounded-b-2xl bg-red-50/95 flex items-center justify-center border-2 border-red-200">
+                                                    <div className="text-center p-6 max-w-md">
+                                                        <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                                                            <X size={24} className="text-red-600" />
+                                                        </div>
+                                                        <p className="font-semibold text-red-900 mb-1">Failed to load template image</p>
+                                                        <p className="text-sm text-red-700 mb-4">
+                                                            Image URL: <code className="text-xs bg-red-100/50 px-2 py-1 rounded">{form.imageUrl}</code>
+                                                        </p>
+                                                        <p className="text-xs text-red-600 mb-4">
+                                                            The image file may be missing or inaccessible. Try uploading it again.
+                                                        </p>
+                                                        <Button
+                                                            size="sm"
+                                                            className="bg-red-600 hover:bg-red-700"
+                                                            onClick={() => fileInputRef.current?.click()}
+                                                        >
+                                                            Upload Image Again
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {/* Canvas Footer */}
                                             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 pointer-events-none">

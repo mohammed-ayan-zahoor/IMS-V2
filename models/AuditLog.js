@@ -30,13 +30,13 @@ const AuditLogSchema = new Schema({
         ],
         index: true
     },
-    resource: {
-        type: {
-            type: String,
-            enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'Subject']
-        },
-        id: Schema.Types.ObjectId
-    },
+     resource: {
+         type: {
+             type: String,
+             enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'Subject', 'Enquiry']
+         },
+         id: Schema.Types.ObjectId
+     },
     details: Schema.Types.Mixed, // Store before/after states or additional context
     ipAddress: String,
     userAgent: String
