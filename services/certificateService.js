@@ -13,26 +13,48 @@ import fetch from 'node-fetch';
 // Register bundled Google Fonts
 const fontDir = path.join(process.cwd(), 'public', 'fonts');
 const fonts = [
-    { name: 'Roboto', path: path.join(fontDir, 'Roboto-Regular.ttf') },
-    { name: 'Roboto Bold', path: path.join(fontDir, 'Roboto-Bold.ttf') },
-    { name: 'Inter', path: path.join(fontDir, 'Inter-Regular.ttf') },
-    { name: 'Lora', path: path.join(fontDir, 'Lora-Regular.ttf') },
-    { name: 'Poppins', path: path.join(fontDir, 'Poppins-Regular.ttf') },
-    { name: 'Courgette', path: path.join(fontDir, 'Courgette-Regular.ttf') }
+    // Roboto variants
+    { family: 'Roboto', path: path.join(fontDir, 'Roboto-Regular.ttf'), weight: 'normal', style: 'normal' },
+    { family: 'Roboto', path: path.join(fontDir, 'Roboto-Bold.ttf'), weight: 'bold', style: 'normal' },
+    { family: 'Roboto', path: path.join(fontDir, 'Roboto-Italic.ttf'), weight: 'normal', style: 'italic' },
+    { family: 'Roboto', path: path.join(fontDir, 'Roboto-BoldItalic.ttf'), weight: 'bold', style: 'italic' },
+    // Inter variants
+    { family: 'Inter', path: path.join(fontDir, 'Inter-Regular.ttf'), weight: 'normal', style: 'normal' },
+    { family: 'Inter', path: path.join(fontDir, 'Inter-Bold.ttf'), weight: 'bold', style: 'normal' },
+    { family: 'Inter', path: path.join(fontDir, 'Inter-Italic.ttf'), weight: 'normal', style: 'italic' },
+    { family: 'Inter', path: path.join(fontDir, 'Inter-BoldItalic.ttf'), weight: 'bold', style: 'italic' },
+    // Lora variants
+    { family: 'Lora', path: path.join(fontDir, 'Lora-Regular.ttf'), weight: 'normal', style: 'normal' },
+    { family: 'Lora', path: path.join(fontDir, 'Lora-Bold.ttf'), weight: 'bold', style: 'normal' },
+    { family: 'Lora', path: path.join(fontDir, 'Lora-Italic.ttf'), weight: 'normal', style: 'italic' },
+    { family: 'Lora', path: path.join(fontDir, 'Lora-BoldItalic.ttf'), weight: 'bold', style: 'italic' },
+     // Poppins variants
+     { family: 'Poppins', path: path.join(fontDir, 'Poppins-Regular.ttf'), weight: 'normal', style: 'normal' },
+     { family: 'Poppins', path: path.join(fontDir, 'Poppins-Bold.ttf'), weight: 'bold', style: 'normal' },
+     { family: 'Poppins', path: path.join(fontDir, 'Poppins-Italic.ttf'), weight: 'normal', style: 'italic' },
+     { family: 'Poppins', path: path.join(fontDir, 'Poppins-BoldItalic.ttf'), weight: 'bold', style: 'italic' },
+     // Courgette (decorative, single variant)
+     { family: 'Courgette', path: path.join(fontDir, 'Courgette-Regular.ttf'), weight: 'normal', style: 'normal' },
+     // Silentha OT (fonts directory)
+     { family: 'Silentha OT', path: path.join(fontDir, 'Silentha-OT.ttf'), weight: 'normal', style: 'normal' },
+     // Roherat Regular (fonts directory)
+     { family: 'Roherat', path: path.join(fontDir, 'Roherat-Regular.ttf'), weight: 'normal', style: 'normal' },
+     // Signtelly Regular (fonts directory)
+     { family: 'Signtelly', path: path.join(fontDir, 'Signtelly-Regular.ttf'), weight: 'normal', style: 'normal' }
 ];
 
 fonts.forEach(font => {
     try {
         if (fs.existsSync(font.path)) {
-            registerFont(font.path, { family: font.name });
+            registerFont(font.path, { family: font.family, weight: font.weight, style: font.style });
             if (process.env.NODE_ENV === 'development') {
-                console.log(`✓ Registered font: ${font.name}`);
+                console.log(`✓ Registered font: ${font.family} (${font.weight}, ${font.style})`);
             }
         } else {
             console.warn(`⚠ Font file not found: ${font.path} - will use system fallback`);
         }
     } catch (error) {
-        console.warn(`⚠ Could not register font ${font.name}: ${error.message} - will use system fallback`);
+        console.warn(`⚠ Could not register font ${font.family}: ${error.message} - will use system fallback`);
     }
 });
 
@@ -42,7 +64,11 @@ fonts.forEach(font => {
 const buildFontString = (fontSize, fontWeight, fontStyle, fontFamily) => {
     const style = fontStyle === 'italic' ? 'italic ' : '';
     const weight = fontWeight === 'bold' ? 'bold ' : '';
-    return `${style}${weight}${fontSize}px "${fontFamily}"`;
+    
+    // Always wrap font family in quotes to handle font names with spaces
+    const quotedFamily = `"${fontFamily}"`;
+    
+    return `${style}${weight}${fontSize}px ${quotedFamily}`;
 };
 
 /**
@@ -79,15 +105,20 @@ export const generateCertificatePDFFromTemplate = async (certificateData, templa
          }
 
          const imageResponse = await fetch(absoluteImageUrl);
-        if (!imageResponse.ok) {
-            throw new Error(`Failed to fetch template image: ${imageResponse.statusText}`);
-        }
-        const imageBuffer = await imageResponse.buffer();
-        const image = await loadImage(imageBuffer);
+         if (!imageResponse.ok) {
+             throw new Error(`Failed to fetch template image: ${imageResponse.statusText}`);
+         }
+         const imageBuffer = await imageResponse.buffer();
+         const image = await loadImage(imageBuffer);
 
-        // 2. Create canvas matching image dimensions
-        const canvas = createCanvas(image.width, image.height);
-        const ctx = canvas.getContext('2d');
+         // Debug: Log image dimensions
+         if (process.env.NODE_ENV === 'development') {
+             console.log(`=> Template image dimensions: ${image.width}x${image.height}px`);
+         }
+
+         // 2. Create canvas matching image dimensions
+         const canvas = createCanvas(image.width, image.height);
+         const ctx = canvas.getContext('2d');
 
         // Draw the template image
         ctx.drawImage(image, 0, 0);
@@ -130,6 +161,11 @@ export const generateCertificatePDFFromTemplate = async (certificateData, templa
             ctx.fillStyle = p.color || '#000000';
             ctx.textAlign = p.textAlign || 'center';
             
+            // Debug: Log font application
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`=> Applying font for ${key}: family="${fontFamily}", size=${scaledFontSize}px, weight=${p.fontWeight}, style=${p.fontStyle}`);
+            }
+            
             // Draw text
             ctx.fillText(text, x, y);
         });
@@ -171,10 +207,23 @@ export const generateCertificatePDFFromTemplate = async (certificateData, templa
         `;
 
         await page.setContent(html, { waitUntil: 'networkidle0' });
+         
+        // Get the actual image dimensions to calculate PDF size
+        // This ensures the PDF matches the certificate design without extra blank space
+        const imageAspectRatio = image.width / image.height;
+        
+        // Convert pixels to mm for PDF (96 DPI = 25.4mm per inch)
+        const mmPerPixel = 25.4 / 96;
+        const pdfWidth = image.width * mmPerPixel;
+        const pdfHeight = image.height * mmPerPixel;
+        
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`=> PDF size calculated: ${pdfWidth.toFixed(1)}mm × ${pdfHeight.toFixed(1)}mm (from ${image.width}×${image.height}px image)`);
+        }
         
         const pdfBuffer = await page.pdf({
-            format: 'A4',
-            landscape: true,
+            width: `${pdfWidth}mm`,
+            height: `${pdfHeight}mm`,
             margin: {
                 top: 0,
                 bottom: 0,

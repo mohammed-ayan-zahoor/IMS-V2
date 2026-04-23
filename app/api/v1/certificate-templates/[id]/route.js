@@ -78,6 +78,7 @@ export async function PUT(req, { params }) {
             description,
             type,
             isDefault,
+            imageUrl,
             styles,
             placeholders,
             htmlTemplate
@@ -105,8 +106,13 @@ export async function PUT(req, { params }) {
         if (description !== undefined) template.description = description?.trim();
         if (type !== undefined) template.type = type;
         if (isDefault !== undefined) template.isDefault = isDefault;
+        if (imageUrl !== undefined) template.imageUrl = imageUrl;
         if (styles !== undefined) template.styles = { ...template.styles, ...styles };
         if (placeholders !== undefined) {
+            // Debug: Log what we're about to save
+            if (process.env.NODE_ENV === 'development') {
+                console.log('=> Saving template placeholders:', JSON.stringify(placeholders, null, 2));
+            }
             template.placeholders = { ...template.placeholders, ...placeholders };
         }
         if (htmlTemplate !== undefined) template.htmlTemplate = htmlTemplate;

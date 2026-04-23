@@ -138,6 +138,10 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
                     <option value="Inter">Inter</option>
                     <option value="Lora">Lora</option>
                     <option value="Poppins">Poppins</option>
+                    <option value="Courgette">Courgette</option>
+                    <option value="Silentha OT">Silentha OT</option>
+                    <option value="Roherat">Roherat</option>
+                    <option value="Signtelly">Signtelly</option>
                     <option value="Arial">Arial</option>
                 </select>
             </div>

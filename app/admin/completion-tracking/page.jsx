@@ -222,49 +222,48 @@ const CompletionTrackingPage = () => {
   };
 
    const performBulkMark = async () => {
-    setShowConfirmModal(false);
-    try {
-      setBulkMarking(true);
-      const studentIds = Array.from(selectedStudents);
+     setShowConfirmModal(false);
+     try {
+       setBulkMarking(true);
+       const studentIds = Array.from(selectedStudents);
 
-      const res = await fetch("/api/v1/students/bulk-mark-completed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentIds,
-          reason: completionReason,
-          batchId: batchId || null,
-        }),
-      });
+       const res = await fetch("/api/v1/students/bulk-mark-completed", {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({
+           studentIds,
+           reason: completionReason,
+           batchId: batchId || null,
+         }),
+       });
 
-      const result = await res.json();
+       const result = await res.json();
 
-      if (res.ok) {
-        toast.success(
-          `Successfully marked ${result.successCount} student(s) as completed`
-        );
-        setSelectedStudents(new Set());
-        setCompletionReason("");
-        
-        // Switch to COMPLETED filter to show the newly completed students
-        setStatusFilter("COMPLETED");
-        setPagination(prev => ({ ...prev, page: 1 }));
-        fetchStudents(1);
-      } else {
-        const errorMsg = result.error || "Failed to mark students as completed";
-        toast.error(errorMsg);
-        console.error("Bulk mark error:", { status: res.status, result });
-        if (result.errors && result.errors.length > 0) {
-          console.error("Individual errors:", result.errors);
-        }
-      }
-    } catch (error) {
-      console.error("Error marking students completed:", error);
-      toast.error("Error marking students as completed");
-    } finally {
-      setBulkMarking(false);
-    }
-  };
+       if (res.ok) {
+         toast.success(
+           `Successfully marked ${result.successCount} student(s) as completed`
+         );
+         setSelectedStudents(new Set());
+         setCompletionReason("");
+         
+         // Stay on ACTIVE filter to continue working with active students
+         // The completed students will be filtered out automatically
+         fetchStudents(pagination.page);
+       } else {
+         const errorMsg = result.error || "Failed to mark students as completed";
+         toast.error(errorMsg);
+         console.error("Bulk mark error:", { status: res.status, result });
+         if (result.errors && result.errors.length > 0) {
+           console.error("Individual errors:", result.errors);
+         }
+       }
+     } catch (error) {
+       console.error("Error marking students completed:", error);
+       toast.error("Error marking students as completed");
+     } finally {
+       setBulkMarking(false);
+     }
+   };
 
    // Mark individual student as completed
    const markStudentCompleted = async (studentId) => {
@@ -283,10 +282,8 @@ const CompletionTrackingPage = () => {
 
        if (res.ok) {
          toast.success("Student marked as completed");
-         // Switch to COMPLETED filter to show the newly completed student
-         setStatusFilter("COMPLETED");
-         setPagination(prev => ({ ...prev, page: 1 }));
-         fetchStudents(1);
+         // Stay on ACTIVE filter - refresh the current page to remove completed student
+         fetchStudents(pagination.page);
        } else {
          toast.error(result.error || "Failed to mark student as completed");
          console.error("API Error:", result);
@@ -405,14 +402,14 @@ const CompletionTrackingPage = () => {
                   Clear Selection
                 </Button>
                 <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleBulkMarkCompleted}
-                  disabled={bulkMarking || !completionReason.trim()}
-                  icon={bulkMarking ? <Loader className="animate-spin" size={16} /> : <Check size={16} />}
-                >
-                  {bulkMarking ? "Processing..." : "Mark as Completed"}
-                </Button>
+                   variant="primary"
+                   size="sm"
+                   onClick={handleBulkMarkCompleted}
+                   disabled={bulkMarking || selectedStudents.size === 0}
+                   icon={bulkMarking ? <Loader className="animate-spin" size={16} /> : <Check size={16} />}
+                 >
+                   {bulkMarking ? "Processing..." : "Mark as Completed"}
+                 </Button>
               </div>
             </div>
           )}

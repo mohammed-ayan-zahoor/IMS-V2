@@ -81,19 +81,27 @@ export async function GET(req, { params }) {
         // 5. Generate PDF - always fetch fresh template to get latest design
         let pdfBuffer;
         
-        if (certificate.template?.templateId) {
-            // Always fetch the latest template from database to ensure latest design is used
-            const template = await CertificateTemplate.findById(certificate.template.templateId);
-            
-            if (template && template.imageUrl) {
-                // Use image-based template with latest design
-                pdfBuffer = await generateCertificatePDFFromTemplate(certData, template);
-            } else {
-                // Template not found or missing image, fall back to HTML
-                console.warn('Template not found or missing image, falling back to HTML-based certificate');
-                pdfBuffer = await generateCertificatePDF(certData);
-            }
-        } else {
+         if (certificate.template?.templateId) {
+             // Always fetch the latest template from database to ensure latest design is used
+             const template = await CertificateTemplate.findById(certificate.template.templateId);
+             
+             if (process.env.NODE_ENV === 'development') {
+                 console.log('=> Template fetched for download:', {
+                     templateId: template?._id,
+                     templateName: template?.name,
+                     placeholders: JSON.stringify(template?.placeholders, null, 2)
+                 });
+             }
+             
+             if (template && template.imageUrl) {
+                 // Use image-based template with latest design
+                 pdfBuffer = await generateCertificatePDFFromTemplate(certData, template);
+             } else {
+                 // Template not found or missing image, fall back to HTML
+                 console.warn('Template not found or missing image, falling back to HTML-based certificate');
+                 pdfBuffer = await generateCertificatePDF(certData);
+             }
+         } else {
             // Use legacy HTML-based certificate
             pdfBuffer = await generateCertificatePDF(certData);
         }
