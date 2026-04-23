@@ -6,9 +6,10 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET(req, { params }) {
     try {
-        const { filename } = params;
+        // Await params - required in Next.js 15+
+        const { filename } = await params;
 
-        console.log("File serve request:", { filename, params });
+        console.log("File serve request:", { filename });
 
         // Validate filename to prevent directory traversal attacks
         if (!filename || filename.includes("..") || filename.includes("/")) {
