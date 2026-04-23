@@ -8,16 +8,22 @@ export async function GET(req, { params }) {
     try {
         const { filename } = params;
 
+        console.log("File serve request:", { filename, params });
+
         // Validate filename to prevent directory traversal attacks
         if (!filename || filename.includes("..") || filename.includes("/")) {
+            console.error("Invalid filename validation failed:", { filename, check1: !filename, check2: filename?.includes(".."), check3: filename?.includes("/") });
             return NextResponse.json({ error: "Invalid filename" }, { status: 400 });
         }
 
         const uploadDir = path.join(process.cwd(), "public/uploads");
         const filepath = path.join(uploadDir, filename);
 
+        console.log("Attempting to serve file:", { uploadDir, filename, filepath });
+
         // Ensure the resolved path is within the uploads directory
         if (!filepath.startsWith(uploadDir)) {
+            console.error("Path traversal attempt detected:", { filepath, uploadDir });
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
@@ -36,6 +42,8 @@ export async function GET(req, { params }) {
 
         const contentType = mimeTypes[ext] || "application/octet-stream";
 
+        console.log("File served successfully:", { filename, fileSize: fileBuffer.length, contentType });
+
         // Return file with proper headers
         return new NextResponse(fileBuffer, {
             status: 200,
@@ -46,7 +54,7 @@ export async function GET(req, { params }) {
             }
         });
     } catch (error) {
-        console.error("File serve error:", error);
-        return NextResponse.json({ error: "File not found or server error" }, { status: 404 });
+        console.error("File serve error:", { error: error.message, code: error.code, stack: error.stack });
+        return NextResponse.json({ error: "File not found or server error", details: error.message }, { status: 404 });
     }
 }
