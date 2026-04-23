@@ -6,6 +6,10 @@ const nextConfig = {
         source: '/instructor/:path*',
         destination: '/admin/:path*',
       },
+      {
+        source: '/uploads/:filename',
+        destination: '/api/uploads/files/:filename',
+      },
     ];
   },
   async headers() {
