@@ -35,7 +35,8 @@ import {
     PlusCircle,
     CheckCircle2,
     Award,
-    TrendingUp
+    TrendingUp,
+    Contact
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -129,6 +130,7 @@ export default function AdminLayout({ children }) {
                 { label: "User Management", icon: UserCog, href: "/admin/users" },
                 { label: "Completion Tracking", icon: CheckCircle2, href: "/admin/completion-tracking" },
                 { label: "Certificate Management", icon: Award, href: "/admin/certificate-management" },
+                { label: "ID Card Management", icon: Contact, href: "/admin/id-cards" },
                 { label: "Completion Analytics", icon: TrendingUp, href: "/admin/completion-analytics" },
                 { label: "Settings", icon: Settings, href: "/admin/settings" },
             ]

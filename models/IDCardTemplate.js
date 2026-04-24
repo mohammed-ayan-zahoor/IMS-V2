@@ -27,6 +27,7 @@ const IDCardTemplateSchema = new mongoose.Schema({
             fontWeight: { type: String, default: "bold" },
             color: { type: String, default: "#000000" },
             textAlign: { type: String, default: "center" },
+            textTransform: { type: String, default: "none" },
             enabled: { type: Boolean, default: true }
         },
         studentPhoto: {
@@ -34,6 +35,10 @@ const IDCardTemplateSchema = new mongoose.Schema({
             y: { type: Number, default: 15 },
             width: { type: Number, default: 25 },
             height: { type: Number, default: 30 },
+            borderRadius: { type: Number, default: 0 },
+            borderWidth: { type: Number, default: 0 },
+            borderColor: { type: String, default: "#000000" },
+            shape: { type: String, default: "rectangle", enum: ["rectangle", "square", "circle", "rounded-square"] },
             enabled: { type: Boolean, default: true }
         },
         studentId: {
@@ -44,6 +49,7 @@ const IDCardTemplateSchema = new mongoose.Schema({
             fontWeight: { type: String, default: "normal" },
             color: { type: String, default: "#000000" },
             textAlign: { type: String, default: "center" },
+            textTransform: { type: String, default: "none" },
             enabled: { type: Boolean, default: true }
         },
         batch: {
@@ -54,6 +60,7 @@ const IDCardTemplateSchema = new mongoose.Schema({
             fontWeight: { type: String, default: "normal" },
             color: { type: String, default: "#000000" },
             textAlign: { type: String, default: "center" },
+            textTransform: { type: String, default: "none" },
             enabled: { type: Boolean, default: true }
         },
         rollNumber: {
@@ -64,6 +71,7 @@ const IDCardTemplateSchema = new mongoose.Schema({
             fontWeight: { type: String, default: "normal" },
             color: { type: String, default: "#000000" },
             textAlign: { type: String, default: "center" },
+            textTransform: { type: String, default: "none" },
             enabled: { type: Boolean, default: false }
         },
         dateOfAdmission: {
@@ -74,6 +82,7 @@ const IDCardTemplateSchema = new mongoose.Schema({
             fontWeight: { type: String, default: "normal" },
             color: { type: String, default: "#000000" },
             textAlign: { type: String, default: "center" },
+            textTransform: { type: String, default: "none" },
             enabled: { type: Boolean, default: false }
         }
     },
@@ -88,6 +97,7 @@ const IDCardTemplateSchema = new mongoose.Schema({
             fontWeight: { type: String, default: "bold" },
             color: { type: String, default: "#000000" },
             textAlign: { type: String, default: "center" },
+            textTransform: { type: String, default: "none" },
             enabled: { type: Boolean, default: true }
         },
         validity: {
@@ -98,12 +108,16 @@ const IDCardTemplateSchema = new mongoose.Schema({
             fontWeight: { type: String, default: "normal" },
             color: { type: String, default: "#000000" },
             textAlign: { type: String, default: "center" },
+            textTransform: { type: String, default: "none" },
             enabled: { type: Boolean, default: true }
         },
         qrCode: {
             x: { type: Number, default: 50 },
             y: { type: Number, default: 60 },
             size: { type: Number, default: 20 },
+            width: { type: Number, default: 20 },
+            height: { type: Number, default: 20 },
+            dataMode: { type: String, default: "studentId", enum: ["studentId", "profileUrl", "vcard"] },
             enabled: { type: Boolean, default: true }
         },
         disclaimer: {
@@ -114,6 +128,7 @@ const IDCardTemplateSchema = new mongoose.Schema({
             fontWeight: { type: String, default: "normal" },
             color: { type: String, default: "#666666" },
             textAlign: { type: String, default: "center" },
+            textTransform: { type: String, default: "none" },
             enabled: { type: Boolean, default: false }
         }
     },

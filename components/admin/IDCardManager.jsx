@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/contexts/ToastContext";
 import TemplatesTab from "./idcard/TemplatesTab";
+import GenerateTab from "./idcard/GenerateTab";
 
 export default function IDCardManager() {
     const toast = useToast();
@@ -57,11 +58,9 @@ export default function IDCardManager() {
                 <div className="space-y-6">
                     <div>
                         <h1 className="text-3xl font-bold text-slate-900">Generate ID Cards</h1>
-                        <p className="text-slate-600 mt-1">Bulk generate ID cards for students</p>
+                        <p className="text-slate-600 mt-1">Bulk generate front and back images for students</p>
                     </div>
-                    <Card className="p-6">
-                        <p className="text-slate-500">Coming soon...</p>
-                    </Card>
+                    <GenerateTab />
                 </div>
             )}
             {activeTab === "history" && (

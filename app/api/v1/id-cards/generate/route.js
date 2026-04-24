@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import dbConnect from "@/lib/dbConnect";
+import { connectDB } from "@/lib/mongodb";
 import IDCardTemplate from "@/models/IDCardTemplate";
-import Student from "@/models/Student";
+import User from "@/models/User";
 import Institute from "@/models/Institute";
 import { renderIDCardFront, renderIDCardBack } from "@/services/idCardService";
-import PDFDocument from "pdfkit";
 
 export const runtime = "nodejs";
 
 export async function POST(req) {
     try {
-        await dbConnect();
+        await connectDB();
 
         const session = await getServerSession(authOptions);
         if (!session) {
@@ -39,8 +38,7 @@ export async function POST(req) {
         }
 
         // Fetch students
-        const students = await Student.find({ _id: { $in: studentIds } })
-            .populate("batch");
+        const students = await User.find({ _id: { $in: studentIds } });
 
         if (students.length === 0) {
             return NextResponse.json(
@@ -52,16 +50,11 @@ export async function POST(req) {
         // Fetch institute
         const institute = await Institute.findOne().lean();
 
-        // Create PDF
-        const pdfDoc = new PDFDocument({
-            size: "A4",
-            margin: 0
-        });
+        // Render common back image
+        const backCanvas = await renderIDCardBack(Object.values(students)[0], template, institute);
+        const commonBackImage = backCanvas.toDataURL("image/png");
 
-        const chunks = [];
-        pdfDoc.on("data", (chunk) => chunks.push(chunk));
-
-        let pageCount = 0;
+        const studentCards = [];
 
         for (let i = 0; i < students.length; i++) {
             const student = students[i];
@@ -69,23 +62,16 @@ export async function POST(req) {
             try {
                 console.log(`[IDCardGeneration] Rendering card for student: ${student._id}`);
 
-                // Render front and back
+                // Render front
                 const frontCanvas = await renderIDCardFront(student, template);
-                const backCanvas = await renderIDCardBack(student, template, institute);
-
-                // Convert to image
                 const frontImage = frontCanvas.toDataURL("image/png");
-                const backImage = backCanvas.toDataURL("image/png");
 
-                // Add to PDF (front page)
-                if (i > 0) pdfDoc.addPage();
-                pdfDoc.image(frontImage, 0, 0, { width: 595, height: 842 });
-                pageCount++;
-
-                // Add back page
-                pdfDoc.addPage();
-                pdfDoc.image(backImage, 0, 0, { width: 595, height: 842 });
-                pageCount++;
+                studentCards.push({
+                    studentId: student._id,
+                    name: `${student.profile?.firstName || ""} ${student.profile?.lastName || ""}`.trim(),
+                    rollNumber: student.enrollmentNumber,
+                    frontImage: frontImage
+                });
 
             } catch (cardError) {
                 console.error(`[IDCardGeneration] Error rendering card for ${student._id}:`, cardError);
@@ -93,22 +79,10 @@ export async function POST(req) {
             }
         }
 
-        pdfDoc.end();
-
-        // Wait for PDF to finish
-        return new Promise((resolve) => {
-            pdfDoc.on("end", () => {
-                const pdfBuffer = Buffer.concat(chunks);
-
-                resolve(new NextResponse(pdfBuffer, {
-                    status: 200,
-                    headers: {
-                        "Content-Type": "application/pdf",
-                        "Content-Disposition": 'attachment; filename="id-cards.pdf"',
-                        "Content-Length": pdfBuffer.length
-                    }
-                }));
-            });
+        return NextResponse.json({
+            success: true,
+            commonBackImage,
+            studentCards
         });
 
     } catch (error) {

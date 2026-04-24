@@ -15,12 +15,32 @@ const DPI = 300; // High resolution for ID cards
 const MM_TO_PX = DPI / 25.4;
 
 /**
+ * Helper to resolve local paths from API URLs for canvas loadImage
+ */
+function resolveImagePath(imageUrl) {
+    if (!imageUrl) return null;
+    if (imageUrl.startsWith("/api/uploads/files/")) {
+        const filename = imageUrl.split("/").pop();
+        return path.join(process.cwd(), "public/uploads", filename);
+    }
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+        return imageUrl;
+    }
+    // Fallback for other absolute paths starting with /
+    if (imageUrl.startsWith("/")) {
+        return path.join(process.cwd(), "public", imageUrl);
+    }
+    return imageUrl;
+}
+
+/**
  * Render front side of ID card
  */
 export async function renderIDCardFront(student, template) {
     try {
         // Load front image
-        const frontImage = await loadImage(template.frontImageUrl);
+        const resolvedFrontUrl = resolveImagePath(template.frontImageUrl);
+        const frontImage = await loadImage(resolvedFrontUrl);
         
         // Create canvas with actual image dimensions
         const canvas = createCanvas(frontImage.width, frontImage.height);
@@ -32,45 +52,46 @@ export async function renderIDCardFront(student, template) {
         const frontPlaceholders = template.frontPlaceholders;
 
         // Draw student name
-        if (frontPlaceholders.studentName?.enabled && student.firstName) {
+        if (frontPlaceholders.studentName?.enabled && student.profile?.firstName) {
             const config = frontPlaceholders.studentName;
-            const fullName = `${student.firstName} ${student.lastName || ""}`.trim();
+            const fullName = `${student.profile.firstName} ${student.profile.lastName || ""}`.trim();
             drawText(ctx, fullName, config, frontImage.width, frontImage.height);
         }
 
         // Draw student photo
-        if (frontPlaceholders.studentPhoto?.enabled && student.photo) {
+        if (frontPlaceholders.studentPhoto?.enabled && student.profile?.avatar) {
             const config = frontPlaceholders.studentPhoto;
             try {
-                const photoImage = await loadImage(student.photo);
+                const resolvedPhotoUrl = resolveImagePath(student.profile.avatar);
+                const photoImage = await loadImage(resolvedPhotoUrl);
                 drawImage(ctx, photoImage, config, frontImage.width, frontImage.height);
             } catch (err) {
                 console.warn(`[IDCardService] Could not load photo for student ${student._id}:`, err.message);
             }
         }
 
-        // Draw student ID
-        if (frontPlaceholders.studentId?.enabled && student.studentId) {
+        // Draw student ID (using enrollmentNumber)
+        if (frontPlaceholders.studentId?.enabled && student.enrollmentNumber) {
             const config = frontPlaceholders.studentId;
-            drawText(ctx, student.studentId, config, frontImage.width, frontImage.height);
+            drawText(ctx, student.enrollmentNumber, config, frontImage.width, frontImage.height);
         }
 
-        // Draw batch
+        // Draw batch (optional)
         if (frontPlaceholders.batch?.enabled && student.batch?.name) {
             const config = frontPlaceholders.batch;
             drawText(ctx, student.batch.name, config, frontImage.width, frontImage.height);
         }
 
-        // Draw roll number
-        if (frontPlaceholders.rollNumber?.enabled && student.rollNumber) {
+        // Draw roll number (mapping to enrollmentNumber for now if enabled)
+        if (frontPlaceholders.rollNumber?.enabled && student.enrollmentNumber) {
             const config = frontPlaceholders.rollNumber;
-            drawText(ctx, `Roll: ${student.rollNumber}`, config, frontImage.width, frontImage.height);
+            drawText(ctx, `Roll: ${student.enrollmentNumber}`, config, frontImage.width, frontImage.height);
         }
 
-        // Draw admission date
-        if (frontPlaceholders.dateOfAdmission?.enabled && student.dateOfAdmission) {
+        // Draw admission date (using createdAt)
+        if (frontPlaceholders.dateOfAdmission?.enabled && student.createdAt) {
             const config = frontPlaceholders.dateOfAdmission;
-            const date = new Date(student.dateOfAdmission).toLocaleDateString();
+            const date = new Date(student.createdAt).toLocaleDateString();
             drawText(ctx, date, config, frontImage.width, frontImage.height);
         }
 
@@ -86,7 +107,8 @@ export async function renderIDCardFront(student, template) {
  */
 export async function renderIDCardBack(student, template, institute) {
     try {
-        const backImage = await loadImage(template.backImageUrl);
+        const resolvedBackUrl = resolveImagePath(template.backImageUrl);
+        const backImage = await loadImage(resolvedBackUrl);
         
         const canvas = createCanvas(backImage.width, backImage.height);
         const ctx = canvas.getContext("2d");
@@ -112,7 +134,13 @@ export async function renderIDCardBack(student, template, institute) {
         // Draw QR Code
         if (backPlaceholders.qrCode?.enabled && student._id) {
             const config = backPlaceholders.qrCode;
-            const qrDataUrl = await generateQRCode(student._id.toString());
+            let qrPayload = student._id.toString();
+            if (config.dataMode === "profileUrl") {
+                qrPayload = `${process.env.NEXT_PUBLIC_APP_URL || "https://ims-v2.vercel.app"}/profile/${student._id}`;
+            } else if (config.dataMode === "vcard") {
+                qrPayload = `BEGIN:VCARD\nVERSION:3.0\nN:${student.profile?.lastName || ""};${student.profile?.firstName || ""};;;\nFN:${student.profile?.firstName || ""} ${student.profile?.lastName || ""}\nORG:${institute?.name || ""}\nTITLE:Student\nEND:VCARD`;
+            }
+            const qrDataUrl = await generateQRCode(qrPayload);
             const qrImage = await loadImage(qrDataUrl);
             drawImage(ctx, qrImage, config, backImage.width, backImage.height);
         }
@@ -135,16 +163,31 @@ export async function renderIDCardBack(student, template, institute) {
  * Helper: Draw text on canvas
  */
 function drawText(ctx, text, config, canvasWidth, canvasHeight) {
+    if (!text) return;
+    
     const x = (config.x / 100) * canvasWidth;
     const y = (config.y / 100) * canvasHeight;
-    const fontSize = Math.round((config.fontSize / 100) * canvasWidth);
+    
+    // config.fontSize is an absolute pixel value relative to the 320px wide editor canvas.
+    // We scale it proportionally to the actual canvas width.
+    const referenceWidth = 320;
+    const fontSize = Math.round((config.fontSize / referenceWidth) * canvasWidth);
 
     ctx.font = `${config.fontWeight === "bold" ? "bold " : ""}${fontSize}px "${config.fontFamily}"`;
     ctx.fillStyle = config.color || "#000000";
     ctx.textAlign = config.textAlign || "center";
     ctx.textBaseline = "middle";
 
-    ctx.fillText(text || "", x, y);
+    let displayText = text;
+    if (config.textTransform === "uppercase") {
+        displayText = displayText.toUpperCase();
+    } else if (config.textTransform === "lowercase") {
+        displayText = displayText.toLowerCase();
+    } else if (config.textTransform === "capitalize") {
+        displayText = displayText.replace(/\b\w/g, char => char.toUpperCase());
+    }
+
+    ctx.fillText(displayText, x, y);
 }
 
 /**
@@ -153,10 +196,93 @@ function drawText(ctx, text, config, canvasWidth, canvasHeight) {
 function drawImage(ctx, image, config, canvasWidth, canvasHeight) {
     const x = (config.x / 100) * canvasWidth;
     const y = (config.y / 100) * canvasHeight;
-    const width = (config.width / 100) * canvasWidth;
-    const height = (config.height / 100) * canvasHeight;
+    let width = ((config.width || config.size) / 100) * canvasWidth;
+    let height = ((config.height || config.size) / 100) * canvasHeight;
+    
+    // Enforce 1:1 aspect ratio for preset shapes
+    if (config.shape && config.shape !== 'rectangle') {
+        height = width;
+    }
 
-    ctx.drawImage(image, x, y, width, height);
+    // config.borderRadius is 0-50 (50% makes a circle/pill)
+    let bRadConfig = config.borderRadius || 0;
+    if (config.shape === 'circle') bRadConfig = 50;
+    if (config.shape === 'square') bRadConfig = 0;
+    if (config.shape === 'rounded-square') bRadConfig = 15;
+
+    const maxRadius = Math.min(width, height) / 2;
+    const borderRadius = (bRadConfig / 50) * maxRadius || 0;
+    
+    // config.borderWidth is an absolute pixel value from the 320px editor
+    const referenceWidth = 320;
+    const borderWidth = Math.round((config.borderWidth / referenceWidth) * canvasWidth) || 0;
+    const borderColor = config.borderColor || "#000000";
+
+    ctx.save();
+    ctx.beginPath();
+    // Center alignment adjustment
+    const startX = x - width / 2;
+    const startY = y - height / 2;
+
+    if (borderRadius > 0) {
+        ctx.moveTo(startX + borderRadius, startY);
+        ctx.lineTo(startX + width - borderRadius, startY);
+        ctx.quadraticCurveTo(startX + width, startY, startX + width, startY + borderRadius);
+        ctx.lineTo(startX + width, startY + height - borderRadius);
+        ctx.quadraticCurveTo(startX + width, startY + height, startX + width - borderRadius, startY + height);
+        ctx.lineTo(startX + borderRadius, startY + height);
+        ctx.quadraticCurveTo(startX, startY + height, startX, startY + height - borderRadius);
+        ctx.lineTo(startX, startY + borderRadius);
+        ctx.quadraticCurveTo(startX, startY, startX + borderRadius, startY);
+        ctx.closePath();
+        ctx.clip();
+    } else {
+        ctx.rect(startX, startY, width, height);
+        ctx.clip();
+    }
+
+    // Object-cover logic to avoid stretching the image
+    let sX = 0, sY = 0, sWidth = image.width, sHeight = image.height;
+    const imageRatio = image.width / image.height;
+    const targetRatio = width / height;
+
+    if (imageRatio > targetRatio) {
+        // Image is wider than target. Crop left/right.
+        sHeight = image.height;
+        sWidth = sHeight * targetRatio;
+        sX = (image.width - sWidth) / 2;
+    } else {
+        // Image is taller than target. Crop top/bottom.
+        sWidth = image.width;
+        sHeight = sWidth / targetRatio;
+        sY = (image.height - sHeight) / 2;
+    }
+
+    ctx.drawImage(image, sX, sY, sWidth, sHeight, startX, startY, width, height);
+    ctx.restore();
+
+    if (borderWidth > 0) {
+        ctx.save();
+        ctx.beginPath();
+        if (borderRadius > 0) {
+            ctx.moveTo(startX + borderRadius, startY);
+            ctx.lineTo(startX + width - borderRadius, startY);
+            ctx.quadraticCurveTo(startX + width, startY, startX + width, startY + borderRadius);
+            ctx.lineTo(startX + width, startY + height - borderRadius);
+            ctx.quadraticCurveTo(startX + width, startY + height, startX + width - borderRadius, startY + height);
+            ctx.lineTo(startX + borderRadius, startY + height);
+            ctx.quadraticCurveTo(startX, startY + height, startX, startY + height - borderRadius);
+            ctx.lineTo(startX, startY + borderRadius);
+            ctx.quadraticCurveTo(startX, startY, startX + borderRadius, startY);
+            ctx.closePath();
+        } else {
+            ctx.rect(startX, startY, width, height);
+        }
+        ctx.lineWidth = borderWidth;
+        ctx.strokeStyle = borderColor;
+        ctx.stroke();
+        ctx.restore();
+    }
 }
 
 /**
