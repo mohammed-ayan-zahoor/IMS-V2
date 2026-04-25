@@ -66,10 +66,11 @@ function LoginForm() {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
+            className="will-change-transform"
         >
-            <Card className="backdrop-blur-md bg-white/95 border-white/40 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.08)] overflow-visible rounded-[2rem] md:rounded-[2.5rem] px-5 py-8 md:p-10">
+            <Card className="backdrop-blur-sm bg-white/95 border-white/40 shadow-[0_20px_50px_rgba(0,0,0,0.04)] overflow-visible rounded-[2.5rem] px-5 py-8 md:p-10 will-change-[filter]">
                 <div className="absolute -top-6 left-1/2 -translate-x-1/2">
-                    <div className="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl md:rounded-2xl flex items-center justify-center shadow-xl border border-slate-50">
+                    <div className="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg border border-slate-50 will-change-transform">
                         <GraduationCap className="text-blue-600" size={26} />
                     </div>
                 </div>
@@ -114,7 +115,7 @@ function LoginForm() {
                         </div>
 
                         {error && (
-                            <div className="text-[11px] text-red-600 bg-red-50 p-4 rounded-2xl border border-red-100/50 font-medium animate-fade-in text-center">
+                            <div className="text-[11px] text-red-600 bg-red-50 p-4 rounded-2xl border border-red-100/50 font-medium animate-fade-in text-center will-change-opacity">
                                 {error}
                             </div>
                         )}
@@ -122,7 +123,7 @@ function LoginForm() {
                         <div className="space-y-5">
                             <Button
                                 type="submit"
-                                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-0 shadow-xl shadow-blue-500/25 transition-all active:scale-[0.98] rounded-2xl py-7"
+                                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-0 shadow-lg shadow-blue-500/15 transition-all active:scale-[0.98] rounded-2xl py-7 will-change-transform"
                                 size="lg"
                                 disabled={loading}
                             >
