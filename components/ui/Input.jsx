@@ -1,25 +1,33 @@
 import { cn } from "@/lib/utils";
 
-export default function Input({ className, label, error, helperText, id, ...props }) {
+export default function Input({ className, label, error, helperText, id, suffix, ...props }) {
     return (
-        <div className="w-full space-y-1.5">
+        <div className="w-full space-y-2">
             {label && (
                 <label
                     htmlFor={id}
-                    className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1"
+                    className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500/80 ml-1"
                 >
                     {label}
                 </label>
             )}
-            <input
-                id={id}
-                className={cn(
-                    "w-full bg-[#f9fafb] border-none rounded-xl px-4 py-2.5 outline-none transition-all duration-200 focus:ring-2 focus:ring-premium-blue/10 placeholder:text-slate-400 text-sm font-medium",
-                    error && "bg-red-50 focus:ring-red-500/10",
-                    className
+            <div className="relative group">
+                <input
+                    id={id}
+                    className={cn(
+                        "w-full bg-[#f9fafb] border border-slate-100 rounded-2xl px-5 py-3.5 outline-none transition-all duration-300 focus:bg-white focus:border-blue-200 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400 text-[15px] font-medium text-slate-900",
+                        error && "bg-red-50 border-red-100 focus:border-red-200 focus:ring-red-500/5",
+                        suffix && "pr-12",
+                        className
+                    )}
+                    {...props}
+                />
+                {suffix && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                        {suffix}
+                    </div>
                 )}
-                {...props}
-            />
+            </div>
             {helperText && <p className="text-[10px] text-slate-500 ml-1">{helperText}</p>}
             {error && <p className="text-[10px] text-red-500 ml-1 font-medium">{error}</p>}
         </div>

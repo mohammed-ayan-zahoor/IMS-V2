@@ -1,6 +1,9 @@
 export const metadata = {
   title: "Eduvanta | School Management Software",
   description: "All-in-one minimal, fast, and smart school management software.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function EduvantaLayout({ children }) {
