@@ -23,7 +23,7 @@ export async function POST(req) {
             try {
                 const uploadResponse = await new Promise((resolve, reject) => {
                     const options = {
-                        folder: "eduvanta/uploads/admissions",
+                        folder: "quantech/uploads/admissions",
                         resource_type: "image",
                         transformation: [{ width: 500, height: 500, crop: "limit" }]
                     };

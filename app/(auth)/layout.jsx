@@ -5,87 +5,77 @@ import { motion } from "framer-motion";
 
 export default function AuthLayout({ children }) {
     return (
-        <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#f8fafc] font-sans transition-colors duration-500">
+        <div className="min-h-screen w-full flex bg-white font-sans overflow-hidden">
             
-            {/* Optimized Background Layer: Reduced real-time blur for performance */}
-            <div className="absolute inset-0 z-0 will-change-transform">
-                <Image
-                    src="/eduvanta/dashboard_bg.png"
-                    alt="Dashboard Background"
-                    fill
-                    priority
-                    className="object-cover opacity-[0.25] blur-xl scale-105"
-                />
-                {/* Soft Airy Overlay (Static) */}
-                <div className="absolute inset-0 bg-gradient-to-tr from-white via-white/70 to-transparent" />
-                <div className="absolute inset-0 bg-blue-500/[0.03] mix-blend-multiply" />
-            </div>
-
-            {/* Performance-Optimized Glows (Simpler Animations) */}
-            <motion.div 
-                animate={{ 
-                    opacity: [0.05, 0.1, 0.05]
-                }}
-                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                className="absolute -top-[20%] -left-[10%] w-[800px] h-[800px] bg-blue-400/20 rounded-full blur-[120px] pointer-events-none z-0 will-change-[opacity]" 
-            />
-            <motion.div 
-                animate={{ 
-                    opacity: [0.03, 0.08, 0.03]
-                }}
-                transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-                className="absolute -bottom-[20%] -right-[10%] w-[800px] h-[800px] bg-cyan-400/20 rounded-full blur-[120px] pointer-events-none z-0 will-change-[opacity]" 
-            />
-
-            <div className="w-full max-w-md relative z-10 px-4 md:px-6 py-2 md:py-12">
-                <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="flex flex-col items-center gap-2 md:gap-10"
-                >
-                    {/* High-Impact Brand Mark with compensated ghost-padding */}
-                    <div className="flex flex-col items-center w-full -my-6 md:-my-10 overflow-visible relative">
-                        <div className="flex flex-col items-center relative group">
-                            <Image
-                                src="/eduvanta/Eduvanta-Logo.png"
-                                alt="Eduvanta Logo"
-                                width={220}
-                                height={60}
-                                className="scale-110 md:scale-[1.3] drop-shadow-sm h-auto w-auto object-contain relative z-10"
+            {/* Left Column: The Login Terminal */}
+            <div className="w-full lg:w-[45%] flex flex-col items-center justify-center p-8 md:p-16 relative z-10">
+                <div className="w-full max-w-sm flex flex-col items-center">
+                    <div className="mb-12 flex flex-col items-center group relative">
+                        <Image
+                            src="/quantech/Quantech-Logo.png"
+                            alt="Quantech Logo"
+                            width={220}
+                            height={60}
+                            className="scale-[1.3] md:scale-[1.5] h-auto w-auto object-contain"
+                        />
+                        {/* Heritage Label: Previously IMS */}
+                        <div className="flex items-center gap-2 mt-2 opacity-30">
+                            <Image 
+                                src="/quantech/ims_legacy_logo.png"
+                                alt="IMS Logo"
+                                width={12}
+                                height={12}
+                                className="grayscale"
                             />
-                            
-                            {/* Optimized Heritage Label */}
-                            <motion.div 
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: 0.8 }}
-                                className="absolute left-1/2 -translate-x-1/2 bottom-[25%] md:bottom-[20%] translate-y-full z-20 flex items-center gap-1.5 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100 shadow-sm whitespace-nowrap will-change-transform"
-                            >
-                                <Image 
-                                    src="/eduvanta/ims_legacy_logo.png"
-                                    alt="IMS Logo"
-                                    width={12}
-                                    height={12}
-                                    className="opacity-70"
-                                />
-                                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-blue-600/70">
-                                    Previously IMS
-                                </span>
-                            </motion.div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                Previously IMS
+                            </span>
                         </div>
                     </div>
 
-                    {/* The Auth Area */}
                     <div className="w-full">
                         {children}
                     </div>
 
-                    {/* Footer decoration */}
-                    <div className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] pointer-events-none whitespace-nowrap opacity-60">
-                        Enterprise Access • v3.0 • Eduvanta
+                    <div className="mt-12 text-slate-300 text-[10px] font-black uppercase tracking-[0.4em] pointer-events-none text-center">
+                        Enterprise Gateway • v3.0 • Secure
                     </div>
-                </motion.div>
+                </div>
+            </div>
+
+            {/* Right Column: The Product Story (Desktop Only) */}
+            <div className="hidden lg:flex lg:w-[55%] relative bg-slate-50 border-l border-slate-100 overflow-hidden items-center justify-center p-20">
+                {/* Flat, High-Key Backdrop */}
+                <div className="absolute inset-0 bg-[#f8fafc]" />
+                
+                <div className="relative z-10 flex flex-col items-center gap-12 text-center max-w-lg">
+                    <div className="relative">
+                        <Image
+                            src="/quantech/hero_illustration.png"
+                            alt="Product Story"
+                            width={500}
+                            height={500}
+                            className="w-full h-auto"
+                        />
+                    </div>
+
+                    <div className="space-y-4">
+                        <h2 className="text-4xl font-black text-slate-900 leading-tight tracking-tight">
+                            Seamless academic <br />
+                            management experience.
+                        </h2>
+                        <p className="text-slate-500 text-lg font-medium leading-relaxed">
+                            Everything you need in an easily <br />
+                            customizable dashboard.
+                        </p>
+                    </div>
+
+                    <div className="flex gap-4">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i === 1 ? 'w-8 bg-slate-200' : 'w-2 bg-slate-100'}`} />
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );

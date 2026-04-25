@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Eduvanta",
-  description: "Eduvanta - Enterprise Institute Management System",
+  title: "Quantech | School Management System",
+  description: "Enterprise Institute Management System",
   icons: {
     icon: "/favicon.png",
   },

@@ -90,7 +90,7 @@ export async function POST(req) {
 
             const uploadResponse = await new Promise((resolve, reject) => {
                 const options = {
-                    folder: "eduvanta/uploads",
+                    folder: "quantech/uploads",
                     resource_type: "auto",
                     transformation
                 };

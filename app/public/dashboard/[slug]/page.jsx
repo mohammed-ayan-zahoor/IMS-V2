@@ -77,12 +77,12 @@ export default function VisitorDashboard({ params: paramsPromise }) {
 
     useEffect(() => {
         try {
-            const storedName = localStorage.getItem("eduvanta_visitor_name");
-            let storedId = localStorage.getItem("eduvanta_visitor_id");
+            const storedName = localStorage.getItem("quantech_visitor_name");
+            let storedId = localStorage.getItem("quantech_visitor_id");
             
             if (!storedId) {
                 storedId = crypto.randomUUID?.() || `v_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-                localStorage.setItem("eduvanta_visitor_id", storedId);
+                localStorage.setItem("quantech_visitor_id", storedId);
             }
             
             setVisitorId(storedId);
@@ -148,7 +148,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
 
     const handleRegister = (e) => {
         if (!visitorName.trim()) return;
-        localStorage.setItem("eduvanta_visitor_name", visitorName);
+        localStorage.setItem("quantech_visitor_name", visitorName);
         setIsRegistered(true);
         toast.success(`Welcome, ${visitorName}`);
     };

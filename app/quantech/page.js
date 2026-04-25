@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 
-export default function EduvantaPage() {
+export default function QuantechPage() {
   const [activeGroup, setActiveGroup] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -84,8 +84,8 @@ export default function EduvantaPage() {
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center h-20 overflow-visible">
             <Image
-              src="/eduvanta/Eduvanta-Logo.png"
-              alt="Eduvanta Logo"
+              src="/quantech/Quantech-Logo.png"
+              alt="Quantech Logo"
               width={160}
               height={45}
               className="object-contain scale-[1.8] origin-left"
@@ -215,15 +215,15 @@ export default function EduvantaPage() {
                 <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
                 <div className="mx-auto text-xs font-medium text-slate-500 flex items-center gap-1">
                   <ShieldCheck size={14} className="text-slate-600" />
-                  eduvanta.com
+                  quantech.com
                 </div>
               </div>
 
               {/* Image Container */}
               <div className="bg-slate-100">
                 <Image
-                  src="/eduvanta/dashboard_mockup_v2.png"
-                  alt="Eduvanta Dashboard Mockup"
+                  src="/quantech/dashboard_mockup_v2.png"
+                  alt="Quantech Dashboard Mockup"
                   width={1200}
                   height={800}
                   className="w-full h-auto object-cover"
@@ -251,7 +251,7 @@ export default function EduvantaPage() {
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-slate-900 rounded-b-2xl z-20"></div>
               <div className="relative w-full h-full bg-slate-100">
                 <Image
-                  src="/eduvanta/phone view.jpeg"
+                  src="/quantech/phone view.jpeg"
                   alt="Phone Mockup"
                   fill
                   className="object-cover opacity-95"
@@ -265,7 +265,7 @@ export default function EduvantaPage() {
               <div className="absolute top-1/2 left-2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-slate-800 z-20"></div>
               <div className="relative w-full h-full bg-slate-100">
                 <Image
-                  src="/eduvanta/Tab View.png"
+                  src="/quantech/Tab View.png"
                   alt="Tablet Mockup"
                   fill
                   className="object-cover opacity-95"
@@ -449,8 +449,8 @@ export default function EduvantaPage() {
             <div className="absolute -inset-4 bg-gradient-to-tr from-blue-100 to-transparent blur-2xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
             <div className="relative rounded-3xl overflow-hidden shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] border border-white transform hover:-rotate-1 transition-transform duration-700">
               <Image
-                src="/eduvanta/dashboard_mockup_v2.png"
-                alt="Eduvanta Dashboard Preview"
+                src="/quantech/dashboard_mockup_v2.png"
+                alt="Quantech Dashboard Preview"
                 width={800}
                 height={600}
                 className="w-full h-auto scale-105 group-hover:scale-110 transition-transform duration-1000"
@@ -471,7 +471,7 @@ export default function EduvantaPage() {
 
           <div className="order-1 lg:order-2 space-y-10 relative">
             <div className="space-y-4">
-              <span className="text-blue-600 font-black text-xs uppercase tracking-[0.2em]">Why Eduvanta?</span>
+              <span className="text-blue-600 font-black text-xs uppercase tracking-[0.2em]">Why Quantech?</span>
               <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight">
                 Run your entire school from <br className="hidden md:block" /> 
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">one simple dashboard.</span>
@@ -521,7 +521,7 @@ export default function EduvantaPage() {
             <h2 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight">Ready to Transform <br className="hidden md:block" /> Your School?</h2>
             <p className="text-xl text-blue-100/70 mb-10 max-w-2xl mx-auto font-light leading-relaxed">
               Join the future of education management. Schedule a personal demo today <br className="hidden md:block" /> 
-              and see how Eduvanta pays for itself in weeks.
+              and see how Quantech pays for itself in weeks.
             </p>
           </div>
 
@@ -537,7 +537,7 @@ export default function EduvantaPage() {
             </div>
 
             <a
-              href="https://wa.me/919488842786?text=Hi!%20I%20would%20like%20to%20request%20a%20demo%20of%20the%20Eduvanta%20School%20Management%20Software."
+              href="https://wa.me/919488842786?text=Hi!%20I%20would%20like%20to%20request%20a%20demo%20of%20the%20Quantech%20School%20Management%20Software."
               target="_blank"
               rel="noopener noreferrer"
               className="group relative inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white px-10 py-5 rounded-full font-black text-lg transition-all border border-white/10 shadow-[0_10px_30px_-5px_rgba(37,211,102,0.3)] hover:shadow-[0_15px_40px_-5px_rgba(37,211,102,0.5)] hover:-translate-y-1 w-full sm:w-auto"
