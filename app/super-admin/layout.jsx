@@ -79,7 +79,7 @@ export default function SuperAdminLayout({ children }) {
                                         exit={{ opacity: 0, x: -10 }}
                                         className="font-black text-slate-800 tracking-tight text-lg whitespace-nowrap"
                                     >
-                                        IMS <span className="text-blue-600">Admin</span>
+                                        Eduvanta <span className="text-blue-600">Admin</span>
                                     </motion.span>
                                 )}
                             </AnimatePresence>

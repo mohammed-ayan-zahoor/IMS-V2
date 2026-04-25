@@ -95,7 +95,7 @@ export default function CombinedMarksheetPrintPage() {
                         <img src={instituteData.branding.logo} className="w-[400px] filter grayscale" alt="Watermark" />
                     ) : (
                         <div className="text-[120px] font-black text-slate-900 whitespace-nowrap uppercase tracking-tighter">
-                            {instituteData?.name || 'IMS-V2'}
+                            {instituteData?.name || 'Eduvanta'}
                         </div>
                     )}
                 </div>

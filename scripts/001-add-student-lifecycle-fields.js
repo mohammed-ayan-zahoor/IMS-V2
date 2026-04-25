@@ -21,7 +21,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 
-const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ims-v2';
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/eduvanta';
 
 async function runMigration() {
   try {

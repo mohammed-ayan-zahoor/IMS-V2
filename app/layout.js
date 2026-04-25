@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "IMS-v2",
-  description: "Enterprise Institute Management System",
+  title: "Eduvanta",
+  description: "Eduvanta - Enterprise Institute Management System",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({ children }) {

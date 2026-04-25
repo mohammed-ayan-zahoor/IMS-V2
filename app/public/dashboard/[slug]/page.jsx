@@ -77,12 +77,12 @@ export default function VisitorDashboard({ params: paramsPromise }) {
 
     useEffect(() => {
         try {
-            const storedName = localStorage.getItem("ims_visitor_name");
-            let storedId = localStorage.getItem("ims_visitor_id");
+            const storedName = localStorage.getItem("eduvanta_visitor_name");
+            let storedId = localStorage.getItem("eduvanta_visitor_id");
             
             if (!storedId) {
                 storedId = crypto.randomUUID?.() || `v_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-                localStorage.setItem("ims_visitor_id", storedId);
+                localStorage.setItem("eduvanta_visitor_id", storedId);
             }
             
             setVisitorId(storedId);
@@ -148,7 +148,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
 
     const handleRegister = (e) => {
         if (!visitorName.trim()) return;
-        localStorage.setItem("ims_visitor_name", visitorName);
+        localStorage.setItem("eduvanta_visitor_name", visitorName);
         setIsRegistered(true);
         toast.success(`Welcome, ${visitorName}`);
     };
@@ -272,7 +272,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                     <header className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <SharpBadge variant="default">IMS EXECUTIVE AUDIT</SharpBadge>
+                                <SharpBadge variant="default">EDUVANTA EXECUTIVE AUDIT</SharpBadge>
                                 <div className="h-[2px] w-24 bg-black" />
                                 <button 
                                     onClick={() => {

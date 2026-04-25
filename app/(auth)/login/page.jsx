@@ -74,7 +74,7 @@ function LoginForm() {
                 </div>
 
                 <CardHeader
-                    title="IMS-v2"
+                    title="Eduvanta"
                     subtitle="Enterprise Institute Management System"
                     className="text-center mb-10 pt-4"
                 />
@@ -84,7 +84,7 @@ function LoginForm() {
                         <Input
                             label="Email Address"
                             type="email"
-                            placeholder="admin@ims.com"
+                            placeholder="admin@eduvanta.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required

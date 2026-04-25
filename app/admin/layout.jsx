@@ -264,7 +264,7 @@ export default function AdminLayout({ children }) {
                     </button>
                     <div className="mt-4 pb-2">
                         <p className="text-[8px] font-black uppercase tracking-[0.2em] text-[#e5e7eb] text-center italic">
-                            IMS-v2 Premium
+                            Eduvanta Premium
                         </p>
                     </div>
                 </div>

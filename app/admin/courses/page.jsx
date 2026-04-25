@@ -190,13 +190,13 @@ export default function CoursesPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div /> {/* Spacer for Title in Global Header */}
                 {session?.user?.role !== 'instructor' && (
-                    <Button 
+                    <Button
                         onClick={() => {
                             setEditingCourse(null);
                             setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" }, subjects: [] });
                             setIsAddModalOpen(true);
-                        }} 
-                        size="md" 
+                        }}
+                        size="md"
                         className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
                     >
                         <Plus size={18} strokeWidth={2.5} />
@@ -308,7 +308,7 @@ export default function CoursesPage() {
                                 {search ? "Try adjusting your search terms to find the course." : "Start by adding your first academic course."}
                             </p>
                             {!search && session?.user?.role !== 'instructor' && (
-                                <Button 
+                                <Button
                                     onClick={() => setIsAddModalOpen(true)}
                                     variant="outline"
                                     size="sm"
@@ -347,7 +347,7 @@ export default function CoursesPage() {
                             required
                         />
                     </div>
-                    
+
                     <MultiSelect
                         label="Subjects (Optional)"
                         placeholder="Select subjects..."

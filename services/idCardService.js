@@ -136,7 +136,7 @@ export async function renderIDCardBack(student, template, institute) {
             const config = backPlaceholders.qrCode;
             let qrPayload = student._id.toString();
             if (config.dataMode === "profileUrl") {
-                qrPayload = `${process.env.NEXT_PUBLIC_APP_URL || "https://ims-v2.vercel.app"}/profile/${student._id}`;
+                qrPayload = `${process.env.NEXT_PUBLIC_APP_URL || "https://eduvanta.vercel.app"}/profile/${student._id}`;
             } else if (config.dataMode === "vcard") {
                 qrPayload = `BEGIN:VCARD\nVERSION:3.0\nN:${student.profile?.lastName || ""};${student.profile?.firstName || ""};;;\nFN:${student.profile?.firstName || ""} ${student.profile?.lastName || ""}\nORG:${institute?.name || ""}\nTITLE:Student\nEND:VCARD`;
             }

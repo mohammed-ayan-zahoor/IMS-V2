@@ -253,7 +253,7 @@ export default function StudentDashboard() {
                                 <span>Notice Board</span>
                             </div>
                             <p className="text-sm font-bold leading-relaxed text-slate-800">
-                                Welcome to the new IMS student portal. Check your exam schedule regularly.
+                                Welcome to the new Eduvanta student portal. Check your exam schedule regularly.
                             </p>
                         </div>
                     </Card>
