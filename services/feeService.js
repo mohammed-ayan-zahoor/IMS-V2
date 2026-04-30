@@ -381,9 +381,10 @@ export class FeeService {
                     }
 
                     // Insert new Paid installment BEFORE current
-                    // Mongoose array manipulation
+                    // Use MongoDB's native array operations via Mongoose
                     const idx = fee.installments.indexOf(current);
-                    fee.installments.splice(idx, 0, {
+                    
+                    const newPaidInstallment = {
                         amount: paidPart,
                         dueDate: current.dueDate,
                         status: 'paid',
@@ -392,7 +393,11 @@ export class FeeService {
                         transactionId: paymentDetails.transactionId,
                         collectedBy: paymentDetails.collectedBy,
                         notes: paymentDetails.notes
-                    });
+                    };
+                    
+                    // Splice to insert the paid installment before the current (now pending) one
+                    fee.installments.splice(idx, 0, newPaidInstallment);
+                    fee.markModified('installments');
                     remaining = 0;
                 } else {
                     // Overpayment of single installment (Waterfall to next)

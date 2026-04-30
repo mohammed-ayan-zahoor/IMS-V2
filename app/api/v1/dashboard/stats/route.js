@@ -199,10 +199,17 @@ export async function GET(req) {
                 } 
             },
             {
+                $addFields: {
+                    "installments.paidDateOrCreated": {
+                        $ifNull: ["$installments.paidDate", "$createdAt"]
+                    }
+                }
+            },
+            {
                 $group: {
                     _id: {
-                        year: { $year: "$installments.paidDate" },
-                        month: { $month: "$installments.paidDate" }
+                        year: { $year: "$installments.paidDateOrCreated" },
+                        month: { $month: "$installments.paidDateOrCreated" }
                     },
                     total: { $sum: "$installments.amount" }
                 }
