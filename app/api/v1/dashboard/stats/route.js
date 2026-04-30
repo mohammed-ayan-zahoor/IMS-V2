@@ -162,7 +162,6 @@ export async function GET(req) {
         twelveMonthsAgo.setHours(0, 0, 0, 0);
 
         const Fee = (await import("@/models/Fee")).default;
-        const Student = (await import("@/models/User")).default;
         
         // Build revenue query with session filter
         let revenueQuery = {
@@ -170,16 +169,17 @@ export async function GET(req) {
             $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }]
         };
         
-        // If session filter is applied, we need to fetch fees for students in that session
+        // If session filter is applied, filter fees by batch of that session
         if (sessionParam) {
             const sessionObjectId = new mongoose.Types.ObjectId(sessionParam);
-            // Find students enrolled in batches of this session
-            const studentsInSession = await Batch.find({
+            // Find batches of this session
+            const batchesInSession = await Batch.find({
                 ...instituteQuery,
                 session: sessionObjectId
-            }).distinct('enrolledStudents');
+            }).select('_id');
             
-            revenueQuery.student = { $in: studentsInSession };
+            const batchIds = batchesInSession.map(b => b._id);
+            revenueQuery.batch = { $in: batchIds };
         }
 
         const revenueTrendsPromise = Fee.aggregate([
