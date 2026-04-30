@@ -6,6 +6,7 @@ import AuditLog from "@/models/AuditLog";
 import { connectDB } from "@/lib/mongodb";
 import Fee from "@/models/Fee";
 import { getInstituteScope, validateInstituteAccess } from "@/middleware/instituteScope";
+import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
 
 const { z } = require("zod");
 
@@ -96,6 +97,9 @@ export async function POST(req, { params }) {
         if (!fee) {
             return NextResponse.json({ error: "Payment processing failed" }, { status: 400 });
         }
+
+        // Clear dashboard cache for this institute so stats update immediately
+        clearDashboardCache(feeRecord.institute);
 
         return NextResponse.json(fee);
 

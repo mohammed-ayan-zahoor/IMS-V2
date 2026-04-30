@@ -155,7 +155,9 @@ export async function GET(req) {
             .sort({ createdAt: -1 })
             .limit(5);
 
-        // 6. Revenue Trends (Last 12 Months)
+        // 6. Revenue Trends (Last 12 Months or All Time)
+        // For display: always show last 12 months window
+        // For query: show all revenue data (not filtered to last 12 months)
         const twelveMonthsAgo = new Date();
         twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
         twelveMonthsAgo.setDate(1);
@@ -163,13 +165,14 @@ export async function GET(req) {
 
         const Fee = (await import("@/models/Fee")).default;
         
-        // Build revenue query with session filter
+        // Build revenue query
         let revenueQuery = {
             ...instituteQuery,
             $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }]
         };
         
         // If session filter is applied, filter fees by batch of that session
+        // Otherwise, show all fees (for vocational institutes or all-time view)
         if (sessionParam) {
             const sessionObjectId = new mongoose.Types.ObjectId(sessionParam);
             // Find batches of this session
@@ -179,7 +182,9 @@ export async function GET(req) {
             }).select('_id');
             
             const batchIds = batchesInSession.map(b => b._id);
-            revenueQuery.batch = { $in: batchIds };
+            if (batchIds.length > 0) {
+                revenueQuery.batch = { $in: batchIds };
+            }
         }
 
         const revenueTrendsPromise = Fee.aggregate([
@@ -189,8 +194,8 @@ export async function GET(req) {
             { $unwind: "$installments" },
             { 
                 $match: { 
-                    "installments.status": "paid",
-                    "installments.paidDate": { $gte: twelveMonthsAgo }
+                    "installments.status": "paid"
+                    // Don't filter by date - show all revenue data
                 } 
             },
             {
