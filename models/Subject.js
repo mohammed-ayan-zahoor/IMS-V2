@@ -39,6 +39,16 @@ const SubjectSchema = new Schema({
         trim: true,
         uppercase: true
     },
+    course: {
+        type: Schema.Types.ObjectId,
+        ref: 'Course',
+        index: true
+    },
+    masterSubject: {
+        type: Schema.Types.ObjectId,
+        ref: 'MasterSubject',
+        index: true
+    },
     description: {
         type: String,
         maxlength: 1000
@@ -53,9 +63,23 @@ const SubjectSchema = new Schema({
     }
 }, { timestamps: true });
 
+// A course cannot have the same master subject twice
 SubjectSchema.index(
-    { institute: 1, code: 1 },
+    { course: 1, masterSubject: 1 },
+    { unique: true, partialFilterExpression: { deletedAt: null, masterSubject: { $ne: null } } }
+);
+
+// Fallback: A course cannot have the same code twice (for custom subjects)
+SubjectSchema.index(
+    { course: 1, code: 1 },
     { unique: true, partialFilterExpression: { deletedAt: null } }
 );
+
+// Force recompilation in dev to pick up schema changes
+if (process.env.NODE_ENV === 'development') {
+    if (mongoose.models.Subject) {
+        delete mongoose.models.Subject;
+    }
+}
 
 export default mongoose.models.Subject || mongoose.model('Subject', SubjectSchema);

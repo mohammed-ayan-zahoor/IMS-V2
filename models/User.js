@@ -44,6 +44,7 @@ const UserSchema = new Schema({
                 portfolio: String
             },
             dateOfBirth: Date,
+            bloodGroup: { type: String, enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Not Known', ''] },
             address: {
                 street: String,
                 city: String,

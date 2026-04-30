@@ -40,6 +40,7 @@ export default function BatchesPage() {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const [search, setSearch] = useState("");
     const [institutes, setInstitutes] = useState([]);
     const [selectedInstitute, setSelectedInstitute] = useState("");
@@ -103,10 +104,10 @@ export default function BatchesPage() {
         try {
             const res = await fetch(`/api/v1/batches/${id}`, { method: "DELETE" });
             if (res.ok) {
-                toast.success("Batch deleted successfully");
+                toast.success(`${isSchool ? "Section" : "Batch"} deleted successfully`);
                 fetchInitialData();
             } else {
-                toast.error("Failed to delete batch");
+                toast.error(`Failed to delete ${isSchool ? "section" : "batch"}`);
             }
         } catch (error) {
             console.error(error);
@@ -151,7 +152,7 @@ export default function BatchesPage() {
                 setEditingBatch(null);
                 setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
                 fetchInitialData();
-                toast.success(editingBatch ? "Batch updated successfully" : "Batch created successfully");
+                toast.success(editingBatch ? `${isSchool ? "Section" : "Batch"} updated successfully` : `${isSchool ? "Section" : "Batch"} created successfully`);
             } else {
                 const error = await res.json();
                 toast.error(error.error || "Operation failed");
@@ -182,7 +183,7 @@ export default function BatchesPage() {
                         className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
                     >
                         <Plus size={18} strokeWidth={2.5} />
-                        <span>Create Batch</span>
+                        <span>Create {isSchool ? "Section" : "Batch"}</span>
                     </Button>
                 )}
             </div>
@@ -206,7 +207,7 @@ export default function BatchesPage() {
                         )}
                         <div className="flex-1" />
                         <Badge variant="hot" className="bg-orange-50 text-orange-600 font-mono text-[10px]">
-                            {filteredBatches.length} Active Batches
+                            {filteredBatches.length} Active {isSchool ? "Sections" : "Batches"}
                         </Badge>
                     </div>
                 </CardHeader>
@@ -219,8 +220,8 @@ export default function BatchesPage() {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-100 bg-white">
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Batch Name</th>
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Course Detail</th>
+                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">{isSchool ? "Section" : "Batch"} Name</th>
+                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">{isSchool ? "Class" : "Course"} Detail</th>
                                         <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Schedule</th>
                                         <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Occupancy</th>
                                         <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>
@@ -280,7 +281,7 @@ export default function BatchesPage() {
                                                     <button
                                                         onClick={() => router.push(`/admin/batches/${batch._id}`)}
                                                         className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
-                                                        title="View Details"
+                                                        title={`View ${isSchool ? "Section" : "Batch"} Details`}
                                                     >
                                                         <ExternalLink size={16} />
                                                     </button>
@@ -295,14 +296,14 @@ export default function BatchesPage() {
                                                                 if (res.ok) {
                                                                     window.location.href = "/admin/chat";
                                                                 } else {
-                                                                    toast.error("Failed to start batch chat");
+                                                                    toast.error(`Failed to start ${isSchool ? "section" : "batch"} chat`);
                                                                 }
                                                             } catch (err) {
-                                                                toast.error("Failed to start batch chat");
+                                                                toast.error(`Failed to start ${isSchool ? "section" : "batch"} chat`);
                                                             }
                                                         }}
                                                         className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                                        title="Broadcast to Batch"
+                                                        title={`Broadcast to ${isSchool ? "Section" : "Batch"}`}
                                                     >
                                                         <MessageSquare size={16} />
                                                     </button>
@@ -318,14 +319,14 @@ export default function BatchesPage() {
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); openEditModal(batch); }}
                                                                 className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
-                                                                title="Edit Batch"
+                                                                title={`Edit ${isSchool ? "Section" : "Batch"}`}
                                                             >
                                                                 <Edit2 size={16} />
                                                             </button>
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); setDeletingBatch(batch); }}
                                                                 className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                                                title="Delete Batch"
+                                                                title={`Delete ${isSchool ? "Section" : "Batch"}`}
                                                             >
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -357,19 +358,19 @@ export default function BatchesPage() {
                     setEditingBatch(null);
                     setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
                 }}
-                title={editingBatch ? "Edit Batch" : "Schedule New Batch"}
+                title={editingBatch ? `Edit ${isSchool ? "Section" : "Batch"}` : `Schedule New ${isSchool ? "Section" : "Batch"}`}
             >
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">Batch Configuration</div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">{isSchool ? "Section" : "Batch"} Configuration</div>
                 <form onSubmit={handleFormSubmit} className="space-y-5">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Select Course</label>
+                        <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Select {isSchool ? "Class" : "Course"}</label>
                         <Select
                             value={formData.course}
                             onChange={(val) => setFormData(prev => ({ ...prev, course: val }))}
-                            placeholder="-- Select a Course --"
                             options={[
                                 ...courses.map(course => ({ label: `${course.name} (${course.code})`, value: course._id }))
                             ]}
+                            placeholder={`-- Select a ${isSchool ? "Class" : "Course"} --`}
                             required
                         />
                     </div>
@@ -377,8 +378,8 @@ export default function BatchesPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <Input
                             id="name"
-                            label="Batch Name"
-                            placeholder="e.g. Morning Batch A"
+                            label={`${isSchool ? "Section" : "Batch"} Name`}
+                            placeholder={`e.g. ${isSchool ? "Section A" : "Morning Batch A"}`}
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             required
@@ -419,7 +420,7 @@ export default function BatchesPage() {
                             setEditingBatch(null);
                             setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
                         }}>Cancel</Button>
-                        <Button type="submit" className="flex-1">{editingBatch ? "Update Batch" : "Create Batch"}</Button>
+                        <Button type="submit" className="flex-1">{editingBatch ? `Update ${isSchool ? "Section" : "Batch"}` : `Create ${isSchool ? "Section" : "Batch"}`}</Button>
                     </div>
                 </form>
             </Modal>

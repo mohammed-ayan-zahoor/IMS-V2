@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { 
     Plus, 
     Search, 
@@ -27,6 +28,8 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 export default function FeePresetsPage() {
     const toast = useToast();
     const confirm = useConfirm();
+    const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     
     const [courses, setCourses] = useState([]);
     const [presets, setPresets] = useState([]);
@@ -226,10 +229,10 @@ export default function FeePresetsPage() {
                         value={selectedCourse}
                         onChange={setSelectedCourse}
                         options={[
-                            { label: "All Courses", value: "" },
+                            { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
                             ...courses.map(c => ({ label: c.name, value: c._id }))
                         ]}
-                        placeholder="Filter by Course"
+                        placeholder={`Filter by ${isSchool ? "Class" : "Course"}`}
                     />
                 </div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
@@ -267,7 +270,7 @@ export default function FeePresetsPage() {
                                 <h3 className="text-[17px] font-bold text-slate-900 mb-1">{preset.name}</h3>
                                 <p className="text-[12px] text-slate-500 font-medium mb-3 flex items-center gap-1.5">
                                     <BookOpen size={12} />
-                                    {preset.course?.name || "Multiple Courses"}
+                                    {preset.course?.name || `Multiple ${isSchool ? "Classes" : "Courses"}`}
                                 </p>
 
                                 {preset.subjects && preset.subjects.length > 0 && (
@@ -296,7 +299,7 @@ export default function FeePresetsPage() {
                 <EmptyState
                     icon={CreditCard}
                     title="No Presets Found"
-                    description={selectedCourse ? "No presets created for this course yet." : "Start by creating your first fee preset structure."}
+                    description={selectedCourse ? `No presets created for this ${isSchool ? "class" : "course"} yet.` : "Start by creating your first fee preset structure."}
                 />
             )}
 
@@ -308,12 +311,12 @@ export default function FeePresetsPage() {
                 <form onSubmit={handleSave} className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Target Course</label>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Target {isSchool ? "Class" : "Course"}</label>
                             <Select
                                 value={formData.courseId}
                                 onChange={(val) => setFormData({ ...formData, courseId: val })}
                                 options={courses.map(c => ({ label: c.name, value: c._id }))}
-                                placeholder="Select Course"
+                                placeholder={`Select ${isSchool ? "Class" : "Course"}`}
                                 required
                             />
                         </div>
@@ -360,7 +363,7 @@ export default function FeePresetsPage() {
                             onChange={(val) => setFormData({ ...formData, subjects: val })}
                             disabled={!formData.courseId}
                         />
-                        {!formData.courseId && <p className="text-[10px] text-amber-500 italic">Please select a course first.</p>}
+                        {!formData.courseId && <p className="text-[10px] text-amber-500 italic">Please select a {isSchool ? "class" : "course"} first.</p>}
                     </div>
 
                     <div className="space-y-1.5">

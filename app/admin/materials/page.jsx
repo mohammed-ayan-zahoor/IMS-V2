@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { Search, Filter, Plus, FileText, Video, Link as LinkIcon, Download, Trash2, Edit, X, Users } from "lucide-react";
@@ -17,6 +18,8 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 export default function MaterialsPage() {
     const toast = useToast();
     const confirm = useConfirm();
+    const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
 
     const [mounted, setMounted] = useState(false);
     const [materials, setMaterials] = useState([]);
@@ -240,7 +243,7 @@ export default function MaterialsPage() {
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900">Materials Library</h1>
-                    <p className="text-slate-500">Manage course resources and downloads.</p>
+                    <p className="text-slate-500">Manage {isSchool ? "class" : "course"} resources and downloads.</p>
                 </div>
                 <Button onClick={() => { setEditingId(null); setFormData(initialFormState()); setIsModalOpen(true); }} className="shadow-lg shadow-premium-blue/20">
                     <Plus size={18} className="mr-2" /> Add Material
@@ -275,9 +278,9 @@ export default function MaterialsPage() {
                         <Select
                             value={selectedCourse}
                             onChange={(val) => setSelectedCourse(val)}
-                            placeholder="All Courses"
+                            placeholder={`All ${isSchool ? "Classes" : "Courses"}`}
                             options={[
-                                { label: "All Courses", value: "" },
+                                { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
                                 ...courses.map(c => ({ label: c.name, value: c._id }))
                             ]}
                         />
@@ -523,7 +526,7 @@ export default function MaterialsPage() {
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold uppercase text-slate-500 ml-1">Courses</label>
+                                <label className="text-xs font-semibold uppercase text-slate-500 ml-1">{isSchool ? "Classes" : "Courses"}</label>
                                 <div className="grid grid-cols-2 gap-2 max-h-[120px] overflow-y-auto border border-slate-100 rounded-xl p-3 bg-white/50">
                                     {courses.map(course => (
                                         <label key={course._id} className="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer">
@@ -546,7 +549,7 @@ export default function MaterialsPage() {
 
                             {formData.courses.length > 0 && (
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold uppercase text-slate-500 ml-1">Batches</label>
+                                    <label className="text-xs font-semibold uppercase text-slate-500 ml-1">{isSchool ? "Sections" : "Batches"}</label>
                                     <div className="grid grid-cols-2 gap-3 max-h-[120px] overflow-y-auto border border-slate-100 rounded-xl p-3 bg-white/50">
                                         {filteredBatches.map(batch => (
                                             <label key={batch._id} className="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer">

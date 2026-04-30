@@ -53,6 +53,7 @@ export default function StudentDetailsPage({ params }) {
     const confirm = useConfirm();
     const { id } = use(params);
     const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
 
     const [studentData, setStudentData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -1025,6 +1026,7 @@ export default function StudentDetailsPage({ params }) {
                                         </div>
                                         <div className="p-5 space-y-1">
                                             <InfoRow icon={Calendar} label="Date of Birth" value={student.profile?.dateOfBirth ? format(new Date(student.profile.dateOfBirth), "dd MMM yyyy") : null} />
+                                            <InfoRow icon={Shield} label="Blood Group" value={student.profile?.bloodGroup} />
                                             <InfoRow icon={MapPin} label="Place of Birth" value={student.placeOfBirth?.city} />
                                             <InfoRow icon={MapPin} label="Taluka/District" value={`${student.placeOfBirth?.taluka || ''} / ${student.placeOfBirth?.district || ''}`} />
                                             <InfoRow icon={MapPin} label="State (Birth)" value={student.placeOfBirth?.state} />
@@ -1078,10 +1080,10 @@ export default function StudentDetailsPage({ params }) {
                 {activeTab === "academic" && (
                     <div className="space-y-6">
                         <div className="flex justify-between items-center px-1">
-                            <h3 className="text-lg font-bold text-slate-900">Enrolled Batches</h3>
+                            <h3 className="text-lg font-bold text-slate-900">{isSchool ? "Enrolled Sections" : "Enrolled Batches"}</h3>
                             <Button size="sm" onClick={() => setIsEnrollModalOpen(true)}>
                                 <BookOpen size={16} className="mr-2" />
-                                Enroll New Course
+                                Enroll New {isSchool ? "Class" : "Course"}
                             </Button>
                         </div>
                         {batches.length > 0 ? (
@@ -1128,7 +1130,7 @@ export default function StudentDetailsPage({ params }) {
                         ) : (
                             <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                                 <p className="text-slate-400 font-medium">No active enrollments found.</p>
-                                <Button variant="link" className="mt-2 text-premium-blue" onClick={() => setIsEnrollModalOpen(true)}>Enroll in a course</Button>
+                                <Button variant="link" className="mt-2 text-premium-blue" onClick={() => setIsEnrollModalOpen(true)}>Enroll in a {isSchool ? "class" : "course"}</Button>
                             </div>
                         )}
                     </div>
@@ -1546,7 +1548,7 @@ export default function StudentDetailsPage({ params }) {
                 size="xl"
             >
                 <form onSubmit={handleUpdateStudent} className="space-y-6">
-                    <EditModalContent formData={formData} setFormData={setFormData} uploading={uploading} handleFileChange={handleFileChange} />
+                    <EditModalContent formData={formData} setFormData={setFormData} uploading={uploading} handleFileChange={handleFileChange} courses={courses} />
                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
                         <Button type="submit" size="lg">Save All Changes</Button>
@@ -1631,17 +1633,17 @@ export default function StudentDetailsPage({ params }) {
             <Modal
                 isOpen={isEnrollModalOpen}
                 onClose={() => setIsEnrollModalOpen(false)}
-                title="Enroll in New Course"
+                title={`Enroll in New ${isSchool ? "Class" : "Course"}`}
             >
                 <form onSubmit={handleEnrollStudent} className="space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-1">
                             <Select
-                                label="Select Course"
+                                label={`Select ${isSchool ? "Class" : "Course"}`}
                                 value={selectedCourse}
                                 onChange={(val) => setSelectedCourse(val)}
                                 options={[
-                                    { label: "-- Choose a Course --", value: "" },
+                                    { label: `-- Choose a ${isSchool ? "Class" : "Course"} --`, value: "" },
                                     ...courses.map(course => ({
                                         label: `${course.name} (${course.code})`,
                                         value: course._id
@@ -1653,11 +1655,11 @@ export default function StudentDetailsPage({ params }) {
                         {selectedCourse && (
                             <div className="space-y-1 animate-fade-in">
                                 <Select
-                                    label="Select Batch"
+                                    label={`Select ${isSchool ? "Section" : "Batch"}`}
                                     value={selectedBatch}
                                     onChange={(val) => setSelectedBatch(val)}
                                     options={[
-                                        { label: "-- Choose a Batch --", value: "" },
+                                        { label: `-- Choose a ${isSchool ? "Section" : "Batch"} --`, value: "" },
                                         ...courseBatches.map(batch => {
                                             const startDate = batch.schedule?.startDate ? new Date(batch.schedule.startDate) : null;
                                             const dateStr = startDate && !isNaN(startDate) ? format(startDate, "MMM d") : "TBD";
@@ -1677,11 +1679,11 @@ export default function StudentDetailsPage({ params }) {
                         {selectedCourse && feePresets.length > 0 && (
                             <div className="space-y-1 animate-fade-in">
                                 <Select
-                                    label="Fee Structure (Optional)"
+                                    label={`Fee Structure (Optional)`}
                                     value={selectedPreset}
                                     onChange={(val) => setSelectedPreset(val)}
                                     options={[
-                                        { label: "-- Use Course Default Fee --", value: "" },
+                                        { label: "-- Use Default Fee --", value: "" },
                                         ...feePresets.map(p => {
                                             const subjectList = p.subjects?.length > 0 
                                                 ? ` (${p.subjects.map(s => s.code || s.name).join(', ')})` 
@@ -1707,7 +1709,7 @@ export default function StudentDetailsPage({ params }) {
                                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                                     Enrolling...
                                 </>
-                            ) : "Enroll Student"}
+                            ) : `Enroll Student`}
                         </Button>
                     </div>
                 </form>
@@ -1991,7 +1993,7 @@ export default function StudentDetailsPage({ params }) {
     );
 }
 
-function EditModalContent({ formData, setFormData, uploading, handleFileChange }) {
+function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses }) {
     const [editTab, setEditTab] = useState("basic");
 
     const tabClasses = (tab) => `
@@ -2069,6 +2071,20 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange }
                                         { label: "Female", value: "Female" },
                                         { label: "Other", value: "Other" },
                                         { label: "Not Specified", value: "Not Specified" }
+                                    ]}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Blood Group</label>
+                                <Select
+                                    value={formData.profile.bloodGroup}
+                                    onChange={(val) => setFormData({ ...formData, profile: { ...formData.profile, bloodGroup: val } })}
+                                    options={[
+                                        { label: "Select", value: "" },
+                                        { label: "A+", value: "A+" }, { label: "A-", value: "A-" },
+                                        { label: "B+", value: "B+" }, { label: "B-", value: "B-" },
+                                        { label: "AB+", value: "AB+" }, { label: "AB-", value: "AB-" },
+                                        { label: "O+", value: "O+" }, { label: "O-", value: "O-" }
                                     ]}
                                 />
                             </div>
@@ -2172,7 +2188,15 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange }
                                 <Input label="Admission Date" type="date" value={formData.admissionDate} onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })} />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <Input label="Admission Std" value={formData.admissionStd} onChange={(e) => setFormData({ ...formData, admissionStd: e.target.value })} />
+                                <Select 
+                                    label="Admission Std" 
+                                    value={formData.admissionStd} 
+                                    onChange={(val) => setFormData({ ...formData, admissionStd: val })} 
+                                    options={[
+                                        { label: "Select Standard", value: "" },
+                                        ...courses.map(c => ({ label: c.name, value: c.name }))
+                                    ]}
+                                />
                                 <Input label="Studying Since (Words/Date)" value={formData.studyingSinceStandard} onChange={(e) => setFormData({ ...formData, studyingSinceStandard: e.target.value })} />
                             </div>
                             <div className="grid grid-cols-2 gap-4 border-t border-slate-200 pt-4 mt-2">

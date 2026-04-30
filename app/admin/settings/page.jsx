@@ -407,10 +407,12 @@ export default function SettingsPage() {
 
             </form>
 
-            {/* Academic Sessions */}
-            <div className="space-y-6 border-t border-slate-200 pt-8">
-                <SessionManager />
-            </div>
+            {/* Academic Sessions - Only for Schools */}
+            {institute.type === 'SCHOOL' && (
+                <div className="space-y-6 border-t border-slate-200 pt-8">
+                    <SessionManager />
+                </div>
+            )}
 
             {/* Certificate Templates - Outside Form */}
             <div className="space-y-8 border-t border-slate-200 pt-8">

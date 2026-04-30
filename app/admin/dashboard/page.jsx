@@ -68,6 +68,7 @@ export default function AdminDashboard() {
     const [selectedSession, setSelectedSession] = useState(null);
     const [loadingSessions, setLoadingSessions] = useState(true);
     const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
 
     // Fetch sessions
     const fetchSessions = async () => {
@@ -96,7 +97,7 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
         try {
             setLoading(true);
-            const url = selectedSession 
+            const url = (isSchool && selectedSession)
                 ? `/api/v1/dashboard/stats?session=${selectedSession}`
                 : '/api/v1/dashboard/stats';
             const res = await fetch(url);
@@ -109,8 +110,10 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
-        fetchSessions();
-    }, []);
+        if (session?.user?.institute?.type === 'SCHOOL') {
+            fetchSessions();
+        }
+    }, [session?.user?.institute?.type]);
 
     useEffect(() => {
         fetchStats();
@@ -156,7 +159,7 @@ export default function AdminDashboard() {
             colorClass: "bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-600"
         },
         { 
-            title: "ENROLLMENTS", 
+            title: isSchool ? "CLASSES ENROLLED" : "ENROLLMENTS", 
             value: loading ? "0" : (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(), 
             icon: BookOpen, 
             trend: `${dashboardData?.trends?.enrollment >= 0 ? '+' : ''}${dashboardData?.trends?.enrollment || 0}%`, 
@@ -185,43 +188,45 @@ export default function AdminDashboard() {
 
     return (
         <div className="space-y-10">
-            {/* Session Selector */}
-            <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-3">
-                    <Calendar className="text-blue-600" size={20} />
-                    <div>
-                        <p className="text-sm font-bold text-slate-900">Academic Session</p>
-                        <p className="text-xs text-slate-500">All data below is filtered by selected session</p>
+            {/* Session Selector - Only for Schools */}
+            {session?.user?.institute?.type === 'SCHOOL' && (
+                <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-3">
+                        <Calendar className="text-blue-600" size={20} />
+                        <div>
+                            <p className="text-sm font-bold text-slate-900">Academic Session</p>
+                            <p className="text-xs text-slate-500">All data below is filtered by selected session</p>
+                        </div>
+                    </div>
+                    <div className="min-w-[200px]">
+                        {loadingSessions ? (
+                            <div className="flex items-center justify-center gap-2 px-4 py-2">
+                                <Loader2 className="animate-spin" size={16} />
+                                <span className="text-sm text-slate-600">Loading sessions...</span>
+                            </div>
+                        ) : sessions.length > 0 ? (
+                            <select
+                                value={selectedSession || ''}
+                                onChange={(e) => {
+                                    setSelectedSession(e.target.value);
+                                    localStorage.setItem('selectedSession', e.target.value);
+                                }}
+                                className="w-full px-4 py-2 rounded-lg border border-blue-300 bg-white text-slate-900 font-bold focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                            >
+                                {sessions.map((sess) => (
+                                    <option key={sess._id} value={sess._id}>
+                                        {sess.sessionName} {sess.isActive ? '(Active)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div className="text-sm text-slate-600 font-medium">
+                                No sessions available. Create one in Settings.
+                            </div>
+                        )}
                     </div>
                 </div>
-                <div className="min-w-[200px]">
-                    {loadingSessions ? (
-                        <div className="flex items-center justify-center gap-2 px-4 py-2">
-                            <Loader2 className="animate-spin" size={16} />
-                            <span className="text-sm text-slate-600">Loading sessions...</span>
-                        </div>
-                    ) : sessions.length > 0 ? (
-                        <select
-                            value={selectedSession || ''}
-                            onChange={(e) => {
-                                setSelectedSession(e.target.value);
-                                localStorage.setItem('selectedSession', e.target.value);
-                            }}
-                            className="w-full px-4 py-2 rounded-lg border border-blue-300 bg-white text-slate-900 font-bold focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                        >
-                            {sessions.map((sess) => (
-                                <option key={sess._id} value={sess._id}>
-                                    {sess.sessionName} {sess.isActive ? '(Active)' : ''}
-                                </option>
-                            ))}
-                        </select>
-                    ) : (
-                        <div className="text-sm text-slate-600 font-medium">
-                            No sessions available. Create one in Settings.
-                        </div>
-                    )}
-                </div>
-            </div>
+            )}
 
             {/* Metric Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -287,8 +292,8 @@ export default function AdminDashboard() {
                 {/* Course Rankings */}
                 <Card className="premium-card">
                     <CardHeader 
-                        title="Top Performing Courses" 
-                        subtitle="Ranked by active seat occupancy"
+                        title={isSchool ? "Top Performing Classes" : "Top Performing Courses"} 
+                        subtitle={`Ranked by active seat occupancy`}
                     />
                     <div className="space-y-6">
                         {loading ? (

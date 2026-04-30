@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
     CreditCard,
     Search,
@@ -34,6 +35,8 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 export default function FeesPage() {
     const toast = useToast();
     const confirm = useConfirm();
+    const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const [fees, setFees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -471,21 +474,21 @@ export default function FeesPage() {
                             value={selectedCourse}
                             onChange={(val) => setSelectedCourse(val)}
                             options={[
-                                { label: "All Courses", value: "" },
+                                { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
                                 ...courses.map(c => ({ label: c.name, value: c._id }))
                             ]}
-                            placeholder="Filter Course"
+                            placeholder={isSchool ? "Filter Class" : "Filter Course"}
                         />
                         <Select
                             className="w-full md:w-48"
                             value={selectedBatch}
                             onChange={(val) => setSelectedBatch(val)}
                             options={[
-                                { label: "All Batches", value: "" },
+                                { label: `All ${isSchool ? "Sections" : "Batches"}`, value: "" },
                                 ...batches.map(b => ({ label: b.name, value: b._id }))
                             ]}
                             disabled={!selectedCourse}
-                            placeholder="Filter Batch"
+                            placeholder={isSchool ? "Filter Section" : "Filter Batch"}
                         />
                         <Select
                             className="w-full md:w-40"
@@ -550,7 +553,7 @@ export default function FeesPage() {
                                         <thead>
                                             <tr className="bg-white border-y border-slate-100">
                                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
-                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Batch</th>
+                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{isSchool ? "Section" : "Batch"}</th>
                                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Fee</th>
                                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Discount</th>
                                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Extra Charges</th>

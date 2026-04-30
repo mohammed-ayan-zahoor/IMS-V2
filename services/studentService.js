@@ -600,7 +600,10 @@ export class StudentService {
         const fees = await Fee.find({
             student: studentId,
             deletedAt: null
-        }).populate('batch', 'name').populate({ path: 'feePreset', select: 'name', strictPopulate: false });
+        }).populate([
+            { path: 'batch', select: 'name' },
+            { path: 'feePreset', select: 'name', strictPopulate: false }
+        ]);
 
         return {
             student,

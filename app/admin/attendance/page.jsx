@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
 import Button from "@/components/ui/Button";
@@ -23,6 +24,8 @@ import { useToast } from "@/contexts/ToastContext";
 
 export default function AttendanceMarkingPage() {
     const toast = useToast();
+    const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     // Selection State
     const [batches, setBatches] = useState([]);
     const [selectedBatch, setSelectedBatch] = useState("");
@@ -190,7 +193,7 @@ export default function AttendanceMarkingPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div>
                     <h1 className="text-xl font-bold text-slate-900 tracking-tight">Mark Attendance</h1>
-                    <p className="text-[12px] text-slate-400 font-medium tracking-tight">Daily attendance tracking for batches</p>
+                    <p className="text-[12px] text-slate-400 font-medium tracking-tight">Daily attendance tracking for {isSchool ? "sections" : "batches"}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     {/* Page specific controls could continue here */}
@@ -202,11 +205,11 @@ export default function AttendanceMarkingPage() {
                 <CardContent className="p-6 overflow-visible">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select Batch</label>
+                            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select {isSchool ? "Section" : "Batch"}</label>
                             <Select
                                 value={selectedBatch}
                                 onChange={(val) => setSelectedBatch(val)}
-                                placeholder="-- Choose Batch --"
+                                placeholder={`-- Choose ${isSchool ? "Section" : "Batch"} --`}
                                 options={[
                                     ...batches.map(b => ({ label: b.name, value: b._id }))
                                 ]}
@@ -337,14 +340,14 @@ export default function AttendanceMarkingPage() {
                     <EmptyState
                         icon={Users}
                         title="No students found"
-                        description="This batch has no active students enrolled."
+                        description={`This ${isSchool ? "section" : "batch"} has no active students enrolled.`}
                     />
                 )
             ) : (
                 <EmptyState
                     icon={Calendar}
-                    title="Select a Batch"
-                    description="Please select a batch and date to start marking attendance."
+                    title={`Select a ${isSchool ? "Section" : "Batch"}`}
+                    description={`Please select a ${isSchool ? "section" : "batch"} and date to start marking attendance.`}
                 />
             )}
         </div>

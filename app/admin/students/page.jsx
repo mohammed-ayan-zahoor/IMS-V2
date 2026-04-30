@@ -38,6 +38,7 @@ import { useSession } from "next-auth/react";
 export default function StudentsPage() {
     const toast = useToast();
     const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -80,21 +81,47 @@ export default function StudentsPage() {
             firstName: "",
             lastName: "",
             phone: "",
-            avatar: ""
+            avatar: "",
+            gender: "",
+            dateOfBirth: "",
+            bloodGroup: "",
+            address: {
+                street: "",
+                city: "",
+                state: "",
+                pincode: ""
+            }
         },
         // Identity & Family Metadata
         grNumber: "",
         aadharNumber: "",
+        studentIdUdise: "",
+        apaarId: "",
+        penNumber: "",
         fatherName: "",
         fatherAadhar: "",
         motherName: "",
         motherAadhar: "",
+        // Academic History
+        lastSchoolAttended: "",
+        admissionDate: format(new Date(), "yyyy-MM-dd"),
+        admissionStd: "",
         // Demographic fields
+        nationality: "Indian",
         motherTongue: "",
         religion: "",
         caste: "",
         subCaste: "",
-        referredBy: ""
+        referredBy: "",
+        
+        // Birth details
+        placeOfBirth: {
+            city: "",
+            taluka: "",
+            district: "",
+            state: "",
+            country: "India"
+        }
     });
 
     const isFirstRender = useRef(true);
@@ -341,13 +368,28 @@ export default function StudentsPage() {
                     email: "",
                     password: "",
                     institute: "",
-                    profile: { firstName: "", lastName: "", phone: "", avatar: "" },
+                    profile: { 
+                        firstName: "", 
+                        lastName: "", 
+                        phone: "", 
+                        avatar: "",
+                        gender: "",
+                        dateOfBirth: "",
+                        bloodGroup: "",
+                        address: { street: "", city: "", state: "", pincode: "" }
+                    },
                     grNumber: "",
                     aadharNumber: "",
+                    studentIdUdise: "",
+                    apaarId: "",
+                    penNumber: "",
                     fatherName: "",
                     fatherAadhar: "",
                     motherName: "",
                     motherAadhar: "",
+                    lastSchoolAttended: "",
+                    admissionDate: format(new Date(), "yyyy-MM-dd"),
+                    admissionStd: "",
                     motherTongue: "",
                     religion: "",
                     caste: "",
@@ -506,6 +548,7 @@ export default function StudentsPage() {
                 <PromotionModalContent 
                     batches={batches} 
                     courses={courses}
+                    isSchool={isSchool}
                     selectedCount={selectedStudents.size}
                     onPromote={handlePromote}
                     onClose={() => setIsPromotionModalOpen(false)}
@@ -550,11 +593,11 @@ export default function StudentsPage() {
                             <Select
                                 value={filters.courseId}
                                 onChange={(val) => setFilters({ ...filters, courseId: val })}
-                                placeholder="All Courses"
+                                placeholder={isSchool ? "All Classes" : "All Courses"}
                                 className="w-auto"
                                 buttonClassName="w-auto min-w-full bg-white border-slate-200"
                                 options={[
-                                    { label: "All Courses", value: "" },
+                                    { label: isSchool ? "All Classes" : "All Courses", value: "" },
                                     ...courses.map(c => ({ label: c.name, value: c._id }))
                                 ]}
                             />
@@ -564,11 +607,11 @@ export default function StudentsPage() {
                             <Select
                                 value={filters.batchId}
                                 onChange={(val) => setFilters({ ...filters, batchId: val })}
-                                placeholder="All Batches"
+                                placeholder={isSchool ? "All Sections" : "All Batches"}
                                 className="w-auto"
                                 buttonClassName="w-auto min-w-full bg-white border-slate-200"
                                 options={[
-                                    { label: "All Batches", value: "" },
+                                    { label: isSchool ? "All Sections" : "All Batches", value: "" },
                                     ...batches.map(b => ({ label: b.name, value: b._id }))
                                 ]}
                             />
@@ -799,193 +842,360 @@ export default function StudentsPage() {
             {/* Add Student Modal ... */}
             <Modal
                 isOpen={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)} title="Register New Student"
+                onClose={() => setIsAddModalOpen(false)} 
+                title="Register New Student"
+                className="max-w-2xl"
             >
-                <form onSubmit={handleAddStudent} className="space-y-5">
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-50 pb-2">Academic Information</div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input
-                            id="firstName"
-                            label="First Name"
-                            placeholder="e.g. John"
-                            value={formData.profile.firstName}
-                            onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, firstName: e.target.value } })}
-                            required
-                        />
-                        <Input
-                            id="lastName"
-                            label="Last Name"
-                            placeholder="e.g. Doe"
-                            value={formData.profile.lastName}
-                            onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, lastName: e.target.value } })}
-                            required
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-200 overflow-hidden shrink-0">
-                            {formData.profile.avatar ? (
-                                <img src={formData.profile.avatar} alt="Preview" className="w-full h-full object-cover" />
-                            ) : (
-                                <Users size={24} className="text-slate-300" />
-                            )}
+                <form onSubmit={handleAddStudent} className="space-y-8">
+                    {/* 1. Academic & Account Info */}
+                    <div className="space-y-4">
+                        <div className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-8 h-px bg-blue-100"></span>
+                            Academic & Account
+                            <span className="flex-1 h-px bg-blue-100"></span>
                         </div>
-                        <div className="flex-1">
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Student Photo</label>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                                disabled={uploading}
-                                className="block w-full text-sm text-slate-500
-                                  file:mr-4 file:py-2 file:px-4
-                                  file:rounded-lg file:border-0
-                                  file:text-xs file:font-semibold
-                                  file:bg-premium-blue/10 file:text-premium-blue
-                                  hover:file:bg-premium-blue/20
-                                "
-                            />
-                            {uploading && <p className="text-xs text-premium-blue mt-1">Uploading...</p>}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input
-                            id="email"
-                            label="Email Address"
-                            type="email"
-                            placeholder="student@example.com"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            required
-                        />
-                        <Input
-                            id="phone"
-                            label="Phone Number"
-                            placeholder="+91 00000 00000"
-                            value={formData.profile.phone}
-                            onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, phone: e.target.value } })}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {institutes.length > 0 && (
-                            <Select
-                                label="Assign Institute"
-                                value={formData.institute}
-                                onChange={(val) => setFormData({ ...formData, institute: val })}
-                                options={[
-                                    { label: "Select Institute", value: "" },
-                                    ...institutes.map(i => ({ label: `${i.name} (${i.code})`, value: i._id }))
-                                ]}
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                label="First Name"
+                                placeholder="John"
+                                value={formData.profile.firstName}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, firstName: e.target.value } })}
                                 required
                             />
-                        )}
+                            <Input
+                                label="Last Name"
+                                placeholder="Doe"
+                                value={formData.profile.lastName}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, lastName: e.target.value } })}
+                                required
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center border border-slate-200 shadow-sm overflow-hidden shrink-0">
+                                {formData.profile.avatar ? (
+                                    <img src={formData.profile.avatar} alt="Preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <Upload size={24} className="text-slate-300" />
+                                )}
+                            </div>
+                            <div className="flex-1">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Student Photo</label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                    disabled={uploading}
+                                    className="block w-full text-xs text-slate-500
+                                      file:mr-4 file:py-1.5 file:px-3
+                                      file:rounded-lg file:border-0
+                                      file:text-[10px] file:font-black
+                                      file:bg-premium-blue/10 file:text-premium-blue
+                                      hover:file:bg-premium-blue/20
+                                      cursor-pointer
+                                    "
+                                />
+                                {uploading && <p className="text-[10px] text-premium-blue mt-1 font-bold animate-pulse">Uploading...</p>}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                label="Email Address"
+                                type="email"
+                                placeholder="john@example.com"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                required
+                            />
+                            <Input
+                                label="Phone Number"
+                                placeholder="+91 98765 43210"
+                                value={formData.profile.phone}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, phone: e.target.value } })}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {institutes.length > 0 && (
+                                <Select
+                                    label="Institute"
+                                    value={formData.institute}
+                                    onChange={(val) => setFormData({ ...formData, institute: val })}
+                                    options={[
+                                        { label: "Select Institute", value: "" },
+                                        ...institutes.map(i => ({ label: `${i.name}`, value: i._id }))
+                                    ]}
+                                    required
+                                />
+                            )}
+                            <Input
+                                label="Temporary Password"
+                                type="password"
+                                placeholder="••••••••"
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* 2. Personal Details */}
+                    <div className="space-y-4">
+                        <div className="text-xs font-black text-purple-600 uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-8 h-px bg-purple-100"></span>
+                            Personal Details
+                            <span className="flex-1 h-px bg-purple-100"></span>
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-4">
+                            <Select
+                                label="Gender"
+                                value={formData.profile.gender}
+                                onChange={(val) => setFormData({ ...formData, profile: { ...formData.profile, gender: val } })}
+                                options={[
+                                    { label: "Select", value: "" },
+                                    { label: "Male", value: "Male" },
+                                    { label: "Female", value: "Female" },
+                                    { label: "Other", value: "Other" }
+                                ]}
+                            />
+                            <Input
+                                label="Date of Birth"
+                                type="date"
+                                value={formData.profile.dateOfBirth}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, dateOfBirth: e.target.value } })}
+                            />
+                            <Select
+                                label="Blood Group"
+                                value={formData.profile.bloodGroup}
+                                onChange={(val) => setFormData({ ...formData, profile: { ...formData.profile, bloodGroup: val } })}
+                                options={[
+                                    { label: "Select", value: "" },
+                                    { label: "A+", value: "A+" }, { label: "A-", value: "A-" },
+                                    { label: "B+", value: "B+" }, { label: "B-", value: "B-" },
+                                    { label: "AB+", value: "AB+" }, { label: "AB-", value: "AB-" },
+                                    { label: "O+", value: "O+" }, { label: "O-", value: "O-" }
+                                ]}
+                            />
+                        </div>
+                    </div>
+
+                    {/* 3. School Identity */}
+                    <div className="space-y-4">
+                        <div className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-8 h-px bg-emerald-100"></span>
+                            School Identity
+                            <span className="flex-1 h-px bg-emerald-100"></span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <Input
+                                label="G.R. Number"
+                                placeholder="GR123"
+                                value={formData.grNumber}
+                                onChange={(e) => setFormData({ ...formData, grNumber: e.target.value })}
+                            />
+                            <Input
+                                label="UDISE ID"
+                                placeholder="Optional"
+                                value={formData.studentIdUdise}
+                                onChange={(e) => setFormData({ ...formData, studentIdUdise: e.target.value })}
+                            />
+                            <Input
+                                label="APAAR ID"
+                                placeholder="Optional"
+                                value={formData.apaarId}
+                                onChange={(e) => setFormData({ ...formData, apaarId: e.target.value })}
+                            />
+                            <Input
+                                label="PEN Number"
+                                placeholder="Permanent Enrollment"
+                                value={formData.penNumber}
+                                onChange={(e) => setFormData({ ...formData, penNumber: e.target.value })}
+                            />
+                            <Input
+                                label="Aadhar Number"
+                                placeholder="12 Digit"
+                                value={formData.aadharNumber}
+                                onChange={(e) => setFormData({ ...formData, aadharNumber: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    {/* 4. Academic History */}
+                    <div className="space-y-4">
+                        <div className="text-xs font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-8 h-px bg-amber-100"></span>
+                            Admission Info
+                            <span className="flex-1 h-px bg-amber-100"></span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                label="Admission Date"
+                                type="date"
+                                value={formData.admissionDate}
+                                onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+                            />
+                            <Select
+                                label="Admission Standard"
+                                value={formData.admissionStd}
+                                onChange={(val) => setFormData({ ...formData, admissionStd: val })}
+                                options={[
+                                    { label: "Select Standard", value: "" },
+                                    ...courses.map(c => ({ label: c.name, value: c.name }))
+                                ]}
+                            />
+                        </div>
                         <Input
-                            id="password"
-                            label="Temporary Password"
-                            type="password"
-                            placeholder="••••••••"
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            label="Last School Attended"
+                            placeholder="Previous School Name"
+                            value={formData.lastSchoolAttended}
+                            onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
                         />
                     </div>
 
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-6 mb-4 border-b border-slate-50 pb-2">Family & Identity (Optional)</div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input
-                            label="G.R. Number"
-                            placeholder="e.g. 1024"
-                            value={formData.grNumber}
-                            onChange={(e) => setFormData({ ...formData, grNumber: e.target.value })}
-                        />
-                        <Input
-                            label="Student Aadhar"
-                            placeholder="12-digit number"
-                            value={formData.aadharNumber}
-                            onChange={(e) => setFormData({ ...formData, aadharNumber: e.target.value })}
-                        />
+                    {/* 5. Family Details */}
+                    <div className="space-y-4">
+                        <div className="text-xs font-black text-rose-600 uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-8 h-px bg-rose-100"></span>
+                            Family Details
+                            <span className="flex-1 h-px bg-rose-100"></span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                label="Father's Name"
+                                value={formData.fatherName}
+                                onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
+                            />
+                            <Input
+                                label="Father's Aadhar"
+                                value={formData.fatherAadhar}
+                                onChange={(e) => setFormData({ ...formData, fatherAadhar: e.target.value })}
+                            />
+                            <Input
+                                label="Mother's Name"
+                                value={formData.motherName}
+                                onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
+                            />
+                            <Input
+                                label="Mother's Aadhar"
+                                value={formData.motherAadhar}
+                                onChange={(e) => setFormData({ ...formData, motherAadhar: e.target.value })}
+                            />
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* 6. Address */}
+                    <div className="space-y-4">
+                        <div className="text-xs font-black text-cyan-600 uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-8 h-px bg-cyan-100"></span>
+                            Contact Address
+                            <span className="flex-1 h-px bg-cyan-100"></span>
+                        </div>
+                        
                         <Input
-                            label="Father's Name"
-                            placeholder="Full Name"
-                            value={formData.fatherName}
-                            onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
+                            label="Street Address"
+                            value={formData.profile.address.street}
+                            onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, street: e.target.value } } })}
                         />
-                        <Input
-                            label="Father's Aadhar"
-                            placeholder="12-digit number"
-                            value={formData.fatherAadhar}
-                            onChange={(e) => setFormData({ ...formData, fatherAadhar: e.target.value })}
-                        />
+                        <div className="grid grid-cols-3 gap-4">
+                            <Input
+                                label="City"
+                                value={formData.profile.address.city}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, city: e.target.value } } })}
+                            />
+                            <Input
+                                label="State"
+                                value={formData.profile.address.state}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, state: e.target.value } } })}
+                            />
+                            <Input
+                                label="Pincode"
+                                value={formData.profile.address.pincode}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, pincode: e.target.value } } })}
+                            />
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input
-                            label="Mother's Name"
-                            placeholder="Full Name"
-                            value={formData.motherName}
-                            onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
-                        />
-                        <Input
-                            label="Mother's Aadhar"
-                            placeholder="12-digit number"
-                            value={formData.motherAadhar}
-                            onChange={(e) => setFormData({ ...formData, motherAadhar: e.target.value })}
-                        />
-                    </div>
+                    {/* 7. Demographics & Origin */}
+                    <div className="space-y-4 pb-4">
+                        <div className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-8 h-px bg-slate-100"></span>
+                            Demographics & Origin
+                            <span className="flex-1 h-px bg-slate-100"></span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                label="Nationality"
+                                value={formData.nationality}
+                                onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+                            />
+                            <Input
+                                label="Mother Tongue"
+                                value={formData.motherTongue}
+                                onChange={(e) => setFormData({ ...formData, motherTongue: e.target.value })}
+                            />
+                            <Input
+                                label="Religion"
+                                value={formData.religion}
+                                onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
+                            />
+                            <Input
+                                label="Place of Birth (City)"
+                                value={formData.placeOfBirth.city}
+                                onChange={(e) => setFormData({ ...formData, placeOfBirth: { ...formData.placeOfBirth, city: e.target.value } })}
+                            />
+                        </div>
 
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-6 mb-4 border-b border-slate-50 pb-2">Demographics & Origins</div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input
-                            label="Mother Tongue"
-                            placeholder="e.g. Hindi, English"
-                            value={formData.motherTongue}
-                            onChange={(e) => setFormData({ ...formData, motherTongue: e.target.value })}
-                        />
-                        <Input
-                            label="Religion"
-                            placeholder="e.g. Hindu, Muslim"
-                            value={formData.religion}
-                            onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
-                        />
-                    </div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <Input
+                                label="Taluka"
+                                value={formData.placeOfBirth.taluka}
+                                onChange={(e) => setFormData({ ...formData, placeOfBirth: { ...formData.placeOfBirth, taluka: e.target.value } })}
+                            />
+                            <Input
+                                label="District"
+                                value={formData.placeOfBirth.district}
+                                onChange={(e) => setFormData({ ...formData, placeOfBirth: { ...formData.placeOfBirth, district: e.target.value } })}
+                            />
+                            <Input
+                                label="State (Birth)"
+                                value={formData.placeOfBirth.state}
+                                onChange={(e) => setFormData({ ...formData, placeOfBirth: { ...formData.placeOfBirth, state: e.target.value } })}
+                            />
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4 mt-4">
-                        <Input
-                            label="Caste"
-                            placeholder="e.g. General, OBC"
-                            value={formData.caste}
-                            onChange={(e) => setFormData({ ...formData, caste: e.target.value })}
-                        />
-                        <Input
-                            label="Sub-Caste"
-                            placeholder="e.g. Maratha, Brahmin"
-                            value={formData.subCaste}
-                            onChange={(e) => setFormData({ ...formData, subCaste: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 mt-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                label="Caste"
+                                value={formData.caste}
+                                onChange={(e) => setFormData({ ...formData, caste: e.target.value })}
+                            />
+                            <Input
+                                label="Sub-Caste"
+                                value={formData.subCaste}
+                                onChange={(e) => setFormData({ ...formData, subCaste: e.target.value })}
+                            />
+                        </div>
                         <Input
                             label="Referred By"
-                            placeholder="How did they find us? (e.g. Website, Friend)"
+                            placeholder="Website, Friend, etc."
                             value={formData.referredBy}
                             onChange={(e) => setFormData({ ...formData, referredBy: e.target.value })}
                         />
                     </div>
 
-                    <div className="pt-4 flex gap-3">
-                        <Button type="button" variant="outline" className="flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
-                        <Button type="submit" className="flex-1">Register Student</Button>
+                    <div className="pt-6 border-t border-slate-100 flex gap-3 sticky bottom-0 bg-white z-10 pb-2">
+                        <Button type="button" variant="ghost" className="flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+                        <Button type="submit" className="flex-1 shadow-lg shadow-blue-500/20">Complete Registration</Button>
                     </div>
                 </form>
-            </Modal >
+            </Modal>
             {/* Import Modal */}
             <Modal
                 isOpen={isImportModalOpen}
@@ -1137,7 +1347,7 @@ export default function StudentsPage() {
     );
 }
 
-function PromotionModalContent({ batches, courses, selectedCount, onPromote, onClose }) {
+function PromotionModalContent({ batches, courses, selectedCount, onPromote, onClose, isSchool }) {
     const [targetCourseId, setTargetCourseId] = useState("");
     const [targetBatchId, setTargetBatchId] = useState("");
     const [isPromoting, setIsPromoting] = useState(false);
@@ -1159,36 +1369,36 @@ function PromotionModalContent({ batches, courses, selectedCount, onPromote, onC
                 </div>
                 <div>
                     <p className="text-sm font-bold text-slate-800">{selectedCount} Students Selected</p>
-                    <p className="text-[11px] text-slate-500 font-medium">Select the target Standard and Section for promotion.</p>
+                    <p className="text-[11px] text-slate-500 font-medium">Select the target {isSchool ? "Class" : "Standard"} and {isSchool ? "Section" : "Batch"} for promotion.</p>
                 </div>
             </div>
 
             <div className="space-y-4">
                 <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 ml-1">Target Standard (Course)</label>
+                    <label className="text-xs font-bold text-slate-600 ml-1">Target {isSchool ? "Class" : "Course"}</label>
                     <Select
                         value={targetCourseId}
                         onChange={(val) => {
                             setTargetCourseId(val);
                             setTargetBatchId("");
                         }}
-                        placeholder="Select Standard..."
+                        placeholder={`Select ${isSchool ? "Class" : "Course"}...`}
                         options={[
-                            { label: "Select Standard", value: "" },
+                            { label: `Select ${isSchool ? "Class" : "Course"}`, value: "" },
                             ...courses.map(c => ({ label: c.name, value: c._id }))
                         ]}
                     />
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 ml-1">Target Section (Batch)</label>
+                    <label className="text-xs font-bold text-slate-600 ml-1">Target {isSchool ? "Section" : "Batch"}</label>
                     <Select
                         value={targetBatchId}
                         onChange={setTargetBatchId}
                         disabled={!targetCourseId}
-                        placeholder="Select Section..."
+                        placeholder={`Select ${isSchool ? "Section" : "Batch"}...`}
                         options={[
-                            { label: "Select Section", value: "" },
+                            { label: `Select ${isSchool ? "Section" : "Batch"}`, value: "" },
                             ...filteredBatches.map(b => ({ label: b.name, value: b._id }))
                         ]}
                     />

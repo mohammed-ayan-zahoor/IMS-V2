@@ -86,14 +86,15 @@ export default function AdminLayout({ children }) {
         }
     }, [pathname]);
 
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const menuGroups = [
         {
             label: "Academic",
             items: [
                 { label: "Students", icon: Users, href: "/admin/students" },
-                { label: "Courses", icon: BookOpen, href: "/admin/courses" },
+                { label: isSchool ? "Class" : "Courses", icon: BookOpen, href: "/admin/courses" },
                 { label: "Subjects", icon: Layers3, href: "/admin/subjects" }, // Changed icon to Layers3 for subjects to distinguish
-                { label: "Batches", icon: Layers3, href: "/admin/batches" },
+                { label: isSchool ? "Section" : "Batches", icon: Layers3, href: "/admin/batches" },
             ]
         },
         {
@@ -120,6 +121,12 @@ export default function AdminLayout({ children }) {
             items: [
                 { label: "Fees", icon: CreditCard, href: "/admin/fees" },
                 { label: "Collection History", icon: ReceiptText, href: "/admin/collections" },
+            ]
+        },
+        {
+            label: "Expenses",
+            role: ["admin", "super_admin"],
+            items: [
                 { label: "Add Expense", icon: PlusCircle, href: "/admin/expenses/add" },
                 { label: "Expense Report", icon: BarChart3, href: "/admin/expenses/report" },
                 { label: "Expense Master", icon: Receipt, href: "/admin/expenses/master" },
@@ -276,10 +283,7 @@ export default function AdminLayout({ children }) {
                         </div>
                     </div>
                     <button
-                        onClick={async () => {
-                            await signOut({ redirect: false });
-                            window.location.href = "/login";
-                        }}
+                        onClick={() => signOut({ callbackUrl: "/login" })}
                         className="flex items-center gap-3 px-4 py-2 text-[#6b7280] hover:text-red-600 transition-colors text-[13px] font-semibold w-full"
                     >
                         <LogOut size={16} />

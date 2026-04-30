@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { usePathname, useRouter } from "next/navigation";
 import {
     BookOpen,
     Plus,
@@ -9,8 +10,9 @@ import {
     MoreVertical,
     Clock,
     CreditCard,
-    Edit2,
-    Trash2
+    Trash2,
+    Library,
+    Edit2
 } from "lucide-react";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
@@ -21,11 +23,12 @@ import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import MultiSelect from "@/components/ui/MultiSelect";
 import { useToast } from "@/contexts/ToastContext";
+import Link from "next/link";
 
 export default function CoursesPage() {
     const toast = useToast();
+    const router = useRouter();
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -33,6 +36,7 @@ export default function CoursesPage() {
 
     // Actions State
     const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const [editingCourse, setEditingCourse] = useState(null);
     const [deletingCourse, setDeletingCourse] = useState(null);
     const [activeMenu, setActiveMenu] = useState(null);
@@ -200,7 +204,7 @@ export default function CoursesPage() {
                         className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
                     >
                         <Plus size={18} strokeWidth={2.5} />
-                        <span>Add New Course</span>
+                        <span>Add New {isSchool ? "Class" : "Course"}</span>
                     </Button>
                 )}
             </div>
@@ -224,7 +228,7 @@ export default function CoursesPage() {
                         )}
                         <div className="flex-1" />
                         <Badge variant="secondary" className="bg-slate-100 text-slate-500 font-mono text-[10px]">
-                            {filteredCourses.length} Courses Total
+                            {filteredCourses.length} {isSchool ? "Classes" : "Courses"} Total
                         </Badge>
                     </div>
                 </CardHeader>
@@ -237,7 +241,7 @@ export default function CoursesPage() {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-100 bg-white">
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Course Detail</th>
+                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">{isSchool ? "Class" : "Course"} Detail</th>
                                         <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Code</th>
                                         <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Duration</th>
                                         {session?.user?.role !== 'instructor' && <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Total Fees</th>}
@@ -277,6 +281,13 @@ export default function CoursesPage() {
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
                                                         <button
+                                                            onClick={(e) => { e.stopPropagation(); router.push(`/admin/courses/${course._id}/subjects`); }}
+                                                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                                            title="Manage Subjects"
+                                                        >
+                                                            <Library size={16} />
+                                                        </button>
+                                                        <button
                                                             onClick={(e) => { e.stopPropagation(); openEditModal(course); }}
                                                             className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
                                                             title="Edit Course"
@@ -303,9 +314,9 @@ export default function CoursesPage() {
                             <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 mb-4">
                                 <BookOpen size={32} />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">No courses found</h3>
+                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">No {isSchool ? "classes" : "courses"} found</h3>
                             <p className="text-sm text-slate-500 font-medium max-w-[240px] mt-1">
-                                {search ? "Try adjusting your search terms to find the course." : "Start by adding your first academic course."}
+                                {search ? `Try adjusting your search terms to find the ${isSchool ? "class" : "course"}.` : `Start by adding your first academic ${isSchool ? "class" : "course"}.`}
                             </p>
                             {!search && session?.user?.role !== 'instructor' && (
                                 <Button
@@ -314,7 +325,7 @@ export default function CoursesPage() {
                                     size="sm"
                                     className="mt-6"
                                 >
-                                    Add New Course
+                                    Add New {isSchool ? "Class" : "Course"}
                                 </Button>
                             )}
                         </div>
@@ -325,36 +336,28 @@ export default function CoursesPage() {
             <Modal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                title={editingCourse ? "Edit Course" : "Create New Course"}
+                title={editingCourse ? `Edit ${isSchool ? "Class" : "Course"}` : `Create New ${isSchool ? "Class" : "Course"}`}
             >
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">Course Details</div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">{isSchool ? "Class" : "Course"} Details</div>
                 <form onSubmit={handleSaveCourse} className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                         <Input
                             id="name"
-                            label="Course Name"
-                            placeholder="e.g. Master of Science"
+                            label={`${isSchool ? "Class" : "Course"} Name`}
+                            placeholder={`e.g. ${isSchool ? "10th Standard" : "Master of Science"}`}
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             required
                         />
                         <Input
                             id="code"
-                            label="Course Code"
-                            placeholder="e.g. MSC-CS"
+                            label={`${isSchool ? "Class" : "Course"} Code`}
+                            placeholder={`e.g. ${isSchool ? "STD-10" : "MSC-CS"}`}
                             value={formData.code}
                             onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                             required
                         />
                     </div>
-
-                    <MultiSelect
-                        label="Subjects (Optional)"
-                        placeholder="Select subjects..."
-                        options={allSubjects.map(sub => ({ label: sub.name, value: sub._id }))}
-                        value={formData.subjects}
-                        onChange={(val) => setFormData({ ...formData, subjects: val })}
-                    />
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid grid-cols-2 gap-2">
@@ -394,7 +397,7 @@ export default function CoursesPage() {
                         <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Description</label>
                         <textarea
                             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 min-h-[100px] text-sm text-slate-700 placeholder:text-slate-400 transition-all resize-none"
-                            placeholder="Brief description of the course..."
+                            placeholder={`Brief description of the ${isSchool ? "class" : "course"}...`}
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         />
@@ -402,7 +405,7 @@ export default function CoursesPage() {
 
                     <div className="pt-4 flex gap-3">
                         <Button type="button" variant="outline" className="flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
-                        <Button type="submit" className="flex-1">{editingCourse ? "Update Course" : "Create Course"}</Button>
+                        <Button type="submit" className="flex-1">{editingCourse ? `Update ${isSchool ? "Class" : "Course"}` : `Create ${isSchool ? "Class" : "Course"}`}</Button>
                     </div>
                 </form>
             </Modal>
@@ -411,7 +414,7 @@ export default function CoursesPage() {
                 isOpen={!!deletingCourse}
                 onClose={() => setDeletingCourse(null)}
                 onConfirm={confirmDelete}
-                title="Delete Course"
+                title={`Delete ${isSchool ? "Class" : "Course"}`}
                 message={`Are you sure you want to delete ${deletingCourse?.name}? This action cannot be undone.`}
             />
         </div>

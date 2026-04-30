@@ -13,10 +13,11 @@ export async function GET(req) {
 
         const { searchParams } = new URL(req.url);
         const targetInstParam = searchParams.get('instituteId');
+        const courseId = searchParams.get('courseId');
         const isGlobalView = scope.isSuperAdmin && (!targetInstParam || targetInstParam === "all");
         const instituteId = isGlobalView ? null : (targetInstParam || scope.instituteId);
 
-        const subjects = await SubjectService.getSubjects(instituteId);
+        const subjects = await SubjectService.getSubjects(instituteId, courseId);
         return NextResponse.json({ subjects });
     } catch (error) {
         console.error("GET Subjects Error:", error);

@@ -15,7 +15,7 @@ const AuditLogSchema = new Schema({
             'student.create', 'student.update', 'student.delete',
             'student.complete', 'student.drop', 'student.revert', 'student.promote',
             'certificate.generate', 'certificate.regenerate', 'certificate.revoke',
-            'course.create', 'course.update', 'course.delete',
+            'course.create', 'course.update', 'course.delete', 'course.assignSubjects',
             'batch.create', 'batch.update', 'batch.delete', 'batch.enroll', 'batch.remove_student', 'batch.course_transfer',
             'fee.create', 'fee.update', 'fee.payment', 'fee.delete', 'fee.discount', 'fee.extra_charges', 'fee.cancel',
             'material.upload', 'material.delete',
@@ -28,14 +28,15 @@ const AuditLogSchema = new Schema({
             'expense.create', 'expense.delete',
             'subject.create', 'subject.update', 'subject.delete', 'subject.syllabus_update', 'subject.syllabus_import',
             'fee_preset.create', 'fee_preset.update', 'fee_preset.delete',
-            'session.create', 'session.activate', 'session.delete'
+            'session.create', 'session.activate', 'session.delete',
+            'masterSubject.create', 'masterSubject.update', 'masterSubject.delete', 'masterSubject.import'
         ],
         index: true
     },
      resource: {
           type: {
               type: String,
-              enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'Subject', 'Enquiry', 'FeePreset', 'Session']
+              enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'Subject', 'Enquiry', 'FeePreset', 'Session', 'MasterSubject']
           },
           id: Schema.Types.ObjectId
       },

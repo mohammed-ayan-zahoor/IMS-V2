@@ -83,7 +83,8 @@ export async function POST(req) {
             id: targetInstitute._id.toString(),
             name: targetInstitute.name,
             code: targetInstitute.code,
-            logo: targetInstitute.branding?.logo || null
+            logo: targetInstitute.branding?.logo || null,
+            type: targetInstitute.type
         };
 
         const activeRole = session.user.role === 'super_admin' ? 'super_admin' : (membershipRole || session.user.role);

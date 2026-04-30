@@ -158,10 +158,7 @@ export default function SuperAdminLayout({ children }) {
                     </div>
 
                     <button
-                        onClick={async () => {
-                            await signOut({ redirect: false });
-                            window.location.href = "/login";
-                        }}
+                        onClick={() => signOut({ callbackUrl: "/login" })}
                         className={cn(
                             "group flex items-center gap-3 w-full p-3 rounded-xl transition-all",
                             "hover:bg-red-50 text-slate-400 hover:text-red-600",
