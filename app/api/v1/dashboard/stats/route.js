@@ -199,23 +199,26 @@ export async function GET(req) {
                 } 
             },
             {
-                $addFields: {
-                    "installments.paidDateOrCreated": {
-                        $ifNull: ["$installments.paidDate", "$createdAt"]
-                    }
-                }
-            },
-            {
                 $group: {
                     _id: {
-                        year: { $year: "$installments.paidDateOrCreated" },
-                        month: { $month: "$installments.paidDateOrCreated" }
+                        year: { $year: { $ifNull: ["$installments.paidDate", "$createdAt"] } },
+                        month: { $month: { $ifNull: ["$installments.paidDate", "$createdAt"] } }
                     },
-                    total: { $sum: "$installments.amount" }
+                    total: { $sum: "$installments.amount" },
+                    count: { $sum: 1 }  // Count how many paid installments per month
                 }
             },
             { $sort: { "_id.year": 1, "_id.month": 1 } }
         ]);
+        
+        // Debug: log raw aggregation results
+        revenueTrendsPromise.then(results => {
+            if (process.env.NODE_ENV === 'development') {
+                console.log('[DEBUG] Revenue Trends Aggregation:', JSON.stringify(results, null, 2));
+            }
+        }).catch(err => {
+            console.error('[ERROR] Revenue Trends Aggregation Failed:', err);
+        });
 
         // 7. Activity Feed (Audit Log)
         const AuditLog = (await import("@/models/AuditLog")).default;

@@ -276,7 +276,10 @@ export default function AdminLayout({ children }) {
                         </div>
                     </div>
                     <button
-                        onClick={() => signOut({ callbackUrl: "/login" })}
+                        onClick={async () => {
+                            await signOut({ redirect: false });
+                            window.location.href = "/login";
+                        }}
                         className="flex items-center gap-3 px-4 py-2 text-[#6b7280] hover:text-red-600 transition-colors text-[13px] font-semibold w-full"
                     >
                         <LogOut size={16} />

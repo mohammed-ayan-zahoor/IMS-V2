@@ -338,50 +338,6 @@ export default function AdminDashboard() {
                 </Card>
             </div>
 
-            {/* Performance Insights (Bar Chart Custom CSS) */}
-            <Card className="premium-card relative overflow-hidden">
-                <div className="absolute right-[-2.5rem] bottom-[-2.5rem] opacity-[0.03] select-none pointer-events-none">
-                    <span className="text-[140px] font-black italic">₹{(dashboardData?.totalRevenue || 0).toLocaleString()}</span>
-                </div>
-                
-                <CardHeader 
-                    title="Admission Revenue Trends" 
-                    subtitle="Real-time growth across key metrics"
-                />
-
-                <div className="flex items-end justify-between h-[280px] gap-4 pt-10 pb-4">
-                    {loading ? (
-                         Array(12).fill(0).map((_, i) => (
-                            <div key={i} className="flex-1 bg-slate-50 animate-pulse rounded-t-xl h-24" />
-                        ))
-                    ) : dashboardData?.revenueTrends?.map((data, i) => {
-                        const maxVal = Math.max(...dashboardData.revenueTrends.map(r => r.total)) || 1;
-                        const heightPercent = Math.max(5, (data.total / maxVal) * 100);
-                        const chartColors = ['bg-blue-600', 'bg-teal-600', 'bg-orange-600', 'bg-cyan-600', 'bg-red-600', 'bg-amber-600', 'bg-blue-500', 'bg-teal-500', 'bg-orange-500', 'bg-cyan-500', 'bg-red-500', 'bg-amber-500'];
-                        const barColor = chartColors[i % chartColors.length];
-
-                        return (
-                            <div key={i} className="flex-1 flex flex-col items-center gap-3 group relative h-full justify-end">
-                                {/* Value Tooltip Hover */}
-                                <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-all bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg -translate-y-2 group-hover:translate-y-0 whitespace-nowrap z-10">
-                                    ₹{data.total.toLocaleString()}
-                                </div>
-                                
-                                <motion.div 
-                                    initial={{ height: 0 }}
-                                    animate={{ height: `${heightPercent}%` }}
-                                    transition={{ delay: i * 0.05, duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                                    className={cn(
-                                        "w-full rounded-t-xl transition-all duration-300 shadow-md",
-                                        barColor
-                                    )}
-                                />
-                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{data.label}</span>
-                            </div>
-                        );
-                    })}
-                </div>
-            </Card>
 
             {/* Student Lifecycle Overview */}
             <Card className="premium-card">
