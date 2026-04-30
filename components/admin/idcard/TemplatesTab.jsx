@@ -8,17 +8,32 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/contexts/ToastContext";
 
 const PLACEHOLDER_KEYS = {
-    front: ["studentName", "studentPhoto", "studentId", "batch", "rollNumber", "dateOfAdmission"],
+    front: ["studentName", "studentPhoto", "studentId", "std", "section", "batch", "rollNumber", "enrollmentNo", "dateOfAdmission"],
     back: ["instituteName", "validity", "qrCode", "disclaimer"]
 };
 
 const PLACEHOLDER_META = {
-    studentName: { label: "Student Name", color: "#f59e0b", type: "text", sample: "John Doe" },
-    studentPhoto: { label: "Student Photo", color: "#3b82f6", type: "image", sample: "PHOTO" },
-    studentId: { label: "Student ID", color: "#10b981", type: "text", sample: "ID: 12345" },
-    batch: { label: "Batch/Course", color: "#8b5cf6", type: "text", sample: "Batch 2026" },
-    rollNumber: { label: "Roll Number", color: "#ec4899", type: "text", sample: "Roll: 42" },
-    dateOfAdmission: { label: "Admission Date", color: "#f97316", type: "text", sample: "Accepted: Sep 2024" },
+    studentName: { label: "Student Name", color: "#f59e0b", type: "text", sample: "John Doe", fieldKey: "fullName" },
+    studentPhoto: { label: "Student Photo", color: "#3b82f6", type: "image", sample: "PHOTO", fieldKey: "profile.avatar" },
+    studentId: { label: "Student ID", color: "#10b981", type: "text", sample: "ID: 12345", fieldKey: "enrollmentNumber" },
+    batch: { label: "Batch Name", color: "#8b5cf6", type: "text", sample: "Batch 2026", fieldKey: "batch.name" },
+    section: { label: "Section", color: "#8b5cf6", type: "text", sample: "Section A", fieldKey: "section" },
+    std: { label: "Standard (Std)", color: "#8b5cf6", type: "text", sample: "Std 10th", fieldKey: "std" },
+    rollNumber: { label: "Roll Number", color: "#ec4899", type: "text", sample: "Roll: 42", fieldKey: "student.rollNo" },
+    enrollmentNo: { label: "Enrollment No", color: "#ec4899", type: "text", sample: "ENR-001", fieldKey: "student.enrollmentNo" },
+    dateOfAdmission: { label: "Admission Date", color: "#f97316", type: "text", sample: "Accepted: Sep 2024", fieldKey: "student.admissionDate" },
+    
+    // Expanded Fields
+    grNumber: { label: "GR Number", color: "#10b981", type: "text", sample: "GR-999", fieldKey: "grNumber" },
+    fatherName: { label: "Father Name", color: "#f59e0b", type: "text", sample: "Robert Doe", fieldKey: "fatherName" },
+    motherName: { label: "Mother Name", color: "#f59e0b", type: "text", sample: "Jane Doe", fieldKey: "motherName" },
+    studentIdUdise: { label: "UDISE ID", color: "#10b981", type: "text", sample: "UD-12345", fieldKey: "studentIdUdise" },
+    aadharNumber: { label: "Aadhar No.", color: "#10b981", type: "text", sample: "XXXX-XXXX-XXXX", fieldKey: "aadharNumber" },
+    bloodGroup: { label: "Blood Group", color: "#ef4444", type: "text", sample: "O+ve", fieldKey: "bloodGroup" },
+    phone: { label: "Phone", color: "#3b82f6", type: "text", sample: "9988776655", fieldKey: "profile.phone" },
+    email: { label: "Email", color: "#3b82f6", type: "text", sample: "john@example.com", fieldKey: "email" },
+    apaarId: { label: "APAAR ID", color: "#8b5cf6", type: "text", sample: "AP-123", fieldKey: "apaarId" },
+
     instituteName: { label: "Institute Name", color: "#6366f1", type: "text", sample: "Acme Institute" },
     validity: { label: "Validity", color: "#14b8a6", type: "text", sample: "Valid Thru 2028" },
     qrCode: { label: "QR Code", color: "#f43f5e", type: "qr", sample: "QR CODE" },
@@ -147,9 +162,10 @@ function DraggablePlaceholder({ id, placeholder, meta, containerRef, onDrag, onS
                     color: color,
                     textAlign: textAlign,
                     textTransform: textTransform,
+                    fontFamily: placeholder.fontFamily ? `"${placeholder.fontFamily}", sans-serif` : "Arial"
                 }}
             >
-                {meta.sample}
+                {placeholder.type === 'static' ? (placeholder.staticText || "Static Text") : meta.sample}
             </span>
         </div>
     );
@@ -157,7 +173,7 @@ function DraggablePlaceholder({ id, placeholder, meta, containerRef, onDrag, onS
 
 // ─── Style Panel Component ──────────────────────────────────────────────────
 function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
-    if (!selectedPlaceholder || !placeholder?.enabled) return null;
+    if (!selectedPlaceholder || !placeholder?.enabled || !meta) return null;
 
     return (
         <div className="w-80 bg-slate-50 border-l border-slate-200 flex flex-col shrink-0 overflow-hidden">
@@ -170,12 +186,25 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
             </div>
 
             <div className="p-5 space-y-8 overflow-y-auto flex-1">
-                {meta.type === "text" && (
+                {(meta.type === "text" || placeholder.type === "static") && (
                     <>
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 text-slate-700 border-b pb-2">
                                 <Type size={16} /> <h4 className="text-xs font-bold uppercase tracking-wider">Typography</h4>
                             </div>
+
+                            {placeholder.type === "static" && (
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Text Content</label>
+                                    <textarea
+                                        value={placeholder.staticText || ""}
+                                        onChange={(e) => onChange("staticText", e.target.value)}
+                                        placeholder="Enter static text..."
+                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all bg-white min-h-[60px]"
+                                    />
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Font Family</label>
                                 <select
@@ -445,12 +474,12 @@ export default function TemplatesTab() {
 
     const fetchRandomStudent = async () => {
         try {
-            const res = await fetch("/api/v1/students?limit=50");
+            // Use the same preview-data API as certificates for consistency
+            const res = await fetch("/api/v1/certificate-templates/preview-data");
             if (res.ok) {
-                const data = await res.json();
-                if (data.students && data.students.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * data.students.length);
-                    setPreviewStudent(data.students[randomIndex]);
+                const result = await res.json();
+                if (result.success && result.data) {
+                    setPreviewStudent(result.data);
                 }
             }
         } catch (error) {
@@ -661,29 +690,50 @@ export default function TemplatesTab() {
     const currentImageUrl = activeSide === "front" ? form.frontImageUrl : form.backImageUrl;
 
     const getDynamicMeta = (key, baseMeta) => {
-        if (!isPreviewMode || !previewStudent) return baseMeta;
+        if (key.startsWith('static_')) {
+            return { label: "Static Text", color: "#64748b", type: "static", sample: "Static Text" };
+        }
+        if (!isPreviewMode || !previewStudent) return baseMeta || { label: key, color: "#64748b", type: "text", sample: key };
         
         const dynamicMeta = { ...baseMeta };
-        const p = previewStudent.profile || {};
         
-        switch (key) {
-            case "studentName": dynamicMeta.sample = `${p.firstName || ""} ${p.lastName || ""}`.trim() || "John Doe"; break;
-            case "studentId": dynamicMeta.sample = `ID: ${previewStudent.enrollmentNumber || "12345"}`; break;
-            case "rollNumber": dynamicMeta.sample = `Roll: ${previewStudent.enrollmentNumber || "42"}`; break;
-            case "batch": dynamicMeta.sample = previewStudent.batch?.name || "Batch 2026"; break;
-            case "dateOfAdmission": dynamicMeta.sample = `Accepted: ${previewStudent.createdAt ? new Date(previewStudent.createdAt).toLocaleDateString() : "Sep 2024"}`; break;
-            case "studentPhoto": 
-                if (p.avatar) {
+        // Helper to get nested value
+        const getNestedValue = (obj, path) => {
+            if (!path) return null;
+            return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+        };
+
+        const fieldKey = baseMeta.fieldKey;
+        if (fieldKey) {
+            // First check the hydrated object structure (which might have fields at root)
+            let val = getNestedValue(previewStudent, fieldKey);
+            
+            // Fallback for special mappings
+            if (val === undefined || val === null) {
+                 if (fieldKey === "batch.name") val = previewStudent.section;
+                 if (fieldKey === "course.name") val = previewStudent.std;
+            }
+
+            if (val) {
+                if (baseMeta.type === 'text') {
+                    dynamicMeta.sample = val.toString();
+                } else if (baseMeta.type === 'image') {
                     dynamicMeta.sample = "";
-                    dynamicMeta.imageUrl = p.avatar;
+                    dynamicMeta.imageUrl = val;
                 }
-                break;
-            case "qrCode":
-                dynamicMeta.sample = "";
-                // To display a dummy QR for preview, we can use a placeholder image or leave it blank
-                dynamicMeta.imageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Student";
-                break;
+            }
         }
+
+        // Special handling for some fields
+        if (key === "qrCode") {
+            dynamicMeta.sample = "";
+            dynamicMeta.imageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PreviewStudent";
+        }
+
+        if (key === "instituteName") {
+            dynamicMeta.sample = previewStudent.institute?.name || "Institute Name";
+        }
+        
         return dynamicMeta;
     };
 
@@ -801,27 +851,84 @@ export default function TemplatesTab() {
                             <p className="text-xs text-slate-500 mb-3 leading-relaxed">Toggle fields to include them on the {activeSide} side.</p>
                             
                             <div className="space-y-1">
-                                {Object.entries(activePlaceholders || {}).map(([key, p]) => {
-                                    const meta = PLACEHOLDER_META[key];
-                                    if (!meta) return null;
+                                {Object.entries(PLACEHOLDER_META).map(([key, meta]) => {
+                                    const p = activePlaceholders[key];
+                                    const isEnabled = p?.enabled;
                                     return (
                                         <div
                                             key={key}
                                             onClick={() => {
-                                                if (p.enabled) setSelectedPlaceholder(key);
+                                                if (isEnabled) setSelectedPlaceholder(key);
+                                                else {
+                                                    // Auto-enable if clicked and not enabled
+                                                    const side = activeSide === "front" ? "front" : "back";
+                                                    const defaultP = getDefaultPlaceholders(side)[key] || {
+                                                        x: 50, y: 50, enabled: true,
+                                                        ...(meta.type === "image" ? { width: 25, height: 30 } : meta.type === "qr" ? { width: 20, height: 20 } : { fontSize: 14 })
+                                                    };
+                                                    handlePlaceholderChange(key, "enabled", true);
+                                                    setSelectedPlaceholder(key);
+                                                }
                                             }}
                                             className={cn("flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all border", 
                                                 selectedPlaceholder === key ? "bg-blue-50 border-blue-200 shadow-sm" : "border-transparent hover:bg-slate-50")}
                                         >
                                             <input
-                                                type="checkbox" checked={p.enabled}
+                                                type="checkbox" checked={!!isEnabled}
                                                 onChange={(e) => {
                                                     handlePlaceholderChange(key, "enabled", e.target.checked);
-                                                    if (!e.target.checked && selectedPlaceholder === key) setSelectedPlaceholder(null);
+                                                    if (e.target.checked) setSelectedPlaceholder(key);
+                                                    else if (selectedPlaceholder === key) setSelectedPlaceholder(null);
                                                 }}
                                                 className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                                             />
-                                            <span className={cn("text-sm font-medium", selectedPlaceholder === key ? "text-blue-700" : "text-slate-700")}>{meta.label}</span>
+                                            <span className={cn("text-sm font-medium", isEnabled ? "text-slate-700" : "text-slate-400")}>{meta.label}</span>
+                                        </div>
+                                    );
+                                })}
+
+                                <div className="pt-4 pb-2 border-t mt-4">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Custom Elements</label>
+                                    <Button 
+                                        variant="outline" size="sm" className="w-full justify-start text-xs border-dashed border-slate-300 text-slate-500 hover:text-blue-600 hover:border-blue-300"
+                                        onClick={() => {
+                                            const id = `static_${Date.now()}`;
+                                            handlePlaceholderChange(id, "enabled", true);
+                                            handlePlaceholderChange(id, "type", "static");
+                                            handlePlaceholderChange(id, "staticText", "New Static Text");
+                                            handlePlaceholderChange(id, "x", 50);
+                                            handlePlaceholderChange(id, "y", 50);
+                                            handlePlaceholderChange(id, "fontSize", 14);
+                                            setSelectedPlaceholder(id);
+                                        }}
+                                    >
+                                        <Plus size={14} className="mr-2" /> Add Static Text
+                                    </Button>
+                                </div>
+
+                                {Object.entries(activePlaceholders || {}).filter(([key]) => key.startsWith('static_')).map(([key, p]) => {
+                                    if (!p.enabled) return null;
+                                    return (
+                                        <div
+                                            key={key}
+                                            onClick={() => setSelectedPlaceholder(key)}
+                                            className={cn("flex items-center justify-between gap-3 p-2.5 rounded-lg cursor-pointer transition-all border", 
+                                                selectedPlaceholder === key ? "bg-blue-50 border-blue-200 shadow-sm" : "border-transparent hover:bg-slate-50")}
+                                        >
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <div className="w-2 h-2 rounded-full bg-slate-400" />
+                                                <span className="text-sm font-medium text-slate-700 truncate">{p.staticText || "Static Text"}</span>
+                                            </div>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handlePlaceholderChange(key, "enabled", false);
+                                                    if (selectedPlaceholder === key) setSelectedPlaceholder(null);
+                                                }}
+                                                className="text-slate-300 hover:text-red-500"
+                                            >
+                                                <X size={14} />
+                                            </button>
                                         </div>
                                     );
                                 })}
@@ -868,7 +975,7 @@ export default function TemplatesTab() {
                     <StylePanel
                         selectedPlaceholder={selectedPlaceholder}
                         placeholder={selectedPlaceholder ? activePlaceholders[selectedPlaceholder] : null}
-                        meta={selectedPlaceholder ? PLACEHOLDER_META[selectedPlaceholder] : null}
+                        meta={selectedPlaceholder ? getDynamicMeta(selectedPlaceholder, PLACEHOLDER_META[selectedPlaceholder]) : null}
                         onChange={(field, value) => handlePlaceholderChange(selectedPlaceholder, field, value)}
                     />
                 </div>

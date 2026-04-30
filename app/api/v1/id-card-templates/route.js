@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import IDCardTemplate from "@/models/IDCardTemplate";
 import { connectDB } from "@/lib/mongodb";
+import { getInstituteScope } from "@/middleware/instituteScope";
 
 export async function GET(req) {
     try {
@@ -14,7 +15,12 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const templates = await IDCardTemplate.find()
+        const scope = await getInstituteScope(req);
+        if (!scope.instituteId) {
+            return NextResponse.json({ error: "Missing institute context" }, { status: 400 });
+        }
+
+        const templates = await IDCardTemplate.find({ institute: scope.instituteId })
             .sort({ createdAt: -1 })
             .lean();
 
@@ -37,6 +43,11 @@ export async function POST(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const scope = await getInstituteScope(req);
+        if (!scope.instituteId) {
+            return NextResponse.json({ error: "Missing institute context" }, { status: 400 });
+        }
+
         const body = await req.json();
         
         // Validate required fields
@@ -47,11 +58,14 @@ export async function POST(req) {
             );
         }
 
-        // Check if name already exists
-        const existing = await IDCardTemplate.findOne({ name: body.name });
+        // Check if name already exists in this institute
+        const existing = await IDCardTemplate.findOne({ 
+            name: body.name, 
+            institute: scope.instituteId 
+        });
         if (existing) {
             return NextResponse.json(
-                { error: "Template with this name already exists" },
+                { error: "Template with this name already exists in this institute" },
                 { status: 409 }
             );
         }
@@ -64,20 +78,24 @@ export async function POST(req) {
             backPlaceholders: body.backPlaceholders || {},
             cardDimensions: body.cardDimensions || { width: 85.6, height: 53.98 },
             isDefault: body.isDefault || false,
+            institute: scope.instituteId,
             createdBy: session.user.id
         });
 
         await template.save();
 
-        // If this is set as default, unset other defaults
+        // If this is set as default, unset other defaults FOR THIS INSTITUTE ONLY
         if (template.isDefault) {
             await IDCardTemplate.updateMany(
-                { _id: { $ne: template._id } },
+                { 
+                    institute: scope.instituteId, 
+                    _id: { $ne: template._id } 
+                },
                 { isDefault: false }
             );
         }
 
-        console.log(`[IDCardTemplate] Created template: ${template._id}`);
+        console.log(`[IDCardTemplate] Created template: ${template._id} for institute: ${scope.instituteId}`);
 
         return NextResponse.json(template, { status: 201 });
     } catch (error) {

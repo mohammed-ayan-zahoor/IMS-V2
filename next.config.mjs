@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  instrumentationHook: true,
   outputFileTracingRoot: process.cwd(),
   async rewrites() {
     return [

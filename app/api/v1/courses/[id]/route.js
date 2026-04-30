@@ -20,7 +20,9 @@ export async function GET(req, { params }) {
         const query = { _id: id, deletedAt: null };
         if (scope.instituteId) query.institute = scope.instituteId;
 
-        const course = await Course.findOne(query).populate('createdBy', 'profile.firstName profile.lastName');
+        const course = await Course.findOne(query)
+            .populate('subjects')
+            .populate('createdBy', 'profile.firstName profile.lastName');
 
         if (!course) {
             return NextResponse.json({ error: "Course not found" }, { status: 404 });

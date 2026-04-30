@@ -82,6 +82,22 @@ export async function PATCH(req, { params }) {
             updates.referredBy = body.referredBy;
         }
 
+        // Add support for advanced metadata fields
+        const directFields = [
+            'grNumber', 'studentIdUdise', 'aadharNumber', 'apaarId', 'penNumber',
+            'fatherName', 'fatherAadhar', 'motherName', 'motherAadhar',
+            'nationality', 'motherTongue', 'religion', 'caste', 'subCaste',
+            'lastSchoolAttended', 'admissionDate', 'admissionStd', 
+            'leavingDate', 'leavingReason', 'studyingSinceStandard',
+            'progress', 'conduct', 'remarks', 'placeOfBirth'
+        ];
+
+        directFields.forEach(field => {
+            if (body[field] !== undefined) {
+                updates[field] = body[field];
+            }
+        });
+
         if (Object.keys(updates).length === 0) {
             return NextResponse.json({ error: "No valid updates provided" }, { status: 400 });
         }

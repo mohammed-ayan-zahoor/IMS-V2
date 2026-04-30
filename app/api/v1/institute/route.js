@@ -48,10 +48,12 @@ export async function PATCH(req) {
         }
 
         const body = await req.json();
+        console.log("[InstituteAPI] PATCH body:", JSON.stringify(body, null, 2));
 
         // Allowed updates
         const updateData = {};
         if (body.name) updateData.name = body.name;
+        if (body.type) updateData.type = body.type;
         if (body.branding) {
             updateData.branding = {};
             if (body.branding.logo) updateData.branding.logo = body.branding.logo;

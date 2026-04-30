@@ -39,22 +39,28 @@ const AdmissionApplicationSchema = new Schema({
         required: true
     },
     guardian: {
-        name: { type: String, required: true, trim: true },
-        phone: { type: String, required: true, trim: true },
+        name: { type: String, required: false, trim: true },
+        phone: { type: String, required: false, trim: true },
         relation: {
             type: String,
-            enum: ['Father', 'Mother', 'Guardian', 'Other'],
-            required: true
+            enum: ['Father', 'Mother', 'Guardian', 'Other', ''],
+            required: false
         }
     },
     address: {
-        street: { type: String, required: true },
-        city: { type: String, required: true },
-        state: { type: String, required: true },
-        pincode: { type: String, required: true }
+        street: { type: String, required: false },
+        city: { type: String, required: false },
+        state: { type: String, required: false },
+        pincode: { type: String, required: false }
     },
     previousEducation: { type: String, trim: true },
     photo: { type: String, trim: true },
+    // Family & Identity (Optional)
+    fatherName: { type: String, trim: true },
+    fatherAadhar: { type: String, trim: true },
+    motherName: { type: String, trim: true },
+    motherAadhar: { type: String, trim: true },
+    studentAadhar: { type: String, trim: true },
     status: {
         type: String,
         enum: ['pending', 'converted', 'cancelled'],

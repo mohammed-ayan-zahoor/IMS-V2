@@ -8,6 +8,12 @@ const InstituteSchema = new Schema({
         trim: true,
         index: true
     },
+    type: {
+        type: String,
+        enum: ['VOCATIONAL', 'SCHOOL'],
+        default: 'VOCATIONAL',
+        required: true
+    },
     code: {
         type: String,
         required: true,

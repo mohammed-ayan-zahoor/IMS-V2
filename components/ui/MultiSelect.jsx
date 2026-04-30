@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Check, X, Search, PlusCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { createPortal } from "react-dom";
 import Badge from "./Badge";
 
 export default function MultiSelect({
@@ -21,7 +22,9 @@ export default function MultiSelect({
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState("");
+    const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
     const containerRef = useRef(null);
+    const buttonRef = useRef(null);
 
     const isGrouped = options.length > 0 && options[0].group;
 
@@ -35,17 +38,46 @@ export default function MultiSelect({
 
     const selectedOptions = allOptions.filter(opt => value.includes(opt.value));
 
+    const listRef = useRef(null);
+
     // Close on click outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (containerRef.current && !containerRef.current.contains(event.target)) {
+                if (listRef.current && listRef.current.contains(event.target)) return;
                 setIsOpen(false);
             }
         };
 
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+        const handleScroll = (event) => {
+            if (listRef.current && listRef.current.contains(event.target)) return;
+            setIsOpen(false);
+        };
+
+        if (isOpen) {
+            document.addEventListener("mousedown", handleClickOutside);
+            window.addEventListener("scroll", handleScroll, true);
+        }
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            window.removeEventListener("scroll", handleScroll, true);
+        };
+    }, [isOpen]);
+
+    const handleToggle = () => {
+        if (disabled) return;
+        
+        if (!isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setCoords({
+                top: rect.bottom + window.scrollY,
+                left: rect.left + window.scrollX,
+                width: rect.width
+            });
+        }
+        setIsOpen(!isOpen);
+    };
 
     const toggleOption = (optionValue) => {
         const newValue = value.includes(optionValue)
@@ -76,7 +108,8 @@ export default function MultiSelect({
             )}
             <div className="relative">
                 <div
-                    onClick={() => !disabled && setIsOpen(!isOpen)}
+                    ref={buttonRef}
+                    onClick={handleToggle}
                     className={cn(
                         "min-h-[38px] w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none transition-all duration-200 text-left flex flex-wrap gap-1.5 cursor-pointer",
                         "focus-within:border-premium-blue/40 focus-within:ring-2 focus-within:ring-premium-blue/5",
@@ -114,14 +147,22 @@ export default function MultiSelect({
                     </div>
                 </div>
 
-                <AnimatePresence>
-                    {isOpen && (
+                {isOpen && typeof document !== "undefined" && createPortal(
+                    <div 
+                        ref={listRef}
+                        className="fixed z-[10000]"
+                        style={{
+                            top: coords.top + 8,
+                            left: coords.left,
+                            width: coords.width
+                        }}
+                    >
                         <motion.div
                             initial={{ opacity: 0, y: -4 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -4 }}
                             transition={{ duration: 0.15 }}
-                            className="absolute z-[100] w-full mt-1.5 bg-white border border-slate-200/60 rounded-xl shadow-xl overflow-hidden ring-1 ring-black/[0.02]"
+                            className="bg-white border border-slate-200/60 rounded-xl shadow-xl overflow-hidden ring-1 ring-black/[0.02]"
                         >
                             {/* Search Header - Sleeker */}
                             <div className="px-2.5 py-2 border-b border-slate-100 bg-slate-50/20 flex items-center gap-2">
@@ -194,8 +235,9 @@ export default function MultiSelect({
                                 )}
                             </ul>
                         </motion.div>
-                    )}
-                </AnimatePresence>
+                    </div>,
+                    document.body
+                )}
             </div>
             {error && <p className="text-[9px] text-red-500 ml-1 font-bold animate-shake">{error}</p>}
         </div>

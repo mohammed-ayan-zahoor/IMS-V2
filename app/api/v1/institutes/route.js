@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 import Institute from "@/models/Institute";
 import User from "@/models/User";
 import AuditLog from "@/models/AuditLog";
+import Membership from "@/models/Membership";
 import bcrypt from "bcryptjs";
 export async function GET(req) {
     try {
@@ -131,7 +132,15 @@ export async function POST(req) {
                     isActive: true
                 }], opts);
 
-                // 4. Audit Log
+                // 4. Create Membership linking user to institute
+                await Membership.create([{
+                    user: adminUser._id,
+                    institute: institute._id,
+                    role: 'admin',
+                    isActive: true
+                }], opts);
+
+                // 5. Audit Log
                 await AuditLog.create([{
                     actor: session.user.id,
                     action: 'institute.create',

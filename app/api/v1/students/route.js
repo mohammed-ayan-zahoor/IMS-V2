@@ -32,6 +32,7 @@ export async function GET(req) {
         const courseId = searchParams.get("courseId");
         const isActive = searchParams.get("isActive");
         const status = searchParams.get("status");
+        const templateId = searchParams.get("templateId");
 
         const data = await StudentService.getStudents({
             page,
@@ -42,6 +43,7 @@ export async function GET(req) {
             courseId,
             isActive,
             status,
+            templateId,
             instituteId: isGlobalView ? null : (targetInstParam || scope.instituteId),
             actorId: session.user.id
         });

@@ -20,10 +20,12 @@ export async function GET(req) {
 
         const { searchParams } = new URL(req.url);
         const includeDeleted = searchParams.get("includeDeleted") === "true";
+        const renderMode = searchParams.get("renderMode");
 
         const query = {
             institute: scope.instituteId,
-            ...(includeDeleted ? {} : { deletedAt: null })
+            ...(includeDeleted ? {} : { deletedAt: null }),
+            ...(renderMode ? { renderMode } : {})
         };
 
         const templates = await CertificateTemplate.find(query)
@@ -66,7 +68,12 @@ export async function POST(req) {
             imageUrl = null,
             styles = {},
             placeholders = {},
-            htmlTemplate = null
+            htmlTemplate = null,
+            cssContent = null,
+            category = "GENERAL",
+            renderMode = "IMAGE_OVERLAY",
+            pageConfig = null,
+            placeholderSchema = []
         } = body;
 
         if (!name || name.trim() === "") {
@@ -100,6 +107,11 @@ export async function POST(req) {
             styles,
             placeholders,
             htmlTemplate,
+            cssContent,
+            category,
+            renderMode,
+            pageConfig: pageConfig || undefined,
+            placeholderSchema,
             createdBy: session.user.id
         });
 

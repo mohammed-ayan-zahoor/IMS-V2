@@ -44,6 +44,8 @@ export default function StudentsPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isChatLoading, setIsChatLoading] = useState(false);
+    const [selectedStudents, setSelectedStudents] = useState(new Set());
+    const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
     const router = useRouter();
 
     // Import Logic State
@@ -78,7 +80,21 @@ export default function StudentsPage() {
             firstName: "",
             lastName: "",
             phone: "",
-        }
+            avatar: ""
+        },
+        // Identity & Family Metadata
+        grNumber: "",
+        aadharNumber: "",
+        fatherName: "",
+        fatherAadhar: "",
+        motherName: "",
+        motherAadhar: "",
+        // Demographic fields
+        motherTongue: "",
+        religion: "",
+        caste: "",
+        subCaste: "",
+        referredBy: ""
     });
 
     const isFirstRender = useRef(true);
@@ -325,7 +341,18 @@ export default function StudentsPage() {
                     email: "",
                     password: "",
                     institute: "",
-                    profile: { firstName: "", lastName: "", phone: "", avatar: "" }
+                    profile: { firstName: "", lastName: "", phone: "", avatar: "" },
+                    grNumber: "",
+                    aadharNumber: "",
+                    fatherName: "",
+                    fatherAadhar: "",
+                    motherName: "",
+                    motherAadhar: "",
+                    motherTongue: "",
+                    religion: "",
+                    caste: "",
+                    subCaste: "",
+                    referredBy: ""
                 });
                 fetchStudents();
                 toast.success("Student registered successfully");
@@ -404,6 +431,24 @@ export default function StudentsPage() {
         return () => clearTimeout(timer);
     }, [search, filters]);
 
+    const toggleStudentSelection = (id) => {
+        const newSelection = new Set(selectedStudents);
+        if (newSelection.has(id)) {
+            newSelection.delete(id);
+        } else {
+            newSelection.add(id);
+        }
+        setSelectedStudents(newSelection);
+    };
+
+    const toggleAllOnPage = () => {
+        if (selectedStudents.size === students.length && students.length > 0) {
+            setSelectedStudents(new Set());
+        } else {
+            setSelectedStudents(new Set(students.map(s => s._id)));
+        }
+    };
+
     // Trigger fetch when page changes (but not filters)
     useEffect(() => {
         if (!isFirstRender.current) {
@@ -424,12 +469,65 @@ export default function StudentsPage() {
         }
     };
 
+    const handlePromote = async (targetBatchId) => {
+        try {
+            const res = await fetch("/api/v1/students/promote", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    studentIds: Array.from(selectedStudents),
+                    targetBatchId
+                })
+            });
+
+            if (res.ok) {
+                toast.success("Students promoted successfully");
+                setIsPromotionModalOpen(false);
+                setSelectedStudents(new Set());
+                fetchStudents();
+            } else {
+                const error = await res.json();
+                toast.error(error.error || "Promotion failed");
+            }
+        } catch (error) {
+            console.error("Promotion error", error);
+            toast.error("Promotion failed");
+        }
+    };
+
     return (
         <div className="space-y-6">
+            {/* Promotion Modal */}
+            <Modal
+                isOpen={isPromotionModalOpen}
+                onClose={() => setIsPromotionModalOpen(false)}
+                title="Promote Students"
+            >
+                <PromotionModalContent 
+                    batches={batches} 
+                    courses={courses}
+                    selectedCount={selectedStudents.size}
+                    onPromote={handlePromote}
+                    onClose={() => setIsPromotionModalOpen(false)}
+                />
+            </Modal>
+            
             {/* Page Action Bar */}
+
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div /> {/* Spacer for Title in Global Header */}
                 <div className="flex items-center gap-2">
+                    {selectedStudents.size > 0 && (
+                        <Button 
+                            onClick={() => setIsPromotionModalOpen(true)} 
+                            variant="primary" 
+                            size="md" 
+                            className="flex items-center gap-2 px-6 bg-emerald-600 hover:bg-emerald-700 shadow-sm"
+                        >
+                            <UserPlus size={18} strokeWidth={2.5} />
+                            <span>Promote {selectedStudents.size} Students</span>
+                        </Button>
+                    )}
                     <Button onClick={() => setIsImportModalOpen(true)} variant="outline" size="md" className="hidden sm:flex items-center gap-2 border-slate-200">
                         <Upload size={16} />
                         <span>Import Students</span>
@@ -538,6 +636,14 @@ export default function StudentsPage() {
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="bg-white border-y border-slate-100">
+                                            <th className="px-6 py-4 w-10">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedStudents.size === students.length && students.length > 0}
+                                                    onChange={toggleAllOnPage}
+                                                    className="w-4 h-4 rounded border-slate-300 text-premium-blue"
+                                                />
+                                            </th>
                                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
                                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Enrollment ID</th>
                                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact</th>
@@ -547,7 +653,15 @@ export default function StudentsPage() {
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {students.map((student) => (
-                                            <tr key={student._id} className="group hover:bg-slate-50/50 transition-colors">
+                                            <tr key={student._id} className={`group hover:bg-slate-50/50 transition-colors ${selectedStudents.has(student._id) ? 'bg-blue-50/30' : ''}`}>
+                                                <td className="px-6 py-4">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={selectedStudents.has(student._id)}
+                                                        onChange={() => toggleStudentSelection(student._id)}
+                                                        className="w-4 h-4 rounded border-slate-300 text-premium-blue"
+                                                    />
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-10 h-10 rounded-xl bg-premium-blue/10 flex items-center justify-center text-premium-blue font-bold border border-premium-blue/20 overflow-hidden">
@@ -687,9 +801,9 @@ export default function StudentsPage() {
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)} title="Register New Student"
             >
-                {/* ... Modal content ... */}
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">Academic Information</div>                <form onSubmit={handleAddStudent} className="space-y-5">
-                    {/* ... form fields reused exactly ... */}
+                <form onSubmit={handleAddStudent} className="space-y-5">
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-50 pb-2">Academic Information</div>
+                    
                     <div className="grid grid-cols-2 gap-4">
                         <Input
                             id="firstName"
@@ -736,45 +850,135 @@ export default function StudentsPage() {
                         </div>
                     </div>
 
-                    <Input
-                        id="email"
-                        label="Email Address"
-                        type="email"
-                        placeholder="student@example.com"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        required
-                    />
-
-                    {institutes.length > 0 && (
-                        <Select
-                            label="Assign Institute"
-                            value={formData.institute}
-                            onChange={(val) => setFormData({ ...formData, institute: val })}
-                            options={[
-                                { label: "Select Institute", value: "" },
-                                ...institutes.map(i => ({ label: `${i.name} (${i.code})`, value: i._id }))
-                            ]}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                            id="email"
+                            label="Email Address"
+                            type="email"
+                            placeholder="student@example.com"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             required
                         />
-                    )}
+                        <Input
+                            id="phone"
+                            label="Phone Number"
+                            placeholder="+91 00000 00000"
+                            value={formData.profile.phone}
+                            onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, phone: e.target.value } })}
+                        />
+                    </div>
 
-                    <Input
-                        id="phone"
-                        label="Phone Number"
-                        placeholder="+91 00000 00000"
-                        value={formData.profile.phone}
-                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, phone: e.target.value } })}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {institutes.length > 0 && (
+                            <Select
+                                label="Assign Institute"
+                                value={formData.institute}
+                                onChange={(val) => setFormData({ ...formData, institute: val })}
+                                options={[
+                                    { label: "Select Institute", value: "" },
+                                    ...institutes.map(i => ({ label: `${i.name} (${i.code})`, value: i._id }))
+                                ]}
+                                required
+                            />
+                        )}
+                        <Input
+                            id="password"
+                            label="Temporary Password"
+                            type="password"
+                            placeholder="••••••••"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        />
+                    </div>
 
-                    <Input
-                        id="password"
-                        label="Temporary Password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    />
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-6 mb-4 border-b border-slate-50 pb-2">Family & Identity (Optional)</div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input
+                            label="G.R. Number"
+                            placeholder="e.g. 1024"
+                            value={formData.grNumber}
+                            onChange={(e) => setFormData({ ...formData, grNumber: e.target.value })}
+                        />
+                        <Input
+                            label="Student Aadhar"
+                            placeholder="12-digit number"
+                            value={formData.aadharNumber}
+                            onChange={(e) => setFormData({ ...formData, aadharNumber: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input
+                            label="Father's Name"
+                            placeholder="Full Name"
+                            value={formData.fatherName}
+                            onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
+                        />
+                        <Input
+                            label="Father's Aadhar"
+                            placeholder="12-digit number"
+                            value={formData.fatherAadhar}
+                            onChange={(e) => setFormData({ ...formData, fatherAadhar: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input
+                            label="Mother's Name"
+                            placeholder="Full Name"
+                            value={formData.motherName}
+                            onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
+                        />
+                        <Input
+                            label="Mother's Aadhar"
+                            placeholder="12-digit number"
+                            value={formData.motherAadhar}
+                            onChange={(e) => setFormData({ ...formData, motherAadhar: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-6 mb-4 border-b border-slate-50 pb-2">Demographics & Origins</div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input
+                            label="Mother Tongue"
+                            placeholder="e.g. Hindi, English"
+                            value={formData.motherTongue}
+                            onChange={(e) => setFormData({ ...formData, motherTongue: e.target.value })}
+                        />
+                        <Input
+                            label="Religion"
+                            placeholder="e.g. Hindu, Muslim"
+                            value={formData.religion}
+                            onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                        <Input
+                            label="Caste"
+                            placeholder="e.g. General, OBC"
+                            value={formData.caste}
+                            onChange={(e) => setFormData({ ...formData, caste: e.target.value })}
+                        />
+                        <Input
+                            label="Sub-Caste"
+                            placeholder="e.g. Maratha, Brahmin"
+                            value={formData.subCaste}
+                            onChange={(e) => setFormData({ ...formData, subCaste: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 mt-4">
+                        <Input
+                            label="Referred By"
+                            placeholder="How did they find us? (e.g. Website, Friend)"
+                            value={formData.referredBy}
+                            onChange={(e) => setFormData({ ...formData, referredBy: e.target.value })}
+                        />
+                    </div>
 
                     <div className="pt-4 flex gap-3">
                         <Button type="button" variant="outline" className="flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
@@ -930,5 +1134,77 @@ export default function StudentsPage() {
                 </div>
             </Modal >
         </div >
+    );
+}
+
+function PromotionModalContent({ batches, courses, selectedCount, onPromote, onClose }) {
+    const [targetCourseId, setTargetCourseId] = useState("");
+    const [targetBatchId, setTargetBatchId] = useState("");
+    const [isPromoting, setIsPromoting] = useState(false);
+
+    const handlePromote = async () => {
+        if (!targetBatchId) return;
+        setIsPromoting(true);
+        await onPromote(targetBatchId);
+        setIsPromoting(false);
+    };
+
+    const filteredBatches = batches.filter(b => b.course?._id === targetCourseId || b.course === targetCourseId);
+
+    return (
+        <div className="space-y-6 py-2">
+            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                    <Users size={20} />
+                </div>
+                <div>
+                    <p className="text-sm font-bold text-slate-800">{selectedCount} Students Selected</p>
+                    <p className="text-[11px] text-slate-500 font-medium">Select the target Standard and Section for promotion.</p>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 ml-1">Target Standard (Course)</label>
+                    <Select
+                        value={targetCourseId}
+                        onChange={(val) => {
+                            setTargetCourseId(val);
+                            setTargetBatchId("");
+                        }}
+                        placeholder="Select Standard..."
+                        options={[
+                            { label: "Select Standard", value: "" },
+                            ...courses.map(c => ({ label: c.name, value: c._id }))
+                        ]}
+                    />
+                </div>
+
+                <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 ml-1">Target Section (Batch)</label>
+                    <Select
+                        value={targetBatchId}
+                        onChange={setTargetBatchId}
+                        disabled={!targetCourseId}
+                        placeholder="Select Section..."
+                        options={[
+                            { label: "Select Section", value: "" },
+                            ...filteredBatches.map(b => ({ label: b.name, value: b._id }))
+                        ]}
+                    />
+                </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+                <Button variant="ghost" onClick={onClose} className="flex-1">Cancel</Button>
+                <Button 
+                    onClick={handlePromote} 
+                    disabled={!targetBatchId || isPromoting} 
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                >
+                    {isPromoting ? "Promoting..." : "Confirm Promotion"}
+                </Button>
+            </div>
+        </div>
     );
 }

@@ -49,50 +49,59 @@ export async function renderIDCardFront(student, template) {
         // Draw background image
         ctx.drawImage(frontImage, 0, 0);
 
-        const frontPlaceholders = template.frontPlaceholders;
+        // Map placeholders (convert from Mongoose Map if necessary)
+        const placeholders = template.frontPlaceholders instanceof Map 
+            ? template.frontPlaceholders 
+            : new Map(Object.entries(template.frontPlaceholders || {}));
 
-        // Draw student name
-        if (frontPlaceholders.studentName?.enabled && student.profile?.firstName) {
-            const config = frontPlaceholders.studentName;
-            const fullName = `${student.profile.firstName} ${student.profile.lastName || ""}`.trim();
-            drawText(ctx, fullName, config, frontImage.width, frontImage.height);
-        }
+        for (const [key, config] of placeholders.entries()) {
+            if (!config.enabled) continue;
 
-        // Draw student photo
-        if (frontPlaceholders.studentPhoto?.enabled && student.profile?.avatar) {
-            const config = frontPlaceholders.studentPhoto;
             try {
-                const resolvedPhotoUrl = resolveImagePath(student.profile.avatar);
-                const photoImage = await loadImage(resolvedPhotoUrl);
-                drawImage(ctx, photoImage, config, frontImage.width, frontImage.height);
-            } catch (err) {
-                console.warn(`[IDCardService] Could not load photo for student ${student._id}:`, err.message);
+                if (config.type === "image" || key === "studentPhoto") {
+                    const fieldKey = config.fieldKey || (key === "studentPhoto" ? "profile.avatar" : null);
+                    const avatarUrl = fieldKey ? getNestedValue(student, fieldKey) : null;
+                    if (avatarUrl) {
+                        const resolvedPhotoUrl = resolveImagePath(avatarUrl);
+                        const photoImage = await loadImage(resolvedPhotoUrl);
+                        drawImage(ctx, photoImage, config, frontImage.width, frontImage.height);
+                    }
+                } else if (config.type === "qr" || key === "qrCode") {
+                    let qrPayload = student._id.toString();
+                    if (config.dataMode === "profileUrl") {
+                        qrPayload = `${process.env.NEXT_PUBLIC_APP_URL || "https://quantech.vercel.app"}/profile/${student._id}`;
+                    } else if (config.dataMode === "vcard") {
+                        qrPayload = `BEGIN:VCARD\nVERSION:3.0\nN:${student.profile?.lastName || ""};${student.profile?.firstName || ""};;;\nFN:${student.profile?.firstName || ""} ${student.profile?.lastName || ""}\nTITLE:Student\nEND:VCARD`;
+                    }
+                    const qrDataUrl = await generateQRCode(qrPayload);
+                    const qrImage = await loadImage(qrDataUrl);
+                    drawImage(ctx, qrImage, config, frontImage.width, frontImage.height);
+                } else {
+                    // Text elements (field or static)
+                    let text = "";
+                    if (config.type === "static") {
+                        text = config.staticText || "";
+                    } else {
+                        // Dynamic field
+                        const fieldKey = config.fieldKey || getLegacyFieldKey(key);
+                        if (fieldKey) {
+                            const val = getNestedValue(student, fieldKey);
+                            text = val ? val.toString() : "";
+                            
+                            // Formatting for special fields
+                            if (fieldKey === 'createdAt' && val) {
+                                text = new Date(val).toLocaleDateString();
+                            }
+                        }
+                    }
+
+                    if (text) {
+                        drawText(ctx, text, config, frontImage.width, frontImage.height);
+                    }
+                }
+            } catch (elemError) {
+                console.warn(`[IDCardService] Error rendering element ${key}:`, elemError.message);
             }
-        }
-
-        // Draw student ID (using enrollmentNumber)
-        if (frontPlaceholders.studentId?.enabled && student.enrollmentNumber) {
-            const config = frontPlaceholders.studentId;
-            drawText(ctx, student.enrollmentNumber, config, frontImage.width, frontImage.height);
-        }
-
-        // Draw batch (optional)
-        if (frontPlaceholders.batch?.enabled && student.batch?.name) {
-            const config = frontPlaceholders.batch;
-            drawText(ctx, student.batch.name, config, frontImage.width, frontImage.height);
-        }
-
-        // Draw roll number (mapping to enrollmentNumber for now if enabled)
-        if (frontPlaceholders.rollNumber?.enabled && student.enrollmentNumber) {
-            const config = frontPlaceholders.rollNumber;
-            drawText(ctx, `Roll: ${student.enrollmentNumber}`, config, frontImage.width, frontImage.height);
-        }
-
-        // Draw admission date (using createdAt)
-        if (frontPlaceholders.dateOfAdmission?.enabled && student.createdAt) {
-            const config = frontPlaceholders.dateOfAdmission;
-            const date = new Date(student.createdAt).toLocaleDateString();
-            drawText(ctx, date, config, frontImage.width, frontImage.height);
         }
 
         return canvas;
@@ -116,40 +125,58 @@ export async function renderIDCardBack(student, template, institute) {
         // Draw background image
         ctx.drawImage(backImage, 0, 0);
 
-        const backPlaceholders = template.backPlaceholders;
+        const placeholders = template.backPlaceholders instanceof Map 
+            ? template.backPlaceholders 
+            : new Map(Object.entries(template.backPlaceholders || {}));
 
-        // Draw institute name
-        if (backPlaceholders.instituteName?.enabled && institute?.name) {
-            const config = backPlaceholders.instituteName;
-            drawText(ctx, institute.name, config, backImage.width, backImage.height);
-        }
+        for (const [key, config] of placeholders.entries()) {
+            if (!config.enabled) continue;
 
-        // Draw validity
-        if (backPlaceholders.validity?.enabled) {
-            const config = backPlaceholders.validity;
-            const validity = calculateValidity();
-            drawText(ctx, validity, config, backImage.width, backImage.height);
-        }
+            try {
+                if (config.type === "qr" || key === "qrCode") {
+                    let qrPayload = student._id.toString();
+                    if (config.dataMode === "profileUrl") {
+                        qrPayload = `${process.env.NEXT_PUBLIC_APP_URL || "https://quantech.vercel.app"}/profile/${student._id}`;
+                    } else if (config.dataMode === "vcard") {
+                        qrPayload = `BEGIN:VCARD\nVERSION:3.0\nN:${student.profile?.lastName || ""};${student.profile?.firstName || ""};;;\nFN:${student.profile?.firstName || ""} ${student.profile?.lastName || ""}\nORG:${institute?.name || ""}\nTITLE:Student\nEND:VCARD`;
+                    }
+                    const qrDataUrl = await generateQRCode(qrPayload);
+                    const qrImage = await loadImage(qrDataUrl);
+                    drawImage(ctx, qrImage, config, backImage.width, backImage.height);
+                } else if (config.type === "image") {
+                    // Custom image field if any
+                    const fieldKey = config.fieldKey;
+                    const imageUrl = fieldKey ? getNestedValue(student, fieldKey) : null;
+                    if (imageUrl) {
+                        const resolvedPhotoUrl = resolveImagePath(imageUrl);
+                        const photoImage = await loadImage(resolvedPhotoUrl);
+                        drawImage(ctx, photoImage, config, backImage.width, backImage.height);
+                    }
+                } else {
+                    let text = "";
+                    if (config.type === "static") {
+                        text = config.staticText || "";
+                    } else if (key === "instituteName") {
+                        text = institute?.name || "";
+                    } else if (key === "validity") {
+                        text = calculateValidity();
+                    } else if (key === "disclaimer") {
+                        text = "This card is valid only when signed by authorized personnel";
+                    } else {
+                        const fieldKey = config.fieldKey || getLegacyFieldKey(key);
+                        if (fieldKey) {
+                            const val = getNestedValue(student, fieldKey);
+                            text = val ? val.toString() : "";
+                        }
+                    }
 
-        // Draw QR Code
-        if (backPlaceholders.qrCode?.enabled && student._id) {
-            const config = backPlaceholders.qrCode;
-            let qrPayload = student._id.toString();
-            if (config.dataMode === "profileUrl") {
-                qrPayload = `${process.env.NEXT_PUBLIC_APP_URL || "https://quantech.vercel.app"}/profile/${student._id}`;
-            } else if (config.dataMode === "vcard") {
-                qrPayload = `BEGIN:VCARD\nVERSION:3.0\nN:${student.profile?.lastName || ""};${student.profile?.firstName || ""};;;\nFN:${student.profile?.firstName || ""} ${student.profile?.lastName || ""}\nORG:${institute?.name || ""}\nTITLE:Student\nEND:VCARD`;
+                    if (text) {
+                        drawText(ctx, text, config, backImage.width, backImage.height);
+                    }
+                }
+            } catch (elemError) {
+                console.warn(`[IDCardService] Error rendering element ${key}:`, elemError.message);
             }
-            const qrDataUrl = await generateQRCode(qrPayload);
-            const qrImage = await loadImage(qrDataUrl);
-            drawImage(ctx, qrImage, config, backImage.width, backImage.height);
-        }
-
-        // Draw disclaimer
-        if (backPlaceholders.disclaimer?.enabled) {
-            const config = backPlaceholders.disclaimer;
-            const disclaimer = "This card is valid only when signed by authorized personnel";
-            drawText(ctx, disclaimer, config, backImage.width, backImage.height);
         }
 
         return canvas;
@@ -157,6 +184,33 @@ export async function renderIDCardBack(student, template, institute) {
         console.error("[IDCardService] Error rendering back:", error);
         throw error;
     }
+}
+
+/**
+ * Helper to get nested value from object
+ */
+function getNestedValue(obj, path) {
+    if (!path) return null;
+    return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+}
+
+/**
+ * Legacy field mapping
+ */
+function getLegacyFieldKey(key) {
+    const mapping = {
+        studentName: "fullName",
+        studentId: "enrollmentNumber",
+        enrollmentNo: "enrollmentNumber",
+        batch: "batch.name",
+        section: "batch.name",
+        course: "course.name",
+        std: "course.name",
+        rollNumber: "rollNo",
+        rollNo: "rollNo",
+        dateOfAdmission: "createdAt"
+    };
+    return mapping[key] || null;
 }
 
 /**

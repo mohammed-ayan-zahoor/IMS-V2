@@ -81,7 +81,12 @@ export async function PUT(req, { params }) {
             imageUrl,
             styles,
             placeholders,
-            htmlTemplate
+            htmlTemplate,
+            cssContent,
+            category,
+            renderMode,
+            pageConfig,
+            placeholderSchema
         } = body;
 
         if (name && name.trim() !== template.name) {
@@ -116,6 +121,11 @@ export async function PUT(req, { params }) {
             template.placeholders = { ...template.placeholders, ...placeholders };
         }
         if (htmlTemplate !== undefined) template.htmlTemplate = htmlTemplate;
+        if (cssContent !== undefined) template.cssContent = cssContent;
+        if (category !== undefined) template.category = category;
+        if (renderMode !== undefined) template.renderMode = renderMode;
+        if (pageConfig !== undefined) template.pageConfig = pageConfig;
+        if (placeholderSchema !== undefined) template.placeholderSchema = placeholderSchema;
 
         await template.save();
 

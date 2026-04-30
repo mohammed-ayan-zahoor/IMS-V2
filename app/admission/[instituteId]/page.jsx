@@ -54,7 +54,13 @@ export default function PublicAdmissionForm({ params }) {
         },
         previousEducation: "",
         notes: "",
-        referredBy: ""
+        referredBy: "",
+        // Family & Identity (Optional)
+        fatherName: "",
+        fatherAadhar: "",
+        motherName: "",
+        motherAadhar: "",
+        studentAadhar: ""
     });
 
     const [selectedCourse, setSelectedCourse] = useState(null);
@@ -118,8 +124,7 @@ export default function PublicAdmissionForm({ params }) {
         } else if (step === 3) {
             if (!formData.course) newErrors.course = "Required";
         } else if (step === 4) {
-            if (!formData.guardian.name) newErrors.guardianName = "Required";
-            if (!formData.guardian.phone) newErrors.guardianPhone = "Required";
+            // Optional fields
         }
 
         setErrors(newErrors);
@@ -526,15 +531,64 @@ export default function PublicAdmissionForm({ params }) {
                                 </div>
                             )}
 
-                            {/* STEP 4: GUARDIAN & ADDRESS */}
+                            {/* STEP 4: FAMILY, GUARDIAN & ADDRESS */}
                             {step === 4 && (
-                                <div className="space-y-8">
+                                <div className="space-y-10">
+                                    {/* Family & Identity Section */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-7 h-7 rounded-lg bg-premium-blue/10 text-premium-blue flex items-center justify-center">
+                                                <Users size={14} />
+                                            </div>
+                                            <h3 className="text-base font-black text-slate-800 italic">Family & Identity (Optional)</h3>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <Input
+                                                label="Father's Name"
+                                                placeholder="Full Name"
+                                                value={formData.fatherName}
+                                                onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
+                                                className="h-12 rounded-xl bg-white border-slate-100"
+                                            />
+                                            <Input
+                                                label="Father's Aadhar"
+                                                placeholder="12-digit number"
+                                                value={formData.fatherAadhar}
+                                                onChange={(e) => setFormData({ ...formData, fatherAadhar: e.target.value })}
+                                                className="h-12 rounded-xl bg-white border-slate-100"
+                                            />
+                                            <Input
+                                                label="Mother's Name"
+                                                placeholder="Full Name"
+                                                value={formData.motherName}
+                                                onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
+                                                className="h-12 rounded-xl bg-white border-slate-100"
+                                            />
+                                            <Input
+                                                label="Mother's Aadhar"
+                                                placeholder="12-digit number"
+                                                value={formData.motherAadhar}
+                                                onChange={(e) => setFormData({ ...formData, motherAadhar: e.target.value })}
+                                                className="h-12 rounded-xl bg-white border-slate-100"
+                                            />
+                                            <div className="sm:col-span-2">
+                                                <Input
+                                                    label="Student Aadhar Number"
+                                                    placeholder="12-digit number"
+                                                    value={formData.studentAadhar}
+                                                    onChange={(e) => setFormData({ ...formData, studentAadhar: e.target.value })}
+                                                    className="h-12 rounded-xl bg-white border-slate-100"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div className="space-y-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-7 h-7 rounded-lg bg-orange-100 text-orange-500 flex items-center justify-center">
                                                 <Users size={14} />
                                             </div>
-                                            <h3 className="text-base font-black text-slate-800 italic">Guardian Details</h3>
+                                            <h3 className="text-base font-black text-slate-800 italic">Guardian Details (Optional)</h3>
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="sm:col-span-2">
@@ -544,14 +598,13 @@ export default function PublicAdmissionForm({ params }) {
                                                     onChange={(e) => setFormData({ ...formData, guardian: { ...formData.guardian, name: e.target.value } })}
                                                     error={errors.guardianName}
                                                     className="h-12 rounded-xl bg-white"
-                                                    required
                                                 />
                                             </div>
                                             <Select
                                                 label="Relation"
                                                 value={formData.guardian.relation}
                                                 onChange={(val) => setFormData({ ...formData, guardian: { ...formData.guardian, relation: val } })}
-                                                options={[{ label: "Father", value: "Father" }, { label: "Mother", value: "Mother" }, { label: "Guardian", value: "Guardian" }]}
+                                                options={[{ label: "Not Specified", value: "" }, { label: "Father", value: "Father" }, { label: "Mother", value: "Mother" }, { label: "Guardian", value: "Guardian" }]}
                                                 className="h-12 rounded-xl bg-white"
                                             />
                                             <Input
@@ -560,7 +613,6 @@ export default function PublicAdmissionForm({ params }) {
                                                 onChange={(e) => setFormData({ ...formData, guardian: { ...formData.guardian, phone: e.target.value } })}
                                                 error={errors.guardianPhone}
                                                 className="h-12 rounded-xl bg-white"
-                                                required
                                             />
                                         </div>
                                     </div>

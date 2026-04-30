@@ -175,7 +175,7 @@ export default function BatchesPage() {
                     <Button 
                         onClick={() => {
                             setEditingBatch(null);
-                            setFormData({ name: "", course: "", schedule: { startDate: "", endDate: "", timing: "", days: [] }, capacity: 30, instructor: "", status: "active" });
+                            setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: 30 });
                             setIsAddModalOpen(true);
                         }} 
                         size="md" 

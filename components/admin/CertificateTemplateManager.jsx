@@ -338,7 +338,7 @@ export default function CertificateTemplateManager() {
             const res = await fetch("/api/v1/certificate-templates");
             if (res.ok) {
                 const data = await res.json();
-                setTemplates(data.data || []);
+                setTemplates((data.data || []).filter(t => !t.htmlTemplate));
             }
         } catch (error) {
             console.error("Failed to fetch templates:", error);
@@ -890,19 +890,7 @@ export default function CertificateTemplateManager() {
                                     </div>
                                 )}
 
-                                {/* Default Checkbox */}
-                                <label className="flex items-center gap-3 p-3 rounded-xl bg-blue-50 border border-blue-200 cursor-pointer hover:bg-blue-100/50 transition-colors">
-                                    <input
-                                        type="checkbox"
-                                        checked={form.isDefault}
-                                        onChange={e => setForm({ ...form, isDefault: e.target.checked })}
-                                        className="w-4 h-4 rounded accent-premium-blue"
-                                    />
-                                    <div>
-                                        <span className="text-sm font-bold text-slate-700 block">Set as default</span>
-                                        <span className="text-[10px] text-slate-500">Used when generating certificates</span>
-                                    </div>
-                                </label>
+
 
                                 {/* Action Buttons */}
                                 <div className="flex gap-2 pt-2">
@@ -1153,26 +1141,10 @@ export default function CertificateTemplateManager() {
                                     {/* Template Info */}
                                     <div className="p-4 space-y-3">
                                         <div>
-                                            <div className="flex items-center gap-2 mb-1">
                                                 <h4 className="font-bold text-slate-900">{template.name}</h4>
-                                                {template.isDefault && (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-bold">
-                                                        <Star size={10} /> Default
-                                                    </span>
-                                                )}
-                                            </div>
                                         </div>
 
                                         <div className="flex gap-2">
-                                            {!template.isDefault && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleSetDefault(template._id)}
-                                                    className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors text-xs font-bold"
-                                                >
-                                                    <Star size={12} /> Default
-                                                </button>
-                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => handleEditTemplate(template)}

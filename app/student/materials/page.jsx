@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle, X } from "lucide-react";
+import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle, X, UploadCloud, CheckCircle, HelpCircle } from "lucide-react";
 import dynamic from 'next/dynamic';
 
 const PdfViewer = dynamic(() => import('./PdfViewer'), { ssr: false });
@@ -20,6 +20,11 @@ export default function StudentMaterialsPage() {
     const [selectedPdf, setSelectedPdf] = useState(null);
     const [videoError, setVideoError] = useState(false);
     const [error, setError] = useState(null);
+
+    // Homework Submission State
+    const [submittingMat, setSubmittingMat] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [submissions, setSubmissions] = useState({}); // { matId: submissionData }
 
     useEffect(() => {
         const controller = new AbortController();
@@ -46,6 +51,80 @@ export default function StudentMaterialsPage() {
         fetchMaterials();
         return () => controller.abort();
     }, []);
+
+    // Fetch existing submissions for assignments
+    useEffect(() => {
+        if (materials.length > 0) {
+            const assignmentIds = materials
+                .filter(m => m.category === 'assignment' && m.allowSubmissions)
+                .map(m => m._id);
+            
+            if (assignmentIds.length > 0) {
+                fetchSubmissions(assignmentIds);
+            }
+        }
+    }, [materials]);
+
+    const fetchSubmissions = async (ids) => {
+        try {
+            // We can either fetch one by one or have a bulk API. 
+            // For now, let's fetch individual status when possible or bulk if implemented.
+            // Since we don't have a bulk API yet, let's just fetch for each.
+            const subsMap = {};
+            await Promise.all(ids.map(async (id) => {
+                const res = await fetch(`/api/v1/assignments/${id}/submit`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.submission) subsMap[id] = data.submission;
+                }
+            }));
+            setSubmissions(subsMap);
+        } catch (err) {
+            console.error("Submissions fetch error", err);
+        }
+    };
+
+    const handleFileUpload = async (e, matId) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("fileType", "document");
+
+            const uploadRes = await fetch("/api/v1/upload", { method: "POST", body: formData });
+            if (!uploadRes.ok) throw new Error("Upload failed");
+            const uploadData = await uploadRes.json();
+
+            const submitRes = await fetch(`/api/v1/assignments/${matId}/submit`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    file: {
+                        url: uploadData.url,
+                        publicId: uploadData.public_id,
+                        originalName: file.name,
+                        size: file.size
+                    }
+                })
+            });
+
+            if (submitRes.ok) {
+                const data = await submitRes.json();
+                setSubmissions({ ...submissions, [matId]: data.submission });
+                setSubmittingMat(null);
+            } else {
+                throw new Error("Submission failed");
+            }
+        } catch (err) {
+            console.error(err);
+            alert(err.message);
+        } finally {
+            setIsUploading(false);
+        }
+    };
 
     const filteredMaterials = materials.filter(mat => {
         const matchesSearch = mat.title.toLowerCase().includes(search.toLowerCase()) || mat.course?.name?.toLowerCase().includes(search.toLowerCase());
@@ -152,7 +231,7 @@ export default function StudentMaterialsPage() {
                             ) : mat.file?.type === 'pdf' ? (
                                 <button
                                     onClick={() => setSelectedPdf(mat)}
-                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10 group-hover:shadow-premium-blue/20 group-hover:bg-premium-blue"
+                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-premium-blue text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20"
                                 >
                                     <FileText size={18} />
                                     View PDF
@@ -161,11 +240,78 @@ export default function StudentMaterialsPage() {
                                 <a
                                     href={mat.file?.url}
                                     target="_self"
-                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10 group-hover:shadow-premium-blue/20 group-hover:bg-premium-blue"
+                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-premium-blue text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20"
                                 >
                                     <Download size={18} />
                                     Access Resource
                                 </a>
+                            )}
+
+                            {/* Assignment Submission Section */}
+                            {mat.category === 'assignment' && mat.allowSubmissions && (
+                                <div className="pt-4 mt-4 border-t border-slate-50">
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Submission Status</span>
+                                            {submissions[mat._id] ? (
+                                                <Badge variant={submissions[mat._id].status === 'graded' ? "success" : "warning"} className="text-[9px] uppercase font-bold py-0.5 px-2">
+                                                    {submissions[mat._id].status === 'graded' ? "Graded" : "Pending Review"}
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="neutral" className="text-[9px] uppercase font-bold py-0.5 px-2 bg-slate-100 text-slate-400">Not Submitted</Badge>
+                                            )}
+                                        </div>
+
+                                        {submissions[mat._id] ? (
+                                            <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100/50">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <p className="text-[10px] font-bold text-slate-500 truncate max-w-[140px]">
+                                                        {submissions[mat._id].file?.originalName || "work-submission.pdf"}
+                                                    </p>
+                                                    <button 
+                                                        onClick={() => window.open(submissions[mat._id].file?.url, '_blank')}
+                                                        className="text-[10px] font-black text-premium-blue hover:underline flex items-center gap-1"
+                                                    >
+                                                        View <ExternalLink size={10} />
+                                                    </button>
+                                                </div>
+                                                
+                                                {submissions[mat._id].status === 'graded' ? (
+                                                    <div className="flex items-center gap-2 mt-1 pt-2 border-t border-slate-200/50">
+                                                        <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center text-white">
+                                                            <CheckCircle size={14} />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p className="text-[10px] font-black text-slate-900">Score: {submissions[mat._id].marksAwarded} / {mat.totalMarks || "-"}</p>
+                                                            {submissions[mat._id].feedback && <p className="text-[9px] text-slate-500 italic line-clamp-1">"{submissions[mat._id].feedback}"</p>}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <button 
+                                                        onClick={() => setSubmittingMat(mat)}
+                                                        className="text-[10px] font-bold text-slate-400 hover:text-premium-blue transition-colors w-full text-left"
+                                                    >
+                                                        Re-submit Work?
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => setSubmittingMat(mat)}
+                                                className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-bold hover:bg-emerald-100 transition-colors border border-emerald-100"
+                                            >
+                                                <UploadCloud size={18} />
+                                                Submit Homework
+                                            </button>
+                                        )}
+                                        
+                                        {mat.dueDate && (
+                                            <p className="text-[10px] text-center font-bold text-slate-400 italic">
+                                                Deadline: {format(new Date(mat.dueDate), "MMM d, yyyy")}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </Card>
@@ -198,6 +344,53 @@ export default function StudentMaterialsPage() {
                     file={selectedPdf}
                     onClose={() => setSelectedPdf(null)}
                 />
+            )}
+
+            {/* Submission Modal */}
+            {submittingMat && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col border border-white/20">
+                        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <h2 className="text-lg font-bold text-slate-900">Submit Homework</h2>
+                            <button onClick={() => setSubmittingMat(null)} className="text-slate-400 hover:text-slate-700">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="p-4 rounded-xl bg-premium-blue/5 border border-premium-blue/10">
+                                <h3 className="text-sm font-bold text-slate-900">{submittingMat.title}</h3>
+                                <p className="text-xs text-slate-500 mt-1">Total Marks: {submittingMat.totalMarks || "N/A"}</p>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 hover:border-premium-blue/30 transition-all group">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        {isUploading ? (
+                                            <LoadingSpinner />
+                                        ) : (
+                                            <>
+                                                <UploadCloud className="w-10 h-10 text-slate-400 group-hover:text-premium-blue transition-colors mb-2" />
+                                                <p className="text-xs font-bold text-slate-500 group-hover:text-slate-700">Click to upload your work</p>
+                                                <p className="text-[10px] text-slate-400 mt-1">PDF, Images or Documents (Max 10MB)</p>
+                                            </>
+                                        )}
+                                    </div>
+                                    <input 
+                                        type="file" 
+                                        className="hidden" 
+                                        onChange={(e) => handleFileUpload(e, submittingMat._id)}
+                                        disabled={isUploading}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-slate-50/50 flex justify-end">
+                            <button onClick={() => setSubmittingMat(null)} className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-700">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

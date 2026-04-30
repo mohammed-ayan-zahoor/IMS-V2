@@ -50,7 +50,13 @@ export async function POST(req) {
                 phone: application.guardian.phone,
                 relation: application.guardian.relation.toLowerCase() // Student doc uses lowercase enum
             },
-            referredBy: application.referredBy
+            referredBy: application.referredBy,
+            // Family & Identity Mapping
+            fatherName: application.fatherName,
+            fatherAadhar: application.fatherAadhar,
+            motherName: application.motherName,
+            motherAadhar: application.motherAadhar,
+            aadharNumber: application.studentAadhar
         };
 
         console.log(`[CONVERSION DATA] Email: ${studentData.email}, Target Inst: ${studentData.institute}`);

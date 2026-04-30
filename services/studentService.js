@@ -3,6 +3,7 @@ import Batch from '@/models/Batch';
 import Fee from '@/models/Fee';
 import Membership from '@/models/Membership';
 import '@/models/Course'; // Ensure Course schema is registered
+import '@/models/Certificate'; // Ensure Certificate schema is registered
 import { createAuditLog } from './auditService';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
@@ -41,7 +42,7 @@ export class StudentService {
             const defaultPass = process.env.DEFAULT_STUDENT_PASSWORD || randomPassword;
             const passwordHash = await bcrypt.hash(password || defaultPass, salt);
 
-            // Create student
+            // Create student with advanced metadata
             const student = await User.create({
                 email: email?.toLowerCase(),
                 passwordHash,
@@ -49,7 +50,33 @@ export class StudentService {
                 profile,
                 guardianDetails,
                 referredBy: referredBy?.substring(0, 100),
-                institute: institute // Add Institute
+                institute: institute,
+                
+                // Add new metadata fields from the data object
+                grNumber: data.grNumber,
+                studentIdUdise: data.studentIdUdise,
+                aadharNumber: data.aadharNumber,
+                apaarId: data.apaarId,
+                penNumber: data.penNumber,
+                fatherName: data.fatherName,
+                fatherAadhar: data.fatherAadhar,
+                motherName: data.motherName,
+                motherAadhar: data.motherAadhar,
+                nationality: data.nationality || 'Indian',
+                motherTongue: data.motherTongue,
+                religion: data.religion,
+                caste: data.caste,
+                subCaste: data.subCaste,
+                placeOfBirth: data.placeOfBirth,
+                lastSchoolAttended: data.lastSchoolAttended,
+                admissionDate: data.admissionDate,
+                admissionStd: data.admissionStd,
+                leavingDate: data.leavingDate,
+                leavingReason: data.leavingReason,
+                studyingSinceStandard: data.studyingSinceStandard,
+                progress: data.progress || 'Good',
+                conduct: data.conduct || 'Good',
+                remarks: data.remarks
             });
 
             // Create membership for the student
@@ -172,7 +199,7 @@ export class StudentService {
     /**
      * Get all students with pagination and filters
      */
-    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, status = null, instituteId = null, actorId = null }) {
+    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, status = null, instituteId = null, actorId = null, templateId = null }) {
         // if (!instituteId) throw new Error('Institute context required for fetching students'); // Allow global view
 
         const skip = (page - 1) * limit;
@@ -212,28 +239,16 @@ export class StudentService {
         if (status && ['ACTIVE', 'COMPLETED', 'DROPPED'].includes(status)) {
             query.status = status;
         }
+
         if (batchId || courseId) {
             const batchQuery = { deletedAt: null }; // Scope Batch Search
             if (instituteId) batchQuery.institute = instituteId;
             if (batchId) batchQuery._id = batchId;
             if (courseId) batchQuery.course = courseId;
 
-            const batches = await Batch.find(batchQuery).select('enrolledStudents.student enrolledStudents.status');
+            const batches = await Batch.find(batchQuery).select('enrolledStudents.student');
             
-            // Map student lifecycle status to enrollment status
-            const statusMap = {
-                'ACTIVE': 'active',
-                'COMPLETED': 'completed',
-                'DROPPED': 'dropped'
-            };
-            const targetEnrollmentStatus = status && statusMap[status];
-
-            const studentIds = batches.flatMap(b => 
-                b.enrolledStudents
-                    .filter(e => !targetEnrollmentStatus || e.status === targetEnrollmentStatus)
-                    .map(e => e.student)
-            );
-
+            const studentIds = batches.flatMap(b => b.enrolledStudents.map(e => e.student));
             query._id = { $in: studentIds };
         }
 
@@ -285,16 +300,63 @@ export class StudentService {
         }
 
         const students = await User.find(query)
+            .populate('certificateId', 'visibleToStudent pdfUrl')
             .sort({ 'profile.firstName': 1, 'profile.lastName': 1 })
             .skip(skip)
             .limit(limit);
 
         const total = await User.countDocuments(query);
 
+        // Template specific check for credit protection
+        let issuedMap = new Map();
+        if (templateId) {
+            const Certificate = (await import('@/models/Certificate')).default;
+            const mongoose = (await import('mongoose')).default;
+            const studentIds = students.map(s => s._id);
+            
+            // Cast IDs to ObjectId for Mixed field matching and accuracy
+            let targetTemplateId;
+            try {
+                targetTemplateId = new mongoose.Types.ObjectId(templateId);
+            } catch (e) {
+                targetTemplateId = templateId;
+            }
+
+            const certQuery = {
+                studentId: { $in: studentIds },
+                "template.templateId": targetTemplateId,
+                status: { $ne: 'REVOKED' }
+            };
+            
+            // If batchId is provided in filters, strictly match it for bulk action safety
+            if (batchId) {
+                try {
+                    certQuery.batchId = new mongoose.Types.ObjectId(batchId);
+                } catch (e) {
+                    certQuery.batchId = batchId;
+                }
+            }
+
+            const issuedCerts = await Certificate.find(certQuery)
+                .select('studentId _id issueDate')
+                .sort({ issueDate: -1 });
+
+            issuedCerts.forEach(c => {
+                const sId = c.studentId.toString();
+                // Only set if not already present to ensure we keep the latest (due to sort)
+                if (!issuedMap.has(sId)) {
+                    issuedMap.set(sId, c._id.toString());
+                }
+            });
+        }
+
         // Format students with name field for UI
         const formattedStudents = students.map(student => {
             const studentObj = student.toObject();
+            const sId = student._id.toString();
             studentObj.name = `${student.profile.firstName} ${student.profile.lastName}`.trim();
+            studentObj.isTemplateIssued = issuedMap.has(sId);
+            studentObj.targetCertificateId = issuedMap.get(sId) || null;
             return studentObj;
         });
 
@@ -312,7 +374,7 @@ export class StudentService {
     /**
      * Enroll student in a batch and initialize fees
      */
-    static async enrollInBatch(studentId, batchId, actorId, instituteId) {
+    static async enrollInBatch(studentId, batchId, actorId, instituteId, customAmount = null) {
         const session = await mongoose.startSession();
         try {
             session.startTransaction();
@@ -388,7 +450,7 @@ export class StudentService {
                 student: studentId,
                 batch: batchId,
                 institute: targetInstitute,
-                totalAmount: batch.course.fees.amount,
+                totalAmount: customAmount !== null ? parseFloat(customAmount) : batch.course.fees.amount,
                 installments: [],
                 status: 'not_started'
             }], { session });
@@ -421,7 +483,7 @@ export class StudentService {
             await session.abortTransaction();
             // Fallback for standalone mongo (Replica Set required for transactions)
             if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
-                return this.enrollInBatchStandalone(studentId, batchId, actorId, instituteId);
+                return this.enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount);
             }
             throw error;
         } finally {
@@ -430,7 +492,7 @@ export class StudentService {
     }
 
     // Fallback for standalone DB without transactions
-    static async enrollInBatchStandalone(studentId, batchId, actorId, instituteId) {
+    static async enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount = null) {
         const student = await User.findById(studentId);
         if (!student || student.role !== 'student' || student.deletedAt) throw new Error('Invalid or inactive student');
 
@@ -468,7 +530,7 @@ export class StudentService {
             student: studentId,
             batch: batchId,
             institute: batch.institute,
-            totalAmount: batch.course.fees.amount,
+            totalAmount: customAmount !== null ? parseFloat(customAmount) : batch.course.fees.amount,
             installments: [],
             status: 'not_started'
         });

@@ -85,6 +85,7 @@ export class CourseService {
         if (instituteId) query.institute = instituteId;
 
         return await Course.find(query)
+            .populate('subjects')
             .populate('createdBy', 'profile.firstName profile.lastName')
             .lean();
     }

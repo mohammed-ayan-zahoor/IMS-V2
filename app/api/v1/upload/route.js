@@ -16,7 +16,7 @@ const allowedMimeTypes = {
 export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !['super_admin', 'admin'].includes(session.user.role)) {
+        if (!session || !['super_admin', 'admin', 'student'].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

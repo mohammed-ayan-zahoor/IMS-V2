@@ -6,6 +6,7 @@ import IDCardTemplate from "@/models/IDCardTemplate";
 import User from "@/models/User";
 import Institute from "@/models/Institute";
 import { renderIDCardFront, renderIDCardBack } from "@/services/idCardService";
+import { getInstituteScope } from "@/middleware/instituteScope";
 
 export const runtime = "nodejs";
 
@@ -13,9 +14,9 @@ export async function POST(req) {
     try {
         await connectDB();
 
-        const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const scope = await getInstituteScope(req);
+        if (!scope.instituteId) {
+            return NextResponse.json({ error: "Missing institute context" }, { status: 400 });
         }
 
         const body = await req.json();
@@ -28,54 +29,89 @@ export async function POST(req) {
             );
         }
 
-        // Fetch template
-        const template = await IDCardTemplate.findById(templateId);
+        // Fetch template - scoped to institute
+        const template = await IDCardTemplate.findOne({ 
+            _id: templateId, 
+            institute: scope.instituteId 
+        });
         if (!template) {
             return NextResponse.json(
-                { error: "Template not found" },
+                { error: "Template not found or access denied" },
                 { status: 404 }
             );
         }
 
-        // Fetch students
-        const students = await User.find({ _id: { $in: studentIds } });
+        // Fetch students - scoped to institute
+        const students = await User.find({ 
+            _id: { $in: studentIds },
+            institute: scope.instituteId
+        });
 
         if (students.length === 0) {
             return NextResponse.json(
-                { error: "No students found" },
+                { error: "No students found for this institute" },
                 { status: 404 }
             );
         }
 
-        // Fetch institute
-        const institute = await Institute.findOne().lean();
+        // Fetch institute info
+        const institute = await Institute.findById(scope.instituteId).lean();
+        if (!institute) {
+            return NextResponse.json({ error: "Institute not found" }, { status: 404 });
+        }
+        const instituteId = scope.instituteId;
 
-        // Render common back image
-        const backCanvas = await renderIDCardBack(Object.values(students)[0], template, institute);
+        const { getHydratedContext } = await import("@/services/certificateService");
+
+        // 1. Prepare contexts for all students in parallel
+        const hydratedContexts = await Promise.all(students.map(async (student) => {
+            try {
+                // Find batch for this student
+                const Batch = (await import("@/models/Batch")).default;
+                const studentBatch = await Batch.findOne({
+                    'enrolledStudents.student': student._id,
+                    deletedAt: null
+                });
+
+                return await getHydratedContext(student._id, instituteId, {
+                    batchId: studentBatch?._id
+                });
+            } catch (e) {
+                console.error(`Failed to hydrate student ${student._id}:`, e);
+                return null;
+            }
+        }));
+
+        // Render common back image using the first valid student's context
+        const firstValidContext = hydratedContexts.find(c => !!c);
+        if (!firstValidContext) throw new Error("No valid student data found for rendering");
+        
+        const backCanvas = await renderIDCardBack(firstValidContext, template, firstValidContext.institute);
         const commonBackImage = backCanvas.toDataURL("image/png");
 
         const studentCards = [];
 
-        for (let i = 0; i < students.length; i++) {
-            const student = students[i];
+        // 2. Render cards (could be parallel but canvas might be heavy)
+        for (let i = 0; i < hydratedContexts.length; i++) {
+            const context = hydratedContexts[i];
+            if (!context) continue;
 
             try {
-                console.log(`[IDCardGeneration] Rendering card for student: ${student._id}`);
+                console.log(`[IDCardGeneration] Rendering card for student: ${context.student.fullName}`);
 
                 // Render front
-                const frontCanvas = await renderIDCardFront(student, template);
+                const frontCanvas = await renderIDCardFront(context, template);
                 const frontImage = frontCanvas.toDataURL("image/png");
 
                 studentCards.push({
-                    studentId: student._id,
-                    name: `${student.profile?.firstName || ""} ${student.profile?.lastName || ""}`.trim(),
-                    rollNumber: student.enrollmentNumber,
+                    studentId: context.student.grNumber || i, // or original ID
+                    name: context.student.fullName,
+                    rollNumber: context.student.rollNo || context.student.enrollmentNo,
                     frontImage: frontImage
                 });
 
             } catch (cardError) {
-                console.error(`[IDCardGeneration] Error rendering card for ${student._id}:`, cardError);
-                // Continue with next student
+                console.error(`[IDCardGeneration] Error rendering card:`, cardError);
             }
         }
 

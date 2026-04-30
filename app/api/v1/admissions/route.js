@@ -11,7 +11,7 @@ export async function POST(req) {
         const body = await req.json();
 
         // Basic validation
-        const requiredFields = ['institute', 'firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'course', 'learningMode', 'guardian', 'address'];
+        const requiredFields = ['institute', 'firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'course', 'learningMode'];
         for (const field of requiredFields) {
             if (!body[field]) {
                 return NextResponse.json({ error: `Field '${field}' is required` }, { status: 400 });

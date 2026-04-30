@@ -16,15 +16,21 @@ const MaterialSchema = new Schema({
         size: { type: Number, min: 0 }, // bytes
         originalName: String
     },
+    courses: [{ type: Schema.Types.ObjectId, ref: 'Course' }], // Array of courses (backwards compatible with single course)
+    course: { type: Schema.Types.ObjectId, ref: 'Course', index: true }, // Kept for backwards compatibility
+    batches: [{ type: Schema.Types.ObjectId, ref: 'Batch' }], // Array of batches across all courses
+    visibleToStudents: { type: Boolean, default: true, index: true },
+    
+    // Assignment Specific Fields
     category: {
         type: String,
         enum: ['lecture', 'assignment', 'reference', 'exam_material', 'other'],
         default: 'lecture'
     },
-    courses: [{ type: Schema.Types.ObjectId, ref: 'Course' }], // Array of courses (backwards compatible with single course)
-    course: { type: Schema.Types.ObjectId, ref: 'Course', index: true }, // Kept for backwards compatibility
-    batches: [{ type: Schema.Types.ObjectId, ref: 'Batch' }], // Array of batches across all courses
-    visibleToStudents: { type: Boolean, default: true, index: true },
+    allowSubmissions: { type: Boolean, default: false },
+    dueDate: { type: Date },
+    totalMarks: { type: Number, min: 0 },
+    
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     downloadCount: { type: Number, default: 0 },
     deletedAt: { type: Date, index: true }

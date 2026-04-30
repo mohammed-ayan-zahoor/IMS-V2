@@ -29,7 +29,9 @@ export async function GET(req, { params }) {
 
         // 2. Fetch certificate
         const certificate = await Certificate.findById(certificateId)
-            .populate('studentId', 'profile.firstName profile.lastName email')
+            .populate({
+                path: 'studentId'
+            })
             .populate('institutionId', 'name');
 
         if (!certificate) {
@@ -66,57 +68,63 @@ export async function GET(req, { params }) {
         }
 
         // 4. Prepare certificate data for PDF generation
-        // Always use the latest template and metadata from the certificate
-        const studentFirstName = certificate.studentId?.profile?.firstName || '';
-        const studentLastName = certificate.studentId?.profile?.lastName || '';
+        // Merge student data with certificate metadata and institute info
         const certData = {
-            studentName: `${studentFirstName} ${studentLastName}`.trim(),
-            courseName: certificate.metadata?.courseName || 'Course Completion',
+            ...certificate.studentId.toObject(),
+            ...certificate.metadata,
             certificateNumber: certificate.certificateNumber,
             issueDate: certificate.issueDate,
-            instituteName: certificate.institutionId?.name || 'Educational Institution',
-            duration: certificate.metadata?.duration || ''
+            institute: {
+                name: certificate.institutionId?.name || 'Educational Institution'
+            }
         };
 
         // 5. Generate PDF - always fetch fresh template to get latest design
         let pdfBuffer;
+        const { getHydratedContext, renderHtmlToPdf, generateCertificatePDFFromTemplate } = await import('@/services/certificateService');
         
-         if (certificate.template?.templateId) {
-             // Always fetch the latest template from database to ensure latest design is used
-             const template = await CertificateTemplate.findById(certificate.template.templateId);
+        // Use the common hydration engine for consistency
+        const context = await getHydratedContext(certificate.studentId._id, certificate.institutionId._id, {
+            serialNumber: certificate.certificateNumber,
+            academicYear: certificate.academicYear || new Date().getFullYear().toString(),
+            metadata: certificate.metadata,
+            batchId: certificate.batchId
+        });
+
+        const templateId = certificate.template?.templateId || certificate.snapshot?.templateId;
+
+        if (templateId) {
+             const template = await CertificateTemplate.findById(templateId);
              
-             if (process.env.NODE_ENV === 'development') {
-                 console.log('=> Template fetched for download:', {
-                     templateId: template?._id,
-                     templateName: template?.name,
-                     placeholders: JSON.stringify(template?.placeholders, null, 2)
-                 });
-             }
-             
-             if (template && template.imageUrl) {
-                 // Use image-based template with latest design
-                 pdfBuffer = await generateCertificatePDFFromTemplate(certData, template);
+             if (template && template.renderMode === 'HTML_TEMPLATE') {
+                 // HTML Template rendering
+                 pdfBuffer = await renderHtmlToPdf(
+                     template.htmlTemplate,
+                     template.cssContent,
+                     context,
+                     template.pageConfig
+                 );
+             } else if (template && template.imageUrl) {
+                 // Image-based rendering
+                 pdfBuffer = await generateCertificatePDFFromTemplate(context, template);
              } else {
-                 // Template not found or missing image, fall back to HTML
-                 console.warn('Template not found or missing image, falling back to HTML-based certificate');
-                 pdfBuffer = await generateCertificatePDF(certData);
+                 throw new Error('The original template for this certificate has been deleted or is invalid.');
              }
          } else {
-            // Use legacy HTML-based certificate
-            pdfBuffer = await generateCertificatePDF(certData);
+            throw new Error('This is a legacy certificate without a saved design template. Please re-issue it to enable viewing.');
         }
 
-        // 6. Set response headers for PDF download
+        // 6. Set response headers for PDF viewing
         const filename = generateCertificateFilename(
             certificate.certificateNumber,
-            certData.studentName
+            context.student.fullName
         );
 
         return new NextResponse(pdfBuffer, {
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="${filename}"`,
+                'Content-Disposition': `inline; filename="${filename}"`,
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
                 'Expires': '0'

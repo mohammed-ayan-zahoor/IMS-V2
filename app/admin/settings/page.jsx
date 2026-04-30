@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/contexts/ToastContext";
 import CertificateTemplateManager from "@/components/admin/CertificateTemplateManager";
+import HtmlCertificateEditor from "@/components/admin/HtmlCertificateEditor";
 
 export default function SettingsPage() {
     const toast = useToast();
@@ -30,6 +31,7 @@ export default function SettingsPage() {
         branding: {
             logo: ""
         },
+        type: "VOCATIONAL",
         settings: {
             receiptTemplate: "classic"
         }
@@ -148,7 +150,7 @@ export default function SettingsPage() {
     if (loading) return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-premium-blue" /></div>;
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
             {/* Page Action Bar */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div>
@@ -176,6 +178,36 @@ export default function SettingsPage() {
                                         placeholder="Institute Name"
                                     />
                                 </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-slate-700">Institute Type</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setInstitute({ ...institute, type: 'VOCATIONAL' })}
+                                        className={cn(
+                                            "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
+                                            (institute.type === 'VOCATIONAL' || !institute.type)
+                                                ? "border-premium-blue bg-premium-blue/5 text-premium-blue"
+                                                : "border-slate-100 hover:border-slate-200 text-slate-500"
+                                        )}
+                                    >
+                                        <span className="text-xs font-bold uppercase tracking-wider text-center">Vocational / Coaching</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setInstitute({ ...institute, type: 'SCHOOL' })}
+                                        className={cn(
+                                            "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
+                                            institute.type === 'SCHOOL'
+                                                ? "border-premium-blue bg-premium-blue/5 text-premium-blue"
+                                                : "border-slate-100 hover:border-slate-200 text-slate-500"
+                                        )}
+                                    >
+                                        <span className="text-xs font-bold uppercase tracking-wider text-center">School</span>
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-medium italic">Adjusts system labels (e.g., Course/Batch → Standard/Section)</p>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-slate-700">Website</label>
@@ -382,8 +414,15 @@ export default function SettingsPage() {
             </form>
 
             {/* Certificate Templates - Outside Form */}
-            <div>
-                <CertificateTemplateManager />
+            <div className="space-y-8">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">Image-Based Templates</h3>
+                    <CertificateTemplateManager />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">HTML Certificate Templates</h3>
+                    <HtmlCertificateEditor />
+                </div>
             </div>
         
         </div>

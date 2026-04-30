@@ -21,6 +21,7 @@ export default function Input({ className, label, error, helperText, id, suffix,
                         className
                     )}
                     {...props}
+                    value={props.value ?? ""}
                 />
                 {suffix && (
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center">

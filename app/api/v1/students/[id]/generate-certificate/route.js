@@ -28,7 +28,7 @@ export async function POST(req, { params }) {
 
         const studentId = params.id;
         const body = await req.json();
-        const { templateType, metadata, templateId, batchId } = body;
+        const { templateType, metadata, templateId, batchId, visibleToStudent } = body;
 
         // 3. Validate required fields
         if (!batchId) {
@@ -46,7 +46,8 @@ export async function POST(req, { params }) {
             metadata || {},
             templateId,
             batchId,
-            req
+            req,
+            visibleToStudent
         );
 
         if (!result.success) {

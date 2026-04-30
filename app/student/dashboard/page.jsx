@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import {
     BookOpen,
@@ -11,7 +12,9 @@ import {
     ArrowRight,
     Download,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
+    Target,
+    Activity
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
@@ -41,7 +44,8 @@ export default function StudentDashboard() {
         examsTaken: 0,
         materialsCount: 0,
         upcomingExams: [],
-        recentMaterials: []
+        recentMaterials: [],
+        syllabusProgress: []
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -210,7 +214,7 @@ export default function StudentDashboard() {
                     </CardContent>
                 </Card>
 
-                {/* Materials Section */}
+                {/* Materials & Progress Section */}
                 <div className="space-y-8">
                     <Card className="border-border shadow-sm border-t-4 border-t-amber-500">
                         <CardHeader title="Latest Resources" />
@@ -245,18 +249,73 @@ export default function StudentDashboard() {
                         </CardContent>
                     </Card>
 
-                    {/* Notice Board - High Contrast */}
-                    <Card className="bg-gradient-to-br from-amber-50 to-orange-50 p-0 overflow-hidden relative group rounded-xl border-amber-100 shadow-sm">
-                        <div className="p-6 relative z-10">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] mb-3 text-amber-700">
+                    {/* Notice Board - Soft Premium Theme */}
+                    <Card className="bg-white p-0 overflow-hidden relative group rounded-xl border-blue-100 shadow-sm">
+                        <div className="p-6 relative z-10 border-l-4 border-premium-blue bg-blue-50/30">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] mb-3 text-premium-blue">
                                 <AlertCircle size={14} />
                                 <span>Notice Board</span>
                             </div>
                             <p className="text-sm font-bold leading-relaxed text-slate-800">
-                                Welcome to the new Eduvanta student portal. Check your exam schedule regularly.
+                                Welcome to the new Quantech student portal. Check your exam schedule regularly.
                             </p>
                         </div>
                     </Card>
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2 italic">
+                                <Target size={20} className="text-premium-blue" />
+                                Course Progress
+                            </h2>
+                            <Link href="/student/syllabus" className="text-xs font-black text-premium-blue uppercase tracking-widest hover:underline flex items-center gap-1 group">
+                                View All <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+                            </Link>
+                        </div>
+
+                        <div className="space-y-4">
+                            {data.syllabusProgress?.map((item, idx) => (
+                                <Card key={idx} className="bg-white border-slate-100 shadow-sm hover:border-premium-blue/20 transition-all p-5">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                            <h4 className="text-sm font-black text-slate-900 leading-tight">{item.subject}</h4>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{item.code}</p>
+                                        </div>
+                                        <span className="text-xs font-black text-premium-blue">{Math.round(item.progress)}%</span>
+                                    </div>
+                                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                                        <motion.div 
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${item.progress}%` }}
+                                            className="h-full bg-premium-blue rounded-full"
+                                        />
+                                    </div>
+                                </Card>
+                            ))}
+                            {(!data.syllabusProgress || data.syllabusProgress.length === 0) && (
+                                <div className="p-10 text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                                    <Activity className="mx-auto text-slate-300 mb-2" size={32} />
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No progress data yet</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Quick Actions or Tips - Blue Theme */}
+                        <Card className="bg-white border-blue-100 shadow-sm overflow-hidden relative group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <Trophy size={80} className="text-premium-blue" />
+                            </div>
+                            <CardContent className="p-6 relative z-10">
+                                <h3 className="text-slate-900 font-black text-lg leading-tight mb-2">Ready for the next challenge?</h3>
+                                <p className="text-slate-500 text-xs font-medium mb-6">Completing 100% of your syllabus unlocks the Course Completion Certificate.</p>
+                                <Button 
+                                    className="w-full bg-premium-blue text-white hover:bg-blue-700 font-black text-xs uppercase tracking-widest py-3"
+                                    onClick={() => window.location.href = '/student/syllabus'}
+                                >
+                                    Track My Journey
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
             </div>
         </div>

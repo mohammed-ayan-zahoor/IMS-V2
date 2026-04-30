@@ -272,7 +272,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                     <header className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <SharpBadge variant="default">EDUVANTA EXECUTIVE AUDIT</SharpBadge>
+                                <SharpBadge variant="default">QUANTECH EXECUTIVE AUDIT</SharpBadge>
                                 <div className="h-[2px] w-24 bg-black" />
                                 <button 
                                     onClick={() => {

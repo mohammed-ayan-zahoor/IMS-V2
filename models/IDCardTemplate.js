@@ -1,5 +1,35 @@
 import mongoose from "mongoose";
 
+const ElementSchema = new mongoose.Schema({
+    x: { type: Number, default: 50 },
+    y: { type: Number, default: 50 },
+    fontSize: { type: Number, default: 12 },
+    fontFamily: { type: String, default: "Arial" },
+    fontWeight: { type: String, default: "normal" },
+    color: { type: String, default: "#000000" },
+    textAlign: { type: String, default: "center" },
+    textTransform: { type: String, default: "none" },
+    enabled: { type: Boolean, default: true },
+    
+    // Field identification
+    type: { type: String, enum: ["text", "image", "qr", "static"], default: "text" },
+    fieldKey: { type: String }, // e.g., 'profile.firstName', 'grNumber'
+    staticText: { type: String }, // for static text elements
+    label: { type: String }, // User-friendly label in editor
+    
+    // Image/Shape specific
+    width: { type: Number },
+    height: { type: Number },
+    borderRadius: { type: Number },
+    borderWidth: { type: Number },
+    borderColor: { type: String },
+    shape: { type: String },
+    
+    // QR specific
+    size: { type: Number },
+    dataMode: { type: String }
+}, { _id: false });
+
 const IDCardTemplateSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -17,120 +47,17 @@ const IDCardTemplateSchema = new mongoose.Schema({
         required: true
     },
     
-    // Front side placeholder configuration
+    // Dynamic placeholder configurations
     frontPlaceholders: {
-        studentName: {
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 30 },
-            fontSize: { type: Number, default: 16 },
-            fontFamily: { type: String, default: "Arial" },
-            fontWeight: { type: String, default: "bold" },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center" },
-            textTransform: { type: String, default: "none" },
-            enabled: { type: Boolean, default: true }
-        },
-        studentPhoto: {
-            x: { type: Number, default: 10 },
-            y: { type: Number, default: 15 },
-            width: { type: Number, default: 25 },
-            height: { type: Number, default: 30 },
-            borderRadius: { type: Number, default: 0 },
-            borderWidth: { type: Number, default: 0 },
-            borderColor: { type: String, default: "#000000" },
-            shape: { type: String, default: "rectangle", enum: ["rectangle", "square", "circle", "rounded-square"] },
-            enabled: { type: Boolean, default: true }
-        },
-        studentId: {
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 50 },
-            fontSize: { type: Number, default: 12 },
-            fontFamily: { type: String, default: "Arial" },
-            fontWeight: { type: String, default: "normal" },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center" },
-            textTransform: { type: String, default: "none" },
-            enabled: { type: Boolean, default: true }
-        },
-        batch: {
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 62 },
-            fontSize: { type: Number, default: 11 },
-            fontFamily: { type: String, default: "Arial" },
-            fontWeight: { type: String, default: "normal" },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center" },
-            textTransform: { type: String, default: "none" },
-            enabled: { type: Boolean, default: true }
-        },
-        rollNumber: {
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 73 },
-            fontSize: { type: Number, default: 11 },
-            fontFamily: { type: String, default: "Arial" },
-            fontWeight: { type: String, default: "normal" },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center" },
-            textTransform: { type: String, default: "none" },
-            enabled: { type: Boolean, default: false }
-        },
-        dateOfAdmission: {
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 84 },
-            fontSize: { type: Number, default: 10 },
-            fontFamily: { type: String, default: "Arial" },
-            fontWeight: { type: String, default: "normal" },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center" },
-            textTransform: { type: String, default: "none" },
-            enabled: { type: Boolean, default: false }
-        }
+        type: Map,
+        of: ElementSchema,
+        default: {}
     },
     
-    // Back side placeholder configuration
     backPlaceholders: {
-        instituteName: {
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 10 },
-            fontSize: { type: Number, default: 14 },
-            fontFamily: { type: String, default: "Arial" },
-            fontWeight: { type: String, default: "bold" },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center" },
-            textTransform: { type: String, default: "none" },
-            enabled: { type: Boolean, default: true }
-        },
-        validity: {
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 40 },
-            fontSize: { type: Number, default: 11 },
-            fontFamily: { type: String, default: "Arial" },
-            fontWeight: { type: String, default: "normal" },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center" },
-            textTransform: { type: String, default: "none" },
-            enabled: { type: Boolean, default: true }
-        },
-        qrCode: {
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 60 },
-            size: { type: Number, default: 20 },
-            width: { type: Number, default: 20 },
-            height: { type: Number, default: 20 },
-            dataMode: { type: String, default: "studentId", enum: ["studentId", "profileUrl", "vcard"] },
-            enabled: { type: Boolean, default: true }
-        },
-        disclaimer: {
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 85 },
-            fontSize: { type: Number, default: 8 },
-            fontFamily: { type: String, default: "Arial" },
-            fontWeight: { type: String, default: "normal" },
-            color: { type: String, default: "#666666" },
-            textAlign: { type: String, default: "center" },
-            textTransform: { type: String, default: "none" },
-            enabled: { type: Boolean, default: false }
-        }
+        type: Map,
+        of: ElementSchema,
+        default: {}
     },
     
     // Card dimensions in mm (ISO/IEC 7810 ID-1)
@@ -142,6 +69,13 @@ const IDCardTemplateSchema = new mongoose.Schema({
     isDefault: {
         type: Boolean,
         default: false
+    },
+    
+    institute: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Institute",
+        required: true,
+        index: true
     },
     
     createdBy: {
@@ -161,7 +95,7 @@ const IDCardTemplateSchema = new mongoose.Schema({
 });
 
 // Index for faster queries
-IDCardTemplateSchema.index({ isDefault: 1 });
-IDCardTemplateSchema.index({ createdAt: -1 });
+IDCardTemplateSchema.index({ institute: 1, isDefault: 1 });
+IDCardTemplateSchema.index({ institute: 1, createdAt: -1 });
 
 export default mongoose.models.IDCardTemplate || mongoose.model("IDCardTemplate", IDCardTemplateSchema);

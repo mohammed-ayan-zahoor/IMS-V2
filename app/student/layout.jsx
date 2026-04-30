@@ -18,7 +18,12 @@ import {
     MessageSquare,
     MoreHorizontal,
     Bell,
-    X
+    Target,
+    X,
+    Megaphone,
+    Trophy,
+    Clock,
+    BookOpen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/contexts/ToastContext";
@@ -30,14 +35,20 @@ export default function StudentLayout({ children }) {
     // Main Navigation (Top Bar & First 4 Bottom Items)
     const primaryNav = [
         { label: "Overview", icon: LayoutDashboard, href: "/student/dashboard" },
-        { label: "My Batches", icon: Layers, href: "/student/batches" },
+        { label: "Timetable", icon: Clock, href: "/student/timetable" },
+        { label: "Assignments", icon: Calendar, href: "/student/calendar" },
         { label: "Attendance", icon: Calendar, href: "/student/attendance" },
-        { label: "Fees", icon: CreditCard, href: "/student/fees" },
     ];
 
     // Secondary Navigation (Hidden in "More" on Mobile)
     const secondaryNav = [
-        { label: "Materials", icon: FileText, href: "/student/materials" },
+        { label: "My Batches", icon: Layers, href: "/student/batches" },
+        { label: "Fees", icon: CreditCard, href: "/student/fees" },
+        { label: "Syllabus", icon: Target, href: "/student/syllabus" },
+        { label: "Materials", icon: BookOpen, href: "/student/materials" },
+        { label: "Documents", icon: FileText, href: "/student/documents" },
+        { label: "Notices", icon: Megaphone, href: "/student/notices" },
+        { label: "Mock Tests", icon: Trophy, href: "/student/practice" },
         { label: "Exams", icon: PenTool, href: "/student/exams" },
         { label: "Messages", icon: MessageSquare, href: "/student/chat" },
         { label: "Settings", icon: Settings, href: "/student/settings" },
@@ -68,7 +79,7 @@ export default function StudentLayout({ children }) {
                         )}
                         <div className="min-w-0">
                             <h1 className="text-base md:text-lg font-black tracking-tighter leading-tight text-slate-900 truncate md:whitespace-normal md:overflow-visible">
-                                {session?.user?.institute?.name || "Eduvanta"}                            </h1>
+                                {session?.user?.institute?.name || "Quantech"}                            </h1>
                             <p className="text-[10px] uppercase font-bold text-slate-400 mt-0.5">Student Portal</p>
                         </div>
                     </Link>
@@ -83,7 +94,7 @@ export default function StudentLayout({ children }) {
                                     className={cn(
                                         "px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-2 uppercase tracking-tight",
                                         isActive
-                                            ? "bg-slate-900 text-white shadow-md shadow-slate-900/10"
+                                            ? "bg-premium-blue text-white shadow-md shadow-blue-900/10"
                                             : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                                     )}
                                 >
@@ -214,7 +225,7 @@ export default function StudentLayout({ children }) {
                                             className={cn(
                                                 "p-5 rounded-2xl border transition-all flex flex-col items-start gap-4",
                                                 isActive 
-                                                    ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/20" 
+                                                    ? "bg-premium-blue border-premium-blue text-white shadow-xl shadow-blue-900/20" 
                                                     : "bg-slate-50 border-slate-100 text-slate-900 hover:border-slate-300"
                                             )}
                                         >

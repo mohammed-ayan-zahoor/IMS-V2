@@ -2,524 +2,406 @@ import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
 import { createCanvas, loadImage, registerFont } from 'canvas';
-import fetch from 'node-fetch';
+import Handlebars from 'handlebars';
+import pLimit from 'p-limit';
+import User from '../models/User.js';
+import Institute from '../models/Institute.js';
+import Counter from '../models/Counter.js';
+import { uploadToCloudinary } from '../lib/cloudinary.js';
 
 /**
  * Certificate Service - Handles on-demand certificate PDF generation
- * Supports both HTML-based (legacy) and image-based (template) certificates
- * Generates PDFs on-the-fly without storing files on disk
+ * Supports both Handlebars HTML-based formal documents and canvas image-based certificates
  */
+
+// Concurrency limit for Puppeteer instances
+const limit = pLimit(3);
 
 // Register bundled Google Fonts
 const fontDir = path.join(process.cwd(), 'public', 'fonts');
 const fonts = [
-    // Roboto variants
     { family: 'Roboto', path: path.join(fontDir, 'Roboto-Regular.ttf'), weight: 'normal', style: 'normal' },
     { family: 'Roboto', path: path.join(fontDir, 'Roboto-Bold.ttf'), weight: 'bold', style: 'normal' },
-    { family: 'Roboto', path: path.join(fontDir, 'Roboto-Italic.ttf'), weight: 'normal', style: 'italic' },
-    { family: 'Roboto', path: path.join(fontDir, 'Roboto-BoldItalic.ttf'), weight: 'bold', style: 'italic' },
-    // Inter variants
     { family: 'Inter', path: path.join(fontDir, 'Inter-Regular.ttf'), weight: 'normal', style: 'normal' },
     { family: 'Inter', path: path.join(fontDir, 'Inter-Bold.ttf'), weight: 'bold', style: 'normal' },
-    { family: 'Inter', path: path.join(fontDir, 'Inter-Italic.ttf'), weight: 'normal', style: 'italic' },
-    { family: 'Inter', path: path.join(fontDir, 'Inter-BoldItalic.ttf'), weight: 'bold', style: 'italic' },
-    // Lora variants
     { family: 'Lora', path: path.join(fontDir, 'Lora-Regular.ttf'), weight: 'normal', style: 'normal' },
-    { family: 'Lora', path: path.join(fontDir, 'Lora-Bold.ttf'), weight: 'bold', style: 'normal' },
-    { family: 'Lora', path: path.join(fontDir, 'Lora-Italic.ttf'), weight: 'normal', style: 'italic' },
-    { family: 'Lora', path: path.join(fontDir, 'Lora-BoldItalic.ttf'), weight: 'bold', style: 'italic' },
-     // Poppins variants
-     { family: 'Poppins', path: path.join(fontDir, 'Poppins-Regular.ttf'), weight: 'normal', style: 'normal' },
-     { family: 'Poppins', path: path.join(fontDir, 'Poppins-Bold.ttf'), weight: 'bold', style: 'normal' },
-     { family: 'Poppins', path: path.join(fontDir, 'Poppins-Italic.ttf'), weight: 'normal', style: 'italic' },
-     { family: 'Poppins', path: path.join(fontDir, 'Poppins-BoldItalic.ttf'), weight: 'bold', style: 'italic' },
-     // Courgette (decorative, single variant)
-     { family: 'Courgette', path: path.join(fontDir, 'Courgette-Regular.ttf'), weight: 'normal', style: 'normal' },
-     // Silentha OT (fonts directory)
-     { family: 'Silentha OT', path: path.join(fontDir, 'Silentha-OT.ttf'), weight: 'normal', style: 'normal' },
-     // Roherat Regular (fonts directory)
-     { family: 'Roherat', path: path.join(fontDir, 'Roherat-Regular.ttf'), weight: 'normal', style: 'normal' },
-     // Signtelly Regular (fonts directory)
-     { family: 'Signtelly', path: path.join(fontDir, 'Signtelly-Regular.ttf'), weight: 'normal', style: 'normal' }
+    { family: 'Lora', path: path.join(fontDir, 'Lora-Bold.ttf'), weight: 'bold', style: 'normal' }
 ];
 
 fonts.forEach(font => {
     try {
         if (fs.existsSync(font.path)) {
             registerFont(font.path, { family: font.family, weight: font.weight, style: font.style });
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`✓ Registered font: ${font.family} (${font.weight}, ${font.style})`);
-            }
-        } else {
-            console.warn(`⚠ Font file not found: ${font.path} - will use system fallback`);
         }
     } catch (error) {
-        console.warn(`⚠ Could not register font ${font.family}: ${error.message} - will use system fallback`);
+        console.warn(`⚠ Could not register font ${font.family}: ${error.message}`);
     }
 });
 
+// Custom Handlebars Helpers
+Handlebars.registerHelper('formatDate', (date) => {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('en-GB', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+});
+
+Handlebars.registerHelper('toUpperCase', (str) => {
+    return typeof str === 'string' ? str.toUpperCase() : str;
+});
+
 /**
- * Builds font string for canvas context
+ * Hydration Engine - Resolves and flattens all data for a document
  */
-const buildFontString = (fontSize, fontWeight, fontStyle, fontFamily) => {
-    const style = fontStyle === 'italic' ? 'italic ' : '';
-    const weight = fontWeight === 'bold' ? 'bold ' : '';
-    
-    // Always wrap font family in quotes to handle font names with spaces
-    const quotedFamily = `"${fontFamily}"`;
-    
-    return `${style}${weight}${fontSize}px ${quotedFamily}`;
+export const getHydratedContext = async (studentId, instituteId, options = {}) => {
+    const [student, institute] = await Promise.all([
+        User.findById(studentId),
+        Institute.findById(instituteId)
+    ]);
+
+    if (!student || !institute) {
+        throw new Error('Student or Institute not found for hydration');
+    }
+
+    // Attempt to resolve course/batch data if provided or if student is active
+    let courseName = options.courseName || 'N/A';
+    let batchName = options.batchName || 'N/A';
+
+    if (options.batchId) {
+        const Batch = (await import('../models/Batch.js')).default;
+        const batch = await Batch.findById(options.batchId).populate('course');
+        if (batch) {
+            batchName = batch.name;
+            courseName = batch.course?.name || courseName;
+        }
+    }
+
+    const context = {
+        student: {
+            fullName: `${student.profile?.firstName || ''} ${student.profile?.lastName || ''}`.trim(),
+            fatherName: student.profile?.fatherName || student.fatherName || 'N/A',
+            motherName: student.profile?.motherName || student.motherName || 'N/A',
+            grNumber: student.grNumber || 'N/A',
+            enrollmentNo: student.enrollmentNumber || 'N/A',
+            rollNo: student.rollNo || 'N/A', // Alias for school usage
+            dob: student.profile?.dateOfBirth ? new Date(student.profile.dateOfBirth).toLocaleDateString('en-GB') : 'N/A',
+            dobWords: 'N/A', 
+            admissionDate: student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-GB') : 'N/A',
+            gender: student.profile?.gender || 'N/A',
+            nationality: student.profile?.nationality || student.nationality || 'Indian',
+            religion: student.profile?.religion || student.religion || 'N/A',
+            caste: student.profile?.caste || student.caste || 'N/A',
+            placeOfBirth: student.profile?.placeOfBirth || (student.placeOfBirth ? `${student.placeOfBirth.city || ''} ${student.placeOfBirth.state || ''}` : 'N/A'),
+            lastSchool: student.profile?.lastSchoolAttended || student.lastSchoolAttended || 'N/A',
+            address: student.profile?.address ? `${student.profile.address.street || ''}, ${student.profile.address.city || ''}`.trim() : 'N/A',
+            // School specific aliases
+            std: courseName,
+            section: batchName
+        },
+        course: {
+            name: courseName
+        },
+        batch: {
+            name: batchName
+        },
+        // Root level aliases for easier placeholder usage
+        std: courseName,
+        section: batchName,
+        
+        institute: {
+            name: institute.name,
+            address: institute.address ? `${institute.address.street || ''}, ${institute.address.city || ''}` : 'N/A',
+            logo: institute.branding?.logo || '',
+            udiseNumber: institute.udiseNumber || 'N/A',
+            phone: institute.contactPhone || 'N/A',
+            email: institute.contactEmail || 'N/A'
+        },
+        certificate: {
+            number: options.serialNumber || 'PREVIEW/0000',
+            issueDate: new Date().toLocaleDateString('en-GB'),
+            isDuplicate: options.isDuplicate || false,
+            category: options.category || 'GENERAL'
+        },
+        academicYear: options.academicYear || new Date().getFullYear().toString(),
+        metadata: {
+            leavingReason: options.metadata?.leavingReason || student.leavingReason || "N/A",
+            leavingDate: options.metadata?.leavingDate || (student.leavingDate ? new Date(student.leavingDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')),
+            conduct: options.metadata?.conduct || student.conduct || 'Good',
+            progress: options.metadata?.progress || student.progress || 'Good',
+            ...options.metadata
+        }
+    };
+
+    return context;
 };
 
 /**
- * Generates certificate PDF using image template with overlaid text
+ * Atomic Serial Number Generator
  */
-export const generateCertificatePDFFromTemplate = async (certificateData, template) => {
-    const {
-        studentName,
-        courseName,
-        certificateNumber,
-        issueDate,
-        duration,
-        grade,
-        instituteName
-    } = certificateData;
+export const getNextSerialNumber = async (instituteId, category, academicYear) => {
+    const counterId = `cert_${instituteId}_${category}_${academicYear}`;
+    const counter = await Counter.findByIdAndUpdate(
+        counterId,
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+    );
 
-    const formattedDate = new Date(issueDate).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+    const prefix = category.substring(0, 2).toUpperCase();
+    const paddedSeq = String(counter.seq).padStart(4, '0');
+    return `${prefix}/${academicYear}/${paddedSeq}`;
+};
+
+/**
+ * Rendering Engine - Puppeteer with Handlebars
+ */
+export const renderHtmlToPdf = async (htmlTemplate, cssContent, context, pageConfig = {}, sharedBrowser = null) => {
+    return limit(async () => {
+        let browser = sharedBrowser;
+        let shouldCloseBrowser = false;
+        try {
+            if (!browser) {
+                browser = await puppeteer.launch({
+                    headless: 'new',
+                    args: ['--no-sandbox', '--disable-setuid-sandbox']
+                });
+                shouldCloseBrowser = true;
+            }
+
+            const page = await browser.newPage();
+            
+            // Compile Handlebars
+            const template = Handlebars.compile(htmlTemplate);
+            const injectedHtml = template(context);
+
+            const finalHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        html, body { 
+                            margin: 0; 
+                            padding: 0; 
+                            background: white; 
+                            width: 100%;
+                            height: 100%;
+                            -webkit-print-color-adjust: exact; 
+                        }
+                        .page {
+                            position: relative;
+                            width: ${pageConfig.orientation === 'portrait' ? '210mm' : '297mm'};
+                            height: ${pageConfig.orientation === 'portrait' ? '297mm' : '210mm'};
+                            padding: ${pageConfig.margins?.top || 15}mm ${pageConfig.margins?.right || 15}mm ${pageConfig.margins?.bottom || 15}mm ${pageConfig.margins?.left || 15}mm;
+                            box-sizing: border-box;
+                            overflow: hidden;
+                        }
+                        ${cssContent || ''}
+                        @page {
+                            size: ${pageConfig.size || 'A4'} ${pageConfig.orientation || 'portrait'};
+                            margin: 0;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="page">
+                        ${injectedHtml}
+                        ${context.certificate.isDuplicate ? '<div style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-45deg); font-size:120px; color:rgba(0,0,0,0.1); pointer-events:none; z-index:999; font-weight:bold; white-space:nowrap;">DUPLICATE</div>' : ''}
+                    </div>
+                </body>
+                </html>
+            `;
+
+            await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
+
+            const pdfBuffer = await page.pdf({
+                format: pageConfig.size || 'A4',
+                landscape: pageConfig.orientation === 'landscape',
+                printBackground: true,
+                margin: {
+                    top: '0px',
+                    bottom: '0px',
+                    left: '0px',
+                    right: '0px'
+                }
+            });
+
+            return pdfBuffer;
+        } finally {
+            if (browser && shouldCloseBrowser) await browser.close();
+        }
+    });
+};
+
+/**
+ * High-Level Issuance Logic
+ * Handles serial numbering, snapshotting, and database persistence
+ */
+export const issueCertificate = async (studentId, instituteId, templateId, options = {}) => {
+    const Certificate = (await import('../models/Certificate.js')).default;
+    const CertificateTemplate = (await import('../models/CertificateTemplate.js')).default;
+
+    const template = await CertificateTemplate.findById(templateId);
+    if (!template) throw new Error('Template not found');
+
+    const academicYear = options.academicYear || new Date().getFullYear().toString();
+    const isDuplicate = options.isDuplicate || false;
+    
+    let serialNumber;
+    let originalCertificateId = null;
+
+    // 1. Check for existing certificate of the same category for this student
+    // Formal documents (LC, TC, etc.) usually have one "Original" ever.
+    const existingCert = await Certificate.findOne({
+        studentId,
+        institutionId: instituteId,
+        templateId: template._id,
+        status: { $ne: 'REVOKED' }
+    }).sort({ createdAt: 1 });
+
+    if (existingCert) {
+        if (!isDuplicate) {
+            throw new Error(`An active certificate for ${template.category} already exists for this student (SN: ${existingCert.certificateNumber}). Use 'Issue Duplicate' instead.`);
+        }
+        // For duplicates, we REUSE the serial number
+        serialNumber = existingCert.certificateNumber;
+        originalCertificateId = existingCert._id;
+    } else {
+        // New issuance - generate atomic serial number
+        serialNumber = await getNextSerialNumber(instituteId, template.category, academicYear);
+    }
+
+    // 2. Create Template Snapshot
+    const snapshot = {
+        htmlTemplate: template.htmlTemplate,
+        cssContent: template.cssContent,
+        pageConfig: template.pageConfig,
+        renderMode: template.renderMode,
+        imageUrl: template.imageUrl,
+        placeholders: template.placeholders,
+        category: template.category // Store category in snapshot too
+    };
+
+    // 3. Create Certificate Record
+    const certificate = await Certificate.create({
+        studentId,
+        institutionId: instituteId,
+        batchId: options.batchId || null,
+        certificateNumber: serialNumber,
+        template: {
+            templateId: template._id,
+            templateName: template.name,
+            category: template.category
+        },
+        snapshot: snapshot,
+        metadata: options.metadata || {},
+        academicYear,
+        isDuplicate,
+        originalCertificateId,
+        status: 'GENERATED',
+        visibleToStudent: options.visibleToStudent || false
     });
 
+    // 4. Generate and Upload to Cloudinary (Persistence)
     try {
-         // 1. Fetch the template image
-         if (!template.imageUrl) {
-             throw new Error('Template image URL is missing');
-         }
+        const pdfBuffer = await generateCertificatePDFFromTemplate(certificate, options.browser);
+        const uploadResult = await uploadToCloudinary(pdfBuffer, `certificates/${instituteId}/${studentId}`);
+        
+        if (uploadResult?.secure_url) {
+            certificate.pdfUrl = uploadResult.secure_url;
+            await certificate.save();
+        }
+    } catch (uploadError) {
+        console.error("Failed to upload certificate to Cloudinary:", uploadError);
+        // We don't throw here to avoid failing the whole issuance if only upload fails,
+        // but the record exists so it can be retried/regenerated later.
+    }
 
-         // Convert relative URLs to absolute URLs
-         let absoluteImageUrl = template.imageUrl;
-         if (template.imageUrl.startsWith('/')) {
-             const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-             absoluteImageUrl = new URL(template.imageUrl, baseUrl).toString();
-         }
+    return certificate;
+};
 
-         const imageResponse = await fetch(absoluteImageUrl);
-         if (!imageResponse.ok) {
-             throw new Error(`Failed to fetch template image: ${imageResponse.statusText}`);
-         }
-         const imageBuffer = await imageResponse.buffer();
-         const image = await loadImage(imageBuffer);
+export const generateCertificatePDFFromTemplate = async (certificateData, browser = null) => {
+    // Use the snapshot if available, otherwise use the current template
+    const source = certificateData.snapshot || certificateData.template;
+    
+    if (!source) {
+        throw new Error('No template source (snapshot or current) found for generation');
+    }
 
-         // Debug: Log image dimensions
-         if (process.env.NODE_ENV === 'development') {
-             console.log(`=> Template image dimensions: ${image.width}x${image.height}px`);
-         }
+    // If it's a formal document (HTML)
+    if (source.renderMode === 'HTML_TEMPLATE') {
+        const context = await getHydratedContext(certificateData.studentId, certificateData.institutionId, {
+            serialNumber: certificateData.certificateNumber,
+            metadata: certificateData.metadata,
+            academicYear: certificateData.academicYear,
+            isDuplicate: certificateData.isDuplicate
+        });
+        return renderHtmlToPdf(source.htmlTemplate, source.cssContent, context, source.pageConfig, browser);
+    }
 
-         // 2. Create canvas matching image dimensions
-         const canvas = createCanvas(image.width, image.height);
-         const ctx = canvas.getContext('2d');
-
-        // Draw the template image
+    // Original Canvas-based logic for Creative Certificates
+    try {
+        const image = await loadImage(source.imageUrl);
+        const canvas = createCanvas(image.width, image.height);
+        const ctx = canvas.getContext('2d');
         ctx.drawImage(image, 0, 0);
 
-        // 3. Reference width for scaling fonts (assumes 1000px reference)
         const referenceWidth = 1000;
         const scaleRatio = image.width / referenceWidth;
 
-        // 4. Overlay text at placeholder positions
-        const placeholders = template.placeholders;
-        const dataMap = {
-            studentName: { text: studentName, placeholder: placeholders.studentName },
-            courseName: { text: courseName, placeholder: placeholders.courseName },
-            issueDate: { text: formattedDate, placeholder: placeholders.issueDate },
-            certificateNumber: { text: `Cert #${certificateNumber}`, placeholder: placeholders.certificateNumber },
-            duration: { text: duration || '', placeholder: placeholders.duration },
-            grade: { text: grade || '', placeholder: placeholders.grade },
-            instituteName: { text: instituteName, placeholder: placeholders.instituteName }
-        };
+        const placeholderEntries = source.placeholders instanceof Map 
+            ? Array.from(source.placeholders.entries()) 
+            : Object.entries(source.placeholders);
 
-        Object.entries(dataMap).forEach(([key, { text, placeholder }]) => {
-            if (!text || !placeholder?.enabled) return;
-
-            const p = placeholder;
+        placeholderEntries.forEach(([key, p]) => {
+            if (!p.enabled) return;
+            // Map hydration keys to placeholder values
+            const text = p.type === 'static' ? p.staticText : (certificateData.metadata[p.fieldKey] || certificateData.metadata[key] || "");
+            
             const x = (p.x / 100) * image.width;
             const y = (p.y / 100) * image.height;
-            
-            // Scale font size relative to canvas width
             const scaledFontSize = Math.round((p.fontSize || 24) * scaleRatio);
             
-            // Use Courgette (cursive) font for student name, or use custom font family from placeholder
-            let fontFamily = p.fontFamily || 'Roboto';
-            if (key === 'studentName' && !p.fontFamily) {
-                fontFamily = 'Courgette'; // Stylish cursive font for names
-            }
-            
-            // Build and apply font
-            const fontStr = buildFontString(scaledFontSize, p.fontWeight, p.fontStyle, fontFamily);
-            ctx.font = fontStr;
+            ctx.font = `${p.fontStyle === 'italic' ? 'italic ' : ''}${p.fontWeight === 'bold' ? 'bold ' : ''}${scaledFontSize}px "${p.fontFamily || 'Roboto'}"`;
             ctx.fillStyle = p.color || '#000000';
             ctx.textAlign = p.textAlign || 'center';
-            
-            // Debug: Log font application
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`=> Applying font for ${key}: family="${fontFamily}", size=${scaledFontSize}px, weight=${p.fontWeight}, style=${p.fontStyle}`);
-            }
-            
-            // Draw text
-            ctx.fillText(text, x, y);
+            ctx.fillText(String(text), x, y);
         });
 
-        // 5. Convert canvas to image buffer (PNG)
         const pngBuffer = canvas.toBuffer('image/png');
-
-        // 6. Convert PNG to PDF using puppeteer
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-
-        const page = await browser.newPage();
         
-        // Convert PNG buffer to base64 data URL
-        const base64Image = pngBuffer.toString('base64');
-        const html = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <style>
-                    body {
-                        margin: 0;
-                        padding: 0;
-                    }
-                    img {
-                        max-width: 100%;
-                        height: auto;
-                        display: block;
-                    }
-                </style>
-            </head>
-            <body>
-                <img src="data:image/png;base64,${base64Image}" />
-            </body>
-            </html>
-        `;
-
-        await page.setContent(html, { waitUntil: 'networkidle0' });
-         
-        // Get the actual image dimensions to calculate PDF size
-        // This ensures the PDF matches the certificate design without extra blank space
-        const imageAspectRatio = image.width / image.height;
-        
-        // Convert pixels to mm for PDF (96 DPI = 25.4mm per inch)
-        const mmPerPixel = 25.4 / 96;
-        const pdfWidth = image.width * mmPerPixel;
-        const pdfHeight = image.height * mmPerPixel;
-        
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`=> PDF size calculated: ${pdfWidth.toFixed(1)}mm × ${pdfHeight.toFixed(1)}mm (from ${image.width}×${image.height}px image)`);
-        }
-        
-        const pdfBuffer = await page.pdf({
-            width: `${pdfWidth}mm`,
-            height: `${pdfHeight}mm`,
-            margin: {
-                top: 0,
-                bottom: 0,
-                left: 0,
-                right: 0
+        // Return a promise that resolves to the PDF buffer
+        return (async () => {
+            let localBrowser = browser;
+            let shouldClose = false;
+            
+            if (!localBrowser) {
+                localBrowser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+                shouldClose = true;
             }
-        });
 
-        await browser.close();
-
-        return pdfBuffer;
-
-    } catch (error) {
-        console.error('Error generating certificate from template:', error);
-        throw new Error(`Failed to generate certificate from template: ${error.message}`);
-    }
-};
-
-export const generateCertificatePDF = async (certificateData) => {
-    const {
-        studentName,
-        courseName,
-        certificateNumber,
-        issueDate,
-        instituteName,
-        duration
-    } = certificateData;
-
-    const formattedDate = new Date(issueDate).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-
-    const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
-                
-                body {
-                    font-family: 'Georgia', serif;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    min-height: 100vh;
-                    background: #f5f5f5;
-                    padding: 20px;
-                }
-                
-                .certificate {
-                    width: 1000px;
-                    height: 700px;
-                    background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
-                    border: 3px solid #2c5aa0;
-                    position: relative;
-                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-                    padding: 60px;
-                    text-align: center;
-                    overflow: hidden;
-                }
-                
-                .certificate::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 80px;
-                    background: linear-gradient(90deg, #2c5aa0 0%, #3d7ec9 50%, #2c5aa0 100%);
-                    opacity: 0.1;
-                }
-                
-                .certificate-content {
-                    position: relative;
-                    z-index: 1;
-                    height: 100%;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
-                }
-                
-                .header {
-                    margin-bottom: 30px;
-                }
-                
-                .certificate-title {
-                    font-size: 48px;
-                    font-weight: bold;
-                    color: #2c5aa0;
-                    margin-bottom: 10px;
-                    letter-spacing: 2px;
-                }
-                
-                .subtitle {
-                    font-size: 18px;
-                    color: #555;
-                    font-style: italic;
-                }
-                
-                .body {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                    margin: 20px 0;
-                }
-                
-                .congratulations {
-                    font-size: 20px;
-                    color: #333;
-                    margin-bottom: 20px;
-                }
-                
-                .student-name {
-                    font-size: 36px;
-                    font-weight: bold;
-                    color: #2c5aa0;
-                    margin: 20px 0;
-                    text-decoration: underline;
-                    text-decoration-color: #2c5aa0;
-                    text-decoration-thickness: 2px;
-                    text-underline-offset: 8px;
-                }
-                
-                .achievement-text {
-                    font-size: 16px;
-                    color: #555;
-                    line-height: 1.6;
-                    margin: 20px 0;
-                    max-width: 800px;
-                    margin-left: auto;
-                    margin-right: auto;
-                }
-                
-                .course-info {
-                    font-size: 18px;
-                    color: #2c5aa0;
-                    margin: 15px 0;
-                    font-weight: 600;
-                }
-                
-                .footer {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-end;
-                    margin-top: 30px;
-                    padding-top: 20px;
-                    border-top: 2px solid #2c5aa0;
-                }
-                
-                .signature-block {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                }
-                
-                .signature-line {
-                    width: 120px;
-                    border-top: 2px solid #333;
-                    margin-bottom: 5px;
-                }
-                
-                .signature-text {
-                    font-size: 12px;
-                    color: #555;
-                }
-                
-                .certificate-number {
-                    font-size: 12px;
-                    color: #999;
-                    font-family: 'Courier New', monospace;
-                    letter-spacing: 1px;
-                }
-                
-                .date-issued {
-                    font-size: 14px;
-                    color: #555;
-                }
-                
-                .institution-name {
-                    font-size: 14px;
-                    color: #2c5aa0;
-                    font-weight: 600;
-                    margin-bottom: 5px;
-                }
-                
-                .seal {
-                    width: 60px;
-                    height: 60px;
-                    border: 2px solid #2c5aa0;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 24px;
-                    color: #2c5aa0;
-                    margin: 0 auto;
-                }
-                
-                @media print {
-                    body {
-                        background: white;
-                        padding: 0;
-                    }
-                    .certificate {
-                        box-shadow: none;
-                        margin: 0;
-                    }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="certificate">
-                <div class="certificate-content">
-                    <div class="header">
-                        <div class="institution-name">${instituteName}</div>
-                        <div class="certificate-title">Certificate of Completion</div>
-                        <div class="subtitle">In Recognition of Achievement</div>
-                    </div>
-                    
-                    <div class="body">
-                        <div class="congratulations">This certificate is proudly presented to</div>
-                        <div class="student-name">${studentName}</div>
-                        
-                        <div class="achievement-text">
-                            for successfully completing the course
-                        </div>
-                        
-                        <div class="course-info">${courseName}</div>
-                        
-                        ${duration ? `<div class="achievement-text">Duration: ${duration}</div>` : ''}
-                    </div>
-                    
-                    <div class="footer">
-                        <div>
-                            <div class="institution-name">Director</div>
-                            <div class="signature-block">
-                                <div class="signature-line"></div>
-                                <div class="signature-text">Authorized Signature</div>
-                            </div>
-                        </div>
-                        
-                        <div style="text-align: center;">
-                            <div class="seal">✓</div>
-                            <div class="certificate-number">Cert #${certificateNumber}</div>
-                            <div class="date-issued">${formattedDate}</div>
-                        </div>
-                        
-                        <div style="width: 120px;"></div>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-    `;
-
-    try {
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-
-        const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: 'networkidle0' });
-        
-        // Set PDF options for standard certificate size
-        const pdfBuffer = await page.pdf({
-            format: 'A4',
-            landscape: true,
-            margin: {
-                top: 0,
-                bottom: 0,
-                left: 0,
-                right: 0
+            try {
+                const page = await localBrowser.newPage();
+                await page.setContent(`<img src="data:image/png;base64,${pngBuffer.toString('base64')}" style="width:100%" />`, { waitUntil: 'networkidle0' });
+                return await page.pdf({ format: 'A4', landscape: true });
+            } finally {
+                if (localBrowser && shouldClose) await localBrowser.close();
             }
-        });
-
-        await browser.close();
-
-        return pdfBuffer;
+        })();
     } catch (error) {
-        console.error('Error generating certificate PDF:', error);
-        throw new Error(`Failed to generate certificate PDF: ${error.message}`);
+        throw new Error(`Failed image overlay: ${error.message}`);
     }
 };
 
 /**
- * Generates certificate filename
+ * Legacy wrapper for the old generateCertificatePDF function
  */
+export const generateCertificatePDF = async (certData) => {
+    // If it's old data without a template ID, we might need a default template
+    // For now, redirect to the new issuing logic or handle as error
+    console.warn('Legacy generateCertificatePDF called. This should be replaced with issueCertificate.');
+    throw new Error('Legacy generateCertificatePDF is deprecated. Use issueCertificate instead.');
+};
+
 export const generateCertificateFilename = (certificateNumber, studentName) => {
     const timestamp = Date.now();
     const cleanName = studentName.replace(/\s+/g, '-').toLowerCase();

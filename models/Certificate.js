@@ -89,6 +89,33 @@ const CertificateSchema = new Schema({
         enum: ['GENERATED', 'ISSUED', 'REVOKED'],
         default: 'GENERATED',
         index: true
+    },
+    // Full snapshot of the template configuration at time of issuance
+    snapshot: {
+        type: Schema.Types.Mixed,
+        default: null
+    },
+
+    isDuplicate: {
+        type: Boolean,
+        default: false
+    },
+
+    originalCertificateId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Certificate',
+        default: null
+    },
+
+    academicYear: {
+        type: String,
+        index: true
+    },
+
+    visibleToStudent: {
+        type: Boolean,
+        default: false,
+        index: true
     }
 
 },

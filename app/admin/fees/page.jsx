@@ -11,8 +11,10 @@ import {
     Clock,
     DollarSign,
     Trash2,
-    XCircle
+    XCircle,
+    Settings
 } from "lucide-react";
+import Link from "next/link";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
 import Button from "@/components/ui/Button";
@@ -377,6 +379,16 @@ export default function FeesPage() {
                         <DollarSign size={14} className="text-emerald-600" />
                         <span>Export Excel</span>
                     </Button>
+                    <Link href="/admin/fees/presets">
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90"
+                        >
+                            <Settings size={14} />
+                            <span>Manage Presets</span>
+                        </Button>
+                    </Link>
                 </div>
             </div>
 

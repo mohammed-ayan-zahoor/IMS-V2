@@ -35,8 +35,14 @@ const UserSchema = new Schema({
             firstName: { type: String, required: true },
             lastName: { type: String, required: true },
             phone: { type: String, match: [/^\+?[\d\s-()]+$/, 'Invalid phone number'] },
-            gender: { type: String, enum: ['Male', 'Female', 'Other', 'Not Specified'] },
+            gender: { type: String, enum: ['Male', 'Female', 'Other', 'Not Specified', ''] },
             avatar: String,
+            bio: { type: String, maxLength: 500 },
+            socialLinks: {
+                linkedin: String,
+                github: String,
+                portfolio: String
+            },
             dateOfBirth: Date,
             address: {
                 street: String,
@@ -57,9 +63,47 @@ const UserSchema = new Schema({
     guardianDetails: {
         name: String,
         phone: String,
-        relation: { type: String, enum: ['father', 'mother', 'guardian', 'other'] }
+        relation: { type: String, enum: ['father', 'mother', 'guardian', 'other', ''] }
     },
     referredBy: { type: String, trim: true },
+
+    // Advanced Student Metadata (Optional for Certificates)
+    grNumber: String,
+    studentIdUdise: String,
+    aadharNumber: String,
+    apaarId: String,
+    penNumber: String,
+
+    fatherName: String,
+    fatherAadhar: String,
+    motherName: String,
+    motherAadhar: String,
+
+    nationality: { type: String, default: 'Indian' },
+    motherTongue: String,
+    religion: String,
+    caste: String,
+    subCaste: String,
+
+    placeOfBirth: {
+        city: String,
+        taluka: String,
+        district: String,
+        state: String,
+        country: { type: String, default: 'India' }
+    },
+
+    lastSchoolAttended: String,
+    admissionDate: Date,
+    admissionStd: String,
+    leavingDate: Date,
+    leavingReason: String,
+    studyingSinceStandard: String,
+
+    progress: { type: String, default: 'Good' },
+    conduct: { type: String, default: 'Good' },
+    remarks: String,
+
     // Security
     passwordResetToken: String,
     passwordResetExpires: Date,
@@ -94,7 +138,18 @@ const UserSchema = new Schema({
     completionReason: {
         type: String,
         trim: true,
-    }
+    },
+    documents: [{
+        name: { type: String, required: true },
+        url: { type: String, required: true },
+        publicId: { type: String, required: true },
+        category: { 
+            type: String, 
+            enum: ['Aadhar', 'Photo', 'Marksheet', 'Certificate', 'Birth Certificate', 'Previous TC', 'Other'], 
+            default: 'Other' 
+        },
+        uploadedAt: { type: Date, default: Date.now }
+    }]
 }, {
     timestamps: true,
     toJSON: { virtuals: true },

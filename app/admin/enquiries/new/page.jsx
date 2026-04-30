@@ -25,6 +25,10 @@ export default function NewEnquiryPage() {
     const [formData, setFormData] = useState({
         studentName: "",
         fatherName: "",
+        fatherAadhar: "",
+        motherName: "",
+        motherAadhar: "",
+        studentAadhar: "",
         contactNumber: "",
         standard: "",
         course: "",
@@ -140,6 +144,30 @@ export default function NewEnquiryPage() {
                                         placeholder="Enter father's name"
                                         value={formData.fatherName}
                                         onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
+                                    />
+                                    <Input
+                                        label="Father's Aadhar"
+                                        placeholder="12-digit number"
+                                        value={formData.fatherAadhar}
+                                        onChange={(e) => setFormData({ ...formData, fatherAadhar: e.target.value })}
+                                    />
+                                    <Input
+                                        label="Mother's Name"
+                                        placeholder="Enter mother's name"
+                                        value={formData.motherName}
+                                        onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
+                                    />
+                                    <Input
+                                        label="Mother's Aadhar"
+                                        placeholder="12-digit number"
+                                        value={formData.motherAadhar}
+                                        onChange={(e) => setFormData({ ...formData, motherAadhar: e.target.value })}
+                                    />
+                                    <Input
+                                        label="Student Aadhar"
+                                        placeholder="12-digit number"
+                                        value={formData.studentAadhar}
+                                        onChange={(e) => setFormData({ ...formData, studentAadhar: e.target.value })}
                                     />
                                     <Input
                                         label="Standard / Class"

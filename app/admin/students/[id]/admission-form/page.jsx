@@ -324,6 +324,16 @@ function AdmissionFormView({ data }) {
                 <div className="field"><span className="label">Contact Number</span><span className="value">{student.guardianPhone || "N/A"}</span></div>
             </div>
 
+            {/* Demographic Details */}
+            <h3 className="section-title">Demographics & Origins</h3>
+            <div className="data-grid">
+                <div className="field"><span className="label">Mother Tongue</span><span className="value uppercase">{student.motherTongue || "Not Provided"}</span></div>
+                <div className="field"><span className="label">Religion</span><span className="value uppercase">{student.religion || "Not Provided"}</span></div>
+                <div className="field"><span className="label">Caste</span><span className="value uppercase">{student.caste || "Not Provided"}</span></div>
+                <div className="field"><span className="label">Sub-Caste</span><span className="value uppercase">{student.subCaste || "Not Provided"}</span></div>
+                <div className="field col-span-2"><span className="label">Referred By</span><span className="value uppercase">{student.referredBy || "Self / Not Provided"}</span></div>
+            </div>
+
             {/* Course Details */}
             {batch && (
                 <>

@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
-import { generateCertificate } from "@/services/completionService";
+import { issueCertificate } from "@/services/certificateService";
 import AuditLog from "@/models/AuditLog";
 import { getInstituteScope } from "@/middleware/instituteScope";
 
@@ -34,7 +34,7 @@ export async function POST(req) {
       );
     }
 
-    const { studentIds, templateId, batchId } = await req.json();
+    const { studentIds, templateId, batchId, visibleToStudent, metadata, isDuplicate } = await req.json();
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       return Response.json(
@@ -90,81 +90,104 @@ export async function POST(req) {
 
     const instituteId = scope.instituteId;
 
-     const results = {
-       successCount: 0,
-       failedCount: 0,
-       errors: [],
-       certificates: [], // Store generated certificate IDs for batch-specific tracking
-     };
+    const results = {
+      successCount: 0,
+      failedCount: 0,
+      skippedCount: 0,
+      errors: [],
+      certificates: [], 
+    };
 
-     // Process each student
-     for (const student of students) {
-       try {
-         if (process.env.NODE_ENV === 'development') {
-           console.log(`=> Generating certificate for student: ${student._id}, status: ${student.status}`);
-         }
-         
-          const result = await generateCertificate(
-             student._id,
-             session.user.id,
-             'STANDARD',
-             {},
-             templateId,
-             batchId,
-             req
-           );
-         
-         if (process.env.NODE_ENV === 'development') {
-           console.log(`=> Certificate generation result:`, result);
-         }
-         
-         if (!result.success) {
-           throw new Error(result.message || 'Certificate generation failed');
-         }
-         
-         results.successCount++;
-         // Store the generated certificate ID along with the batch ID
-         results.certificates.push({
-           studentId: student._id,
-           certificateId: result.certificate._id,
-           batchId: batchId
-         });
+    // 1. Pre-fetch existing certificates
+    const Certificate = (await import("@/models/Certificate")).default;
+    const existingCertificates = await Certificate.find({
+        studentId: { $in: studentIds },
+        institutionId: instituteId,
+        "template.templateId": templateId,
+        status: { $ne: 'REVOKED' }
+    }).select('studentId');
 
-        // Log action
-         await AuditLog.create({
-           action: "certificate.generate",
-           resource: {
-             type: "Student",
-             id: student._id,
-           },
-           actor: session.user.id,
-           institute: instituteId,
-           details: {
-             studentName: student.name,
-             studentId: student._id,
-             timestamp: new Date(),
-           },
-         });
-      } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error(`=> Certificate generation error for ${student._id}:`, error.message);
-        }
+    const existingStudentIds = new Set(existingCertificates.map(c => c.studentId.toString()));
+
+    // 2. Launch a single browser instance for the entire bulk operation
+    const puppeteer = (await import('puppeteer')).default;
+    let sharedBrowser = null;
+    
+    try {
+      sharedBrowser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+
+      // Process students in parallel batches to speed up generation
+      const BATCH_SIZE = 5; // Process 5 students at a time
+      for (let i = 0; i < students.length; i += BATCH_SIZE) {
+        const currentBatch = students.slice(i, i + BATCH_SIZE);
         
-        results.failedCount++;
-        results.errors.push({
-          studentId: student._id,
-          name: student.name,
-          error: error.message,
-        });
+        await Promise.all(currentBatch.map(async (student) => {
+          try {
+            // SKIP logic to save Cloudinary credits
+            if (!isDuplicate && existingStudentIds.has(student._id.toString())) {
+              results.skippedCount++;
+              return;
+            }
+
+            const certificate = await issueCertificate(
+              student._id,
+              instituteId,
+              templateId,
+              { 
+                batchId,
+                visibleToStudent,
+                metadata,
+                isDuplicate,
+                browser: sharedBrowser // PASS THE SHARED BROWSER
+              }
+            );
+            
+            if (!certificate) {
+              throw new Error('Certificate generation failed');
+            }
+            
+            results.successCount++;
+            results.certificates.push({
+              studentId: student._id,
+              certificateId: certificate._id,
+              batchId: batchId
+            });
+
+            await AuditLog.create({
+              action: "certificate.generate",
+              resource: { type: "Student", id: student._id },
+              actor: session.user.id,
+              institute: instituteId,
+              details: {
+                studentName: student.fullName || student.name,
+                studentId: student._id,
+                timestamp: new Date(),
+              },
+            });
+          } catch (error) {
+            results.failedCount++;
+            results.errors.push({
+              studentId: student._id,
+              name: student.fullName || student.name,
+              error: error.message,
+            });
+          }
+        }));
       }
+    } finally {
+      if (sharedBrowser) await sharedBrowser.close();
     }
 
     return Response.json({
-      message: `Successfully processed ${results.successCount} students`,
+      message: `Processed ${students.length} students`,
       successCount: results.successCount,
       failedCount: results.failedCount,
+      skippedCount: results.skippedCount,
       errors: results.errors,
-      certificates: results.certificates, // Include generated certificate IDs
+      certificates: results.certificates,
     });
   } catch (error) {
     console.error("Bulk generate certificates error:", error);

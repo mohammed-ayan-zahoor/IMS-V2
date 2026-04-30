@@ -66,7 +66,16 @@ export const markStudentCompleted = async (studentId, adminId, reason = '', req 
  * If a certificate already exists for this student+batch, it will be updated (regenerated)
  * If not, a new one will be created
  */
-export const generateCertificate = async (studentId, adminId, templateType = 'STANDARD', metadata = {}, templateId = null, batchId = null, req = null) => {
+export const generateCertificate = async (
+    studentId, 
+    adminId, 
+    templateType = 'STANDARD', 
+    metadata = {}, 
+    templateId = null, 
+    batchId = null, 
+    req = null,
+    visibleToStudent = false
+) => {
     try {
         const Batch = mongoose.model('Batch');
         const Course = mongoose.model('Course');
@@ -172,6 +181,7 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
             certificate.metadata = enrichedMetadata;
             certificate.issueDate = new Date();
             certificate.status = 'GENERATED';
+            certificate.visibleToStudent = visibleToStudent;
             await certificate.save();
         } else {
             // Certificate doesn't exist - create new one
@@ -185,7 +195,8 @@ export const generateCertificate = async (studentId, adminId, templateType = 'ST
                 templateType,
                 template: templateData,
                 metadata: enrichedMetadata,
-                status: 'GENERATED'
+                status: 'GENERATED',
+                visibleToStudent: visibleToStudent
             });
 
             // Link certificate to user (for backward compatibility)

@@ -29,7 +29,11 @@ import {
     Plus,
     Printer,
     UserPlus,
-    Lock
+    Lock,
+    Eye,
+    Download,
+    UploadCloud,
+    File
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -41,6 +45,7 @@ import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useSession } from "next-auth/react";
+import { cn } from "@/lib/utils";
 
 export default function StudentDetailsPage({ params }) {
     const router = useRouter();
@@ -60,6 +65,8 @@ export default function StudentDetailsPage({ params }) {
     const [selectedCourse, setSelectedCourse] = useState("");
     const [courseBatches, setCourseBatches] = useState([]);
     const [selectedBatch, setSelectedBatch] = useState("");
+    const [feePresets, setFeePresets] = useState([]);
+    const [selectedPreset, setSelectedPreset] = useState("");
 
     // Payment Modal State
     const [isPayModalOpen, setIsPayModalOpen] = useState(false);
@@ -82,11 +89,136 @@ export default function StudentDetailsPage({ params }) {
     const [isEnrolling, setIsEnrolling] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [formData, setFormData] = useState({
-        email: "",
-        profile: { firstName: "", lastName: "", phone: "", dateOfBirth: "", address: {} },
         guardianDetails: { name: "", relation: "", phone: "" },
-        referredBy: ""
+        referredBy: "",
+        
+        // Identity fields
+        grNumber: "",
+        studentIdUdise: "",
+        aadharNumber: "",
+        apaarId: "",
+        penNumber: "",
+
+        // Parent fields
+        fatherName: "",
+        fatherAadhar: "",
+        motherName: "",
+        motherAadhar: "",
+
+        // Profile fields
+        nationality: "Indian",
+        motherTongue: "",
+        religion: "",
+        caste: "",
+        subCaste: "",
+
+        // Birth fields
+        placeOfBirth: {
+            city: "",
+            taluka: "",
+            district: "",
+            state: "",
+            country: "India"
+        },
+
+        // School history fields
+        lastSchoolAttended: "",
+        admissionDate: "",
+        admissionStd: "",
+        leavingDate: "",
+        leavingReason: "",
+        studyingSinceStandard: "",
+
+        // Conduct fields
+        progress: "Good",
+        conduct: "Good",
+        remarks: ""
     });
+
+    // Document Vault State
+    const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+    const [uploadDocModalOpen, setUploadDocModalOpen] = useState(false);
+    const [docFormData, setDocFormData] = useState({
+        name: "",
+        category: "Other",
+        file: null,
+        base64: ""
+    });
+
+    const handleDocFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit for docs
+            toast.error("File size must be less than 10MB");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setDocFormData({ ...docFormData, file, base64: reader.result });
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleUploadDoc = async (e) => {
+        e.preventDefault();
+        if (!docFormData.base64) return toast.error("Please select a file");
+
+        setIsUploadingDoc(true);
+        try {
+            const res = await fetch(`/api/v1/students/${id}/documents`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: docFormData.name || docFormData.file.name,
+                    base64: docFormData.base64,
+                    category: docFormData.category
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setStudentData({ ...studentData, documents: data.documents });
+                setUploadDocModalOpen(false);
+                setDocFormData({ name: "", category: "Other", file: null, base64: "" });
+                toast.success("Document uploaded successfully!");
+            } else {
+                const err = await res.json();
+                toast.error(err.error || "Upload failed");
+            }
+        } catch (error) {
+            toast.error("An error occurred during upload");
+        } finally {
+            setIsUploadingDoc(false);
+        }
+    };
+
+    const handleDeleteDoc = async (docId) => {
+        if (await confirm({
+            title: "Delete Document",
+            message: "Are you sure you want to delete this document? This action cannot be undone.",
+            confirmText: "Delete",
+            variant: "danger"
+        })) {
+            try {
+            const res = await fetch(`/api/v1/students/${id}/documents?docId=${docId}`, {
+                method: "DELETE"
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setStudentData({ ...studentData, documents: data.documents });
+                toast.success("Document deleted");
+            } else {
+                const err = await res.json();
+                toast.error(err.error || "Delete failed");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
+        }
+    }
+};
 
 
     // Attendance State
@@ -183,10 +315,25 @@ export default function StudentDetailsPage({ params }) {
     useEffect(() => {
         if (selectedCourse) {
             fetchBatchesForCourse(selectedCourse);
+            fetchPresetsForCourse(selectedCourse);
         } else {
             setCourseBatches([]);
+            setFeePresets([]);
         }
+        setSelectedPreset("");
     }, [selectedCourse]);
+
+    const fetchPresetsForCourse = async (courseId) => {
+        try {
+            const res = await fetch(`/api/v1/fee-presets?courseId=${courseId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setFeePresets(data.presets || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch presets", error);
+        }
+    };
 
     const fetchStudentDetails = async () => {
         try {
@@ -207,7 +354,39 @@ export default function StudentDetailsPage({ params }) {
                         avatar: data.student.profile?.avatar || ""
                     },
                     guardianDetails: data.student.guardianDetails || { name: "", relation: "", phone: "" },
-                    referredBy: data.student.referredBy || ""
+                    referredBy: data.student.referredBy || "",
+                    
+                    // Metadata fields
+                    grNumber: data.student.grNumber || "",
+                    studentIdUdise: data.student.studentIdUdise || "",
+                    aadharNumber: data.student.aadharNumber || "",
+                    apaarId: data.student.apaarId || "",
+                    penNumber: data.student.penNumber || "",
+                    fatherName: data.student.fatherName || "",
+                    fatherAadhar: data.student.fatherAadhar || "",
+                    motherName: data.student.motherName || "",
+                    motherAadhar: data.student.motherAadhar || "",
+                    nationality: data.student.nationality || "Indian",
+                    motherTongue: data.student.motherTongue || "",
+                    religion: data.student.religion || "",
+                    caste: data.student.caste || "",
+                    subCaste: data.student.subCaste || "",
+                    placeOfBirth: {
+                        city: data.student.placeOfBirth?.city || "",
+                        taluka: data.student.placeOfBirth?.taluka || "",
+                        district: data.student.placeOfBirth?.district || "",
+                        state: data.student.placeOfBirth?.state || "",
+                        country: data.student.placeOfBirth?.country || "India"
+                    },
+                    lastSchoolAttended: data.student.lastSchoolAttended || "",
+                    admissionDate: data.student.admissionDate ? format(new Date(data.student.admissionDate), "yyyy-MM-dd") : "",
+                    admissionStd: data.student.admissionStd || "",
+                    leavingDate: data.student.leavingDate ? format(new Date(data.student.leavingDate), "yyyy-MM-dd") : "",
+                    leavingReason: data.student.leavingReason || "",
+                    studyingSinceStandard: data.student.studyingSinceStandard || "",
+                    progress: data.student.progress || "Good",
+                    conduct: data.student.conduct || "Good",
+                    remarks: data.student.remarks || ""
                 });
             }
         } catch (error) {
@@ -269,10 +448,14 @@ export default function StudentDetailsPage({ params }) {
 
         try {
             setIsEnrolling(true);
+            const preset = feePresets.find(p => p._id === selectedPreset);
             const res = await fetch(`/api/v1/students/${id}/enroll`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ batchId: selectedBatch })
+                body: JSON.stringify({ 
+                    batchId: selectedBatch,
+                    customAmount: preset ? preset.amount : null
+                })
             });
 
             if (res.ok) {
@@ -783,7 +966,7 @@ export default function StudentDetailsPage({ params }) {
                 {/* Tabs */}
                 {/* ... existing tabs code ... */}
                 <div className="flex border-t border-slate-100 px-6">
-                    {["profile", "academic", "financial", "attendance", "follow-ups"]
+                    {["profile", "academic", "financial", "attendance", "follow-ups", "documents"]
                         .filter(tab => {
                             if (tab === 'financial' && session?.user?.role === 'instructor') return false;
                             if (tab === 'follow-ups' && ['student', 'instructor'].includes(session?.user?.role)) return false;
@@ -807,24 +990,89 @@ export default function StudentDetailsPage({ params }) {
             {/* Tab Content */}
             <div className="animate-fade-in">
                 {activeTab === "profile" && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card title="Personal Details">
-                            <div className="space-y-4">
-                                <InfoRow label="Phone" value={student.profile?.phone} icon={Phone} />
-                                <InfoRow label="Address" value={formatAddress(student.profile?.address)} icon={MapPin} />
-                                <InfoRow label="Date of Birth" value={student.profile?.dateOfBirth ? format(new Date(student.profile.dateOfBirth), "PPP") : "Not set"} icon={Calendar} />
-                                <InfoRow label="Referred By" value={student.referredBy || "Self / Unknown"} icon={UserPlus} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
+                                <div className="space-y-6">
+                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
+                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Contact & Address</h3>
+                                        </div>
+                                        <div className="p-5 space-y-1">
+                                            <InfoRow icon={Mail} label="Email Address" value={student.email} />
+                                            <InfoRow icon={Phone} label="Phone Number" value={student.profile?.phone} />
+                                            <InfoRow icon={MapPin} label="Street Address" value={student.profile?.address?.street} />
+                                            <InfoRow icon={MapPin} label="City" value={student.profile?.address?.city} />
+                                            <InfoRow icon={MapPin} label="State & Pin" value={`${student.profile?.address?.state || ''} ${student.profile?.address?.pincode || ''}`} />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
+                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Identity & Academic IDs</h3>
+                                        </div>
+                                        <div className="p-5 space-y-1">
+                                            <InfoRow icon={Shield} label="G.R. Number" value={student.grNumber} />
+                                            <InfoRow icon={CreditCard} label="Aadhar Number" value={student.aadharNumber} />
+                                            <InfoRow icon={FileText} label="U-DISE Student ID" value={student.studentIdUdise} />
+                                            <InfoRow icon={Percent} label="APAAR ID" value={student.apaarId} />
+                                            <InfoRow icon={Tag} label="PEN Number" value={student.penNumber} />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
+                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Birth & Origin</h3>
+                                        </div>
+                                        <div className="p-5 space-y-1">
+                                            <InfoRow icon={Calendar} label="Date of Birth" value={student.profile?.dateOfBirth ? format(new Date(student.profile.dateOfBirth), "dd MMM yyyy") : null} />
+                                            <InfoRow icon={MapPin} label="Place of Birth" value={student.placeOfBirth?.city} />
+                                            <InfoRow icon={MapPin} label="Taluka/District" value={`${student.placeOfBirth?.taluka || ''} / ${student.placeOfBirth?.district || ''}`} />
+                                            <InfoRow icon={MapPin} label="State (Birth)" value={student.placeOfBirth?.state} />
+                                            <InfoRow icon={User} label="Nationality" value={student.nationality} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
+                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Parents Info</h3>
+                                        </div>
+                                        <div className="p-5 space-y-1">
+                                            <InfoRow icon={User} label="Father's Name" value={student.fatherName} />
+                                            <InfoRow icon={CreditCard} label="Father's Aadhar" value={student.fatherAadhar} />
+                                            <InfoRow icon={User} label="Mother's Name" value={student.motherName} />
+                                            <InfoRow icon={CreditCard} label="Mother's Aadhar" value={student.motherAadhar} />
+                                            <InfoRow icon={UserPlus} label="Relation (Primary)" value={student.guardianDetails?.relation} />
+                                            <InfoRow icon={Phone} label="Guardian Contact" value={student.guardianDetails?.phone} />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
+                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Cultural Profile</h3>
+                                        </div>
+                                        <div className="p-5 space-y-1">
+                                            <InfoRow icon={MessageSquare} label="Mother Tongue" value={student.motherTongue} />
+                                            <InfoRow icon={Shield} label="Religion" value={student.religion} />
+                                            <InfoRow icon={FileText} label="Caste" value={student.caste} />
+                                            <InfoRow icon={Tag} label="Sub-Caste" value={student.subCaste} />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
+                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Entrance & Admission</h3>
+                                        </div>
+                                        <div className="p-5 space-y-1">
+                                            <InfoRow icon={Calendar} label="Admission Date" value={student.admissionDate ? format(new Date(student.admissionDate), "dd MMM yyyy") : null} />
+                                            <InfoRow icon={BookOpen} label="Admission Std" value={student.admissionStd} />
+                                            <InfoRow icon={History} label="Last School" value={student.lastSchoolAttended} />
+                                            <InfoRow icon={UserPlus} label="Referred By" value={student.referredBy} />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </Card>
-                        <Card title="Guardian Information">
-                            <div className="space-y-4">
-                                <InfoRow label="Guardian Name" value={student.guardianDetails?.name} icon={User} />
-                                <InfoRow label="Relation" value={student.guardianDetails?.relation} icon={User} />
-                                <InfoRow label="Contact" value={student.guardianDetails?.phone} icon={Phone} />
-                            </div>
-                        </Card>
-                    </div>
-                )}
+                        )}
 
                 {activeTab === "academic" && (
                     <div className="space-y-6">
@@ -1174,153 +1422,199 @@ export default function StudentDetailsPage({ params }) {
                         </Card>
                     </div>
                 )}
+
+                {activeTab === "documents" && (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="flex items-center justify-between px-1">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-900 tracking-tight">Document Vault</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                    Secure storage for identity proofs and academic records
+                                </p>
+                            </div>
+                            <Button 
+                                onClick={() => setUploadDocModalOpen(true)}
+                                size="sm" 
+                                className="flex items-center gap-2"
+                            >
+                                <Plus size={16} />
+                                <span>Upload Document</span>
+                            </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {studentData?.documents?.length > 0 ? (
+                                studentData.documents.map((doc) => (
+                                    <Card key={doc._id} className="p-0 overflow-hidden group hover:border-premium-blue/30 transition-all duration-300">
+                                        <div className="p-4 flex items-start gap-4">
+                                            <div className={cn(
+                                                "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border",
+                                                doc.category === 'Aadhar' ? "bg-blue-50 border-blue-100 text-blue-600" :
+                                                doc.category === 'Marksheet' ? "bg-amber-50 border-amber-100 text-amber-600" :
+                                                doc.category === 'Certificate' ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
+                                                "bg-slate-50 border-slate-100 text-slate-400"
+                                            )}>
+                                                <FileText size={20} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-sm font-bold text-slate-900 truncate" title={doc.name}>
+                                                    {doc.name}
+                                                </h4>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <Badge variant="neutral" className="text-[9px] uppercase tracking-tighter">
+                                                        {doc.category}
+                                                    </Badge>
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                                        {format(new Date(doc.uploadedAt), "dd MMM yyyy")}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-slate-50/50 p-2 border-t border-slate-50 flex items-center justify-end gap-1">
+                                            <a 
+                                                href={doc.url} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="p-2 text-slate-400 hover:text-premium-blue hover:bg-white rounded-lg transition-all"
+                                                title="View"
+                                            >
+                                                <Eye size={14} />
+                                            </a>
+                                            <button 
+                                                onClick={() => {
+                                                    const link = document.createElement('a');
+                                                    link.href = doc.url;
+                                                    link.download = doc.name;
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    document.body.removeChild(link);
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-premium-blue hover:bg-white rounded-lg transition-all"
+                                                title="Download"
+                                            >
+                                                <Download size={14} />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeleteDoc(doc._id)}
+                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg transition-all"
+                                                title="Delete"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </Card>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-20 flex flex-col items-center justify-center text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                                    <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center text-slate-200 mb-4 shadow-sm">
+                                        <Shield size={32} />
+                                    </div>
+                                    <h4 className="text-slate-900 font-bold">No Documents Yet</h4>
+                                    <p className="text-slate-400 text-xs mt-1 max-w-[200px]">
+                                        Upload Aadhar, Marksheets, or Certificates for this student.
+                                    </p>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="mt-6"
+                                        onClick={() => setUploadDocModalOpen(true)}
+                                    >
+                                        <Plus size={16} className="mr-2" />
+                                        Upload Your First Document
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
 
-            {/* Existing Edit Modal */}
+            {/* Edit Profile Modal */}
             <Modal
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
                 title="Edit Student Profile"
+                size="xl"
             >
-                {/* ... existing form ... */}
                 <form onSubmit={handleUpdateStudent} className="space-y-6">
-                    {/* Personal Info */}
-                    <div className="space-y-4">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Personal Details</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input
-                                id="firstName"
-                                label="First Name"
-                                value={formData.profile.firstName}
-                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, firstName: e.target.value } })}
-                                required
-                            />
-                            <Input
-                                id="lastName"
-                                label="Last Name"
-                                value={formData.profile.lastName}
-                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, lastName: e.target.value } })}
-                                required
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input
-                                id="phone"
-                                label="Phone Number"
-                                value={formData.profile.phone}
-                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, phone: e.target.value } })}
-                            />
+                    <EditModalContent formData={formData} setFormData={setFormData} uploading={uploading} handleFileChange={handleFileChange} />
+                    <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
+                        <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+                        <Button type="submit" size="lg">Save All Changes</Button>
+                    </div>
+                </form>
+            </Modal>
 
-                            <div className="col-span-2 md:col-span-2 flex items-center gap-4 py-2">
-                                <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-200 overflow-hidden shrink-0">
-                                    {formData.profile.avatar ? (
-                                        <img src={formData.profile.avatar} alt="Preview" className="w-full h-full object-cover" />
+            {/* Upload Document Modal */}
+            <Modal
+                isOpen={uploadDocModalOpen}
+                onClose={() => setUploadDocModalOpen(false)}
+                title="Upload Document"
+                size="md"
+            >
+                <form onSubmit={handleUploadDoc} className="space-y-6">
+                    <div className="space-y-4">
+                        <Input
+                            label="Document Name"
+                            placeholder="e.g. Aadhar Card, Marksheet"
+                            value={docFormData.name}
+                            onChange={(e) => setDocFormData({ ...docFormData, name: e.target.value })}
+                            required
+                        />
+                        <Select
+                            label="Category"
+                            value={docFormData.category}
+                            onChange={(val) => setDocFormData({ ...docFormData, category: val })}
+                            options={[
+                                { label: "Aadhar", value: "Aadhar" },
+                                { label: "Photo", value: "Photo" },
+                                { label: "Marksheet", value: "Marksheet" },
+                                { label: "Certificate", value: "Certificate" },
+                                { label: "Birth Certificate", value: "Birth Certificate" },
+                                { label: "Previous TC", value: "Previous TC" },
+                                { label: "Other", value: "Other" }
+                            ]}
+                        />
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">File (PDF or Image)</label>
+                            <div className="relative group">
+                                <input 
+                                    type="file" 
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    onChange={handleDocFileChange}
+                                    accept="image/*,.pdf"
+                                />
+                                <div className={cn(
+                                    "p-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all",
+                                    docFormData.file ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200 group-hover:border-premium-blue group-hover:bg-blue-50/50"
+                                )}>
+                                    <UploadCloud size={32} className={cn(
+                                        "mb-2",
+                                        docFormData.file ? "text-emerald-500" : "text-slate-300 group-hover:text-premium-blue"
+                                    )} />
+                                    {docFormData.file ? (
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-emerald-700 truncate max-w-[200px]">{docFormData.file.name}</p>
+                                            <p className="text-[10px] text-emerald-600 font-medium">{(docFormData.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                        </div>
                                     ) : (
-                                        <User size={24} className="text-slate-300" />
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-slate-600 tracking-tight leading-tight italic">Drag or click to browse</p>
+                                            <p className="text-[10px] text-slate-400 font-medium uppercase mt-1 tracking-widest leading-loose">Max size: 10MB</p>
+                                        </div>
                                     )}
                                 </div>
-                                <div className="flex-1">
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Update Photo</label>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleFileChange}
-                                        disabled={uploading}
-                                        className="block w-full text-sm text-slate-500
-                                        file:mr-4 file:py-2 file:px-4
-                                        file:rounded-lg file:border-0
-                                        file:text-xs file:font-semibold
-                                        file:bg-premium-blue/10 file:text-premium-blue
-                                        hover:file:bg-premium-blue/20
-                                        "
-                                    />
-                                    {uploading && <p className="text-xs text-premium-blue mt-1">Uploading...</p>}
-                                </div>
-                            </div>
-
-                            <Input
-                                id="dob"
-                                label="Date of Birth"
-                                type="date"
-                                value={formData.profile.dateOfBirth}
-                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, dateOfBirth: e.target.value } })}
-                            />
-                        </div>
-
-                        <div className="space-y-3 pt-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Address</label>
-                            <div className="grid grid-cols-1 gap-3">
-                                <Input
-                                    placeholder="Street Address"
-                                    value={formData.profile.address.street}
-                                    onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, street: e.target.value } } })}
-                                />
-                                <div className="grid grid-cols-3 gap-3">
-                                    <Input
-                                        placeholder="City"
-                                        value={formData.profile.address.city}
-                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, city: e.target.value } } })}
-                                    />
-                                    <Input
-                                        placeholder="State"
-                                        value={formData.profile.address.state}
-                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, state: e.target.value } } })}
-                                    />
-                                    <Input
-                                        placeholder="Zip/Pin"
-                                        value={formData.profile.address.pincode}
-                                        onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, pincode: e.target.value } } })}
-                                    />
-                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Guardian Info */}
-                    <div className="space-y-4 pt-2 border-t border-slate-50">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mt-2">Guardian Details</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input
-                                id="guardianName"
-                                label="Guardian Name"
-                                value={formData.guardianDetails.name}
-                                onChange={(e) => setFormData({ ...formData, guardianDetails: { ...formData.guardianDetails, name: e.target.value } })}
-                            />
-                            <div className="space-y-1">
-                                <label htmlFor="guardianRelation" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Relation</label>
-                                <Select
-                                    id="guardianRelation"
-                                    value={formData.guardianDetails.relation}
-                                    onChange={(val) => setFormData({ ...formData, guardianDetails: { ...formData.guardianDetails, relation: val } })}
-                                    options={[
-                                        { label: "Select Relation", value: "" },
-                                        { label: "Father", value: "father" },
-                                        { label: "Mother", value: "mother" },
-                                        { label: "Guardian", value: "guardian" },
-                                        { label: "Other", value: "other" }
-                                    ]}
-                                />
-                            </div>
-                        </div>
-                        <Input
-                            id="guardianPhone"
-                            label="Guardian Contact"
-                            value={formData.guardianDetails.phone}
-                            onChange={(e) => setFormData({ ...formData, guardianDetails: { ...formData.guardianDetails, phone: e.target.value } })}
-                        />
-                        <Input
-                            id="referredBy"
-                            label="Referred By"
-                            placeholder="e.g. Current Student, Staff Name, or Marketing Source"
-                            value={formData.referredBy}
-                            onChange={(e) => setFormData({ ...formData, referredBy: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
-                        <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
-                        <Button type="submit">Save Changes</Button>
+                    <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
+                        <Button type="button" variant="ghost" onClick={() => setUploadDocModalOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isUploadingDoc}>
+                            {isUploadingDoc ? <LoadingSpinner size="sm" className="mr-2" /> : <Plus size={16} className="mr-2" />}
+                            {isUploadingDoc ? "Uploading..." : "Start Upload"}
+                        </Button>
                     </div>
                 </form>
             </Modal>
@@ -1369,6 +1663,31 @@ export default function StudentDetailsPage({ params }) {
                                 {courseBatches.length === 0 && (
                                     <p className="text-xs text-amber-500 font-medium px-1">No active batches for this course.</p>
                                 )}
+                            </div>
+                        )}
+
+                        {selectedCourse && feePresets.length > 0 && (
+                            <div className="space-y-1 animate-fade-in">
+                                <Select
+                                    label="Fee Structure (Optional)"
+                                    value={selectedPreset}
+                                    onChange={(val) => setSelectedPreset(val)}
+                                    options={[
+                                        { label: "-- Use Course Default Fee --", value: "" },
+                                        ...feePresets.map(p => {
+                                            const subjectList = p.subjects?.length > 0 
+                                                ? ` (${p.subjects.map(s => s.code || s.name).join(', ')})` 
+                                                : '';
+                                            return {
+                                                label: `${p.name}${subjectList} - ₹${p.amount.toLocaleString()}`,
+                                                value: p._id
+                                            };
+                                        })
+                                    ]}
+                                />
+                                <p className="text-[11px] text-slate-400 italic px-1">
+                                    Choose a subject combination to apply its specific fee.
+                                </p>
                             </div>
                         )}
                     </div>
@@ -1664,6 +1983,231 @@ export default function StudentDetailsPage({ params }) {
     );
 }
 
+function EditModalContent({ formData, setFormData, uploading, handleFileChange }) {
+    const [editTab, setEditTab] = useState("basic");
+
+    const tabClasses = (tab) => `
+        flex-1 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-all
+        ${editTab === tab ? 'border-premium-blue text-premium-blue bg-premium-blue/5' : 'border-transparent text-slate-400 hover:bg-slate-50'}
+    `;
+
+    return (
+        <div className="space-y-6">
+            {/* Modal Internal Tabs */}
+            <div className="flex border-b border-slate-100 -mx-6 bg-slate-50/50">
+                <button type="button" onClick={() => setEditTab("basic")} className={tabClasses("basic")}>Basic Profile</button>
+                <button type="button" onClick={() => setEditTab("parents")} className={tabClasses("parents")}>Parents & Origins</button>
+                <button type="button" onClick={() => setEditTab("school")} className={tabClasses("school")}>School & Certificate</button>
+            </div>
+
+            <div className="animate-fade-in py-2">
+                {editTab === "basic" && (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                label="First Name"
+                                value={formData.profile.firstName}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, firstName: e.target.value } })}
+                                required
+                            />
+                            <Input
+                                label="Last Name"
+                                value={formData.profile.lastName}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, lastName: e.target.value } })}
+                                required
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                label="Phone Number"
+                                value={formData.profile.phone}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, phone: e.target.value } })}
+                            />
+                            <Input
+                                label="Date of Birth"
+                                type="date"
+                                value={formData.profile.dateOfBirth}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, dateOfBirth: e.target.value } })}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center border border-slate-200 overflow-hidden shrink-0 shadow-sm">
+                                    {formData.profile.avatar ? (
+                                        <img src={formData.profile.avatar} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <User size={24} className="text-slate-300" />
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Update Photo</label>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleFileChange}
+                                        disabled={uploading}
+                                        className="block w-full text-xs text-slate-500 cursor-pointer file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-premium-blue file:text-white hover:file:bg-premium-blue/90"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Gender</label>
+                                <Select
+                                    value={formData.profile.gender}
+                                    onChange={(val) => setFormData({ ...formData, profile: { ...formData.profile, gender: val } })}
+                                    options={[
+                                        { label: "Male", value: "Male" },
+                                        { label: "Female", value: "Female" },
+                                        { label: "Other", value: "Other" },
+                                        { label: "Not Specified", value: "Not Specified" }
+                                    ]}
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-4">
+                            <Input
+                                label="Referred By"
+                                value={formData.referredBy}
+                                onChange={(e) => setFormData({ ...formData, referredBy: e.target.value })}
+                                placeholder="How did they find us?"
+                            />
+                        </div>
+
+                        <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Residential Address</h4>
+                            <Input
+                                placeholder="Street Address"
+                                value={formData.profile.address?.street}
+                                onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, street: e.target.value } } })}
+                            />
+                            <div className="grid grid-cols-3 gap-3">
+                                <Input
+                                    placeholder="City"
+                                    value={formData.profile.address?.city}
+                                    onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, city: e.target.value } } })}
+                                />
+                                <Input
+                                    placeholder="State"
+                                    value={formData.profile.address?.state}
+                                    onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, state: e.target.value } } })}
+                                />
+                                <Input
+                                    placeholder="Zip/Pin"
+                                    value={formData.profile.address?.pincode}
+                                    onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, address: { ...formData.profile.address, pincode: e.target.value } } })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {editTab === "parents" && (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4 p-5 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+                                <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2"><User size={12}/> Father's Details</h4>
+                                <Input label="Father's Full Name" value={formData.fatherName} onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })} />
+                                <Input label="Father's Aadhar" value={formData.fatherAadhar} onChange={(e) => setFormData({ ...formData, fatherAadhar: e.target.value })} />
+                            </div>
+                            <div className="space-y-4 p-5 bg-pink-50/50 rounded-2xl border border-pink-100/50">
+                                <h4 className="text-[10px] font-black text-pink-400 uppercase tracking-widest flex items-center gap-2"><User size={12}/> Mother's Details</h4>
+                                <Input label="Mother's Full Name" value={formData.motherName} onChange={(e) => setFormData({ ...formData, motherName: e.target.value })} />
+                                <Input label="Mother's Aadhar" value={formData.motherAadhar} onChange={(e) => setFormData({ ...formData, motherAadhar: e.target.value })} />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><MapPin size={12}/> Birth & Origin Details</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Place of Birth (City)" value={formData.placeOfBirth?.city} onChange={(e) => setFormData({ ...formData, placeOfBirth: { ...formData.placeOfBirth, city: e.target.value } })} />
+                                <Input label="Taluka" value={formData.placeOfBirth?.taluka} onChange={(e) => setFormData({ ...formData, placeOfBirth: { ...formData.placeOfBirth, taluka: e.target.value } })} />
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                                <Input label="District" value={formData.placeOfBirth?.district} onChange={(e) => setFormData({ ...formData, placeOfBirth: { ...formData.placeOfBirth, district: e.target.value } })} />
+                                <Input label="State" value={formData.placeOfBirth?.state} onChange={(e) => setFormData({ ...formData, placeOfBirth: { ...formData.placeOfBirth, state: e.target.value } })} />
+                                <Input label="Nationality" value={formData.nationality} onChange={(e) => setFormData({ ...formData, nationality: e.target.value })} />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 pt-2">
+                                <Input label="Mother Tongue" value={formData.motherTongue} onChange={(e) => setFormData({ ...formData, motherTongue: e.target.value })} />
+                                <Input label="Religion" value={formData.religion} onChange={(e) => setFormData({ ...formData, religion: e.target.value })} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Caste" value={formData.caste} onChange={(e) => setFormData({ ...formData, caste: e.target.value })} />
+                                <Input label="Sub-Caste" value={formData.subCaste} onChange={(e) => setFormData({ ...formData, subCaste: e.target.value })} />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {editTab === "school" && (
+                    <div className="space-y-6">
+                        <div className="space-y-4 p-5 bg-premium-blue/5 rounded-2xl border border-premium-blue/10">
+                            <h4 className="text-[10px] font-black text-premium-blue uppercase tracking-widest flex items-center gap-2"><Shield size={12}/> Government & Institutional IDs</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="G.R. Number" value={formData.grNumber} onChange={(e) => setFormData({ ...formData, grNumber: e.target.value })} />
+                                <Input label="U-DISE Student ID" value={formData.studentIdUdise} onChange={(e) => setFormData({ ...formData, studentIdUdise: e.target.value })} />
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                                <Input label="Student Aadhar" value={formData.aadharNumber} onChange={(e) => setFormData({ ...formData, aadharNumber: e.target.value })} />
+                                <Input label="APAAR ID" value={formData.apaarId} onChange={(e) => setFormData({ ...formData, apaarId: e.target.value })} />
+                                <Input label="PEN Number" value={formData.penNumber} onChange={(e) => setFormData({ ...formData, penNumber: e.target.value })} />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><BookOpen size={12}/> School Enrollment & Leaving Info</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Last School Attended" value={formData.lastSchoolAttended} onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })} />
+                                <Input label="Admission Date" type="date" value={formData.admissionDate} onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Admission Std" value={formData.admissionStd} onChange={(e) => setFormData({ ...formData, admissionStd: e.target.value })} />
+                                <Input label="Studying Since (Words/Date)" value={formData.studyingSinceStandard} onChange={(e) => setFormData({ ...formData, studyingSinceStandard: e.target.value })} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 border-t border-slate-200 pt-4 mt-2">
+                                <Input label="Date of Leaving" type="date" value={formData.leavingDate} onChange={(e) => setFormData({ ...formData, leavingDate: e.target.value })} />
+                                <Input label="Reason for Leaving" value={formData.leavingReason} onChange={(e) => setFormData({ ...formData, leavingReason: e.target.value })} />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                             <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Progress</label>
+                                <Select
+                                    value={formData.progress}
+                                    onChange={(val) => setFormData({ ...formData, progress: val })}
+                                    options={[
+                                        { label: "Good", value: "Good" },
+                                        { label: "Fair", value: "Fair" },
+                                        { label: "Satisfactory", value: "Satisfactory" },
+                                        { label: "Excellent", value: "Excellent" }
+                                    ]}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Conduct</label>
+                                <Select
+                                    value={formData.conduct}
+                                    onChange={(val) => setFormData({ ...formData, conduct: val })}
+                                    options={[
+                                        { label: "Good", value: "Good" },
+                                        { label: "Exemplary", value: "Exemplary" },
+                                        { label: "Satisfactory", value: "Satisfactory" },
+                                        { label: "Fair", value: "Fair" }
+                                    ]}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function InfoRow({ label, value, icon: Icon }) {
     return (
         <div className="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
@@ -1672,7 +2216,7 @@ function InfoRow({ label, value, icon: Icon }) {
                 <span>{label}</span>
             </div>
             <div className="text-sm font-bold text-slate-700 text-right">
-                {value || <span className="text-slate-300 italic">Not provided</span>}
+                {value || <span className="text-slate-300 italic font-medium">Not provided</span>}
             </div>
         </div>
     );

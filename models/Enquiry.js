@@ -10,6 +10,10 @@ const EnquirySchema = new Schema({
     },
     studentName: { type: String, required: true, trim: true },
     fatherName: { type: String, trim: true },
+    fatherAadhar: { type: String, trim: true },
+    motherName: { type: String, trim: true },
+    motherAadhar: { type: String, trim: true },
+    studentAadhar: { type: String, trim: true },
     contactNumber: {
         type: String,
         required: true,

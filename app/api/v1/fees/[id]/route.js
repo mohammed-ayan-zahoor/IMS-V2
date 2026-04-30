@@ -41,6 +41,11 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "Fee record not found" }, { status: 404 });
         }
 
+        // Student-specific ownership check
+        if (session.user.role === 'student' && fee.student?._id.toString() !== session.user.id) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
         return NextResponse.json({ fee });
 
     } catch (error) {

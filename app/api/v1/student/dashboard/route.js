@@ -7,6 +7,8 @@ import Exam from "@/models/Exam";
 import Material from "@/models/Material";
 import ExamSubmission from "@/models/ExamSubmission";
 import Attendance from "@/models/Attendance";
+import BatchSyllabusProgress from "@/models/BatchSyllabusProgress";
+import Subject from "@/models/Subject";
 
 export async function GET(req) {
     try {
@@ -68,7 +70,8 @@ export async function GET(req) {
             examsTakenCount,
             upcomingExams,
             recentMaterials,
-            materialsDetailsCount
+            materialsDetailsCount,
+            progressRecords
         ] = await Promise.all([
             // Attendance Total
             Attendance.countDocuments({
@@ -105,8 +108,19 @@ export async function GET(req) {
                 .limit(3)
                 .populate('course', 'name'),
             // Total Materials Count
-            Material.countDocuments(materialFilter)
+            Material.countDocuments(materialFilter),
+            // Syllabus Progress (Top 3)
+            BatchSyllabusProgress.find({ batch: { $in: batchIds } })
+                .populate('subject', 'name code')
+                .sort({ overallProgress: -1 })
+                .limit(3)
         ]);
+
+        const syllabusProgress = progressRecords.map(r => ({
+            subject: r.subject?.name,
+            code: r.subject?.code,
+            progress: r.overallProgress
+        }));
 
         const attendancePercentage = totalAttendanceSessions > 0
             ? Math.round((presentCount / totalAttendanceSessions) * 100)
@@ -117,7 +131,8 @@ export async function GET(req) {
             examsTaken: examsTakenCount,
             materialsCount: materialsDetailsCount,
             upcomingExams,
-            recentMaterials
+            recentMaterials,
+            syllabusProgress
         });
 
     } catch (error) {

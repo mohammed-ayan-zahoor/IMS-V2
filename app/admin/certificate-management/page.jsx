@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -13,13 +15,17 @@ import {
   Loader, 
   Download, 
   Eye,
+  EyeOff,
   RefreshCw,
   Calendar,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Shield,
+  ShieldOff
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
-import { motion } from "framer-motion";
+import DocumentIssuanceDialog from "@/components/admin/DocumentIssuanceDialog";
+import CertificateVisibilityModal from "@/components/admin/CertificateVisibilityModal";
 
 const CertificateManagementPage = () => {
   const { data: session } = useSession();
@@ -32,7 +38,24 @@ const CertificateManagementPage = () => {
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [showToStudent, setShowToStudent] = useState(false);
+  const [showGeneratedOnly, setShowGeneratedOnly] = useState(false);
+  const [togglingVisibility, setTogglingVisibility] = useState({});
+  const [bulkToggling, setBulkToggling] = useState(false);
   const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [instituteType, setInstituteType] = useState('VOCATIONAL');
+
+  // Modal States
+  const [issuanceDialog, setIssuanceDialog] = useState({
+    isOpen: false,
+    student: null,
+    template: null
+  });
+  
+  const [visibilityModal, setVisibilityModal] = useState({
+    isOpen: false,
+    student: null
+  });
 
    // Search & Filter State
    const [searchTerm, setSearchTerm] = useState("");
@@ -58,7 +81,7 @@ const CertificateManagementPage = () => {
    const [batchMenuOpen, setBatchMenuOpen] = useState(null); // studentId that has menu open
    const [studentBatches, setStudentBatches] = useState({}); // cache of studentId -> batches
    const [loadingBatches, setLoadingBatches] = useState({}); // track which students are loading batches
-   const [batchCertificates, setBatchCertificates] = useState({}); // Track certificate IDs per batch: { "studentId:batchId": certId }
+   const [batchCertificates, setBatchCertificates] = useState({}); // Track certificate IDs per batch
 
   // Debounce & Abort Controller
   const searchTimeoutRef = useRef(null);
@@ -128,6 +151,7 @@ const CertificateManagementPage = () => {
         search: searchTerm,
         ...(courseId && { courseId }),
         ...(batchId && { batchId }),
+        ...(selectedTemplateId && { templateId: selectedTemplateId }),
         role: "student"
       });
 
@@ -160,7 +184,12 @@ const CertificateManagementPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchTerm, courseId, batchId, pagination.limit, toast]);
+  }, [statusFilter, searchTerm, courseId, batchId, selectedTemplateId, pagination.limit, toast]);
+
+  // Clear selection when filters change to avoid bulk-action mistakes
+  useEffect(() => {
+    setSelectedStudents(new Set());
+  }, [courseId, batchId, statusFilter, searchTerm, selectedTemplateId]);
 
   // Debounced search
   useEffect(() => {
@@ -215,49 +244,62 @@ const CertificateManagementPage = () => {
   }, [students, selectedStudents]);
 
   // Bulk generate certificates
-   const handleBulkGenerateCertificates = async () => {
-     if (selectedStudents.size === 0) {
-       toast.warning("Please select students to generate certificates for");
-       return;
-     }
+     const handleBulkGenerateCertificates = async () => {
+       if (selectedStudents.size === 0) {
+         toast.warning("Please select students to generate certificates for");
+         return;
+       }
 
-     try {
-       setBulkGenerating(true);
-       const studentIds = Array.from(selectedStudents);
+       if (!batchId) {
+         toast.warning("Please select a specific Batch from the filters to specify the course context for these certificates.");
+         return;
+       }
 
-       const res = await fetch("/api/v1/students/bulk-generate-certificates", {
-         method: "POST",
-         headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ 
-           studentIds,
-           templateId: selectedTemplateId 
-         }),
-       });
+       try {
+         setBulkGenerating(true);
+         const studentIds = Array.from(selectedStudents);
+
+         const res = await fetch("/api/v1/students/bulk-generate-certificates", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ 
+             studentIds,
+             templateId: selectedTemplateId,
+             batchId: batchId,
+             visibleToStudent: showToStudent
+           }),
+         });
 
        const result = await res.json();
 
        if (res.ok) {
-         if (result.successCount > 0) {
+         if (result.successCount > 0 || result.skippedCount > 0) {
            toast.success(
-             `Successfully generated ${result.successCount} certificate(s)`
+             `Processed: ${result.successCount} generated` + 
+             (result.skippedCount > 0 ? `, ${result.skippedCount} skipped (already issued)` : "")
            );
          }
          
          if (result.failedCount > 0) {
            toast.error(
-             `Failed to generate ${result.failedCount} certificate(s). ${result.errors.map(e => `${e.name}: ${e.error}`).join('; ')}`
+             `Failed to generate ${result.failedCount} certificate(s).`
            );
          }
          
-         setSelectedStudents(new Set());
-         
-         // Refresh students list
+         if (result.certificates && result.certificates.length > 0) {
+           const certMap = new Map();
+           result.certificates.forEach(c => certMap.set(c.studentId.toString(), c.certificateId));
+           setStudents(prev => prev.map(student => {
+             const sId = student._id.toString();
+             if (certMap.has(sId)) {
+               return { ...student, isTemplateIssued: true, targetCertificateId: certMap.get(sId) };
+             }
+             return student;
+           }));
+         }
          fetchStudents(pagination.page);
        } else {
          toast.error(result.error || "Failed to generate certificates");
-         if (result.errors && result.errors.length > 0) {
-           console.error("Errors:", result.errors);
-         }
        }
      } catch (error) {
        console.error("Error generating certificates:", error);
@@ -267,158 +309,112 @@ const CertificateManagementPage = () => {
      }
    };
 
-   // Generate certificate for individual student
-   const generateCertificateForStudent = async (studentId, batchId) => {
-      if (!batchId) {
-        toast.error("Batch ID is required");
-        return null;
-      }
-
+    // Toggle Certificate Visibility
+    const toggleVisibility = async (certificateId, studentId) => {
+      if (!certificateId) return;
+      
       try {
-        const res = await fetch("/api/v1/students/bulk-generate-certificates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            studentIds: [studentId],
-            templateId: selectedTemplateId,
-            batchId: batchId
-          }),
-        });
-
-        const result = await res.json();
-
-        if (res.ok) {
-          if (result.successCount > 0) {
-            toast.success("Certificate generated successfully");
-            // Store the batch-specific certificate ID
-            if (result.certificates && result.certificates.length > 0) {
-              const certInfo = result.certificates[0];
-              const key = `${studentId}:${batchId}`;
-              setBatchCertificates(prev => ({ ...prev, [key]: certInfo.certificateId }));
-              return certInfo.certificateId;
-            }
-          }
-          
-          if (result.failedCount > 0) {
-            toast.error(`Failed: ${result.errors[0]?.error || 'Unknown error'}`);
-          }
-          
-          fetchStudents(pagination.page);
-        } else {
-          toast.error(result.error || "Failed to generate certificate");
-        }
-      } catch (error) {
-        console.error("Error generating certificate:", error);
-        toast.error("Error generating certificate");
-      }
-      return null;
-    };
-
-    // Fetch batches for a student
-    const fetchStudentBatches = async (studentId) => {
-      try {
-        setLoadingBatches(prev => ({ ...prev, [studentId]: true }));
-        const res = await fetch(`/api/v1/batches?enrolledStudents=${studentId}`, {
-          headers: { "Content-Type": "application/json" }
+        setTogglingVisibility(prev => ({ ...prev, [certificateId]: true }));
+        const res = await fetch(`/api/v1/certificates/${certificateId}/toggle-visibility`, {
+          method: "PATCH"
         });
         
         if (res.ok) {
           const data = await res.json();
-          const batches = data.batches || [];
-          setStudentBatches(prev => ({ ...prev, [studentId]: batches }));
-          return batches;
+          toast.success(data.message);
+          
+          setStudents(prev => prev.map(s => {
+            const currentCertId = s.certificateId?._id || s.certificateId;
+            if (currentCertId && currentCertId.toString() === certificateId.toString()) {
+              return {
+                ...s,
+                certificateId: typeof s.certificateId === 'string' 
+                  ? s.certificateId 
+                  : { ...s.certificateId, visibleToStudent: data.visibleToStudent }
+              };
+            }
+            return s;
+          }));
+        } else {
+          toast.error("Failed to toggle visibility");
         }
       } catch (error) {
-        console.error("Error fetching student batches:", error);
-        toast.error("Failed to load batches");
+        console.error("Toggle Visibility Error:", error);
+        toast.error("An error occurred");
       } finally {
-        setLoadingBatches(prev => ({ ...prev, [studentId]: false }));
+        setTogglingVisibility(prev => ({ ...prev, [certificateId]: false }));
       }
-      return [];
     };
-
-   // Download certificate - regenerate with latest template first
-   const downloadCertificate = async (student) => {
-     try {
-       const studentId = student._id;
-       const certificateId = student.certificateId;
-
-       // Check if we have cached batches
-       let batches = studentBatches[studentId];
-       
-       if (!batches) {
-         // Fetch batches for this student
-         batches = await fetchStudentBatches(studentId);
-       }
-
-       if (!batches || batches.length === 0) {
-         toast.error("Student is not enrolled in any batch");
-         return;
-       }
-
-        // If only one batch, auto-select
-        if (batches.length === 1) {
-          await regenerateAndDownload(studentId, batches[0]._id);
-        } else {
-          // Multiple batches - open menu to select
-          setBatchMenuOpen(studentId);
+    
+    // Bulk Toggle Visibility
+    const handleBulkVisibility = async (visible) => {
+        if (selectedStudents.size === 0) {
+            toast.warning(`Please select students to ${visible ? "show" : "hide"} certificates for`);
+            return;
         }
-     } catch (error) {
-       console.error("Error in downloadCertificate:", error);
-       toast.error("Error preparing certificate download");
-     }
-   };
 
-    // Regenerate certificate with new template and download
-    const regenerateAndDownload = async (studentId, batchId) => {
-      try {
-        // Step 1: Regenerate certificate with latest template
-        const certificateId = await generateCertificateForStudent(studentId, batchId);
+        if (!batchId) {
+            toast.warning(`Please select a specific Batch to specify the context for ${visible ? "showing" : "hiding"} these certificates.`);
+            return;
+        }
+
+        const studentIdsArray = Array.from(selectedStudents);
         
-        // Use the returned certificate ID, or fall back to cached one
-        let certIdToDownload = certificateId;
-        if (!certIdToDownload) {
-          const key = `${studentId}:${batchId}`;
-          certIdToDownload = batchCertificates[key];
+        const certificateIds = studentIdsArray
+            .map(studentId => {
+                const student = students.find(s => s._id.toString() === studentId.toString());
+                return student?.targetCertificateId;
+            })
+            .filter(id => !!id);
+            
+        if (certificateIds.length === 0) {
+            toast.error(`None of the selected students have this specific certificate generated`);
+            return;
         }
         
-        if (!certIdToDownload) {
-          toast.error("Could not determine certificate ID");
-          return;
+        try {
+            setBulkToggling(true);
+            const res = await fetch("/api/v1/certificates/bulk-visibility", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids: certificateIds, visible })
+            });
+            
+            if (res.ok) {
+                toast.success(`Updated visibility for ${certificateIds.length} certificates`);
+                
+                // Update local state for immediate visual feedback
+                const updatedIds = new Set(certificateIds.map(id => id.toString()));
+                
+                setStudents(prev => prev.map(s => {
+                    const certId = s.certificateId?._id || s.certificateId;
+                    const targetId = s.targetCertificateId;
+                    
+                    const isCertMatched = certId && updatedIds.has(certId.toString());
+                    const isTargetMatched = targetId && updatedIds.has(targetId.toString());
+
+                    if (isCertMatched || isTargetMatched) {
+                        return {
+                            ...s,
+                            certificateId: typeof s.certificateId === 'string' 
+                                ? s.certificateId 
+                                : s.certificateId ? { ...s.certificateId, visibleToStudent: visible } : null
+                        };
+                    }
+                    return s;
+                }));
+                
+                // Still re-fetch to ensure everything is in sync with server
+                fetchStudents(pagination.page);
+            } else {
+                toast.error("Failed to update bulk visibility");
+            }
+        } catch (error) {
+            console.error("Bulk Visibility Error:", error);
+            toast.error("An error occurred");
+        } finally {
+            setBulkToggling(false);
         }
-        
-        // Step 2: Download the regenerated certificate
-        const res = await fetch(`/api/v1/students/certificates/${certIdToDownload}/download`);
-        if (res.ok) {
-          const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          
-          // Extract filename from Content-Disposition header if available
-          const disposition = res.headers.get('Content-Disposition');
-          let filename = 'certificate.pdf';
-          if (disposition) {
-            const matches = disposition.match(/filename="(.+?)"/);
-            if (matches) filename = matches[1];
-          }
-          
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-          toast.success("Certificate regenerated and downloaded");
-        } else {
-          toast.error("Failed to download certificate");
-        }
-        
-        // Close batch menu
-        setBatchMenuOpen(null);
-      } catch (error) {
-        console.error("Error regenerating and downloading certificate:", error);
-        toast.error("Error regenerating certificate");
-      }
     };
 
   const formatDate = (date) => {
@@ -430,45 +426,27 @@ const CertificateManagementPage = () => {
     });
   };
 
-  // Calculate pagination info
   const startIdx = (pagination.page - 1) * pagination.limit + 1;
   const endIdx = Math.min(pagination.page * pagination.limit, pagination.total);
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
         <Card className="premium-card-hover">
           <CardHeader className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                Certificate Management
-              </h1>
-              <p className="text-sm text-slate-500 mt-1">
-                Generate and manage student certificates
-              </p>
+              <h1 className="text-2xl font-bold text-slate-900">Certificate Management</h1>
+              <p className="text-sm text-slate-500 mt-1">Generate and manage student certificates</p>
             </div>
-            {selectedStudents.size > 0 && (
-              <Badge variant="info">{selectedStudents.size} selected</Badge>
-            )}
           </CardHeader>
         </Card>
       </motion.div>
 
-      {/* Filters and Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: -5 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-      >
+      <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}>
         <Card padding="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
             <Input
-              placeholder="Search by name, email, or ID..."
+              placeholder="Search students..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -476,296 +454,216 @@ const CertificateManagementPage = () => {
               value={statusFilter}
               onChange={(value) => setStatusFilter(value)}
               options={[
-                { value: "COMPLETED", label: "Completed Students" },
-                { value: "ACTIVE", label: "Active Students" },
-                { value: "DROPPED", label: "Dropped Students" },
+                { value: "ACTIVE", label: "Active" },
+                { value: "COMPLETED", label: "Completed" },
+                { value: "DROPPED", label: "Dropped" },
               ]}
             />
             <Select
               value={courseId}
-              onChange={(value) => setCourseId(value)}
-              options={[
-                { value: "", label: "All Courses" },
-                ...(courseLoading ? [] : courses.map(c => ({ label: c.name, value: c._id })))
-              ]}
+              onChange={(value) => {
+                setCourseId(value);
+                setBatchId(""); // Reset batch when course changes
+              }}
+              options={[{ value: "", label: instituteType === 'SCHOOL' ? "All Standards" : "All Courses" }, ...courses.map(c => ({ label: c.name, value: c._id }))]}
               disabled={courseLoading}
             />
             <Select
               value={batchId}
               onChange={(value) => setBatchId(value)}
               options={[
-                { value: "", label: "All Batches" },
-                ...(batchLoading ? [] : batches.map(b => ({ label: b.name, value: b._id })))
+                { value: "", label: instituteType === 'SCHOOL' ? "All Sections" : "All Batches" }, 
+                ...batches
+                  .filter(b => !courseId || b.course?._id === courseId || b.course === courseId)
+                  .map(b => ({ label: b.name, value: b._id }))
               ]}
               disabled={batchLoading}
             />
-          </div>
-
-          {/* Certificate Template Selection */}
-          <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex-1">
-              <label className="text-sm font-bold text-slate-700 block mb-2">
-                Certificate Template
-              </label>
-              <select
-                value={selectedTemplateId || ""}
-                onChange={(e) => setSelectedTemplateId(e.target.value)}
-                disabled={templatesLoading || templates.length === 0}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-              >
-                <option value="">
-                  {templatesLoading ? "Loading templates..." : "Select a template"}
-                </option>
-                {templates.map(template => (
-                  <option key={template._id} value={template._id}>
-                    {template.name} {template.isDefault ? "(Default)" : ""}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-slate-500 mt-1">
-                {templates.length === 0 ? "No templates available. Create one in settings first." : "Select the template to use for certificate generation"}
-              </p>
+            <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                <span className="text-xs font-bold text-slate-500 uppercase">Filter:</span>
+                <button
+                    onClick={() => setShowGeneratedOnly(!showGeneratedOnly)}
+                    className={cn(
+                        "flex items-center gap-2 px-3 py-1 rounded-md text-[10px] font-bold transition-all",
+                        showGeneratedOnly ? "bg-premium-blue text-white shadow-sm" : "bg-white text-slate-500 border border-slate-200"
+                    )}
+                >
+                    <Award size={12} />
+                    {showGeneratedOnly ? "Generated" : "All"}
+                </button>
             </div>
           </div>
 
-          {/* Bulk Actions */}
+          <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex-1">
+              <label className="text-xs font-bold text-slate-600 block mb-1">Certificate Template</label>
+              <select
+                value={selectedTemplateId || ""}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm font-medium"
+              >
+                <option value="">Select a template</option>
+                {templates.map(t => <option key={t._id} value={t._id}>{t.name} {t.isDefault ? "(Default)" : ""}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-blue-100 shadow-sm">
+                <input 
+                    type="checkbox" 
+                    id="showToStudent" 
+                    checked={showToStudent}
+                    onChange={(e) => setShowToStudent(e.target.checked)}
+                    className="w-4 h-4 rounded text-premium-blue"
+                />
+                <label htmlFor="showToStudent" className="text-sm font-bold text-slate-700 cursor-pointer flex items-center gap-2">
+                    {showToStudent ? <Eye size={14} className="text-blue-600" /> : <EyeOff size={14} className="text-slate-400" />}
+                    Show Immediately
+                </label>
+            </div>
+          </div>
+
           {selectedStudents.size > 0 && (
-            <div className="flex gap-3 justify-between items-center">
-              <div className="text-sm text-slate-600">
-                <span className="font-semibold">{selectedStudents.size}</span>{" "}
-                student(s) selected
+            <div className="flex gap-3 justify-between items-center mt-4 pt-4 border-t border-slate-100">
+              <div className="text-sm font-medium text-slate-600">
+                <span className="text-premium-blue">{selectedStudents.size}</span> students selected
               </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setSelectedStudents(new Set())}
-                >
-                  Clear Selection
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setSelectedStudents(new Set())}>Clear</Button>
+                <Button variant="primary" size="sm" onClick={handleBulkGenerateCertificates} disabled={bulkGenerating} icon={<Award size={16} />}>
+                   {bulkGenerating ? "Generating..." : "Generate Certificates"}
                 </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleBulkGenerateCertificates}
-                  disabled={bulkGenerating}
-                  icon={bulkGenerating ? <Loader className="animate-spin" size={16} /> : <Award size={16} />}
-                >
-                  {bulkGenerating ? "Generating..." : "Generate Certificates"}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleBulkVisibility(true)} 
+                    disabled={bulkToggling}
+                    className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                    icon={<Eye size={14} />}
+                  >
+                    Show
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleBulkVisibility(false)} 
+                    disabled={bulkToggling}
+                    className="text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                    icon={<EyeOff size={14} />}
+                  >
+                    Hide
+                  </Button>
+                </div>
               </div>
             </div>
           )}
         </Card>
       </motion.div>
 
-      {/* Students Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 5 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.2 }}
-      >
-        <Card padding="p-0">
+      <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.2 }}>
+        <Card padding="p-0" className="overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center p-12">
-              <Loader className="animate-spin text-slate-400" />
-            </div>
-          ) : students.length === 0 ? (
-            <div className="flex items-center justify-center p-12">
-              <div className="text-center">
-                <AlertCircle className="mx-auto mb-3 text-slate-300" size={32} />
-                <p className="text-slate-500">No students found</p>
-              </div>
-            </div>
+            <div className="flex items-center justify-center p-12"><Loader className="animate-spin text-slate-300" /></div>
           ) : (
             <>
-              {/* Table Header */}
-              <div className="border-b border-slate-200">
-                <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50 font-semibold text-sm text-slate-600">
-                  <div className="col-span-1 flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={
-                        selectedStudents.size === students.length &&
-                        students.length > 0
-                      }
-                      onChange={toggleSelectAll}
-                      className="rounded border-slate-300"
-                    />
+              {(() => {
+                const filteredStudents = showGeneratedOnly ? students.filter(s => s.certificateId) : students;
+                if (filteredStudents.length === 0) return <div className="p-12 text-center text-slate-400 text-sm">No students matching filters.</div>;
+
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          <th className="p-4 w-10">
+                            <input type="checkbox" checked={selectedStudents.size === filteredStudents.length} onChange={() => setSelectedStudents(selectedStudents.size === filteredStudents.length ? new Set() : new Set(filteredStudents.map(s => s._id)))} className="rounded" />
+                          </th>
+                          <th className="p-4">Name</th>
+                          <th className="p-4">Email</th>
+                          <th className="p-4">Completed Date</th>
+                          <th className="p-4 text-center">Status</th>
+                          <th className="p-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredStudents.map(student => (
+                          <tr key={student._id} className={cn("hover:bg-slate-50/50 transition-colors", selectedStudents.has(student._id) && "bg-blue-50/30")}>
+                            <td className="p-4">
+                              <input type="checkbox" checked={selectedStudents.has(student._id)} onChange={() => toggleStudentSelection(student._id)} className="rounded" />
+                            </td>
+                            <td className="p-4 font-medium text-slate-900">{student.name}</td>
+                            <td className="p-4 text-sm text-slate-500">{student.email}</td>
+                            <td className="p-4 text-sm text-slate-500">
+                                {student.completedAt ? (
+                                    <div className="flex items-center gap-1.5"><Calendar size={14} className="text-slate-400" />{formatDate(student.completedAt)}</div>
+                                ) : "—"}
+                            </td>
+                            <td className="p-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                {student.isTemplateIssued ? (
+                                  <>
+                                    <Badge variant="success">Template Issued</Badge>
+                                    <button
+                                      onClick={() => setVisibilityModal({ isOpen: true, student })}
+                                      className="p-1.5 rounded-lg border transition-all bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
+                                      title="Manage Document Visibility"
+                                    >
+                                      <Eye size={12} />
+                                    </button>
+                                  </>
+                                ) : student.certificateId ? (
+                                    <div className="flex flex-col items-center gap-1">
+                                        <Badge variant="neutral">Other Documents</Badge>
+                                        <button
+                                            onClick={() => setVisibilityModal({ isOpen: true, student })}
+                                            className="text-[9px] font-black text-blue-500 uppercase hover:underline"
+                                        >
+                                            View All
+                                        </button>
+                                    </div>
+                                ) : <Badge variant="warning">Not Issued</Badge>}
+                              </div>
+                            </td>
+                            <td className="p-4 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                    {student.isTemplateIssued ? (
+                                        <button 
+                                            onClick={() => {
+                                                const template = templates.find(t => t._id === selectedTemplateId);
+                                                setIssuanceDialog({ isOpen: true, student, template });
+                                            }} 
+                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                            title="View/Re-issue Duplicate"
+                                        >
+                                            <RefreshCw size={18} />
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={() => {
+                                                const template = templates.find(t => t._id === selectedTemplateId);
+                                                setIssuanceDialog({ isOpen: true, student, template });
+                                            }} 
+                                            className="p-2 text-slate-500 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                                            title="Issue New Certificate"
+                                        >
+                                            <Award size={18} />
+                                        </button>
+                                    )}
+                                </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="col-span-3">Name</div>
-                  <div className="col-span-2">Email</div>
-                  <div className="col-span-2">Completed</div>
-                  <div className="col-span-2">Certificate</div>
-                  <div className="col-span-2">Actions</div>
-                </div>
-              </div>
+                );
+              })()}
 
-              {/* Table Body */}
-              <div className="divide-y divide-slate-200">
-                {students.map((student) => (
-                  <div
-                    key={student._id}
-                    className={`grid grid-cols-12 gap-4 p-4 hover:bg-slate-50 transition-colors ${
-                      selectedStudents.has(student._id)
-                        ? "bg-blue-50"
-                        : ""
-                    }`}
-                  >
-                    <div className="col-span-1 flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedStudents.has(student._id)}
-                        onChange={() => toggleStudentSelection(student._id)}
-                        className="rounded border-slate-300"
-                      />
-                    </div>
-                    <div className="col-span-3 flex items-center">
-                      <span className="font-medium text-slate-900">
-                        {student.name}
-                      </span>
-                    </div>
-                    <div className="col-span-2 flex items-center text-slate-600 text-sm">
-                      {student.email}
-                    </div>
-                    <div className="col-span-2 flex items-center">
-                      {student.completedAt ? (
-                        <div className="flex items-center gap-1 text-sm text-slate-600">
-                          <Calendar size={14} />
-                          {formatDate(student.completedAt)}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400">Not completed</span>
-                      )}
-                    </div>
-                    <div className="col-span-2 flex items-center">
-                      {student.certificateId ? (
-                        <Badge variant="success">Generated</Badge>
-                      ) : (
-                        <Badge variant="warning">Not Generated</Badge>
-                      )}
-                    </div>
-                    <div className="col-span-2 flex items-center gap-2 relative">
-                      {student.certificateId ? (
-                        <>
-                          <button
-                            onClick={() => downloadCertificate(student)}
-                            className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors relative"
-                            title="Regenerate with latest template and download"
-                            disabled={loadingBatches[student._id]}
-                          >
-                            {loadingBatches[student._id] ? (
-                              <Loader size={18} className="animate-spin" />
-                            ) : (
-                              <Download size={18} />
-                            )}
-                          </button>
-
-                          {/* Batch Selection Menu */}
-                          {batchMenuOpen === student._id && studentBatches[student._id]?.length > 1 && (
-                            <div className="absolute top-8 left-0 z-50 bg-white border border-slate-200 rounded-lg shadow-lg">
-                              {studentBatches[student._id].map((batch) => (
-                                <button
-                                  key={batch._id}
-                                  onClick={() => regenerateAndDownload(student._id, batch._id)}
-                                  className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 first:rounded-t-lg last:rounded-b-lg"
-                                >
-                                  {batch.name}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            // For generate button, also need batch selection
-                            if (studentBatches[student._id]?.length > 0) {
-                              // Already have batches cached
-                              if (studentBatches[student._id].length === 1) {
-                                generateCertificateForStudent(student._id, studentBatches[student._id][0]._id);
-                              } else {
-                                setBatchMenuOpen(student._id);
-                              }
-                            } else {
-                              // Fetch batches first
-                              fetchStudentBatches(student._id).then(batches => {
-                                if (batches.length === 1) {
-                                  generateCertificateForStudent(student._id, batches[0]._id);
-                                } else if (batches.length > 1) {
-                                  setBatchMenuOpen(student._id);
-                                }
-                              });
-                            }
-                          }}
-                          className="p-2 text-slate-600 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                          title="Generate certificate"
-                          disabled={loadingBatches[student._id]}
-                        >
-                          {loadingBatches[student._id] ? (
-                            <Loader size={18} className="animate-spin" />
-                          ) : (
-                            <RefreshCw size={18} />
-                          )}
-                        </button>
-                      )}
-                      <a
-                        href={`/admin/students/${student._id}`}
-                        className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="View details"
-                      >
-                        <Eye size={18} />
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination Controls */}
-              <div className="border-t border-slate-200 p-4 flex justify-between items-center bg-slate-50">
-                <div className="text-sm text-slate-600">
-                  {pagination.total > 0 
-                    ? `Showing ${startIdx}-${endIdx} of ${pagination.total} students`
-                    : "No students"
-                  }
-                </div>
-                
+              <div className="border-t border-slate-200 p-4 flex justify-between items-center bg-slate-50/50">
+                <div className="text-xs text-slate-500 font-medium">Showing {startIdx}-{endIdx} of {pagination.total} students</div>
                 <div className="flex gap-2 items-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                    disabled={pagination.page === 1 || loading}
-                    icon={<ChevronLeft size={16} />}
-                  >
-                    Previous
-                  </Button>
-                  
-                  <div className="text-sm font-medium">
-                    Page {pagination.page} of {pagination.pages}
-                  </div>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
-                    disabled={pagination.page === pagination.pages || loading}
-                    icon={<ChevronRight size={16} />}
-                  >
-                    Next
-                  </Button>
-
-                  <Select
-                    value={pagination.limit.toString()}
-                    onChange={(value) => {
-                      setPagination(prev => ({ ...prev, limit: parseInt(value), page: 1 }));
-                    }}
-                    options={[
-                      { value: "10", label: "10 per page" },
-                      { value: "25", label: "25 per page" },
-                      { value: "50", label: "50 per page" }
-                    ]}
-                    buttonClassName="min-w-fit"
-                  />
+                  <Button variant="ghost" size="sm" onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))} disabled={pagination.page === 1} icon={<ChevronLeft size={16} />}>Prev</Button>
+                  <span className="text-xs font-bold text-slate-600">Page {pagination.page} of {pagination.pages}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))} disabled={pagination.page === pagination.pages} icon={<ChevronRight size={16} />}>Next</Button>
                 </div>
               </div>
             </>
@@ -773,28 +671,22 @@ const CertificateManagementPage = () => {
         </Card>
       </motion.div>
 
-      {/* Info Box */}
-      <motion.div
-        initial={{ opacity: 0, y: 5 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.3 }}
-      >
-        <Card padding="p-4" className="bg-blue-50 border border-blue-200">
-          <div className="flex gap-3">
-            <Award className="text-blue-600 flex-shrink-0" size={20} />
-            <div className="text-sm text-slate-700">
-              <p className="font-medium mb-1">Certificate Management Tips:</p>
-              <ul className="list-disc list-inside space-y-0.5 text-xs text-slate-600">
-                <li>Select multiple completed students and generate certificates in bulk</li>
-                <li>Click the refresh icon to generate a certificate for a student</li>
-                <li>Click the download icon to download an already generated certificate</li>
-                <li>Only completed students can have certificates generated</li>
-                <li>Filter by Course or Batch to refine your selection</li>
-              </ul>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
+      <DocumentIssuanceDialog
+        isOpen={issuanceDialog.isOpen}
+        student={issuanceDialog.student}
+        template={issuanceDialog.template}
+        templates={templates}
+        onClose={() => setIssuanceDialog({ ...issuanceDialog, isOpen: false })}
+        onSuccess={() => fetchStudents(pagination.page)}
+      />
+      <CertificateVisibilityModal
+        isOpen={visibilityModal.isOpen}
+        student={visibilityModal.student}
+        onClose={() => {
+          setVisibilityModal({ ...visibilityModal, isOpen: false });
+          fetchStudents(pagination.page); // Refresh main table to reflect any global visibility changes if needed
+        }}
+      />
     </div>
   );
 };

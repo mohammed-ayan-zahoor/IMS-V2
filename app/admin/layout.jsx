@@ -36,7 +36,8 @@ import {
     CheckCircle2,
     Award,
     TrendingUp,
-    Contact
+    Contact,
+    Megaphone
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -109,7 +110,19 @@ export default function AdminLayout({ children }) {
                 { label: "Attendance", icon: Calendar, href: "/admin/attendance" },
                 { label: "Online Exams", icon: FileSignature, href: "/admin/exams" },
                 { label: "Question Bank", icon: Database, href: "/admin/question-bank" },
+                { label: "Notices", icon: Megaphone, href: "/admin/notices" },
                 { label: "Materials", icon: FileText, href: "/admin/materials" },
+            ]
+        },
+        {
+            label: "Finance",
+            role: ["admin", "super_admin"],
+            items: [
+                { label: "Fees", icon: CreditCard, href: "/admin/fees" },
+                { label: "Collection History", icon: ReceiptText, href: "/admin/collections" },
+                { label: "Add Expense", icon: PlusCircle, href: "/admin/expenses/add" },
+                { label: "Expense Report", icon: BarChart3, href: "/admin/expenses/report" },
+                { label: "Expense Master", icon: Receipt, href: "/admin/expenses/master" },
             ]
         },
         {
@@ -117,8 +130,6 @@ export default function AdminLayout({ children }) {
             items: [
                 { label: "Follow-up Queue", icon: History, href: "/admin/reports/follow-ups" },
                 { label: "Attendance", icon: Calendar, href: "/admin/reports/attendance" },
-                { label: "Fees", icon: CreditCard, href: "/admin/fees", role: ["admin", "super_admin"] },
-                { label: "Collection History", icon: ReceiptText, href: "/admin/collections", role: ["admin", "super_admin"] },
                 { label: "Audit Logs", icon: History, href: "/admin/audit-logs", role: ["admin", "super_admin"] },
             ]
         },
@@ -264,7 +275,7 @@ export default function AdminLayout({ children }) {
                     </button>
                     <div className="mt-4 pb-2">
                         <p className="text-[8px] font-black uppercase tracking-[0.2em] text-[#e5e7eb] text-center italic">
-                            Eduvanta Premium
+                            Quantech Premium
                         </p>
                     </div>
                 </div>

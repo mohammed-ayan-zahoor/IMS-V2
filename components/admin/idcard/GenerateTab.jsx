@@ -32,20 +32,50 @@ export default function GenerateTab() {
     // Filtering & Pagination
     const [filter, setFilter] = useState("ACTIVE");
     const [searchQuery, setSearchQuery] = useState("");
+    const [courseId, setCourseId] = useState("");
+    const [batchId, setBatchId] = useState("");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
-    const limit = 25; // 25 students per page is standard
+    const [courses, setCourses] = useState([]);
+    const [batches, setBatches] = useState([]);
+    const [instituteType, setInstituteType] = useState('VOCATIONAL');
+    const limit = 25;
 
     // UI States
     const [loadingTemplates, setLoadingTemplates] = useState(true);
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [generating, setGenerating] = useState(false);
 
-    // Initial Load - Templates only
+    // Initial Load - Templates & Courses
     useEffect(() => {
         fetchTemplates();
+        fetchCourses();
+        fetchInstitute();
     }, []);
+
+    const fetchInstitute = async () => {
+        try {
+            const res = await fetch("/api/v1/institute");
+            if (res.ok) {
+                const data = await res.json();
+                setInstituteType(data.institute?.type || 'VOCATIONAL');
+            }
+        } catch (error) {
+            console.error("Failed to load institute", error);
+        }
+    };
+
+    // Load batches when course changes
+    useEffect(() => {
+        if (courseId) {
+            fetchBatches(courseId);
+        } else {
+            setBatches([]);
+        }
+        setBatchId("");
+        setPage(1);
+    }, [courseId]);
 
     // Filter/Pagination Load - Students
     useEffect(() => {
@@ -53,7 +83,31 @@ export default function GenerateTab() {
             fetchStudents();
         }, 400); // 400ms debounce
         return () => clearTimeout(timer);
-    }, [filter, searchQuery, page]);
+    }, [filter, searchQuery, page, courseId, batchId]);
+
+    const fetchCourses = async () => {
+        try {
+            const res = await fetch("/api/v1/courses");
+            if (res.ok) {
+                const data = await res.json();
+                setCourses(data);
+            }
+        } catch (error) {
+            console.error("Failed to load courses", error);
+        }
+    };
+
+    const fetchBatches = async (cid) => {
+        try {
+            const res = await fetch(`/api/v1/batches?courseId=${cid}`);
+            if (res.ok) {
+                const data = await res.json();
+                setBatches(data);
+            }
+        } catch (error) {
+            console.error("Failed to load batches", error);
+        }
+    };
 
     const fetchTemplates = async () => {
         try {
@@ -81,6 +135,8 @@ export default function GenerateTab() {
             url.searchParams.append("limit", limit);
             url.searchParams.append("status", filter);
             url.searchParams.append("role", "student");
+            if (courseId) url.searchParams.append("courseId", courseId);
+            if (batchId) url.searchParams.append("batchId", batchId);
             if (searchQuery) url.searchParams.append("search", searchQuery);
 
             const res = await fetch(url);
@@ -237,6 +293,37 @@ export default function GenerateTab() {
                                 <option value="ACTIVE">Active Enrollments</option>
                                 <option value="COMPLETED">Completed Alumni</option>
                                 <option value="DROPPED">Dropped Students</option>
+                            </select>
+                        </div>
+
+                        {/* Course Filter */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-600 ml-1">{instituteType === 'SCHOOL' ? 'Standard (Std)' : 'Course'}</label>
+                            <select
+                                value={courseId}
+                                onChange={(e) => setCourseId(e.target.value)}
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all cursor-pointer font-medium text-slate-700"
+                            >
+                                <option value="">All {instituteType === 'SCHOOL' ? 'Standards' : 'Courses'}</option>
+                                {courses.map(c => (
+                                    <option key={c._id} value={c._id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Batch Filter */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-600 ml-1">{instituteType === 'SCHOOL' ? 'Section' : 'Batch'}</label>
+                            <select
+                                value={batchId}
+                                onChange={(e) => setBatchId(e.target.value)}
+                                disabled={!courseId}
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all cursor-pointer font-medium text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
+                            >
+                                <option value="">All {instituteType === 'SCHOOL' ? 'Sections' : 'Batches'}</option>
+                                {batches.map(b => (
+                                    <option key={b._id} value={b._id}>{b.name}</option>
+                                ))}
                             </select>
                         </div>
                     </div>

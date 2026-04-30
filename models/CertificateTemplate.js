@@ -2,6 +2,30 @@ import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
+const ElementSchema = new Schema({
+    x: { type: Number, default: 50 },
+    y: { type: Number, default: 50 },
+    fontSize: { type: Number, default: 24 },
+    fontFamily: { type: String, default: "Roboto" },
+    fontWeight: { type: String, default: "normal" },
+    fontStyle: { type: String, default: "normal" },
+    color: { type: String, default: "#000000" },
+    textAlign: { type: String, default: "center" },
+    textTransform: { type: String, default: "none" },
+    enabled: { type: Boolean, default: true },
+    maxWidth: { type: Number, default: 80 },
+
+    // Field identification
+    type: { type: String, enum: ["text", "image", "qr", "static"], default: "text" },
+    fieldKey: { type: String }, // e.g., 'profile.firstName', 'grNumber'
+    staticText: { type: String }, // for static text elements
+    label: { type: String }, // User-friendly label in editor
+
+    // QR/Image specific (optional for certificates but good for future)
+    width: { type: Number },
+    height: { type: Number }
+}, { _id: false });
+
 const CertificateTemplateSchema = new Schema({
     institute: {
         type: Schema.Types.ObjectId,
@@ -21,7 +45,63 @@ const CertificateTemplateSchema = new Schema({
         trim: true
     },
 
-    // Template type: STANDARD, MODERN, ELEGANT, etc.
+    // Render mode: IMAGE_OVERLAY (canvas) or HTML_TEMPLATE (puppeteer)
+    renderMode: {
+        type: String,
+        enum: ['IMAGE_OVERLAY', 'HTML_TEMPLATE'],
+        default: 'IMAGE_OVERLAY'
+    },
+
+    // Document category
+    category: {
+        type: String,
+        enum: ['GENERAL', 'LEAVING_CERTIFICATE', 'TRANSFER_CERTIFICATE', 'BONAFIDE'],
+        default: 'GENERAL'
+    },
+
+    // HTML/CSS content for HTML_TEMPLATE mode
+    htmlTemplate: {
+        type: String,
+        default: null
+    },
+
+    cssContent: {
+        type: String,
+        default: null
+    },
+
+    // Schema defining available placeholders and their data mapping
+    placeholderSchema: {
+        type: Schema.Types.Mixed,
+        default: []
+    },
+
+    // A4, Portrait/Landscape, Margins in mm
+    pageConfig: {
+        size: { type: String, default: 'A4' },
+        orientation: { type: String, enum: ['portrait', 'landscape'], default: 'portrait' },
+        margins: {
+            top: { type: Number, default: 15 },
+            bottom: { type: Number, default: 15 },
+            left: { type: Number, default: 15 },
+            right: { type: Number, default: 15 }
+        }
+    },
+
+    // System templates provided by the platform
+    isSystemTemplate: {
+        type: Boolean,
+        default: false
+    },
+
+    // Self-reference for cloned templates
+    parentTemplateId: {
+        type: Schema.Types.ObjectId,
+        ref: 'CertificateTemplate',
+        default: null
+    },
+
+    // Template type (UI/Visual style)
     type: {
         type: String,
         enum: ['STANDARD', 'MODERN', 'ELEGANT', 'PROFESSIONAL', 'CUSTOM'],
@@ -34,98 +114,17 @@ const CertificateTemplateSchema = new Schema({
         default: null
     },
 
-    // Default template for this institute (only one can be default)
+    // Default template for this institute
     isDefault: {
         type: Boolean,
         default: false
     },
 
-    // Placeholder positions and styles (percentage-based coordinates + typography)
+    // Dynamic placeholder configurations
     placeholders: {
-        studentName: {
-            enabled: { type: Boolean, default: true },
-            x: { type: Number, default: 50 }, // percentage
-            y: { type: Number, default: 45 }, // percentage
-            fontSize: { type: Number, default: 48 }, // px (relative to 1000px reference width)
-            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins", "Courgette", "Silentha OT", "Roherat", "Signtelly"] },
-            fontWeight: { type: String, default: "bold", enum: ["normal", "bold"] },
-            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
-            color: { type: String, default: "#000000" }, // hex color
-            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
-            maxWidth: { type: Number, default: 80 } // % of image width
-        },
-        courseName: {
-            enabled: { type: Boolean, default: true },
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 55 },
-            fontSize: { type: Number, default: 32 },
-            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins", "Courgette", "Silentha OT", "Roherat", "Signtelly"] },
-            fontWeight: { type: String, default: "normal", enum: ["normal", "bold"] },
-            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
-            maxWidth: { type: Number, default: 80 }
-        },
-        issueDate: {
-            enabled: { type: Boolean, default: true },
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 85 },
-            fontSize: { type: Number, default: 24 },
-            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins", "Courgette", "Silentha OT", "Roherat", "Signtelly"] },
-            fontWeight: { type: String, default: "normal", enum: ["normal", "bold"] },
-            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
-            maxWidth: { type: Number, default: 80 }
-        },
-        certificateNumber: {
-            enabled: { type: Boolean, default: true },
-            x: { type: Number, default: 85 },
-            y: { type: Number, default: 85 },
-            fontSize: { type: Number, default: 20 },
-            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins", "Courgette", "Silentha OT", "Roherat", "Signtelly"] },
-            fontWeight: { type: String, default: "normal", enum: ["normal", "bold"] },
-            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
-            maxWidth: { type: Number, default: 80 }
-        },
-        duration: {
-            enabled: { type: Boolean, default: false },
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 65 },
-            fontSize: { type: Number, default: 20 },
-            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins", "Courgette", "Silentha OT", "Roherat", "Signtelly"] },
-            fontWeight: { type: String, default: "normal", enum: ["normal", "bold"] },
-            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
-            maxWidth: { type: Number, default: 80 }
-        },
-        grade: {
-            enabled: { type: Boolean, default: false },
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 70 },
-            fontSize: { type: Number, default: 28 },
-            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins", "Courgette", "Silentha OT", "Roherat", "Signtelly"] },
-            fontWeight: { type: String, default: "bold", enum: ["normal", "bold"] },
-            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
-            maxWidth: { type: Number, default: 80 }
-        },
-        instituteName: {
-            enabled: { type: Boolean, default: false },
-            x: { type: Number, default: 50 },
-            y: { type: Number, default: 10 },
-            fontSize: { type: Number, default: 24 },
-            fontFamily: { type: String, default: "Roboto", enum: ["Arial", "Roboto", "Inter", "Lora", "Poppins", "Courgette", "Silentha OT", "Roherat", "Signtelly"] },
-            fontWeight: { type: String, default: "normal", enum: ["normal", "bold"] },
-            fontStyle: { type: String, default: "normal", enum: ["normal", "italic"] },
-            color: { type: String, default: "#000000" },
-            textAlign: { type: String, default: "center", enum: ["left", "center", "right"] },
-            maxWidth: { type: Number, default: 80 }
-        }
+        type: Map,
+        of: ElementSchema,
+        default: {}
     },
 
     // Created and managed by
