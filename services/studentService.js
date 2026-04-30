@@ -3,6 +3,7 @@ import Batch from '@/models/Batch';
 import Fee from '@/models/Fee';
 import Membership from '@/models/Membership';
 import '@/models/Course'; // Ensure Course schema is registered
+import '@/models/FeePreset'; // Ensure FeePreset schema is registered
 import '@/models/Certificate'; // Ensure Certificate schema is registered
 import { createAuditLog } from './auditService';
 import mongoose from 'mongoose';
@@ -374,7 +375,7 @@ export class StudentService {
     /**
      * Enroll student in a batch and initialize fees
      */
-    static async enrollInBatch(studentId, batchId, actorId, instituteId, customAmount = null) {
+    static async enrollInBatch(studentId, batchId, actorId, instituteId, customAmount = null, presetId = null) {
         const session = await mongoose.startSession();
         try {
             session.startTransaction();
@@ -452,7 +453,8 @@ export class StudentService {
                 institute: targetInstitute,
                 totalAmount: customAmount !== null ? parseFloat(customAmount) : batch.course.fees.amount,
                 installments: [],
-                status: 'not_started'
+                status: 'not_started',
+                feePreset: presetId || null
             }], { session });
 
             await session.commitTransaction();
@@ -483,7 +485,7 @@ export class StudentService {
             await session.abortTransaction();
             // Fallback for standalone mongo (Replica Set required for transactions)
             if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
-                return this.enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount);
+                return this.enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount, presetId);
             }
             throw error;
         } finally {
@@ -492,7 +494,7 @@ export class StudentService {
     }
 
     // Fallback for standalone DB without transactions
-    static async enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount = null) {
+    static async enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount = null, presetId = null) {
         const student = await User.findById(studentId);
         if (!student || student.role !== 'student' || student.deletedAt) throw new Error('Invalid or inactive student');
 
@@ -532,7 +534,8 @@ export class StudentService {
             institute: batch.institute,
             totalAmount: customAmount !== null ? parseFloat(customAmount) : batch.course.fees.amount,
             installments: [],
-            status: 'not_started'
+            status: 'not_started',
+            feePreset: presetId || null
         });
 
         await createAuditLog({
@@ -597,7 +600,7 @@ export class StudentService {
         const fees = await Fee.find({
             student: studentId,
             deletedAt: null
-        }).populate('batch', 'name');
+        }).populate('batch', 'name').populate({ path: 'feePreset', select: 'name', strictPopulate: false });
 
         return {
             student,

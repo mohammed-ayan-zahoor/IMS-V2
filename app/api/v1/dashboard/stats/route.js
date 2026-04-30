@@ -35,6 +35,7 @@ export async function GET(req) {
 
         const { searchParams } = new URL(req.url);
         const targetInstParam = searchParams.get("instituteId");
+        const sessionParam = searchParams.get("session");
 
         const isGlobalView = scope.isSuperAdmin && (targetInstParam === "all" || !targetInstParam);
         
@@ -84,7 +85,7 @@ export async function GET(req) {
 
         // 2. Total Enrollments (Sum of student counts across all active batches)
         const totalEnrollmentsPromise = Batch.aggregate([
-            { $match: instituteQuery },
+            { $match: { ...instituteQuery, ...(sessionParam ? { session: new mongoose.Types.ObjectId(sessionParam) } : {}) } },
             { $project: { enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
             { $group: { _id: null, total: { $sum: "$enrollmentCount" } } }
         ]);
@@ -94,7 +95,7 @@ export async function GET(req) {
 
         // 4. Top Courses (Leaderboard)
         const topCoursesPromise = Batch.aggregate([
-            { $match: instituteQuery },
+            { $match: { ...instituteQuery, ...(sessionParam ? { session: new mongoose.Types.ObjectId(sessionParam) } : {}) } },
             { $project: { course: 1, enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
             { $group: { _id: "$course", totalStudents: { $sum: "$enrollmentCount" } } },
             { $sort: { totalStudents: -1 } },
@@ -202,7 +203,11 @@ export async function GET(req) {
             revenueTrendsPromise,
             getGrowth(User, { ...hybridBaseQuery, role: 'student' }),
             getGrowth(Enquiry, instituteQuery),
-            getGrowth(Batch, { ...instituteQuery, enrolledStudents: { $exists: true, $not: { $size: 0 } } })
+            getGrowth(Batch, { 
+                ...instituteQuery, 
+                ...(sessionParam ? { session: new mongoose.Types.ObjectId(sessionParam) } : {}),
+                enrolledStudents: { $exists: true, $not: { $size: 0 } } 
+            })
         ]);
 
         // Map revenue trends to fill missing months

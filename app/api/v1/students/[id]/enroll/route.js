@@ -20,7 +20,7 @@ export async function POST(req, { params }) {
         }
 
         const { id } = await params;
-        const { batchId, customAmount } = await req.json();
+        const { batchId, customAmount, presetId } = await req.json();
 
         if (!batchId) {
             return NextResponse.json({ error: "Batch ID is required" }, { status: 400 });
@@ -28,7 +28,7 @@ export async function POST(req, { params }) {
 
         await connectDB();
 
-        const result = await StudentService.enrollInBatch(id, batchId, session.user.id, scope.instituteId, customAmount);
+        const result = await StudentService.enrollInBatch(id, batchId, session.user.id, scope.instituteId, customAmount, presetId);
 
         // Clear dashboard cache since student enrollment status may have changed
         clearDashboardCache(scope.instituteId);

@@ -42,14 +42,15 @@ export default function CreateInstitutePage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        name: "",
-        code: "",
-        adminEmail: "",
-        adminPassword: "",
-        adminName: "",
-        contactPhone: "",
-        addressStr: ""
-    });
+         name: "",
+         code: "",
+         adminEmail: "",
+         adminPassword: "",
+         adminName: "",
+         contactPhone: "",
+         addressStr: "",
+         type: "VOCATIONAL"  // Default to VOCATIONAL for backwards compatibility
+     });
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -129,32 +130,64 @@ export default function CreateInstitutePage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField
-                            label="Organization Legal Name"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            icon={Building2}
-                            required
-                        />
-                        <FormField
-                            label="Institutional ID (Unique Code)"
-                            name="code"
-                            value={formData.code}
-                            onChange={handleChange}
-                            icon={Shield}
-                            required
-                            placeholder="e.g. ACME_UNI"
-                            className="uppercase"
-                        />
-                        <FormField
-                            label="Direct Support Line"
-                            name="contactPhone"
-                            value={formData.contactPhone}
-                            onChange={handleChange}
-                            icon={Phone}
-                        />
-                        <div className="md:col-span-2 space-y-2">
+                         <FormField
+                             label="Organization Legal Name"
+                             name="name"
+                             value={formData.name}
+                             onChange={handleChange}
+                             icon={Building2}
+                             required
+                         />
+                         <FormField
+                             label="Institutional ID (Unique Code)"
+                             name="code"
+                             value={formData.code}
+                             onChange={handleChange}
+                             icon={Shield}
+                             required
+                             placeholder="e.g. ACME_UNI"
+                             className="uppercase"
+                         />
+                         <FormField
+                             label="Direct Support Line"
+                             name="contactPhone"
+                             value={formData.contactPhone}
+                             onChange={handleChange}
+                             icon={Phone}
+                         />
+                         <div className="space-y-2">
+                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                 <Shield size={12} /> Organization Type
+                             </label>
+                             <div className="grid grid-cols-2 gap-3">
+                                 <button
+                                     type="button"
+                                     onClick={() => setFormData({ ...formData, type: 'VOCATIONAL' })}
+                                     className={cn(
+                                         "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
+                                         (formData.type === 'VOCATIONAL' || !formData.type)
+                                             ? "border-blue-500 bg-blue-50 text-blue-600"
+                                             : "border-slate-100 hover:border-slate-200 text-slate-500"
+                                     )}
+                                 >
+                                     <span className="text-xs font-bold uppercase tracking-wider text-center">Vocational</span>
+                                 </button>
+                                 <button
+                                     type="button"
+                                     onClick={() => setFormData({ ...formData, type: 'SCHOOL' })}
+                                     className={cn(
+                                         "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
+                                         formData.type === 'SCHOOL'
+                                             ? "border-blue-500 bg-blue-50 text-blue-600"
+                                             : "border-slate-100 hover:border-slate-200 text-slate-500"
+                                     )}
+                                 >
+                                     <span className="text-xs font-bold uppercase tracking-wider text-center">School</span>
+                                 </button>
+                             </div>
+                             <p className="text-[10px] text-slate-400 font-medium italic">Type is immutable after creation</p>
+                         </div>
+                         <div className="md:col-span-2 space-y-2">
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                 <MapPin size={12} /> Registered Address
                             </label>

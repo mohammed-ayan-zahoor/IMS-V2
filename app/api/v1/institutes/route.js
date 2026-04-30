@@ -75,34 +75,39 @@ export async function POST(req) {
         const body = await req.json();
 
         // 1. Validation
-        if (!body.name || !body.code || !body.adminEmail || !body.adminPassword) {
-            return NextResponse.json({ error: "Missing required fields (Name, Code, Admin Email, Admin Password)" }, { status: 400 });
-        }
+         if (!body.name || !body.code || !body.adminEmail || !body.adminPassword) {
+             return NextResponse.json({ error: "Missing required fields (Name, Code, Admin Email, Admin Password)" }, { status: 400 });
+         }
 
-        // Check duplicates
-        const existingCode = await Institute.findOne({ code: body.code.toUpperCase() });
-        if (existingCode) {
-            return NextResponse.json({ error: "Institute Code already exists" }, { status: 400 });
-        }
+         // Validate type field
+         const validTypes = ['VOCATIONAL', 'SCHOOL'];
+         const instituteType = body.type && validTypes.includes(body.type) ? body.type : 'VOCATIONAL';
+
+         // Check duplicates
+         const existingCode = await Institute.findOne({ code: body.code.toUpperCase() });
+         if (existingCode) {
+             return NextResponse.json({ error: "Institute Code already exists" }, { status: 400 });
+         }
 
         // Helper function to execute creation logic (with or without session)
         const createInstituteLogic = async (dbSession = null, manualRollback = false) => {
             const opts = dbSession ? { session: dbSession } : {};
 
-            // 2. Create Institute
-            const [institute] = await Institute.create([{
-                name: body.name,
-                code: body.code.toUpperCase(),
-                contactEmail: body.contactEmail || body.adminEmail, // Default to admin email if not provided
-                address: body.address,
-                status: 'active',
-                subscription: {
-                    plan: 'free', // Default plan
-                    startDate: new Date(),
-                    isActive: true
-                },
-                createdBy: session.user.id
-            }], opts);
+             // 2. Create Institute
+             const [institute] = await Institute.create([{
+                 name: body.name,
+                 code: body.code.toUpperCase(),
+                 type: instituteType,  // Set the type (VOCATIONAL or SCHOOL)
+                 contactEmail: body.contactEmail || body.adminEmail, // Default to admin email if not provided
+                 address: body.address,
+                 status: 'active',
+                 subscription: {
+                     plan: 'free', // Default plan
+                     startDate: new Date(),
+                     isActive: true
+                 },
+                 createdBy: session.user.id
+             }], opts);
 
             try {
                 // Check if email already exists within this institute

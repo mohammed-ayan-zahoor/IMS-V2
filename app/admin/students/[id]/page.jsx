@@ -454,7 +454,8 @@ export default function StudentDetailsPage({ params }) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     batchId: selectedBatch,
-                    customAmount: preset ? preset.amount : null
+                    customAmount: preset ? preset.amount : null,
+                    presetId: selectedPreset || null
                 })
             });
 
@@ -1153,7 +1154,14 @@ export default function StudentDetailsPage({ params }) {
                                                     <CreditCard size={20} />
                                                 </div>
                                                 <div>
-                                                    <h4 className="font-bold text-slate-900">{batch.name}</h4>
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-bold text-slate-900">{batch.name}</h4>
+                                                        {fee?.feePreset?.name && (
+                                                            <span className="px-2 py-0.5 text-[10px] bg-blue-50 text-blue-600 rounded-full border border-blue-100 uppercase font-medium">
+                                                                {fee.feePreset.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <div className="flex flex-col gap-0.5">
                                                         <p className="text-xs text-slate-500">Original Total: ₹{originalTotal.toLocaleString()}</p>
                                                          {discountAmount > 0 && (

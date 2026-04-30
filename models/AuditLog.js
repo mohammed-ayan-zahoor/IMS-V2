@@ -13,7 +13,7 @@ const AuditLogSchema = new Schema({
         required: true,
         enum: [
             'student.create', 'student.update', 'student.delete',
-            'student.complete', 'student.drop', 'student.revert',
+            'student.complete', 'student.drop', 'student.revert', 'student.promote',
             'certificate.generate', 'certificate.regenerate', 'certificate.revoke',
             'course.create', 'course.update', 'course.delete',
             'batch.create', 'batch.update', 'batch.delete', 'batch.enroll', 'batch.remove_student', 'batch.course_transfer',
@@ -27,17 +27,18 @@ const AuditLogSchema = new Schema({
             'expense_head.create', 'expense_head.delete',
             'expense.create', 'expense.delete',
             'subject.create', 'subject.update', 'subject.delete', 'subject.syllabus_update', 'subject.syllabus_import',
-            'fee_preset.create', 'fee_preset.update', 'fee_preset.delete'
+            'fee_preset.create', 'fee_preset.update', 'fee_preset.delete',
+            'session.create', 'session.activate', 'session.delete'
         ],
         index: true
     },
      resource: {
-         type: {
-             type: String,
-             enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'Subject', 'Enquiry', 'FeePreset']
-         },
-         id: Schema.Types.ObjectId
-     },
+          type: {
+              type: String,
+              enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'Subject', 'Enquiry', 'FeePreset', 'Session']
+          },
+          id: Schema.Types.ObjectId
+      },
     details: Schema.Types.Mixed, // Store before/after states or additional context
     ipAddress: String,
     userAgent: String

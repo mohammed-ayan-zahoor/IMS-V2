@@ -50,11 +50,19 @@ export async function PATCH(req) {
         const body = await req.json();
         console.log("[InstituteAPI] PATCH body:", JSON.stringify(body, null, 2));
 
-        // Allowed updates
-        const updateData = {};
-        if (body.name) updateData.name = body.name;
-        if (body.type) updateData.type = body.type;
-        if (body.branding) {
+         // Allowed updates
+         const updateData = {};
+         if (body.name) updateData.name = body.name;
+         
+         // Only super_admin can update institute type - it's immutable for regular admins
+         if (body.type && scope.user.role === 'super_admin') {
+             updateData.type = body.type;
+         } else if (body.type && scope.user.role !== 'super_admin') {
+             // Silently ignore type update attempts from non-super-admin users (already validated at frontend)
+             console.warn(`[InstituteAPI] Admin ${session.user.email} attempted to update institute type - permission denied`);
+         }
+         
+         if (body.branding) {
             updateData.branding = {};
             if (body.branding.logo) updateData.branding.logo = body.branding.logo;
             if (body.branding.primaryColor) updateData.branding.primaryColor = body.branding.primaryColor;

@@ -26,6 +26,12 @@ const FeeSchema = new Schema({
         required: true,
         index: true
     },
+    session: {
+        type: Schema.Types.ObjectId,
+        ref: 'Session',
+        index: true,
+        description: 'Academic session for this fee'
+    },
     student: {
         type: Schema.Types.ObjectId,
         ref: 'User',
@@ -60,7 +66,11 @@ const FeeSchema = new Schema({
     },
     // Soft delete
     deletedAt: { type: Date, index: true },
-    deletedBy: { type: Schema.Types.ObjectId, ref: 'User' }
+    deletedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    feePreset: {
+        type: Schema.Types.ObjectId,
+        ref: 'FeePreset'
+    }
 }, { timestamps: true });
 
 // Compound index

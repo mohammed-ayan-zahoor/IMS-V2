@@ -93,6 +93,72 @@ export class FeeService {
         return fee;
     }
 
+    // Create fee from a preset with auto-generated installments
+    static async createFeeFromPreset(data, actorId) {
+        await connectDB();
+        const { student, batch, preset, institute, session, numInstallments = 3 } = data;
+
+        if (!preset) {
+            throw new Error("Fee preset is required");
+        }
+
+        if (!batch || !student || !institute) {
+            throw new Error("Student, batch, and institute are required");
+        }
+
+        // Generate installments from preset amount
+        const totalAmount = preset.amount;
+        const installmentAmount = totalAmount / numInstallments;
+        const today = new Date();
+        const installments = [];
+
+        // Create installments with due dates spread out
+        for (let i = 0; i < numInstallments; i++) {
+            const dueDate = new Date(today);
+            dueDate.setMonth(dueDate.getMonth() + (i + 1)); // Due next month, then +2, +3, etc.
+            
+            installments.push({
+                amount: parseFloat(installmentAmount.toFixed(2)),
+                dueDate: dueDate,
+                status: 'pending'
+            });
+        }
+
+        // Adjust last installment to account for rounding
+        const totalFromInstallments = installments.reduce((sum, i) => sum + i.amount, 0);
+        const roundingDiff = totalAmount - totalFromInstallments;
+        if (roundingDiff !== 0) {
+            installments[installments.length - 1].amount += roundingDiff;
+        }
+
+        const fee = await FeeDb.create({
+            student,
+            batch,
+            totalAmount,
+            installments,
+            status: 'not_started',
+            institute,
+            session,
+            feePreset: preset._id
+        });
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'fee.create',
+            resource: { type: 'Fee', id: fee._id },
+            institute: institute,
+            details: { 
+                student, 
+                batch, 
+                totalAmount,
+                fromPreset: preset._id,
+                reason: 'Auto-created from promotion'
+            }
+        });
+
+        return fee;
+    }
+
     static async getFees(filters = {}) {
         await connectDB();
         const query = { deletedAt: null };

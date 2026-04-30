@@ -9,6 +9,7 @@ import Input from "@/components/ui/Input";
 import { useToast } from "@/contexts/ToastContext";
 import CertificateTemplateManager from "@/components/admin/CertificateTemplateManager";
 import HtmlCertificateEditor from "@/components/admin/HtmlCertificateEditor";
+import SessionManager from "@/components/admin/SessionManager";
 
 export default function SettingsPage() {
     const toast = useToast();
@@ -123,28 +124,31 @@ export default function SettingsPage() {
         }
     };
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsSaving(true);
-        try {
-            const res = await fetch("/api/v1/institute", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(institute)
-            });
+         e.preventDefault();
+         setIsSaving(true);
+         try {
+             // Don't send type field from admin - it's immutable and set by super admin
+             const { type, ...dataToSend } = institute;
+             
+             const res = await fetch("/api/v1/institute", {
+                 method: "PATCH",
+                 headers: { "Content-Type": "application/json" },
+                 body: JSON.stringify(dataToSend)
+             });
 
-            const data = await res.json();
-            if (res.ok) {
-                toast.success("Settings saved successfully");
-            } else {
-                toast.error(data.error || "Failed to save settings");
-            }
-        } catch (error) {
-            console.error("Save error:", error);
-            toast.error("Failed to save settings");
-        } finally {
-            setIsSaving(false);
-        }
-    };
+             const data = await res.json();
+             if (res.ok) {
+                 toast.success("Settings saved successfully");
+             } else {
+                 toast.error(data.error || "Failed to save settings");
+             }
+         } catch (error) {
+             console.error("Save error:", error);
+             toast.error("Failed to save settings");
+         } finally {
+             setIsSaving(false);
+         }
+     };
 
 
     if (loading) return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-premium-blue" /></div>;
@@ -180,35 +184,25 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700">Institute Type</label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setInstitute({ ...institute, type: 'VOCATIONAL' })}
-                                        className={cn(
-                                            "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
-                                            (institute.type === 'VOCATIONAL' || !institute.type)
-                                                ? "border-premium-blue bg-premium-blue/5 text-premium-blue"
-                                                : "border-slate-100 hover:border-slate-200 text-slate-500"
-                                        )}
-                                    >
-                                        <span className="text-xs font-bold uppercase tracking-wider text-center">Vocational / Coaching</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setInstitute({ ...institute, type: 'SCHOOL' })}
-                                        className={cn(
-                                            "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
-                                            institute.type === 'SCHOOL'
-                                                ? "border-premium-blue bg-premium-blue/5 text-premium-blue"
-                                                : "border-slate-100 hover:border-slate-200 text-slate-500"
-                                        )}
-                                    >
-                                        <span className="text-xs font-bold uppercase tracking-wider text-center">School</span>
-                                    </button>
-                                </div>
-                                <p className="text-[10px] text-slate-400 font-medium italic">Adjusts system labels (e.g., Course/Batch → Standard/Section)</p>
-                            </div>
+                                 <label className="text-sm font-bold text-slate-700">Institute Type</label>
+                                 <div className="p-3 rounded-xl border-2 border-slate-200 bg-slate-50">
+                                     <div className="flex items-center justify-between">
+                                         <div>
+                                             <p className="text-sm font-bold text-slate-700">
+                                                 {institute.type === 'SCHOOL' ? 'School' : 'Vocational / Coaching'}
+                                             </p>
+                                             <p className="text-[10px] text-slate-500 font-medium italic mt-1">
+                                                 Set by Super Admin (read-only)
+                                             </p>
+                                         </div>
+                                         <div className="px-3 py-1.5 bg-slate-200 rounded-lg">
+                                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                                                 {institute.type || 'VOCATIONAL'}
+                                             </span>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-slate-700">Website</label>
                                 <div className="relative">
@@ -413,8 +407,13 @@ export default function SettingsPage() {
 
             </form>
 
+            {/* Academic Sessions */}
+            <div className="space-y-6 border-t border-slate-200 pt-8">
+                <SessionManager />
+            </div>
+
             {/* Certificate Templates - Outside Form */}
-            <div className="space-y-8">
+            <div className="space-y-8 border-t border-slate-200 pt-8">
                 <div>
                     <h3 className="text-lg font-bold text-slate-900 mb-4">Image-Based Templates</h3>
                     <CertificateTemplateManager />
