@@ -6,19 +6,23 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  --color-premium-blue: #3b82f6;
-  --color-premium-purple: #8b5cf6;
-  --color-premium-slate: #f8fafc;
+  --color-premium-blue: #0066ff;
+  --color-premium-teal: #00a86b;
+  --color-premium-orange: #ff7a3d;
+  --color-premium-red: #ff4757;
+  --color-premium-cyan: #00bcd4;
+  --color-premium-amber: #ffa500;
 
-  --color-soft-purple: #e0e7ff;
-  --color-soft-yellow: #fef9c3;
-  --color-soft-blue: #dbeafe;
-  --color-soft-emerald: #d1fae5;
-  --color-soft-rose: #ffe4e6;
+  --color-soft-blue: #e3f2fd;
+  --color-soft-teal: #e0f7f4;
+  --color-soft-orange: #ffe8d4;
+  --color-soft-red: #ffe8e8;
+  --color-soft-cyan: #e0f7fa;
+  --color-soft-amber: #fff8e1;
 
-  --color-soft-status-green: #ecfdf5;
-  --color-soft-status-blue: #eff6ff;
-  --color-soft-status-amber: #fffbeb;
+  --color-soft-status-green: #e0f7f4;
+  --color-soft-status-blue: #e3f2fd;
+  --color-soft-status-amber: #fff8e1;
 
   --radius-premium: 14px;
   --shadow-premium: 0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 12px rgba(0, 0, 0, 0.06);

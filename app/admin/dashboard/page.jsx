@@ -23,11 +23,11 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import StudentSearch from "@/components/admin/StudentSearch";
 
-const StatCard = ({ title, value, icon: Icon, trend, trendType = "up" }) => (
-    <Card padding="p-6" className="premium-card-hover group">
+const StatCard = ({ title, value, icon: Icon, trend, trendType = "up", colorClass }) => (
+    <Card padding="p-6" className={cn("premium-card-hover group", colorClass)}>
         <div className="flex justify-between items-start mb-4">
             <span className="section-label">{title}</span>
-            <div className="text-slate-300 group-hover:text-premium-blue transition-colors">
+            <div className="transition-colors">
                 <Icon size={20} />
             </div>
         </div>
@@ -132,7 +132,8 @@ export default function AdminDashboard() {
             value: loading ? "0" : (dashboardData?.counts?.activeStudents || 0).toLocaleString(), 
             icon: Users, 
             trend: `${dashboardData?.trends?.student >= 0 ? '+' : ''}${dashboardData?.trends?.student || 0}%`, 
-            trendType: (dashboardData?.trends?.student || 0) >= 0 ? "up" : "down" 
+            trendType: (dashboardData?.trends?.student || 0) >= 0 ? "up" : "down",
+            colorClass: "bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-600"
         },
         { 
             title: "COMPLETED", 
@@ -141,7 +142,8 @@ export default function AdminDashboard() {
             trend: dashboardData?.counts?.totalStudents > 0 
                 ? `${Math.round((dashboardData.counts.completedStudents / dashboardData.counts.totalStudents) * 100)}%`
                 : "0%",
-            trendType: "neutral" 
+            trendType: "neutral",
+            colorClass: "bg-gradient-to-br from-teal-50 to-teal-100 border-l-4 border-teal-600"
         },
         { 
             title: "DROPPED", 
@@ -150,28 +152,32 @@ export default function AdminDashboard() {
             trend: dashboardData?.counts?.totalStudents > 0 
                 ? `${Math.round((dashboardData.counts.droppedStudents / dashboardData.counts.totalStudents) * 100)}%`
                 : "0%",
-            trendType: "neutral" 
+            trendType: "neutral",
+            colorClass: "bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-600"
         },
         { 
             title: "ENROLLMENTS", 
             value: loading ? "0" : (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(), 
             icon: BookOpen, 
             trend: `${dashboardData?.trends?.enrollment >= 0 ? '+' : ''}${dashboardData?.trends?.enrollment || 0}%`, 
-            trendType: (dashboardData?.trends?.enrollment || 0) >= 0 ? "up" : "down" 
+            trendType: (dashboardData?.trends?.enrollment || 0) >= 0 ? "up" : "down",
+            colorClass: "bg-gradient-to-br from-orange-50 to-orange-100 border-l-4 border-orange-600"
         },
         { 
             title: "ENQUIRIES", 
             value: loading ? "0" : (dashboardData?.counts?.enquiries || 0).toLocaleString(), 
             icon: MessageSquare, 
             trend: `${dashboardData?.trends?.enquiry >= 0 ? '+' : ''}${dashboardData?.trends?.enquiry || 0}%`, 
-            trendType: (dashboardData?.trends?.enquiry || 0) >= 0 ? "up" : "down" 
+            trendType: (dashboardData?.trends?.enquiry || 0) >= 0 ? "up" : "down",
+            colorClass: "bg-gradient-to-br from-cyan-50 to-cyan-100 border-l-4 border-cyan-600"
         },
         { 
             title: "STAFF", 
             value: loading ? "0" : (dashboardData?.counts?.staff || 0).toLocaleString(), 
             icon: Layers3, 
             trend: "+0%", 
-            trendType: "up" 
+            trendType: "up",
+            colorClass: "bg-gradient-to-br from-amber-50 to-amber-100 border-l-4 border-amber-600"
         }
     ];
 
@@ -243,26 +249,30 @@ export default function AdminDashboard() {
                                 <div key={i} className="h-16 bg-slate-50 animate-pulse rounded-xl" />
                             ))
                         ) : dashboardData?.recentAdmissions?.length > 0 ? (
-                            dashboardData.recentAdmissions.map((student) => (
-                                <div 
-                                    key={student._id} 
-                                    className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-50/80 group transition-all cursor-default"
-                                >
-                                    <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
-                                        {student.profile?.firstName?.[0]}
+                            dashboardData.recentAdmissions.map((student, idx) => {
+                                const avatarColors = ['bg-blue-500', 'bg-teal-500', 'bg-orange-500', 'bg-cyan-500', 'bg-red-500', 'bg-amber-500'];
+                                const avatarBgColor = avatarColors[idx % avatarColors.length];
+                                return (
+                                    <div 
+                                        key={student._id} 
+                                        className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-50/80 group transition-all cursor-default"
+                                    >
+                                        <div className={`w-10 h-10 rounded-full ${avatarBgColor} text-white flex items-center justify-center font-bold text-sm shrink-0`}>
+                                            {student.profile?.firstName?.[0]}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[14px] font-bold text-slate-900 truncate">
+                                                {student.profile?.firstName} {student.profile?.lastName}
+                                            </p>
+                                            <p className="text-[12px] text-slate-400 font-medium">#{student.enrollmentNumber}</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            {getStatusBadge(student.status || 'ACTIVE')}
+                                            <ChevronRight size={14} className="text-slate-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                                        </div>
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[14px] font-bold text-slate-900 truncate">
-                                            {student.profile?.firstName} {student.profile?.lastName}
-                                        </p>
-                                        <p className="text-[12px] text-slate-400 font-medium">#{student.enrollmentNumber}</p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        {getStatusBadge(student.status || 'ACTIVE')}
-                                        <ChevronRight size={14} className="text-slate-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                                    </div>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="py-20 text-center text-slate-400">No admissions found.</div>
                         )}
@@ -289,17 +299,21 @@ export default function AdminDashboard() {
                             dashboardData.topCourses.map((course, index) => {
                                 const maxStudents = dashboardData.topCourses[0].totalStudents || 1;
                                 const percentage = Math.round((course.totalStudents / maxStudents) * 100);
+                                const barColors = ['bg-blue-600', 'bg-teal-600', 'bg-orange-600', 'bg-cyan-600', 'bg-red-600', 'bg-amber-600'];
+                                const barColor = barColors[index % barColors.length];
+                                const rankBgColors = ['bg-blue-600', 'bg-teal-600', 'bg-orange-600', 'bg-cyan-600'];
+                                const rankBg = rankBgColors[index % rankBgColors.length];
                                 
                                 return (
                                     <div key={course._id} className="space-y-3">
                                         <div className="flex justify-between items-center px-1">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-6 h-6 rounded-md bg-[#111827] text-white flex items-center justify-center text-[10px] font-black">
+                                                <div className={`w-6 h-6 rounded-md ${rankBg} text-white flex items-center justify-center text-[10px] font-black`}>
                                                     #{index + 1}
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="text-[14px] font-bold text-slate-900 leading-none">{course.name}</span>
-                                                    {percentage >= 80 && <span className="text-[9px] font-black uppercase tracking-widest text-[#c2410c] mt-1 italic">🔥 Hot Demand</span>}
+                                                    {percentage >= 80 && <span className="text-[9px] font-black uppercase tracking-widest text-orange-600 mt-1 italic">🔥 Hot Demand</span>}
                                                 </div>
                                             </div>
                                             <span className="text-[14px] font-black text-slate-900">{course.totalStudents} <span className="text-[11px] text-slate-400 font-bold ml-0.5 tracking-tighter uppercase">Students</span></span>
@@ -309,8 +323,8 @@ export default function AdminDashboard() {
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${percentage}%` }}
                                                 className={cn(
-                                                    "h-full rounded-full transition-all duration-1000",
-                                                    index === 0 ? "bg-premium-blue shadow-[0_0_12px_rgba(59,130,246,0.5)]" : "bg-slate-300"
+                                                    "h-full rounded-full transition-all duration-1000 shadow-md",
+                                                    barColor
                                                 )}
                                             />
                                         </div>
@@ -343,6 +357,8 @@ export default function AdminDashboard() {
                     ) : dashboardData?.revenueTrends?.map((data, i) => {
                         const maxVal = Math.max(...dashboardData.revenueTrends.map(r => r.total)) || 1;
                         const heightPercent = Math.max(5, (data.total / maxVal) * 100);
+                        const chartColors = ['bg-blue-600', 'bg-teal-600', 'bg-orange-600', 'bg-cyan-600', 'bg-red-600', 'bg-amber-600', 'bg-blue-500', 'bg-teal-500', 'bg-orange-500', 'bg-cyan-500', 'bg-red-500', 'bg-amber-500'];
+                        const barColor = chartColors[i % chartColors.length];
 
                         return (
                             <div key={i} className="flex-1 flex flex-col items-center gap-3 group relative h-full justify-end">
@@ -356,8 +372,8 @@ export default function AdminDashboard() {
                                     animate={{ height: `${heightPercent}%` }}
                                     transition={{ delay: i * 0.05, duration: 1, ease: [0.16, 1, 0.3, 1] }}
                                     className={cn(
-                                        "w-full rounded-t-xl transition-all duration-300",
-                                        data.total === maxVal && data.total > 0 ? "bg-premium-blue shadow-[0_4px_15px_rgba(59,130,246,0.3)]" : "bg-slate-100 group-hover:bg-slate-200"
+                                        "w-full rounded-t-xl transition-all duration-300 shadow-md",
+                                        barColor
                                     )}
                                 />
                                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{data.label}</span>
@@ -374,26 +390,26 @@ export default function AdminDashboard() {
                     subtitle="Current status breakdown across entire institution"
                 />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-4">
-                    <div className="text-center">
-                        <div className="text-3xl font-black text-slate-900 leading-tight">
+                    <div className="text-center p-4 rounded-lg bg-blue-50">
+                        <div className="text-3xl font-black text-blue-600 leading-tight">
                             {dashboardData?.counts?.activeRate?.toFixed(1) || 0}%
                         </div>
                         <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-2">Active Engagement</p>
                     </div>
-                    <div className="text-center">
-                        <div className="text-3xl font-black text-green-600 leading-tight">
+                    <div className="text-center p-4 rounded-lg bg-teal-50">
+                        <div className="text-3xl font-black text-teal-600 leading-tight">
                             {dashboardData?.counts?.completionRate?.toFixed(1) || 0}%
                         </div>
                         <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-2">Completion Success</p>
                     </div>
-                    <div className="text-center">
+                    <div className="text-center p-4 rounded-lg bg-red-50">
                         <div className="text-3xl font-black text-red-600 leading-tight">
                             {dashboardData?.counts?.droppedRate?.toFixed(1) || 0}%
                         </div>
                         <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-2">Discontinuation</p>
                     </div>
-                    <div className="text-center">
-                        <div className="text-3xl font-black text-slate-400 leading-tight">
+                    <div className="text-center p-4 rounded-lg bg-orange-50">
+                        <div className="text-3xl font-black text-orange-600 leading-tight">
                             {dashboardData?.counts?.totalStudents || 0}
                         </div>
                         <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-2">Total Managed</p>

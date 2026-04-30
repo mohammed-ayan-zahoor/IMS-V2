@@ -58,9 +58,9 @@ export default function StudentLayout({ children }) {
 
 
     return (
-        <div className="min-h-screen bg-white text-foreground flex flex-col overflow-x-hidden">
+        <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 text-foreground flex flex-col overflow-x-hidden">
             {/* Navbar */}
-            <header className="h-20 bg-white border-b border-border fixed top-0 w-full z-50 px-4 md:px-6 flex items-center justify-between shadow-sm safe-pt">
+            <header className="h-20 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 border-b border-slate-300 fixed top-0 w-full z-50 px-4 md:px-6 flex items-center justify-between shadow-sm safe-pt">
                 <div className="flex items-center gap-3 md:gap-8 overflow-hidden">
                     <Link href="/student/dashboard" className="flex items-center gap-2 group min-w-0">
                         {session?.user?.institute?.logo ? (
@@ -85,17 +85,19 @@ export default function StudentLayout({ children }) {
                     </Link>
 
                     <nav className="hidden md:flex items-center gap-1">
-                        {[...primaryNav, ...secondaryNav].map((item) => {
+                        {[...primaryNav, ...secondaryNav].map((item, index) => {
                             const isActive = pathname === item.href;
+                            const navColors = ['text-blue-600', 'text-teal-600', 'text-orange-600', 'text-cyan-600', 'text-red-600', 'text-amber-600'];
+                            const navColor = navColors[index % navColors.length];
                             return (
                                 <Link
                                     key={item.href}
                                     href={item.href}
                                     className={cn(
-                                        "px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-2 uppercase tracking-tight",
+                                        "px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-2 uppercase tracking-tight relative",
                                         isActive
-                                            ? "bg-premium-blue text-white shadow-md shadow-blue-900/10"
-                                            : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                                            ? "bg-premium-blue text-white shadow-md shadow-blue-900/10" 
+                                            : `text-slate-500 hover:bg-slate-100 ${navColor}`
                                     )}
                                 >
                                     <item.icon size={14} />
@@ -146,17 +148,19 @@ export default function StudentLayout({ children }) {
             </main>
 
             {/* Mobile Bottom Navigation */}
-            <div className="md:hidden fixed bottom-1 left-4 right-4 bg-white/90 backdrop-blur-xl rounded-2xl z-50 px-2 pt-2 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] safe-pb">
+            <div className="md:hidden fixed bottom-1 left-4 right-4 bg-gradient-to-r from-slate-200/90 via-slate-100/90 to-slate-200/90 backdrop-blur-xl rounded-2xl z-50 px-2 pt-2 border border-slate-400 shadow-[0_8px_30px_rgb(0,0,0,0.12)] safe-pb">
                 <div className="flex justify-around items-center gap-1">
-                    {primaryNav.map((item) => {
+                    {primaryNav.map((item, index) => {
                         const isActive = pathname === item.href;
+                        const bottomNavColors = ['text-blue-600', 'text-teal-600', 'text-orange-600', 'text-cyan-600'];
+                        const bottomNavColor = bottomNavColors[index % bottomNavColors.length];
                         return (
                             <Link
                                 key={item.href}
                                 href={item.href}
                                 className={cn(
                                     "flex flex-col items-center gap-1 pb-1 transition-all relative flex-1 min-w-[3.5rem]",
-                                    isActive ? "text-blue-600" : "text-slate-500"
+                                    isActive ? "text-blue-600" : `text-slate-500 ${bottomNavColor}`
                                 )}
                             >
                                 <div className={cn(
@@ -210,13 +214,15 @@ export default function StudentLayout({ children }) {
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2rem] z-[70] p-8 md:hidden shadow-2xl safe-pb"
+                            className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-200 to-slate-100 rounded-t-[2rem] z-[70] p-8 md:hidden shadow-2xl safe-pb"
                         >
                             <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-8" />
                             <h3 className="text-xl font-black text-slate-900 mb-6 px-2 italic tracking-tighter">Campus Resource Menu</h3>
                             <div className="grid grid-cols-2 gap-4">
-                                {secondaryNav.map((item) => {
+                                {secondaryNav.map((item, index) => {
                                     const isActive = pathname === item.href;
+                                    const secondaryColors = ['from-blue-50 to-blue-100 border-blue-200 text-blue-900', 'from-teal-50 to-teal-100 border-teal-200 text-teal-900', 'from-orange-50 to-orange-100 border-orange-200 text-orange-900', 'from-cyan-50 to-cyan-100 border-cyan-200 text-cyan-900', 'from-red-50 to-red-100 border-red-200 text-red-900', 'from-amber-50 to-amber-100 border-amber-200 text-amber-900'];
+                                    const colorClass = secondaryColors[index % secondaryColors.length];
                                     return (
                                         <Link
                                             key={item.href}
@@ -226,7 +232,7 @@ export default function StudentLayout({ children }) {
                                                 "p-5 rounded-2xl border transition-all flex flex-col items-start gap-4",
                                                 isActive 
                                                     ? "bg-premium-blue border-premium-blue text-white shadow-xl shadow-blue-900/20" 
-                                                    : "bg-slate-50 border-slate-100 text-slate-900 hover:border-slate-300"
+                                                    : `bg-gradient-to-br ${colorClass}`
                                             )}
                                         >
                                             <div className={cn(

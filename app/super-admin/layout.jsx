@@ -62,7 +62,7 @@ export default function SuperAdminLayout({ children }) {
             <motion.aside
                 initial={false}
                 animate={{ width: isSidebarOpen ? 280 : 88 }}
-                className="bg-white border-r border-slate-200 flex flex-col relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
+                className="bg-gradient-to-b from-slate-200 to-slate-100 border-r border-slate-200 flex flex-col relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
             >
                 {/* Branding */}
                 <div className="h-40 flex flex-col border-b border-slate-100">
@@ -100,6 +100,7 @@ export default function SuperAdminLayout({ children }) {
                         label="Dashboard"
                         isOpen={isSidebarOpen}
                         active={pathname === "/super-admin"}
+                        colorClass="text-blue-600"
                     />
                     <NavLink
                         href="/super-admin/institutes"
@@ -107,6 +108,7 @@ export default function SuperAdminLayout({ children }) {
                         label="Institutes"
                         isOpen={isSidebarOpen}
                         active={pathname.startsWith("/super-admin/institutes")}
+                        colorClass="text-teal-600"
                     />
                     <NavLink
                         href="/super-admin/users"
@@ -114,6 +116,7 @@ export default function SuperAdminLayout({ children }) {
                         label="Admin Management"
                         isOpen={isSidebarOpen}
                         active={pathname.startsWith("/super-admin/users")}
+                        colorClass="text-orange-600"
                     />
                     <NavLink
                         href="/super-admin/settings"
@@ -121,6 +124,7 @@ export default function SuperAdminLayout({ children }) {
                         label="Global Settings"
                         isOpen={isSidebarOpen}
                         active={pathname === "/super-admin/settings"}
+                        colorClass="text-cyan-600"
                     />
                     <NavLink
                         href="/super-admin/shared-links"
@@ -128,6 +132,7 @@ export default function SuperAdminLayout({ children }) {
                         label="Shared Dashboards"
                         isOpen={isSidebarOpen}
                         active={pathname.startsWith("/super-admin/shared-links")}
+                        colorClass="text-red-600"
                     />
                 </nav>
 
@@ -217,7 +222,7 @@ export default function SuperAdminLayout({ children }) {
     );
 }
 
-function NavLink({ href, icon: Icon, label, isOpen, active }) {
+function NavLink({ href, icon: Icon, label, isOpen, active, colorClass }) {
     return (
         <Link
             href={href}
@@ -225,7 +230,7 @@ function NavLink({ href, icon: Icon, label, isOpen, active }) {
                 "relative group flex items-center gap-3 p-3 rounded-xl transition-all duration-300",
                 active
                     ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 active:scale-95"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                    : `text-slate-500 hover:bg-slate-50 hover:text-slate-900 ${colorClass}`,
                 !isOpen && "justify-center"
             )}
         >
@@ -244,7 +249,7 @@ function NavLink({ href, icon: Icon, label, isOpen, active }) {
             )}
 
             {!active && isOpen && (
-                <div className="absolute left-0 w-1 h-0 bg-blue-600 rounded-full group-hover:h-3 transition-all duration-300" />
+                <div className={cn("absolute left-0 w-1 h-0 rounded-full group-hover:h-3 transition-all duration-300", colorClass.replace('text-', 'bg-'))} />
             )}
         </Link>
     )

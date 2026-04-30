@@ -94,7 +94,7 @@ export async function GET(req) {
         const enquiriesCountPromise = Enquiry.countDocuments(instituteQuery);
 
         // 4. Top Courses (Leaderboard)
-        const topCoursesPromise = Batch.aggregate([
+        let topCoursesPromise = Batch.aggregate([
             { $match: { ...instituteQuery, ...(sessionParam ? { session: new mongoose.Types.ObjectId(sessionParam) } : {}) } },
             { $project: { course: 1, enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
             { $group: { _id: "$course", totalStudents: { $sum: "$enrollmentCount" } } },
@@ -117,6 +117,37 @@ export async function GET(req) {
                 }
             }
         ]);
+        
+        // If session filter is applied and returns no results, fallback to all sessions
+        topCoursesPromise = topCoursesPromise.then(async (result) => {
+            if (result.length === 0 && sessionParam) {
+                // Retry without session filter
+                return await Batch.aggregate([
+                    { $match: instituteQuery },
+                    { $project: { course: 1, enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
+                    { $group: { _id: "$course", totalStudents: { $sum: "$enrollmentCount" } } },
+                    { $sort: { totalStudents: -1 } },
+                    { $limit: 5 },
+                    {
+                        $lookup: {
+                            from: "courses",
+                            localField: "_id",
+                            foreignField: "_id",
+                            as: "courseData"
+                        }
+                    },
+                    { $unwind: "$courseData" },
+                    {
+                        $project: {
+                            _id: 1,
+                            name: "$courseData.name",
+                            totalStudents: 1
+                        }
+                    }
+                ]);
+            }
+            return result;
+        });
 
         // 5. Recent Admissions
         const recentAdmissionsPromise = User.find({ ...hybridBaseQuery, role: 'student' })
@@ -131,12 +162,29 @@ export async function GET(req) {
         twelveMonthsAgo.setHours(0, 0, 0, 0);
 
         const Fee = (await import("@/models/Fee")).default;
+        const Student = (await import("@/models/User")).default;
+        
+        // Build revenue query with session filter
+        let revenueQuery = {
+            ...instituteQuery,
+            $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }]
+        };
+        
+        // If session filter is applied, we need to fetch fees for students in that session
+        if (sessionParam) {
+            const sessionObjectId = new mongoose.Types.ObjectId(sessionParam);
+            // Find students enrolled in batches of this session
+            const studentsInSession = await Batch.find({
+                ...instituteQuery,
+                session: sessionObjectId
+            }).distinct('enrolledStudents');
+            
+            revenueQuery.student = { $in: studentsInSession };
+        }
+
         const revenueTrendsPromise = Fee.aggregate([
             { 
-                $match: { 
-                    ...instituteQuery, 
-                    $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] 
-                } 
+                $match: revenueQuery
             },
             { $unwind: "$installments" },
             { 

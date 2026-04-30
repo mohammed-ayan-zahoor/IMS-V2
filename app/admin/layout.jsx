@@ -203,7 +203,7 @@ export default function AdminLayout({ children }) {
 
             {/* Sidebar */}
             <aside className={cn(
-                "w-60 h-full bg-white border-r border-[#f1f5f9] flex flex-col fixed inset-y-0 left-0 z-[90] transition-transform duration-300 lg:static lg:translate-x-0 no-print",
+                "w-60 h-full bg-gradient-to-b from-slate-200 to-slate-100 border-r border-[#f1f5f9] flex flex-col fixed inset-y-0 left-0 z-[90] transition-transform duration-300 lg:static lg:translate-x-0 no-print",
                 isSidebarOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 {/* Logo Area */}
@@ -213,46 +213,55 @@ export default function AdminLayout({ children }) {
 
                 {/* Navigation */}
                 <nav className="flex-1 overflow-y-auto px-4 space-y-8 scrollbar-hide py-2">
-                    {/* Primary Dashboard Link */}
-                    <Link
-                        href="/admin/dashboard"
-                        onClick={() => setIsSidebarOpen(false)}
-                        className={cn(
-                            "flex items-center gap-3 px-4 py-2.5 rounded-full transition-all group text-[13px] font-semibold",
-                            isDashboard ? "soft-active" : "text-[#6b7280] hover:bg-[#f9fafb] hover:text-[#3b82f6]"
-                        )}
-                    >
-                        <LayoutDashboard size={18} />
-                        <span>Dashboard</span>
-                    </Link>
+                     {/* Primary Dashboard Link */}
+                     <Link
+                         href="/admin/dashboard"
+                         onClick={() => setIsSidebarOpen(false)}
+                         className={cn(
+                            "flex items-center gap-3 px-4 py-2.5 rounded-full transition-all group text-[13px] font-semibold relative",
+                             isDashboard ? "soft-active" : "text-[#6b7280] hover:bg-[#f9fafb]"
+                         )}
+                     >
+                         <span className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-r transition-all", isDashboard ? "bg-blue-500" : "")} />
+                         <LayoutDashboard size={18} className={isDashboard ? "" : "text-blue-500"} />
+                         <span>Dashboard</span>
+                     </Link>
 
-                    {/* Groups */}
-                    {menuGroups.map((group) => (
-                        <div key={group.label} className="space-y-2">
-                            <h4 className="px-4 text-[10px] font-black uppercase tracking-[0.1em] text-[#9ca3af]">
-                                {group.label}
-                            </h4>
-                            <div className="space-y-1">
-                                {group.items.map((item) => {
-                                    const isActive = pathname.startsWith(item.href);
-                                    return (
-                                        <Link
-                                            key={item.href}
-                                            href={item.href}
-                                            onClick={() => setIsSidebarOpen(false)}
-                                            className={cn(
-                                                "flex items-center gap-3 px-4 py-2 rounded-full transition-all group text-[13px] font-semibold",
-                                                isActive ? "soft-active" : "text-[#6b7280] hover:bg-[#f9fafb] hover:text-[#3b82f6]"
-                                            )}
-                                        >
-                                            <item.icon size={16} />
-                                            <span>{item.label}</span>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
+                     {/* Groups */}
+                     {menuGroups.map((group, groupIndex) => {
+                         const groupColors = ['text-blue-600', 'text-teal-600', 'text-orange-600', 'text-cyan-600', 'text-red-600', 'text-amber-600'];
+                         const itemColors = ['text-blue-500', 'text-teal-500', 'text-orange-500', 'text-cyan-500', 'text-red-500', 'text-amber-500'];
+                         const groupColor = groupColors[groupIndex % groupColors.length];
+                         const itemColor = itemColors[groupIndex % itemColors.length];
+                         
+                         return (
+                         <div key={group.label} className="space-y-2">
+                             <h4 className={cn("px-4 text-[10px] font-black uppercase tracking-[0.1em]", groupColor)}>
+                                 {group.label}
+                             </h4>
+                             <div className="space-y-1">
+                                 {group.items.map((item) => {
+                                     const isActive = pathname.startsWith(item.href);
+                                     return (
+                                         <Link
+                                             key={item.href}
+                                             href={item.href}
+                                             onClick={() => setIsSidebarOpen(false)}
+                                             className={cn(
+                                                 "flex items-center gap-3 px-4 py-2 rounded-full transition-all group text-[13px] font-semibold relative",
+                                                 isActive ? "soft-active" : "text-[#6b7280] hover:bg-[#f9fafb]"
+                                             )}
+                                         >
+                                             <span className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-r transition-all", isActive ? itemColor : "")} />
+                                             <item.icon size={16} className={cn("transition-colors", !isActive && itemColor)} />
+                                             <span>{item.label}</span>
+                                         </Link>
+                                     );
+                                 })}
+                             </div>
+                         </div>
+                     );
+                     })}
                 </nav>
 
                 {/* Sidebar Footer - User Profile */}
