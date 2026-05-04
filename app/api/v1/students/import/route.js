@@ -4,6 +4,7 @@ import Student from "@/models/User"; // Direct access to User model (aliased as 
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getInstituteScope } from "@/middleware/instituteScope";
+import { validateAndDeriveSession } from "@/middleware/sessionValidation";
 import * as XLSX from "xlsx";
 import bcrypt from "bcryptjs";
 
@@ -43,6 +44,16 @@ export async function POST(req) {
 
         if (!rawData || rawData.length === 0) {
             return NextResponse.json({ error: "Excel file is empty" }, { status: 400 });
+        }
+
+        // Derive session for imported students
+        let sessionId = null;
+        try {
+            const sessionResult = await validateAndDeriveSession(req, scope);
+            sessionId = sessionResult.sessionId;
+        } catch (err) {
+            console.error("[IMPORT_SESSION_ERROR]", err.message);
+            // We allow import even if session fails, but it's recommended
         }
 
         const successResults = [];
@@ -115,7 +126,14 @@ export async function POST(req) {
                 },
                 enrollmentNumber: enrollmentNumber || null,
                 isActive: true,
-                createdBy: session.user.id
+                createdBy: session.user.id,
+                activeSession: sessionId || null,
+                promotionHistory: sessionId ? [{ 
+                    session: sessionId, 
+                    promotedAt: new Date(), 
+                    promotedBy: session.user.id 
+                }] : [],
+                activeSessions: sessionId ? [sessionId] : []
             });
         }
 

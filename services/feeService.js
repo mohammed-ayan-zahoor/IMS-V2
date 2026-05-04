@@ -168,6 +168,24 @@ export class FeeService {
         if (filters.student) query.student = filters.student;
         if (filters.institute) query.institute = filters.institute;
 
+        // Session filtering (Implicit via Batch)
+        if (filters.session) {
+            const batchQuery = { institute: filters.institute, session: filters.session, deletedAt: null };
+            const batchesInSession = await Batch.find(batchQuery).select('_id');
+            const batchIds = batchesInSession.map(b => b._id);
+            query.batch = { $in: batchIds };
+            
+            // If a specific batch was requested, intersect it
+            if (filters.batch) {
+                const requestedBatchId = filters.batch.toString();
+                if (!batchIds.map(id => id.toString()).includes(requestedBatchId)) {
+                    // Requested batch is not in the requested session
+                    return [];
+                }
+                query.batch = filters.batch;
+            }
+        }
+
         // Exclude cancelled fees unless explicitly requested
         if (!filters.includeCancelled && !filters.status) {
             query.status = { $ne: 'cancelled' };
@@ -203,11 +221,12 @@ export class FeeService {
             return applyPercentageFilter(mapped, filters.percentage);
         }
 
-        // 3. Find batches matching the course/institute filter
+        // 3. Find batches matching the course/institute/session filter
         const batchQuery = { deletedAt: null };
         if (filters.course) batchQuery.course = filters.course;
         if (filters.batch) batchQuery._id = filters.batch;
         if (filters.institute) batchQuery.institute = filters.institute;
+        if (filters.session) batchQuery.session = filters.session;
 
         const batches = await Batch.find(batchQuery).select('enrolledStudents name');
 

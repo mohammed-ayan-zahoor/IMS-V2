@@ -150,6 +150,24 @@ const UserSchema = new Schema({
             default: 'Other' 
         },
         uploadedAt: { type: Date, default: Date.now }
+    }],
+    // Primary Active Session (Single field for O(log n) lookup performance)
+    activeSession: {
+        type: Schema.Types.ObjectId,
+        ref: 'Session',
+        index: true
+    },
+    // Promotion & Session History (Archival tracking, unindexed to prevent multikey performance drop)
+    promotionHistory: [{
+        session: { type: Schema.Types.ObjectId, ref: 'Session' },
+        batch: { type: Schema.Types.ObjectId, ref: 'Batch' },
+        promotedAt: { type: Date, default: Date.now },
+        promotedBy: { type: Schema.Types.ObjectId, ref: 'User' }
+    }],
+    // Legacy support (to be migrated)
+    activeSessions: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Session'
     }]
 }, {
     timestamps: true,
@@ -163,7 +181,18 @@ const UserSchema = new Schema({
 UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
 // Enrollment remains scoped by institute and required for students (where enrollmentNumber exists)
 UserSchema.index({ institute: 1, enrollmentNumber: 1 }, { unique: true, partialFilterExpression: { deletedAt: null, enrollmentNumber: { $exists: true } } });
-UserSchema.index({ institute: 1, role: 1, deletedAt: 1 });
+// PERFORMANCE OPTIMIZATION: Targeted Compound Indexes
+// Support strict session isolation for Schools (Primary View)
+UserSchema.index({ institute: 1, activeSession: 1, role: 1 });
+
+// Support general student listing and vocational institute patterns
+UserSchema.index({ institute: 1, role: 1, deletedAt: 1, status: 1 });
+
+// Support historical session lookups via multikey index (Only if needed, otherwise rely on Batch enrollment)
+// UserSchema.index({ activeSessions: 1, role: 1, deletedAt: 1 }); 
+
+// Support lifecycle management and status-based filtering
+UserSchema.index({ role: 1, status: 1, deletedAt: 1 });
 // Virtual for full name
 UserSchema.virtual('fullName').get(function () {
     if (!this.profile || !this.profile.firstName || !this.profile.lastName) {

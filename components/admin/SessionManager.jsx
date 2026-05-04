@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { Calendar, Plus, Trash2, CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 
 export default function SessionManager() {
     const toast = useToast();
+    const { refreshSessions } = useAcademicSession();
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
@@ -78,8 +80,9 @@ export default function SessionManager() {
                 toast.success(`Session ${formData.sessionName} created successfully`);
                 setFormData({ sessionName: "", startDate: "", endDate: "" });
                 setShowCreateForm(false);
-                // Refresh the sessions list to ensure UI is in sync
+                // Refresh both local list and global session selector
                 await fetchSessions();
+                refreshSessions();
             } else {
                 toast.error(data.error || "Failed to create session");
                 // If it's a duplicate error, refresh list to show existing session
@@ -109,6 +112,7 @@ export default function SessionManager() {
             if (res.ok) {
                 toast.success(`Session ${sessionName} activated`);
                 fetchSessions();
+                refreshSessions();
             } else {
                 toast.error(data.error || "Failed to activate session");
             }
@@ -133,6 +137,7 @@ export default function SessionManager() {
             if (res.ok) {
                 toast.success(`Session ${sessionName} deleted`);
                 fetchSessions();
+                refreshSessions();
             } else {
                 toast.error(data.error || "Failed to delete session");
             }

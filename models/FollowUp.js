@@ -43,6 +43,11 @@ const FollowUpSchema = new Schema({
     },
     nextActionDate: {
         type: Date
+    },
+    session: {
+        type: Schema.Types.ObjectId,
+        ref: 'Session',
+        index: true
     }
 }, { timestamps: true });
 

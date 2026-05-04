@@ -14,15 +14,23 @@ import {
     Download
 } from "lucide-react";
 import { format, isPast, isToday } from "date-fns";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import Input from "@/components/ui/Input";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
+import { useSession } from "next-auth/react";
 
 export default function FollowUpQueuePage() {
+    const { data: session } = useSession();
+    const { sessions, selectedSessionId } = useAcademicSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+
+    const selectedSessionName = sessions?.find(s => s._id === selectedSessionId)?.sessionName || "Current Session";
+
     const [queue, setQueue] = useState([]);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -30,15 +38,20 @@ export default function FollowUpQueuePage() {
     const [typeFilter, setTypeFilter] = useState("all");
     const [exportDate, setExportDate] = useState(format(new Date(), "yyyy-MM-dd"));
     const [isExporting, setIsExporting] = useState(false);
+    const [showAllSessions, setShowAllSessions] = useState(false);
 
     useEffect(() => {
         fetchQueue();
-    }, []);
+    }, [selectedSessionId, showAllSessions]);
 
     const fetchQueue = async () => {
         try {
             setLoading(true);
-            const res = await fetch("/api/v1/reports/follow-ups");
+            const sessionParam = isSchool && selectedSessionId ? `session=${selectedSessionId}` : "";
+            const allSessionsParam = showAllSessions ? "allSessions=true" : "";
+            const queryParams = [sessionParam, allSessionsParam].filter(Boolean).join("&");
+            
+            const res = await fetch(`/api/v1/reports/follow-ups${queryParams ? `?${queryParams}` : ""}`);
             const data = await res.json();
             if (data.queue) {
                 setQueue(data.queue);
@@ -146,6 +159,23 @@ export default function FollowUpQueuePage() {
                     <FilterButton active={typeFilter === "Enquiry"} onClick={() => setTypeFilter("Enquiry")}>Enquiries</FilterButton>
                     <FilterButton active={typeFilter === "Student"} onClick={() => setTypeFilter("Student")}>Students</FilterButton>
                 </div>
+                
+                {isSchool && (
+                    <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-2">
+                        <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Session Filter:</label>
+                        <button 
+                            onClick={() => setShowAllSessions(!showAllSessions)}
+                            className={cn(
+                                "text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-lg transition-all",
+                                showAllSessions 
+                                ? "bg-amber-100 text-amber-700" 
+                                : "bg-blue-100 text-blue-700"
+                            )}
+                        >
+                            {showAllSessions ? "All Sessions" : selectedSessionName}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Export Controls */}

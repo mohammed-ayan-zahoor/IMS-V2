@@ -40,8 +40,7 @@ export async function GET(req) {
         }
 
         const messages = await Message.find({
-            conversationId,
-            deletedAt: null
+            conversationId
         })
             .populate('sender', 'profile.firstName profile.lastName role')
             .populate({

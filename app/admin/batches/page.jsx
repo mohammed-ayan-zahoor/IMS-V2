@@ -17,7 +17,9 @@ import {
     Edit2,
     Trash2,
     MessageSquare,
-    ExternalLink
+    ExternalLink,
+    Copy,
+    AlertCircle
 } from "lucide-react";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
@@ -31,6 +33,7 @@ import EmptyState from "@/components/shared/EmptyState";
 import { format } from "date-fns";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 
 export default function BatchesPage() {
     const toast = useToast();
@@ -40,6 +43,7 @@ export default function BatchesPage() {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const { data: session } = useSession();
+    const { selectedSessionId, sessions } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const [search, setSearch] = useState("");
     const [institutes, setInstitutes] = useState([]);
@@ -47,6 +51,9 @@ export default function BatchesPage() {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingBatch, setEditingBatch] = useState(null);
+    const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
+    const [cloneSourceSessionId, setCloneSourceSessionId] = useState("");
+    const [isCloning, setIsCloning] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -140,6 +147,7 @@ export default function BatchesPage() {
                     name: formData.name,
                     course: formData.course,
                     capacity: parseInt(formData.capacity, 10) || 0,
+                    session: selectedSessionId || undefined,
                     schedule: {
                         startDate: formData.startDate,
                         description: formData.schedule
@@ -163,28 +171,78 @@ export default function BatchesPage() {
         }
     };
 
-    const filteredBatches = batches.filter(batch =>
-        batch.name?.toLowerCase().includes(search.toLowerCase()) ||
-        batch.course?.name?.toLowerCase().includes(search.toLowerCase())
-    );
+    const handleCloneSubmit = async (e) => {
+        e.preventDefault();
+        if (!cloneSourceSessionId) return toast.error("Please select a source session");
+
+        setIsCloning(true);
+        try {
+            const res = await fetch("/api/v1/batches/clone", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    sourceSessionId: cloneSourceSessionId,
+                    targetSessionId: selectedSessionId
+                }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                toast.success(`Successfully cloned ${data.count} sections`);
+                setIsCloneModalOpen(false);
+                setCloneSourceSessionId("");
+                fetchInitialData();
+            } else {
+                const error = await res.json();
+                toast.error(error.error || "Failed to clone sections");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("An error occurred while cloning");
+        } finally {
+            setIsCloning(false);
+        }
+    };
+
+    const filteredBatches = batches.filter(batch => {
+        const matchesSearch = batch.name?.toLowerCase().includes(search.toLowerCase()) ||
+                              batch.course?.name?.toLowerCase().includes(search.toLowerCase());
+        const matchesSession = isSchool && selectedSessionId 
+            ? (batch.session === selectedSessionId || batch.session?._id === selectedSessionId || !batch.session)
+            : true;
+        return matchesSearch && matchesSession;
+    });
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div />
                 {session?.user?.role !== 'instructor' && (
-                    <Button 
-                        onClick={() => {
-                            setEditingBatch(null);
-                            setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: 30 });
-                            setIsAddModalOpen(true);
-                        }} 
-                        size="md" 
-                        className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
-                    >
-                        <Plus size={18} strokeWidth={2.5} />
-                        <span>Create {isSchool ? "Section" : "Batch"}</span>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {isSchool && (
+                            <Button 
+                                onClick={() => setIsCloneModalOpen(true)}
+                                variant="outline"
+                                size="md"
+                                className="flex items-center gap-2 border-slate-200"
+                            >
+                                <Copy size={16} />
+                                <span>Clone Sections</span>
+                            </Button>
+                        )}
+                        <Button 
+                            onClick={() => {
+                                setEditingBatch(null);
+                                setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: 30 });
+                                setIsAddModalOpen(true);
+                            }} 
+                            size="md" 
+                            className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
+                        >
+                            <Plus size={18} strokeWidth={2.5} />
+                            <span>Create {isSchool ? "Section" : "Batch"}</span>
+                        </Button>
+                    </div>
                 )}
             </div>
 
@@ -421,6 +479,45 @@ export default function BatchesPage() {
                             setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
                         }}>Cancel</Button>
                         <Button type="submit" className="flex-1">{editingBatch ? `Update ${isSchool ? "Section" : "Batch"}` : `Create ${isSchool ? "Section" : "Batch"}`}</Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Clone Sections Modal */}
+            <Modal
+                isOpen={isCloneModalOpen}
+                onClose={() => setIsCloneModalOpen(false)}
+                title="Clone Sections"
+            >
+                <form onSubmit={handleCloneSubmit} className="space-y-6 pt-4">
+                    <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex gap-3">
+                        <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={20} />
+                        <div className="text-sm text-amber-800">
+                            This will duplicate all sections from the source session into the current active session (<span className="font-bold">{sessions?.find(s => s._id === selectedSessionId)?.sessionName}</span>). Instructors will be reset and sections will be empty.
+                        </div>
+                    </div>
+                    
+                    <Select
+                        label="Source Session"
+                        value={cloneSourceSessionId}
+                        onChange={setCloneSourceSessionId}
+                        options={[
+                            { label: "Select Source Session", value: "" },
+                            ...sessions.filter(s => s._id !== selectedSessionId).map(s => ({
+                                label: s.sessionName,
+                                value: s._id
+                            }))
+                        ]}
+                        required
+                    />
+
+                    <div className="pt-4 flex items-center justify-end gap-3">
+                        <Button type="button" variant="outline" onClick={() => setIsCloneModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" variant="primary" disabled={isCloning || !cloneSourceSessionId}>
+                            {isCloning ? "Cloning..." : "Clone Sections"}
+                        </Button>
                     </div>
                 </form>
             </Modal>

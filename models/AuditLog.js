@@ -28,7 +28,7 @@ const AuditLogSchema = new Schema({
             'expense.create', 'expense.delete',
             'subject.create', 'subject.update', 'subject.delete', 'subject.syllabus_update', 'subject.syllabus_import',
             'fee_preset.create', 'fee_preset.update', 'fee_preset.delete',
-            'session.create', 'session.activate', 'session.delete',
+            'session.create', 'session.activate', 'session.delete', 'session.student_fetch', 'session.student_create', 'session.dashboard_stats_access',
             'masterSubject.create', 'masterSubject.update', 'masterSubject.delete', 'masterSubject.import'
         ],
         index: true

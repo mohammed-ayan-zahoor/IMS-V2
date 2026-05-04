@@ -172,12 +172,28 @@ export async function POST(req) {
             }
         }
 
-        // Set session on batch if not already set
-        if (!targetBatch.session) {
-            targetBatch.session = targetSessionId;
-        }
-
         await targetBatch.save();
+
+        // 5. BULK UPDATE STUDENTS (Security & Performance Optimization)
+        // Ensure all successfully promoted students have their activeSession and promotionHistory updated
+        if (studentIds.length > 0) {
+            await User.updateMany(
+                { _id: { $in: studentIds } },
+                { 
+                    $set: { activeSession: targetSessionId },
+                    $addToSet: { 
+                        activeSessions: targetSessionId,
+                        promotionHistory: {
+                            session: targetSessionId,
+                            batch: targetBatchId,
+                            promotedAt: new Date(),
+                            promotedBy: session.user.id
+                        }
+                    }
+                }
+            );
+            console.log(`[PROMOTION_SYNC] Bulk updated ${studentIds.length} students with session ${targetSessionId}`);
+        }
 
          return NextResponse.json({
              success: true,

@@ -6,6 +6,7 @@ import Course from "@/models/Course";
 import Enquiry from "@/models/Enquiry";
 import mongoose from "mongoose";
 import { getInstituteScope } from "@/middleware/instituteScope";
+import { validateAndDeriveSession, logSessionAccess } from "@/middleware/sessionValidation";
 
 // Simple cache: reuse data for 5 minutes
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -35,12 +36,48 @@ export async function GET(req) {
 
         const { searchParams } = new URL(req.url);
         const targetInstParam = searchParams.get("instituteId");
-        const sessionParam = searchParams.get("session");
 
         const isGlobalView = scope.isSuperAdmin && (targetInstParam === "all" || !targetInstParam);
+        const targetInstituteId = isGlobalView ? null : (targetInstParam || scope.instituteId);
         
+        let instituteType = null;
+        let sessionId = null;
+        let sessionValidationResult = null;
+
+        if (targetInstituteId) {
+            const Institute = (await import("@/models/Institute")).default;
+            const inst = await Institute.findById(targetInstituteId).select('type');
+            if (!inst) {
+                return NextResponse.json({ error: "Institute not found" }, { status: 404 });
+            }
+            instituteType = inst.type;
+
+            // SECURITY FIX: Server-side session derivation & validation
+            // Do NOT trust client-provided x-session-id header
+            try {
+                sessionValidationResult = await validateAndDeriveSession(req, {
+                    ...scope,
+                    instituteId: targetInstituteId
+                });
+
+                sessionId = sessionValidationResult.sessionId;
+
+            } catch (validationError) {
+                console.error('[SECURITY] Session validation failed for dashboard:', validationError.message);
+                // For SCHOOL institutes, fail closed
+                if (instituteType === 'SCHOOL') {
+                    return NextResponse.json(
+                        { error: `Session validation failed: ${validationError.message}` },
+                        { status: 403 }
+                    );
+                }
+                // For VOCATIONAL, continue without session
+                sessionId = null;
+            }
+        }
+
         // Check Cache
-        const cacheKey = `stats_${scope.instituteId}_${isGlobalView ? 'global' : 'scoped'}`;
+        const cacheKey = `stats_${targetInstituteId}_${isGlobalView ? 'global' : 'scoped'}_${sessionId || 'all'}`;
         const cachedEntry = statsCache.get(cacheKey);
         const nowTime = Date.now();
         if (cachedEntry && (nowTime - cachedEntry.timestamp) < CACHE_DURATION) {
@@ -75,17 +112,52 @@ export async function GET(req) {
             };
         }
 
-        // Parallel stats retrieval
         // 1. User Counts (Students, Staff)
-        const studentsCountPromise = User.countDocuments({ ...hybridBaseQuery, role: 'student' });
-        const activeStudentsCountPromise = User.countDocuments({ ...hybridBaseQuery, role: 'student', status: 'ACTIVE' });
-        const completedStudentsCountPromise = User.countDocuments({ ...hybridBaseQuery, role: 'student', status: 'COMPLETED' });
-        const droppedStudentsCountPromise = User.countDocuments({ ...hybridBaseQuery, role: 'student', status: 'DROPPED' });
+        const studentBaseQuery = { ...hybridBaseQuery, role: 'student' };
+
+        const sessionParam = searchParams.get('session');
+        const source = sessionValidationResult?.source || 'UNKNOWN';
+
+        // SECURITY FIX: Apply strict session isolation for Schools
+        if (instituteType === 'SCHOOL') {
+            if (!sessionId) {
+                // If we reach here, it means validateAndDeriveSession returned source: 'NO_SESSION_AVAILABLE'
+                // For the dashboard, we allow this to show aggregate data, but we log it as a warning
+                console.warn(`[DASHBOARD] Showing aggregate data for SCHOOL institute ${targetInstituteId} because no active session was found.`);
+            } else {
+                try {
+                    // Use $and to ensure we don't accidentally overwrite or conflict with other filters
+                    const sessionFilter = {
+                        activeSession: new mongoose.Types.ObjectId(sessionId)
+                    };
+                    
+                    if (studentBaseQuery.$and) {
+                        studentBaseQuery.$and.push(sessionFilter);
+                    } else {
+                        studentBaseQuery.activeSession = sessionFilter.activeSession;
+                    }
+                } catch (e) {
+                    console.error('[SECURITY] Invalid session ID format in dashboard:', e.message);
+                    return NextResponse.json(
+                        { error: "Invalid session ID format" },
+                        { status: 400 }
+                    );
+                }
+            }
+        } else if (sessionId && instituteType !== 'VOCATIONAL') {
+            // Warn if session being applied to unexpected institute type
+            console.warn(`[SECURITY] Session filter applied to ${instituteType} institute in dashboard`);
+        }
+
+        const studentsCountPromise = User.countDocuments(studentBaseQuery);
+        const activeStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, status: 'ACTIVE' });
+        const completedStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, status: 'COMPLETED' });
+        const droppedStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, status: 'DROPPED' });
         const staffCountPromise = User.countDocuments({ ...hybridBaseQuery, role: { $in: ['admin', 'staff'] } });
 
         // 2. Total Enrollments (Sum of student counts across all active batches)
         const totalEnrollmentsPromise = Batch.aggregate([
-            { $match: { ...instituteQuery, ...(sessionParam ? { session: new mongoose.Types.ObjectId(sessionParam) } : {}) } },
+            { $match: { ...instituteQuery, ...(sessionId && instituteType === 'SCHOOL' ? { session: new mongoose.Types.ObjectId(sessionId) } : {}) } },
             { $project: { enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
             { $group: { _id: null, total: { $sum: "$enrollmentCount" } } }
         ]);
@@ -94,8 +166,8 @@ export async function GET(req) {
         const enquiriesCountPromise = Enquiry.countDocuments(instituteQuery);
 
         // 4. Top Courses (Leaderboard)
-        let topCoursesPromise = Batch.aggregate([
-            { $match: { ...instituteQuery, ...(sessionParam ? { session: new mongoose.Types.ObjectId(sessionParam) } : {}) } },
+        const topCoursesPromise = Batch.aggregate([
+            { $match: { ...instituteQuery, ...(sessionId && instituteType === 'SCHOOL' ? { session: new mongoose.Types.ObjectId(sessionId) } : {}) } },
             { $project: { course: 1, enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
             { $group: { _id: "$course", totalStudents: { $sum: "$enrollmentCount" } } },
             { $sort: { totalStudents: -1 } },
@@ -118,39 +190,8 @@ export async function GET(req) {
             }
         ]);
         
-        // If session filter is applied and returns no results, fallback to all sessions
-        topCoursesPromise = topCoursesPromise.then(async (result) => {
-            if (result.length === 0 && sessionParam) {
-                // Retry without session filter
-                return await Batch.aggregate([
-                    { $match: instituteQuery },
-                    { $project: { course: 1, enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
-                    { $group: { _id: "$course", totalStudents: { $sum: "$enrollmentCount" } } },
-                    { $sort: { totalStudents: -1 } },
-                    { $limit: 5 },
-                    {
-                        $lookup: {
-                            from: "courses",
-                            localField: "_id",
-                            foreignField: "_id",
-                            as: "courseData"
-                        }
-                    },
-                    { $unwind: "$courseData" },
-                    {
-                        $project: {
-                            _id: 1,
-                            name: "$courseData.name",
-                            totalStudents: 1
-                        }
-                    }
-                ]);
-            }
-            return result;
-        });
-
         // 5. Recent Admissions
-        const recentAdmissionsPromise = User.find({ ...hybridBaseQuery, role: 'student' })
+        const recentAdmissionsPromise = User.find(studentBaseQuery)
             .select('profile.firstName profile.lastName email role createdAt enrollmentNumber status')
             .sort({ createdAt: -1 })
             .limit(5);
@@ -172,9 +213,9 @@ export async function GET(req) {
         };
         
         // If session filter is applied, filter fees by batch of that session
-        // Otherwise, show all fees (for vocational institutes or all-time view)
-        if (sessionParam) {
-            const sessionObjectId = new mongoose.Types.ObjectId(sessionParam);
+        // Standardize: use sessionId derived from either param or server logic
+        if (sessionId && instituteType === 'SCHOOL') {
+            const sessionObjectId = new mongoose.Types.ObjectId(sessionId);
             // Find batches of this session
             const batchesInSession = await Batch.find({
                 ...instituteQuery,
@@ -184,6 +225,10 @@ export async function GET(req) {
             const batchIds = batchesInSession.map(b => b._id);
             if (batchIds.length > 0) {
                 revenueQuery.batch = { $in: batchIds };
+            } else {
+                // If no batches in session, revenue is 0 for this session
+                // We must force a condition that returns nothing
+                revenueQuery.batch = new mongoose.Types.ObjectId(); 
             }
         }
 
@@ -210,15 +255,6 @@ export async function GET(req) {
             },
             { $sort: { "_id.year": 1, "_id.month": 1 } }
         ]);
-        
-        // Debug: log raw aggregation results
-        revenueTrendsPromise.then(results => {
-            if (process.env.NODE_ENV === 'development') {
-                console.log('[DEBUG] Revenue Trends Aggregation:', JSON.stringify(results, null, 2));
-            }
-        }).catch(err => {
-            console.error('[ERROR] Revenue Trends Aggregation Failed:', err);
-        });
 
         // 7. Activity Feed (Audit Log)
         const AuditLog = (await import("@/models/AuditLog")).default;
@@ -264,13 +300,13 @@ export async function GET(req) {
             topCoursesPromise,
             recentAdmissionsPromise,
             revenueTrendsPromise,
-            getGrowth(User, { ...hybridBaseQuery, role: 'student' }),
+            getGrowth(User, studentBaseQuery),
             getGrowth(Enquiry, instituteQuery),
             getGrowth(Batch, { 
                 ...instituteQuery, 
                 ...(sessionParam ? { session: new mongoose.Types.ObjectId(sessionParam) } : {}),
                 enrolledStudents: { $exists: true, $not: { $size: 0 } } 
-            })
+            }            )
         ]);
 
         // Map revenue trends to fill missing months

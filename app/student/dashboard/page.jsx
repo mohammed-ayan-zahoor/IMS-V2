@@ -14,7 +14,8 @@ import {
     CheckCircle2,
     AlertCircle,
     Target,
-    Activity
+    Activity,
+    Layers
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
@@ -22,18 +23,18 @@ import { cn } from "@/lib/utils";
 import Skeleton, { SkeletonCard, SkeletonBanner } from "@/components/shared/Skeleton";
 
 const QuickStat = ({ title, value, label, icon: Icon, softColor }) => (
-    <Card className={cn("flex flex-col justify-between transition-all cursor-default border-transparent shadow-sm", softColor)}>
+    <Card className={cn("flex flex-col justify-between transition-all cursor-default shadow-sm border-y-transparent border-r-transparent", softColor)}>
         <div className="flex justify-between items-start mb-4">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-900 bg-white/60 px-2.5 py-1 rounded-full border border-white/40 uppercase tracking-tighter">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-900 bg-white/60 px-2.5 py-1 rounded-full border border-white/60 uppercase tracking-tighter shadow-sm">
                 <span>{label}</span>
             </div>
-            <div className="text-slate-900/40 p-1">
-                <Icon size={18} />
+            <div className="opacity-80 p-1">
+                <Icon size={20} />
             </div>
         </div>
         <div className="mt-4">
             <h3 className="text-3xl font-black text-slate-900 tracking-tight">{value}</h3>
-            <p className="text-[11px] font-bold text-slate-900/50 uppercase tracking-widest mt-1">{title}</p>
+            <p className="text-[11px] font-bold opacity-70 uppercase tracking-widest mt-1">{title}</p>
         </div>
     </Card>
 );
@@ -122,42 +123,47 @@ export default function StudentDashboard() {
         );
     }
     const stats = [
-        { title: "Attendance", value: `${data.attendance}%`, label: "Presence", icon: CheckCircle2, softColor: "bg-emerald-50 text-emerald-600" },
-        { title: "Exams Taken", value: data.examsTaken > 0 ? data.examsTaken.toString().padStart(2, '0') : "—", label: "Completed", icon: Trophy, softColor: "bg-purple-50 text-purple-600" },
-        { title: "Resources", value: (data.materialsCount || 0).toString(), label: "Available", icon: BookOpen, softColor: "bg-blue-50 text-blue-600" },
-        { title: "Study Hours", value: "124", label: "This Month", icon: Clock, softColor: "bg-yellow-50 text-amber-600" }, // Mock for now
+        { title: "Attendance", value: `${data.attendance}%`, label: "Presence", icon: CheckCircle2, softColor: "bg-gradient-to-br from-emerald-50 to-emerald-100 border-l-4 border-l-emerald-500 text-emerald-800" },
+        { title: "Exams Taken", value: data.examsTaken > 0 ? data.examsTaken.toString().padStart(2, '0') : "—", label: "Completed", icon: Trophy, softColor: "bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-l-purple-500 text-purple-800" },
+        { title: "Resources", value: (data.materialsCount || 0).toString(), label: "Available", icon: BookOpen, softColor: "bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-l-blue-500 text-blue-800" }
     ];
 
     return (
-        <div className="space-y-10">
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div className="flex items-center gap-5">
-                    <div className="w-24 h-24 rounded-2xl bg-white border-4 border-white shadow-xl shadow-slate-200/50 overflow-hidden shrink-0 relative z-10">
-                        {session?.user?.image ? (
-                            <img src={session.user.image} alt="Profile" className="w-full h-full object-cover rounded-xl" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-300 font-bold text-2xl">
-                                {session?.user?.name?.[0]}
-                            </div>
-                        )}
+        <div className="space-y-8">
+            {/* Hero Section */}
+            <div className="relative rounded-3xl bg-gradient-to-br from-premium-blue via-blue-700 to-blue-900 p-8 sm:p-10 overflow-hidden text-white shadow-xl shadow-blue-900/20">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
+                
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-center gap-6">
+                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl overflow-hidden shrink-0">
+                            {session?.user?.image ? (
+                                <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-white/80 font-black text-4xl italic">
+                                    {session?.user?.name?.[0]}
+                                </div>
+                            )}
+                        </div>
+                        <div>
+                            <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2 text-white drop-shadow-sm">Academic Overview</h1>
+                            <p className="text-blue-100/80 font-medium text-sm sm:text-base max-w-md">
+                                Welcome back, {session?.user?.name?.split(' ')[0] || "Student"}. Keep pushing your boundaries and track your progress here.
+                            </p>
+                        </div>
                     </div>
-                    <div className="mb-2">
-                        <h1 className="text-3xl font-black tracking-tight text-slate-900 text-center md:text-left">Academic Overview</h1>
-                        <p className="text-slate-500 mt-1 font-medium italic text-center md:text-left">
-                            Keep pushing your boundaries, {session?.user?.name?.split(' ')[0] || "Student"}.
-                        </p>
+                    <div className="flex gap-3 justify-start md:justify-end">
+                        <Link href="/student/batches" className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl backdrop-blur-md border border-white/20 font-bold transition-all shadow-lg text-sm whitespace-nowrap">
+                            <Layers size={18} />
+                            My Batches
+                        </Link>
                     </div>
-                </div>
-                <div className="flex gap-3 justify-center">
-                    <Button size="sm" className="flex items-center gap-2">
-                        <span>My Batches</span>
-                    </Button>
                 </div>
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 {stats.map((stat, i) => (
                     <motion.div
                         key={stat.title}
@@ -183,16 +189,16 @@ export default function StudentDashboard() {
                             const isValidDate = examDate && !isNaN(examDate.getTime());
 
                             return (
-                                <div key={exam._id} className="flex items-center gap-6 p-4 rounded-xl bg-blue-50/50 border border-blue-100/30 group hover:border-premium-blue transition-all">
-                                    <div className="flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-white border border-blue-100 text-premium-blue shadow-sm">
+                                <div key={exam._id} className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 p-4 rounded-xl bg-blue-50/50 border border-blue-100/30 group hover:border-premium-blue transition-all">
+                                    <div className="flex flex-row sm:flex-col items-center justify-center w-full sm:w-14 sm:h-14 py-2 sm:py-0 rounded-lg bg-white border border-blue-100 text-premium-blue shadow-sm gap-2 sm:gap-0">
                                         <span className="text-[10px] font-black uppercase tracking-tighter">
                                             {isValidDate ? examDate.toLocaleString('default', { month: 'short' }) : '--'}
                                         </span>
-                                        <span className="text-lg font-black">{isValidDate ? examDate.getDate() : '--'}</span>
+                                        <span className="text-lg font-black leading-none">{isValidDate ? examDate.getDate() : '--'}</span>
                                     </div>
-                                    <div className="flex-1">
+                                    <div className="flex-1 text-center sm:text-left">
                                         <h4 className="font-bold text-slate-900">{exam.title}</h4>
-                                        <div className="flex items-center gap-4 mt-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                        <div className="flex items-center justify-center sm:justify-start gap-4 mt-2 sm:mt-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider flex-wrap">
                                             <span className="flex items-center gap-1">
                                                 <Clock size={12} />
                                                 {isValidDate ? examDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
@@ -200,7 +206,7 @@ export default function StudentDashboard() {
                                             <span className="flex items-center gap-1"><Trophy size={12} /> {exam.passingMarks || 0} Pass Marks</span>
                                         </div>
                                     </div>
-                                    <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform">
+                                    <Button variant="ghost" size="sm" className="hidden sm:flex group-hover:translate-x-1 transition-transform shrink-0">
                                         <ArrowRight size={18} />
                                     </Button>
                                 </div>

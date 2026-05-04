@@ -58,91 +58,133 @@ export default function StudentLayout({ children }) {
 
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 text-foreground flex flex-col overflow-x-hidden">
-            {/* Navbar */}
-            <header className="h-20 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 border-b border-slate-300 fixed top-0 w-full z-50 px-4 md:px-6 flex items-center justify-between shadow-sm safe-pt">
-                <div className="flex items-center gap-3 md:gap-8 overflow-hidden">
-                    <Link href="/student/dashboard" className="flex items-center gap-2 group min-w-0">
+        <div className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)] bg-slate-50 text-foreground h-screen w-screen overflow-hidden">
+            
+            {/* Desktop Sidebar */}
+            <aside className="hidden md:flex flex-col w-[240px] h-screen bg-white border-r border-slate-200 fixed inset-y-0 left-0 z-40">
+                <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+                    {session?.user?.institute?.logo ? (
+                        <img
+                            src={session.user.institute.logo}
+                            alt={session.user.institute.name}
+                            className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-slate-100 shadow-sm shrink-0"
+                            crossOrigin="anonymous"
+                        />
+                    ) : (
+                        <div className="w-10 h-10 bg-premium-blue rounded-lg flex items-center justify-center shadow-sm shrink-0">
+                            <span className="text-white font-black text-xl italic">
+                                {session?.user?.institute?.name?.[0] || "I"}
+                            </span>
+                        </div>
+                    )}
+                    <div className="min-w-0">
+                        <h1 className="text-sm font-black tracking-tighter leading-tight text-slate-900 truncate">
+                            {session?.user?.institute?.name || "Quantech"}
+                        </h1>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 mt-0.5">Student Portal</p>
+                    </div>
+                </div>
+
+                <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1 scrollbar-hide">
+                    <p className="px-4 text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 mb-2">Menu</p>
+                    {[...primaryNav, ...secondaryNav].map((item, index) => {
+                        const isActive = pathname === item.href;
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={cn(
+                                    "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group text-[13px] font-semibold relative",
+                                    isActive
+                                        ? "bg-premium-blue/10 text-premium-blue"
+                                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                                )}
+                            >
+                                <item.icon size={18} className={isActive ? "text-premium-blue" : "text-slate-400 group-hover:text-slate-600"} />
+                                <span>{item.label}</span>
+                                {isActive && (
+                                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-premium-blue rounded-r-full" />
+                                )}
+                            </Link>
+                        );
+                    })}
+                </nav>
+            </aside>
+
+            {/* Main Content Area */}
+            <div className="flex flex-col min-w-0 h-full overflow-hidden w-full md:col-start-2">
+                {/* Header */}
+                <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30">
+                    <div className="flex items-center gap-3 md:hidden">
                         {session?.user?.institute?.logo ? (
                             <img
                                 src={session.user.institute.logo}
                                 alt={session.user.institute.name}
-                                className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-slate-100 shadow-sm group-hover:scale-105 transition-transform shrink-0"
+                                className="w-8 h-8 rounded-lg object-contain bg-white p-0.5 border border-slate-100 shadow-sm shrink-0"
                                 crossOrigin="anonymous"
                             />
                         ) : (
-                            <div className="w-10 h-10 bg-premium-blue rounded-lg flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform shrink-0">
-                                <span className="text-white font-black text-xl italic">
+                            <div className="w-8 h-8 bg-premium-blue rounded-lg flex items-center justify-center shadow-sm shrink-0">
+                                <span className="text-white font-black text-sm italic">
                                     {session?.user?.institute?.name?.[0] || "I"}
                                 </span>
                             </div>
                         )}
                         <div className="min-w-0">
-                            <h1 className="text-base md:text-lg font-black tracking-tighter leading-tight text-slate-900 truncate md:whitespace-normal md:overflow-visible">
-                                {session?.user?.institute?.name || "Quantech"}                            </h1>
-                            <p className="text-[10px] uppercase font-bold text-slate-400 mt-0.5">Student Portal</p>
+                            <h1 className="text-sm font-black tracking-tighter leading-tight text-slate-900 truncate">
+                                {session?.user?.institute?.name || "Quantech"}
+                            </h1>
+                            <p className="text-[9px] uppercase font-bold text-slate-400">Student Portal</p>
                         </div>
-                    </Link>
-
-                    <nav className="hidden md:flex items-center gap-1">
-                        {[...primaryNav, ...secondaryNav].map((item, index) => {
-                            const isActive = pathname === item.href;
-                            const navColors = ['text-blue-600', 'text-teal-600', 'text-orange-600', 'text-cyan-600', 'text-red-600', 'text-amber-600'];
-                            const navColor = navColors[index % navColors.length];
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    className={cn(
-                                        "px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-2 uppercase tracking-tight relative",
-                                        isActive
-                                            ? "bg-premium-blue text-white shadow-md shadow-blue-900/10" 
-                                            : `text-slate-500 hover:bg-slate-100 ${navColor}`
-                                    )}
-                                >
-                                    <item.icon size={14} />
-                                    <span>{item.label}</span>
-                                </Link>
-                            );
-                        })}
-                    </nav>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3 pl-2 group cursor-pointer">
-                        <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold leading-none text-slate-900">{session?.user?.name || "Student"}</p>
-                            <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tight">{session?.user?.role}</p>
-                        </div>
-                        <Link href="/student/settings" className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden border border-border group-hover:border-premium-purple transition-colors">
-                            <User size={20} className="text-slate-500 group-hover:text-premium-purple" />
-                        </Link>
-                        <button
-                            onClick={() => signOut({ callbackUrl: "/login" })}
-                            className="w-10 h-10 rounded-lg hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-600 transition-colors"
-                        >
-                            <LogOut size={20} />
-                        </button>
                     </div>
-                </div>
-            </header>
 
-            {/* Main Content */}
-            <main className="flex-1 pt-28 md:pt-32 pb-24 md:pb-12 px-4 bg-academic">
-                <div className="student-app-container">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={pathname}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            transition={{ duration: 0.2, ease: "easeOut" }}
-                        >
-                            {children}
-                        </motion.div>
-                    </AnimatePresence>
-                </div>
-            </main>
+                    <div className="hidden md:block">
+                        <h2 className="text-lg font-black text-slate-900 tracking-tight capitalize">
+                            {pathname.split('/').pop() || "Dashboard"}
+                        </h2>
+                    </div>
+
+                    <div className="flex items-center gap-4 ml-auto">
+                        <div className="flex items-center gap-3 group">
+                            <div className="text-right hidden sm:block">
+                                <p className="text-sm font-bold leading-none text-slate-900">{session?.user?.name || "Student"}</p>
+                                <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tight">{session?.user?.role}</p>
+                            </div>
+                            <Link href="/student/settings" className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-transparent hover:border-premium-blue transition-all shrink-0">
+                                {session?.user?.image ? (
+                                    <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    <User size={20} className="text-slate-500" />
+                                )}
+                            </Link>
+                            <button
+                                onClick={() => signOut({ callbackUrl: "/login" })}
+                                className="hidden md:flex w-10 h-10 rounded-full hover:bg-red-50 items-center justify-center text-slate-400 hover:text-red-600 transition-colors"
+                                title="Sign Out"
+                            >
+                                <LogOut size={18} />
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                {/* Main scrollable content */}
+                <main className="flex-1 overflow-y-auto bg-slate-50/50 p-4 md:p-8 scrollbar-hide pb-24 md:pb-8">
+                    <div className="max-w-[1400px] mx-auto w-full">
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={pathname}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2, ease: "easeOut" }}
+                            >
+                                {children}
+                            </motion.div>
+                        </AnimatePresence>
+                    </div>
+                </main>
+            </div>
 
             {/* Mobile Bottom Navigation */}
             <div className="md:hidden fixed bottom-1 left-4 right-4 bg-gradient-to-r from-slate-200/90 via-slate-100/90 to-slate-200/90 backdrop-blur-xl rounded-2xl z-50 px-2 pt-2 border border-slate-400 shadow-[0_8px_30px_rgb(0,0,0,0.12)] safe-pb">

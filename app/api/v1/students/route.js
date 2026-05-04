@@ -4,6 +4,8 @@ import { StudentService } from "@/services/studentService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getInstituteScope } from "@/middleware/instituteScope";
+import { validateAndDeriveSession, logSessionAccess } from "@/middleware/sessionValidation";
+import Institute from "@/models/Institute";
 
 export async function GET(req) {
     try {
@@ -34,6 +36,40 @@ export async function GET(req) {
         const status = searchParams.get("status");
         const templateId = searchParams.get("templateId");
 
+        let instituteType = null;
+        let sessionId = null;
+        let sessionValidationResult = null;
+
+        const targetInstituteId = isGlobalView ? null : (targetInstParam || scope.instituteId);
+
+        // SECURITY FIX: Server-side session derivation & validation
+        // Do NOT trust client-provided x-session-id header
+        if (targetInstituteId && !isGlobalView) {
+            try {
+                // First validate institute exists
+                const inst = await Institute.findById(targetInstituteId).select('type code');
+                if (!inst) {
+                    return NextResponse.json({ error: "Institute not found" }, { status: 404 });
+                }
+                instituteType = inst.type;
+
+                const sessionResult = await validateAndDeriveSession(req, {
+                    ...scope,
+                    instituteId: targetInstituteId
+                });
+                
+                sessionId = sessionResult.sessionId;
+                instituteType = sessionResult.instituteType;
+
+                // Log session access for audit trail
+                await logSessionAccess(session.user.id, targetInstituteId, sessionId, 'student_fetch');
+            } catch (err) {
+                console.error("[SESSION_ERROR]", err.message);
+                // Fail closed for Schools
+                return NextResponse.json({ error: err.message }, { status: 403 });
+            }
+        }
+
         const data = await StudentService.getStudents({
             page,
             limit,
@@ -44,8 +80,11 @@ export async function GET(req) {
             isActive,
             status,
             templateId,
-            instituteId: isGlobalView ? null : (targetInstParam || scope.instituteId),
-            actorId: session.user.id
+            instituteId: targetInstituteId,
+            sessionId: sessionId,
+            instituteType,
+            actorId: session.user.id,
+            skipSessionValidation: true // We already validated in the route
         });
 
         return NextResponse.json(data);
@@ -83,7 +122,6 @@ export async function POST(req) {
             if (!targetInstituteId) {
                 return NextResponse.json({ error: "Super admins must specify target institute" }, { status: 400 });
             }
-            // TODO: Add validation that the institute exists and super admin has access
         } else {
             targetInstituteId = scope.instituteId;
         }
@@ -93,7 +131,64 @@ export async function POST(req) {
             institute: targetInstituteId
         };
 
-        const student = await StudentService.createStudent(studentData, session.user.id);
+        // SECURITY FIX: Server-side session derivation for student creation
+        let sessionId = null;
+        let instituteType = null;
+
+        try {
+            // Get institute type to know if session isolation applies
+            const inst = await Institute.findById(targetInstituteId).select('type');
+            if (!inst) {
+                return NextResponse.json({ error: "Institute not found" }, { status: 404 });
+            }
+            instituteType = inst.type;
+
+            // Derive session server-side
+            const sessionValidationResult = await validateAndDeriveSession(req, {
+                ...scope,
+                instituteId: targetInstituteId
+            });
+
+            // PRIORITY: Use explicitly selected sessionId from form if provided, otherwise fallback to derived session
+            sessionId = body.sessionId || sessionValidationResult.sessionId;
+
+            // If a manual sessionId was provided, verify it belongs to this institute
+            if (body.sessionId) {
+                const Session = (await import("@/models/Session")).default;
+                const validSession = await Session.findOne({
+                    _id: body.sessionId,
+                    instituteId: targetInstituteId,
+                    deletedAt: null
+                });
+                if (!validSession) {
+                    return NextResponse.json({ error: "The selected academic session is invalid for this institute" }, { status: 400 });
+                }
+                sessionId = validSession._id;
+            }
+
+            // For SCHOOL institutes, session is required
+            if (instituteType === 'SCHOOL' && !sessionId) {
+                return NextResponse.json(
+                    { error: "Cannot create student: No valid session found. Ensure there is an active session for this SCHOOL institute." },
+                    { status: 403 }
+                );
+            }
+
+            // Log session access
+            await logSessionAccess(session.user.id, targetInstituteId, sessionId, 'student_create');
+
+        } catch (validationError) {
+            console.error('[SECURITY] Session validation failed during student creation:', validationError.message);
+            // Fail closed for SCHOOL institutes
+            if (instituteType === 'SCHOOL') {
+                return NextResponse.json(
+                    { error: `Session validation failed: ${validationError.message}` },
+                    { status: 403 }
+                );
+            }
+        }
+
+        const student = await StudentService.createStudent(studentData, session.user.id, sessionId);
 
         return NextResponse.json(student, { status: 201 });
     } catch (error) {

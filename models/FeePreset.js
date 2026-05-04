@@ -57,7 +57,6 @@ const FeePresetSchema = new Schema({
 
 // Index for faster queries
 FeePresetSchema.index({ institute: 1, course: 1, deletedAt: 1 });
-FeePresetSchema.index({ subjects: 1 });
 
 // Delete cached model to prevent stale schema issues during Next.js hot-reloads
 delete mongoose.models.FeePreset;

@@ -25,10 +25,19 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const followUps = await FollowUp.find({
+        const { searchParams } = new URL(req.url);
+        const sessionId = searchParams.get('session');
+
+        const query = {
             student: studentId,
             institute: scope.instituteId
-        })
+        };
+
+        if (sessionId) {
+            query.session = sessionId;
+        }
+
+        const followUps = await FollowUp.find(query)
         .populate('staff', 'profile fullName')
         .sort({ date: -1 })
         .lean();
@@ -59,7 +68,7 @@ export async function POST(req, { params }) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const followUp = await FollowUp.create({
+        const followUpData = {
             institute: scope.instituteId,
             student: studentId,
             staff: session.user.id,
@@ -68,7 +77,13 @@ export async function POST(req, { params }) {
             status: body.status,
             response: body.response,
             nextActionDate: body.nextActionDate || null
-        });
+        };
+
+        if (body.session) {
+            followUpData.session = body.session;
+        }
+
+        const followUp = await FollowUp.create(followUpData);
 
         // Audit Log
         await createAuditLog({

@@ -21,7 +21,7 @@ export default async function AdminChatPage() {
     }
 
     return (
-        <div className="fixed inset-0 lg:left-64 bg-white z-[45] flex flex-col pt-16 lg:pt-0">
+        <div className="h-[calc(100vh-80px)] flex flex-col">
             <ChatLayout currentUserId={session.user.id} />
         </div>
     );

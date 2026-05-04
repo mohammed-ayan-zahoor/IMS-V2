@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -40,6 +40,7 @@ export default function SubjectsPage() {
     const [importData, setImportData] = useState("");
     const [isImporting, setIsImporting] = useState(false);
     const [overwriteOnImport, setOverwriteOnImport] = useState(false);
+    const fileInputRef = useRef(null);
 
     // Actions State
     const { data: session } = useSession();
@@ -177,6 +178,23 @@ export default function SubjectsPage() {
         } finally {
             setIsImporting(false);
         }
+    };
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.name.endsWith('.json')) {
+            toast.error("Please upload a .json file");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            setImportData(event.target.result);
+            toast.success(`${file.name} loaded successfully`);
+        };
+        reader.readAsText(file);
     };
 
     const openEditModal = (subject) => {
@@ -367,16 +385,54 @@ export default function SubjectsPage() {
                 <div className="space-y-6 pt-2">
                     <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex gap-3">
                         <AlertCircle className="text-amber-600 shrink-0" size={20} />
-                        <p className="text-[12px] text-amber-800 font-medium leading-relaxed">
-                            Paste your subject library JSON here. The system will merge subjects based on their <strong>Code</strong>.
-                        </p>
+                        <div className="space-y-1">
+                            <p className="text-[12px] text-amber-800 font-bold leading-relaxed">
+                                Import Policy
+                            </p>
+                            <p className="text-[11px] text-amber-700 leading-relaxed">
+                                Upload a JSON file. The system will merge subjects based on their <strong>Code</strong>.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Select File</label>
+                        <div 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 hover:border-premium-blue/40 hover:bg-premium-blue/[0.02] cursor-pointer transition-all group"
+                        >
+                            <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-premium-blue/10 group-hover:text-premium-blue transition-all">
+                                <FileJson size={24} />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm font-bold text-slate-700">Click to upload JSON file</p>
+                                <p className="text-xs text-slate-400 mt-1">or paste the code below</p>
+                            </div>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept=".json" 
+                                onChange={handleFileSelect}
+                            />
+                        </div>
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">JSON Data</label>
+                        <div className="flex items-center justify-between px-1">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">JSON Data Preview</label>
+                            {importData && (
+                                <button 
+                                    onClick={() => setImportData("")}
+                                    className="text-[10px] font-bold text-rose-500 hover:underline"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                        </div>
                         <textarea
-                            className="w-full h-48 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-premium-blue/40 focus:ring-4 focus:ring-premium-blue/5 text-[13px] font-mono transition-all resize-none"
-                            placeholder='[ { "name": "English", "code": "ENG", "description": "" }, ... ]'
+                            className="w-full h-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-premium-blue/40 focus:ring-4 focus:ring-premium-blue/5 text-[13px] font-mono transition-all resize-none"
+                            placeholder='JSON content will appear here...'
                             value={importData}
                             onChange={(e) => setImportData(e.target.value)}
                         />

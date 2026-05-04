@@ -6,18 +6,16 @@ import {
     MessageSquare, 
     CreditCard, 
     Clock, 
-    ChevronRight,
     Search,
     BookOpen,
     Layers,
     FileText,
-    Settings,
-    UserCog,
     Calendar,
-    AlertCircle
+    UserCog
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const ACTIVITY_CONFIG = {
     student: { icon: UserPlus, color: "bg-blue-50 text-blue-600" },
@@ -32,7 +30,7 @@ const ACTIVITY_CONFIG = {
     default: { icon: Clock, color: "bg-slate-50 text-slate-600" }
 };
 
-export default function ActivityFeed({ onQuickAdd }) {
+export default function ActivityFeed() {
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
@@ -40,7 +38,7 @@ export default function ActivityFeed({ onQuickAdd }) {
     const handleShortcut = (label) => {
         switch (label) {
             case 'Add Student':
-                onQuickAdd?.();
+                router.push('/admin/students?add=true');
                 break;
             case 'Msg All':
                 router.push('/admin/chat');
@@ -53,6 +51,13 @@ export default function ActivityFeed({ onQuickAdd }) {
                 break;
         }
     };
+
+    const shortcuts = [
+        { label: 'Add Student', icon: UserPlus, color: 'text-blue-600', href: '/admin/students?add=true' },
+        { label: 'Msg All', icon: MessageSquare, color: 'text-indigo-600', href: '/admin/chat' },
+        { label: 'Fee Report', icon: CreditCard, color: 'text-slate-900', href: '/admin/fees' },
+        { label: 'Search', icon: Search, color: 'text-slate-400', href: '#' }
+    ];
 
     useEffect(() => {
         const fetchActivity = async () => {
@@ -119,7 +124,6 @@ export default function ActivityFeed({ onQuickAdd }) {
                                     type = "attendance";
                                     break;
                                 default:
-                                    // Handle generic category mapping based on action strings
                                     if (entry.action.includes('student')) type = "student";
                                     else if (entry.action.includes('course')) type = "course";
                                     else if (entry.action.includes('fee')) type = "payment";
@@ -151,82 +155,68 @@ export default function ActivityFeed({ onQuickAdd }) {
     }, []);
 
     return (
-        <div className="flex flex-col h-full bg-white border-l border-slate-100">
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
-                <h3 className="text-[17px] font-bold text-slate-900 tracking-tight">Recent Activity</h3>
-                <button className="text-[10px] font-black uppercase tracking-widest text-premium-blue hover:opacity-80 transition-opacity">
-                    View All
-                </button>
+        <div className="flex flex-col h-full bg-white border-l border-slate-100 min-w-0 overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10 shrink-0">
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Recent Activity</h3>
+                <Link href="/admin/logs" className="text-[11px] font-bold text-premium-blue hover:underline">View All</Link>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 scrollbar-hide">
+            {/* Logs List */}
+            <div className="flex-1 overflow-y-auto scrollbar-hide p-6 space-y-6 min-w-0">
                 {loading ? (
                     <div className="py-20 text-center">
                         <div className="w-8 h-8 border-2 border-premium-blue/20 border-t-premium-blue rounded-full animate-spin mx-auto mb-3" />
-                        <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">Syncing events...</p>
+                        <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">Syncing...</p>
                     </div>
                 ) : activities.length > 0 ? (
-                    <div className="space-y-6">
-                        {activities.map((activity) => {
-                            const config = ACTIVITY_CONFIG[activity.type] || ACTIVITY_CONFIG.default;
-                            const Icon = config.icon;
-                            
-                            return (
-                                <div key={activity.id} className="flex gap-4 group cursor-default p-2 rounded-2xl hover:bg-slate-50/50 transition-colors">
-                                    <div className="mt-0.5">
-                                        <div className={cn(
-                                            "w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-sm shrink-0",
-                                            config.color
-                                        )}>
-                                            <Icon size={14} />
-                                        </div>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-start mb-0.5">
-                                            <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight uppercase tracking-tighter">
-                                                {activity.title}
-                                            </p>
-                                            <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap ml-2">
-                                                {formatTime(activity.time)}
-                                            </span>
-                                        </div>
-                                        <p className="text-[12px] text-slate-500 leading-snug line-clamp-2">
-                                            {activity.description}
-                                        </p>
+                    activities.map((activity) => {
+                        const config = ACTIVITY_CONFIG[activity.type] || ACTIVITY_CONFIG.default;
+                        const Icon = config.icon;
+                        return (
+                            <div key={activity.id} className="flex gap-4 min-w-0">
+                                <div className="shrink-0">
+                                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shadow-sm", config.color)}>
+                                        <Icon size={14} />
                                     </div>
                                 </div>
-                            );
-                        })}
-                    </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-black text-slate-900 uppercase tracking-widest truncate mb-0.5">
+                                        {activity.title}
+                                    </p>
+                                    <p className="text-[12px] text-slate-500 leading-snug break-words">
+                                        {activity.description}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400 font-medium mt-1">
+                                        {formatTime(activity.time)}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })
                 ) : (
-                    <div className="py-20 text-center space-y-3">
-                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
-                            <Clock size={24} />
-                        </div>
-                        <p className="text-sm font-bold text-slate-500">No recent activity</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Everything is up to date.</p>
+                    <div className="text-center py-10 opacity-50">
+                        <p className="text-xs font-medium text-slate-400 tracking-wide uppercase">No recent activity</p>
                     </div>
                 )}
             </div>
 
-            <div className="p-6 border-t border-slate-50 bg-slate-50/10">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 text-center">Executive Shortcuts</h4>
-                <div className="grid grid-cols-2 gap-3">
-                    {[
-                        { label: 'Add Student', icon: UserPlus, color: 'bg-premium-blue' },
-                        { label: 'Msg All', icon: MessageSquare, color: 'bg-indigo-600' },
-                        { label: 'Fee Report', icon: CreditCard, color: 'bg-slate-900' },
-                        { label: 'Search', icon: Search, color: 'bg-slate-400' }
-                    ].map((btn) => (
+            {/* Quick Actions / Shortcuts */}
+            <div className="p-6 bg-slate-50/50 border-t border-slate-100 shrink-0 min-w-0">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">Executive Shortcuts</h4>
+                <div className="grid grid-cols-2 gap-3 min-w-0">
+                    {shortcuts.map((shortcut, index) => (
                         <button 
-                            key={btn.label} 
-                            onClick={() => handleShortcut(btn.label)}
-                            className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white border border-slate-100 hover:border-premium-blue/40 hover:shadow-sm transition-all group"
+                            key={index} 
+                            onClick={() => handleShortcut(shortcut.label)}
+                            className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white border border-slate-100 hover:border-premium-blue/40 hover:shadow-sm transition-all group min-w-0 overflow-hidden"
                         >
-                            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm", btn.color)}>
-                                <btn.icon size={14} />
+                            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 text-slate-400 border border-slate-100 group-hover:bg-premium-blue group-hover:text-white group-hover:border-premium-blue transition-all", shortcut.color)}>
+                                <shortcut.icon size={14} />
                             </div>
-                            <span className="text-[10px] font-bold text-slate-600 group-hover:text-premium-blue">{btn.label}</span>
+                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight truncate w-full text-center group-hover:text-premium-blue transition-colors">
+                                {shortcut.label}
+                            </span>
                         </button>
                     ))}
                 </div>

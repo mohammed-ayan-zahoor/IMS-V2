@@ -26,7 +26,11 @@ export async function GET(req) {
         const courses = await CourseService.getCourses({}, instituteId);
         return NextResponse.json({ courses });
     } catch (error) {
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        console.error("API Error [Courses GET]:", error);
+        return NextResponse.json({ 
+            error: "Internal Server Error",
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined
+        }, { status: 500 });
     }
 }
 

@@ -29,6 +29,7 @@ import { format } from "date-fns";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import * as XLSX from "xlsx";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -36,6 +37,7 @@ export default function FeesPage() {
     const toast = useToast();
     const confirm = useConfirm();
     const { data: session } = useSession();
+    const { selectedSessionId } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const [fees, setFees] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -71,12 +73,14 @@ export default function FeesPage() {
     const rowsPerPage = 50;
 
     useEffect(() => {
-        fetchFees();
+        if (selectedSessionId) {
+            fetchFees();
+        }
         fetchCourses();
         const controller = new AbortController();
         fetchCollectors(controller.signal);
         return () => controller.abort();
-    }, []);
+    }, [selectedSessionId]);
 
     useEffect(() => {
         if (selectedCourse) {
@@ -120,6 +124,7 @@ export default function FeesPage() {
         try {
             setLoading(true);
             const url = new URL('/api/v1/fees', window.location.origin);
+            if (selectedSessionId) url.searchParams.append('session', selectedSessionId);
             if (selectedCourse) url.searchParams.append('course', selectedCourse);
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
             if (percentageFilter) url.searchParams.append('percentage', percentageFilter);
@@ -195,6 +200,11 @@ export default function FeesPage() {
         // Conditional Validation for Transaction ID
         if (["upi", "card", "bank_transfer"].includes(paymentData.method) && !paymentData.transactionId) {
             toast.warning("Transaction reference is required for this payment method");
+            return;
+        }
+
+        if (!paymentData.collectedBy) {
+            toast.warning("Please select a collector before recording the payment");
             return;
         }
 

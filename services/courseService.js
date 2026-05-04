@@ -206,6 +206,64 @@ export class BatchService {
         });
     }
 
+    static async cloneBatches(sourceSessionId, targetSessionId, instituteId, actorId) {
+        await connectDB();
+        
+        if (!sourceSessionId || !targetSessionId) {
+            throw new Error("Both source and target session IDs are required.");
+        }
+
+        // Fetch all non-deleted batches from the source session
+        const sourceBatches = await Batch.find({
+            institute: instituteId,
+            session: sourceSessionId,
+            deletedAt: null
+        }).lean();
+
+        if (!sourceBatches.length) {
+            throw new Error("No batches found in the source session to clone.");
+        }
+
+        // Check if batches already exist in the target session to prevent duplicate cloning
+        const existingTargetBatches = await Batch.countDocuments({
+            institute: instituteId,
+            session: targetSessionId,
+            deletedAt: null
+        });
+
+        if (existingTargetBatches > 0) {
+            throw new Error("Target session already contains batches. Please clone into an empty session or delete existing batches first.");
+        }
+
+        const newBatchesData = sourceBatches.map(batch => ({
+            institute: batch.institute,
+            session: targetSessionId,
+            name: batch.name,
+            course: batch.course,
+            capacity: batch.capacity,
+            schedule: batch.schedule,
+            instructor: null, // Reset instructor
+            enrolledStudents: [], // Start fresh
+            createdBy: actorId
+        }));
+
+        const insertedBatches = await Batch.insertMany(newBatchesData);
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'batch.clone',
+            resource: { type: 'Session', id: targetSessionId },
+            institute: instituteId,
+            details: { 
+                sourceSessionId, 
+                targetSessionId,
+                clonedCount: insertedBatches.length
+            }
+        });
+
+        return insertedBatches;
+    }
+
     static async getBatches(filters = {}, instituteId) {
         // if (!instituteId) throw new Error("Institute context missing"); // Allow global view
         await connectDB();

@@ -16,10 +16,16 @@ import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Select from "@/components/ui/Select";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/contexts/ToastContext";
+import { useSession } from "next-auth/react";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 import * as XLSX from "xlsx";
 
 export default function AttendanceReportPage() {
     const toast = useToast();
+    const { data: session } = useSession();
+    const { selectedSessionId } = useAcademicSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    
     const [courses, setCourses] = useState([]);
     const [batches, setBatches] = useState([]);
     const [reportData, setReportData] = useState([]);
@@ -87,7 +93,8 @@ export default function AttendanceReportPage() {
                 startDate,
                 endDate,
                 ...(selectedCourse && { courseId: selectedCourse }),
-                ...(selectedBatch && { batchId: selectedBatch })
+                ...(selectedBatch && { batchId: selectedBatch }),
+                ...(isSchool && selectedSessionId && { sessionId: selectedSessionId })
             });
 
             const res = await fetch(`/api/v1/reports/attendance?${query}`);
@@ -158,19 +165,22 @@ export default function AttendanceReportPage() {
                 <CardContent className="p-4 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <Select
-                            label="Course"
+                            label={isSchool ? "Class" : "Course"}
                             options={courses.map(c => ({ label: c.name, value: c._id }))}
                             value={selectedCourse}
                             onChange={(val) => setSelectedCourse(val)}
-                            placeholder="All Courses"
+                            placeholder={isSchool ? "All Classes" : "All Courses"}
                         />
                         <Select
-                            label="Batch"
-                            options={batches.map(b => ({ label: b.name, value: b._id }))}
+                            label={isSchool ? "Section" : "Batch"}
+                            options={batches.filter(b => {
+                                if (!isSchool || !selectedSessionId) return true;
+                                return b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session;
+                            }).map(b => ({ label: b.name, value: b._id }))}
                             value={selectedBatch}
                             onChange={(val) => setSelectedBatch(val)}
                             disabled={!selectedCourse}
-                            placeholder="All Batches"
+                            placeholder={isSchool ? "All Sections" : "All Batches"}
                         />
                         <Input
                             label="Start Date"

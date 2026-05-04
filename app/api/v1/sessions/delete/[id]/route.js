@@ -6,6 +6,7 @@ import { getInstituteScope } from "@/middleware/instituteScope";
 import Session from "@/models/Session";
 import Batch from "@/models/Batch";
 import AuditLog from "@/models/AuditLog";
+import User from "@/models/User";
 
 /**
  * DELETE /api/v1/sessions/:id
@@ -65,6 +66,26 @@ export async function DELETE(req, { params }) {
         // Soft delete the session
         targetSession.deletedAt = new Date();
         await targetSession.save();
+        
+        // CASCADE CLEANUP (Security & Performance Fix)
+        // Remove this session ID from all users to prevent "Invisibility" bugs
+        const cleanupResult = await User.updateMany(
+            { 
+                $or: [
+                    { activeSession: id },
+                    { activeSessions: id }
+                ]
+            },
+            { 
+                $set: { activeSession: null },
+                $pull: { 
+                    activeSessions: id,
+                    promotionHistory: { session: id }
+                }
+            }
+        );
+        
+        console.log(`[CASCADE_CLEANUP] Scrubbed session ${id} from ${cleanupResult.modifiedCount} users`);
 
         // Audit log
         await AuditLog.create({

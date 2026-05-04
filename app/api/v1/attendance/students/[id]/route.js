@@ -17,19 +17,32 @@ export async function GET(req, { params }) {
         const { searchParams } = new URL(req.url);
         const month = parseInt(searchParams.get('month') || (new Date().getMonth() + 1));
         const year = parseInt(searchParams.get('year') || new Date().getFullYear());
+        const sessionId = searchParams.get('session');
 
         await connectDB();
 
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
-        // Find attendance records for this student in this range
-        const attendanceRecords = await Attendance.find({
+        // Build query
+        const query = {
             date: { $gte: startDate, $lte: endDate },
             "records.student": id
-        })
+        };
+
+        // If session is provided, we need to filter by batches belonging to that session
+        if (sessionId) {
+            // Find all batches for this session
+            const Batch = mongoose.models.Batch || (await import("@/models/Batch")).default;
+            const sessionBatches = await Batch.find({ session: sessionId }).select("_id");
+            const batchIds = sessionBatches.map(b => b._id);
+            query.batch = { $in: batchIds };
+        }
+
+        // Find attendance records for this student in this range
+        const attendanceRecords = await Attendance.find(query)
             .select("date batch records.$")
-            .populate("batch", "name")
+            .populate("batch", "name session")
             .sort({ date: 1 });
 
         // Transform data for frontend

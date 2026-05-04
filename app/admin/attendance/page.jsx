@@ -21,10 +21,12 @@ import {
     Users
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 
 export default function AttendanceMarkingPage() {
     const toast = useToast();
     const { data: session } = useSession();
+    const { selectedSessionId } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     // Selection State
     const [batches, setBatches] = useState([]);
@@ -211,7 +213,10 @@ export default function AttendanceMarkingPage() {
                                 onChange={(val) => setSelectedBatch(val)}
                                 placeholder={`-- Choose ${isSchool ? "Section" : "Batch"} --`}
                                 options={[
-                                    ...batches.map(b => ({ label: b.name, value: b._id }))
+                                    ...batches.filter(b => {
+                                        if (!isSchool || !selectedSessionId) return true;
+                                        return b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session;
+                                    }).map(b => ({ label: b.name, value: b._id }))
                                 ]}
                             />
                         </div>

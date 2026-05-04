@@ -18,14 +18,14 @@ export async function GET(req) {
             return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
         }
 
-        if (!['admin', 'staff', 'super_admin'].includes(session.user.role)) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
+        const { searchParams } = new URL(req.url);
+        const sessionId = searchParams.get('session');
+        const showAllSessions = searchParams.get('allSessions') === 'true';
 
         const now = new Date();
         now.setHours(23, 59, 59, 999); // Include all of today
 
-        // 1. Fetch Enquiries
+        // 1. Fetch Enquiries (Enquiries don't have session yet, but we could add it later)
         const enquiries = await Enquiry.find({
             institute: scope.instituteId,
             status: 'Pending',
@@ -36,12 +36,19 @@ export async function GET(req) {
         .lean();
 
         // 2. Fetch Student Follow-ups
-        // Note: We want the LATEST follow-up record for each student that has a nextActionDate due
-        // However, for a "Queue", showing all due reminders is also fine.
-        const studentFollowUps = await FollowUp.find({
+        const studentFollowUpQuery = {
             institute: scope.instituteId,
             nextActionDate: { $lte: now }
-        })
+        };
+
+        // If session is provided and not showing all, filter by it
+        // Or if session is NOT provided, we might want to default to current session for SCHOOLS
+        // But for the "Queue", maybe showing ALL is better unless filtered.
+        if (sessionId && !showAllSessions) {
+            studentFollowUpQuery.session = sessionId;
+        }
+
+        const studentFollowUps = await FollowUp.find(studentFollowUpQuery)
         .populate('student', 'profile fullName enrollmentNumber')
         .sort({ nextActionDate: 1 })
         .lean();

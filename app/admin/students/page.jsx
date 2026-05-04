@@ -30,10 +30,11 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import { useSession } from "next-auth/react";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 
 export default function StudentsPage() {
     const toast = useToast();
@@ -47,7 +48,18 @@ export default function StudentsPage() {
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [selectedStudents, setSelectedStudents] = useState(new Set());
     const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
+    const { selectedSessionId, sessions } = useAcademicSession();
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // Auto-open modal if ?add=true is present
+    useEffect(() => {
+        if (searchParams.get('add') === 'true') {
+            setIsAddModalOpen(true);
+            // Optional: clean up the URL to prevent re-opening on refresh
+            // router.replace('/admin/students', { scroll: false });
+        }
+    }, [searchParams]);
 
     // Import Logic State
     const [importFile, setImportFile] = useState(null);
@@ -106,6 +118,8 @@ export default function StudentsPage() {
         lastSchoolAttended: "",
         admissionDate: format(new Date(), "yyyy-MM-dd"),
         admissionStd: "",
+        admissionBatch: "",
+        sessionId: selectedSessionId || "", // Added session ID to form data
         // Demographic fields
         nationality: "Indian",
         motherTongue: "",
@@ -201,6 +215,9 @@ export default function StudentsPage() {
 
             const res = await fetch(`/api/v1/students?${queryParams.toString()}`, {
                 signal: abortControllerRef.current.signal,
+                headers: {
+                    'x-session-id': selectedSessionId || ''
+                },
                 cache: 'no-store'
             });
             if (!res.ok) {
@@ -237,7 +254,11 @@ export default function StudentsPage() {
                 limit: '1000' // Get all for print
             });
 
-            const res = await fetch(`/api/v1/students?${queryParams.toString()}`);
+            const res = await fetch(`/api/v1/students?${queryParams.toString()}`, {
+                headers: {
+                    'x-session-id': selectedSessionId || ''
+                }
+            });
             if (!res.ok) {
                 throw new Error(`Failed to fetch students for print: ${res.status}`);
             }
@@ -359,10 +380,30 @@ export default function StudentsPage() {
         try {
             const res = await fetch("/api/v1/students", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    'x-session-id': selectedSessionId || ''
+                },
                 body: JSON.stringify(formData),
             });
             if (res.ok) {
+                const newStudent = await res.json();
+
+                if (formData.admissionBatch) {
+                    try {
+                        await fetch(`/api/v1/students/${newStudent._id}/enroll`, {
+                            method: "POST",
+                            headers: { 
+                                "Content-Type": "application/json",
+                                'x-session-id': formData.sessionId || selectedSessionId || ''
+                            },
+                            body: JSON.stringify({ batchId: formData.admissionBatch })
+                        });
+                    } catch (err) {
+                        console.error("Auto-enrollment failed", err);
+                    }
+                }
+
                 setIsAddModalOpen(false);
                 setFormData({
                     email: "",
@@ -390,11 +431,20 @@ export default function StudentsPage() {
                     lastSchoolAttended: "",
                     admissionDate: format(new Date(), "yyyy-MM-dd"),
                     admissionStd: "",
+                    admissionBatch: "",
+                    sessionId: selectedSessionId || "", // Preserve selected session
                     motherTongue: "",
                     religion: "",
                     caste: "",
                     subCaste: "",
-                    referredBy: ""
+                    referredBy: "",
+                    placeOfBirth: {
+                        city: "",
+                        taluka: "",
+                        district: "",
+                        state: "",
+                        country: "India"
+                    }
                 });
                 fetchStudents();
                 toast.success("Student registered successfully");
@@ -420,6 +470,9 @@ export default function StudentsPage() {
 
             const res = await fetch("/api/v1/students/import", {
                 method: "POST",
+                headers: {
+                    'x-session-id': selectedSessionId || ''
+                },
                 body: formData
             });
             const data = await res.json();
@@ -471,7 +524,7 @@ export default function StudentsPage() {
             fetchStudents(1); // Reset to page 1 on filter change
         }, 500);
         return () => clearTimeout(timer);
-    }, [search, filters]);
+    }, [search, filters, selectedSessionId]);
 
     const toggleStudentSelection = (id) => {
         const newSelection = new Set(selectedStudents);
@@ -548,6 +601,7 @@ export default function StudentsPage() {
                 <PromotionModalContent 
                     batches={batches} 
                     courses={courses}
+                    sessions={sessions}
                     isSchool={isSchool}
                     selectedCount={selectedStudents.size}
                     onPromote={handlePromote}
@@ -1040,21 +1094,57 @@ export default function StudentsPage() {
                                 onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
                             />
                             <Select
-                                label="Admission Standard"
-                                value={formData.admissionStd}
-                                onChange={(val) => setFormData({ ...formData, admissionStd: val })}
+                                label="Academic Session"
+                                value={formData.sessionId}
+                                onChange={(val) => setFormData({ ...formData, sessionId: val, admissionBatch: "" })}
                                 options={[
-                                    { label: "Select Standard", value: "" },
-                                    ...courses.map(c => ({ label: c.name, value: c.name }))
+                                    { label: "Select Session", value: "" },
+                                    ...sessions.map(s => ({ label: s.sessionName, value: s._id }))
                                 ]}
+                                required
                             />
                         </div>
-                        <Input
-                            label="Last School Attended"
-                            placeholder="Previous School Name"
-                            value={formData.lastSchoolAttended}
-                            onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
-                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Select
+                                label="Admission Standard"
+                                value={formData.admissionStd}
+                                onChange={(val) => setFormData({ ...formData, admissionStd: val, admissionBatch: "" })}
+                                options={[
+                                    { label: "Select Standard", value: "" },
+                                    ...courses.map(c => ({ label: c.name, value: c._id }))
+                                ]}
+                            />
+                            {formData.admissionStd ? (
+                                <Select
+                                    label="Section / Batch"
+                                    value={formData.admissionBatch}
+                                    onChange={(val) => setFormData({ ...formData, admissionBatch: val })}
+                                    options={[
+                                        { label: "Select Section", value: "" },
+                                        ...batches.filter(b => b.course?._id === formData.admissionStd || b.course === formData.admissionStd)
+                                                  .filter(b => formData.sessionId ? (b.session?._id === formData.sessionId || b.session === formData.sessionId) : true)
+                                                  .map(b => ({ label: b.name, value: b._id }))
+                                    ]}
+                                />
+                            ) : (
+                                <Input
+                                    label="Last School Attended"
+                                    placeholder="Previous School Name"
+                                    value={formData.lastSchoolAttended}
+                                    onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
+                                />
+                            )}
+                        </div>
+                        {formData.admissionStd && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input
+                                    label="Last School Attended"
+                                    placeholder="Previous School Name"
+                                    value={formData.lastSchoolAttended}
+                                    onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* 5. Family Details */}
@@ -1347,7 +1437,8 @@ export default function StudentsPage() {
     );
 }
 
-function PromotionModalContent({ batches, courses, selectedCount, onPromote, onClose, isSchool }) {
+function PromotionModalContent({ batches, courses, sessions, selectedCount, onPromote, onClose, isSchool }) {
+    const [targetSessionId, setTargetSessionId] = useState("");
     const [targetCourseId, setTargetCourseId] = useState("");
     const [targetBatchId, setTargetBatchId] = useState("");
     const [isPromoting, setIsPromoting] = useState(false);
@@ -1359,7 +1450,9 @@ function PromotionModalContent({ batches, courses, selectedCount, onPromote, onC
         setIsPromoting(false);
     };
 
-    const filteredBatches = batches.filter(b => b.course?._id === targetCourseId || b.course === targetCourseId);
+    const filteredBatches = batches
+        .filter(b => b.course?._id === targetCourseId || b.course === targetCourseId)
+        .filter(b => isSchool && targetSessionId ? (b.session === targetSessionId || b.session?._id === targetSessionId) : true);
 
     return (
         <div className="space-y-6 py-2">
@@ -1374,6 +1467,24 @@ function PromotionModalContent({ batches, courses, selectedCount, onPromote, onC
             </div>
 
             <div className="space-y-4">
+                {isSchool && (
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-600 ml-1">Target Academic Session</label>
+                        <Select
+                            value={targetSessionId}
+                            onChange={(val) => {
+                                setTargetSessionId(val);
+                                setTargetBatchId("");
+                            }}
+                            placeholder="Select Target Session..."
+                            options={[
+                                { label: "Select Target Session", value: "" },
+                                ...sessions.map(s => ({ label: s.sessionName, value: s._id }))
+                            ]}
+                        />
+                    </div>
+                )}
+                
                 <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-600 ml-1">Target {isSchool ? "Class" : "Course"}</label>
                     <Select

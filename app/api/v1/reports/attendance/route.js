@@ -23,6 +23,7 @@ export async function GET(req) {
         const instituteId = session.user.institute?.id;
         const courseId = searchParams.get("courseId");
         const batchId = searchParams.get("batchId");
+        const sessionId = searchParams.get("sessionId");
         const startDateString = searchParams.get("startDate");
         const endDateString = searchParams.get("endDate");
 
@@ -44,16 +45,23 @@ export async function GET(req) {
                 return NextResponse.json({ error: "Invalid batch ID" }, { status: 400 });
             }
             matchStage.batch = new mongoose.Types.ObjectId(batchId);
-        } else if (courseId) {
-            if (!mongoose.Types.ObjectId.isValid(courseId)) {
+        } else if (courseId || sessionId) {
+            if (courseId && !mongoose.Types.ObjectId.isValid(courseId)) {
                 return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
             }
-            // Find all batches for this course to filter attendance
-            const courseBatchIds = await Batch.find({
-                course: courseId,
+            if (sessionId && !mongoose.Types.ObjectId.isValid(sessionId)) {
+                return NextResponse.json({ error: "Invalid session ID" }, { status: 400 });
+            }
+            
+            // Find all batches for this course/session to filter attendance
+            const batchQuery = {
                 institute: instituteId,
                 deletedAt: null
-            }).distinct('_id');
+            };
+            if (courseId) batchQuery.course = courseId;
+            if (sessionId) batchQuery.session = sessionId;
+
+            const courseBatchIds = await Batch.find(batchQuery).distinct('_id');
 
             if (courseBatchIds.length === 0) {
                 return NextResponse.json({ report: [] });

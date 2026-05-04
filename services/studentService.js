@@ -17,7 +17,7 @@ export class StudentService {
     /**
      * Create a new student with enrollment
      */
-    static async createStudent(data, actorId) {
+    static async createStudent(data, actorId, sessionId = null) {
         try {
             const { email, password, profile, guardianDetails, institute, referredBy } = data; // Destructure referredBy
 
@@ -77,7 +77,10 @@ export class StudentService {
                 studyingSinceStandard: data.studyingSinceStandard,
                 progress: data.progress || 'Good',
                 conduct: data.conduct || 'Good',
-                remarks: data.remarks
+                remarks: data.remarks,
+                activeSession: sessionId || null,
+                promotionHistory: sessionId ? [{ session: sessionId, promotedAt: new Date(), promotedBy: actorId }] : [],
+                activeSessions: sessionId ? [sessionId] : []
             });
 
             // Create membership for the student
@@ -200,21 +203,78 @@ export class StudentService {
     /**
      * Get all students with pagination and filters
      */
-    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, status = null, instituteId = null, actorId = null, templateId = null }) {
+    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, status = null, instituteId = null, actorId = null, templateId = null, sessionId = null, instituteType = null, skipSessionValidation = false }) {
         // if (!instituteId) throw new Error('Institute context required for fetching students'); // Allow global view
 
         const skip = (page - 1) * limit;
 
         const query = {
-            role: 'student',
-            // institute: instituteId // Enforce Scope conditionally
+            role: 'student'
         };
+        
+        let targetInstituteType = instituteType;
+        let sessionFilter = null; // Store session filter separately
+
         if (instituteId) {
             try {
-                query.institute = new mongoose.Types.ObjectId(instituteId);
+                const targetId = new mongoose.Types.ObjectId(instituteId);
+                query.institute = targetId;
+                
+                // Fetch institute type if not provided (Security hardening)
+                if (!targetInstituteType) {
+                    const Institute = (await import("@/models/Institute")).default;
+                    const inst = await Institute.findById(targetId).select('type');
+                    
+                    if (!inst) {
+                        throw new Error("Institute context lost or invalid. Access denied.");
+                    }
+                    targetInstituteType = inst.type;
+                }
             } catch (e) {
+                if (e.message.includes("Access denied")) throw e;
                 query.institute = instituteId;
             }
+        }
+
+        // Strict Session Isolation for Schools
+        // Note: Defaulting to SCHOOL-style isolation if type is unknown for safety
+        if (targetInstituteType === 'SCHOOL' || !targetInstituteType) {
+            if (sessionId) {
+                // Security Hardening: Verify session ownership at the service level
+                // Optimized: Skip if already validated by caller (e.g. API route)
+                if (instituteId && !skipSessionValidation) {
+                    const Session = (await import("@/models/Session")).default;
+                    const sessionExists = await Session.findOne({ 
+                        _id: sessionId, 
+                        instituteId: instituteId 
+                    }).select('_id');
+                    
+                    if (!sessionExists) {
+                        throw new Error("Invalid session context for this institute. Access denied.");
+                    }
+                }
+
+                try {
+                    // Historical filtering: Include students who have EVER been in this session
+                    sessionFilter = {
+                        activeSessions: new mongoose.Types.ObjectId(sessionId)
+                    };
+                } catch (e) {
+                    sessionFilter = {
+                        activeSessions: sessionId
+                    };
+                }
+            }
+        } else if (targetInstituteType === 'VOCATIONAL') {
+            // VOCATIONAL institutes do NOT use session isolation
+            // Ignore sessionId even if provided
+            if (sessionId) {
+                console.warn(`[SECURITY] Session filter ignored for VOCATIONAL institute`);
+            }
+        } else if (targetInstituteType === null && !instituteId) {
+            // If institute type is unknown and no instituteId, deny for safety
+            console.warn(`[SECURITY] Unknown institute type with no instituteId. Denying access.`);
+            // Allow the request to continue but it won't match any students (safe default)
         }
 
         // Normalize isActive to handle both string and boolean inputs
@@ -290,23 +350,53 @@ export class StudentService {
             }
         }
 
+        // BUILD FINAL QUERY with proper $and/$or combination
+        let finalQuery = query;
+        
         if (search) {
             const escapedSearch = escapeRegExp(search);
-            query.$or = [
-                { 'profile.firstName': { $regex: escapedSearch, $options: 'i' } },
-                { 'profile.lastName': { $regex: escapedSearch, $options: 'i' } },
-                { email: { $regex: escapedSearch, $options: 'i' } },
-                { enrollmentNumber: { $regex: escapedSearch, $options: 'i' } }
-            ];
+            const searchFilter = {
+                $or: [
+                    { 'profile.firstName': { $regex: escapedSearch, $options: 'i' } },
+                    { 'profile.lastName': { $regex: escapedSearch, $options: 'i' } },
+                    { email: { $regex: escapedSearch, $options: 'i' } },
+                    { enrollmentNumber: { $regex: escapedSearch, $options: 'i' } }
+                ]
+            };
+
+            // Combine session filter and search filter using $and if both exist
+            if (sessionFilter) {
+                finalQuery = {
+                    $and: [
+                        query,
+                        sessionFilter,
+                        searchFilter
+                    ]
+                };
+            } else {
+                // Merge search $or into query
+                finalQuery = {
+                    ...query,
+                    $or: searchFilter.$or
+                };
+            }
+        } else if (sessionFilter) {
+            // Only session filter, no search
+            finalQuery = {
+                $and: [
+                    query,
+                    sessionFilter
+                ]
+            };
         }
 
-        const students = await User.find(query)
+        const students = await User.find(finalQuery)
             .populate('certificateId', 'visibleToStudent pdfUrl')
             .sort({ 'profile.firstName': 1, 'profile.lastName': 1 })
             .skip(skip)
             .limit(limit);
 
-        const total = await User.countDocuments(query);
+        const total = await User.countDocuments(finalQuery);
 
         // Template specific check for credit protection
         let issuedMap = new Map();
@@ -430,6 +520,32 @@ export class StudentService {
                     status: 'active'
                 });
                 await batch.save({ session });
+
+                // Sync active sessions for isolation & performance
+                // SECURITY FIX: Validate session exists before adding to activeSessions
+                if (!batch.session) {
+                    console.warn(`[SESSION_SYNC] Batch ${batch._id} has no session assigned.`);
+                    
+                    // For SCHOOL institutes, sessions are MANDATORY for correct profile rendering
+                    const institute = await mongoose.model('Institute').findById(batch.institute).session(session);
+                    if (institute?.type === 'SCHOOL') {
+                        throw new Error(`Enrollment failed: Section ${batch.name} has no academic session assigned. Please edit the section to assign a session.`);
+                    }
+                } else {
+                    await User.findByIdAndUpdate(studentId, {
+                        $set: { activeSession: batch.session }, // Set as current
+                        $addToSet: { 
+                            activeSessions: batch.session, // Add to legacy list
+                            promotionHistory: { 
+                                session: batch.session, 
+                                batch: batch._id,
+                                promotedAt: new Date(),
+                                promotedBy: actorId
+                            }
+                        }
+                    }, { session });
+                    console.log(`[SESSION_SYNC] Synchronized student ${studentId} with session ${batch.session}`);
+                }
             }
 
             // Enforce Institute Consistency for Fee
@@ -523,6 +639,24 @@ export class StudentService {
                 status: 'active'
             });
             await batch.save();
+
+            // Sync active sessions for isolation & performance
+            if (!batch.session) {
+                console.warn(`[SESSION_SYNC_STANDALONE] Batch ${batch._id} has no session assigned. Skipping session sync.`);
+            } else {
+                await User.findByIdAndUpdate(studentId, {
+                    $set: { activeSession: batch.session },
+                    $addToSet: { 
+                        activeSessions: batch.session,
+                        promotionHistory: { 
+                            session: batch.session, 
+                            batch: batch._id,
+                            promotedAt: new Date(),
+                            promotedBy: actorId
+                        }
+                    }
+                });
+            }
         }
 
         // If a legacy soft-deleted fee exists, hard-delete it first to free the unique index
@@ -568,7 +702,9 @@ export class StudentService {
         const batches = await Batch.find({
             'enrolledStudents.student': studentId,
             deletedAt: null
-        }).populate('course', 'name code duration fees');
+        })
+        .populate('course', 'name code duration fees')
+        .populate('session', 'sessionName');
 
         // RBAC CHECK
         if (actorId) {
@@ -601,7 +737,7 @@ export class StudentService {
             student: studentId,
             deletedAt: null
         }).populate([
-            { path: 'batch', select: 'name' },
+            { path: 'batch', select: 'name session', populate: { path: 'session', select: 'sessionName' } },
             { path: 'feePreset', select: 'name', strictPopulate: false }
         ]);
 
@@ -611,7 +747,8 @@ export class StudentService {
                 _id: b._id,
                 name: b.name,
                 course: b.course,
-                enrollment: b.enrolledStudents.find(e => e.student.toString() === studentId.toString()), // Fix: ensure string comparison
+                session: b.session,
+                enrollment: b.enrolledStudents.find(e => e.student.toString() === studentId.toString()),
                 schedule: b.schedule
             })),
             fees,

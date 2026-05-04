@@ -44,6 +44,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,7 @@ export default function StudentDetailsPage({ params }) {
     const confirm = useConfirm();
     const { id } = use(params);
     const { data: session } = useSession();
+    const { selectedSessionId } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
 
     const [studentData, setStudentData] = useState(null);
@@ -247,7 +249,8 @@ export default function StudentDetailsPage({ params }) {
 
     const fetchFollowUps = async () => {
         try {
-            const res = await fetch(`/api/v1/students/${id}/follow-ups`);
+            const sessionQuery = isSchool && selectedSessionId ? `?session=${selectedSessionId}` : "";
+            const res = await fetch(`/api/v1/students/${id}/follow-ups${sessionQuery}`);
             const data = await res.json();
             setFollowUps(data.followUps || []);
         } catch (error) {
@@ -262,7 +265,10 @@ export default function StudentDetailsPage({ params }) {
             const res = await fetch(`/api/v1/students/${id}/follow-ups`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(followUpFormData)
+                body: JSON.stringify({
+                    ...followUpFormData,
+                    session: isSchool ? selectedSessionId : null
+                })
             });
 
             if (res.ok) {
@@ -290,7 +296,8 @@ export default function StudentDetailsPage({ params }) {
         try {
             const month = currentMonth.getMonth() + 1;
             const year = currentMonth.getFullYear();
-            const res = await fetch(`/api/v1/attendance/students/${id}?month=${month}&year=${year}`);
+            const sessionQuery = isSchool && selectedSessionId ? `&session=${selectedSessionId}` : "";
+            const res = await fetch(`/api/v1/attendance/students/${id}?month=${month}&year=${year}${sessionQuery}`);
             const data = await res.json();
             setAttendanceData(data.attendance || []);
             setAttendanceStats(data.stats || null);
@@ -437,7 +444,18 @@ export default function StudentDetailsPage({ params }) {
         try {
             const res = await fetch(`/api/v1/batches?courseId=${courseId}`);
             const data = await res.json();
-            setCourseBatches(data.batches || []);
+            let fetchedBatches = data.batches || [];
+            
+            // For schools, only show batches in the active session (or legacy batches with no session)
+            if (isSchool && selectedSessionId) {
+                fetchedBatches = fetchedBatches.filter(b => 
+                    b.session?._id === selectedSessionId || 
+                    b.session === selectedSessionId || 
+                    !b.session
+                );
+            }
+            
+            setCourseBatches(fetchedBatches);
         } catch (error) {
             console.error("Failed to fetch batches", error);
         }
@@ -659,6 +677,11 @@ export default function StudentDetailsPage({ params }) {
     const handleRecordPayment = async (e) => {
         e.preventDefault();
         if (!selectedFee) return;
+
+        if (!paymentData.collectedBy) {
+            toast.warning("Please select a collector before recording the payment");
+            return;
+        }
 
         try {
             setIsRecordingPayment(true);
@@ -1086,53 +1109,63 @@ export default function StudentDetailsPage({ params }) {
                                 Enroll New {isSchool ? "Class" : "Course"}
                             </Button>
                         </div>
-                        {batches.length > 0 ? (
-                            <div className="grid gap-4">
-                                {batches.map(batch => (
-                                    <Card key={batch._id} className="hover:border-premium-blue/30 transition-colors">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <div className="p-3 rounded-xl bg-violet-50 text-violet-600">
-                                                    <BookOpen size={20} />
+                        {(() => {
+                            const displayBatches = isSchool && selectedSessionId
+                                ? batches.filter(b => b.session?._id === selectedSessionId || b.session === selectedSessionId || !b.session)
+                                : batches;
+
+                            if (displayBatches.length > 0) {
+                                return (
+                                    <div className="grid gap-4">
+                                        {displayBatches.map(batch => (
+                                            <Card key={batch._id} className="hover:border-premium-blue/30 transition-colors">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-3 rounded-xl bg-violet-50 text-violet-600">
+                                                            <BookOpen size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-slate-900">{batch.name}</h4>
+                                                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{batch.course?.name}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right flex items-center gap-2">
+                                                        <Button size="sm"
+                                                            variant="outline"
+                                                            className="text-premium-blue border-blue-100 hover:bg-blue-50 hover:text-blue-700"
+                                                            onClick={() => router.push(`/admin/students/${id}/admission-form?batchId=${batch._id}`)}
+                                                        >
+                                                            <Printer size={15} className="mr-2" />
+                                                            Print Form
+                                                        </Button>
+                                                        <Badge variant="primary" className="mb-2">{batch.enrollment?.status}</Badge>
+                                                        <p className="text-xs text-slate-400 mb-2">
+                                                            Enrolled: {batch.enrollment?.enrolledAt
+                                                                ? format(new Date(batch.enrollment.enrolledAt), "MMM d, yyyy")
+                                                                : "N/A"}
+                                                        </p>
+                                                        <Button size="xs"
+                                                            variant="ghost"
+                                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-6 px-2"
+                                                            onClick={() => handleUnenrollStudent(batch._id, batch.name)}
+                                                        >
+                                                            Remove
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h4 className="font-bold text-slate-900">{batch.name}</h4>
-                                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{batch.course?.name}</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right flex items-center gap-2">
-                                                <Button size="sm"
-                                                    variant="outline"
-                                                    className="text-premium-blue border-blue-100 hover:bg-blue-50 hover:text-blue-700"
-                                                    onClick={() => router.push(`/admin/students/${id}/admission-form?batchId=${batch._id}`)}
-                                                >
-                                                    <Printer size={15} className="mr-2" />
-                                                    Print Form
-                                                </Button>
-                                                <Badge variant="primary" className="mb-2">{batch.enrollment?.status}</Badge>
-                                                <p className="text-xs text-slate-400 mb-2">
-                                                    Enrolled: {batch.enrollment?.enrolledAt
-                                                        ? format(new Date(batch.enrollment.enrolledAt), "MMM d, yyyy")
-                                                        : "N/A"}
-                                                </p>
-                                                <Button size="xs"
-                                                    variant="ghost"
-                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 h-6 px-2"
-                                                    onClick={() => handleUnenrollStudent(batch._id, batch.name)}
-                                                >
-                                                    Remove
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                <p className="text-slate-400 font-medium">No active enrollments found.</p>
-                                <Button variant="link" className="mt-2 text-premium-blue" onClick={() => setIsEnrollModalOpen(true)}>Enroll in a {isSchool ? "class" : "course"}</Button>
-                            </div>
-                        )}
+                                            </Card>
+                                        ))}
+                                    </div>
+                                );
+                            } else {
+                                return (
+                                    <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                        <p className="text-slate-400 font-medium">No active enrollments found for this session.</p>
+                                        <Button variant="link" className="mt-2 text-premium-blue" onClick={() => setIsEnrollModalOpen(true)}>Enroll in a {isSchool ? "class" : "course"}</Button>
+                                    </div>
+                                );
+                            }
+                        })()}
                     </div>
                 )}
 
@@ -1140,133 +1173,152 @@ export default function StudentDetailsPage({ params }) {
                     <div className="space-y-6">
                         <h3 className="text-lg font-bold text-slate-900 px-1">Fee & Payment Status</h3>
                         <div className="grid gap-4">
-                            {batches.map(batch => {
-                                const fee = fees.find(f => f.batch?._id === batch._id);
-                                const originalTotal = fee?.totalAmount || batch.course?.fees?.amount || 0;
-                                const discountAmount = fee?.discount?.amount || 0;
-                                const totalPayable = originalTotal - discountAmount;
-                                const paidAmount = fee?.paidAmount || 0;
-                                const isPaid = fee?.status === 'paid';
+                            {(() => {
+                                const displayBatches = isSchool && selectedSessionId
+                                    ? (studentData?.batches || []).filter(b => b.session?._id === selectedSessionId || b.session === selectedSessionId || !b.session)
+                                    : (studentData?.batches || []);
+                                
+                                const displayFees = isSchool && selectedSessionId
+                                    ? (studentData?.fees || []).filter(f => f.batch?.session === selectedSessionId || f.batch?.session?._id === selectedSessionId || !f.batch?.session)
+                                    : (studentData?.fees || []);
 
-                                return (
-                                    <Card key={batch._id}>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
-                                                    <CreditCard size={20} />
+                                if (displayBatches.length === 0) {
+                                    return (
+                                        <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                            <p className="text-slate-400 font-medium">No active enrollments found for this session.</p>
+                                            <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-widest">Enroll in a batch to see fee status</p>
+                                        </div>
+                                    );
+                                }
+
+                                return displayBatches.map(batch => {
+                                    const fee = displayFees.find(f => f.batch?._id === batch._id);
+                                    const originalTotal = fee?.totalAmount || batch.course?.fees?.amount || 0;
+                                    const discountAmount = fee?.discount?.amount || 0;
+                                    const totalPayable = originalTotal - discountAmount;
+                                    const paidAmount = fee?.paidAmount || 0;
+                                    const isPaid = fee?.status === 'paid';
+
+                                    return (
+                                        <Card key={batch._id}>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
+                                                        <CreditCard size={20} />
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="font-bold text-slate-900">{batch.name}</h4>
+                                                            {fee?.feePreset?.name && (
+                                                                <span className="px-2 py-0.5 text-[10px] bg-blue-50 text-blue-600 rounded-full border border-blue-100 uppercase font-medium">
+                                                                    {fee.feePreset.name}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <p className="text-xs text-slate-500">Original Total: ₹{originalTotal.toLocaleString()}</p>
+                                                             {discountAmount > 0 && (
+                                                                 <div className="flex items-center gap-1.5">
+                                                                      <p className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex items-center gap-1">
+                                                                          <Tag size={10} /> Discount: -₹{discountAmount.toLocaleString()}
+                                                                      </p>
+                                                                 </div>
+                                                             )}
+                                                             {fee?.extraCharges?.amount > 0 && (
+                                                                 <div className="flex items-center gap-1.5">
+                                                                      <p className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100 flex items-center gap-1">
+                                                                          <Tag size={10} /> Extra Charges: +₹{fee.extraCharges.amount.toLocaleString()}
+                                                                      </p>
+                                                                 </div>
+                                                             )}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <h4 className="font-bold text-slate-900">{batch.name}</h4>
-                                                        {fee?.feePreset?.name && (
-                                                            <span className="px-2 py-0.5 text-[10px] bg-blue-50 text-blue-600 rounded-full border border-blue-100 uppercase font-medium">
-                                                                {fee.feePreset.name}
-                                                            </span>
+                                                <div className="flex items-center gap-6">
+                                                    <div className="text-right">
+                                                        <div className="text-xl font-black text-slate-900">
+                                                            ₹{paidAmount.toLocaleString()}
+                                                            <span className="text-xs text-slate-400 font-medium ml-1">/ {totalPayable.toLocaleString()}</span>
+                                                        </div>
+                                                        <p className={`text-xs font-bold ${isPaid ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                            {isPaid ? 'Fully Paid' : `Pending: ₹${Math.max(0, totalPayable - paidAmount).toLocaleString()}`}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        {fee ? (
+                                                            <>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                                                                    onClick={() => {
+                                                                        setSelectedFee(fee);
+                                                                        setDiscountData({
+                                                                            amount: fee.discount?.amount || "",
+                                                                            reason: fee.discount?.reason || ""
+                                                                        });
+                                                                        setIsDiscountModalOpen(true);
+                                                                    }}
+                                                                    title="Apply Discount"
+                                                                >
+                                                                    <Percent size={14} />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                                                                    onClick={() => {
+                                                                        setSelectedFee(fee);
+                                                                        setExtraChargesData({
+                                                                            amount: fee.extraCharges?.amount || "",
+                                                                            reason: fee.extraCharges?.reason || ""
+                                                                        });
+                                                                        setIsExtraChargesModalOpen(true);
+                                                                    }}
+                                                                    title="Add Extra Charges"
+                                                                >
+                                                                    <Plus size={14} />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                                    onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
+                                                                    disabled={deletingFeeId === fee._id}
+                                                                    aria-label="Delete Fee"
+                                                                >
+                                                                    {deletingFeeId === fee._id ? (
+                                                                        <div className="w-3 h-3 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+                                                                    ) : (
+                                                                        <Trash2 size={14} />
+                                                                    )}
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => window.open(`/admin/receipts/${fee._id}`, '_blank')}
+                                                                    title="View Receipt"
+                                                                >
+                                                                    <FileText size={16} className="text-slate-400 hover:text-premium-blue" />
+                                                                </Button>
+                                                                {!isPaid && (
+                                                                    <Button size="sm" variant="outline" onClick={() => openPaymentModal(fee)}>
+                                                                        Pay Fee
+                                                                    </Button>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <Button size="sm" variant="outline" onClick={() => openPaymentModal({ batch, totalAmount: originalTotal, _id: "new" })}>
+                                                                Pay Fee
+                                                            </Button>
                                                         )}
                                                     </div>
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <p className="text-xs text-slate-500">Original Total: ₹{originalTotal.toLocaleString()}</p>
-                                                         {discountAmount > 0 && (
-                                                             <div className="flex items-center gap-1.5">
-                                                                  <p className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex items-center gap-1">
-                                                                      <Tag size={10} /> Discount: -₹{discountAmount.toLocaleString()}
-                                                                  </p>
-                                                             </div>
-                                                         )}
-                                                         {fee?.extraCharges?.amount > 0 && (
-                                                             <div className="flex items-center gap-1.5">
-                                                                  <p className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100 flex items-center gap-1">
-                                                                      <Tag size={10} /> Extra Charges: +₹{fee.extraCharges.amount.toLocaleString()}
-                                                                  </p>
-                                                             </div>
-                                                         )}
-                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-6">
-                                                <div className="text-right">
-                                                    <div className="text-xl font-black text-slate-900">
-                                                        ₹{paidAmount.toLocaleString()}
-                                                        <span className="text-xs text-slate-400 font-medium ml-1">/ {totalPayable.toLocaleString()}</span>
-                                                    </div>
-                                                    <p className={`text-xs font-bold ${isPaid ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                                        {isPaid ? 'Fully Paid' : `Pending: ₹${Math.max(0, totalPayable - paidAmount).toLocaleString()}`}
-                                                    </p>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    {fee ? (
-                                                        <>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="text-amber-500 hover:text-amber-700 hover:bg-amber-50"
-                                                                onClick={() => {
-                                                                    setSelectedFee(fee);
-                                                                    setDiscountData({
-                                                                        amount: fee.discount?.amount || "",
-                                                                        reason: fee.discount?.reason || ""
-                                                                    });
-                                                                    setIsDiscountModalOpen(true);
-                                                                }}
-                                                                title="Apply Discount"
-                                                            >
-                                                                <Percent size={14} />
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
-                                                                onClick={() => {
-                                                                    setSelectedFee(fee);
-                                                                    setExtraChargesData({
-                                                                        amount: fee.extraCharges?.amount || "",
-                                                                        reason: fee.extraCharges?.reason || ""
-                                                                    });
-                                                                    setIsExtraChargesModalOpen(true);
-                                                                }}
-                                                                title="Add Extra Charges"
-                                                            >
-                                                                <Plus size={14} />
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                                onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
-                                                                disabled={deletingFeeId === fee._id}
-                                                                aria-label="Delete Fee"
-                                                            >
-                                                                {deletingFeeId === fee._id ? (
-                                                                    <div className="w-3 h-3 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
-                                                                ) : (
-                                                                    <Trash2 size={14} />
-                                                                )}
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                onClick={() => window.open(`/admin/receipts/${fee._id}`, '_blank')}
-                                                                title="View Receipt"
-                                                            >
-                                                                <FileText size={16} className="text-slate-400 hover:text-premium-blue" />
-                                                            </Button>
-                                                            {!isPaid && (
-                                                                <Button size="sm" variant="outline" onClick={() => openPaymentModal(fee)}>
-                                                                    Pay Fee
-                                                                </Button>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <Button size="sm" variant="outline" onClick={() => openPaymentModal({ batch, totalAmount: originalTotal, _id: "new" })}>
-                                                            Pay Fee
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                );
-                            })}
+                                        </Card>
+                                    );
+                                });
+                            })()}
                             {batches.length === 0 && (
                                 <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                                     <p className="text-slate-400 font-medium">No active enrollments found.</p>

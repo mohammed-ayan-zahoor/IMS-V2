@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import ConversationList from "./ConversationList";
 import ChatWindow from "./ChatWindow";
+import PusherClient from "pusher-js";
 import toast from "react-hot-toast";
 
 export default function ChatLayout({ currentUserId }) {
@@ -43,6 +44,31 @@ export default function ChatLayout({ currentUserId }) {
             // No need to stop beams on unmount - it stays registered
         };
     }, [currentUserId]);
+
+    useEffect(() => {
+        if (!currentUserId) return;
+
+        const pusher = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+            cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+            authEndpoint: '/api/v1/chat/pusher-auth',
+        });
+
+        const userChannel = `user-updates-${currentUserId}`;
+        const channel = pusher.subscribe(userChannel);
+
+        channel.bind('conversation-deleted', ({ conversationId }) => {
+            setConversations((prev) => prev.filter(c => c._id !== conversationId));
+            if (activeConversation?._id === conversationId) {
+                setActiveConversation(null);
+                toast.success("This conversation was deleted");
+            }
+        });
+
+        return () => {
+            pusher.unsubscribe(userChannel);
+            pusher.disconnect();
+        };
+    }, [currentUserId, activeConversation]);
 
     useEffect(() => {
         const controller = new AbortController();

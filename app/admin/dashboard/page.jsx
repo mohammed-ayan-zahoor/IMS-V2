@@ -16,9 +16,10 @@ import {
     Clock,
     MessageSquare,
     ChevronRight,
-    Calendar,
-    Loader2
+    Loader2,
+    Calendar as CalendarIcon
 } from "lucide-react";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import StudentSearch from "@/components/admin/StudentSearch";
@@ -64,41 +65,18 @@ const getStatusBadge = (status) => {
 export default function AdminDashboard() {
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [sessions, setSessions] = useState([]);
-    const [selectedSession, setSelectedSession] = useState(null);
-    const [loadingSessions, setLoadingSessions] = useState(true);
+    const { sessions, selectedSessionId, changeSession, loading: loadingSessions } = useAcademicSession();
     const { data: session } = useSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
 
-    // Fetch sessions
-    const fetchSessions = async () => {
-        try {
-            setLoadingSessions(true);
-            const res = await fetch("/api/v1/sessions");
-            if (res.ok) {
-                const data = await res.json();
-                setSessions(data.sessions || []);
-                
-                // Select active session by default
-                const activeSess = data.sessions?.find(s => s.isActive);
-                if (activeSess) {
-                    setSelectedSession(activeSess._id);
-                    localStorage.setItem('selectedSession', activeSess._id);
-                }
-            }
-        } catch (error) {
-            console.error("Error fetching sessions:", error);
-        } finally {
-            setLoadingSessions(false);
-        }
-    };
+
 
     // Fetch stats
     const fetchStats = async () => {
         try {
             setLoading(true);
-            const url = (isSchool && selectedSession)
-                ? `/api/v1/dashboard/stats?session=${selectedSession}`
+            const url = (isSchool && selectedSessionId)
+                ? `/api/v1/dashboard/stats?session=${selectedSessionId}`
                 : '/api/v1/dashboard/stats';
             const res = await fetch(url);
             if (res.ok) setDashboardData(await res.json());
@@ -109,11 +87,7 @@ export default function AdminDashboard() {
         }
     };
 
-    useEffect(() => {
-        if (session?.user?.institute?.type === 'SCHOOL') {
-            fetchSessions();
-        }
-    }, [session?.user?.institute?.type]);
+
 
     useEffect(() => {
         fetchStats();
@@ -127,7 +101,7 @@ export default function AdminDashboard() {
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [selectedSession]);
+    }, [selectedSessionId]);
 
     const stats = [
         { 
@@ -188,46 +162,6 @@ export default function AdminDashboard() {
 
     return (
         <div className="space-y-10">
-            {/* Session Selector - Only for Schools */}
-            {session?.user?.institute?.type === 'SCHOOL' && (
-                <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-3">
-                        <Calendar className="text-blue-600" size={20} />
-                        <div>
-                            <p className="text-sm font-bold text-slate-900">Academic Session</p>
-                            <p className="text-xs text-slate-500">All data below is filtered by selected session</p>
-                        </div>
-                    </div>
-                    <div className="min-w-[200px]">
-                        {loadingSessions ? (
-                            <div className="flex items-center justify-center gap-2 px-4 py-2">
-                                <Loader2 className="animate-spin" size={16} />
-                                <span className="text-sm text-slate-600">Loading sessions...</span>
-                            </div>
-                        ) : sessions.length > 0 ? (
-                            <select
-                                value={selectedSession || ''}
-                                onChange={(e) => {
-                                    setSelectedSession(e.target.value);
-                                    localStorage.setItem('selectedSession', e.target.value);
-                                }}
-                                className="w-full px-4 py-2 rounded-lg border border-blue-300 bg-white text-slate-900 font-bold focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                            >
-                                {sessions.map((sess) => (
-                                    <option key={sess._id} value={sess._id}>
-                                        {sess.sessionName} {sess.isActive ? '(Active)' : ''}
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
-                            <div className="text-sm text-slate-600 font-medium">
-                                No sessions available. Create one in Settings.
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
             {/* Metric Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {stats.map((stat) => (
