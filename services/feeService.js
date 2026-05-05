@@ -254,41 +254,40 @@ export class FeeService {
             { $match: query },
             {
                 $project: {
-                    // Force all values to numbers and handle potential missing fields
-                    totalAmount: { $ifNull: ["$totalAmount", 0] },
-                    discountAmount: { 
+                    base: { $ifNull: ["$totalAmount", 0] },
+                    discount: { 
                         $cond: [
                             { $isNumber: "$discount" }, 
                             "$discount", 
                             { $ifNull: ["$discount.amount", 0] }
                         ] 
                     },
-                    extraAmount: { 
+                    extra: { 
                         $cond: [
                             { $isNumber: "$extraCharges" }, 
                             "$extraCharges", 
                             { $ifNull: ["$extraCharges.amount", 0] }
                         ] 
                     },
-                    paidAmount: { $ifNull: ["$paidAmount", 0] }
-                }
-            },
-            {
-                $project: {
-                    gross: { $add: [{ $subtract: ["$totalAmount", "$discountAmount"] }, "$extraAmount"] },
-                    discount: "$discountAmount",
-                    extra: "$extraAmount",
-                    paid: "$paidAmount"
+                    paid: { $ifNull: ["$paidAmount", 0] }
                 }
             },
             {
                 $group: {
                     _id: null,
-                    totalGross: { $sum: "$gross" },
+                    totalGross: { $sum: "$base" }, // First tile: Raw Base Fee
                     totalDiscount: { $sum: "$discount" },
                     extraCharges: { $sum: "$extra" },
                     totalCollected: { $sum: "$paid" },
-                    totalPending: { $sum: { $subtract: ["$gross", "$paid"] } }
+                    // Final tile: (Base + Extra) - (Discount + Paid)
+                    totalPending: { 
+                        $sum: { 
+                            $subtract: [
+                                { $add: ["$base", "$extra"] }, 
+                                { $add: ["$discount", "$paid"] }
+                            ] 
+                        } 
+                    }
                 }
             }
         ]);
