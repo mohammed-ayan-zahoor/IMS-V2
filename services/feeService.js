@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Fee from '@/models/Fee';
 import Batch from '@/models/Batch';
 import User from '@/models/User';
@@ -161,40 +162,118 @@ export class FeeService {
 
     static async getFees(filters = {}) {
         await connectDB();
+        const {
+            page = 1,
+            limit = 50,
+            search = "",
+            batch,
+            status,
+            student,
+            institute,
+            session,
+            includeCancelled
+        } = filters;
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
         const query = { deletedAt: null };
 
-        if (filters.batch) query.batch = filters.batch;
-        if (filters.status) query.status = filters.status;
-        if (filters.student) query.student = filters.student;
-        if (filters.institute) query.institute = filters.institute;
+        if (batch) query.batch = batch;
+        if (status) query.status = status;
+        if (student) query.student = student;
+        if (institute) query.institute = institute;
 
-        // Session filtering (Implicit via Batch)
-        if (filters.session) {
-            const batchQuery = { institute: filters.institute, session: filters.session, deletedAt: null };
+        // Session filtering
+        if (session) {
+            const batchQuery = { institute, session, deletedAt: null };
             const batchesInSession = await Batch.find(batchQuery).select('_id');
             const batchIds = batchesInSession.map(b => b._id);
-            query.batch = { $in: batchIds };
             
-            // If a specific batch was requested, intersect it
-            if (filters.batch) {
-                const requestedBatchId = filters.batch.toString();
-                if (!batchIds.map(id => id.toString()).includes(requestedBatchId)) {
-                    // Requested batch is not in the requested session
-                    return [];
-                }
-                query.batch = filters.batch;
+            if (batch) {
+                if (!batchIds.map(id => id.toString()).includes(batch.toString())) return { fees: [], total: 0 };
+                query.batch = batch;
+            } else {
+                query.batch = { $in: batchIds };
             }
         }
 
-        // Exclude cancelled fees unless explicitly requested
-        if (!filters.includeCancelled && !filters.status) {
+        if (!includeCancelled && !status) {
             query.status = { $ne: 'cancelled' };
         }
 
-        return await FeeDb.find(query)
-            .populate('student', 'profile.firstName profile.lastName enrollmentNumber')
+        // Search Logic
+        let populateOptions = {
+            path: 'student',
+            select: 'profile.firstName profile.lastName enrollmentNumber'
+        };
+
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            // We need to find student IDs that match the search first
+            const students = await User.find({
+                role: 'student',
+                $or: [
+                    { 'profile.firstName': searchRegex },
+                    { 'profile.lastName': searchRegex },
+                    { enrollmentNumber: searchRegex }
+                ]
+            }).select('_id');
+            query.student = { $in: students.map(s => s._id) };
+        }
+
+        const total = await FeeDb.countDocuments(query);
+        const fees = await FeeDb.find(query)
+            .populate(populateOptions)
             .populate('batch', 'name')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        return { fees, total, page: parseInt(page), totalPages: Math.ceil(total / limit) };
+    }
+
+    static async getFeeStats(filters = {}) {
+        await connectDB();
+        const query = { deletedAt: null };
+        if (filters.institute) query.institute = new mongoose.Types.ObjectId(filters.institute);
+        if (filters.session) {
+            const batchIds = await Batch.find({ session: filters.session, deletedAt: null }).distinct('_id');
+            query.batch = { $in: batchIds };
+        }
+        if (filters.batch) query.batch = new mongoose.Types.ObjectId(filters.batch);
+        if (filters.course) {
+            const batchIds = await Batch.find({ course: filters.course, deletedAt: null }).distinct('_id');
+            query.batch = { $in: batchIds };
+        }
+
+        const stats = await FeeDb.aggregate([
+            { $match: query },
+            {
+                $group: {
+                    _id: null,
+                    totalGross: { 
+                        $sum: { 
+                            $add: [
+                                "$totalAmount", 
+                                { $ifNull: ["$extraCharges.amount", 0] },
+                                { $multiply: [{ $ifNull: ["$discount.amount", 0] }, -1] }
+                            ] 
+                        } 
+                    },
+                    totalDiscount: { $sum: { $ifNull: ["$discount.amount", 0] } },
+                    extraCharges: { $sum: { $ifNull: ["$extraCharges.amount", 0] } },
+                    totalCollected: { $sum: "$paidAmount" },
+                    totalPending: { $sum: "$balanceAmount" }
+                }
+            }
+        ]);
+
+        return stats[0] || {
+            totalGross: 0,
+            totalDiscount: 0,
+            extraCharges: 0,
+            totalCollected: 0,
+            totalPending: 0
+        };
     }
 
     static async getFeesWithStudents(filters = {}) {

@@ -68,19 +68,28 @@ export default function FeesPage() {
     const [selectedCourse, setSelectedCourse] = useState("");
     const [selectedBatch, setSelectedBatch] = useState("");
     const [percentageFilter, setPercentageFilter] = useState("");
-    const [summary, setSummary] = useState({ total: 0, discount: 0, paid: 0, pending: 0 });
+    const [summary, setSummary] = useState({ totalGross: 0, totalDiscount: 0, extraCharges: 0, totalCollected: 0, totalPending: 0 });
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
     const rowsPerPage = 50;
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(search), 500);
+        return () => clearTimeout(timer);
+    }, [search]);
 
     useEffect(() => {
         if (selectedSessionId) {
             fetchFees();
+            fetchStats();
         }
         fetchCourses();
         const controller = new AbortController();
         fetchCollectors(controller.signal);
         return () => controller.abort();
-    }, [selectedSessionId]);
+    }, [selectedSessionId, currentPage, debouncedSearch]);
 
     useEffect(() => {
         if (selectedCourse) {
@@ -93,6 +102,7 @@ export default function FeesPage() {
 
     useEffect(() => {
         fetchFees();
+        fetchStats();
         setCurrentPage(1);
     }, [selectedCourse, selectedBatch, percentageFilter, showCancelledOnly]);
 
@@ -129,6 +139,10 @@ export default function FeesPage() {
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
             if (percentageFilter) url.searchParams.append('percentage', percentageFilter);
             if (showCancelledOnly) url.searchParams.append('includeCancelled', 'true');
+            if (debouncedSearch) url.searchParams.append('search', debouncedSearch);
+            url.searchParams.append('page', currentPage.toString());
+            url.searchParams.append('limit', rowsPerPage.toString());
+
             if (selectedCourse || selectedBatch || percentageFilter || showCancelledOnly) {
                 url.searchParams.append('includeAll', 'true');
             }
@@ -138,8 +152,17 @@ export default function FeesPage() {
                 throw new Error(errorData.error || `Failed to fetch fees: ${res.statusText}`);
             }
             const data = await res.json();
-            if (Array.isArray(data)) {
+            
+            // Handle Paginated Result
+            if (data && typeof data === 'object' && Array.isArray(data.fees)) {
+                setFees(data.fees);
+                setTotalPages(data.totalPages || 1);
+                setTotalRecords(data.total || 0);
+            } else if (Array.isArray(data)) {
+                // Fallback for non-paginated legacy or extended queries if they don't support pagination yet
                 setFees(data);
+                setTotalPages(1);
+                setTotalRecords(data.length);
             } else {
                 console.error("Expected array but got:", data);
                 setFees([]);
@@ -150,6 +173,23 @@ export default function FeesPage() {
             toast.error(error.message || "Failed to load fee records");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchStats = async () => {
+        try {
+            const url = new URL('/api/v1/fees/stats', window.location.origin);
+            if (selectedSessionId) url.searchParams.append('session', selectedSessionId);
+            if (selectedCourse) url.searchParams.append('course', selectedCourse);
+            if (selectedBatch) url.searchParams.append('batch', selectedBatch);
+            
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                setSummary(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch stats", error);
         }
     };
 
@@ -256,31 +296,8 @@ export default function FeesPage() {
         setIsPaymentModalOpen(true);
     };
 
-    const filteredFees = fees.filter(fee => {
-        // 1. Search Filter
-        const q = search.toLowerCase();
-        const matchesSearch =
-            fee.student?.profile?.firstName?.toLowerCase()?.includes(q) ||
-            fee.student?.enrollmentNumber?.toLowerCase()?.includes(q);
-
-        // 2. Batch Filter (Direct)
-        if (selectedBatch && fee.batch?._id !== selectedBatch) return false;
-
-        // 3. Course Filter (Indirect via Batch)
-        // If Course is selected but NO Batch is selected, check if fee's batch matches any fetched batch
-        if (selectedCourse && !selectedBatch && batches.length > 0) {
-            const belongsToCourse = batches.some(b => b._id === fee.batch?._id);
-            if (!belongsToCourse) return false;
-        }
-
-        // 4. Overdue Filter
-        if (showOverdueOnly) {
-            const isOverdue = fee.installments?.some(i => i.status === 'pending' && new Date(i.dueDate) < new Date());
-            if (!isOverdue) return false;
-        }
-
-        return matchesSearch;
-    });
+    // No longer needed client-side filtering as we do it on the server
+    const filteredFees = fees;
 
 
 
@@ -348,24 +365,8 @@ export default function FeesPage() {
          toast.success(`Export started (${formatType.toUpperCase()})`);
      };
 
-     useEffect(() => {
-         // Calculate Summary
-         const newSummary = filteredFees.reduce((acc, fee) => {
-             const baseFee = fee.totalAmount || 0;
-             const discount = fee.discount?.amount || 0;
-             const extraCharges = fee.extraCharges?.amount || 0;
-             const grossAmount = baseFee - discount + extraCharges; // Total Gross = base - discount + charges
-             
-             return {
-                 total: acc.total + grossAmount, // This is the GROSS (after discount and charges)
-                 discount: acc.discount + discount,
-                 extraCharges: acc.extraCharges + extraCharges,
-                 paid: acc.paid + (fee.paidAmount || 0),
-                 pending: acc.pending + (fee.balanceAmount || 0)
-             };
-         }, { total: 0, discount: 0, extraCharges: 0, paid: 0, pending: 0 });
-         setSummary(newSummary);
-     }, [fees, search, selectedCourse, selectedBatch, batches, showOverdueOnly]); // Re-run when filters change
+    // Summary calculation is now done on the server via fetchStats()
+    // No need for client-side reduce useEffect
     return (
         <div className="space-y-6">
             {/* Page Action Bar */}
@@ -412,7 +413,7 @@ export default function FeesPage() {
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Gross</p>
-                            <h3 className="text-2xl font-black text-slate-700 mt-1">₹{summary.total.toLocaleString()}</h3>
+                            <h3 className="text-2xl font-black text-slate-700 mt-1">₹{(summary.totalGross || 0).toLocaleString()}</h3>
                         </div>
                         <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
                             <DollarSign size={20} />
@@ -423,7 +424,7 @@ export default function FeesPage() {
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-xs font-bold text-rose-600/70 uppercase tracking-wider">Total Discount</p>
-                            <h3 className="text-2xl font-black text-rose-600 mt-1">₹{summary.discount.toLocaleString()}</h3>
+                            <h3 className="text-2xl font-black text-rose-600 mt-1">₹{(summary.totalDiscount || 0).toLocaleString()}</h3>
                         </div>
                         <div className="p-2 bg-rose-100 rounded-lg text-rose-600">
                             <XCircle size={20} />
@@ -445,7 +446,7 @@ export default function FeesPage() {
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-xs font-bold text-emerald-600/70 uppercase tracking-wider">Total Collected</p>
-                            <h3 className="text-2xl font-black text-emerald-600 mt-1">₹{summary.paid.toLocaleString()}</h3>
+                            <h3 className="text-2xl font-black text-emerald-600 mt-1">₹{(summary.totalCollected || 0).toLocaleString()}</h3>
                         </div>
                         <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
                             <CheckCircle size={20} />
@@ -456,7 +457,7 @@ export default function FeesPage() {
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-xs font-bold text-amber-600/70 uppercase tracking-wider">Total Pending</p>
-                            <h3 className="text-2xl font-black text-amber-600 mt-1">₹{summary.pending.toLocaleString()}</h3>
+                            <h3 className="text-2xl font-black text-amber-600 mt-1">₹{(summary.totalPending || 0).toLocaleString()}</h3>
                         </div>
                         <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
                             <AlertCircle size={20} />
@@ -541,9 +542,8 @@ export default function FeesPage() {
                 </div>
                 <CardContent className="p-0">
                     {(() => {
-                        const totalPages = Math.ceil(filteredFees.length / rowsPerPage);
                         const startIndex = (currentPage - 1) * rowsPerPage;
-                        const paginatedFees = filteredFees.slice(startIndex, startIndex + rowsPerPage);
+                        const paginatedFees = fees;
 
                         if (loading) return <LoadingSpinner />;
                         if (filteredFees.length === 0) {
@@ -703,7 +703,7 @@ export default function FeesPage() {
                                 {totalPages > 1 && (
                                     <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/50">
                                         <span className="text-xs text-slate-500 font-medium">
-                                            Showing {startIndex + 1}–{Math.min(startIndex + rowsPerPage, filteredFees.length)} of {filteredFees.length}
+                                            Showing {startIndex + 1}–{Math.min(startIndex + rowsPerPage, totalRecords)} of {totalRecords}
                                         </span>
                                         <div className="flex gap-1">
                                             <Button

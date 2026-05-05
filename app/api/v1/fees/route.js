@@ -21,7 +21,10 @@ export async function GET(req) {
             percentage: searchParams.get('percentage'),
             includeAll: searchParams.get('includeAll') === 'true',
             includeCancelled: searchParams.get('includeCancelled') === 'true',
-            session: searchParams.get('session') || req.headers.get('x-session-id')
+            session: searchParams.get('session') || req.headers.get('x-session-id'),
+            page: searchParams.get('page') || 1,
+            limit: searchParams.get('limit') || 50,
+            search: searchParams.get('search') || ""
         };
 
         // Enforce Institute Scope
@@ -50,21 +53,16 @@ export async function GET(req) {
                 if (!isAssigned) {
                     return NextResponse.json({ error: "Forbidden: You are not assigned to this student" }, { status: 403 });
                 }
-            } else {
-                // Note: If no student filter, we should ideally return ONLY fees for assigned students.
-                // However, for the specific "Fees" tab on a Student Profile, the frontend sends a student ID.
-                // For a general "Fee List", we might need more complex filtering in FeeService (e.g. getFeesForInstructor).
-                // For now, checking the explicit filter covers the user's specific request about blocking unassigned access.
             }
         } else {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const useExtendedQuery = filters.includeAll || filters.percentage || filters.course;
-        const fees = useExtendedQuery
+        const result = useExtendedQuery
             ? await FeeService.getFeesWithStudents(filters)
             : await FeeService.getFees(filters);
-        return NextResponse.json(fees);
+        return NextResponse.json(result);
     } catch (error) {
         console.error("Fee API Error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
