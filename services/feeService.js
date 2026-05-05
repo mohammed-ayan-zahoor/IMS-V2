@@ -228,6 +228,11 @@ export class FeeService {
             .skip(skip)
             .limit(parseInt(limit));
 
+        // If no filters are applied, we should still ideally show students without records
+        // but for the main "unfiltered" view, we'll keep it as "Records Only" for performance 
+        // unless includeAll is true. However, to help the user, I'll make getFeesWithStudents the default 
+        // if institute is present.
+        
         return { fees, total, page: parseInt(page), totalPages: Math.ceil(total / limit) };
     }
 
@@ -248,21 +253,27 @@ export class FeeService {
         const stats = await FeeDb.aggregate([
             { $match: query },
             {
+                $project: {
+                    gross: { 
+                        $add: [
+                            "$totalAmount", 
+                            { $ifNull: ["$extraCharges.amount", 0] },
+                            { $multiply: [{ $ifNull: ["$discount.amount", 0] }, -1] }
+                        ] 
+                    },
+                    discount: { $ifNull: ["$discount.amount", 0] },
+                    extra: { $ifNull: ["$extraCharges.amount", 0] },
+                    paid: "$paidAmount"
+                }
+            },
+            {
                 $group: {
                     _id: null,
-                    totalGross: { 
-                        $sum: { 
-                            $add: [
-                                "$totalAmount", 
-                                { $ifNull: ["$extraCharges.amount", 0] },
-                                { $multiply: [{ $ifNull: ["$discount.amount", 0] }, -1] }
-                            ] 
-                        } 
-                    },
-                    totalDiscount: { $sum: { $ifNull: ["$discount.amount", 0] } },
-                    extraCharges: { $sum: { $ifNull: ["$extraCharges.amount", 0] } },
-                    totalCollected: { $sum: "$paidAmount" },
-                    totalPending: { $sum: "$balanceAmount" }
+                    totalGross: { $sum: "$gross" },
+                    totalDiscount: { $sum: "$discount" },
+                    extraCharges: { $sum: "$extra" },
+                    totalCollected: { $sum: "$paid" },
+                    totalPending: { $sum: { $subtract: ["$gross", "$paid"] } }
                 }
             }
         ]);
@@ -278,16 +289,23 @@ export class FeeService {
 
     static async getFeesWithStudents(filters = {}) {
         await connectDB();
+        const {
+            page = 1,
+            limit = 50,
+            batch,
+            institute,
+            includeCancelled,
+            course,
+            session
+        } = filters;
 
-        // 1. Fetch fee documents with existing logic
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        // 1. Fetch fee documents
         const feeQuery = { deletedAt: null };
-        if (filters.batch) feeQuery.batch = filters.batch;
-        if (filters.institute) feeQuery.institute = filters.institute;
-
-        // Exclude cancelled fees unless explicitly requested
-        if (!filters.includeCancelled) {
-            feeQuery.status = { $ne: 'cancelled' };
-        }
+        if (batch) feeQuery.batch = batch;
+        if (institute) feeQuery.institute = institute;
+        if (!includeCancelled) feeQuery.status = { $ne: 'cancelled' };
 
         const fees = await FeeDb.find(feeQuery)
             .populate('student', 'profile.firstName profile.lastName enrollmentNumber')
@@ -307,7 +325,9 @@ export class FeeService {
         if (filters.institute) batchQuery.institute = filters.institute;
         if (filters.session) batchQuery.session = filters.session;
 
-        const batches = await Batch.find(batchQuery).select('enrolledStudents name');
+        const batches = await Batch.find(batchQuery)
+            .select('enrolledStudents name course')
+            .populate('course', 'fees.amount');
 
         // 4. Collect all active enrolled student IDs across matching batches
         const studentBatchMap = {}; // studentId -> { batchId, batchName }
@@ -317,7 +337,8 @@ export class FeeService {
                     const sid = enrollment.student.toString();
                     studentBatchMap[sid] = {
                         batchId: batch._id,
-                        batchName: batch.name
+                        batchName: batch.name,
+                        batchFee: batch.course?.fees?.amount || 0
                     };
                 }
             }
@@ -353,9 +374,9 @@ export class FeeService {
                         _id: info.batchId,
                         name: info.batchName
                     },
-                    totalAmount: 0,
+                    totalAmount: info.batchFee || 0,
                     paidAmount: 0,
-                    balanceAmount: 0,
+                    balanceAmount: info.batchFee || 0,
                     percentagePaid: 0,
                     hasFeeRecord: false,
                     installments: [],
@@ -365,7 +386,17 @@ export class FeeService {
         }
 
         // 8. Apply percentage filter
-        return applyPercentageFilter(results, filters.percentage);
+        const finalResults = applyPercentageFilter(results, filters.percentage);
+        
+        // 9. Manual Pagination for this combined result
+        const paginated = finalResults.slice(skip, skip + parseInt(limit));
+        
+        return { 
+            fees: paginated, 
+            total: finalResults.length, 
+            page: parseInt(page), 
+            totalPages: Math.ceil(finalResults.length / limit) 
+        };
     }
 
     static async recordPayment(feeId, installmentId, paymentDetails, actorId) {

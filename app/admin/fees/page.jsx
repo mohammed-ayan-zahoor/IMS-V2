@@ -143,9 +143,8 @@ export default function FeesPage() {
             url.searchParams.append('page', currentPage.toString());
             url.searchParams.append('limit', rowsPerPage.toString());
 
-            if (selectedCourse || selectedBatch || percentageFilter || showCancelledOnly) {
-                url.searchParams.append('includeAll', 'true');
-            }
+            // Show all students by default to allow ad-hoc payments
+            url.searchParams.append('includeAll', 'true');
             const res = await fetch(url);
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({}));
@@ -629,7 +628,7 @@ export default function FeesPage() {
                                                                 variant="outline"
                                                                 onClick={() => openPaymentModal(fee)}
                                                                 className="border-slate-200 hover:border-premium-blue hover:text-premium-blue"
-                                                                disabled={!fee.hasFeeRecord || fee.status === 'cancelled'}
+                                                                disabled={loading || fee.status === 'cancelled'}
                                                             >
                                                                 <DollarSign size={14} className="mr-1" /> Pay
                                                             </Button>
