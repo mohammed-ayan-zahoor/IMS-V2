@@ -460,21 +460,22 @@ export default function UserManagementPage() {
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-5">
-                                <MultiSelect 
-                                    label="Assigned Batches"
-                                    placeholder="Search and select batches..."
-                                    options={batchOptions}
-                                    value={formData.assignedBatches}
-                                    onChange={(vals) => setFormData({ ...formData, assignedBatches: vals })}
-                                />
+                                    <MultiSelect 
+                                        label="Assigned Batches"
+                                        placeholder="Search and select batches..."
+                                        options={batchOptions}
+                                        value={formData.assignedBatches}
+                                        onChange={(vals) => setFormData({ ...formData, assignedBatches: vals })}
+                                    />
 
-                                <MultiSelect 
-                                    label="Assigned Courses"
-                                    placeholder="Search and select courses..."
-                                    options={courseOptions}
-                                    value={formData.assignedCourses}
-                                    onChange={(vals) => setFormData({ ...formData, assignedCourses: vals })}
-                                />
+                                    <MultiSelect 
+                                        label="Assigned Courses"
+                                        placeholder="Search and select courses..."
+                                        options={courseOptions}
+                                        value={formData.assignedCourses}
+                                        onChange={(vals) => setFormData({ ...formData, assignedCourses: vals })}
+                                    />
+                                </div>
                             </div>
                             <p className="text-[10px] text-slate-400 font-bold italic mt-2 flex items-center gap-1.5 opacity-80">
                                 <Plus size={10} /> Instructors can only access data for these assigned entities.
