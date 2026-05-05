@@ -314,7 +314,8 @@ function TimetableTab({ batchId, subjects = [] }) {
     if (loading) return <LoadingSpinner />;
 
     return (
-        <div className="flex flex-col lg:flex-row gap-6 pb-10">
+        <div className="space-y-10 pb-20">
+            <div className="flex flex-col lg:flex-row gap-6">
             {/* Left Column: Editor */}
             <div className="flex-1 space-y-8">
                 {/* Step 1: Time Slots Definition */}
@@ -546,9 +547,7 @@ function TimetableTab({ batchId, subjects = [] }) {
                     </button>
                 </div>
             </div>
-        </div>
-    );
-}
+            </div>
 
             {/* Step 3: Live Preview */}
             <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
