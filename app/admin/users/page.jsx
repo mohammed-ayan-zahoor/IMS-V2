@@ -26,6 +26,8 @@ export default function UserManagementPage() {
     // Assignment Data
     const [availableBatches, setAvailableBatches] = useState([]);
     const [availableCourses, setAvailableCourses] = useState([]);
+    const [availableSessions, setAvailableSessions] = useState([]);
+    const [selectedAssignmentSession, setSelectedAssignmentSession] = useState("");
 
     // Password Change State
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -41,7 +43,8 @@ export default function UserManagementPage() {
         password: "",
         role: "student",
         assignedBatches: [], // Multi-select IDs
-        assignedCourses: []  // Multi-select IDs
+        assignedCourses: [], // Multi-select IDs
+        activeSession: ""
     });
 
     const isInitialFetch = useRef(true);
@@ -103,25 +106,31 @@ export default function UserManagementPage() {
         }
     };
 
-    // Fetch Batches & Courses for Assignment
+    // Fetch Batches, Courses & Sessions for Assignment
     const fetchAssignmentData = async () => {
         try {
-            const [batchRes, courseRes] = await Promise.all([
+            const [batchRes, courseRes, sessionRes] = await Promise.all([
                 fetch('/api/v1/batches'),
-                fetch('/api/v1/courses')
+                fetch('/api/v1/courses'),
+                fetch('/api/v1/sessions')
             ]);
 
             if (batchRes.ok) {
                 const bData = await batchRes.json();
                 setAvailableBatches(bData.batches || []);
-            } else {
-                toast.error("Failed to load batches");
             }
             if (courseRes.ok) {
                 const cData = await courseRes.json();
                 setAvailableCourses(cData.courses || []);
-            } else {
-                toast.error("Failed to load courses");
+            }
+            if (sessionRes.ok) {
+                const sData = await sessionRes.json();
+                const sessions = sData.sessions || [];
+                setAvailableSessions(sessions);
+                // Set default assignment session to the active one
+                const active = sessions.find(s => s.isActive);
+                if (active) setSelectedAssignmentSession(active._id);
+                else if (sessions.length > 0) setSelectedAssignmentSession(sessions[0]._id);
             }
         } catch (err) {
             console.error("Failed to load assignment data", err);
@@ -139,13 +148,18 @@ export default function UserManagementPage() {
 
     const batchOptions = useMemo(() => {
         const groups = {};
-        availableBatches.forEach(b => {
+        // Filter batches by the selected assignment session
+        const filteredBatches = availableBatches.filter(b => 
+            !selectedAssignmentSession || String(b.session?._id || b.session) === String(selectedAssignmentSession)
+        );
+
+        filteredBatches.forEach(b => {
             const courseName = b.course?.name || "Other Batches";
             if (!groups[courseName]) groups[courseName] = [];
             groups[courseName].push({ label: b.name, value: b._id });
         });
         return Object.entries(groups).map(([group, items]) => ({ group, items }));
-    }, [availableBatches]);
+    }, [availableBatches, selectedAssignmentSession]);
 
     const courseOptions = useMemo(() => 
         availableCourses.map(c => ({ label: c.name, value: c._id })),
@@ -167,7 +181,8 @@ export default function UserManagementPage() {
                     firstName: "", lastName: "", email: "", phone: "",
                     password: "", role: "student",
                     assignedBatches: [],
-                    assignedCourses: []
+                    assignedCourses: [],
+                    activeSession: ""
                 });
                 fetchUsers();
                 toast.success("User created successfully");
@@ -405,6 +420,22 @@ export default function UserManagementPage() {
                         />
                     </div>
 
+                    <div className="space-y-1">
+                        <Select
+                            label="Initial Active Session"
+                            value={formData.activeSession}
+                            onChange={val => setFormData({ ...formData, activeSession: val })}
+                            options={[
+                                { label: "No Session", value: "" },
+                                ...availableSessions.map(s => ({ 
+                                    label: `${s.name} ${s.isActive ? '(Active)' : ''}`, 
+                                    value: s._id 
+                                }))
+                            ]}
+                        />
+                        <p className="text-[10px] text-slate-400 font-medium px-1 italic">Determines the default academic year for this user.</p>
+                    </div>
+
                     {/* Instructor Assignments */}
                     {formData.role === 'instructor' && (
                         <div className="space-y-5 p-5 bg-slate-50/50 rounded-2xl border border-slate-100 shadow-inner ring-1 ring-slate-100/50">
@@ -415,7 +446,20 @@ export default function UserManagementPage() {
                             
                             <div className="h-px bg-slate-200/40 w-full mb-4" />
 
-                            <div className="grid grid-cols-1 gap-5">
+                            <div className="space-y-4">
+                                <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
+                                    <Select 
+                                        label="Filter Batches by Session"
+                                        value={selectedAssignmentSession}
+                                        onChange={setSelectedAssignmentSession}
+                                        options={availableSessions.map(s => ({ 
+                                            label: `${s.name} ${s.isActive ? '(Active)' : ''}`, 
+                                            value: s._id 
+                                        }))}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-5">
                                 <MultiSelect 
                                     label="Assigned Batches"
                                     placeholder="Search and select batches..."

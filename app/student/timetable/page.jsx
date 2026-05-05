@@ -231,6 +231,8 @@ export default function StudentTimetablePage() {
 }
 
 function ClassCard({ cls, isOngoing, viewMode }) {
+    const isBreak = cls.type === 'Break' || cls.isBreak;
+
     return (
         <motion.div
             whileHover={{ y: -5 }}
@@ -240,7 +242,8 @@ function ClassCard({ cls, isOngoing, viewMode }) {
             )}
         >
             <div className={cn(
-                "p-6 rounded-[2rem] border transition-all duration-500 bg-white",
+                "p-6 rounded-[2rem] border transition-all duration-500",
+                isBreak ? "bg-orange-50/30 border-orange-100/50" : "bg-white",
                 isOngoing 
                     ? "border-blue-200 shadow-2xl ring-4 ring-blue-50" 
                     : "border-slate-100 hover:border-slate-300 hover:shadow-xl"
@@ -266,7 +269,7 @@ function ClassCard({ cls, isOngoing, viewMode }) {
                         viewMode === "grid" ? "items-start" : "min-w-[120px] border-r border-slate-100"
                     )}>
                         <div className="flex items-center gap-2 text-slate-900 font-black text-lg">
-                            <Clock size={16} className="text-slate-400" />
+                            <Clock size={16} className={cn("text-slate-400", isBreak && "text-orange-400")} />
                             <span>{cls.startTime}</span>
                         </div>
                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-6">
@@ -278,34 +281,53 @@ function ClassCard({ cls, isOngoing, viewMode }) {
                     <div className="flex-1 space-y-4">
                         <div>
                             <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="primary" className="text-[9px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 border-blue-100">
+                                <Badge 
+                                    variant="primary" 
+                                    className={cn(
+                                        "text-[9px] font-black uppercase tracking-widest border",
+                                        isBreak 
+                                            ? "bg-orange-100 text-orange-600 border-orange-200" 
+                                            : "bg-blue-50 text-blue-600 border-blue-100"
+                                    )}
+                                >
                                     {cls.courseCode}
                                 </Badge>
                                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.1em]">{cls.type}</span>
                             </div>
-                            <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight group-hover:text-blue-600 transition-colors">
+                            <h3 className={cn(
+                                "text-xl font-black tracking-tight leading-tight transition-colors",
+                                isBreak ? "text-orange-900" : "text-slate-900 group-hover:text-blue-600"
+                            )}>
                                 {cls.courseName}
                             </h3>
-                            <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-tight">{cls.batchName}</p>
+                            {!isBreak && <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-tight">{cls.batchName}</p>}
                         </div>
 
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shadow-inner">
-                                    <User size={14} />
+                        {!isBreak && (
+                            <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shadow-inner">
+                                        <User size={14} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Instructor</p>
+                                        <p className="text-xs font-black text-slate-700 mt-1">{cls.instructor}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Instructor</p>
-                                    <p className="text-xs font-black text-slate-700 mt-1">{cls.instructor}</p>
+                                
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 hover:text-blue-500 transition-colors cursor-pointer">
+                                        <Bell size={14} />
+                                    </div>
                                 </div>
                             </div>
-                            
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 hover:text-blue-500 transition-colors cursor-pointer">
-                                    <Bell size={14} />
-                                </div>
+                        )}
+
+                        {isBreak && (
+                            <div className="pt-4 border-t border-orange-100/50 italic text-[10px] font-bold text-orange-400 uppercase tracking-widest">
+                                Rest & Refreshment Break
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>

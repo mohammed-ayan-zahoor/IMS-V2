@@ -154,7 +154,8 @@ export async function POST(req) {
                     phone: body.phone
                 },
                 institute: targetInstituteId,
-                isActive: true
+                isActive: true,
+                activeSession: body.activeSession || null
             };
 
             if (requestedRole === 'instructor') {

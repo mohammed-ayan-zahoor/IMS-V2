@@ -9,16 +9,23 @@ export async function GET(req) {
     try {
         const { searchParams } = new URL(req.url);
         const courseId = searchParams.get('courseId');
+        const sessionId = searchParams.get('sessionId');
         const targetInstParam = searchParams.get('instituteId');
         const enrolledStudents = searchParams.get('enrolledStudents');
 
         const filters = {};
         if (courseId) filters.course = courseId;
+        if (sessionId) filters.session = sessionId;
         if (enrolledStudents) filters.enrolledStudents = enrolledStudents;
 
         const scope = await getInstituteScope(req);
         if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
+        }
+
+        // Apply Instructor isolation
+        if (scope.user.role === 'instructor') {
+            filters.instructorRoleContext = scope.user.id;
         }
 
         // Global View Logic: 

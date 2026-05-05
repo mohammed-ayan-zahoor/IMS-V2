@@ -242,7 +242,7 @@ export class BatchService {
             course: batch.course,
             capacity: batch.capacity,
             schedule: batch.schedule,
-            instructor: null, // Reset instructor
+            instructor: batch.instructor, // PRESERVE instructor during clone
             enrolledStudents: [], // Start fresh
             createdBy: actorId
         }));
@@ -267,7 +267,7 @@ export class BatchService {
     static async getBatches(filters = {}, instituteId) {
         // if (!instituteId) throw new Error("Institute context missing"); // Allow global view
         await connectDB();
-        const allowedFilters = ['course', 'instructor', 'enrolledStudents'];
+        const allowedFilters = ['course', 'instructor', 'enrolledStudents', 'session'];
         const safeFilters = {};
         Object.keys(filters).forEach(key => {
             if (allowedFilters.includes(key)) safeFilters[key] = filters[key];
@@ -288,8 +288,18 @@ export class BatchService {
             }
         });
 
+        // 3. RBAC: Restricted view for instructors
+        // If an instructor is querying, only show batches where they are assigned
+        if (filters.instructorRoleContext) {
+            const instructorId = filters.instructorRoleContext;
+            query.$or = [
+                { instructor: instructorId },
+                { 'assignments.batches': instructorId } // Fallback for secondary assignments
+            ];
+        }
+
         const batches = await Batch.find(query)
-            .populate('course')
+            .populate({ path: 'course', populate: { path: 'subjects' } })
             .populate('enrolledStudents.student', 'profile.firstName profile.lastName enrollmentNumber')
             .populate('instructor', 'profile.firstName profile.lastName')
             .sort({ 'schedule.startDate': -1 });
@@ -303,7 +313,7 @@ export class BatchService {
         const query = { _id: id, deletedAt: null };
         if (instituteId) query.institute = instituteId;
         const batch = await Batch.findOne(query)
-            .populate('course')
+            .populate({ path: 'course', populate: { path: 'subjects' } })
             .populate('enrolledStudents.student', 'profile.firstName profile.lastName enrollmentNumber');
 
         if (!batch) return null;

@@ -69,7 +69,7 @@ export default function BatchesPage() {
         if (session?.user?.role === 'super_admin') {
             fetchInstitutes();
         }
-    }, [session, selectedInstitute]);
+    }, [session, selectedInstitute, selectedSessionId]);
 
     const fetchInstitutes = async () => {
         try {
@@ -86,10 +86,11 @@ export default function BatchesPage() {
     const fetchInitialData = async () => {
         try {
             setLoading(true);
-            const instQuery = selectedInstitute ? `?instituteId=${selectedInstitute}` : "";
+            const instQuery = selectedInstitute ? `&instituteId=${selectedInstitute}` : "";
+            const sessQuery = selectedSessionId ? `&sessionId=${selectedSessionId}` : "";
             const [bRes, cRes] = await Promise.all([
-                fetch(`/api/v1/batches${instQuery}`),
-                fetch(`/api/v1/courses${instQuery}`)
+                fetch(`/api/v1/batches?_t=${Date.now()}${instQuery}${sessQuery}`),
+                fetch(`/api/v1/courses?_t=${Date.now()}${instQuery}${sessQuery}`)
             ]);
             const [bData, cData] = await Promise.all([bRes.json(), cRes.json()]);
             // Ensure strictly array

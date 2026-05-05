@@ -6,7 +6,8 @@ import { useSession } from "next-auth/react";
 import {
     ArrowLeft, Users, Calendar, Clock, BookOpen, CheckSquare, Square,
     ChevronDown, ChevronRight, History, AlertCircle, BarChart3,
-    User, MessageSquare, CheckCircle2, Circle, FileText, Download
+    User, MessageSquare, CheckCircle2, Circle, FileText, Download,
+    Trash2, Plus, Save, AlertTriangle, Edit2
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -37,6 +38,7 @@ function ProgressRing({ percent, size = 56 }) {
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 const TABS = [
     { id: "overview", label: "Overview", icon: Users },
+    { id: "timetable", label: "Timetable", icon: Clock },
     { id: "progress", label: "Syllabus Progress", icon: BarChart3 },
     { id: "timeline", label: "Teaching Timeline", icon: History },
     { id: "marksheets", label: "Exams & Marksheets", icon: FileText }
@@ -185,6 +187,452 @@ function MarksheetsTab({ batchId }) {
                     </div>
                 );
             })}
+        </div>
+    );
+}
+
+// ─── Timetable Tab Component ──────────────────────────────────────────────────
+function TimetableTab({ batchId, subjects = [] }) {
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
+    const [draggedSubject, setDraggedSubject] = useState(null);
+    const [timeSlots, setTimeSlots] = useState([]);
+    const [schedule, setSchedule] = useState([]); // Array of { dayOfWeek, assignments: [] }
+    const [instructors, setInstructors] = useState([]);
+    const toast = useToast();
+
+    const DAYS = [
+        { id: 1, name: "Monday" },
+        { id: 2, name: "Tuesday" },
+        { id: 3, name: "Wednesday" },
+        { id: 4, name: "Thursday" },
+        { id: 5, name: "Friday" },
+        { id: 6, name: "Saturday" },
+        { id: 0, name: "Sunday" }
+    ];
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Fetch instructors
+                const instRes = await fetch("/api/v1/users?role=instructor");
+                if (instRes.ok) {
+                    const instData = await instRes.json();
+                    setInstructors(instData.users || []);
+                }
+
+                // Fetch existing timetable
+                const ttRes = await fetch(`/api/v1/batches/${batchId}/timetable`);
+                if (ttRes.ok) {
+                    const ttData = await ttRes.json();
+                    if (ttData.timetable) {
+                        setTimeSlots(ttData.timetable.timeSlots || []);
+                        setSchedule(ttData.timetable.schedule || []);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to load timetable data", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, [batchId]);
+
+    const addTimeSlot = () => {
+        const newSlot = {
+            _id: Math.random().toString(36).substr(2, 9), // Temporary ID for new slots
+            name: `Period ${timeSlots.length + 1}`,
+            startTime: "09:00",
+            endTime: "09:45",
+            isBreak: false
+        };
+        setTimeSlots([...timeSlots, newSlot]);
+    };
+
+    const updateTimeSlot = (id, updates) => {
+        setTimeSlots(timeSlots.map(slot => slot._id === id ? { ...slot, ...updates } : slot));
+    };
+
+    const removeTimeSlot = (id) => {
+        setTimeSlots(timeSlots.filter(slot => slot._id !== id));
+        // Also clean up schedule assignments for this slot
+        setSchedule(schedule.map(day => ({
+            ...day,
+            assignments: day.assignments.filter(a => a.timeSlotId !== id)
+        })));
+    };
+
+    const updateAssignment = (dayId, slotId, field, value) => {
+        setSchedule(prev => {
+            const dayIdx = prev.findIndex(d => d.dayOfWeek === dayId);
+            const newSchedule = [...prev];
+
+            if (dayIdx === -1) {
+                newSchedule.push({
+                    dayOfWeek: dayId,
+                    assignments: [{ timeSlotId: slotId, [field]: value }]
+                });
+            } else {
+                const assignments = [...newSchedule[dayIdx].assignments];
+                const assignIdx = assignments.findIndex(a => a.timeSlotId === slotId);
+
+                if (assignIdx === -1) {
+                    assignments.push({ timeSlotId: slotId, [field]: value });
+                } else {
+                    assignments[assignIdx] = { ...assignments[assignIdx], [field]: value };
+                }
+                newSchedule[dayIdx] = { ...newSchedule[dayIdx], assignments };
+            }
+            return newSchedule;
+        });
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const res = await fetch(`/api/v1/batches/${batchId}/timetable`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ timeSlots, schedule })
+            });
+
+            if (res.ok) {
+                toast.success("Timetable saved successfully");
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Failed to save timetable");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) return <LoadingSpinner />;
+
+    return (
+        <div className="flex flex-col lg:flex-row gap-6 pb-10">
+            {/* Left Column: Editor */}
+            <div className="flex-1 space-y-8">
+                {/* Step 1: Time Slots Definition */}
+                <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900">1. Define Periods & Breaks</h3>
+                            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Setup the daily structure</p>
+                        </div>
+                        <button 
+                            onClick={addTimeSlot}
+                            className="flex items-center gap-2 bg-premium-blue text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-600 transition-all shadow-sm"
+                        >
+                            <Plus size={14} /> Add Slot
+                        </button>
+                    </div>
+                    
+                    <div className="p-6">
+                        {timeSlots.length === 0 ? (
+                            <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-2xl">
+                                <Clock size={32} className="mx-auto text-slate-200 mb-2" />
+                                <p className="text-xs text-slate-400 font-medium">No time slots defined yet.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {timeSlots.map((slot) => (
+                                    <div key={slot._id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 hover:border-slate-200 transition-all group">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <input 
+                                                value={slot.name}
+                                                onChange={(e) => updateTimeSlot(slot._id, { name: e.target.value })}
+                                                className="bg-transparent font-bold text-slate-800 focus:outline-none w-full mr-2"
+                                                placeholder="Slot Name"
+                                            />
+                                            <button 
+                                                onClick={() => removeTimeSlot(slot._id)}
+                                                className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Start</p>
+                                                <input 
+                                                    type="time" 
+                                                    value={slot.startTime}
+                                                    onChange={(e) => updateTimeSlot(slot._id, { startTime: e.target.value })}
+                                                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold outline-none"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">End</p>
+                                                <input 
+                                                    type="time" 
+                                                    value={slot.endTime}
+                                                    onChange={(e) => updateTimeSlot(slot._id, { endTime: e.target.value })}
+                                                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 flex items-center gap-2">
+                                            <button 
+                                                onClick={() => updateTimeSlot(slot._id, { isBreak: !slot.isBreak })}
+                                                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter transition-all ${
+                                                    slot.isBreak ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
+                                                }`}
+                                            >
+                                                {slot.isBreak ? 'Break' : 'Academic'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Step 2: Subject Assignments Grid */}
+                <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30">
+                        <h3 className="text-sm font-bold text-slate-900">2. Weekly Assignments</h3>
+                        <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Drag subjects from palette or select below</p>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50/50">
+                                    <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 sticky left-0 bg-white z-10 min-w-[150px]">Time Slot</th>
+                                    {DAYS.map(day => (
+                                        <th key={day.id} className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 min-w-[180px]">
+                                            {day.name}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {timeSlots.map(slot => (
+                                    <tr key={slot._id} className="hover:bg-slate-50/30 transition-colors">
+                                        <td className="px-6 py-4 border-r border-slate-50 sticky left-0 bg-white z-10">
+                                            <div className="font-bold text-slate-800 text-xs">{slot.name}</div>
+                                            <div className="text-[9px] text-slate-400 font-mono mt-1">{slot.startTime}-{slot.endTime}</div>
+                                        </td>
+                                        {DAYS.map(day => {
+                                            if (slot.isBreak) return (
+                                                <td key={day.id} className="px-6 py-4 bg-orange-50/20">
+                                                    <div className="text-[10px] font-black text-orange-200 uppercase tracking-widest text-center italic">Break</div>
+                                                </td>
+                                            );
+
+                                            const dayData = schedule.find(d => d.dayOfWeek === day.id);
+                                            const assignment = dayData?.assignments.find(a => a.timeSlotId === slot._id) || {};
+                                            const assignedSub = subjects.find(s => String(s._id) === String(assignment.subject?._id || assignment.subject));
+
+                                            return (
+                                                <td 
+                                                    key={day.id} 
+                                                    className={`px-4 py-4 space-y-3 transition-all ${draggedSubject ? 'bg-blue-50/30 ring-1 ring-blue-100/50 rounded-lg' : ''}`}
+                                                    onDragOver={(e) => e.preventDefault()}
+                                                    onDrop={(e) => {
+                                                        e.preventDefault();
+                                                        if (draggedSubject) updateAssignment(day.id, slot._id, 'subject', draggedSubject._id);
+                                                    }}
+                                                >
+                                                    <div className="relative group/cell">
+                                                        <select 
+                                                            value={assignment.subject?._id || assignment.subject || ""}
+                                                            onChange={(e) => updateAssignment(day.id, slot._id, 'subject', e.target.value)}
+                                                            className={`w-full bg-white border rounded-lg px-2 py-1.5 text-[11px] font-bold outline-none transition-all ${assignedSub ? 'border-premium-blue text-slate-800 shadow-sm' : 'border-slate-100 text-slate-400'}`}
+                                                        >
+                                                            <option value="">No Subject</option>
+                                                            {subjects.map(sub => (
+                                                                <option key={sub._id} value={sub._id}>{sub.name}</option>
+                                                            ))}
+                                                        </select>
+                                                        {assignedSub && (
+                                                            <p className="text-[8px] font-black text-premium-blue mt-1 uppercase tracking-widest pl-1">{assignedSub.code}</p>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    <select 
+                                                        value={assignment.instructor?._id || assignment.instructor || ""}
+                                                        onChange={(e) => updateAssignment(day.id, slot._id, 'instructor', e.target.value)}
+                                                        className="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[10px] font-medium text-slate-500 outline-none"
+                                                    >
+                                                        <option value="">Teacher</option>
+                                                        {instructors.map(inst => (
+                                                            <option key={inst._id} value={inst._id}>{inst.profile?.firstName} {inst.profile?.lastName}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {timeSlots.length > 0 && (
+                        <div className="p-6 bg-slate-50/30 border-t border-slate-50 flex justify-end">
+                            <button 
+                                disabled={saving}
+                                onClick={handleSave}
+                                className="flex items-center gap-2 bg-slate-900 text-white px-8 py-3 rounded-2xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg disabled:opacity-50"
+                            >
+                                {saving ? <LoadingSpinner size={16} /> : <Save size={16} />}
+                                Save Timetable
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Right Column: Subject Palette Sidebar */}
+            <div className="w-full lg:w-72 shrink-0">
+                <div className="sticky top-6 space-y-6">
+                    <div className="bg-slate-900 rounded-3xl p-6 shadow-xl shadow-slate-200">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 rounded-2xl bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                                <BookOpen size={20} />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-bold text-white">Subject Palette</h4>
+                                <p className="text-[10px] font-black uppercase text-blue-400 tracking-widest">Drag & Drop</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            {subjects.length === 0 && <p className="text-[10px] text-slate-500 font-bold italic">No subjects in course syllabus.</p>}
+                            {subjects.map(sub => (
+                                <div 
+                                    key={sub._id}
+                                    draggable
+                                    onDragStart={() => setDraggedSubject(sub)}
+                                    onDragEnd={() => setDraggedSubject(null)}
+                                    className="p-3 bg-white/5 border border-white/10 rounded-2xl cursor-grab hover:bg-white/10 active:cursor-grabbing transition-all group"
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <Badge className="text-[8px] bg-blue-500/20 text-blue-400 border-none px-1.5">{sub.code}</Badge>
+                                        <Edit2 size={10} className="text-white/20 group-hover:text-white/40" />
+                                    </div>
+                                    <p className="text-xs font-bold text-slate-200 truncate">{sub.name}</p>
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <div className="mt-8 pt-6 border-t border-white/10">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-relaxed">
+                                <AlertTriangle size={10} className="inline mr-1 text-orange-400 mb-0.5" />
+                                Drag a subject from here and drop it into any slot in the grid to quickly assign it!
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {/* Live Preview Toggle Button (Mobile/Compact) */}
+                    <button 
+                        onClick={() => setShowPreview(!showPreview)}
+                        className="w-full bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between hover:bg-slate-50 transition-all shadow-sm"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
+                                <Clock size={16} />
+                            </div>
+                            <span className="text-xs font-bold text-slate-800">Toggle Student Preview</span>
+                        </div>
+                        <ChevronRight size={16} className={`text-slate-300 transition-transform ${showPreview ? 'rotate-90' : ''}`} />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+            {/* Step 3: Live Preview */}
+            <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-900">3. Student's View (Live Preview)</h3>
+                        <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">See exactly what students will see</p>
+                    </div>
+                    <button 
+                        onClick={() => setShowPreview(!showPreview)}
+                        className="text-xs font-bold text-premium-blue hover:underline"
+                    >
+                        {showPreview ? "Hide Preview" : "Show Preview"}
+                    </button>
+                </div>
+
+                {showPreview && (
+                    <div className="p-6 bg-slate-50/50">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {DAYS.map(day => {
+                                const daySchedule = schedule.find(d => d.dayOfWeek === day.id);
+                                if (!daySchedule || daySchedule.assignments.length === 0) return null;
+
+                                return (
+                                    <div key={day.id} className="space-y-4">
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-200 pb-2">{day.name}</h4>
+                                        <div className="space-y-3">
+                                            {timeSlots.map(slot => {
+                                                const assign = daySchedule.assignments.find(a => a.timeSlotId === slot._id);
+                                                if (!assign && !slot.isBreak) return null;
+
+                                                const subject = subjects.find(s => String(s._id) === String(assign?.subject));
+                                                const instructor = instructors.find(i => String(i._id) === String(assign?.instructor));
+
+                                                return (
+                                                    <div 
+                                                        key={slot._id} 
+                                                        className={`p-4 rounded-2xl border transition-all ${
+                                                            slot.isBreak 
+                                                                ? "bg-orange-50 border-orange-100/50" 
+                                                                : "bg-white border-slate-100 shadow-sm"
+                                                        }`}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div className="flex items-center gap-1.5 text-slate-900 font-black text-xs">
+                                                                <Clock size={12} className={slot.isBreak ? "text-orange-400" : "text-slate-400"} />
+                                                                <span>{slot.startTime} - {slot.endTime}</span>
+                                                            </div>
+                                                            {slot.isBreak ? (
+                                                                <Badge variant="secondary" className="text-[8px] bg-orange-100 text-orange-600 border-none uppercase">Break</Badge>
+                                                            ) : (
+                                                                <Badge variant="primary" className="text-[8px] uppercase">{subject?.code || "???"}</Badge>
+                                                            )}
+                                                        </div>
+                                                        <h5 className={`text-sm font-black ${slot.isBreak ? "text-orange-800" : "text-slate-800"}`}>
+                                                            {slot.isBreak ? slot.name : (subject?.name || "No Subject Assigned")}
+                                                        </h5>
+                                                        {!slot.isBreak && (
+                                                            <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-2">
+                                                                <div className="w-5 h-5 rounded-lg bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-400">
+                                                                    {instructor?.profile?.firstName?.[0] || "?"}
+                                                                </div>
+                                                                <p className="text-[10px] font-bold text-slate-500">
+                                                                    {instructor ? `${instructor.profile.firstName} ${instructor.profile.lastName}` : "No Teacher"}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {(!schedule || schedule.every(d => d.assignments.length === 0)) && (
+                                <div className="col-span-full text-center py-10">
+                                    <AlertTriangle size={24} className="mx-auto text-slate-300 mb-2" />
+                                    <p className="text-xs text-slate-400 font-medium">Assign some subjects in Step 2 to see the preview here.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -660,6 +1108,11 @@ export default function BatchDetailPage() {
             {/* ── TAB: Marksheets  ────────────────────────────────────────────── */}
             {activeTab === "marksheets" && (
                 <MarksheetsTab batchId={batchId} />
+            )}
+
+            {/* ── TAB: Timetable ─────────────────────────────────────────────── */}
+            {activeTab === "timetable" && (
+                <TimetableTab batchId={batchId} subjects={batch?.course?.subjects || []} />
             )}
         </div>
     );
