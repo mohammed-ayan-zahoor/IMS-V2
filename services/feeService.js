@@ -254,15 +254,30 @@ export class FeeService {
             { $match: query },
             {
                 $project: {
-                    gross: { 
-                        $add: [
-                            "$totalAmount", 
-                            { $ifNull: ["$extraCharges.amount", 0] },
-                            { $multiply: [{ $ifNull: ["$discount.amount", 0] }, -1] }
+                    // Force all values to numbers and handle potential missing fields
+                    totalAmount: { $ifNull: ["$totalAmount", 0] },
+                    discountAmount: { 
+                        $cond: [
+                            { $isNumber: "$discount" }, 
+                            "$discount", 
+                            { $ifNull: ["$discount.amount", 0] }
                         ] 
                     },
-                    discount: { $ifNull: ["$discount.amount", 0] },
-                    extra: { $ifNull: ["$extraCharges.amount", 0] },
+                    extraAmount: { 
+                        $cond: [
+                            { $isNumber: "$extraCharges" }, 
+                            "$extraCharges", 
+                            { $ifNull: ["$extraCharges.amount", 0] }
+                        ] 
+                    },
+                    paidAmount: { $ifNull: ["$paidAmount", 0] }
+                }
+            },
+            {
+                $project: {
+                    gross: { $add: [{ $subtract: ["$totalAmount", "$discountAmount"] }, "$extraAmount"] },
+                    discount: "$discountAmount",
+                    extra: "$extraAmount",
                     paid: "$paidAmount"
                 }
             },
