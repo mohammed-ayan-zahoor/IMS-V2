@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useSession } from "next-auth/react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -15,6 +16,8 @@ import MultiSelect from "@/components/ui/MultiSelect";
 
 // Verified: Usage of Select component is compatible with onChange(value) signature.
 export default function UserManagementPage() {
+    const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const toast = useToast();
     const confirm = useConfirm();
     const [users, setUsers] = useState([]);
@@ -105,6 +108,28 @@ export default function UserManagementPage() {
             setLoading(false);
         }
     };
+    
+    // Auto-clean assigned sections when assigned classes change
+    useEffect(() => {
+        if (formData.role === 'instructor' && availableBatches.length > 0) {
+            setFormData(prev => {
+                // If no classes selected, we don't automatically clear everything
+                // but if classes ARE selected, we ensure batches belong to them
+                if (prev.assignedCourses.length === 0) return prev;
+
+                const validBatchIdsForSelectedCourses = availableBatches
+                    .filter(b => prev.assignedCourses.includes(String(b.course?._id || b.course)))
+                    .map(b => String(b._id));
+                
+                const cleanedBatches = prev.assignedBatches.filter(id => validBatchIdsForSelectedCourses.includes(String(id)));
+                
+                if (cleanedBatches.length !== prev.assignedBatches.length) {
+                    return { ...prev, assignedBatches: cleanedBatches };
+                }
+                return prev;
+            });
+        }
+    }, [formData.assignedCourses, availableBatches, formData.role]);
 
     // Fetch Batches, Courses & Sessions for Assignment
     const fetchAssignmentData = async () => {
@@ -148,10 +173,12 @@ export default function UserManagementPage() {
 
     const batchOptions = useMemo(() => {
         const groups = {};
-        // Filter batches by the selected assignment session
-        const filteredBatches = availableBatches.filter(b => 
-            !selectedAssignmentSession || String(b.session?._id || b.session) === String(selectedAssignmentSession)
-        );
+        // Filter batches by the selected assignment session AND assigned courses
+        const filteredBatches = availableBatches.filter(b => {
+            const matchesSession = !selectedAssignmentSession || String(b.session?._id || b.session) === String(selectedAssignmentSession);
+            const matchesCourse = formData.assignedCourses.length === 0 || formData.assignedCourses.includes(String(b.course?._id || b.course));
+            return matchesSession && matchesCourse;
+        });
 
         filteredBatches.forEach(b => {
             const courseName = b.course?.name || "Other Batches";
@@ -159,7 +186,7 @@ export default function UserManagementPage() {
             groups[courseName].push({ label: b.name, value: b._id });
         });
         return Object.entries(groups).map(([group, items]) => ({ group, items }));
-    }, [availableBatches, selectedAssignmentSession]);
+    }, [availableBatches, selectedAssignmentSession, formData.assignedCourses]);
 
     const courseOptions = useMemo(() => 
         availableCourses.map(c => ({ label: c.name, value: c._id })),
@@ -428,7 +455,7 @@ export default function UserManagementPage() {
                             options={[
                                 { label: "No Session", value: "" },
                                 ...availableSessions.map(s => ({ 
-                                    label: `${s.name} ${s.isActive ? '(Active)' : ''}`, 
+                                    label: `${s.sessionName} ${s.isActive ? '(Active)' : ''}`, 
                                     value: s._id 
                                 }))
                             ]}
@@ -449,11 +476,11 @@ export default function UserManagementPage() {
                             <div className="space-y-4">
                                 <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
                                     <Select 
-                                        label="Filter Batches by Session"
+                                        label={isSchool ? "Filter Sections by Session" : "Filter Batches by Session"}
                                         value={selectedAssignmentSession}
                                         onChange={setSelectedAssignmentSession}
                                         options={availableSessions.map(s => ({ 
-                                            label: `${s.name} ${s.isActive ? '(Active)' : ''}`, 
+                                            label: `${s.sessionName} ${s.isActive ? '(Active)' : ''}`, 
                                             value: s._id 
                                         }))}
                                     />
@@ -461,24 +488,24 @@ export default function UserManagementPage() {
 
                                 <div className="grid grid-cols-1 gap-5">
                                     <MultiSelect 
-                                        label="Assigned Batches"
-                                        placeholder="Search and select batches..."
-                                        options={batchOptions}
-                                        value={formData.assignedBatches}
-                                        onChange={(vals) => setFormData({ ...formData, assignedBatches: vals })}
-                                    />
-
-                                    <MultiSelect 
-                                        label="Assigned Courses"
-                                        placeholder="Search and select courses..."
+                                        label={isSchool ? "Assigned Classes" : "Assigned Courses"}
+                                        placeholder={isSchool ? "Search and select classes..." : "Search and select courses..."}
                                         options={courseOptions}
                                         value={formData.assignedCourses}
                                         onChange={(vals) => setFormData({ ...formData, assignedCourses: vals })}
                                     />
+
+                                    <MultiSelect 
+                                        label={isSchool ? "Assigned Sections" : "Assigned Batches"}
+                                        placeholder={isSchool ? "Search and select sections..." : "Search and select batches..."}
+                                        options={batchOptions}
+                                        value={formData.assignedBatches}
+                                        onChange={(vals) => setFormData({ ...formData, assignedBatches: vals })}
+                                    />
                                 </div>
                             </div>
                             <p className="text-[10px] text-slate-400 font-bold italic mt-2 flex items-center gap-1.5 opacity-80">
-                                <Plus size={10} /> Instructors can only access data for these assigned entities.
+                                <Plus size={10} /> {isSchool ? "Instructors" : "Instructors"} can only access data for these assigned entities.
                             </p>
                         </div>
                     )}

@@ -11,7 +11,7 @@ export async function GET(req) {
         const isSuperAdmin = session?.user?.role === 'super_admin';
         const instituteId = session?.user?.institute?.id;
 
-        if (!session || (!instituteId && !isSuperAdmin) || !['admin', 'super_admin'].includes(session.user.role)) {
+        if (!session || (!instituteId && !isSuperAdmin) || !['admin', 'super_admin', 'instructor'].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

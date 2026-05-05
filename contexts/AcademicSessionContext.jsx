@@ -23,17 +23,21 @@ export function AcademicSessionProvider({ children }) {
                 setSessions(allSessions);
                 
                 // Priority for selection:
-                // 1. Saved in localStorage
-                // 2. Active session from DB
-                // 3. First session found
+                // 1. Saved in localStorage (Manual preference)
+                // 2. User's assigned activeSession (Profile preference)
+                // 3. Global active session from DB (Institute default)
+                // 4. First session found
                 const saved = localStorage.getItem('selectedSession');
-                const active = allSessions.find(s => s.isActive);
+                const userActive = session?.user?.activeSession;
+                const globalActive = allSessions.find(s => s.isActive);
                 
                 if (saved && allSessions.some(s => s._id === saved)) {
                     setSelectedSessionId(saved);
-                } else if (active) {
-                    setSelectedSessionId(active._id);
-                    localStorage.setItem('selectedSession', active._id);
+                } else if (userActive && allSessions.some(s => String(s._id) === String(userActive))) {
+                    setSelectedSessionId(userActive);
+                } else if (globalActive) {
+                    setSelectedSessionId(globalActive._id);
+                    localStorage.setItem('selectedSession', globalActive._id);
                 } else if (allSessions.length > 0) {
                     setSelectedSessionId(allSessions[0]._id);
                 }

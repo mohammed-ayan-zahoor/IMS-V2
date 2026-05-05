@@ -21,7 +21,7 @@ export async function GET(req, { params }) {
         }
 
         // Only Admin, Staff, or Super Admin can view follow-ups
-        if (!['admin', 'staff', 'super_admin'].includes(session.user.role)) {
+        if (!['admin', 'staff', 'super_admin', 'instructor'].includes(session.user.role)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -64,7 +64,7 @@ export async function POST(req, { params }) {
             return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
         }
 
-        if (!['admin', 'staff', 'super_admin'].includes(session.user.role)) {
+        if (!['admin', 'staff', 'super_admin', 'instructor'].includes(session.user.role)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
