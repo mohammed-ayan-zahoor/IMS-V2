@@ -233,6 +233,20 @@ export class FeeService {
         // unless includeAll is true. However, to help the user, I'll make getFeesWithStudents the default 
         // if institute is present.
         
+        // Natural Sort for Sections (1A, 1B, 2A, 10A...)
+        fees.sort((a, b) => {
+            const batchA = a.batch?.name || "";
+            const batchB = b.batch?.name || "";
+            const nameCompare = batchA.localeCompare(batchB, undefined, { numeric: true, sensitivity: 'base' });
+            
+            if (nameCompare !== 0) return nameCompare;
+            
+            // If same batch, sort by student name
+            const studentA = a.student?.profile?.firstName || "";
+            const studentB = b.student?.profile?.firstName || "";
+            return studentA.localeCompare(studentB);
+        });
+
         return { fees, total, page: parseInt(page), totalPages: Math.ceil(total / limit) };
     }
 
@@ -402,7 +416,21 @@ export class FeeService {
         // 8. Apply percentage filter
         const finalResults = applyPercentageFilter(results, filters.percentage);
         
-        // 9. Manual Pagination for this combined result
+        // 9. Natural Sort for Sections (1A, 1B, 2A, 10A...)
+        finalResults.sort((a, b) => {
+            const batchA = a.batch?.name || "";
+            const batchB = b.batch?.name || "";
+            const nameCompare = batchA.localeCompare(batchB, undefined, { numeric: true, sensitivity: 'base' });
+            
+            if (nameCompare !== 0) return nameCompare;
+            
+            // If same batch, sort by student name
+            const studentA = a.student?.profile?.firstName || "";
+            const studentB = b.student?.profile?.firstName || "";
+            return studentA.localeCompare(studentB);
+        });
+
+        // 10. Manual Pagination for this combined result
         const paginated = finalResults.slice(skip, skip + parseInt(limit));
         
         return { 

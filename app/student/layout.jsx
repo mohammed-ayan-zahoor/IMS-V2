@@ -246,14 +246,15 @@ export default function StudentLayout({ children }) {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsMoreMenuOpen(false)}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] md:hidden"
+                            onClick={() => setIsMoreMenuOpen(false)}
+                            className="fixed inset-0 bg-black/60 z-[60] md:hidden"
                         />
                         <motion.div
                             initial={{ y: "100%" }}
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
-                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-200 to-slate-100 rounded-t-[2rem] z-[70] p-8 md:hidden shadow-2xl safe-pb"
+                            transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+                            className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-200 to-slate-100 rounded-t-[2.5rem] z-[70] p-8 md:hidden shadow-2xl safe-pb will-change-transform touch-none"
                         >
                             <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-8" />
                             <h3 className="text-xl font-black text-slate-900 mb-6 px-2 italic tracking-tighter">Campus Resource Menu</h3>

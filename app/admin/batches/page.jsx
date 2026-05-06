@@ -94,7 +94,13 @@ export default function BatchesPage() {
             ]);
             const [bData, cData] = await Promise.all([bRes.json(), cRes.json()]);
             // Ensure strictly array
-            const batchList = Array.isArray(bData) ? bData : (Array.isArray(bData?.batches) ? bData.batches : []);
+            let batchList = Array.isArray(bData) ? bData : (Array.isArray(bData?.batches) ? bData.batches : []);
+            
+            // Natural Sort for Sections (1A, 1B, 2A, 10A...)
+            batchList.sort((a, b) => {
+                return (a.name || "").localeCompare((b.name || ""), undefined, { numeric: true, sensitivity: 'base' });
+            });
+
             setBatches(batchList);
             const courseList = Array.isArray(cData) ? cData : (Array.isArray(cData?.courses) ? cData.courses : []);
             setCourses(courseList);
@@ -376,7 +382,7 @@ export default function BatchesPage() {
                                                     {session?.user?.role !== 'instructor' && (
                                                         <>
                                                             <button
-                                                                onClick={(e) => { e.stopPropagation(); openEditModal(batch); }}
+                                                                onClick={(e) => { e.stopPropagation(); handleEditBatch(batch); }}
                                                                 className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
                                                                 title={`Edit ${isSchool ? "Section" : "Batch"}`}
                                                             >
