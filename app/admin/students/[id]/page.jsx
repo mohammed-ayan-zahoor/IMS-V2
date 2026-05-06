@@ -104,8 +104,10 @@ export default function StudentDetailsPage({ params }) {
 
         // Parent fields
         fatherName: "",
+        fatherPhone: "",
         fatherAadhar: "",
         motherName: "",
+        motherPhone: "",
         motherAadhar: "",
 
         // Profile fields
@@ -371,8 +373,10 @@ export default function StudentDetailsPage({ params }) {
                     apaarId: data.student.apaarId || "",
                     penNumber: data.student.penNumber || "",
                     fatherName: data.student.fatherName || "",
+                    fatherPhone: data.student.fatherPhone || "",
                     fatherAadhar: data.student.fatherAadhar || "",
                     motherName: data.student.motherName || "",
+                    motherPhone: data.student.motherPhone || "",
                     motherAadhar: data.student.motherAadhar || "",
                     nationality: data.student.nationality || "Indian",
                     motherTongue: data.student.motherTongue || "",
@@ -1065,8 +1069,10 @@ export default function StudentDetailsPage({ params }) {
                                         </div>
                                         <div className="p-5 space-y-1">
                                             <InfoRow icon={User} label="Father's Name" value={student.fatherName} />
+                                            <InfoRow icon={Phone} label="Father's Phone" value={student.fatherPhone} />
                                             <InfoRow icon={CreditCard} label="Father's Aadhar" value={student.fatherAadhar} />
                                             <InfoRow icon={User} label="Mother's Name" value={student.motherName} />
+                                            <InfoRow icon={Phone} label="Mother's Phone" value={student.motherPhone} />
                                             <InfoRow icon={CreditCard} label="Mother's Aadhar" value={student.motherAadhar} />
                                             <InfoRow icon={UserPlus} label="Relation (Primary)" value={student.guardianDetails?.relation} />
                                             <InfoRow icon={Phone} label="Guardian Contact" value={student.guardianDetails?.phone} />
@@ -2185,11 +2191,13 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                             <div className="space-y-4 p-5 bg-blue-50/50 rounded-2xl border border-blue-100/50">
                                 <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2"><User size={12}/> Father's Details</h4>
                                 <Input label="Father's Full Name" value={formData.fatherName} onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })} />
+                                <Input label="Father's Phone" value={formData.fatherPhone} onChange={(e) => setFormData({ ...formData, fatherPhone: e.target.value })} />
                                 <Input label="Father's Aadhar" value={formData.fatherAadhar} onChange={(e) => setFormData({ ...formData, fatherAadhar: e.target.value })} />
                             </div>
                             <div className="space-y-4 p-5 bg-pink-50/50 rounded-2xl border border-pink-100/50">
                                 <h4 className="text-[10px] font-black text-pink-400 uppercase tracking-widest flex items-center gap-2"><User size={12}/> Mother's Details</h4>
                                 <Input label="Mother's Full Name" value={formData.motherName} onChange={(e) => setFormData({ ...formData, motherName: e.target.value })} />
+                                <Input label="Mother's Phone" value={formData.motherPhone} onChange={(e) => setFormData({ ...formData, motherPhone: e.target.value })} />
                                 <Input label="Mother's Aadhar" value={formData.motherAadhar} onChange={(e) => setFormData({ ...formData, motherAadhar: e.target.value })} />
                             </div>
                         </div>

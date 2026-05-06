@@ -186,7 +186,7 @@ export default function CoursesPage() {
     const filteredCourses = courses.filter(course =>
         course.name?.toLowerCase().includes(search.toLowerCase()) ||
         course.code?.toLowerCase().includes(search.toLowerCase())
-    );
+    ).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
     return (
         <div className="space-y-6">
@@ -226,6 +226,15 @@ export default function CoursesPage() {
                                 />
                             </div>
                         )}
+                        <div className="flex-1 max-w-md">
+                            <Input
+                                placeholder={`Search ${isSchool ? "classes" : "courses"}...`}
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                icon={Search}
+                                className="bg-white border-slate-200 shadow-sm"
+                            />
+                        </div>
                         <div className="flex-1" />
                         <Badge variant="secondary" className="bg-slate-100 text-slate-500 font-mono text-[10px]">
                             {filteredCourses.length} {isSchool ? "Classes" : "Courses"} Total

@@ -76,8 +76,10 @@ const UserSchema = new Schema({
     penNumber: String,
 
     fatherName: String,
+    fatherPhone: String,
     fatherAadhar: String,
     motherName: String,
+    motherPhone: String,
     motherAadhar: String,
 
     nationality: { type: String, default: 'Indian' },

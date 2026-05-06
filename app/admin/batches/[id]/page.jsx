@@ -317,7 +317,7 @@ function TimetableTab({ batchId, subjects = [] }) {
         <div className="space-y-10 pb-20">
             <div className="flex flex-col lg:flex-row gap-6">
             {/* Left Column: Editor */}
-            <div className="flex-1 space-y-8">
+            <div className="flex-1 min-w-0 space-y-8">
                 {/* Step 1: Time Slots Definition */}
                 <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
@@ -405,9 +405,9 @@ function TimetableTab({ batchId, subjects = [] }) {
                         <table className="w-full border-collapse">
                             <thead>
                                 <tr className="bg-slate-50/50">
-                                    <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 sticky left-0 bg-white z-10 min-w-[150px]">Time Slot</th>
+                                    <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 sticky left-0 bg-white z-10 min-w-[120px]">Time Slot</th>
                                     {DAYS.map(day => (
-                                        <th key={day.id} className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 min-w-[180px]">
+                                        <th key={day.id} className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 min-w-[140px]">
                                             {day.name}
                                         </th>
                                     ))}
@@ -753,7 +753,7 @@ export default function BatchDetailPage() {
     const endDate = batch.schedule?.endDate ? new Date(batch.schedule.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Ongoing';
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto pb-16">
+        <div className="space-y-6 max-w-[1400px] mx-auto pb-16">
             {/* Header */}
             <div className="flex items-start gap-4 pb-4 border-b border-slate-100">
                 <button onClick={() => router.push('/admin/batches')} className="p-2 mt-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">

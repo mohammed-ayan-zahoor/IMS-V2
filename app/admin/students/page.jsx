@@ -111,8 +111,10 @@ export default function StudentsPage() {
         apaarId: "",
         penNumber: "",
         fatherName: "",
+        fatherPhone: "",
         fatherAadhar: "",
         motherName: "",
+        motherPhone: "",
         motherAadhar: "",
         // Academic History
         lastSchoolAttended: "",
@@ -425,8 +427,10 @@ export default function StudentsPage() {
                     apaarId: "",
                     penNumber: "",
                     fatherName: "",
+                    fatherPhone: "",
                     fatherAadhar: "",
                     motherName: "",
+                    motherPhone: "",
                     motherAadhar: "",
                     lastSchoolAttended: "",
                     admissionDate: format(new Date(), "yyyy-MM-dd"),
@@ -646,7 +650,7 @@ export default function StudentsPage() {
                         <div className="min-w-[160px] max-w-xs">
                             <Select
                                 value={filters.courseId}
-                                onChange={(val) => setFilters({ ...filters, courseId: val })}
+                                onChange={(val) => setFilters({ ...filters, courseId: val, batchId: "" })}
                                 placeholder={isSchool ? "All Classes" : "All Courses"}
                                 className="w-auto"
                                 buttonClassName="w-auto min-w-full bg-white border-slate-200"
@@ -666,7 +670,14 @@ export default function StudentsPage() {
                                 buttonClassName="w-auto min-w-full bg-white border-slate-200"
                                 options={[
                                     { label: isSchool ? "All Sections" : "All Batches", value: "" },
-                                    ...batches.map(b => ({ label: b.name, value: b._id }))
+                                    ...batches
+                                        .filter(b => {
+                                            const matchesCourse = !filters.courseId || b.course === filters.courseId || b.course?._id === filters.courseId;
+                                            const matchesSession = !isSchool || !selectedSessionId || (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
+                                            return matchesCourse && matchesSession;
+                                        })
+                                        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+                                        .map(b => ({ label: b.name, value: b._id }))
                                 ]}
                             />
                         </div>
@@ -1155,11 +1166,17 @@ export default function StudentsPage() {
                             <span className="flex-1 h-px bg-rose-100"></span>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <Input
                                 label="Father's Name"
                                 value={formData.fatherName}
                                 onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
+                            />
+                            <Input
+                                label="Father's Phone"
+                                placeholder="Number"
+                                value={formData.fatherPhone}
+                                onChange={(e) => setFormData({ ...formData, fatherPhone: e.target.value })}
                             />
                             <Input
                                 label="Father's Aadhar"
@@ -1170,6 +1187,12 @@ export default function StudentsPage() {
                                 label="Mother's Name"
                                 value={formData.motherName}
                                 onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
+                            />
+                            <Input
+                                label="Mother's Phone"
+                                placeholder="Number"
+                                value={formData.motherPhone}
+                                onChange={(e) => setFormData({ ...formData, motherPhone: e.target.value })}
                             />
                             <Input
                                 label="Mother's Aadhar"

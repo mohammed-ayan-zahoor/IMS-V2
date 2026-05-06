@@ -71,18 +71,54 @@ export async function POST(req) {
                 .map(s => s.email.toLowerCase())
         );
 
+        // 4.5 Get Institute Type for logic differentiation
+        const Institute = (await import("@/models/Institute")).default;
+        const instDoc = await Institute.findById(scope.instituteId).select("type").lean();
+        const isVocational = instDoc?.type === "VOCATIONAL";
+
         // Process Loop
         for (let i = 0; i < rawData.length; i++) {
             const row = rawData[i];
             const rowNum = i + 2;
 
-            const firstName = row.FirstName || row["First Name"];
-            const lastName = row.LastName || row["Last Name"];
-            const email = (row.Email || row["Email Address"])?.toString().toLowerCase().trim();
-            const phone = row.Phone?.toString();
-            const password = row.Password?.toString();
-            const enrollmentNumber = row.EnrollmentNumber?.toString();
-            const gender = row.Gender;
+            // Mapping Helper: Support multiple header variations
+            const getVal = (keys) => {
+                for (const key of keys) {
+                    if (row[key] !== undefined) return row[key];
+                }
+                return undefined;
+            };
+
+            const firstName = getVal(["FirstName", "First Name", "Firstname"]);
+            const lastName = getVal(["LastName", "Last Name", "Lastname"]);
+            const email = getVal(["Email", "Email Address", "email"])?.toString().toLowerCase().trim();
+            const phone = getVal(["Phone", "Mobile", "Student Phone"])?.toString();
+            const password = getVal(["Password", "password"])?.toString();
+            const enrollmentNumber = getVal(["EnrollmentNumber", "Enrollment Number", "Roll No", "Roll Number"])?.toString();
+            const gender = getVal(["Gender", "gender"]);
+
+            // New Parental Metadata
+            const fatherName = getVal(["FatherName", "Father Name", "Father's Name"]);
+            const fatherPhone = getVal(["FatherPhone", "Father Phone", "Father's Phone Number"]);
+            const fatherAadhar = getVal(["FatherAadhar", "Father Aadhar", "Father's Aadhar"]);
+            const motherName = getVal(["MotherName", "Mother Name", "Mother's Name"]);
+            const motherPhone = getVal(["MotherPhone", "Mother Phone", "Mother's Phone Number"]);
+            const motherAadhar = getVal(["MotherAadhar", "Mother Aadhar", "Mother's Aadhar"]);
+
+            // New Identity Metadata
+            const grNumber = getVal(["GRNumber", "GR Number", "GR No"]);
+            const aadharNumber = getVal(["AadharNumber", "Aadhar Number", "Aadhar No"]);
+            const studentIdUdise = getVal(["UdiseID", "Udise ID", "Udise", "StudentIdUdise"]);
+            const apaarId = getVal(["ApaarID", "Apaar ID", "Apaar"]);
+            const penNumber = getVal(["PenNumber", "Pen Number", "Pen No"]);
+
+            // Demographic & Academic
+            const nationality = getVal(["Nationality"]) || "Indian";
+            const religion = getVal(["Religion"]);
+            const caste = getVal(["Caste"]);
+            const subCaste = getVal(["SubCaste", "Sub Caste"]);
+            const admissionStd = getVal(["AdmissionStd", "Admission Standard", "Standard", "Class"]);
+            const admissionDate = getVal(["AdmissionDate", "Admission Date"]);
 
             // 1. Basic Validation
             if (!firstName || !lastName || !email) {
@@ -110,14 +146,12 @@ export async function POST(req) {
             }
 
             // Valid -> Prepare Object
-            // OPTIMIZATION: Store raw password temporarily, hash later in parallel
-            successResults.push({
+            const studentObject = {
                 fullName: `${firstName} ${lastName}`,
                 email: email,
                 password: password || "Welcome@123",
                 institute: scope.instituteId,
                 role: "student",
-                items: [],
                 profile: {
                     firstName,
                     lastName,
@@ -125,16 +159,42 @@ export async function POST(req) {
                     gender: gender || "Not Specified"
                 },
                 enrollmentNumber: enrollmentNumber || null,
+                
+                // Parent Info
+                fatherName,
+                fatherPhone,
+                fatherAadhar,
+                motherName,
+                motherPhone,
+                motherAadhar,
+
+                // Metadata
+                grNumber,
+                aadharNumber,
+                studentIdUdise,
+                apaarId,
+                penNumber,
+
+                // Demographic
+                nationality,
+                religion,
+                caste,
+                subCaste,
+                admissionStd,
+                admissionDate: admissionDate ? new Date(admissionDate) : undefined,
+
                 isActive: true,
                 createdBy: session.user.id,
-                activeSession: sessionId || null,
-                promotionHistory: sessionId ? [{ 
+                activeSession: isVocational ? null : (sessionId || null),
+                promotionHistory: (!isVocational && sessionId) ? [{ 
                     session: sessionId, 
                     promotedAt: new Date(), 
                     promotedBy: session.user.id 
                 }] : [],
-                activeSessions: sessionId ? [sessionId] : []
-            });
+                activeSessions: (!isVocational && sessionId) ? [sessionId] : []
+            };
+
+            successResults.push(studentObject);
         }
 
         // Bulk Insert if any valid

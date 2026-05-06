@@ -30,6 +30,8 @@ export default function AttendanceMarkingPage() {
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     // Selection State
     const [batches, setBatches] = useState([]);
+    const [courses, setCourses] = useState([]);
+    const [selectedCourse, setSelectedCourse] = useState("");
     const [selectedBatch, setSelectedBatch] = useState("");
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -47,6 +49,7 @@ export default function AttendanceMarkingPage() {
     // Initial Load - Get Batches
     useEffect(() => {
         fetchBatches();
+        fetchCourses();
     }, []);
 
     // When Batch or Date selected - fetch students & existing attendance
@@ -66,6 +69,16 @@ export default function AttendanceMarkingPage() {
             setBatches(data.batches || []);
         } catch (error) {
             console.error("Failed to fetch batches", error);
+        }
+    };
+    const fetchCourses = async () => {
+        try {
+            const res = await fetch("/api/v1/courses");
+            const data = await res.json();
+            const courseList = Array.isArray(data) ? data : (data.courses || []);
+            setCourses(courseList);
+        } catch (error) {
+            console.error("Failed to fetch courses", error);
         }
     };
 
@@ -207,17 +220,43 @@ export default function AttendanceMarkingPage() {
                 <CardContent className="p-6 overflow-visible">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select {isSchool ? "Class" : "Course"}</label>
+                            <Select
+                                value={selectedCourse}
+                                onChange={(val) => {
+                                    setSelectedCourse(val);
+                                    setSelectedBatch(""); // Reset batch when course changes
+                                }}
+                                placeholder={`-- Choose ${isSchool ? "Class" : "Course"} --`}
+                                options={[
+                                    { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
+                                    ...courses.map(c => ({ label: c.name, value: c._id }))
+                                ]}
+                            />
+                        </div>
+                        <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select {isSchool ? "Section" : "Batch"}</label>
                             <Select
                                 value={selectedBatch}
                                 onChange={(val) => setSelectedBatch(val)}
-                                placeholder={`-- Choose ${isSchool ? "Section" : "Batch"} --`}
+                                placeholder={!selectedCourse && isSchool ? `Select a ${isSchool ? "Class" : "Course"} first` : `-- Choose ${isSchool ? "Section" : "Batch"} --`}
                                 options={[
-                                    ...batches.filter(b => {
-                                        if (!isSchool || !selectedSessionId) return true;
-                                        return b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session;
-                                    }).map(b => ({ label: b.name, value: b._id }))
+                                    ...batches
+                                        .filter(b => {
+                                            // 1. Session Isolation (for Schools only)
+                                            const matchesSession = !isSchool || !selectedSessionId || 
+                                                (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
+                                            
+                                            // 2. Course/Class Cascading
+                                            const batchCourseId = b.course?._id || b.course;
+                                            const matchesCourse = !selectedCourse || batchCourseId === selectedCourse;
+                                            
+                                            return matchesSession && matchesCourse;
+                                        })
+                                        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+                                        .map(b => ({ label: b.name, value: b._id }))
                                 ]}
+                                disabled={!selectedCourse && isSchool}
                             />
                         </div>
                         <div className="space-y-2">

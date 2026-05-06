@@ -16,9 +16,27 @@ export async function GET(req) {
             "LastName",
             "Email",
             "Phone",
-            "Password",
+            "Gender",
+            "DateOfBirth",
+            "AdmissionDate",
+            "Standard",
+            "GRNumber",
+            "AadharNumber",
+            "UdiseID",
+            "ApaarID",
+            "PenNumber",
+            "FatherName",
+            "FatherPhone",
+            "FatherAadhar",
+            "MotherName",
+            "MotherPhone",
+            "MotherAadhar",
+            "Nationality",
+            "Religion",
+            "Caste",
+            "SubCaste",
             "EnrollmentNumber",
-            "Gender" // Optional
+            "Password"
         ];
 
         // Create sample data for clarity (optional, or just headers)
@@ -28,9 +46,18 @@ export async function GET(req) {
                 LastName: "Doe",
                 Email: "john.doe@example.com",
                 Phone: "9876543210",
-                // Password: "", // Omitted to enforce security; system will generate if missing
+                Gender: "Male",
+                DateOfBirth: "2010-05-15",
+                AdmissionDate: "2024-06-01",
+                Standard: "10th",
+                GRNumber: "GR12345",
+                FatherName: "Mr. Doe",
+                FatherPhone: "9876543211",
+                MotherName: "Mrs. Doe",
+                MotherPhone: "9876543212",
+                Nationality: "Indian",
                 EnrollmentNumber: "STU001",
-                Gender: "Male"
+                Password: "Welcome@123"
             }
         ];
 
@@ -39,15 +66,7 @@ export async function GET(req) {
         const ws = XLSX.utils.json_to_sheet(sampleData, { header: headers });
 
         // Set column widths for better UX
-        const wscols = [
-            { wch: 20 }, // FirstName
-            { wch: 20 }, // LastName
-            { wch: 30 }, // Email
-            { wch: 15 }, // Phone
-            { wch: 15 }, // Password
-            { wch: 20 }, // Enrollment
-            { wch: 10 }  // Gender
-        ];
+        const wscols = headers.map(() => ({ wch: 18 }));
         ws['!cols'] = wscols;
 
         XLSX.utils.book_append_sheet(wb, ws, "Students");

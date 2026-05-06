@@ -182,13 +182,37 @@ export class BatchService {
 
         return runSynchronized(courseId, async () => {
             await connectDB();
-            const { institute } = data;
-            if (!institute) throw new Error("Institute context missing");
+            const { institute: instituteId } = data;
+            if (!instituteId) throw new Error("Institute context missing");
 
-            // Re-validate course existence/active status INSIDE the lock
+            // 1. Get Institute Type
+            const Institute = (await import('@/models/Institute')).default;
+            const instDoc = await Institute.findById(instituteId).select('type').lean();
+            const isVocational = instDoc?.type === 'VOCATIONAL';
+
+            // 2. Uniqueness Validation
+            const nameQuery = { 
+                institute: instituteId, 
+                name: data.name,
+                deletedAt: null 
+            };
+
+            if (!isVocational) {
+                // Schools are scoped to Course + Session
+                nameQuery.course = data.course;
+                nameQuery.session = data.session;
+            }
+
+            const existing = await Batch.findOne(nameQuery);
+            if (existing) {
+                const scope = isVocational ? "this institute" : "this course and session";
+                throw new Error(`${isVocational ? 'Batch' : 'Section'} with name "${data.name}" already exists in ${scope}`);
+            }
+
+            // 3. Re-validate course existence/active status INSIDE the lock
             const course = await Course.findOne({
                 _id: courseId,
-                institute: institute,
+                institute: instituteId,
                 deletedAt: null
             });
             if (!course) throw new Error("Course not found or inactive");
@@ -198,7 +222,7 @@ export class BatchService {
                 actor: actorId,
                 action: 'batch.create',
                 resource: { type: 'Batch', id: batch._id },
-                institute: institute,
+                institute: instituteId,
                 details: { name: batch.name }
             });
 
@@ -359,6 +383,31 @@ export class BatchService {
         // Fetch existing batch first for validation
         const existingBatch = await Batch.findOne(query).populate('course');
         if (!existingBatch) throw new Error("Batch not found or access denied");
+
+        // 1. Uniqueness Validation for Name Change
+        if (sanitizedData.name && sanitizedData.name !== existingBatch.name) {
+            const Institute = (await import('@/models/Institute')).default;
+            const instDoc = await Institute.findById(instituteId).select('type').lean();
+            const isVocational = instDoc?.type === 'VOCATIONAL';
+
+            const nameQuery = {
+                institute: instituteId,
+                name: sanitizedData.name,
+                deletedAt: null,
+                _id: { $ne: id }
+            };
+
+            if (!isVocational) {
+                nameQuery.course = sanitizedData.course || existingBatch.course?._id || existingBatch.course;
+                nameQuery.session = sanitizedData.session || existingBatch.session;
+            }
+
+            const duplicate = await Batch.findOne(nameQuery);
+            if (duplicate) {
+                const scope = isVocational ? "this institute" : "this course and session";
+                throw new Error(`${isVocational ? 'Batch' : 'Section'} with name "${sanitizedData.name}" already exists in ${scope}`);
+            }
+        }
 
         if (sanitizedData.course) {
             // Validate Target Course

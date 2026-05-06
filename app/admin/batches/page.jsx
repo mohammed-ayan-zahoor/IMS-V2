@@ -96,8 +96,11 @@ export default function BatchesPage() {
             // Ensure strictly array
             let batchList = Array.isArray(bData) ? bData : (Array.isArray(bData?.batches) ? bData.batches : []);
             
-            // Natural Sort for Sections (1A, 1B, 2A, 10A...)
+            // Grouped Sort: Course Name then Batch Name (Natural Sort)
             batchList.sort((a, b) => {
+                const courseA = a.course?.name || "";
+                const courseB = b.course?.name || "";
+                if (courseA !== courseB) return courseA.localeCompare(courseB);
                 return (a.name || "").localeCompare((b.name || ""), undefined, { numeric: true, sensitivity: 'base' });
             });
 
@@ -154,7 +157,8 @@ export default function BatchesPage() {
                     name: formData.name,
                     course: formData.course,
                     capacity: parseInt(formData.capacity, 10) || 0,
-                    session: selectedSessionId || undefined,
+                    // Preserve existing session on edit, or use current on create
+                    session: editingBatch ? editingBatch.session?._id || editingBatch.session : (selectedSessionId || undefined),
                     schedule: {
                         startDate: formData.startDate,
                         description: formData.schedule
@@ -214,7 +218,9 @@ export default function BatchesPage() {
     const filteredBatches = batches.filter(batch => {
         const matchesSearch = batch.name?.toLowerCase().includes(search.toLowerCase()) ||
                               batch.course?.name?.toLowerCase().includes(search.toLowerCase());
-        const matchesSession = isSchool && selectedSessionId 
+        // Session Isolation (Strictly for Schools)
+        const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
+        const matchesSession = isSchool && selectedSessionId && !isVocational
             ? (batch.session === selectedSessionId || batch.session?._id === selectedSessionId || !batch.session)
             : true;
         return matchesSearch && matchesSession;
@@ -270,6 +276,15 @@ export default function BatchesPage() {
                                 />
                             </div>
                         )}
+                        <div className="flex-1 max-w-md">
+                            <Input
+                                placeholder={`Search ${isSchool ? "sections" : "batches"}...`}
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                icon={Search}
+                                className="bg-white border-slate-200"
+                            />
+                        </div>
                         <div className="flex-1" />
                         <Badge variant="hot" className="bg-orange-50 text-orange-600 font-mono text-[10px]">
                             {filteredBatches.length} Active {isSchool ? "Sections" : "Batches"}
