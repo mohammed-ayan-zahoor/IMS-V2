@@ -87,7 +87,7 @@ export default function BatchesPage() {
         try {
             setLoading(true);
             const instQuery = selectedInstitute ? `&instituteId=${selectedInstitute}` : "";
-            const sessQuery = selectedSessionId ? `&sessionId=${selectedSessionId}` : "";
+            const sessQuery = (isSchool && selectedSessionId) ? `&sessionId=${selectedSessionId}` : "";
             const [bRes, cRes] = await Promise.all([
                 fetch(`/api/v1/batches?_t=${Date.now()}${instQuery}${sessQuery}`),
                 fetch(`/api/v1/courses?_t=${Date.now()}${instQuery}${sessQuery}`)
