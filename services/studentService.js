@@ -85,7 +85,11 @@ export class StudentService {
                 activeSession: sessionId || null,
                 promotionHistory: sessionId ? [{ session: sessionId, promotedAt: new Date(), promotedBy: actorId }] : [],
                 activeSessions: sessionId ? [sessionId] : [],
-                transport: data.transport // Add transport subdocument
+                transport: {
+                    ...data.transport,
+                    route: data.transport?.route || null,
+                    vehicle: data.transport?.vehicle || null
+                }
             });
 
             // Initialize transport fee if availing
