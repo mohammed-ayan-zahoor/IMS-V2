@@ -25,6 +25,13 @@ export async function DELETE(req, { params }) {
         });
 
         if (!collector) return NextResponse.json({ error: "Collector not found" }, { status: 404 });
+        
+        // Block deletion if they have a balance
+        if (collector.currentBalance > 0) {
+            return NextResponse.json({ 
+                error: `Cannot remove collector ${collector.name} because they still have a balance of ₹${collector.currentBalance}. Please transfer the funds first.` 
+            }, { status: 400 });
+        }
 
         // Soft delete/deactivate
         collector.isActive = false;

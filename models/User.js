@@ -107,6 +107,15 @@ const UserSchema = new Schema({
     conduct: { type: String, default: 'Good' },
     remarks: String,
 
+    // Transport Assignment (student-specific)
+    transport: {
+        isAvailing: { type: Boolean, default: false },
+        route: { type: Schema.Types.ObjectId, ref: 'TransportRoute' },
+        vehicle: { type: Schema.Types.ObjectId, ref: 'Vehicle' },
+        pickupStop: String // Name of assigned pickup/drop stop
+    },
+
+
     // Security
     passwordResetToken: String,
     passwordResetExpires: Date,

@@ -150,8 +150,8 @@ export default function Select({
                                 </div>
                             )}
                             <ul className="p-1 space-y-0.5 max-h-60 overflow-y-auto">
-                                {filteredOptions.length > 0 ? filteredOptions.map((option) => (
-                                    <li key={option.value}>
+                                {filteredOptions.length > 0 ? filteredOptions.map((option, index) => (
+                                    <li key={`${option.value}-${index}`}>
                                         <button
                                             type="button"
                                             onClick={() => handleSelect(option.value)}

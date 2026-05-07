@@ -45,7 +45,7 @@ export default function Modal({ isOpen, onClose, title, children, className = ""
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-[6px]"
+                        className="absolute inset-0 bg-slate-900/15 backdrop-blur-[12px]"
                     />
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}

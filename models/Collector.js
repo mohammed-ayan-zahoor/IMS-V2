@@ -35,6 +35,10 @@ const CollectorSchema = new Schema({
         type: Boolean,
         default: true
     },
+    currentBalance: {
+        type: Number,
+        default: 0
+    },
     designation: String
 }, { timestamps: true });
 

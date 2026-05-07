@@ -10,11 +10,11 @@ export default function Button({
     ...props
 }) {
     const variants = {
-        primary: "bg-[#111827] text-white hover:opacity-90 shadow-sm",
-        secondary: "bg-premium-blue text-white hover:bg-blue-600 shadow-sm",
-        outline: "border border-slate-200 hover:bg-slate-50 text-slate-700",
+        primary: "bg-gradient-to-tr from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-[0_4px_14px_0_rgba(37,99,235,0.39)]",
+        secondary: "bg-slate-900 text-white hover:bg-slate-800 shadow-[0_4px_14px_0_rgba(15,23,42,0.39)]",
+        outline: "border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700 hover:shadow-sm",
         ghost: "hover:bg-slate-50 text-slate-600",
-        danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-sm",
+        danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-[0_4px_14px_0_rgba(244,63,94,0.39)]",
     };
 
     const sizes = {

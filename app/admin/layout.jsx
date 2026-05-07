@@ -37,7 +37,8 @@ import {
     Award,
     TrendingUp,
     Contact,
-    Megaphone
+    Megaphone,
+    Bus
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -88,6 +89,7 @@ export default function AdminLayout({ children }) {
     }, [pathname]);
 
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const isTransportEnabled = isSchool || session?.user?.institute?.features?.transport;
     const menuGroups = [
         {
             label: "Academic",
@@ -133,6 +135,14 @@ export default function AdminLayout({ children }) {
                 { label: "Expense Master", icon: Receipt, href: "/admin/expenses/master" },
             ]
         },
+        // Transport - conditionally visible (always for SCHOOL, opt-in for VOCATIONAL)
+        ...(isTransportEnabled ? [{
+            label: "Transport",
+            role: ["admin", "super_admin"],
+            items: [
+                { label: "Transport", icon: Bus, href: "/admin/transport" }
+            ]
+        }] : []),
         {
             label: "Reports",
             items: [
@@ -241,13 +251,30 @@ export default function AdminLayout({ children }) {
                          const itemColors = ['text-blue-500', 'text-teal-500', 'text-orange-500', 'text-cyan-500', 'text-red-500', 'text-amber-500'];
                          const groupColor = groupColors[groupIndex % groupColors.length];
                          const itemColor = itemColors[groupIndex % itemColors.length];
+                         const isExpanded = expandedGroup === group.label;
                          
                          return (
-                         <div key={group.label} className="space-y-2">
-                             <h4 className={cn("px-4 text-[10px] font-black uppercase tracking-[0.1em]", groupColor)}>
-                                 {group.label}
-                             </h4>
-                             <div className="space-y-1">
+                         <div key={group.label} className="space-y-1">
+                             <button 
+                                onClick={() => toggleGroup(group.label)}
+                                className={cn(
+                                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all group border border-transparent shadow-sm hover:shadow-md",
+                                    isExpanded ? "bg-white border-slate-200/50 shadow-blue-500/5" : "bg-slate-50/50 hover:bg-white"
+                                )}
+                             >
+                                <div className="flex items-center gap-3">
+                                    <div className={cn("w-1.5 h-1.5 rounded-full", isExpanded ? "bg-blue-500 animate-pulse" : "bg-slate-300")} />
+                                    <h4 className={cn("text-[11px] font-black uppercase tracking-[0.1em]", groupColor)}>
+                                        {group.label}
+                                    </h4>
+                                </div>
+                                <ChevronRight size={14} className={cn("transition-transform duration-300 opacity-40", isExpanded && "rotate-90 opacity-100", groupColor)} />
+                             </button>
+                             
+                             <div className={cn(
+                                 "space-y-1 overflow-hidden transition-all duration-300",
+                                 isExpanded ? "max-h-[500px] opacity-100 mt-2 pb-2" : "max-h-0 opacity-0"
+                             )}>
                                  {group.items.map((item) => {
                                      const isActive = pathname.startsWith(item.href);
                                      return (
@@ -256,7 +283,7 @@ export default function AdminLayout({ children }) {
                                              href={item.href}
                                              onClick={() => setIsSidebarOpen(false)}
                                              className={cn(
-                                                 "flex items-center gap-3 px-4 py-2 rounded-full transition-all group text-[13px] font-semibold relative",
+                                                 "flex items-center gap-3 px-4 py-2 rounded-full transition-all group text-[13px] font-semibold relative ml-2",
                                                  isActive ? "soft-active" : "text-[#6b7280] hover:bg-[#f9fafb]"
                                              )}
                                          >

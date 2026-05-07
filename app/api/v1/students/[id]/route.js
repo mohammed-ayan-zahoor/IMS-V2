@@ -98,15 +98,28 @@ export async function PATCH(req, { params }) {
             }
         });
 
-        if (Object.keys(updates).length === 0) {
+        if (Object.keys(updates).length === 0 && !body.transport) {
             return NextResponse.json({ error: "No valid updates provided" }, { status: 400 });
         }
 
-        const updatedStudent = await User.findByIdAndUpdate(
-            id,
-            { $set: updates },
-            { new: true, runValidators: true }
-        ).select("-passwordHash -passwordResetToken -passwordResetExpires");
+        let updatedStudent;
+        if (Object.keys(updates).length > 0) {
+            updatedStudent = await User.findByIdAndUpdate(
+                id,
+                { $set: updates },
+                { new: true, runValidators: true }
+            ).select("-passwordHash -passwordResetToken -passwordResetExpires");
+        }
+
+        // specialized transport update
+        if (body.transport) {
+            updatedStudent = await StudentService.updateStudentTransport(
+                id, 
+                body.transport, 
+                session.user.id,
+                body.sessionId // Optional: pass sessionId if provided in body
+            );
+        }
 
         // Prepare audit details (exclude internal fields)
         const formatForAudit = (doc) => {

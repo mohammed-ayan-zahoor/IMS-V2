@@ -12,6 +12,8 @@ import { escapeRegExp } from 'lodash';
 import crypto from 'crypto';
 import { connectDB } from '@/lib/mongodb';
 import SharedLink from '@/models/SharedLink';
+import { TransportService } from './transportService';
+import TransportFee from '@/models/TransportFee';
 
 export class StudentService {
     /**
@@ -82,8 +84,24 @@ export class StudentService {
                 remarks: data.remarks,
                 activeSession: sessionId || null,
                 promotionHistory: sessionId ? [{ session: sessionId, promotedAt: new Date(), promotedBy: actorId }] : [],
-                activeSessions: sessionId ? [sessionId] : []
+                activeSessions: sessionId ? [sessionId] : [],
+                transport: data.transport // Add transport subdocument
             });
+
+            // Initialize transport fee if availing
+            if (data.transport?.isAvailing && data.transport.preset && sessionId) {
+                await TransportService.initializeTransportFee(
+                    student._id,
+                    institute,
+                    sessionId,
+                    data.transport.preset,
+                    data.transport.route,
+                    data.transport.vehicle,
+                    data.transport.pickupStop,
+                    actorId,
+                    data.transport.maxCycles
+                );
+            }
 
             // Create membership for the student
             await Membership.create({
@@ -743,6 +761,12 @@ export class StudentService {
             { path: 'feePreset', select: 'name', strictPopulate: false }
         ]);
 
+        // Get transport fees
+        const transportFees = await TransportFee.find({
+            student: studentId,
+            deletedAt: null
+        }).populate('route vehicle preset');
+
         return {
             student,
             batches: batches.map(b => ({
@@ -754,6 +778,7 @@ export class StudentService {
                 schedule: b.schedule
             })),
             fees,
+            transportFees,
             externalNotes: await SharedLink.aggregate([
                 { $match: { 'comments.studentId': new mongoose.Types.ObjectId(studentId) } },
                 {
@@ -952,6 +977,97 @@ export class StudentService {
             return newStatus;
         } catch (error) {
             console.error(`Error checking global status for student ${studentId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Update transport settings for an existing student
+     */
+    static async updateStudentTransport(studentId, transportData, actorId, sessionId = null) {
+        try {
+            const student = await User.findById(studentId);
+            if (!student) throw new Error("Student not found");
+
+            const oldTransport = student.transport || {};
+            student.transport = { ...oldTransport, ...transportData };
+            await student.save();
+
+            const instituteId = student.institute;
+            // Use provided sessionId or fallback to student's activeSession
+            const targetSessionId = sessionId || student.activeSession;
+
+            // Scenario 1: Just started availing transport
+            if (!oldTransport.isAvailing && transportData.isAvailing) {
+                if (!transportData.preset) throw new Error("Fee preset is required to enable transport");
+                if (!targetSessionId) throw new Error("Active session is required to initialize transport fee");
+
+                await TransportService.initializeTransportFee(
+                    studentId,
+                    instituteId,
+                    targetSessionId,
+                    transportData.preset,
+                    transportData.route,
+                    transportData.vehicle,
+                    transportData.pickupStop,
+                    actorId,
+                    transportData.maxCycles
+                );
+            }
+            // Scenario 2: Stopped availing transport
+            else if (oldTransport.isAvailing && !transportData.isAvailing) {
+                const fee = await TransportFee.findOne({
+                    student: studentId,
+                    session: targetSessionId,
+                    deletedAt: null
+                });
+                if (fee) {
+                    await TransportService.cancelTransportFee(fee._id, actorId);
+                }
+                // Sync old vehicle occupancy
+                if (oldTransport.vehicle) {
+                    await TransportService.updateVehicleOccupancy(oldTransport.vehicle);
+                }
+            }
+            // Scenario 3: Changed vehicle or route (or manually initializing for a new session)
+            else if (transportData.isAvailing) {
+                const fee = await TransportFee.findOne({
+                    student: studentId,
+                    session: targetSessionId,
+                    deletedAt: null
+                });
+
+                if (fee) {
+                    fee.route = transportData.route || fee.route;
+                    fee.vehicle = transportData.vehicle || fee.vehicle;
+                    fee.preset = transportData.preset || fee.preset;
+                    // If preset changed, we might need to regenerate installments 
+                    await fee.save();
+                } else if (transportData.initializeForSession) {
+                    // MANUALLY INITIALIZE for new session (as requested)
+                    await TransportService.initializeTransportFee(
+                        studentId,
+                        instituteId,
+                        targetSessionId,
+                        transportData.preset || student.transport.preset,
+                        transportData.route || student.transport.route,
+                        transportData.vehicle || student.transport.vehicle,
+                        transportData.pickupStop || student.transport.pickupStop,
+                        actorId,
+                        transportData.maxCycles || student.transport.maxCycles
+                    );
+                }
+
+                // Sync vehicle occupancies
+                if (transportData.vehicle) await TransportService.updateVehicleOccupancy(transportData.vehicle);
+                if (oldTransport.vehicle && oldTransport.vehicle.toString() !== transportData.vehicle?.toString()) {
+                    await TransportService.updateVehicleOccupancy(oldTransport.vehicle);
+                }
+            }
+
+            return student;
+        } catch (error) {
+            console.error("[STUDENT_SERVICE] updateStudentTransport failed:", error);
             throw error;
         }
     }

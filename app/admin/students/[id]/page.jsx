@@ -33,7 +33,10 @@ import {
     Eye,
     Download,
     UploadCloud,
-    File
+    File,
+    Bus,
+    Route,
+    Car
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -60,6 +63,11 @@ export default function StudentDetailsPage({ params }) {
     const [studentData, setStudentData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("profile");
+
+    const [transportRoutes, setTransportRoutes] = useState([]);
+    const [transportVehicles, setTransportVehicles] = useState([]);
+    const [transportPresets, setTransportPresets] = useState([]);
+    const isTransportEnabled = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.features?.transport;
 
 
     // Enrollment Modal State
@@ -90,6 +98,7 @@ export default function StudentDetailsPage({ params }) {
     const [isTogglingStatus, setIsTogglingStatus] = useState(false);
     const [deletingFeeId, setDeletingFeeId] = useState(null);
     const [isEnrolling, setIsEnrolling] = useState(false);
+    const [isTransportPayment, setIsTransportPayment] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [formData, setFormData] = useState({
         guardianDetails: { name: "", relation: "", phone: "" },
@@ -398,7 +407,16 @@ export default function StudentDetailsPage({ params }) {
                     studyingSinceStandard: data.student.studyingSinceStandard || "",
                     progress: data.student.progress || "Good",
                     conduct: data.student.conduct || "Good",
-                    remarks: data.student.remarks || ""
+                    remarks: data.student.remarks || "",
+                    transport: {
+                        isAvailing: data.student.transport?.isAvailing || false,
+                        route: data.student.transport?.route || "",
+                        vehicle: data.student.transport?.vehicle || "",
+                        pickupStop: data.student.transport?.pickupStop || "",
+                        preset: data.student.transport?.preset || "",
+                        maxCycles: data.student.transport?.maxCycles || "",
+                        initializeForSession: false
+                    }
                 });
             }
         } catch (error) {
@@ -410,10 +428,27 @@ export default function StudentDetailsPage({ params }) {
 
     useEffect(() => {
         fetchStudentDetails();
+        if (isTransportEnabled) fetchTransportData();
         const controller = new AbortController();
         fetchCollectors(controller.signal);
         return () => controller.abort();
-    }, [id]);
+    }, [id, isTransportEnabled]);
+
+    const fetchTransportData = async () => {
+        try {
+            const [rRes, vRes, pRes] = await Promise.all([
+                fetch("/api/v1/transport/routes"),
+                fetch("/api/v1/transport/vehicles"),
+                fetch("/api/v1/transport/fee-presets")
+            ]);
+            const [rData, vData, pData] = await Promise.all([rRes.json(), vRes.json(), pRes.json()]);
+            setTransportRoutes(rData.routes || []);
+            setTransportVehicles(vData.vehicles || []);
+            setTransportPresets(pData.presets || []);
+        } catch (error) {
+            console.error("Failed to fetch transport data:", error);
+        }
+    };
 
     const fetchCollectors = async (signal) => {
         try {
@@ -555,7 +590,50 @@ export default function StudentDetailsPage({ params }) {
         }
     };
 
+    const handleDeleteTransportFee = async (feeId, amountPaid) => {
+        const paid = amountPaid ?? 0;
+        const warning = paid > 0
+            ? `WARNING: This transport fee has payments of ₹${paid}. Deleting it will cancel the student's transport service and remove financial history.`
+            : "Are you sure you want to cancel the transport service and delete this fee record?";
+
+        if (await confirm({
+            title: "Cancel Transport Service?",
+            message: warning,
+            type: "danger"
+        })) {
+            try {
+                const res = await fetch(`/api/v1/transport/fees/${feeId}`, { method: "DELETE" });
+                if (res.ok) {
+                    toast.success("Transport service cancelled and fee deleted");
+                    fetchStudentDetails();
+                } else {
+                    const err = await res.json();
+                    toast.error(err.error || "Failed to cancel service");
+                }
+            } catch (error) {
+                toast.error("An error occurred while deleting transport fee");
+            }
+        }
+    };
+
     const openPaymentModal = (fee) => {
+        setIsTransportPayment(false);
+        setSelectedFee(fee);
+        setPaymentData({
+            amount: (fee.totalAmount - (fee.paidAmount || 0)).toString(),
+            method: "cash",
+            transactionId: "",
+            notes: "",
+            collectedBy: "",
+            date: format(new Date(), "yyyy-MM-dd"),
+            nextDueDate: "",
+            installmentId: ""
+        });
+        setIsPayModalOpen(true);
+    };
+
+    const openTransportPaymentModal = (fee) => {
+        setIsTransportPayment(true);
         setSelectedFee(fee);
         setPaymentData({
             amount: (fee.totalAmount - (fee.paidAmount || 0)).toString(),
@@ -711,7 +789,8 @@ export default function StudentDetailsPage({ params }) {
             }
 
             // 2. Record the payment
-            const res = await fetch(`/api/v1/fees/${feeId}/payment`, {
+            const baseUrl = isTransportPayment ? `/api/v1/transport/fees` : `/api/v1/fees`;
+            const res = await fetch(`${baseUrl}/${feeId}/payment`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -1100,11 +1179,32 @@ export default function StudentDetailsPage({ params }) {
                                             <InfoRow icon={BookOpen} label="Admission Std" value={student.admissionStd} />
                                             <InfoRow icon={History} label="Last School" value={student.lastSchoolAttended} />
                                             <InfoRow icon={UserPlus} label="Referred By" value={student.referredBy} />
-                                        </div>
                                     </div>
                                 </div>
+
+                                {isTransportEnabled && student.transport?.isAvailing && (
+                                    <div className="premium-card p-6">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                                                <Car size={20} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-slate-900">Transport Details</h3>
+                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">Active Assignment</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                            <InfoRow icon={Route} label="Route" value={student.transport.route?.name || student.transport.route} />
+                                            <InfoRow icon={Bus} label="Vehicle" value={student.transport.vehicle?.registrationNumber || student.transport.vehicle} />
+                                            <InfoRow icon={MapPin} label="Pickup Stop" value={student.transport.pickupStop} />
+                                            <InfoRow icon={CreditCard} label="Billing Plan" value={student.transport.preset?.name || student.transport.preset} />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
+                    )}
 
                 {activeTab === "academic" && (
                     <div className="space-y-6">
@@ -1332,6 +1432,77 @@ export default function StudentDetailsPage({ params }) {
                                 </div>
                             )}
                         </div>
+
+                        {/* Transport Fees Section */}
+                        {isTransportEnabled && (studentData?.transportFees || []).length > 0 && (
+                            <div className="space-y-6 mt-8">
+                                <h3 className="text-lg font-bold text-slate-900 px-1">Transport Fees</h3>
+                                <div className="grid gap-4">
+                                    {(studentData.transportFees).map(fee => {
+                                        const paidAmount = fee.paidAmount || 0;
+                                        const totalAmount = fee.totalAmount || 0;
+                                        const isPaid = fee.status === 'paid';
+
+                                        return (
+                                            <Card key={fee._id} className="border-amber-100 bg-amber-50/10">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-3 rounded-xl bg-amber-50 text-amber-600">
+                                                            <Bus size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <h4 className="font-bold text-slate-900">{fee.route?.name || "Transport Fee"}</h4>
+                                                                {fee.preset?.name && (
+                                                                    <span className="px-2 py-0.5 text-[10px] bg-amber-100 text-amber-700 rounded-full border border-amber-200 uppercase font-medium">
+                                                                        {fee.preset.name}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-slate-500">Vehicle: {fee.vehicle?.registrationNumber || "N/A"}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-6">
+                                                        <div className="text-right">
+                                                            <div className="text-xl font-black text-slate-900">
+                                                                ₹{paidAmount.toLocaleString()}
+                                                                <span className="text-xs text-slate-400 font-medium ml-1">/ {totalAmount.toLocaleString()}</span>
+                                                            </div>
+                                                            <p className={`text-xs font-bold ${isPaid ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                                {isPaid ? 'Fully Paid' : `Pending: ₹${Math.max(0, totalAmount - paidAmount).toLocaleString()}`}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => window.open(`/admin/transport/receipts/${fee._id}`, '_blank')}
+                                                                title="View Receipt"
+                                                            >
+                                                                <FileText size={16} className="text-slate-400 hover:text-amber-600" />
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => handleDeleteTransportFee(fee._id, fee.paidAmount ?? 0)}
+                                                                title="Cancel Service & Delete Record"
+                                                            >
+                                                                <Trash2 size={16} className="text-slate-400 hover:text-red-600" />
+                                                            </Button>
+                                                            {!isPaid && (
+                                                                <Button size="sm" variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-100" onClick={() => openTransportPaymentModal(fee)}>
+                                                                    Pay Transport
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -1606,7 +1777,16 @@ export default function StudentDetailsPage({ params }) {
                 size="xl"
             >
                 <form onSubmit={handleUpdateStudent} className="space-y-6">
-                    <EditModalContent formData={formData} setFormData={setFormData} uploading={uploading} handleFileChange={handleFileChange} courses={courses} />
+                    <EditModalContent 
+                        formData={formData} 
+                        setFormData={setFormData} 
+                        uploading={uploading} 
+                        handleFileChange={handleFileChange} 
+                        courses={courses}
+                        transportRoutes={transportRoutes}
+                        transportVehicles={transportVehicles}
+                        transportPresets={transportPresets}
+                    />
                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
                         <Button type="submit" size="lg">Save All Changes</Button>
@@ -1777,7 +1957,7 @@ export default function StudentDetailsPage({ params }) {
             <Modal
                 isOpen={isPayModalOpen}
                 onClose={() => setIsPayModalOpen(false)}
-                title="Record Fee Payment"
+                title={isTransportPayment ? "Record Transport Fee Payment" : "Record Fee Payment"}
             >
                 <form onSubmit={handleRecordPayment} className="space-y-5">
                     <div className="space-y-1.5">
@@ -2051,7 +2231,7 @@ export default function StudentDetailsPage({ params }) {
     );
 }
 
-function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses }) {
+function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets }) {
     const [editTab, setEditTab] = useState("basic");
 
     const tabClasses = (tab) => `
@@ -2066,6 +2246,9 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                 <button type="button" onClick={() => setEditTab("basic")} className={tabClasses("basic")}>Basic Profile</button>
                 <button type="button" onClick={() => setEditTab("parents")} className={tabClasses("parents")}>Parents & Origins</button>
                 <button type="button" onClick={() => setEditTab("school")} className={tabClasses("school")}>School & Certificate</button>
+                {courses.length === 0 && ( // Just a hacky way to check if we have transport context or use a proper prop
+                     <button type="button" onClick={() => setEditTab("transport")} className={tabClasses("transport")}>Transport</button>
+                )}
             </div>
 
             <div className="animate-fade-in py-2">
@@ -2293,6 +2476,173 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                                 />
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {editTab === "transport" && (
+                    <div className="space-y-6">
+                        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-white text-amber-600 flex items-center justify-center border border-amber-200">
+                                    <Car size={20} />
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900">Transport Service</h4>
+                                    <p className="text-xs text-slate-500">Toggle transport for this student</p>
+                                </div>
+                            </div>
+                            <div 
+                                className={`w-14 h-7 rounded-full p-1 cursor-pointer transition-all duration-300 ${formData.transport?.isAvailing ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                                onClick={() => setFormData({ 
+                                    ...formData, 
+                                    transport: { ...formData.transport, isAvailing: !formData.transport?.isAvailing } 
+                                })}
+                            >
+                                <div className={`w-5 h-5 bg-white rounded-full transition-all duration-300 transform ${formData.transport?.isAvailing ? 'translate-x-7' : 'translate-x-0'}`} />
+                            </div>
+                        </div>
+
+                        {formData.transport?.isAvailing && (
+                            <div className="space-y-4 animate-in slide-in-from-top-2">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Select Route</label>
+                                        <Select
+                                            value={formData.transport.route}
+                                            onChange={(val) => setFormData({ 
+                                                ...formData, 
+                                                transport: { ...formData.transport, route: val, vehicle: "", pickupStop: "", preset: "" } 
+                                            })}
+                                            options={[
+                                                { label: "Select Route", value: "" },
+                                                ...(transportRoutes || []).map(r => ({ label: r.name, value: r._id }))
+                                            ]}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Select Vehicle</label>
+                                        <Select
+                                            value={formData.transport.vehicle}
+                                            onChange={(val) => setFormData({ 
+                                                ...formData, 
+                                                transport: { ...formData.transport, vehicle: val } 
+                                            })}
+                                            options={[
+                                                { label: "Select Vehicle", value: "" },
+                                                ...(transportVehicles || [])
+                                                    .filter(v => !formData.transport.route || v.route === formData.transport.route || (v.route?._id || v.route) === formData.transport.route)
+                                                    .map(v => ({ 
+                                                        label: `${v.registrationNumber} (${v.type}) - ${v.currentOccupancy || 0}/${v.capacity}`, 
+                                                        value: v._id,
+                                                        disabled: v.currentOccupancy >= v.capacity
+                                                    }))
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Pickup/Drop Point</label>
+                                        <Select
+                                            value={formData.transport.pickupStop}
+                                            onChange={(val) => setFormData({ 
+                                                ...formData, 
+                                                transport: { ...formData.transport, pickupStop: val } 
+                                            })}
+                                            options={[
+                                                { label: "Select Stop", value: "" },
+                                                ...(transportRoutes.find(r => (r._id || r) === formData.transport.route)?.stops || [])
+                                                    .map((s, idx) => ({ label: `${s.name} (${s.pickupTime})`, value: s.name, key: `${s.name}-${idx}` }))
+                                            ]}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Fee Preset</label>
+                                        <Select
+                                            value={formData.transport.preset}
+                                            onChange={(val) => {
+                                                const preset = transportPresets.find(p => p._id === val);
+                                                setFormData({ 
+                                                    ...formData, 
+                                                    transport: { 
+                                                        ...formData.transport, 
+                                                        preset: val,
+                                                        maxCycles: preset?.maxCycles || "" 
+                                                    } 
+                                                });
+                                            }}
+                                            options={[
+                                                { label: "Select Plan", value: "" },
+                                                ...(transportPresets || [])
+                                                    .filter(p => !formData.transport.route || !p.route || (p.route?._id || p.route) === formData.transport.route)
+                                                    .map(p => ({ label: `${p.name} - ₹${p.amount}/${p.billingCycle}`, value: p._id }))
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+
+                                {formData.transport.preset && (
+                                    <div className="animate-fade-in pt-2">
+                                        <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2 text-amber-700">
+                                                    <Calendar size={16} />
+                                                    <span className="text-[11px] font-bold uppercase tracking-wider">Dynamic Billing Duration</span>
+                                                </div>
+                                                <Badge className="bg-amber-100 text-amber-700 border-none font-bold">Override</Badge>
+                                            </div>
+                                            <div className="grid grid-cols-[1fr_2fr] gap-4 items-center">
+                                                <Input 
+                                                    type="number"
+                                                    placeholder="Cycles"
+                                                    value={formData.transport.maxCycles}
+                                                    onChange={(e) => setFormData({ 
+                                                        ...formData, 
+                                                        transport: { ...formData.transport, maxCycles: e.target.value } 
+                                                    })}
+                                                    className="bg-white"
+                                                />
+                                                <p className="text-[11px] text-amber-600/80 font-medium leading-relaxed">
+                                                    Set how many months/cycles the student will be charged. 
+                                                    <br/>Leave blank to use the default session length.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Session Awareness - Manual Initialization */}
+                                {(() => {
+                                    const hasFeeForCurrentSession = (studentData?.transportFees || []).some(f => 
+                                        f.session?._id === selectedSessionId || f.session === selectedSessionId
+                                    );
+
+                                    if (!hasFeeForCurrentSession && formData.transport.isAvailing) {
+                                        return (
+                                            <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-between animate-fade-in mt-4">
+                                                <div className="space-y-0.5">
+                                                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Initialize for New Session</p>
+                                                    <p className="text-[11px] text-blue-600/80 leading-relaxed max-w-[240px]">
+                                                        Create a transport fee record for the currently selected session.
+                                                    </p>
+                                                </div>
+                                                <div 
+                                                    onClick={() => setFormData({ 
+                                                        ...formData, 
+                                                        transport: { ...formData.transport, initializeForSession: !formData.transport.initializeForSession } 
+                                                    })}
+                                                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors duration-300 ${formData.transport.initializeForSession ? 'bg-blue-600' : 'bg-slate-200'}`}
+                                                >
+                                                    <div className={`w-4 h-4 bg-white rounded-full transition-all duration-300 transform ${formData.transport.initializeForSession ? 'translate-x-6' : 'translate-x-0'}`} />
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

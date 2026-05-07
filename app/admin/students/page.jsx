@@ -26,8 +26,13 @@ import {
     CheckCircle,
     X,
     Upload,
-    MessageSquare
+    MessageSquare,
+    Bus,
+    MapPin,
+    Car,
+    Route
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -40,6 +45,12 @@ export default function StudentsPage() {
     const toast = useToast();
     const { data: session } = useSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const [transportRoutes, setTransportRoutes] = useState([]);
+    const [transportVehicles, setTransportVehicles] = useState([]);
+    const [transportPresets, setTransportPresets] = useState([]);
+    const [transportLoading, setTransportLoading] = useState(false);
+
+    const isTransportEnabled = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.features?.transport;
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -121,7 +132,7 @@ export default function StudentsPage() {
         admissionDate: format(new Date(), "yyyy-MM-dd"),
         admissionStd: "",
         admissionBatch: "",
-        sessionId: selectedSessionId || "", // Added session ID to form data
+        sessionId: selectedSessionId || "", 
         // Demographic fields
         nationality: "Indian",
         motherTongue: "",
@@ -137,6 +148,15 @@ export default function StudentsPage() {
             district: "",
             state: "",
             country: "India"
+        },
+        transport: {
+            isAvailing: false,
+            route: "",
+            vehicle: "",
+            pickupStop: "",
+            pickupStop: "",
+            preset: "",
+            maxCycles: ""
         }
     });
 
@@ -145,12 +165,31 @@ export default function StudentsPage() {
 
     useEffect(() => {
         fetchInitialData();
+        if (isTransportEnabled) {
+            fetchTransportData();
+        }
         return () => {
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
         };
-    }, []);
+    }, [isTransportEnabled]);
+
+    const fetchTransportData = async () => {
+        try {
+            const [rRes, vRes, pRes] = await Promise.all([
+                fetch("/api/v1/transport/routes"),
+                fetch("/api/v1/transport/vehicles"),
+                fetch("/api/v1/transport/fee-presets")
+            ]);
+            const [rData, vData, pData] = await Promise.all([rRes.json(), vRes.json(), pRes.json()]);
+            setTransportRoutes(rData.routes || []);
+            setTransportVehicles(vData.vehicles || []);
+            setTransportPresets(pData.presets || []);
+        } catch (error) {
+            console.error("Failed to fetch transport data:", error);
+        }
+    };
 
     useEffect(() => {
         if (session?.user?.role === 'super_admin') {
@@ -448,6 +487,13 @@ export default function StudentsPage() {
                         district: "",
                         state: "",
                         country: "India"
+                    },
+                    transport: {
+                        isAvailing: false,
+                        route: "",
+                        vehicle: "",
+                        pickupStop: "",
+                        preset: ""
                     }
                 });
                 fetchStudents();
@@ -1157,6 +1203,160 @@ export default function StudentsPage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Transport Details (Conditional) */}
+                    {isTransportEnabled && (
+                        <div className="space-y-4">
+                            <div className="text-xs font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">
+                                <span className="w-8 h-px bg-amber-100"></span>
+                                Transport Service
+                                <span className="flex-1 h-px bg-amber-100"></span>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                                <div className="flex items-center gap-3 flex-1">
+                                    <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                                        <Bus size={20} />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-bold text-slate-700">Avail Transport Service?</h4>
+                                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Check this if the student will use institute transport</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ 
+                                        ...formData, 
+                                        transport: { 
+                                            ...formData.transport, 
+                                            isAvailing: !formData.transport.isAvailing 
+                                        } 
+                                    })}
+                                    className={cn(
+                                        "relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0",
+                                        formData.transport.isAvailing ? "bg-amber-500" : "bg-slate-200"
+                                    )}
+                                >
+                                    <span className={cn(
+                                        "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200",
+                                        formData.transport.isAvailing ? "translate-x-6" : "translate-x-0"
+                                    )} />
+                                </button>
+                            </div>
+
+                            {formData.transport.isAvailing && (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+                                        <Select
+                                            label="Select Route"
+                                            value={formData.transport.route}
+                                            onChange={(val) => setFormData({ 
+                                                ...formData, 
+                                                transport: { 
+                                                    ...formData.transport, 
+                                                    route: val, 
+                                                    vehicle: "", 
+                                                    pickupStop: "", 
+                                                    preset: "" 
+                                                } 
+                                            })}
+                                            options={[
+                                                { label: "Select Route", value: "" },
+                                                ...transportRoutes.map(r => ({ label: r.name, value: r._id }))
+                                            ]}
+                                            required
+                                        />
+                                        <Select
+                                            label="Select Vehicle"
+                                            value={formData.transport.vehicle}
+                                            onChange={(val) => setFormData({ 
+                                                ...formData, 
+                                                transport: { ...formData.transport, vehicle: val } 
+                                            })}
+                                            options={[
+                                                { label: "Select Vehicle", value: "" },
+                                                ...transportVehicles
+                                                    .filter(v => v.route?._id === formData.transport.route || v.route === formData.transport.route)
+                                                    .map(v => ({ 
+                                                        label: `${v.registrationNumber} (${v.currentOccupancy}/${v.capacity})`, 
+                                                        value: v._id,
+                                                        disabled: v.currentOccupancy >= v.capacity
+                                                    }))
+                                            ]}
+                                            required
+                                            disabled={!formData.transport.route}
+                                        />
+                                        <Select
+                                            label="Pickup Stop"
+                                            value={formData.transport.pickupStop}
+                                            onChange={(val) => setFormData({ 
+                                                ...formData, 
+                                                transport: { ...formData.transport, pickupStop: val } 
+                                            })}
+                                            options={[
+                                                { label: "Select Stop", value: "" },
+                                                ...(transportRoutes.find(r => r._id === formData.transport.route)?.stops || [])
+                                                    .sort((a, b) => a.order - b.order)
+                                                    .map((s, idx) => ({ label: `${s.name} (${s.pickupTime})`, value: s.name, key: `${s.name}-${idx}` }))
+                                            ]}
+                                            required
+                                            disabled={!formData.transport.route}
+                                        />
+                                        <Select
+                                            label="Fee Preset"
+                                            value={formData.transport.preset}
+                                            onChange={(val) => {
+                                                const preset = transportPresets.find(p => p._id === val);
+                                                setFormData({ 
+                                                    ...formData, 
+                                                    transport: { 
+                                                        ...formData.transport, 
+                                                        preset: val,
+                                                        maxCycles: preset?.maxCycles || "" 
+                                                    } 
+                                                });
+                                            }}
+                                            options={[
+                                                { label: "Select Preset", value: "" },
+                                                ...transportPresets
+                                                    .filter(p => !p.route || p.route?._id === formData.transport.route || p.route === formData.transport.route)
+                                                    .map(p => ({ label: `${p.name} (₹${p.amount}/${p.billingCycle})`, value: p._id }))
+                                            ]}
+                                            required
+                                            disabled={!formData.transport.route}
+                                        />
+                                    </div>
+                                    
+                                    {formData.transport.preset && (
+                                        <div className="animate-fade-in p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2 text-amber-700">
+                                                    <Calendar size={16} />
+                                                    <span className="text-[11px] font-bold uppercase tracking-wider">Dynamic Billing Duration</span>
+                                                </div>
+                                                <Badge className="bg-amber-100 text-amber-700 border-none font-bold">Override</Badge>
+                                            </div>
+                                            <div className="grid grid-cols-[1fr_2fr] gap-4 items-center">
+                                                <Input 
+                                                    type="number"
+                                                    placeholder="Months/Cycles"
+                                                    value={formData.transport.maxCycles}
+                                                    onChange={(e) => setFormData({ 
+                                                        ...formData, 
+                                                        transport: { ...formData.transport, maxCycles: e.target.value } 
+                                                    })}
+                                                    className="bg-white"
+                                                />
+                                                <p className="text-[11px] text-amber-600/80 font-medium leading-relaxed">
+                                                    Custom limit for this student.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
 
                     {/* 5. Family Details */}
                     <div className="space-y-4">

@@ -101,7 +101,8 @@ const InstituteSchema = new Schema({
             exams: { type: Boolean, default: true },
             attendance: { type: Boolean, default: true },
             fees: { type: Boolean, default: true },
-            materials: { type: Boolean, default: true }
+            materials: { type: Boolean, default: true },
+            transport: { type: Boolean, default: false }
         },
 
         // Email settings

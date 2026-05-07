@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Fee from '@/models/Fee';
 import Batch from '@/models/Batch';
 import User from '@/models/User';
+import Collector from '@/models/Collector';
 import { createAuditLog } from './auditService';
 import { connectDB } from '@/lib/mongodb';
 
@@ -591,6 +592,25 @@ export class FeeService {
 
         // Save triggers the pre-save hook to recalculate totals/status
         await fee.save();
+
+        // 4. Update Collector Balance (if Person)
+        if (paymentDetails.collectedBy) {
+            try {
+                const collector = await Collector.findOne({ 
+                    name: paymentDetails.collectedBy, 
+                    institute: fee.institute 
+                });
+                
+                if (collector) {
+                    collector.currentBalance = (collector.currentBalance || 0) + savedAmount;
+                    await collector.save();
+                }
+            } catch (collErr) {
+                console.error("Failed to update collector balance:", collErr);
+                // We don't throw here to avoid failing the payment recording 
+                // if just the collector balance update fails.
+            }
+        }
 
         await createAuditLog({
             actor: actorId,
