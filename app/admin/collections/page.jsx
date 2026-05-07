@@ -18,7 +18,8 @@ import {
     Building2,
     Plus,
     ArrowUpRight,
-    CheckCircle2
+    CheckCircle2,
+    RotateCcw
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -45,6 +46,7 @@ export default function CollectionsPage() {
     const [filterPerson, setFilterPerson] = useState("all");
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
     const [isSubmittingTransfer, setIsSubmittingTransfer] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     // Transfer Form State
     const [transferData, setTransferData] = useState({
@@ -119,6 +121,25 @@ export default function CollectionsPage() {
             toast.error("Network error during transfer");
         } finally {
             setIsSubmittingTransfer(false);
+        }
+    };
+
+    const handleSyncBalances = async () => {
+        try {
+            setIsSyncing(true);
+            const res = await fetch("/api/v1/admin/sync-balances", { method: "POST" });
+            const data = await res.json();
+            
+            if (res.ok) {
+                toast.success("Balances synchronized with history");
+                fetchAllData();
+            } else {
+                toast.error(data.error || "Sync failed");
+            }
+        } catch (error) {
+            toast.error("Network error during sync");
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -208,6 +229,15 @@ export default function CollectionsPage() {
                         className="px-6 border-blue-200 text-blue-700 hover:bg-blue-50"
                     >
                         <Download size={18} className="mr-2" /> Export Report
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        onClick={() => handleSyncBalances()}
+                        disabled={isSyncing}
+                        className="px-6 border-amber-200 text-amber-700 hover:bg-amber-50"
+                    >
+                        {isSyncing ? <Loader2 className="animate-spin mr-2" size={18} /> : <RotateCcw size={18} className="mr-2" />}
+                        Sync Balances
                     </Button>
                     <Button variant="outline" onClick={fetchAllData} disabled={loading} className="px-6">
                         {loading ? <Loader2 className="animate-spin" size={18} /> : "Refresh"}
