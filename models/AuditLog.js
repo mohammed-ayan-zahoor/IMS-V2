@@ -12,11 +12,11 @@ const AuditLogSchema = new Schema({
         type: String,
         required: true,
         enum: [
-            'student.create', 'student.update', 'student.delete',
+            'student.create', 'student.update', 'student.delete', 'student.hard_delete',
             'student.complete', 'student.drop', 'student.revert', 'student.promote',
             'certificate.generate', 'certificate.regenerate', 'certificate.revoke',
             'course.create', 'course.update', 'course.delete', 'course.assignSubjects',
-            'batch.create', 'batch.update', 'batch.delete', 'batch.enroll', 'batch.remove_student', 'batch.course_transfer',
+            'batch.create', 'batch.update', 'batch.delete', 'batch.enroll', 'batch.remove_student', 'batch.unenroll', 'batch.course_transfer',
             'fee.create', 'fee.update', 'fee.payment', 'fee.delete', 'fee.discount', 'fee.extra_charges', 'fee.cancel',
             'material.upload', 'material.delete',
             'attendance.mark', 'attendance.update',

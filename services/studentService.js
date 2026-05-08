@@ -994,7 +994,12 @@ export class StudentService {
             if (!student) throw new Error("Student not found");
 
             const oldTransport = student.transport || {};
-            student.transport = { ...oldTransport, ...transportData };
+            const cleanTransportData = {
+                ...transportData,
+                route: transportData.route === "" ? null : (transportData.route || oldTransport.route),
+                vehicle: transportData.vehicle === "" ? null : (transportData.vehicle || oldTransport.vehicle)
+            };
+            student.transport = { ...oldTransport, ...cleanTransportData };
             await student.save();
 
             const instituteId = student.institute;

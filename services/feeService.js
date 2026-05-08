@@ -256,12 +256,16 @@ export class FeeService {
         const query = { deletedAt: null };
         if (filters.institute) query.institute = new mongoose.Types.ObjectId(filters.institute);
         if (filters.session) {
-            const batchIds = await Batch.find({ session: filters.session, deletedAt: null }).distinct('_id');
+            const batchLookup = { session: filters.session, deletedAt: null };
+            if (filters.institute) batchLookup.institute = filters.institute;
+            const batchIds = await Batch.find(batchLookup).distinct('_id');
             query.batch = { $in: batchIds };
         }
         if (filters.batch) query.batch = new mongoose.Types.ObjectId(filters.batch);
         if (filters.course) {
-            const batchIds = await Batch.find({ course: filters.course, deletedAt: null }).distinct('_id');
+            const batchLookup = { course: filters.course, deletedAt: null };
+            if (filters.institute) batchLookup.institute = filters.institute;
+            const batchIds = await Batch.find(batchLookup).distinct('_id');
             query.batch = { $in: batchIds };
         }
 
