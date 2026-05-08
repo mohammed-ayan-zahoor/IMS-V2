@@ -81,7 +81,10 @@ export default function FeesPage() {
     }, [search]);
 
     useEffect(() => {
-        if (selectedSessionId) {
+        // Fetch data if: 
+        // 1. A session is selected
+        // 2. OR it's NOT a school (vocational institutes don't always use sessions)
+        if (selectedSessionId || !isSchool) {
             fetchFees();
             fetchStats();
         }
@@ -101,9 +104,11 @@ export default function FeesPage() {
     }, [selectedCourse]);
 
     useEffect(() => {
-        fetchFees();
-        fetchStats();
-        setCurrentPage(1);
+        if (selectedSessionId || !isSchool) {
+            fetchFees();
+            fetchStats();
+            setCurrentPage(1);
+        }
     }, [selectedCourse, selectedBatch, percentageFilter, showCancelledOnly]);
 
     const fetchCourses = async () => {
