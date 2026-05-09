@@ -59,43 +59,74 @@ export async function renderIDCardFront(student, template) {
 
             try {
                 if (config.type === "image" || key === "studentPhoto") {
-                    const fieldKey = config.fieldKey || (key === "studentPhoto" ? "profile.avatar" : null);
-                    const avatarUrl = fieldKey ? getNestedValue(student, fieldKey) : null;
+                    // Try multiple field paths for student photo
+                    let avatarUrl = null;
+                    const fieldKey = config.fieldKey;
+                    
+                    if (fieldKey) {
+                        avatarUrl = getNestedValue(student, fieldKey);
+                    }
+                    // Fallback to common avatar paths
+                    if (!avatarUrl) {
+                        avatarUrl = getNestedValue(student, "avatar") || 
+                                   getNestedValue(student, "profile.avatar") ||
+                                   getNestedValue(student, "profilePicture");
+                    }
+                    
                     if (avatarUrl) {
-                        const resolvedPhotoUrl = resolveImagePath(avatarUrl);
-                        const photoImage = await loadImage(resolvedPhotoUrl);
-                        drawImage(ctx, photoImage, config, frontImage.width, frontImage.height);
+                        try {
+                            const resolvedPhotoUrl = resolveImagePath(avatarUrl);
+                            const photoImage = await loadImage(resolvedPhotoUrl);
+                            drawImage(ctx, photoImage, config, frontImage.width, frontImage.height);
+                        } catch (photoError) {
+                            console.warn(`[IDCardService] Could not load photo: ${avatarUrl}`, photoError.message);
+                        }
                     }
                 } else if (config.type === "qr" || key === "qrCode") {
-                    let qrPayload = student._id.toString();
-                    if (config.dataMode === "profileUrl") {
-                        qrPayload = `${process.env.NEXT_PUBLIC_APP_URL || "https://quantech.vercel.app"}/profile/${student._id}`;
-                    } else if (config.dataMode === "vcard") {
-                        qrPayload = `BEGIN:VCARD\nVERSION:3.0\nN:${student.profile?.lastName || ""};${student.profile?.firstName || ""};;;\nFN:${student.profile?.firstName || ""} ${student.profile?.lastName || ""}\nTITLE:Student\nEND:VCARD`;
+                    try {
+                        let qrPayload = student.id || student._id?.toString() || "unknown";
+                        if (config.dataMode === "profileUrl") {
+                            qrPayload = `${process.env.NEXT_PUBLIC_APP_URL || "https://app.local"}/profile/${qrPayload}`;
+                        } else if (config.dataMode === "vcard") {
+                            const firstName = student.firstName || student.profile?.firstName || "";
+                            const lastName = student.lastName || student.profile?.lastName || "";
+                            const studentName = `${firstName} ${lastName}`.trim();
+                            qrPayload = `BEGIN:VCARD\nVERSION:3.0\nN:${lastName};${firstName};;;\nFN:${studentName}\nTITLE:Student\nEND:VCARD`;
+                        }
+                        const qrDataUrl = await generateQRCode(qrPayload);
+                        const qrImage = await loadImage(qrDataUrl);
+                        drawImage(ctx, qrImage, config, frontImage.width, frontImage.height);
+                    } catch (qrError) {
+                        console.warn(`[IDCardService] QR Code generation failed:`, qrError.message);
                     }
-                    const qrDataUrl = await generateQRCode(qrPayload);
-                    const qrImage = await loadImage(qrDataUrl);
-                    drawImage(ctx, qrImage, config, frontImage.width, frontImage.height);
                 } else {
                     // Text elements (field or static)
                     let text = "";
                     if (config.type === "static") {
                         text = config.staticText || "";
                     } else {
-                        // Dynamic field
-                        const fieldKey = config.fieldKey || getLegacyFieldKey(key);
+                        // Dynamic field - priority: config.fieldKey > legacy mapping > key itself
+                        let fieldKey = config.fieldKey;
+                        if (!fieldKey) {
+                            fieldKey = getLegacyFieldKey(key) || key;
+                        }
+                        
                         if (fieldKey) {
                             const val = getNestedValue(student, fieldKey);
-                            text = val ? val.toString() : "";
+                            text = val ? val.toString().trim() : "";
                             
-                            // Formatting for special fields
-                            if (fieldKey === 'createdAt' && val) {
-                                text = new Date(val).toLocaleDateString();
+                            // Special formatting for specific fields
+                            if ((fieldKey === 'admissionDate' || fieldKey === 'joiningDate' || fieldKey === 'dob') && val && !text.includes('/')) {
+                                try {
+                                    text = new Date(val).toLocaleDateString('en-GB');
+                                } catch (e) {
+                                    // Keep original text if date parsing fails
+                                }
                             }
                         }
                     }
 
-                    if (text) {
+                    if (text && text !== 'N/A') {
                         drawText(ctx, text, config, frontImage.width, frontImage.height);
                     }
                 }
@@ -134,43 +165,63 @@ export async function renderIDCardBack(student, template, institute) {
 
             try {
                 if (config.type === "qr" || key === "qrCode") {
-                    let qrPayload = student._id.toString();
-                    if (config.dataMode === "profileUrl") {
-                        qrPayload = `${process.env.NEXT_PUBLIC_APP_URL || "https://quantech.vercel.app"}/profile/${student._id}`;
-                    } else if (config.dataMode === "vcard") {
-                        qrPayload = `BEGIN:VCARD\nVERSION:3.0\nN:${student.profile?.lastName || ""};${student.profile?.firstName || ""};;;\nFN:${student.profile?.firstName || ""} ${student.profile?.lastName || ""}\nORG:${institute?.name || ""}\nTITLE:Student\nEND:VCARD`;
+                    try {
+                        let qrPayload = student.id || student._id?.toString() || "unknown";
+                        if (config.dataMode === "profileUrl") {
+                            qrPayload = `${process.env.NEXT_PUBLIC_APP_URL || "https://app.local"}/profile/${qrPayload}`;
+                        } else if (config.dataMode === "vcard") {
+                            const firstName = student.firstName || student.profile?.firstName || "";
+                            const lastName = student.lastName || student.profile?.lastName || "";
+                            const studentName = `${firstName} ${lastName}`.trim();
+                            const institName = institute?.name || getNestedValue(student, "institute.name") || "";
+                            qrPayload = `BEGIN:VCARD\nVERSION:3.0\nN:${lastName};${firstName};;;\nFN:${studentName}\nORG:${institName}\nTITLE:Student\nEND:VCARD`;
+                        }
+                        const qrDataUrl = await generateQRCode(qrPayload);
+                        const qrImage = await loadImage(qrDataUrl);
+                        drawImage(ctx, qrImage, config, backImage.width, backImage.height);
+                    } catch (qrError) {
+                        console.warn(`[IDCardService] QR Code generation failed:`, qrError.message);
                     }
-                    const qrDataUrl = await generateQRCode(qrPayload);
-                    const qrImage = await loadImage(qrDataUrl);
-                    drawImage(ctx, qrImage, config, backImage.width, backImage.height);
                 } else if (config.type === "image") {
-                    // Custom image field if any
-                    const fieldKey = config.fieldKey;
-                    const imageUrl = fieldKey ? getNestedValue(student, fieldKey) : null;
-                    if (imageUrl) {
-                        const resolvedPhotoUrl = resolveImagePath(imageUrl);
-                        const photoImage = await loadImage(resolvedPhotoUrl);
-                        drawImage(ctx, photoImage, config, backImage.width, backImage.height);
+                    try {
+                        const fieldKey = config.fieldKey;
+                        const imageUrl = fieldKey ? getNestedValue(student, fieldKey) : null;
+                        if (imageUrl) {
+                            const resolvedPhotoUrl = resolveImagePath(imageUrl);
+                            const photoImage = await loadImage(resolvedPhotoUrl);
+                            drawImage(ctx, photoImage, config, backImage.width, backImage.height);
+                        }
+                    } catch (photoError) {
+                        console.warn(`[IDCardService] Could not load image:`, photoError.message);
                     }
                 } else {
+                    // Text elements
                     let text = "";
                     if (config.type === "static") {
                         text = config.staticText || "";
                     } else if (key === "instituteName") {
-                        text = institute?.name || "";
+                        // Try multiple paths for institute name
+                        text = (institute?.name) || 
+                               getNestedValue(student, "institute.name") ||
+                               getNestedValue(student, "instituteName") || "";
                     } else if (key === "validity") {
                         text = calculateValidity();
                     } else if (key === "disclaimer") {
                         text = "This card is valid only when signed by authorized personnel";
                     } else {
-                        const fieldKey = config.fieldKey || getLegacyFieldKey(key);
+                        // Dynamic field
+                        let fieldKey = config.fieldKey;
+                        if (!fieldKey) {
+                            fieldKey = getLegacyFieldKey(key) || key;
+                        }
+                        
                         if (fieldKey) {
                             const val = getNestedValue(student, fieldKey);
-                            text = val ? val.toString() : "";
+                            text = val ? val.toString().trim() : "";
                         }
                     }
 
-                    if (text) {
+                    if (text && text !== 'N/A') {
                         drawText(ctx, text, config, backImage.width, backImage.height);
                     }
                 }
@@ -187,28 +238,93 @@ export async function renderIDCardBack(student, template, institute) {
 }
 
 /**
- * Helper to get nested value from object
+ * Helper to get nested value from object with fallback to root level and student context
  */
 function getNestedValue(obj, path) {
-    if (!path) return null;
-    return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+    if (!path || !obj) return null;
+    
+    // First try direct path (handles nested paths like "student.fullName" or "batch.name")
+    const value = path.split('.').reduce((acc, part) => {
+        if (acc === null || acc === undefined) return undefined;
+        return acc[part];
+    }, obj);
+    
+    if (value !== undefined && value !== null && value !== '') {
+        return value;
+    }
+    
+    // Fallback: try as root level key (for cases where data is flattened)
+    if (obj[path] !== undefined && obj[path] !== null) {
+        return obj[path];
+    }
+    
+    // Additional fallback: try in student context (obj.student.{path})
+    // This handles cases where fieldKey is "grNumber" but data is at context.student.grNumber
+    if (obj.student && obj.student[path] !== undefined && obj.student[path] !== null && obj.student[path] !== '') {
+        return obj.student[path];
+    }
+    
+    return null;
 }
 
 /**
- * Legacy field mapping
+ * Legacy field mapping - Maps template field keys to actual data paths
+ * Supports both root level and nested properties
  */
 function getLegacyFieldKey(key) {
     const mapping = {
+        // Direct mappings for student properties
         studentName: "fullName",
-        studentId: "enrollmentNumber",
+        fullName: "fullName",
+        name: "fullName",
+        
+        // ID/Enrollment fields
+        studentId: "grNumber",
+        grNumber: "grNumber",
         enrollmentNo: "enrollmentNumber",
-        batch: "batch.name",
-        section: "batch.name",
-        course: "course.name",
-        std: "course.name",
+        enrollmentNumber: "enrollmentNumber",
         rollNumber: "rollNo",
         rollNo: "rollNo",
-        dateOfAdmission: "createdAt"
+        
+        // Contact information
+        phone: "phone",
+        email: "email",
+        
+        // Personal details
+        bloodGroup: "bloodGroup",
+        gender: "gender",
+        dob: "dob",
+        dateOfBirth: "dob",
+        
+        // Parent information
+        fatherName: "fatherName",
+        motherName: "motherName",
+        aadharNumber: "aadharNumber",
+        
+        // Academic information (from batch/course context)
+        batch: "batch.name",
+        batchName: "batch.name",
+        section: "section",
+        course: "course.name",
+        courseName: "course.name",
+        std: "std",
+        standard: "std",
+        
+        // Address
+        city: "city",
+        state: "state",
+        address: "fullAddress",
+        
+        // Dates
+        dateOfAdmission: "admissionDate",
+        admissionDate: "admissionDate",
+        joiningDate: "joiningDate",
+        createdAt: "admissionDate",
+        
+        // School specific
+        instituteName: "institute.name",
+        instituteAddress: "institute.address",
+        validity: "validity"
     };
     return mapping[key] || null;
 }
