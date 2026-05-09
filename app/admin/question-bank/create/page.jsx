@@ -10,8 +10,10 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import Editor from 'react-simple-code-editor';
-import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
+// Base Prism
+import Prism from 'prismjs';
+// Languages (Importing directly to avoid auto-loader issues in Next.js)
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-markup';
@@ -343,10 +345,14 @@ export default function CreateQuestionPage() {
                                                     snippet: { ...prev.snippet, code }
                                                 }))}
                                                 highlight={code => {
-                                                    const lang = formData.snippet.language === 'html' ? 'markup' : formData.snippet.language;
-                                                    const prismLang = Prism.languages[lang] || Prism.languages.javascript;
-                                                    if (!prismLang) return code;
-                                                    return Prism.highlight(code, prismLang, lang);
+                                                    if (!code) return "";
+                                                    try {
+                                                        const lang = formData.snippet.language === 'html' ? 'markup' : (formData.snippet.language || 'javascript');
+                                                        const prismLang = Prism.languages[lang] || Prism.languages.javascript;
+                                                        return Prism.highlight(code, prismLang, lang);
+                                                    } catch (e) {
+                                                        return code;
+                                                    }
                                                 }}
                                                 padding={16}
                                                 style={{
