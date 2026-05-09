@@ -10,6 +10,7 @@ export const SECTION_TYPES = {
     FACULTY: 'faculty',
     PROGRAMS: 'programs',
     TESTIMONIALS: 'testimonials',
+    GALLERY: 'gallery',
     CONTACT: 'contact',
     FOOTER: 'footer'
 };
@@ -75,6 +76,31 @@ export const DEFAULT_SECTION_DATA = {
             { id: 1, name: "Alex Johnson", role: "Graduate", text: "The best learning experience I've ever had. The faculty is amazing!", image: "https://i.pravatar.cc/150?u=alex" },
             { id: 2, name: "Maria Garcia", role: "Student", text: "State-of-the-art facilities and a very supportive environment.", image: "https://i.pravatar.cc/150?u=maria" }
         ]
+    },
+    [SECTION_TYPES.GALLERY]: {
+        title: "Life at Our Institute",
+        subtitle: "A glimpse into our campus, events, and student activities.",
+        images: [
+            { id: 1, url: "https://images.unsplash.com/photo-1523050853064-59f602992d42?q=80&w=800", caption: "Main Campus" },
+            { id: 2, url: "https://images.unsplash.com/photo-1541339907198-e08756eaa589?q=80&w=800", caption: "Graduation Ceremony" },
+            { id: 3, url: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=800", caption: "Science Lab" }
+        ]
+    },
+    [SECTION_TYPES.FOOTER]: {
+        about: "Empowering the next generation of leaders through quality education and hands-on training.",
+        links: [
+            { label: "Home", url: "/" },
+            { label: "Admissions", url: "/admissions" },
+            { label: "Courses", url: "/courses" },
+            { label: "Contact", url: "/contact" }
+        ],
+        socials: {
+            facebook: "#",
+            twitter: "#",
+            instagram: "#",
+            linkedin: "#"
+        },
+        copyright: "© 2024 All Rights Reserved"
     }
 };
 

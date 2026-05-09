@@ -71,13 +71,24 @@ export async function POST(req) {
                 const studentBatch = await Batch.findOne({
                     'enrolledStudents.student': student._id,
                     deletedAt: null
-                });
+                }).populate('course');
 
-                return await getHydratedContext(student._id, instituteId, {
+                const hydratedContext = await getHydratedContext(student._id, instituteId, {
                     batchId: studentBatch?._id
                 });
+
+                // Log what we're passing for debugging
+                console.log(`[IDCardGeneration] Hydrated context for ${hydratedContext.student.fullName}:`, {
+                    hasFullName: !!hydratedContext.student.fullName,
+                    hasGrNumber: !!hydratedContext.student.grNumber,
+                    hasEnrollment: !!hydratedContext.student.enrollmentNumber,
+                    hasBatch: !!hydratedContext.batch?.name,
+                    courseFields: Object.keys(hydratedContext.course || {})
+                });
+
+                return hydratedContext;
             } catch (e) {
-                console.error(`Failed to hydrate student ${student._id}:`, e);
+                console.error(`Failed to hydrate student ${student._id}:`, e.message);
                 return null;
             }
         }));
@@ -86,6 +97,7 @@ export async function POST(req) {
         const firstValidContext = hydratedContexts.find(c => !!c);
         if (!firstValidContext) throw new Error("No valid student data found for rendering");
         
+        console.log(`[IDCardGeneration] Rendering back card with context from: ${firstValidContext.student.fullName}`);
         const backCanvas = await renderIDCardBack(firstValidContext, template, firstValidContext.institute);
         const commonBackImage = backCanvas.toDataURL("image/png");
 
@@ -94,7 +106,10 @@ export async function POST(req) {
         // 2. Render cards (could be parallel but canvas might be heavy)
         for (let i = 0; i < hydratedContexts.length; i++) {
             const context = hydratedContexts[i];
-            if (!context) continue;
+            if (!context) {
+                console.warn(`[IDCardGeneration] Skipping invalid context at index ${i}`);
+                continue;
+            }
 
             try {
                 console.log(`[IDCardGeneration] Rendering card for student: ${context.student.fullName}`);
@@ -104,21 +119,31 @@ export async function POST(req) {
                 const frontImage = frontCanvas.toDataURL("image/png");
 
                 studentCards.push({
-                    studentId: context.student.grNumber || i, // or original ID
+                    studentId: context.student.grNumber || i,
                     name: context.student.fullName,
-                    rollNumber: context.student.rollNo || context.student.enrollmentNo,
+                    rollNumber: context.student.rollNo || context.student.enrollmentNumber,
                     frontImage: frontImage
                 });
 
+                console.log(`[IDCardGeneration] Successfully rendered: ${context.student.fullName}`);
+
             } catch (cardError) {
-                console.error(`[IDCardGeneration] Error rendering card:`, cardError);
+                console.error(`[IDCardGeneration] Error rendering card for ${context.student.fullName}:`, cardError);
             }
+        }
+
+        if (studentCards.length === 0) {
+            return NextResponse.json(
+                { error: "Failed to generate any ID cards. Check server logs for details." },
+                { status: 500 }
+            );
         }
 
         return NextResponse.json({
             success: true,
             commonBackImage,
-            studentCards
+            studentCards,
+            message: `Successfully generated ${studentCards.length} ID cards`
         });
 
     } catch (error) {

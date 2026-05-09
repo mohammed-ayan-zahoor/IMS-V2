@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Menu, X, Phone, Mail, Globe, Layout } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
-const WebsiteHeader = ({ config = {} }) => {
+const WebsiteHeader = ({ config = {}, isDark = false }) => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -29,8 +29,8 @@ const WebsiteHeader = ({ config = {} }) => {
 
     return (
         <header className={cn(
-            "fixed top-0 left-0 w-full z-[100] transition-all duration-500",
-            isScrolled || isMobileMenuOpen 
+            "sticky top-0 left-0 w-full z-[100] transition-all duration-500",
+            (isScrolled || isMobileMenuOpen || !isDark) 
                 ? "bg-white/90 backdrop-blur-xl shadow-xl py-4" 
                 : "bg-transparent py-6"
         )}>
@@ -38,8 +38,12 @@ const WebsiteHeader = ({ config = {} }) => {
                 {/* Logo */}
                 <div className="flex items-center gap-3 group cursor-pointer">
                     <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
-                        {branding.logo ? (
-                            <img src={branding.logo} alt="Logo" className="w-full h-full object-contain p-2" />
+                        {config.instituteLogo || branding.logo ? (
+                            <img 
+                                src={config.instituteLogo || branding.logo} 
+                                alt="Logo" 
+                                className="w-full h-full object-contain p-2" 
+                            />
                         ) : (
                             <Layout size={24} />
                         )}
@@ -47,13 +51,13 @@ const WebsiteHeader = ({ config = {} }) => {
                     <div className="flex flex-col">
                         <span className={cn(
                             "text-xl font-black tracking-tighter leading-none transition-colors",
-                            isScrolled || isMobileMenuOpen ? "text-slate-900" : "text-white"
+                            (isScrolled || isMobileMenuOpen) ? "text-slate-900" : (isDark ? "text-white" : "text-slate-900")
                         )}>
                             {config.instituteName || "SCHOOL PORTAL"}
                         </span>
                         <span className={cn(
                             "text-[10px] font-bold uppercase tracking-widest mt-1",
-                            isScrolled || isMobileMenuOpen ? "text-slate-400" : "text-white/60"
+                            (isScrolled || isMobileMenuOpen) ? "text-slate-400" : (isDark ? "text-white/60" : "text-slate-500")
                         )}>
                             {config.template} Institute
                         </span>
@@ -68,7 +72,7 @@ const WebsiteHeader = ({ config = {} }) => {
                             href={link.href}
                             className={cn(
                                 "text-sm font-bold transition-all hover:scale-105 active:scale-95",
-                                isScrolled ? "text-slate-600 hover:text-blue-600" : "text-white/90 hover:text-white"
+                                isScrolled ? "text-slate-600 hover:text-blue-600" : (isDark ? "text-white/90 hover:text-white" : "text-slate-600 hover:text-blue-600")
                             )}
                         >
                             {link.name}
@@ -84,7 +88,7 @@ const WebsiteHeader = ({ config = {} }) => {
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     className={cn(
                         "md:hidden p-2 rounded-xl transition-colors",
-                        isScrolled || isMobileMenuOpen ? "text-slate-900 bg-slate-100" : "text-white bg-white/10"
+                        (isScrolled || isMobileMenuOpen) ? "text-slate-900 bg-slate-100" : (isDark ? "text-white bg-white/10" : "text-slate-900 bg-slate-100")
                     )}
                 >
                     {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}

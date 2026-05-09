@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, GripVertical, Trash2, ChevronUp, ChevronDown, Save, Eye, Layout, Users } from 'lucide-react';
+import { Plus, GripVertical, Trash2, ChevronUp, ChevronDown, Save, Eye, Layout, Users, Copy, ExternalLink, Globe } from 'lucide-react';
 import { motion, Reorder, useDragControls } from 'framer-motion';
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -14,6 +14,8 @@ import FacultyDirectory from '../public/FacultyDirectory';
 import PlacementStats from '../public/PlacementStats';
 import ProgramsSection from '../public/ProgramsSection';
 import TestimonialsSection from '../public/TestimonialsSection';
+import GallerySection from '../public/GallerySection';
+import FooterSection from '../public/FooterSection';
 import { SECTION_TYPES, DEFAULT_SECTION_DATA } from '@/services/pageBuilderService';
 import { useWebsitePresence } from '@/hooks/useWebsitePresence';
 
@@ -36,6 +38,10 @@ const SectionWrapper = ({ section, onUpdate, onDelete, onMoveUp, onMoveDown, isF
                 return <ProgramsSection content={section.content} isEditing={true} onUpdate={(data) => onUpdate(section.id, data)} instituteId={instituteId} />;
             case SECTION_TYPES.TESTIMONIALS:
                 return <TestimonialsSection content={section.content} isEditing={true} onUpdate={(data) => onUpdate(section.id, data)} />;
+            case SECTION_TYPES.GALLERY:
+                return <GallerySection content={section.content} isEditing={true} onUpdate={(data) => onUpdate(section.id, data)} />;
+            case SECTION_TYPES.FOOTER:
+                return <FooterSection content={section.content} isEditing={true} onUpdate={(data) => onUpdate(section.id, data)} />;
             default:
                 return (
                     <div className="p-20 bg-slate-100 text-center border-2 border-dashed border-slate-300 rounded-2xl">
@@ -87,10 +93,17 @@ const SectionWrapper = ({ section, onUpdate, onDelete, onMoveUp, onMoveDown, isF
     );
 };
 
-const DragDropEditor = ({ initialSections = [], onSave, instituteId, pageSlug = 'index' }) => {
+const DragDropEditor = ({ initialSections = [], onSave, instituteId, instituteCode, pageSlug = 'index' }) => {
     const [sections, setSections] = useState(initialSections);
     const [isSaving, setIsSaving] = useState(false);
     const toast = useToast();
+
+    const publicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/website/${instituteCode}`;
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(publicUrl);
+        toast.success("Link copied to clipboard!");
+    };
 
     // Real-time Sync
     const { presence } = useWebsitePresence(instituteId, pageSlug, (newSections) => {
@@ -147,31 +160,57 @@ const DragDropEditor = ({ initialSections = [], onSave, instituteId, pageSlug = 
         <div className="flex h-screen bg-slate-50 overflow-hidden">
             {/* Sidebar: Section Library */}
             <div className="w-80 bg-white border-r border-slate-200 flex flex-col">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                    <div>
-                        <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                            <Layout className="text-blue-600" />
-                            Sections
-                        </h2>
-                        <p className="text-xs text-slate-400 mt-1 font-medium">Build your page</p>
+                <div className="p-6 border-b border-slate-100 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                                <Layout className="text-blue-600" />
+                                Sections
+                            </h2>
+                            <p className="text-xs text-slate-400 mt-1 font-medium">Build your page</p>
+                        </div>
+                        
+                        {/* Presence Indicators */}
+                        <div className="flex -space-x-2 overflow-hidden">
+                            {presence.slice(0, 3).map((user, i) => (
+                                <div 
+                                    key={user.id} 
+                                    title={user.name}
+                                    className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600 border border-blue-200"
+                                >
+                                    {user.name.split(' ').map(n => n[0]).join('')}
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    
-                    {/* Presence Indicators */}
-                    <div className="flex -space-x-2 overflow-hidden">
-                        {presence.slice(0, 3).map((user, i) => (
-                            <div 
-                                key={user.id} 
-                                title={user.name}
-                                className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600 border border-blue-200"
+
+                    {/* Share / Preview Card */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                                <Globe size={10} />
+                                Public Link
+                            </span>
+                            <a 
+                                href={publicUrl} 
+                                target="_blank" 
+                                className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1"
                             >
-                                {user.name.split(' ').map(n => n[0]).join('')}
+                                Visit Site <ExternalLink size={10} />
+                            </a>
+                        </div>
+                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-2 group">
+                            <div className="flex-1 text-[10px] font-medium text-slate-500 truncate">
+                                {publicUrl}
                             </div>
-                        ))}
-                        {presence.length > 3 && (
-                            <div className="flex items-center justify-center h-8 w-8 rounded-full ring-2 ring-white bg-slate-100 text-[10px] font-bold text-slate-500 border border-slate-200">
-                                +{presence.length - 3}
-                            </div>
-                        )}
+                            <button 
+                                onClick={handleCopyLink}
+                                className="p-1.5 hover:bg-slate-50 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Copy Link"
+                            >
+                                <Copy size={14} />
+                            </button>
+                        </div>
                     </div>
                 </div>
                 

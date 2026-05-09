@@ -31,9 +31,29 @@ export async function GET(req) {
             });
         }
 
-        const pages = await WebsitePage.find({ websiteConfigId: config._id }).sort({ createdAt: 1 });
+        let pages = await WebsitePage.find({ websiteConfigId: config._id }).sort({ createdAt: 1 });
+        
+        // Auto-create Home page if none exists
+        if (pages.length === 0) {
+            const { getTemplateSections } = await import("@/services/pageBuilderService");
+            const homePage = await WebsitePage.create({
+                websiteConfigId: config._id,
+                title: 'Home',
+                slug: 'index',
+                sections: getTemplateSections(config.template || 'SCHOOL')
+            });
+            pages = [homePage];
+        }
+        
+        const Institute = (await import("@/models/Institute")).default;
+        const institute = await Institute.findById(scope.instituteId).select('code name');
 
-        return Response.json({ config, pages });
+        return Response.json({ 
+            config, 
+            pages,
+            instituteCode: institute?.code,
+            instituteName: institute?.name
+        });
     } catch (error) {
         console.error("Website Config GET Error:", error);
         return Response.json({ error: error.message }, { status: 500 });

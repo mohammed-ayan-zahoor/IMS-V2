@@ -11,6 +11,7 @@ export default function WebsiteAdminPage() {
     const [config, setConfig] = useState(null);
     const [pages, setPages] = useState([]);
     const [activePage, setActivePage] = useState(null);
+    const [instituteCode, setInstituteCode] = useState('');
     const toast = useToast();
 
     useEffect(() => {
@@ -22,6 +23,7 @@ export default function WebsiteAdminPage() {
                 
                 if (res.ok) {
                     setConfig(data.config);
+                    setInstituteCode(data.instituteCode);
                     // For now, let's just initialize a default home page if none exists
                     if (!data.pages || data.pages.length === 0) {
                         const defaultSections = getTemplateSections(data.config?.template || 'SCHOOL');
@@ -80,6 +82,7 @@ export default function WebsiteAdminPage() {
                 initialSections={activePage?.sections || []} 
                 onSave={handleSave} 
                 instituteId={config?.instituteId}
+                instituteCode={instituteCode}
                 pageSlug={activePage?.slug}
             />
         </div>
