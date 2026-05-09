@@ -10,24 +10,8 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import Editor from 'react-simple-code-editor';
-import 'prismjs/themes/prism-tomorrow.css';
-import Prism from 'prismjs';
-
-// CRITICAL: Prism components look for a global Prism object
-if (typeof window !== 'undefined') {
-    window.Prism = window.Prism || Prism;
-}
-
-// Now import languages
-import 'prismjs/components/prism-clike';
-import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-markup';
-import 'prismjs/components/prism-python';
-import 'prismjs/components/prism-sql';
-import 'prismjs/components/prism-java';
-import 'prismjs/components/prism-cpp';
-import 'prismjs/components/prism-c';
-import 'prismjs/components/prism-bash';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/tokyo-night-dark.css'; // A premium dark theme
 
 export default function CreateQuestionPage() {
     const router = useRouter();
@@ -352,9 +336,8 @@ export default function CreateQuestionPage() {
                                                 highlight={code => {
                                                     if (!code) return "";
                                                     try {
-                                                        const lang = formData.snippet.language === 'html' ? 'markup' : (formData.snippet.language || 'javascript');
-                                                        const prismLang = Prism.languages[lang] || Prism.languages.javascript;
-                                                        return Prism.highlight(code, prismLang, lang);
+                                                        const lang = formData.snippet.language || 'javascript';
+                                                        return hljs.highlight(code, { language: lang }).value;
                                                     } catch (e) {
                                                         return code;
                                                     }

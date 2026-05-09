@@ -10,8 +10,8 @@ import {
     Trophy,
     ArrowLeft
 } from "lucide-react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import Button from "@/components/ui/Button";
 import Card, { CardContent } from "@/components/ui/Card";
@@ -165,7 +165,7 @@ export default function ExamResultPage() {
                                                         <div className="mb-4 rounded-xl overflow-x-auto border border-slate-200 shadow-md scrollbar-thin scrollbar-thumb-slate-700">
                                                             <SyntaxHighlighter
                                                                 language={ans.snippet.language || 'javascript'}
-                                                                style={vscDarkPlus}
+                                                                style={atomOneDark}
                                                                 customStyle={{
                                                                     margin: 0,
                                                                     padding: '1rem',
