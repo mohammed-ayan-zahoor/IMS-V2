@@ -11,6 +11,9 @@ import { useToast } from "@/contexts/ToastContext";
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
+import 'prismjs/components/prism-clike';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-markup';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-sql';
 import 'prismjs/components/prism-java';
@@ -375,11 +378,9 @@ export default function EditQuestionPage({ params }) {
                                                 }))}
                                                 highlight={code => {
                                                     const lang = formData.snippet.language === 'html' ? 'markup' : formData.snippet.language;
-                                                    return Prism.highlight(
-                                                        code,
-                                                        Prism.languages[lang] || Prism.languages.javascript,
-                                                        lang
-                                                    );
+                                                    const prismLang = Prism.languages[lang] || Prism.languages.javascript;
+                                                    if (!prismLang) return code;
+                                                    return Prism.highlight(code, prismLang, lang);
                                                 }}
                                                 padding={16}
                                                 style={{
