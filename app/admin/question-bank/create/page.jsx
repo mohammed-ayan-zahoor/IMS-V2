@@ -9,6 +9,15 @@ import Card, { CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
+import Editor from 'react-simple-code-editor';
+import Prism from 'prismjs';
+import 'prismjs/themes/prism-tomorrow.css';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-bash';
 
 export default function CreateQuestionPage() {
     const router = useRouter();
@@ -323,15 +332,31 @@ export default function CreateQuestionPage() {
                                         />
                                     </div>
                                     <div>
-                                        <textarea
-                                            value={formData.snippet.code}
-                                            onChange={(e) => setFormData(prev => ({
-                                                ...prev,
-                                                snippet: { ...prev.snippet, code: e.target.value }
-                                            }))}
-                                            className="w-full min-h-[200px] p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-premium-blue/20 outline-none resize-y font-mono text-sm bg-slate-900 text-slate-100"
-                                            placeholder="Paste your code snippet here..."
-                                        />
+                                        <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-900 min-h-[200px]">
+                                            <Editor
+                                                value={formData.snippet.code}
+                                                onValueChange={code => setFormData(prev => ({
+                                                    ...prev,
+                                                    snippet: { ...prev.snippet, code }
+                                                }))}
+                                                highlight={code => {
+                                                    const lang = formData.snippet.language === 'html' ? 'markup' : formData.snippet.language;
+                                                    return Prism.highlight(
+                                                        code,
+                                                        Prism.languages[lang] || Prism.languages.javascript,
+                                                        lang
+                                                    );
+                                                }}
+                                                padding={16}
+                                                style={{
+                                                    fontFamily: '"Fira code", "Fira Mono", monospace',
+                                                    fontSize: 14,
+                                                    minHeight: '200px',
+                                                    outline: 'none'
+                                                }}
+                                                className="prism-editor"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             )}
