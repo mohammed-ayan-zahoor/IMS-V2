@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 export default function ExamRoomPage() {
     const params = useParams();
@@ -601,6 +603,23 @@ export default function ExamRoomPage() {
                                     <h3 className="text-base md:text-lg font-semibold text-slate-800 leading-relaxed">
                                         {currentQuestion.text}
                                     </h3>
+                                    {currentQuestion.snippet?.code && (
+                                        <div className="mt-4 rounded-xl overflow-hidden border border-slate-200 shadow-lg">
+                                            <SyntaxHighlighter
+                                                language={currentQuestion.snippet.language || 'javascript'}
+                                                style={vscDarkPlus}
+                                                customStyle={{
+                                                    margin: 0,
+                                                    padding: '1.25rem',
+                                                    fontSize: '0.85rem',
+                                                    lineHeight: '1.6',
+                                                    borderRadius: '0.75rem'
+                                                }}
+                                            >
+                                                {currentQuestion.snippet.code}
+                                            </SyntaxHighlighter>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

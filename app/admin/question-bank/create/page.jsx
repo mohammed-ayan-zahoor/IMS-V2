@@ -1,9 +1,9 @@
 "use client";
 // Verified: app/admin/question-bank/create/page.jsx uses plain value in inline handlers. No change needed.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Code } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card, { CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -14,6 +14,9 @@ export default function CreateQuestionPage() {
     const router = useRouter();
     const toast = useToast();
     const [loading, setLoading] = useState(false);
+    const [bulkMode, setBulkMode] = useState(false);
+    const [showSnippet, setShowSnippet] = useState(false);
+    const questionRef = useRef(null);
 
     // Data state
     const [courses, setCourses] = useState([]);
@@ -28,7 +31,8 @@ export default function CreateQuestionPage() {
         difficulty: "medium",
         marks: 1,
         options: ["", "", "", ""],
-        correctOption: 0
+        correctOption: 0,
+        snippet: { code: "", language: "javascript" }
     });
 
     useEffect(() => {
@@ -96,7 +100,8 @@ export default function CreateQuestionPage() {
                 marks: Number(formData.marks),
                 ...(formData.type === "mcq" && {
                     correctAnswer: String(formData.correctOption)
-                })
+                }),
+                snippet: showSnippet ? formData.snippet : undefined
             };
             const res = await fetch("/api/v1/questions", {
                 method: "POST",
@@ -107,9 +112,25 @@ export default function CreateQuestionPage() {
             if (!res.ok) throw new Error("Failed to create question");
 
             toast.success("Question created successfully");
-            setTimeout(() => {
-                router.push("/admin/question-bank");
-            }, 1000);
+            if (bulkMode) {
+                setFormData(prev => ({
+                    ...prev,
+                    text: "",
+                    options: ["", "", "", ""],
+                    correctOption: 0,
+                    snippet: { code: "", language: "javascript" }
+                }));
+                setShowSnippet(false);
+                setLoading(false);
+                // Focus back on the question text area
+                setTimeout(() => {
+                    questionRef.current?.focus();
+                }, 100);
+            } else {
+                setTimeout(() => {
+                    router.push("/admin/question-bank");
+                }, 1000);
+            }
         } catch (error) {
             console.error(error);
             toast.error("Error creating question");
@@ -208,6 +229,7 @@ export default function CreateQuestionPage() {
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-2">Question Text *</label>
                             <textarea
+                                ref={questionRef}
                                 name="text"
                                 value={formData.text}
                                 onChange={handleChange}
@@ -261,14 +283,84 @@ export default function CreateQuestionPage() {
                                 </Button>
                             </div>
                         )}
+                        {/* Code Snippet Section */}
+                        <div className="space-y-4 pt-4 border-t border-slate-100">
+                            <div className="flex items-center justify-between">
+                                <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                                    <Code size={18} className="text-premium-blue" />
+                                    Code Snippet (Optional)
+                                </label>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowSnippet(!showSnippet)}
+                                    className="text-premium-blue font-bold text-xs"
+                                >
+                                    {showSnippet ? "Remove Snippet" : "Add Snippet"}
+                                </Button>
+                            </div>
+
+                            {showSnippet && (
+                                <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="md:w-1/2">
+                                        <Select
+                                            label="Language"
+                                            value={formData.snippet.language}
+                                            onChange={(val) => setFormData(prev => ({
+                                                ...prev,
+                                                snippet: { ...prev.snippet, language: val }
+                                            }))}
+                                            options={[
+                                                { label: "JavaScript", value: "javascript" },
+                                                { label: "Python", value: "python" },
+                                                { label: "HTML", value: "html" },
+                                                { label: "CSS", value: "css" },
+                                                { label: "C++", value: "cpp" },
+                                                { label: "Java", value: "java" },
+                                                { label: "SQL", value: "sql" }
+                                            ]}
+                                        />
+                                    </div>
+                                    <div>
+                                        <textarea
+                                            value={formData.snippet.code}
+                                            onChange={(e) => setFormData(prev => ({
+                                                ...prev,
+                                                snippet: { ...prev.snippet, code: e.target.value }
+                                            }))}
+                                            className="w-full min-h-[200px] p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-premium-blue/20 outline-none resize-y font-mono text-sm bg-slate-900 text-slate-100"
+                                            placeholder="Paste your code snippet here..."
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 
-                <div className="flex justify-end gap-3">
-                    <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-                    <Button type="submit" disabled={loading} className="bg-premium-blue hover:bg-premium-blue/90 text-white min-w-[120px]">
-                        {loading ? "Saving..." : <><Save size={18} className="mr-2" /> Save Question</>}
-                    </Button>
+                <div className="flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-3 cursor-pointer select-none group bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 hover:border-premium-blue/30 transition-all">
+                        <div className="relative">
+                            <input
+                                type="checkbox"
+                                className="sr-only"
+                                checked={bulkMode}
+                                onChange={(e) => setBulkMode(e.target.checked)}
+                            />
+                            <div className={`w-10 h-5 rounded-full transition-colors ${bulkMode ? 'bg-premium-blue' : 'bg-slate-300'}`}></div>
+                            <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${bulkMode ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                        </div>
+                        <span className="text-sm font-bold text-slate-600 group-hover:text-premium-blue transition-colors">
+                            Bulk Add Mode (Keep Filters)
+                        </span>
+                    </label>
+                    <div className="flex gap-3">
+                        <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+                        <Button type="submit" disabled={loading} className="bg-premium-blue hover:bg-premium-blue/90 text-white min-w-[120px]">
+                            {loading ? "Saving..." : <><Save size={18} className="mr-2" /> Save Question</>}
+                        </Button>
+                    </div>
                 </div>
             </form>
         </div >

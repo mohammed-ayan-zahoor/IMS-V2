@@ -25,7 +25,7 @@ export async function GET(req, { params }) {
             select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations resultsPublished maxAttempts', populate: {
                 path: 'questions',
                 model: 'Question',
-                select: 'text type options correctAnswer marks'
+                select: 'text type options correctAnswer marks snippet'
             }
         });
 
@@ -42,7 +42,7 @@ export async function GET(req, { params }) {
                     populate: {
                         path: 'questions',
                         model: 'Question',
-                        select: 'text type options correctAnswer marks'
+                        select: 'text type options correctAnswer marks snippet'
                     }
                 });
 
@@ -118,7 +118,8 @@ export async function GET(req, { params }) {
                 yourAnswer: ans.answer,
                 marksAwarded: ans.marksAwarded,
                 maxMarks: question?.marks || 0,
-                isCorrect: ans.isCorrect || false
+                isCorrect: ans.isCorrect || false,
+                snippet: question?.snippet || null
             };
 
             if (exam.showCorrectAnswers) {

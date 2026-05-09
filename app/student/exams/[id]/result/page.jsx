@@ -10,6 +10,8 @@ import {
     Trophy,
     ArrowLeft
 } from "lucide-react";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import Button from "@/components/ui/Button";
 import Card, { CardContent } from "@/components/ui/Card";
@@ -159,6 +161,22 @@ export default function ExamResultPage() {
                                                     <p className="font-semibold text-slate-800 text-lg mb-4">
                                                         {ans.questionText}
                                                     </p>
+                                                    {ans.snippet?.code && (
+                                                        <div className="mb-4 rounded-xl overflow-hidden border border-slate-200 shadow-md">
+                                                            <SyntaxHighlighter
+                                                                language={ans.snippet.language || 'javascript'}
+                                                                style={vscDarkPlus}
+                                                                customStyle={{
+                                                                    margin: 0,
+                                                                    padding: '1rem',
+                                                                    fontSize: '0.8rem',
+                                                                    lineHeight: '1.5',
+                                                                }}
+                                                            >
+                                                                {ans.snippet.code}
+                                                            </SyntaxHighlighter>
+                                                        </div>
+                                                    )}
 
                                                     {ans.type === "mcq" && ans.options && (
                                                         <div className="grid gap-2">

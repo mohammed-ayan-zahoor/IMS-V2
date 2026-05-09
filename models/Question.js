@@ -55,6 +55,10 @@ const QuestionSchema = new Schema({
 
     marks: { type: Number, required: true, default: 1, min: 0 },
     explanation: { type: String }, // Optional explanation
+    snippet: {
+        code: { type: String },
+        language: { type: String, default: 'javascript' }
+    },
 
     // Metadata
     tags: [String],

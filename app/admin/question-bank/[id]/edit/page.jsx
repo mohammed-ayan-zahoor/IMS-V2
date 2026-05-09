@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Code } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card, { CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -15,6 +15,7 @@ export default function EditQuestionPage({ params }) {
     const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
+    const [showSnippet, setShowSnippet] = useState(false);
 
     // Data state
     const [courses, setCourses] = useState([]);
@@ -29,7 +30,8 @@ export default function EditQuestionPage({ params }) {
         difficulty: "medium",
         marks: 1,
         options: ["", "", "", ""],
-        correctOption: 0
+        correctOption: 0,
+        snippet: { code: "", language: "javascript" }
     });
 
     useEffect(() => {
@@ -80,8 +82,10 @@ export default function EditQuestionPage({ params }) {
                 marks: q.marks || 1,
                 options: q.options && q.options.length > 0 ? q.options : ["", "", "", ""],
                 correctOption: q.type === 'mcq' && q.correctAnswer != null ?
-                    Math.max(0, Math.min(Number(q.correctAnswer) || 0, (q.options?.length || 4) - 1)) : 0
+                    Math.max(0, Math.min(Number(q.correctAnswer) || 0, (q.options?.length || 4) - 1)) : 0,
+                snippet: q.snippet || { code: "", language: "javascript" }
             });
+            if (q.snippet?.code) setShowSnippet(true);
         } catch (error) {
             console.error("Failed to fetch question", error);
             toast.error("Failed to load question details");
@@ -142,7 +146,8 @@ export default function EditQuestionPage({ params }) {
             const payload = {
                 ...formData,
                 marks: Number(formData.marks),
-                correctAnswer: String(formData.correctOption)
+                correctAnswer: String(formData.correctOption),
+                snippet: showSnippet ? formData.snippet : undefined
             };
 
             const res = await fetch(`/api/v1/questions/${id}`, {
@@ -312,6 +317,59 @@ export default function EditQuestionPage({ params }) {
                                 </Button>
                             </div>
                         )}
+                        {/* Code Snippet Section */}
+                        <div className="space-y-4 pt-4 border-t border-slate-100">
+                            <div className="flex items-center justify-between">
+                                <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                                    <Code size={18} className="text-premium-blue" />
+                                    Code Snippet (Optional)
+                                </label>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowSnippet(!showSnippet)}
+                                    className="text-premium-blue font-bold text-xs"
+                                >
+                                    {showSnippet ? "Remove Snippet" : "Add Snippet"}
+                                </Button>
+                            </div>
+
+                            {showSnippet && (
+                                <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="md:w-1/2">
+                                        <Select
+                                            label="Language"
+                                            value={formData.snippet.language}
+                                            onChange={(val) => setFormData(prev => ({
+                                                ...prev,
+                                                snippet: { ...prev.snippet, language: val }
+                                            }))}
+                                            options={[
+                                                { label: "JavaScript", value: "javascript" },
+                                                { label: "Python", value: "python" },
+                                                { label: "HTML", value: "html" },
+                                                { label: "CSS", value: "css" },
+                                                { label: "C++", value: "cpp" },
+                                                { label: "Java", value: "java" },
+                                                { label: "SQL", value: "sql" }
+                                            ]}
+                                        />
+                                    </div>
+                                    <div>
+                                        <textarea
+                                            value={formData.snippet.code}
+                                            onChange={(e) => setFormData(prev => ({
+                                                ...prev,
+                                                snippet: { ...prev.snippet, code: e.target.value }
+                                            }))}
+                                            className="w-full min-h-[200px] p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-premium-blue/20 outline-none resize-y font-mono text-sm bg-slate-900 text-slate-100"
+                                            placeholder="Paste your code snippet here..."
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 

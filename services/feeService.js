@@ -255,12 +255,13 @@ export class FeeService {
         await connectDB();
         const query = { deletedAt: null };
         if (filters.institute) query.institute = new mongoose.Types.ObjectId(filters.institute);
+        
+        // If a session is explicitly provided, filter by it.
+        // Otherwise, do NOT filter by session (allows non-school institutes with no sessions to see totals)
         if (filters.session) {
-            const batchLookup = { session: filters.session, deletedAt: null };
-            if (filters.institute) batchLookup.institute = filters.institute;
-            const batchIds = await Batch.find(batchLookup).distinct('_id');
-            query.batch = { $in: batchIds };
+            query.session = new mongoose.Types.ObjectId(filters.session);
         }
+        
         if (filters.batch) query.batch = new mongoose.Types.ObjectId(filters.batch);
         if (filters.course) {
             const batchLookup = { course: filters.course, deletedAt: null };
