@@ -5,7 +5,7 @@ const AnswerSchema = new Schema({
     questionId: { type: Schema.Types.ObjectId, required: true },
     answer: String, // Student's answer (option index for MCQ, text for short answer)
     isCorrect: { type: Boolean, default: false },
-    marksAwarded: { type: Number, default: 0, min: 0 },
+    marksAwarded: { type: Number, default: 0 },
     gradedBy: { type: Schema.Types.ObjectId, ref: 'User' }, // For manual grading
     gradedAt: Date,
     feedback: String // Grader's feedback on the answer
@@ -55,8 +55,8 @@ const ExamSubmissionSchema = new Schema({
     timeSpentSeconds: { type: Number, default: 0 }, // Actual time spent
 
     // Scoring
-    score: { type: Number, default: 0, min: 0 },
-    percentage: { type: Number, default: 0, min: 0, max: 100 },
+    score: { type: Number, default: 0 },
+    percentage: { type: Number, default: 0 },
 
     // Status Management
     status: {
