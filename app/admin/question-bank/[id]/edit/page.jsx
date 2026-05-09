@@ -10,7 +10,7 @@ import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import Editor from 'react-simple-code-editor';
 import hljs from 'highlight.js';
-import 'highlight.js/styles/tokyo-night-dark.css';
+import 'highlight.js/styles/atom-one-dark.css';
 
 export default function EditQuestionPage({ params }) {
     const { id } = use(params);

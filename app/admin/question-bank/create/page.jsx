@@ -11,7 +11,7 @@ import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import Editor from 'react-simple-code-editor';
 import hljs from 'highlight.js';
-import 'highlight.js/styles/tokyo-night-dark.css'; // A premium dark theme
+import 'highlight.js/styles/atom-one-dark.css';
 
 export default function CreateQuestionPage() {
     const router = useRouter();
