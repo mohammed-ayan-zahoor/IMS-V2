@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import WebsiteNotice from "@/models/WebsiteNotice";
+import { getInstituteScope } from "@/middleware/instituteScope";
 
 export async function GET(req) {
     try {
@@ -40,10 +41,12 @@ export async function POST(req) {
         const data = await req.json();
 
         await connectDB();
+        const scope = await getInstituteScope(req);
+        if (!scope?.instituteId) return Response.json({ error: "Unauthorized" }, { status: 401 });
         
         const notice = await WebsiteNotice.create({
             ...data,
-            instituteId: session.user.instituteId
+            instituteId: scope.instituteId
         });
 
         return Response.json({ success: true, notice });
@@ -60,8 +63,11 @@ export async function PUT(req) {
         const { _id, ...updateData } = await req.json();
 
         await connectDB();
+        const scope = await getInstituteScope(req);
+        if (!scope?.instituteId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
         const notice = await WebsiteNotice.findOneAndUpdate(
-            { _id, instituteId: session.user.instituteId },
+            { _id, instituteId: scope.instituteId },
             { $set: updateData },
             { new: true }
         );
@@ -83,7 +89,10 @@ export async function DELETE(req) {
         const id = searchParams.get('id');
 
         await connectDB();
-        const notice = await WebsiteNotice.findOneAndDelete({ _id: id, instituteId: session.user.instituteId });
+        const scope = await getInstituteScope(req);
+        if (!scope?.instituteId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+        const notice = await WebsiteNotice.findOneAndDelete({ _id: id, instituteId: scope.instituteId });
         if (!notice) return Response.json({ error: "Notice not found" }, { status: 404 });
 
         return Response.json({ success: true });
