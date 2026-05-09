@@ -10,9 +10,14 @@ import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import Editor from 'react-simple-code-editor';
 import 'prismjs/themes/prism-tomorrow.css';
-// Base Prism
 import Prism from 'prismjs';
-// Languages (Importing directly to avoid auto-loader issues in Next.js)
+
+// CRITICAL: Prism components look for a global Prism object
+if (typeof window !== 'undefined') {
+    window.Prism = window.Prism || Prism;
+}
+
+// Now import languages
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-markup';
