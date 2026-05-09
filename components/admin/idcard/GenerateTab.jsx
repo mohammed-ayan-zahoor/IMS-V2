@@ -90,7 +90,7 @@ export default function GenerateTab() {
             const res = await fetch("/api/v1/courses");
             if (res.ok) {
                 const data = await res.json();
-                setCourses(data);
+                setCourses(data.courses || (Array.isArray(data) ? data : []));
             }
         } catch (error) {
             console.error("Failed to load courses", error);
@@ -102,7 +102,7 @@ export default function GenerateTab() {
             const res = await fetch(`/api/v1/batches?courseId=${cid}`);
             if (res.ok) {
                 const data = await res.json();
-                setBatches(data);
+                setBatches(data.batches || (Array.isArray(data) ? data : []));
             }
         } catch (error) {
             console.error("Failed to load batches", error);
