@@ -56,25 +56,64 @@ export default function HtmlCertificateEditor() {
 
     const mockData = {
         student: {
+            firstName: "John",
+            lastName: "Doe",
+            surname: "Doe",
             fullName: "John Alexander Doe",
-            fatherName: "Robert Doe",
-            motherName: "Jane Doe",
-            grNumber: "GR/2024/001",
-            dob: "2008-05-15",
-            dobWords: "Fifteenth May Two Thousand and Eight",
-            admissionDate: "2020-06-15",
+            email: "john.doe@example.com",
+            phone: "+91 98765 43210",
             gender: "Male",
-            nationality: "Indian",
-            religion: "Hindu",
-            caste: "General",
-            placeOfBirth: "Mumbai",
-            lastSchool: "City Public School",
+            bloodGroup: "O+",
+            street: "123 Educational Way",
+            city: "Mumbai",
+            state: "Maharashtra",
+            pincode: "400001",
+            grNumber: "GR/2024/001",
             enrollmentNo: "IMS/2024/001",
             rollNo: "2401",
-            address: "123 Educational Way, Knowledge City"
+            studentId: "STU-12345678",
+            uidNo: "1234-5678-9012",
+            apaarId: "APAAR-7890",
+            penNo: "PEN-4567",
+            fatherName: "Robert Doe",
+            fatherPhone: "+91 98765 00001",
+            fatherAadhar: "1111-2222-3333",
+            motherName: "Jane Doe",
+            motherPhone: "+91 98765 00002",
+            motherAadhar: "4444-5555-6666",
+            guardianName: "William Smith",
+            guardianPhone: "+91 98765 00003",
+            guardianRelation: "Uncle",
+            nationality: "Indian",
+            motherTongue: "Marathi",
+            religion: "Hindu",
+            caste: "Maratha",
+            subCaste: "96 Kuli",
+            medium: "English",
+            birthCity: "Pune",
+            birthTaluka: "Haveli",
+            birthDistrict: "Pune",
+            birthState: "Maharashtra",
+            birthCountry: "India",
+            lastSchool: "City Public School",
+            admissionDate: "15/06/2020",
+            joiningDate: "15/06/2020",
+            admissionStd: "Standard I",
+            leavingDate: "15/06/2024",
+            leavingReason: "Parent's Request",
+            studyingSince: "Standard I",
+            dob: "15/05/2008",
+            dobDay: "15",
+            dobMonth: "05",
+            dobYear: "2008",
+            dobWords: "Fifteenth May Two Thousand and Eight",
+            progress: "Excellent",
+            conduct: "Good",
+            remarks: "Diligent and hardworking student."
         },
         course: {
-            name: "Class X-A"
+            name: "Standard X-A",
+            medium: "English"
         },
         batch: {
             name: "2024-25 Batch A"
@@ -84,7 +123,8 @@ export default function HtmlCertificateEditor() {
             leavingReason: "Parent's Request",
             leavingDate: "15/06/2024",
             conduct: "Good",
-            progress: "Excellent"
+            progress: "Excellent",
+            remarks: "Diligent and hardworking student."
         },
         institute: {
             name: "EduVanta International School",
@@ -93,10 +133,16 @@ export default function HtmlCertificateEditor() {
             email: "admin@eduvanta.com",
             website: "www.eduvanta.com",
             logo: "/logo.png",
-            udiseNumber: "27260100501"
+            udiseNumber: "27260100501",
+            registrationNumber: "REG-2024-XYZ",
+            board: "CBSE",
+            indexNumber: "IND-789"
         },
         certificate: {
             issueDate: new Date().toLocaleDateString('en-GB'),
+            day: new Date().getDate().toString().padStart(2, '0'),
+            month: (new Date().getMonth() + 1).toString().padStart(2, '0'),
+            year: new Date().getFullYear().toString(),
             number: "CERT/2024/789",
             category: "LEAVING_CERTIFICATE"
         }

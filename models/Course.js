@@ -15,6 +15,7 @@ const CourseSchema = new Schema({
         uppercase: true,
         match: [/^[A-Z0-9]+$/, 'Course code must be alphanumeric']
     },
+    medium: String,
     description: { type: String, maxlength: 2000 },
     duration: {
         value: { type: Number, required: true, min: 1 },

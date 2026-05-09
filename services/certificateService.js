@@ -78,33 +78,94 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
 
     const context = {
         student: {
+            id: student._id,
+            firstName: student.profile?.firstName || 'N/A',
+            lastName: student.profile?.lastName || 'N/A',
+            surname: student.profile?.lastName || 'N/A', // Alias
             fullName: `${student.profile?.firstName || ''} ${student.profile?.lastName || ''}`.trim(),
-            fatherName: student.profile?.fatherName || student.fatherName || 'N/A',
-            motherName: student.profile?.motherName || student.motherName || 'N/A',
+            email: student.email || 'N/A',
+            phone: student.profile?.phone || 'N/A',
+            gender: student.profile?.gender || 'N/A',
+            bloodGroup: student.profile?.bloodGroup || 'N/A',
+            
+            // Address
+            street: student.profile?.address?.street || 'N/A',
+            city: student.profile?.address?.city || 'N/A',
+            state: student.profile?.address?.state || 'N/A',
+            pincode: student.profile?.address?.pincode || 'N/A',
+            fullAddress: student.profile?.address ? `${student.profile.address.street || ''}, ${student.profile.address.city || ''}`.trim() : 'N/A',
+
+            // Parents
+            fatherName: student.fatherName || student.profile?.fatherName || 'N/A',
+            fatherPhone: student.fatherPhone || 'N/A',
+            fatherAadhar: student.fatherAadhar || 'N/A',
+            motherName: student.motherName || student.profile?.motherName || 'N/A',
+            motherPhone: student.motherPhone || 'N/A',
+            motherAadhar: student.motherAadhar || 'N/A',
+            
+            // Guardian
+            guardianName: student.guardianDetails?.name || 'N/A',
+            guardianPhone: student.guardianDetails?.phone || 'N/A',
+            guardianRelation: student.guardianDetails?.relation || 'N/A',
+
+            // Personal
+            nationality: student.nationality || 'Indian',
+            motherTongue: student.motherTongue || 'N/A',
+            religion: student.religion || 'N/A',
+            caste: student.caste || 'N/A',
+            subCaste: student.subCaste || 'N/A',
+            medium: student.medium || (options.batchId ? null : 'N/A'), // Will be filled below if missing
+
+            // Birth Place
+            birthCity: student.placeOfBirth?.city || 'N/A',
+            birthTaluka: student.placeOfBirth?.taluka || 'N/A',
+            birthDistrict: student.placeOfBirth?.district || 'N/A',
+            birthState: student.placeOfBirth?.state || 'N/A',
+            birthCountry: student.placeOfBirth?.country || 'India',
+            fullBirthPlace: student.placeOfBirth ? `${student.placeOfBirth.city || ''} ${student.placeOfBirth.state || ''}`.trim() : 'N/A',
+
+            // Identifiers
             grNumber: student.grNumber || 'N/A',
             enrollmentNo: student.enrollmentNumber || 'N/A',
-            rollNo: student.rollNo || 'N/A', // Alias for school usage
-            dob: student.profile?.dateOfBirth ? new Date(student.profile.dateOfBirth).toLocaleDateString('en-GB') : 'N/A',
-            dobWords: 'N/A', 
+            rollNo: student.rollNo || 'N/A',
+            studentId: student.studentIdUdise || 'N/A',
+            uidNo: student.aadharNumber || 'N/A',
+            apaarId: student.apaarId || 'N/A',
+            penNo: student.penNumber || 'N/A',
+
+            // Academic
+            lastSchool: student.lastSchoolAttended || 'N/A',
             admissionDate: student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-GB') : 'N/A',
-            gender: student.profile?.gender || 'N/A',
-            nationality: student.profile?.nationality || student.nationality || 'Indian',
-            religion: student.profile?.religion || student.religion || 'N/A',
-            caste: student.profile?.caste || student.caste || 'N/A',
-            placeOfBirth: student.profile?.placeOfBirth || (student.placeOfBirth ? `${student.placeOfBirth.city || ''} ${student.placeOfBirth.state || ''}` : 'N/A'),
-            lastSchool: student.profile?.lastSchoolAttended || student.lastSchoolAttended || 'N/A',
-            address: student.profile?.address ? `${student.profile.address.street || ''}, ${student.profile.address.city || ''}`.trim() : 'N/A',
+            joiningDate: student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-GB') : 'N/A', // Alias
+            admissionStd: student.admissionStd || 'N/A',
+            leavingDate: student.leavingDate ? new Date(student.leavingDate).toLocaleDateString('en-GB') : 'N/A',
+            leavingReason: student.leavingReason || 'N/A',
+            studyingSince: student.studyingSinceStandard || 'N/A',
+            
+            // Date components for DOB
+            dob: student.profile?.dateOfBirth ? new Date(student.profile.dateOfBirth).toLocaleDateString('en-GB') : 'N/A',
+            dobDay: student.profile?.dateOfBirth ? new Date(student.profile.dateOfBirth).getDate() : '',
+            dobMonth: student.profile?.dateOfBirth ? new Date(student.profile.dateOfBirth).getMonth() + 1 : '',
+            dobYear: student.profile?.dateOfBirth ? new Date(student.profile.dateOfBirth).getFullYear() : '',
+            dobWords: 'N/A', // Potentially add a helper for this later
+
+            // Performance
+            progress: student.progress || 'Good',
+            conduct: student.conduct || 'Good',
+            remarks: student.remarks || 'N/A',
+
             // School specific aliases
             std: courseName,
             section: batchName
         },
         course: {
-            name: courseName
+            name: courseName,
+            medium: 'N/A' // Filled below if available
         },
         batch: {
             name: batchName
         },
-        // Root level aliases for easier placeholder usage
+        // Root level aliases
         std: courseName,
         section: batchName,
         
@@ -113,12 +174,18 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             address: institute.address ? `${institute.address.street || ''}, ${institute.address.city || ''}` : 'N/A',
             logo: institute.branding?.logo || '',
             udiseNumber: institute.udiseNumber || 'N/A',
+            registrationNumber: institute.registrationNumber || 'N/A',
+            board: institute.board || 'N/A',
+            indexNumber: institute.indexNumber || 'N/A',
             phone: institute.contactPhone || 'N/A',
             email: institute.contactEmail || 'N/A'
         },
         certificate: {
             number: options.serialNumber || 'PREVIEW/0000',
             issueDate: new Date().toLocaleDateString('en-GB'),
+            day: new Date().getDate().toString().padStart(2, '0'),
+            month: (new Date().getMonth() + 1).toString().padStart(2, '0'),
+            year: new Date().getFullYear().toString(),
             isDuplicate: options.isDuplicate || false,
             category: options.category || 'GENERAL'
         },
@@ -128,9 +195,22 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             leavingDate: options.metadata?.leavingDate || (student.leavingDate ? new Date(student.leavingDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')),
             conduct: options.metadata?.conduct || student.conduct || 'Good',
             progress: options.metadata?.progress || student.progress || 'Good',
+            remarks: options.metadata?.remarks || student.remarks || 'N/A',
             ...options.metadata
         }
     };
+
+    // Fill medium if available from course
+    if (options.batchId) {
+        const Batch = (await import('../models/Batch.js')).default;
+        const batch = await Batch.findById(options.batchId).populate('course');
+        if (batch?.course) {
+            context.course.medium = batch.course.medium || 'N/A';
+            if (!context.student.medium || context.student.medium === 'N/A') {
+                context.student.medium = batch.course.medium || 'N/A';
+            }
+        }
+    }
 
     return context;
 };

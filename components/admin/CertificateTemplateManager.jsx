@@ -9,9 +9,15 @@ import { useToast } from "@/contexts/ToastContext";
 
 const PLACEHOLDER_META = {
     studentName: { label: "Student Name", icon: Type, color: "#f59e0b", sample: "John Doe" },
-    courseName: { label: "Course Name", icon: BookOpen, color: "#3b82f6", sample: "B.Tech CS" },
+    surname: { label: "Surname", icon: Type, color: "#f59e0b", sample: "Doe" },
+    fatherName: { label: "Father Name", icon: Type, color: "#3b82f6", sample: "Robert Doe" },
+    motherName: { label: "Mother Name", icon: Type, color: "#3b82f6", sample: "Jane Doe" },
+    grNumber: { label: "GR Number", icon: Hash, color: "#8b5cf6", sample: "GR/123" },
+    enrollmentNo: { label: "Enrollment No.", icon: Hash, color: "#8b5cf6", sample: "STU001" },
+    courseName: { label: "Course/Standard", icon: BookOpen, color: "#3b82f6", sample: "Standard X" },
     issueDate: { label: "Issue Date", icon: Calendar, color: "#10b981", sample: "19 Apr 2026" },
-    certificateNumber: { label: "Certificate No.", icon: Hash, color: "#8b5cf6", sample: "CERT-0001" }
+    certificateNumber: { label: "Certificate No.", icon: Hash, color: "#8b5cf6", sample: "CERT-0001" },
+    uidNo: { label: "Aadhaar No.", icon: Hash, color: "#6366f1", sample: "1234-5678-9012" }
 };
 
 // ─── Draggable Placeholder on Canvas ────────────────────────────────────────
@@ -320,12 +326,15 @@ export default function CertificateTemplateManager() {
         name: "",
         templateImage: null,
         imageUrl: "",
-        placeholders: {
+        placeholders: Object.keys(PLACEHOLDER_META).reduce((acc, key) => ({
+            ...acc,
+            [key]: { x: 50, y: 50, enabled: false, fontSize: 20, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" }
+        }), {
             studentName: { x: 50, y: 45, enabled: true, fontSize: 24, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" },
             courseName: { x: 50, y: 55, enabled: true, fontSize: 18, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" },
             issueDate: { x: 50, y: 85, enabled: true, fontSize: 14, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" },
             certificateNumber: { x: 85, y: 85, enabled: true, fontSize: 14, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" }
-        },
+        }),
         isDefault: false
     });
 
@@ -492,11 +501,12 @@ export default function CertificateTemplateManager() {
             name: template.name,
             templateImage: null,
             imageUrl: template.imageUrl || template.styles?.backgroundImage || "",
-            placeholders: template.placeholders || {
-                studentName: { x: 50, y: 45, enabled: true, fontSize: 24, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" },
-                courseName: { x: 50, y: 55, enabled: true, fontSize: 18, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" },
-                issueDate: { x: 50, y: 85, enabled: true, fontSize: 14, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" },
-                certificateNumber: { x: 85, y: 85, enabled: true, fontSize: 14, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" }
+            placeholders: {
+                ...Object.keys(PLACEHOLDER_META).reduce((acc, key) => ({
+                    ...acc,
+                    [key]: { x: 50, y: 50, enabled: false, fontSize: 20, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" }
+                }), {}),
+                ...(template.placeholders || {})
             },
             isDefault: template.isDefault
         });
@@ -512,12 +522,15 @@ export default function CertificateTemplateManager() {
             name: "",
             templateImage: null,
             imageUrl: "",
-            placeholders: {
+            placeholders: Object.keys(PLACEHOLDER_META).reduce((acc, key) => ({
+                ...acc,
+                [key]: { x: 50, y: 50, enabled: false, fontSize: 20, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" }
+            }), {
                 studentName: { x: 50, y: 45, enabled: true, fontSize: 24, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" },
                 courseName: { x: 50, y: 55, enabled: true, fontSize: 18, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" },
                 issueDate: { x: 50, y: 85, enabled: true, fontSize: 14, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" },
                 certificateNumber: { x: 85, y: 85, enabled: true, fontSize: 14, fontWeight: "normal", fontStyle: "normal", color: "#000000", textAlign: "center" }
-            },
+            }),
             isDefault: false
         });
     };

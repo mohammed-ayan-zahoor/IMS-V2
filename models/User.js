@@ -99,6 +99,7 @@ const UserSchema = new Schema({
     lastSchoolAttended: String,
     admissionDate: Date,
     admissionStd: String,
+    medium: String,
     leavingDate: Date,
     leavingReason: String,
     studyingSinceStandard: String,

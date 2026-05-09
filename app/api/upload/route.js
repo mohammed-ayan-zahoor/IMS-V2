@@ -58,12 +58,34 @@ export async function POST(req) {
             return NextResponse.json({ error: "File type not allowed or unrecognizable" }, { status: 400 });
         }
 
-        // Special Case: Certificate Templates go to Cloudinary
-        if (fileType === "certificate-template") {
-            console.log("Routing to Cloudinary for certificate template...");
+        // Special Case: Certificate Templates or Website Media go to Cloudinary
+        if (fileType === "certificate-template" || fileType === "website-media") {
+            const folder = fileType === "certificate-template" 
+                ? "ims/certificate-templates" 
+                : `ims/website-media/${session.user.institute?.id || 'global'}`;
+
+            console.log(`Routing to Cloudinary for ${fileType}...`);
             try {
-                const result = await uploadToCloudinary(buffer, "ims/certificate-templates");
+                const result = await uploadToCloudinary(buffer, folder);
                 console.log("Cloudinary upload successful:", result.secure_url);
+
+                // For website media, also register in DB
+                if (fileType === "website-media") {
+                    const WebsiteMedia = (await import("@/models/WebsiteMedia")).default;
+                    await WebsiteMedia.create({
+                        instituteId: session.user.institute?.id,
+                        url: result.secure_url,
+                        publicId: result.public_id,
+                        uploadedBy: session.user.id,
+                        metadata: {
+                            width: result.width,
+                            height: result.height,
+                            fileSize: result.bytes,
+                            format: result.format
+                        }
+                    });
+                }
+
                 return NextResponse.json({ 
                     success: true, 
                     url: result.secure_url, 

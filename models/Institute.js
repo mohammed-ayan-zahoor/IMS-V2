@@ -8,6 +8,9 @@ const InstituteSchema = new Schema({
         trim: true,
         index: true
     },
+    registrationNumber: String,
+    board: String,
+    indexNumber: String,
     type: {
         type: String,
         enum: ['VOCATIONAL', 'SCHOOL'],
