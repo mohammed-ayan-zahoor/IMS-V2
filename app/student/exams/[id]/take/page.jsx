@@ -604,7 +604,7 @@ export default function ExamRoomPage() {
                                         {currentQuestion.text}
                                     </h3>
                                     {currentQuestion.snippet?.code && (
-                                        <div className="mt-4 rounded-xl overflow-hidden border border-slate-200 shadow-lg">
+                                        <div className="mt-4 rounded-xl overflow-x-auto border border-slate-200 shadow-lg scrollbar-thin scrollbar-thumb-slate-700">
                                             <SyntaxHighlighter
                                                 language={currentQuestion.snippet.language || 'javascript'}
                                                 style={vscDarkPlus}

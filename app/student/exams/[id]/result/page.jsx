@@ -162,7 +162,7 @@ export default function ExamResultPage() {
                                                         {ans.questionText}
                                                     </p>
                                                     {ans.snippet?.code && (
-                                                        <div className="mb-4 rounded-xl overflow-hidden border border-slate-200 shadow-md">
+                                                        <div className="mb-4 rounded-xl overflow-x-auto border border-slate-200 shadow-md scrollbar-thin scrollbar-thumb-slate-700">
                                                             <SyntaxHighlighter
                                                                 language={ans.snippet.language || 'javascript'}
                                                                 style={vscDarkPlus}
