@@ -59,7 +59,7 @@ export default function ManageExamPage({ params }) {
     const fetchBankQuestions = async () => {
         setBankLoading(true);
         try {
-            const res = await fetch("/api/v1/questions"); // Fetch all questions
+            const res = await fetch("/api/v1/questions?limit=500"); // Fetch all questions for picker
             const data = await res.json();
 
             // Filter out questions already in the exam
