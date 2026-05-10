@@ -66,13 +66,31 @@ export async function GET(req) {
             ];
         }
 
-        const questions = await Question.find(filter)
-            .populate('createdBy', 'profile.firstName profile.lastName')
-            .populate('course', 'name')
-            .populate('batch', 'name')
-            .sort({ createdAt: -1 });
+        // Pagination
+        const page = Math.max(1, parseInt(searchParams.get('page')) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit')) || 20));
+        const skip = (page - 1) * limit;
 
-        return NextResponse.json({ questions });
+        const [questions, total] = await Promise.all([
+            Question.find(filter)
+                .populate('createdBy', 'profile.firstName profile.lastName')
+                .populate('course', 'name')
+                .populate('batch', 'name')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            Question.countDocuments(filter)
+        ]);
+
+        return NextResponse.json({ 
+            questions, 
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
 
     } catch (error) {
         console.error('Error fetching questions:', error);

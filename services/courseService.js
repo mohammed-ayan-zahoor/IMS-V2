@@ -1,5 +1,6 @@
 import Course from '@/models/Course';
 import Batch from '@/models/Batch';
+import '@/models/Subject'; // Ensure Subject schema is registered for populate
 import mongoose from 'mongoose';
 import { createAuditLog } from './auditService';
 import { connectDB } from '@/lib/mongodb';

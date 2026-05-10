@@ -30,11 +30,13 @@ export default function CreateQuestionPage() {
         text: "",
         course: "",
         batch: "",
-        type: "mcq", // mcq, descriptive
+        type: "mcq",
         difficulty: "medium",
         marks: 1,
         options: ["", "", "", ""],
         correctOption: 0,
+        correctAnswer: "",      // For true_false, short_answer, essay
+        trueFalseAnswer: "true", // For true_false specifically
         snippet: { code: "", language: "javascript" }
     });
 
@@ -99,13 +101,23 @@ export default function CreateQuestionPage() {
 
         try {
             const payload = {
-                ...formData,
+                text: formData.text,
+                course: formData.course,
+                batch: formData.batch,
+                type: formData.type,
+                difficulty: formData.difficulty,
                 marks: Number(formData.marks),
-                ...(formData.type === "mcq" && {
-                    correctAnswer: String(formData.correctOption)
-                }),
                 snippet: showSnippet ? formData.snippet : undefined
             };
+
+            if (formData.type === 'mcq') {
+                payload.options = formData.options;
+                payload.correctAnswer = String(formData.correctOption);
+            } else if (formData.type === 'true_false') {
+                payload.correctAnswer = formData.trueFalseAnswer;
+            } else {
+                payload.correctAnswer = formData.correctAnswer;
+            }
             const res = await fetch("/api/v1/questions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -151,7 +163,9 @@ export default function CreateQuestionPage() {
     ];
     const typeOptions = [
         { label: "Multiple Choice (MCQ)", value: "mcq" },
-        { label: "Descriptive / Text", value: "descriptive" }
+        { label: "True / False", value: "true_false" },
+        { label: "Short Answer", value: "short_answer" },
+        { label: "Essay / Descriptive", value: "essay" }
     ];
 
     return (
@@ -284,6 +298,51 @@ export default function CreateQuestionPage() {
                                     <Plus size={16} className="mr-2" />
                                     Add Option
                                 </Button>
+                            </div>
+                        )}
+
+                        {/* True/False Section */}
+                        {formData.type === "true_false" && (
+                            <div className="space-y-4 pt-4 border-t border-slate-100">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Correct Answer</label>
+                                <div className="flex gap-4">
+                                    {["true", "false"].map(val => (
+                                        <label
+                                            key={val}
+                                            className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all font-bold text-sm ${
+                                                formData.trueFalseAnswer === val
+                                                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                                                    : "border-slate-200 hover:border-slate-300 text-slate-600"
+                                            }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="trueFalseAnswer"
+                                                value={val}
+                                                checked={formData.trueFalseAnswer === val}
+                                                onChange={() => setFormData(prev => ({ ...prev, trueFalseAnswer: val }))}
+                                                className="sr-only"
+                                            />
+                                            {val === "true" ? "True" : "False"}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Short Answer / Essay Section */}
+                        {(formData.type === "short_answer" || formData.type === "essay") && (
+                            <div className="space-y-4 pt-4 border-t border-slate-100">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">
+                                    {formData.type === "short_answer" ? "Expected Answer" : "Model Answer"}
+                                </label>
+                                <textarea
+                                    value={formData.correctAnswer}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, correctAnswer: e.target.value }))}
+                                    className="w-full min-h-[100px] p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-premium-blue/20 outline-none resize-y font-medium text-slate-700"
+                                    placeholder={formData.type === "short_answer" ? "Enter the expected short answer..." : "Enter the model answer for grading reference..."}
+                                    required
+                                />
                             </div>
                         )}
                         {/* Code Snippet Section */}
