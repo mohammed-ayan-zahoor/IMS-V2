@@ -29,9 +29,9 @@ export async function GET(req) {
         }).sort({ issueDate: -1 });
 
         return NextResponse.json({
-            kyc: student.documents || [],
+            kyc: student?.documents || [],
             certificates: certificates || [],
-            instituteId: student.institute
+            instituteId: student?.institute
         });
 
     } catch (error) {

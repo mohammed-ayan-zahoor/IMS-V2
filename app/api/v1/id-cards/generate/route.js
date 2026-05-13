@@ -5,10 +5,25 @@ import { connectDB } from "@/lib/mongodb";
 import IDCardTemplate from "@/models/IDCardTemplate";
 import User from "@/models/User";
 import Institute from "@/models/Institute";
+import StudentIDCard from "@/models/StudentIDCard";
 import { renderIDCardFront, renderIDCardBack } from "@/services/idCardService";
 import { getInstituteScope } from "@/middleware/instituteScope";
 
 export const runtime = "nodejs";
+
+/**
+ * Validates request body and ensures proper data structure
+ */
+function validateRequest(body) {
+    const errors = [];
+    
+    if (!body.templateId) errors.push("templateId is required");
+    if (!body.studentIds) errors.push("studentIds is required");
+    if (!Array.isArray(body.studentIds)) errors.push("studentIds must be an array");
+    if (Array.isArray(body.studentIds) && body.studentIds.length === 0) errors.push("studentIds cannot be empty");
+    
+    return { valid: errors.length === 0, errors };
+}
 
 export async function POST(req) {
     try {
@@ -20,14 +35,17 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { templateId, studentIds } = body;
-
-        if (!templateId || !Array.isArray(studentIds) || studentIds.length === 0) {
+        
+        // Validate request
+        const validation = validateRequest(body);
+        if (!validation.valid) {
             return NextResponse.json(
-                { error: "TemplateId and studentIds array are required" },
+                { error: "Invalid request", details: validation.errors },
                 { status: 400 }
             );
         }
+        
+        const { templateId, studentIds } = body;
 
         // Fetch template - scoped to institute
         const template = await IDCardTemplate.findOne({ 
@@ -45,7 +63,7 @@ export async function POST(req) {
         const students = await User.find({ 
             _id: { $in: studentIds },
             institute: scope.instituteId
-        });
+        }).lean();
 
         if (students.length === 0) {
             return NextResponse.json(
@@ -62,6 +80,9 @@ export async function POST(req) {
         const instituteId = scope.instituteId;
 
         const { getHydratedContext } = await import("@/services/certificateService");
+        const { uploadToCloudinary } = await import("@/lib/cloudinary");
+
+        console.log(`[IDCardGeneration] Starting generation for ${students.length} students using template "${template.name}"`);
 
         // 1. Prepare contexts for all students in parallel
         const hydratedContexts = await Promise.all(students.map(async (student) => {
@@ -71,80 +92,132 @@ export async function POST(req) {
                 const studentBatch = await Batch.findOne({
                     'enrolledStudents.student': student._id,
                     deletedAt: null
-                }).populate('course');
+                }).populate('course').lean();
 
+                // Get hydrated context with batch info
                 const hydratedContext = await getHydratedContext(student._id, instituteId, {
                     batchId: studentBatch?._id
                 });
 
-                // Log what we're passing for debugging
-                console.log(`[IDCardGeneration] Hydrated context for ${hydratedContext.student.fullName}:`, {
-                    hasFullName: !!hydratedContext.student.fullName,
-                    hasGrNumber: !!hydratedContext.student.grNumber,
-                    hasEnrollment: !!hydratedContext.student.enrollmentNumber,
-                    hasBatch: !!hydratedContext.batch?.name,
-                    courseFields: Object.keys(hydratedContext.course || {})
-                });
-
+                console.log(`[IDCardGeneration] Hydrated context for ${student.email}: batch="${studentBatch?.name || 'N/A'}", fields available`);
+                
                 return hydratedContext;
             } catch (e) {
-                console.error(`Failed to hydrate student ${student._id}:`, e.message);
+                console.error(`[IDCardGeneration] Failed to hydrate student ${student._id}:`, e.message);
                 return null;
             }
         }));
 
-        // Render common back image using the first valid student's context
-        const firstValidContext = hydratedContexts.find(c => !!c);
-        if (!firstValidContext) throw new Error("No valid student data found for rendering");
+        const validContexts = hydratedContexts.filter(c => !!c);
+        if (validContexts.length === 0) {
+            return NextResponse.json(
+                { error: "Failed to hydrate student data" },
+                { status: 500 }
+            );
+        }
+
+        console.log(`[IDCardGeneration] Successfully hydrated ${validContexts.length}/${students.length} students`);
+
+        // 2. Render back card once (common for all students)
+        let backImageUrl = null;
+        let backPublicId = null;
         
-        console.log(`[IDCardGeneration] Rendering back card with context from: ${firstValidContext.student.fullName}`);
-        const backCanvas = await renderIDCardBack(firstValidContext, template, firstValidContext.institute);
-        const commonBackImage = backCanvas.toDataURL("image/png");
+        try {
+            console.log(`[IDCardGeneration] Rendering back side...`);
+            const backCanvas = await renderIDCardBack(validContexts[0], template, institute);
+            const backBuffer = backCanvas.toBuffer("image/png");
+            const backUpload = await uploadToCloudinary(backBuffer, `quantech/id-cards/templates/${templateId}/back`);
+            backImageUrl = backUpload.secure_url;
+            backPublicId = backUpload.public_id;
+            console.log(`[IDCardGeneration] Back side rendered successfully`);
+        } catch (backError) {
+            console.error(`[IDCardGeneration] Error rendering back side:`, backError);
+            return NextResponse.json(
+                { error: "Failed to render back side", details: backError.message },
+                { status: 500 }
+            );
+        }
 
+        // 3. Render and store cards for each student
         const studentCards = [];
-
-        // 2. Render cards (could be parallel but canvas might be heavy)
-        for (let i = 0; i < hydratedContexts.length; i++) {
-            const context = hydratedContexts[i];
-            if (!context) {
-                console.warn(`[IDCardGeneration] Skipping invalid context at index ${i}`);
-                continue;
-            }
-
+        const failedCards = [];
+        
+        for (const context of validContexts) {
             try {
-                console.log(`[IDCardGeneration] Rendering card for student: ${context.student.fullName}`);
-
+                const studentId = context.student.id || context.student._id;
+                const studentName = context.student.fullName || "Unknown";
+                
+                console.log(`[IDCardGeneration] Rendering front side for ${studentName}...`);
+                
                 // Render front
                 const frontCanvas = await renderIDCardFront(context, template);
-                const frontImage = frontCanvas.toDataURL("image/png");
+                const frontBuffer = frontCanvas.toBuffer("image/png");
 
-                studentCards.push({
-                    studentId: context.student.grNumber || i,
-                    name: context.student.fullName,
-                    rollNumber: context.student.rollNo || context.student.enrollmentNumber,
-                    frontImage: frontImage
+                // Upload to Cloudinary
+                const frontUpload = await uploadToCloudinary(frontBuffer, `quantech/students/${studentId}/id-cards/front`);
+
+                // Deactivate old cards
+                await StudentIDCard.updateMany(
+                    { studentId, instituteId, status: 'ACTIVE' },
+                    { status: 'EXPIRED' }
+                );
+
+                // Save to DB
+                const cardRecord = await StudentIDCard.create({
+                    studentId,
+                    instituteId,
+                    templateId: template._id,
+                    frontImageUrl: frontUpload.secure_url,
+                    backImageUrl: backImageUrl,
+                    frontPublicId: frontUpload.public_id,
+                    backPublicId: backPublicId,
+                    status: 'ACTIVE'
                 });
 
-                console.log(`[IDCardGeneration] Successfully rendered: ${context.student.fullName}`);
+                studentCards.push({
+                    studentId: context.student.grNumber || context.student.enrollmentNo || studentId,
+                    name: studentName,
+                    rollNumber: context.student.rollNo || context.student.enrollmentNo || "N/A",
+                    frontImage: frontUpload.secure_url,
+                    backImage: backImageUrl,
+                    cardId: cardRecord._id.toString()
+                });
+
+                console.log(`[IDCardGeneration] Successfully generated card for ${studentName}`);
 
             } catch (cardError) {
-                console.error(`[IDCardGeneration] Error rendering card for ${context.student.fullName}:`, cardError);
+                const errorMsg = `Error for student ${context.student.fullName}: ${cardError.message}`;
+                console.error(`[IDCardGeneration]`, errorMsg);
+                failedCards.push({
+                    name: context.student.fullName,
+                    error: cardError.message
+                });
             }
         }
 
         if (studentCards.length === 0) {
             return NextResponse.json(
-                { error: "Failed to generate any ID cards. Check server logs for details." },
+                { 
+                    error: "Failed to generate any ID cards",
+                    details: failedCards
+                },
                 { status: 500 }
             );
         }
 
-        return NextResponse.json({
+        const summary = {
             success: true,
-            commonBackImage,
+            generated: studentCards.length,
+            failed: failedCards.length,
+            total: validContexts.length,
             studentCards,
-            message: `Successfully generated ${studentCards.length} ID cards`
-        });
+            failedCards: failedCards.length > 0 ? failedCards : undefined,
+            message: `Successfully generated ${studentCards.length} ID card(s)${failedCards.length > 0 ? ` (${failedCards.length} failed)` : ""}`
+        };
+        
+        console.log(`[IDCardGeneration] Generation complete: ${summary.generated} successful, ${summary.failed} failed`);
+
+        return NextResponse.json(summary);
 
     } catch (error) {
         console.error("[IDCardGeneration] Error:", error);

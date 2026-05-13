@@ -181,9 +181,9 @@ export default function StudentDocumentsPage() {
                             {isIdCardLoading ? (
                                 <div className="flex flex-col items-center gap-4 py-20">
                                     <Loader2 className="w-12 h-12 animate-spin text-slate-200" />
-                                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Generating Digital ID...</p>
+                                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Accessing Vault...</p>
                                 </div>
-                            ) : idCardData ? (
+                            ) : idCardData?.generatedCard ? (
                                 <div className="space-y-12 flex flex-col items-center w-full max-w-4xl">
                                     {/* Interactive ID Card Container */}
                                     <div 
@@ -197,114 +197,23 @@ export default function StudentDocumentsPage() {
                                         >
                                             {/* Front Side */}
                                             <div className="absolute inset-0 backface-hidden">
-                                                <div className="relative w-full h-full rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 bg-slate-900 group-hover:scale-[1.02] transition-transform">
-                                                    {/* Background Image */}
-                                                    {idCardData.template?.frontImageUrl && (
-                                                        <img 
-                                                            src={idCardData.template.frontImageUrl} 
-                                                            className="absolute inset-0 w-full h-full object-cover opacity-60" 
-                                                            alt="ID Card Front"
-                                                        />
-                                                    )}
-                                                    {/* Glass Overlay */}
-                                                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent backdrop-blur-[2px]" />
-                                                    
-                                                    {/* Content Overlay */}
-                                                    <div className="relative h-full p-8 flex flex-col">
-                                                        {/* Header */}
-                                                        <div className="flex items-start justify-between">
-                                                            <div className="flex items-center gap-3">
-                                                                {idCardData.student.instituteLogo && (
-                                                                    <img src={idCardData.student.instituteLogo} className="w-10 h-10 object-contain bg-white rounded-lg p-1 shadow-sm" alt="Logo" />
-                                                                )}
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-xs font-black text-white leading-tight uppercase tracking-tight">{idCardData.student.instituteName}</span>
-                                                                    <span className="text-[8px] text-white/60 font-bold uppercase tracking-[0.2em]">Student Identity</span>
-                                                                </div>
-                                                            </div>
-                                                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
-                                                                <Shield size={14} className="text-white" />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Main Body */}
-                                                        <div className="mt-8 flex gap-6">
-                                                            <div className="relative">
-                                                                <div className="w-24 h-24 rounded-2xl border-2 border-white/30 overflow-hidden shadow-lg bg-slate-800">
-                                                                    {idCardData.student.profilePicture ? (
-                                                                        <img src={idCardData.student.profilePicture} className="w-full h-full object-cover" alt="Student" />
-                                                                    ) : (
-                                                                        <div className="w-full h-full flex items-center justify-center text-white/20">
-                                                                            <User size={40} />
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                                <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white shadow-md">
-                                                                    <CheckCircle size={14} strokeWidth={3} />
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex-1 flex flex-col justify-center">
-                                                                <h2 className="text-xl font-black text-white tracking-tight leading-tight uppercase">{idCardData.student.fullName}</h2>
-                                                                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-1">{idCardData.student.courseName}</p>
-                                                                <div className="grid grid-cols-2 gap-4 mt-4">
-                                                                    <div>
-                                                                        <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Enrollment No.</p>
-                                                                        <p className="text-[10px] font-black text-white mt-0.5">{idCardData.student.enrollmentNumber || idCardData.student.grNumber || "PENDING"}</p>
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Valid Thru</p>
-                                                                        <p className="text-[10px] font-black text-white mt-0.5">MAY 2026</p>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                <div className="relative w-full h-full rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 bg-white group-hover:scale-[1.02] transition-transform">
+                                                    <img 
+                                                        src={idCardData.generatedCard.frontImage} 
+                                                        className="w-full h-full object-contain" 
+                                                        alt="ID Card Front"
+                                                    />
                                                 </div>
                                             </div>
 
                                             {/* Back Side */}
                                             <div className="absolute inset-0 backface-hidden rotate-y-180">
-                                                <div className="relative w-full h-full rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 bg-slate-800">
-                                                     {idCardData.template?.backImageUrl && (
-                                                        <img 
-                                                            src={idCardData.template.backImageUrl} 
-                                                            className="absolute inset-0 w-full h-full object-cover opacity-60" 
-                                                            alt="ID Card Back"
-                                                        />
-                                                    )}
-                                                    <div className="absolute inset-0 bg-gradient-to-tr from-slate-900 to-transparent backdrop-blur-[2px]" />
-                                                    
-                                                    <div className="relative h-full p-8 flex flex-col">
-                                                        <div className="flex-1 space-y-4">
-                                                            <div>
-                                                                <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Emergency Contact</p>
-                                                                <p className="text-[11px] font-black text-white mt-1">{idCardData.student.phone}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Address</p>
-                                                                <p className="text-[11px] font-black text-white mt-1 leading-relaxed max-w-[200px]">{idCardData.student.address}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Blood Group</p>
-                                                                <p className="text-[11px] font-black text-emerald-400 mt-1">{idCardData.student.bloodGroup}</p>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        <div className="mt-auto pt-6 border-t border-white/10 flex items-center justify-between">
-                                                            <div className="w-12 h-12 bg-white rounded-lg p-1.5 shadow-lg">
-                                                                {/* Simple QR Code Placeholder */}
-                                                                <div className="w-full h-full bg-slate-100 rounded-sm grid grid-cols-3 grid-rows-3 gap-0.5 overflow-hidden">
-                                                                    {[...Array(9)].map((_, i) => (
-                                                                        <div key={i} className={cn("bg-slate-900", Math.random() > 0.4 ? "opacity-100" : "opacity-0")} />
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <p className="text-[8px] font-black text-white/60 uppercase tracking-widest">Digital Authentication</p>
-                                                                <p className="text-[7px] text-white/30 font-bold uppercase mt-0.5 tracking-tighter italic">Verified by Quantech Security</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                <div className="relative w-full h-full rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 bg-white">
+                                                    <img 
+                                                        src={idCardData.generatedCard.backImage} 
+                                                        className="w-full h-full object-contain" 
+                                                        alt="ID Card Back"
+                                                    />
                                                 </div>
                                             </div>
                                         </motion.div>
@@ -313,18 +222,22 @@ export default function StudentDocumentsPage() {
                                     {/* Action Buttons */}
                                     <div className="flex flex-col md:flex-row items-center gap-6">
                                         <div className="text-center md:text-left space-y-1">
-                                            <p className="text-slate-900 font-black text-lg">Interactive Digital ID</p>
-                                            <p className="text-slate-400 text-xs font-medium">Click the card to flip it and see emergency details.</p>
+                                            <p className="text-slate-900 font-black text-lg">Digital Identity Card</p>
+                                            <p className="text-slate-400 text-xs font-medium">This is your official campus ID card generated by the administrator.</p>
                                         </div>
                                         <div className="flex gap-3">
-                                            <Button variant="outline" className="gap-2 group">
-                                                <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
-                                                <span>Download PDF</span>
-                                            </Button>
-                                            <Button className="gap-2 group bg-premium-blue hover:bg-blue-700 shadow-lg shadow-blue-500/20">
-                                                <Globe size={16} className="group-hover:rotate-12 transition-transform" />
-                                                <span>Add to Mobile Wallet</span>
-                                            </Button>
+                                            <a href={idCardData.generatedCard.frontImage} target="_blank" download>
+                                                <Button variant="outline" className="gap-2 group">
+                                                    <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
+                                                    <span>Front View</span>
+                                                </Button>
+                                            </a>
+                                            <a href={idCardData.generatedCard.backImage} target="_blank" download>
+                                                <Button variant="outline" className="gap-2 group">
+                                                    <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
+                                                    <span>Back View</span>
+                                                </Button>
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -442,14 +355,27 @@ function PersonalDocCard({ doc }) {
             <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                     <h4 className="text-sm font-bold text-slate-900 truncate" title={doc.name}>{doc.name}</h4>
-                    <a 
-                        href={doc.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-premium-blue hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                        <Download size={14} />
-                    </a>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <a 
+                            href={doc.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-premium-blue hover:bg-slate-50"
+                            title="View"
+                        >
+                            <Eye size={14} />
+                        </a>
+                        <a 
+                            href={doc.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            download={doc.name}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-premium-blue hover:bg-slate-50"
+                            title="Download"
+                        >
+                            <Download size={14} />
+                        </a>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{doc.category}</span>

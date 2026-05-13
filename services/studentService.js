@@ -783,6 +783,7 @@ export class StudentService {
             })),
             fees,
             transportFees,
+            documents: student.documents,
             externalNotes: await SharedLink.aggregate([
                 { $match: { 'comments.studentId': new mongoose.Types.ObjectId(studentId) } },
                 {

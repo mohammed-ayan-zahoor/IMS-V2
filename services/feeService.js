@@ -253,6 +253,11 @@ export class FeeService {
 
     static async getFeeStats(filters = {}) {
         await connectDB();
+        
+        // RECONCILIATION: Ensure all paidAmount fields are in sync before calculating stats
+        // This prevents discrepancies between Fee Ledger and Collection History
+        await this.reconcilePaidAmounts(filters);
+        
         const query = { deletedAt: null };
         if (filters.institute) query.institute = new mongoose.Types.ObjectId(filters.institute);
         
@@ -319,6 +324,47 @@ export class FeeService {
             totalCollected: 0,
             totalPending: 0
         };
+    }
+
+    // RECONCILIATION METHOD: Fix stale paidAmount fields
+    static async reconcilePaidAmounts(filters = {}) {
+        await connectDB();
+        
+        const query = { deletedAt: null };
+        if (filters.institute) query.institute = new mongoose.Types.ObjectId(filters.institute);
+        if (filters.session) query.session = new mongoose.Types.ObjectId(filters.session);
+        if (filters.batch) query.batch = new mongoose.Types.ObjectId(filters.batch);
+        
+        if (filters.course) {
+            const batchLookup = { course: filters.course, deletedAt: null };
+            if (filters.institute) batchLookup.institute = filters.institute;
+            const batchIds = await Batch.find(batchLookup).distinct('_id');
+            query.batch = { $in: batchIds };
+        }
+
+        // Find all fees
+        const fees = await FeeDb.find(query);
+        
+        let reconciled = 0;
+        for (const fee of fees) {
+            // Calculate correct paidAmount from installments
+            const correctPaidAmount = (fee.installments || [])
+                .filter(i => i.status === 'paid')
+                .reduce((sum, i) => sum + i.amount, 0);
+            
+            // If it doesn't match the cached value, fix it
+            if (Math.abs((fee.paidAmount || 0) - correctPaidAmount) > 0.01) {
+                fee.paidAmount = correctPaidAmount;
+                await fee.save();
+                reconciled++;
+            }
+        }
+        
+        if (reconciled > 0) {
+            console.log(`[Fee Reconciliation] Fixed ${reconciled} records with stale paidAmount values`);
+        }
+        
+        return reconciled;
     }
 
     static async getFeesWithStudents(filters = {}) {
@@ -468,6 +514,9 @@ export class FeeService {
             installment.collectedBy = paymentDetails.collectedBy;
             installment.notes = paymentDetails.notes;
 
+            // CRITICAL: Mark installments as modified to trigger pre-save hook recalculation
+            fee.markModified('installments');
+
             savedAmount = installment.amount;
             details = {
                 name: getStudentName(fee.student),
@@ -512,6 +561,8 @@ export class FeeService {
                         status: 'pending'
                     });
                 }
+                // CRITICAL: Mark installments as modified to trigger pre-save hook recalculation
+                fee.markModified('installments');
                 details = {
                     name: getStudentName(fee.student),
                     type: 'ad-hoc',

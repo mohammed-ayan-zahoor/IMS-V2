@@ -192,8 +192,7 @@ export default function StudentDetailsPage({ params }) {
             });
 
             if (res.ok) {
-                const data = await res.json();
-                setStudentData({ ...studentData, documents: data.documents });
+                await fetchStudentDetails();
                 setUploadDocModalOpen(false);
                 setDocFormData({ name: "", category: "Other", file: null, base64: "" });
                 toast.success("Document uploaded successfully!");
@@ -221,8 +220,7 @@ export default function StudentDetailsPage({ params }) {
             });
 
             if (res.ok) {
-                const data = await res.json();
-                setStudentData({ ...studentData, documents: data.documents });
+                await fetchStudentDetails();
                 toast.success("Document deleted");
             } else {
                 const err = await res.json();
