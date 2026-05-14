@@ -458,8 +458,8 @@ function getNestedValue(obj, path, debugKey = null) {
     }
     
     // Log missing field for debugging
-    if (debugKey && process.env.NODE_ENV !== 'production') {
-        console.debug(`[IDCardService] Field not found: key="${debugKey}", path="${path}"`);
+    if (debugKey) {
+        console.warn(`[IDCardService] Field not found: key="${debugKey}", path="${path}"`);
     }
     
     return null;
@@ -493,6 +493,8 @@ function getLegacyFieldKey(key) {
         aadharNo: "student.uidNo",
         aadharNumber: "student.uidNo",
         apaarId: "student.apaarId",
+        apaarid: "student.apaarId",
+        "apaar id": "student.apaarId",
         penNo: "student.penNo",
         penNumber: "student.penNo",
         
@@ -509,9 +511,12 @@ function getLegacyFieldKey(key) {
         
         // ============= CONTACT & PERSONAL =============
         phone: "student.phone",
+        mobile: "student.phone",
+        mobileNo: "student.phone",
         contactNo: "student.phone",
         email: "student.email",
         bloodGroup: "student.bloodGroup",
+        blood: "student.bloodGroup",
         gender: "student.gender",
         dob: "student.dob",
         dateOfBirth: "student.dob",
@@ -540,8 +545,11 @@ function getLegacyFieldKey(key) {
         birthTaluka: "student.birthTaluka",
         birthDistrict: "student.birthDistrict",
         birthState: "student.birthState",
+        birthDistrict: "student.birthDistrict",
+        birthTaluka: "student.birthTaluka",
         birthCountry: "student.birthCountry",
         birthPlace: "student.fullBirthPlace",
+        fullBirthPlace: "student.fullBirthPlace",
         
         // ============= ACADEMIC HISTORY =============
         admissionDate: "student.admissionDate",

@@ -66,13 +66,17 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
     // Attempt to resolve course/batch data if provided or if student is active
     let courseName = options.courseName || 'N/A';
     let batchName = options.batchName || 'N/A';
+    let academicYear = options.academicYear || new Date().getFullYear().toString();
 
     if (options.batchId) {
         const Batch = (await import('../models/Batch.js')).default;
-        const batch = await Batch.findById(options.batchId).populate('course');
+        const batch = await Batch.findById(options.batchId).populate('course').populate('session');
         if (batch) {
             batchName = batch.name;
             courseName = batch.course?.name || courseName;
+            if (batch.session?.sessionName) {
+                academicYear = batch.session.sessionName;
+            }
         }
     }
 
@@ -87,6 +91,7 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             phone: student.profile?.phone || 'N/A',
             gender: student.profile?.gender || 'N/A',
             bloodGroup: student.profile?.bloodGroup || 'N/A',
+            avatar: student.profile?.avatar || '',
             
             // Address
             street: student.profile?.address?.street || 'N/A',
@@ -129,9 +134,14 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             enrollmentNo: student.enrollmentNumber || 'N/A',
             rollNo: student.rollNo || 'N/A',
             studentId: student.studentIdUdise || 'N/A',
+            udiseNo: student.studentIdUdise || 'N/A',
+            udiseNumber: student.studentIdUdise || 'N/A',
             uidNo: student.aadharNumber || 'N/A',
+            aadharNo: student.aadharNumber || 'N/A',
+            aadharNumber: student.aadharNumber || 'N/A',
             apaarId: student.apaarId || 'N/A',
             penNo: student.penNumber || 'N/A',
+            penNumber: student.penNumber || 'N/A',
 
             // Academic
             lastSchool: student.lastSchoolAttended || 'N/A',
@@ -156,6 +166,8 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
 
             // School specific aliases
             std: courseName,
+            standard: courseName,
+            class: courseName,
             section: batchName
         },
         course: {
@@ -163,10 +175,13 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             medium: 'N/A' // Filled below if available
         },
         batch: {
-            name: batchName
+            name: batchName,
+            session: academicYear
         },
         // Root level aliases
         std: courseName,
+        standard: courseName,
+        class: courseName,
         section: batchName,
         
         institute: {
@@ -189,7 +204,7 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             isDuplicate: options.isDuplicate || false,
             category: options.category || 'GENERAL'
         },
-        academicYear: options.academicYear || new Date().getFullYear().toString(),
+        academicYear: academicYear,
         metadata: {
             leavingReason: options.metadata?.leavingReason || student.leavingReason || "N/A",
             leavingDate: options.metadata?.leavingDate || (student.leavingDate ? new Date(student.leavingDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')),
