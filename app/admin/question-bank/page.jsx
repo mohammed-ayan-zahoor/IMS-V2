@@ -24,6 +24,7 @@ const stripHtml = (html) => {
 export default function QuestionBankPage() {
     const toast = useToast();
     const [questions, setQuestions] = useState([]);
+    const [selectedQuestions, setSelectedQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showBulkImport, setShowBulkImport] = useState(false);
     const [showTemplate, setShowTemplate] = useState(false);
@@ -49,6 +50,7 @@ export default function QuestionBankPage() {
 
     useEffect(() => {
         setCurrentPage(1); // Reset to page 1 when filters change
+        setSelectedQuestions([]); // Clear selection on filter change
     }, [filters]);
 
     useEffect(() => {
@@ -142,6 +144,68 @@ export default function QuestionBankPage() {
         }
     };
 
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            const newSelected = [...selectedQuestions];
+            questions.forEach(q => {
+                if (!newSelected.some(sq => sq._id === q._id)) {
+                    newSelected.push(q);
+                }
+            });
+            setSelectedQuestions(newSelected);
+        } else {
+            const currentIds = questions.map(q => q._id);
+            setSelectedQuestions(selectedQuestions.filter(sq => !currentIds.includes(sq._id)));
+        }
+    };
+
+    const handleSelectQuestion = (question) => {
+        if (selectedQuestions.some(sq => sq._id === question._id)) {
+            setSelectedQuestions(selectedQuestions.filter(sq => sq._id !== question._id));
+        } else {
+            setSelectedQuestions([...selectedQuestions, question]);
+        }
+    };
+
+    const handleExportSelected = () => {
+        if (selectedQuestions.length === 0) return;
+
+        const exportData = selectedQuestions.map(q => {
+            const exportQ = {
+                text: stripHtml(q.text || ""),
+                type: q.type,
+                difficulty: q.difficulty || "medium",
+                marks: q.marks || 1
+            };
+            if (q.type === 'mcq') {
+                exportQ.options = q.options;
+                exportQ.correctAnswer = q.correctAnswer;
+            } else if (q.type === 'true_false') {
+                exportQ.correctAnswer = q.correctAnswer; 
+            } else {
+                exportQ.correctAnswer = q.correctAnswer;
+            }
+            if (q.explanation) exportQ.explanation = q.explanation;
+            if (q.tags && q.tags.length > 0) exportQ.tags = q.tags;
+            return exportQ;
+        });
+
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `questions_export_${Date.now()}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast.success(`Exported ${selectedQuestions.length} questions successfully`);
+        setSelectedQuestions([]);
+    };
+
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -150,6 +214,16 @@ export default function QuestionBankPage() {
                     <p className="text-slate-500 mt-1">Manage all examination questions from a central repository.</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    {selectedQuestions.length > 0 && (
+                        <Button
+                            variant="outline"
+                            onClick={handleExportSelected}
+                            className="font-bold flex items-center gap-2 border-premium-blue text-premium-blue hover:bg-premium-blue/5"
+                        >
+                            <Download size={18} />
+                            Export Selected ({selectedQuestions.length})
+                        </Button>
+                    )}
                     <Button
                         variant="outline"
                         onClick={() => setShowBulkImport(true)}
@@ -314,6 +388,14 @@ export default function QuestionBankPage() {
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
                             <tr>
+                                <th className="px-6 py-3 w-12">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-slate-300 text-premium-blue focus:ring-premium-blue"
+                                        checked={questions.length > 0 && questions.every(q => selectedQuestions.some(sq => sq._id === q._id))}
+                                        onChange={handleSelectAll}
+                                    />
+                                </th>
                                 <th className="px-6 py-3 font-bold">Question Details</th>
                                 <th className="px-6 py-3 font-bold">Course / Batch</th>
                                 <th className="px-6 py-3 font-bold">Type</th>
@@ -325,19 +407,27 @@ export default function QuestionBankPage() {
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
+                                    <td colSpan="7" className="px-6 py-8 text-center text-slate-500">
                                         <LoadingSpinner />
                                     </td>
                                 </tr>
                             ) : questions.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
+                                    <td colSpan="7" className="px-6 py-8 text-center text-slate-500">
                                         No questions found matching your filters.
                                     </td>
                                 </tr>
                             ) : (
                                 questions.map((q) => (
-                                    <tr key={q._id} className="hover:bg-slate-50/50 transition-colors">
+                                    <tr key={q._id} className={`hover:bg-slate-50/50 transition-colors ${selectedQuestions.some(sq => sq._id === q._id) ? "bg-premium-blue/5" : ""}`}>
+                                        <td className="px-6 py-4">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-slate-300 text-premium-blue focus:ring-premium-blue"
+                                                checked={selectedQuestions.some(sq => sq._id === q._id)}
+                                                onChange={() => handleSelectQuestion(q)}
+                                            />
+                                        </td>
                                         <td className="px-6 py-4 max-w-md">
                                             <div className="font-medium text-slate-900 line-clamp-2">
                                                 {stripHtml(q.text)}

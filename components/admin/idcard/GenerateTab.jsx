@@ -178,13 +178,24 @@ export default function GenerateTab() {
         setSelectedStudents(newSelected);
     };
 
-    const downloadImage = (dataUrl, filename) => {
-        const a = document.createElement("a");
-        a.href = dataUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+    const downloadImage = async (url, filename) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = filename || "id_card.png";
+            document.body.appendChild(a);
+            a.click();
+            
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error("Forced download failed", error);
+            window.open(url, "_blank");
+        }
     };
 
     const handleGenerate = async () => {

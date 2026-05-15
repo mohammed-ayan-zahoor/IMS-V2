@@ -156,7 +156,26 @@ export async function POST(req) {
                 // Upload to Cloudinary
                 const frontUpload = await uploadToCloudinary(frontBuffer, `quantech/students/${studentId}/id-cards/front`);
 
-                // Deactivate old cards
+                // 2. Cleanup Cloudinary - Find old active cards to delete their images
+                // Only delete the front image (back is shared or template-based)
+                const oldCards = await StudentIDCard.find(
+                    { studentId, instituteId, status: 'ACTIVE' },
+                    { frontPublicId: 1 }
+                ).lean();
+
+                const { deleteFromCloudinary } = await import("@/lib/cloudinary");
+                for (const oldCard of oldCards) {
+                    if (oldCard.frontPublicId) {
+                        try {
+                            await deleteFromCloudinary(oldCard.frontPublicId);
+                            console.log(`[IDCardGeneration] Deleted old Cloudinary image: ${oldCard.frontPublicId}`);
+                        } catch (delErr) {
+                            console.warn(`[IDCardGeneration] Failed to delete old image ${oldCard.frontPublicId}:`, delErr.message);
+                        }
+                    }
+                }
+
+                // Deactivate old records in DB
                 await StudentIDCard.updateMany(
                     { studentId, instituteId, status: 'ACTIVE' },
                     { status: 'EXPIRED' }

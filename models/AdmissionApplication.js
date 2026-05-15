@@ -70,7 +70,17 @@ const AdmissionApplicationSchema = new Schema({
     referredBy: { type: String, trim: true }
 }, { timestamps: true });
 
+// Multi-tenant data isolation and reporting indexes
 AdmissionApplicationSchema.index({ email: 1, institute: 1 });
 AdmissionApplicationSchema.index({ phone: 1, institute: 1 });
+
+// Performance indexes for reporting queries
+AdmissionApplicationSchema.index({ institute: 1, createdAt: -1 }, { name: 'idx_inst_created' });
+AdmissionApplicationSchema.index({ institute: 1, status: 1, createdAt: -1 }, { name: 'idx_inst_status_created' });
+AdmissionApplicationSchema.index({ institute: 1, course: 1, createdAt: -1 }, { name: 'idx_inst_course_created' });
+AdmissionApplicationSchema.index({ institute: 1, createdAt: 1, updatedAt: -1 }, { name: 'idx_inst_timestamps' });
+
+// Sparse index for referral source analysis
+AdmissionApplicationSchema.index({ institute: 1, referredBy: 1, createdAt: -1 }, { sparse: true, name: 'idx_inst_referral' });
 
 export default mongoose.models.AdmissionApplication || mongoose.model('AdmissionApplication', AdmissionApplicationSchema);

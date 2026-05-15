@@ -148,6 +148,7 @@ export default function AdminLayout({ children }) {
             items: [
                 { label: "Follow-up Queue", icon: History, href: "/admin/reports/follow-ups" },
                 { label: "Attendance", icon: Calendar, href: "/admin/reports/attendance" },
+                { label: "Admissions", icon: TrendingUp, href: "/admin/reports/admissions" },
                 { label: "Audit Logs", icon: History, href: "/admin/audit-logs", role: ["admin", "super_admin"] },
             ]
         },
