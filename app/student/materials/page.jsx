@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle, X, UploadCloud, CheckCircle, HelpCircle } from "lucide-react";
@@ -14,6 +14,14 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { cn } from "@/lib/utils";
 
 export default function StudentMaterialsPage() {
+    return (
+        <Suspense fallback={<LoadingSpinner fullPage />}>
+            <MaterialsContent />
+        </Suspense>
+    );
+}
+
+function MaterialsContent() {
     const [materials, setMaterials] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");

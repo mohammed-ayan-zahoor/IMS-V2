@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
     format, 
     startOfWeek, 
@@ -47,6 +47,7 @@ export default function AssignmentCalendarPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCourse, setSelectedCourse] = useState('All');
     const [viewMode, setViewMode] = useState('Weekly'); // 'Weekly', 'Daily'
+    const scrollContainerRef = useRef(null);
 
     const isCurrentWeek = isSameWeek(currentDate, new Date(), { weekStartsOn: 0 });
 
@@ -59,6 +60,24 @@ export default function AssignmentCalendarPage() {
             setViewMode('Daily');
         }
     }, []);
+
+    // Handle Scroll Resets on View Toggle
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            // Always reset horizontal scroll
+            scrollContainerRef.current.scrollLeft = 0;
+
+            // Vertical scroll to earliest assignment or 8am
+            const dayAssignments = assignments.filter(a => isSameDay(a.dueDate, currentDate));
+            let targetHour = 8;
+            if (dayAssignments.length > 0) {
+                targetHour = Math.min(...dayAssignments.map(a => a.dueDate.getHours()));
+            }
+            
+            // Adjust for grid start at 5am
+            scrollContainerRef.current.scrollTop = (targetHour - 5) * 48;
+        }
+    }, [viewMode, currentDate, loading]);
 
     const fetchAssignments = async () => {
         try {
@@ -112,36 +131,6 @@ export default function AssignmentCalendarPage() {
                         Assignments
                     </h1>
                     <p className="text-slate-500 font-medium mt-1">Manage and track your academic deadlines.</p>
-                </div>
-
-                <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-                    <button 
-                        onClick={prevPeriod} 
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
-                        title={viewMode === 'Daily' ? "Previous Day" : "Previous Week"}
-                    >
-                        <ChevronLeft size={20} />
-                    </button>
-                    <div className="h-4 w-[1px] bg-slate-200 mx-1" />
-                    <Button 
-                        onClick={goToToday} 
-                        variant="ghost" 
-                        className={cn(
-                            "h-10 rounded-lg text-[11px] font-bold uppercase tracking-wider px-4 transition-all relative",
-                            isCurrentWeek ? "text-blue-600 bg-blue-50/50" : "text-slate-500 hover:bg-slate-50"
-                        )}
-                    >
-                        Today
-                        {!isCurrentWeek && <span className="absolute top-2 right-2 w-1 h-1 bg-blue-600 rounded-full" />}
-                    </Button>
-                    <div className="h-4 w-[1px] bg-slate-200 mx-1" />
-                    <button 
-                        onClick={nextPeriod} 
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
-                        title={viewMode === 'Daily' ? "Next Day" : "Next Week"}
-                    >
-                        <ChevronRight size={20} />
-                    </button>
                 </div>
             </div>
 
@@ -216,27 +205,64 @@ export default function AssignmentCalendarPage() {
 
             {/* Calendar Grid Container */}
             <Card className="rounded-2xl border-slate-200 shadow-lg bg-white overflow-hidden flex flex-col flex-1 min-h-[500px]">
-                {/* Calendar Toolbar */}
-                <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
-                    <div className="flex items-center gap-2">
-                        <CalendarIcon size={18} className="text-slate-400" />
-                        <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
-                            {viewMode === 'Daily' 
-                                ? format(currentDate, "MMMM d, yyyy")
-                                : `${format(startOfWeek(currentDate, { weekStartsOn: 0 }), "MMMM d")} - ${format(endOfWeek(currentDate, { weekStartsOn: 0 }), "MMMM d, yyyy")}`
-                            }
-                        </h2>
+                {/* Calendar Toolbar - Unified Navigation */}
+                <div className="p-3 sm:p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center bg-white gap-3 sm:gap-0">
+                    <div className="flex items-center justify-between w-full sm:w-auto gap-4">
+                        <div className="flex items-center gap-2">
+                            <CalendarIcon size={18} className="text-slate-400" />
+                            <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
+                                {viewMode === 'Daily' 
+                                    ? format(currentDate, "MMMM d, yyyy")
+                                    : `${format(startOfWeek(currentDate, { weekStartsOn: 0 }), "MMMM d")} - ${format(endOfWeek(currentDate, { weekStartsOn: 0 }), "MMMM d, yyyy")}`
+                                }
+                            </h2>
+                        </div>
+
+                        {/* Navigation Controls - Close to data */}
+                        <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100 sm:ml-4">
+                            <button 
+                                onClick={prevPeriod}
+                                className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-500"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <button 
+                                onClick={() => setCurrentDate(new Date())}
+                                className={cn(
+                                    "px-3 py-1 rounded-md text-[10px] font-bold transition-all",
+                                    isToday(currentDate) 
+                                        ? "text-slate-300" 
+                                        : "bg-white shadow-sm text-blue-600"
+                                )}
+                            >
+                                TODAY
+                            </button>
+                            <button 
+                                onClick={nextPeriod}
+                                className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-500"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
                     </div>
                     
                     <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg border border-slate-200 cursor-default group">
                         <LayoutGrid size={14} className="text-slate-500" />
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Weekly View</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                            {viewMode === 'Weekly' ? 'Weekly View' : 'Daily View'}
+                        </span>
                     </div>
                 </div>
 
                 {/* Calendar Grid - Horizontal Scroll on Mobile */}
                 <div className="flex-1 relative bg-white overflow-hidden flex flex-col">
-                    <div className="flex-1 overflow-auto scrollbar-hide">
+                    <div 
+                        className={cn(
+                            "flex-1 scrollbar-hide transition-all",
+                            viewMode === 'Weekly' ? "overflow-auto" : "overflow-y-auto overflow-x-hidden"
+                        )}
+                        ref={scrollContainerRef}
+                    >
                         <WeekGrid 
                             currentDate={currentDate} 
                             viewMode={viewMode}
@@ -262,9 +288,9 @@ function WeekGrid({ currentDate, assignments, viewMode }) {
     // If Daily mode, only show the selected date or current date if in same week
     const days = viewMode === 'Daily' ? [currentDate] : weekDays;
 
-    // Time slots from 6 AM to 8 PM (Relevant School Day)
-    const startHour = 6;
-    const endHour = 20;
+    // Time slots from 5 AM to 9 PM (Relevant School Day)
+    const startHour = 5;
+    const endHour = 21;
     const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => i + startHour);
 
     // Calculate grid positioning
@@ -273,10 +299,10 @@ function WeekGrid({ currentDate, assignments, viewMode }) {
     return (
         <div className={cn(
             "flex flex-col h-full",
-            viewMode === 'Weekly' ? "min-w-[800px] sm:min-w-full" : "w-full"
+            viewMode === 'Weekly' ? "min-w-[800px] sm:min-w-full" : "w-full min-w-full"
         )}>
             {/* Days Header */}
-            <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
+            <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-20 w-full">
                 <div className="w-16 sm:w-20 shrink-0 border-r border-slate-200 bg-white"></div> {/* Time column spacer */}
                 {days.map(day => {
                     const isTodayDay = isToday(day);
