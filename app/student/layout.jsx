@@ -164,7 +164,10 @@ export default function StudentLayout({ children }) {
                             </div>
                         </div>
                         <button
-                            onClick={() => signOut({ callbackUrl: "/login" })}
+                            onClick={async () => {
+                                await signOut({ redirect: false });
+                                window.location.href = "/login";
+                            }}
                             className="hidden md:flex w-10 h-10 rounded-full hover:bg-red-50 items-center justify-center text-slate-400 hover:text-red-600 transition-colors"
                             title="Sign Out"
                         >
