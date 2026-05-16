@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { Search, Filter, Plus, FileText, Video, Link as LinkIcon, Download, Trash2, Edit, X, Users } from "lucide-react";
+import { Search, Filter, Plus, FileText, Video, Link as LinkIcon, Download, Trash2, Edit, X, Users, UploadCloud, CheckCircle } from "lucide-react";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -404,28 +404,42 @@ export default function MaterialsPage() {
                             </button>
                         </div>
 
-                        <div className="p-6 flex-1 min-h-0 overflow-y-auto space-y-5 custom-scrollbar">
-                            <Input
-                                label="Title"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                placeholder="Enter material title..."
-                                required
-                            />
+                        <div className="p-6 flex-1 min-h-0 overflow-y-auto space-y-6 custom-scrollbar">
                             
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Description</label>
-                                <textarea
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-premium-blue/10 text-sm min-h-[70px] transition-all font-medium placeholder:text-slate-400"
-                                    placeholder="Optional instructions for students..."
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            {/* TITLE & DESCRIPTION */}
+                            <div className="space-y-4">
+                                <Input
+                                    label="Material Title"
+                                    value={formData.title}
+                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                    placeholder="e.g. Introduction to Product Design"
+                                    required
                                 />
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Description</label>
+                                    <textarea
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-premium-blue focus:border-transparent text-sm min-h-[90px] transition-all font-medium placeholder:text-slate-400 resize-none shadow-sm"
+                                        placeholder="Add instructions, context, or notes for the students..."
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    />
+                                </div>
                             </div>
 
+                            {/* TYPE & CATEGORY */}
                             <div className="grid grid-cols-2 gap-5">
                                 <Select
-                                    label="Type"
+                                    label="Material Category"
+                                    value={formData.category}
+                                    onChange={(val) => setFormData({ ...formData, category: val })}
+                                    options={[
+                                        { label: "Assignment", value: "assignment" },
+                                        { label: "Lecture Note", value: "lecture" },
+                                        { label: "Reference", value: "reference" }
+                                    ]}
+                                />
+                                <Select
+                                    label="Format Type"
                                     value={formData.fileType}
                                     onChange={(val) => setFormData({ ...formData, fileType: val })}
                                     options={[
@@ -436,150 +450,190 @@ export default function MaterialsPage() {
                                         { label: "Other Link", value: "other" }
                                     ]}
                                 />
-                                <Select
-                                    label="Category"
-                                    value={formData.category}
-                                    onChange={(val) => setFormData({ ...formData, category: val })}
-                                    options={[
-                                        { label: "Lecture Note", value: "lecture" },
-                                        { label: "Assignment", value: "assignment" },
-                                        { label: "Reference", value: "reference" }
-                                    ]}
-                                />
                             </div>
 
+                            {/* ASSIGNMENT SPECIFIC FIELDS */}
                             {formData.category === 'assignment' && (
-                                <div className="p-4 rounded-2xl bg-premium-blue/5 border border-premium-blue/10 space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <Input
-                                            label="Due Date"
-                                            type="date"
-                                            value={formData.dueDate}
-                                            onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                                        />
-                                        <Input
-                                            label="Total Marks"
-                                            type="number"
-                                            value={formData.totalMarks}
-                                            onChange={(e) => setFormData({ ...formData, totalMarks: e.target.value })}
-                                            placeholder="e.g. 100"
-                                        />
-                                    </div>
-                                    <label className="flex items-center gap-3 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.allowSubmissions}
-                                            onChange={(e) => setFormData({ ...formData, allowSubmissions: e.target.checked })}
-                                            className="w-5 h-5 rounded text-premium-blue border-slate-300"
-                                        />
-                                        <span className="text-sm font-bold text-slate-700">Enable Student Submissions</span>
-                                    </label>
+                                <div className="grid grid-cols-2 gap-5 pt-2">
+                                    <Input
+                                        label="Due Date"
+                                        type="date"
+                                        value={formData.dueDate}
+                                        onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                                    />
+                                    <Input
+                                        label="Total Marks"
+                                        type="number"
+                                        value={formData.totalMarks}
+                                        onChange={(e) => setFormData({ ...formData, totalMarks: e.target.value })}
+                                        placeholder="e.g. 100"
+                                    />
                                 </div>
                             )}
 
-                            <div className="space-y-4 border border-slate-100 p-5 rounded-2xl bg-slate-50/50">
-                                <div className="flex gap-2">
-                                    <button
-                                        type="button"
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${!formData.isUpload ? 'bg-white border-slate-200' : 'text-slate-400 border-transparent'}`}
-                                        onClick={() => setFormData({ ...formData, isUpload: false })}
-                                    >
-                                        <LinkIcon size={14} className="inline mr-1" /> Link
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${formData.isUpload ? 'bg-white border-slate-200' : 'text-slate-400 border-transparent'}`}
-                                        onClick={() => setFormData({ ...formData, isUpload: true })}
-                                    >
-                                        <Download size={14} className="inline mr-1" /> Upload
-                                    </button>
+                            {/* FILE UPLOAD ZONE */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Attachment File</label>
+                                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-slate-50/50 text-center hover:bg-slate-50 transition-colors relative group">
+                                    {formData.fileUrl ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2">
+                                                <CheckCircle size={24} />
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-800 break-all px-4">{formData.isUpload ? "File Uploaded Successfully" : formData.fileUrl}</p>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setFormData({ ...formData, fileUrl: "", fileId: "", isUpload: false })}
+                                                className="text-xs font-bold text-red-500 hover:text-red-600 mt-2"
+                                            >
+                                                Remove Attachment
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="w-12 h-12 rounded-full bg-white border border-slate-200 text-slate-400 flex items-center justify-center mx-auto mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                <UploadCloud size={20} />
+                                            </div>
+                                            <p className="text-sm font-medium text-slate-600 mb-1">
+                                                <span className="font-bold text-premium-blue">Click to upload</span> or drag and drop
+                                            </p>
+                                            <p className="text-xs font-medium text-slate-400 mb-4">PDF, DOCX, JPG, PNG (Max 10MB)</p>
+                                            
+                                            <input
+                                                type="file"
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files[0];
+                                                    if (!file) return;
+                                                    setFormData(prev => ({ ...prev, isUpload: true }));
+                                                    const data = new FormData();
+                                                    data.append("file", file);
+                                                    data.append("fileType", file.type.startsWith('image/') ? 'image' : 'document');
+                                                    try {
+                                                        const res = await fetch("/api/v1/upload", { method: "POST", body: data });
+                                                        if (res.ok) {
+                                                            const json = await res.json();
+                                                            setFormData(prev => ({ ...prev, fileUrl: json.url, fileId: json.public_id, isUpload: true }));
+                                                            toast.success("File uploaded successfully!");
+                                                        }
+                                                    } catch (err) { console.error(err); toast.error("Upload failed"); }
+                                                }}
+                                            />
+                                            
+                                            <div className="flex items-center gap-3 my-4">
+                                                <div className="h-px bg-slate-200 flex-1"></div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">OR PASTE LINK</span>
+                                                <div className="h-px bg-slate-200 flex-1"></div>
+                                            </div>
+
+                                            <div className="relative z-10">
+                                                <Input
+                                                    placeholder="https://..."
+                                                    value={formData.fileUrl}
+                                                    onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value, isUpload: false })}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* TARGET AUDIENCE (CLASSES & SECTIONS) */}
+                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-4">
+                                <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">Target Audience</h3>
+                                
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">{isSchool ? "Classes" : "Courses"}</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {courses.map(course => {
+                                            const isSelected = formData.courses.includes(course._id);
+                                            return (
+                                                <button
+                                                    key={course._id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newCourses = isSelected
+                                                            ? formData.courses.filter(c => c !== course._id)
+                                                            : [...formData.courses, course._id];
+                                                        setFormData({ ...formData, courses: newCourses, batches: [] });
+                                                    }}
+                                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                                        isSelected 
+                                                        ? 'bg-premium-blue text-white border-premium-blue shadow-sm' 
+                                                        : 'bg-white text-slate-600 border-slate-200 hover:border-premium-blue/40'
+                                                    }`}
+                                                >
+                                                    {course.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
 
-                                {formData.isUpload ? (
-                                    <input
-                                        type="file"
-                                        className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-premium-blue/10 file:text-premium-blue"
-                                        onChange={async (e) => {
-                                            const file = e.target.files[0];
-                                            if (!file) return;
-                                            const data = new FormData();
-                                            data.append("file", file);
-                                            data.append("fileType", file.type.startsWith('image/') ? 'image' : 'document');
-                                            try {
-                                                const res = await fetch("/api/v1/upload", { method: "POST", body: data });
-                                                if (res.ok) {
-                                                    const json = await res.json();
-                                                    setFormData(prev => ({ ...prev, fileUrl: json.url, fileId: json.public_id }));
-                                                    toast.success("Uploaded!");
-                                                }
-                                            } catch (err) { console.error(err); }
-                                        }}
-                                    />
-                                ) : (
-                                    <Input
-                                        label="Resource URL"
-                                        placeholder="https://..."
-                                        value={formData.fileUrl}
-                                        onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value })}
-                                    />
+                                {formData.courses.length > 0 && (
+                                    <div className="space-y-2 pt-2 border-t border-slate-200/60">
+                                        <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">{isSchool ? "Sections" : "Batches"}</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {filteredBatches.map(batch => {
+                                                const isSelected = formData.batches.includes(batch._id);
+                                                return (
+                                                    <button
+                                                        key={batch._id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newBatches = isSelected
+                                                                ? formData.batches.filter(b => b !== batch._id)
+                                                                : [...formData.batches, batch._id];
+                                                            setFormData({ ...formData, batches: newBatches });
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                                            isSelected 
+                                                            ? 'bg-slate-800 text-white border-slate-800 shadow-sm' 
+                                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                                                        }`}
+                                                    >
+                                                        {batch.name}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
 
-                            <div className="space-y-1">
-                                <label className="text-xs font-semibold uppercase text-slate-500 ml-1">{isSchool ? "Classes" : "Courses"}</label>
-                                <div className="grid grid-cols-2 gap-2 max-h-[120px] overflow-y-auto border border-slate-100 rounded-xl p-3 bg-white/50">
-                                    {courses.map(course => (
-                                        <label key={course._id} className="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.courses.includes(course._id)}
-                                                onChange={() => {
-                                                    const newCourses = formData.courses.includes(course._id)
-                                                        ? formData.courses.filter(c => c !== course._id)
-                                                        : [...formData.courses, course._id];
-                                                    setFormData({ ...formData, courses: newCourses, batches: [] });
-                                                }}
-                                                className="w-4 h-4 rounded text-premium-blue border-slate-300"
-                                            />
-                                            <span>{course.name}</span>
-                                        </label>
-                                    ))}
+                            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mt-2">
+                                <div>
+                                    <h4 className="text-sm font-bold text-emerald-900">Publish Material</h4>
+                                    <p className="text-xs text-emerald-700/80 mt-0.5">Make this visible to students immediately</p>
                                 </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only peer"
+                                        checked={formData.visibleToStudents}
+                                        onChange={(e) => setFormData({ ...formData, visibleToStudents: e.target.checked })}
+                                    />
+                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                                </label>
                             </div>
 
-                            {formData.courses.length > 0 && (
-                                <div className="space-y-1">
-                                    <label className="text-xs font-semibold uppercase text-slate-500 ml-1">{isSchool ? "Sections" : "Batches"}</label>
-                                    <div className="grid grid-cols-2 gap-3 max-h-[120px] overflow-y-auto border border-slate-100 rounded-xl p-3 bg-white/50">
-                                        {filteredBatches.map(batch => (
-                                            <label key={batch._id} className="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.batches.includes(batch._id)}
-                                                    onChange={() => {
-                                                        const newBatches = formData.batches.includes(batch._id)
-                                                            ? formData.batches.filter(b => b !== batch._id)
-                                                            : [...formData.batches, batch._id];
-                                                        setFormData({ ...formData, batches: newBatches });
-                                                    }}
-                                                    className="w-4 h-4 rounded text-premium-blue border-slate-300"
-                                                />
-                                                <span>{batch.name}</span>
-                                            </label>
-                                        ))}
+                            {formData.category === 'assignment' && (
+                                <div className="flex items-center justify-between bg-premium-blue/5 border border-premium-blue/10 rounded-2xl p-4 mt-2">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-premium-blue">Enable Submissions</h4>
+                                        <p className="text-xs text-premium-blue/70 mt-0.5">Allow students to upload their work</p>
                                     </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            className="sr-only peer"
+                                            checked={formData.allowSubmissions}
+                                            onChange={(e) => setFormData({ ...formData, allowSubmissions: e.target.checked })}
+                                        />
+                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-premium-blue"></div>
+                                    </label>
                                 </div>
                             )}
-
-                            <label className="flex items-center gap-3 pt-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={formData.visibleToStudents}
-                                    onChange={(e) => setFormData({ ...formData, visibleToStudents: e.target.checked })}
-                                    className="w-5 h-5 rounded text-premium-blue border-slate-300"
-                                />
-                                <span className="text-sm font-bold text-slate-700">Visible to Students</span>
-                            </label>
 
                         </div>
                         <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3 shrink-0">

@@ -3,22 +3,21 @@
 import { useState, useEffect } from "react";
 import { 
     format, 
-    addMonths, 
-    subMonths, 
-    startOfMonth, 
-    endOfMonth, 
     startOfWeek, 
     endOfWeek, 
-    isSameMonth, 
     isSameDay, 
-    addDays, 
     eachDayOfInterval,
     isToday,
     isPast,
+    isSameWeek,
     parseISO,
-    isWithinInterval,
     addWeeks,
-    subWeeks
+    subWeeks,
+    addDays,
+    subDays,
+    setHours,
+    setMinutes,
+    isWithinInterval
 } from "date-fns";
 import { 
     ChevronLeft, 
@@ -26,15 +25,11 @@ import {
     Calendar as CalendarIcon, 
     Clock, 
     CheckCircle2, 
-    AlertCircle, 
-    FileText, 
-    ExternalLink,
     ArrowRight,
     LayoutGrid,
-    List as ListIcon,
-    Search,
     BookOpen
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 import Card from "@/components/ui/Card";
@@ -46,13 +41,23 @@ import { useToast } from "@/contexts/ToastContext";
 export default function AssignmentCalendarPage() {
     const toast = useToast();
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [view, setView] = useState("month"); // month, list
     const [assignments, setAssignments] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [filter, setFilter] = useState('All'); // 'All', 'Pending', 'Completed', 'Overdue'
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCourse, setSelectedCourse] = useState('All');
+    const [viewMode, setViewMode] = useState('Weekly'); // 'Weekly', 'Daily'
+
+    const isCurrentWeek = isSameWeek(currentDate, new Date(), { weekStartsOn: 0 });
 
     useEffect(() => {
         fetchAssignments();
+        document.title = "Assignments | Quantech";
+
+        // Auto-switch to Daily mode on mobile
+        if (window.innerWidth < 768) {
+            setViewMode('Daily');
+        }
     }, []);
 
     const fetchAssignments = async () => {
@@ -60,7 +65,6 @@ export default function AssignmentCalendarPage() {
             const res = await fetch("/api/v1/student/assignments/calendar");
             const data = await res.json();
             if (res.ok) {
-                // Ensure dates are parsed correctly
                 const parsed = (data.assignments || []).map(a => ({
                     ...a,
                     dueDate: a.dueDate ? parseISO(a.dueDate) : null
@@ -76,244 +80,374 @@ export default function AssignmentCalendarPage() {
         }
     };
 
-    const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
-    const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
-
-    const getAssignmentsForDay = (day) => {
-        return assignments.filter(a => isSameDay(a.dueDate, day));
+    const nextPeriod = () => {
+        if (viewMode === 'Daily') {
+            setCurrentDate(addDays(currentDate, 1));
+        } else {
+            setCurrentDate(addWeeks(currentDate, 1));
+        }
     };
+
+    const prevPeriod = () => {
+        if (viewMode === 'Daily') {
+            setCurrentDate(subDays(currentDate, 1));
+        } else {
+            setCurrentDate(subWeeks(currentDate, 1));
+        }
+    };
+
+    const goToToday = () => {
+        setCurrentDate(new Date());
+    }; 
 
     if (loading) return <LoadingSpinner fullPage />;
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 pb-20">
+        <div className="max-w-[1600px] mx-auto space-y-8 pb-20">
             {/* Header Area */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-900 italic tracking-tight flex items-center gap-3">
-                        <div className="p-3 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-200">
-                            <CalendarIcon size={24} />
-                        </div>
-                        Assignment Calendar
+                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+                        <BookOpen size={28} className="text-blue-600" strokeWidth={2.5} />
+                        Assignments
                     </h1>
-                    <p className="text-slate-500 font-medium mt-1">Track your deadlines and stay ahead of your course work.</p>
+                    <p className="text-slate-500 font-medium mt-1">Manage and track your academic deadlines.</p>
                 </div>
 
-                <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm">
+                <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
                     <button 
-                        onClick={() => setView("month")}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                            view === "month" ? "bg-premium-blue text-white shadow-lg" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-                        }`}
+                        onClick={prevPeriod} 
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
+                        title={viewMode === 'Daily' ? "Previous Day" : "Previous Week"}
                     >
-                        <LayoutGrid size={14} /> Month
+                        <ChevronLeft size={20} />
                     </button>
-                    <button 
-                        onClick={() => setView("list")}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                            view === "list" ? "bg-premium-blue text-white shadow-lg" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-                        }`}
+                    <div className="h-4 w-[1px] bg-slate-200 mx-1" />
+                    <Button 
+                        onClick={goToToday} 
+                        variant="ghost" 
+                        className={cn(
+                            "h-10 rounded-lg text-[11px] font-bold uppercase tracking-wider px-4 transition-all relative",
+                            isCurrentWeek ? "text-blue-600 bg-blue-50/50" : "text-slate-500 hover:bg-slate-50"
+                        )}
                     >
-                        <ListIcon size={14} /> Timeline
+                        Today
+                        {!isCurrentWeek && <span className="absolute top-2 right-2 w-1 h-1 bg-blue-600 rounded-full" />}
+                    </Button>
+                    <div className="h-4 w-[1px] bg-slate-200 mx-1" />
+                    <button 
+                        onClick={nextPeriod} 
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
+                        title={viewMode === 'Daily' ? "Next Day" : "Next Week"}
+                    >
+                        <ChevronRight size={20} />
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Left Side: Calendar / List */}
-                <div className="lg:col-span-8 space-y-8">
-                    {view === "month" ? (
-                        <Card className="rounded-[3rem] border-none shadow-xl overflow-hidden p-8">
-                            {/* Calendar Navigation */}
-                            <div className="flex justify-between items-center mb-8 px-4">
-                                <h2 className="text-2xl font-black text-slate-900 italic uppercase tracking-tight">
-                                    {format(currentDate, "MMMM yyyy")}
-                                </h2>
-                                <div className="flex gap-2">
-                                    <button onClick={prevMonth} className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-white hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm">
-                                        <ChevronLeft size={20} />
-                                    </button>
-                                    <button onClick={() => setCurrentDate(new Date())} className="px-4 h-10 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white hover:text-blue-600 transition-all shadow-sm">
-                                        Today
-                                    </button>
-                                    <button onClick={nextMonth} className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-white hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm">
-                                        <ChevronRight size={20} />
-                                    </button>
-                                </div>
-                            </div>
+            {/* Quick Stats Metrics */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <FilterStatBox 
+                    label="Pending" 
+                    value={assignments.filter(a => a.submissionStatus === 'Not Submitted' && !isPast(a.dueDate)).length} 
+                    color="amber"
+                    active={filter === 'Pending'}
+                    onClick={() => setFilter(filter === 'Pending' ? 'All' : 'Pending')}
+                />
+                <FilterStatBox 
+                    label="Completed" 
+                    value={assignments.filter(a => a.submissionStatus !== 'Not Submitted').length} 
+                    color="emerald"
+                    active={filter === 'Completed'}
+                    onClick={() => setFilter(filter === 'Completed' ? 'All' : 'Completed')}
+                />
+                <FilterStatBox 
+                    label="Overdue" 
+                    value={assignments.filter(a => a.submissionStatus === 'Not Submitted' && isPast(a.dueDate)).length} 
+                    color="rose"
+                    active={filter === 'Overdue'}
+                    onClick={() => setFilter(filter === 'Overdue' ? 'All' : 'Overdue')}
+                />
+            </div>
 
-                            {/* Calendar Grid */}
-                            <MonthCalendar 
-                                currentDate={currentDate} 
-                                assignments={assignments} 
-                                selectedDate={selectedDate}
-                                onDateSelect={setSelectedDate}
-                            />
-                        </Card>
-                    ) : (
-                        <div className="space-y-6">
-                            {assignments.sort((a, b) => a.dueDate - b.dueDate).map((a, idx) => (
-                                <TimelineItem key={a.id} assignment={a} index={idx} />
-                            ))}
-                            {assignments.length === 0 && (
-                                <div className="p-20 text-center bg-white rounded-[3rem] border border-dashed border-slate-200">
-                                    <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-300">
-                                        <CalendarIcon size={40} />
-                                    </div>
-                                    <p className="text-slate-400 font-bold italic">No assignments found for your courses.</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Right Side: Selected Day Details & Summary */}
-                <div className="lg:col-span-4 space-y-8">
-                    {/* Day Focus */}
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={selectedDate.toISOString()}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
+            {/* Dedicated Filter Bar */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 w-full sm:w-64">
+                        <LayoutGrid size={16} className="text-slate-400" />
+                        <select 
+                            className="bg-transparent text-[13px] font-bold text-slate-600 outline-none w-full appearance-none cursor-pointer"
+                            value={selectedCourse}
+                            onChange={(e) => setSelectedCourse(e.target.value)}
                         >
-                        <Card className="rounded-[3rem] border-slate-100 shadow-sm overflow-hidden p-8 bg-white text-slate-900 min-h-[400px] flex flex-col relative">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-premium-blue/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                            <div className="relative space-y-1 mb-8">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-premium-blue">
-                                    {format(selectedDate, "EEEE")}
-                                </p>
-                                <h3 className="text-3xl font-black italic tracking-tight">
-                                    {format(selectedDate, "MMM d, yyyy")}
-                                </h3>
-                            </div>
+                            <option value="All">All Subjects</option>
+                            {[...new Set(assignments.map(a => a.course))].map(c => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
+                        <ChevronRight size={14} className="text-slate-400 rotate-90" />
+                    </div>
+                </div>
 
-                                <div className="flex-1 space-y-4">
-                                    {getAssignmentsForDay(selectedDate).length > 0 ? (
-                                        getAssignmentsForDay(selectedDate).map(a => (
-                                            <div key={a.id} className="p-5 rounded-[2rem] bg-white/5 border border-white/10 hover:bg-white/10 transition-all group">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <Badge variant="neutral" className="bg-blue-500 text-white border-none text-[8px] font-black uppercase tracking-widest px-3">
-                                                        {a.course}
-                                                    </Badge>
-                                                    <span className={`text-[8px] font-black uppercase tracking-widest ${
-                                                        a.submissionStatus === 'Graded' ? 'text-emerald-400' :
-                                                        a.submissionStatus === 'Submitted' ? 'text-blue-400' : 'text-rose-400'
-                                                    }`}>
-                                                        {a.submissionStatus}
-                                                    </span>
-                                                </div>
-                                                <h4 className="font-black italic text-lg leading-tight mb-3">{a.title}</h4>
-                                                <Button 
-                                                    size="sm" 
-                                                    className="w-full bg-white text-slate-900 rounded-xl font-black uppercase text-[9px] tracking-widest h-8"
-                                                    onClick={() => window.location.href = `/student/materials`} // Redirect to materials to find it
-                                                >
-                                                    View Details <ArrowRight size={10} className="ml-2" />
-                                                </Button>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40">
-                                            <CheckCircle2 size={48} className="mb-4 text-emerald-400" />
-                                            <p className="text-sm font-bold italic">No deadlines for this day.<br/>Enjoy your free time!</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </Card>
-                        </motion.div>
-                    </AnimatePresence>
-
-                    {/* Quick Stats */}
-                    <Card className="rounded-[3rem] border-none shadow-xl overflow-hidden p-8 space-y-6">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Assignment Overview</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            <StatBox 
-                                label="Pending" 
-                                value={assignments.filter(a => a.submissionStatus === 'Not Submitted' && !isPast(a.dueDate)).length} 
-                                color="rose"
-                            />
-                            <StatBox 
-                                label="Completed" 
-                                value={assignments.filter(a => a.submissionStatus !== 'Not Submitted').length} 
-                                color="emerald"
-                            />
-                            <StatBox 
-                                label="Due Soon" 
-                                value={assignments.filter(a => {
-                                    const diff = a.dueDate - new Date();
-                                    return diff > 0 && diff < 3 * 24 * 60 * 60 * 1000 && a.submissionStatus === 'Not Submitted';
-                                }).length} 
-                                color="amber"
-                            />
-                             <StatBox 
-                                label="Overdue" 
-                                value={assignments.filter(a => a.submissionStatus === 'Not Submitted' && isPast(a.dueDate)).length} 
-                                color="slate"
-                            />
-                        </div>
-                    </Card>
+                <div className="flex items-center justify-between w-full sm:w-auto gap-4">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Display Mode</span>
+                    <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
+                        <button 
+                            onClick={() => setViewMode('Weekly')}
+                            className={cn(
+                                "flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all",
+                                viewMode === 'Weekly' ? "bg-white shadow-sm text-blue-600" : "text-slate-400 hover:text-slate-600"
+                            )}
+                        >
+                            Weekly
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('Daily')}
+                            className={cn(
+                                "flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all",
+                                viewMode === 'Daily' ? "bg-white shadow-sm text-blue-600" : "text-slate-400 hover:text-slate-600"
+                            )}
+                        >
+                            Daily
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {/* Calendar Grid Container */}
+            <Card className="rounded-2xl border-slate-200 shadow-lg bg-white overflow-hidden flex flex-col flex-1 min-h-[500px]">
+                {/* Calendar Toolbar */}
+                <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
+                    <div className="flex items-center gap-2">
+                        <CalendarIcon size={18} className="text-slate-400" />
+                        <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
+                            {viewMode === 'Daily' 
+                                ? format(currentDate, "MMMM d, yyyy")
+                                : `${format(startOfWeek(currentDate, { weekStartsOn: 0 }), "MMMM d")} - ${format(endOfWeek(currentDate, { weekStartsOn: 0 }), "MMMM d, yyyy")}`
+                            }
+                        </h2>
+                    </div>
+                    
+                    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg border border-slate-200 cursor-default group">
+                        <LayoutGrid size={14} className="text-slate-500" />
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Weekly View</span>
+                    </div>
+                </div>
+
+                {/* Calendar Grid - Horizontal Scroll on Mobile */}
+                <div className="flex-1 relative bg-white overflow-hidden flex flex-col">
+                    <div className="flex-1 overflow-auto scrollbar-hide">
+                        <WeekGrid 
+                            currentDate={currentDate} 
+                            viewMode={viewMode}
+                            assignments={assignments.filter(a => {
+                                if (filter === 'Pending') return a.submissionStatus === 'Not Submitted' && !isPast(a.dueDate);
+                                if (filter === 'Completed') return a.submissionStatus !== 'Not Submitted';
+                                if (filter === 'Overdue') return a.submissionStatus === 'Not Submitted' && isPast(a.dueDate);
+                                return true;
+                            }).filter(a => selectedCourse === 'All' || a.course === selectedCourse)} 
+                        />
+                    </div>
+                </div>
+            </Card>
         </div>
     );
 }
 
-function MonthCalendar({ currentDate, assignments, selectedDate, onDateSelect }) {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart);
-    const endDate = endOfWeek(monthEnd);
+function WeekGrid({ currentDate, assignments, viewMode }) {
+    const startDate = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday start
+    const endDate = endOfWeek(currentDate, { weekStartsOn: 0 });
+    const weekDays = eachDayOfInterval({ start: startDate, end: endDate });
+    
+    // If Daily mode, only show the selected date or current date if in same week
+    const days = viewMode === 'Daily' ? [currentDate] : weekDays;
 
-    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    // Time slots from 6 AM to 8 PM (Relevant School Day)
+    const startHour = 6;
+    const endHour = 20;
+    const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => i + startHour);
 
-    const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    // Calculate grid positioning
+    const HOUR_HEIGHT = 48; // Slightly taller for better legibility
 
     return (
-        <div className="w-full">
-            <div className="grid grid-cols-7 mb-4">
-                {weekDays.map(d => (
-                    <div key={d} className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400 py-2">
-                        {d}
-                    </div>
-                ))}
-            </div>
-            <div className="grid grid-cols-7 gap-px bg-slate-100 border border-slate-100 rounded-3xl overflow-hidden">
+        <div className={cn(
+            "flex flex-col h-full",
+            viewMode === 'Weekly' ? "min-w-[800px] sm:min-w-full" : "w-full"
+        )}>
+            {/* Days Header */}
+            <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
+                <div className="w-16 sm:w-20 shrink-0 border-r border-slate-200 bg-white"></div> {/* Time column spacer */}
                 {days.map(day => {
-                    const dayAssignments = assignments.filter(a => isSameDay(a.dueDate, day));
-                    const isSelected = isSameDay(day, selectedDate);
                     const isTodayDay = isToday(day);
-                    const isCurrentMonth = isSameMonth(day, monthStart);
-
                     return (
                         <div 
-                            key={day.toISOString()}
-                            onClick={() => onDateSelect(day)}
-                            className={`min-h-[100px] p-3 bg-white hover:bg-slate-50 transition-all cursor-pointer relative group ${
-                                !isCurrentMonth ? "opacity-30" : ""
-                            } ${isSelected ? "ring-2 ring-inset ring-blue-500 z-10" : ""}`}
+                            key={day.toISOString()} 
+                            className={cn(
+                                "flex-1 border-r border-slate-200 py-3 text-center transition-colors cursor-pointer hover:bg-slate-50",
+                                isTodayDay ? "bg-blue-50/50" : "bg-white",
+                                viewMode === 'Daily' && !isSameDay(day, currentDate) ? "hidden sm:block" : ""
+                            )}
+                            onClick={() => {
+                                if (viewMode === 'Daily') {
+                                    setCurrentDate(day);
+                                }
+                            }}
                         >
-                            <span className={`text-xs font-black ${
-                                isTodayDay ? "w-6 h-6 bg-blue-600 text-white rounded-lg flex items-center justify-center shadow-md shadow-blue-200" : 
-                                isSelected ? "text-blue-600" : "text-slate-400"
-                            }`}>
-                                {format(day, "d")}
-                            </span>
-
-                            <div className="mt-2 space-y-1">
-                                {dayAssignments.slice(0, 2).map(a => (
-                                    <div key={a.id} className={`h-1.5 rounded-full ${
-                                        a.submissionStatus === 'Graded' ? 'bg-emerald-400' :
-                                        a.submissionStatus === 'Submitted' ? 'bg-blue-400' : 'bg-rose-400'
-                                    }`} title={a.title} />
-                                ))}
-                                {dayAssignments.length > 2 && (
-                                    <p className="text-[8px] font-black text-slate-400">+{dayAssignments.length - 2} More</p>
+                            <div className="flex flex-col items-center">
+                                <span className={cn(
+                                    "text-[10px] font-bold uppercase tracking-wider",
+                                    isTodayDay ? "text-blue-600" : "text-slate-400"
+                                )}>
+                                    {format(day, "EEE")}
+                                </span>
+                                <span className={cn(
+                                    "text-lg font-bold mt-0.5",
+                                    isTodayDay ? "text-blue-700" : "text-slate-700",
+                                    viewMode === 'Daily' && isSameDay(day, currentDate) ? "bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-full mt-1 shadow-sm" : ""
+                                )}>
+                                    {format(day, "d")}
+                                </span>
+                                
+                                {/* Activity Dot Indicator */}
+                                {assignments.filter(a => isSameDay(a.dueDate, day)).length > 0 && (
+                                    <div className="flex gap-0.5 mt-1">
+                                        <div className="w-1 h-1 rounded-full bg-blue-500" />
+                                    </div>
                                 )}
                             </div>
+                        </div>
+                    );
+                })}
+            </div>
 
-                            {/* Hover Highlight */}
-                            <div className="absolute inset-0 bg-blue-400/0 group-hover:bg-blue-400/5 transition-colors pointer-events-none" />
+            {/* Grid Body */}
+            <div className="flex flex-1 relative bg-white">
+                {/* Time Axis */}
+                <div className="w-16 sm:w-20 shrink-0 border-r border-slate-200 bg-white sticky left-0 z-10">
+                    {hours.map(hour => (
+                        <div key={hour} className="text-[10px] sm:text-[11px] font-medium text-slate-400 flex items-start justify-center pr-2" style={{ height: `${HOUR_HEIGHT}px` }}>
+                            <span className="mt-[-8px]">{format(setHours(new Date(), hour), "h a")}</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Day Columns */}
+                {days.map((day, dayIndex) => {
+                    const dayAssignments = assignments.filter(a => isSameDay(a.dueDate, day));
+                    const isTodayDay = isToday(day);
+                    
+                    return (
+                        <div 
+                            key={day.toISOString()} 
+                            className={cn(
+                                "flex-1 border-r border-slate-200 relative group transition-colors",
+                                isTodayDay ? "bg-blue-50/10" : "bg-white",
+                                viewMode === 'Daily' && !isSameDay(day, currentDate) ? "hidden sm:block" : ""
+                            )}
+                        >
+                            {/* Empty State Messaging - Properly aligned */}
+                            {dayAssignments.length === 0 && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-4 text-center">
+                                    <p className="text-[10px] font-bold text-slate-200 uppercase tracking-widest leading-relaxed max-w-[100px] sm:max-w-[120px]">
+                                        Free Day
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Hour grid lines (Visual Separators) */}
+                            {hours.map(hour => (
+                                <div key={hour} className="border-b border-slate-100 w-full" style={{ height: `${HOUR_HEIGHT}px` }} />
+                            ))}
+
+                            {/* Render Assignments as Blocks */}
+                            {dayAssignments.map(assignment => {
+                                const dueHour = assignment.dueDate.getHours();
+                                const dueMinute = assignment.dueDate.getMinutes();
+                                
+                                // If due time is outside 8 AM - 8 PM, clamp it or put it in an "All day" area. 
+                                // For simplicity, let's clamp it to the visible grid for rendering.
+                                let displayHour = dueHour;
+                                if (displayHour < startHour) displayHour = startHour;
+                                if (displayHour > endHour) displayHour = endHour;
+
+                                const topOffset = ((displayHour - startHour) + (dueMinute / 60)) * HOUR_HEIGHT;
+                                
+                                // Default assignment block height
+                                const blockHeight = HOUR_HEIGHT * 1.5; // visually 1.5 hours tall
+                                
+                                const isOverdue = isPast(assignment.dueDate) && assignment.submissionStatus === 'Not Submitted';
+                                const isCompleted = assignment.submissionStatus !== 'Not Submitted';
+                                
+                                let cardColor = "bg-amber-50/50 border-amber-100 border-l-amber-400";
+                                let tagColor = "bg-amber-100 text-amber-700";
+                                let hoverColor = "hover:border-amber-300 hover:shadow-md";
+                                
+                                if (isCompleted) {
+                                    cardColor = "bg-emerald-50/50 border-emerald-100 border-l-emerald-400";
+                                    tagColor = "bg-emerald-100 text-emerald-700";
+                                    hoverColor = "hover:border-emerald-300 hover:shadow-md";
+                                } else if (isOverdue) {
+                                    cardColor = "bg-rose-50/50 border-rose-100 border-l-rose-400";
+                                    tagColor = "bg-rose-100 text-rose-700";
+                                    hoverColor = "hover:border-rose-300 hover:shadow-md";
+                                }
+
+                                return (
+                                    <div 
+                                        key={assignment.id} 
+                                        className={cn(
+                                            "absolute left-1.5 right-1.5 rounded-lg p-3 flex flex-col shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer z-10 group/card border",
+                                            isOverdue ? "border-l-[6px] border-l-rose-500 border-rose-100" : "border-l-[6px] border-l-blue-500 border-slate-100",
+                                            cardColor,
+                                            hoverColor
+                                        )}
+                                        style={{ top: `${topOffset}px`, height: `auto`, minHeight: '60px' }}
+                                    >
+                                        <div className="flex justify-between items-start gap-1">
+                                            <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-500 whitespace-nowrap`}>
+                                                {assignment.course}
+                                            </span>
+                                            {isCompleted && <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />}
+                                            {isOverdue && !isCompleted && <Badge variant="danger" className="text-[8px] px-1 py-0 h-4 font-bold border-none">DUE</Badge>}
+                                        </div>
+                                        <h4 className="text-[12px] font-bold text-slate-900 leading-snug line-clamp-2 mt-2">
+                                            {assignment.title}
+                                        </h4>
+                                        <div className="mt-2 flex items-center text-[10px] font-bold text-slate-400 gap-1">
+                                            <Clock size={12} className="opacity-60" />
+                                            {format(assignment.dueDate, "h:mm a")}
+                                        </div>
+
+                                        {/* Hover Popover - Show on left if at the end of the week */}
+                                        <div className={`absolute top-0 ${dayIndex > 4 ? 'right-full mr-2' : 'left-full ml-2'} w-64 bg-white rounded-xl shadow-2xl border border-slate-100 p-4 opacity-0 invisible group-hover/card:opacity-100 group-hover/card:visible transition-all z-50 pointer-events-none group-hover/card:pointer-events-auto`}>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <Badge variant={isOverdue ? "danger" : "neutral"} className="text-[8px] px-2 font-bold uppercase tracking-wider">
+                                                    {isOverdue ? "Overdue" : assignment.submissionStatus}
+                                                </Badge>
+                                                <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                                                    <LayoutGrid size={14} />
+                                                </button>
+                                            </div>
+                                            <h3 className="font-bold text-sm text-slate-900 mb-1 leading-tight">{assignment.title}</h3>
+                                            <p className="text-xs text-slate-500 font-normal mb-4 line-clamp-3 leading-relaxed">{assignment.description || "No description provided."}</p>
+                                            
+                                            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                                                <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1.5">
+                                                    <BookOpen size={12} className="opacity-60" /> 
+                                                    {assignment.totalMarks} Marks
+                                                </span>
+                                                <button 
+                                                    className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 group/btn"
+                                                    onClick={() => window.location.href = `/student/materials?id=${assignment.id}`}
+                                                >
+                                                    View Details <ArrowRight size={12} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     );
                 })}
@@ -322,70 +456,31 @@ function MonthCalendar({ currentDate, assignments, selectedDate, onDateSelect })
     );
 }
 
-function TimelineItem({ assignment, index }) {
-    const isOverdue = isPast(assignment.dueDate) && assignment.submissionStatus === 'Not Submitted';
-    
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-        >
-            <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden p-6 hover:translate-x-2 transition-transform group">
-                <div className="flex items-center gap-6">
-                    {/* Date Block */}
-                    <div className="flex flex-col items-center justify-center w-20 h-20 rounded-3xl bg-slate-50 border border-slate-100 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-500">
-                        <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{format(assignment.dueDate, "MMM")}</span>
-                        <span className="text-2xl font-black italic">{format(assignment.dueDate, "dd")}</span>
-                    </div>
-
-                    <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                            <Badge variant="neutral" className="bg-blue-50 text-premium-blue border-blue-100 text-[8px] font-black uppercase tracking-widest px-3 rounded-lg">
-                                {assignment.course}
-                            </Badge>
-                            {isOverdue ? (
-                                <Badge variant="danger" className="uppercase text-[8px] font-black px-3">Overdue</Badge>
-                            ) : assignment.submissionStatus === 'Graded' ? (
-                                <Badge variant="success" className="uppercase text-[8px] font-black px-3">Graded</Badge>
-                            ) : assignment.submissionStatus === 'Submitted' ? (
-                                <Badge variant="info" className="uppercase text-[8px] font-black px-3">Submitted</Badge>
-                            ) : (
-                                <Badge variant="warning" className="uppercase text-[8px] font-black px-3">Pending</Badge>
-                            )}
-                        </div>
-                        <h3 className="text-xl font-black italic text-slate-900 group-hover:text-blue-600 transition-colors">{assignment.title}</h3>
-                        <p className="text-xs font-bold text-slate-400 mt-1 flex items-center gap-2">
-                            <Clock size={12} /> Due by {format(assignment.dueDate, "h:mm a")}
-                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                            <BookOpen size={12} /> {assignment.totalMarks} Marks
-                        </p>
-                    </div>
-
-                    <Button 
-                        onClick={() => window.location.href = `/student/materials`}
-                        className="rounded-2xl w-14 h-14 p-0 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-premium-blue hover:text-white border border-slate-100 shadow-sm transition-all"
-                    >
-                        <ArrowRight size={20} />
-                    </Button>
-                </div>
-            </Card>
-        </motion.div>
-    );
-}
-
-function StatBox({ label, value, color }) {
+function FilterStatBox({ label, value, color, active, onClick }) {
     const colors = {
         rose: "bg-rose-50 text-rose-600 border-rose-100",
         emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
         amber: "bg-amber-50 text-amber-600 border-amber-100",
-        slate: "bg-slate-50 text-slate-600 border-slate-100",
     };
 
     return (
-        <div className={`p-4 rounded-2xl border ${colors[color]} text-center`}>
-            <p className="text-2xl font-black italic">{value}</p>
-            <p className="text-[8px] font-black uppercase tracking-widest opacity-60 mt-1">{label}</p>
-        </div>
+        <button 
+            onClick={onClick}
+            className={cn(
+                "p-4 rounded-2xl border transition-all flex items-center justify-between group",
+                active ? "bg-white shadow-md border-blue-200 ring-2 ring-blue-500/20" : `bg-white/50 border-slate-200 hover:bg-white hover:border-slate-300`
+            )}
+        >
+            <div className="text-left">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{label}</p>
+                <p className={cn("text-2xl font-bold", active ? "text-blue-600" : "text-slate-900")}>{value}</p>
+            </div>
+            <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                active ? "bg-blue-600 text-white" : `${colors[color]} group-hover:scale-110`
+            )}>
+                <CheckCircle2 size={18} />
+            </div>
+        </button>
     );
 }

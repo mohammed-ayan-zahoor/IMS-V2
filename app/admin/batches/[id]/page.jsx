@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
     ArrowLeft, Users, Calendar, Clock, BookOpen, CheckSquare, Square,
     ChevronDown, ChevronRight, History, AlertCircle, BarChart3,
     User, MessageSquare, CheckCircle2, Circle, FileText, Download,
-    Trash2, Plus, Save, AlertTriangle, Edit2
+    Trash2, Plus, Save, AlertTriangle, Edit2, Settings, X
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -200,6 +201,7 @@ function TimetableTab({ batchId, subjects = [] }) {
     const [timeSlots, setTimeSlots] = useState([]);
     const [schedule, setSchedule] = useState([]); // Array of { dayOfWeek, assignments: [] }
     const [instructors, setInstructors] = useState([]);
+    const [editingOverridesDay, setEditingOverridesDay] = useState(null);
     const toast = useToast();
 
     const DAYS = [
@@ -211,6 +213,16 @@ function TimetableTab({ batchId, subjects = [] }) {
         { id: 6, name: "Saturday" },
         { id: 0, name: "Sunday" }
     ];
+
+    const formatTime12Hour = (time24) => {
+        if (!time24) return "";
+        const [h, m] = time24.split(":");
+        const numH = parseInt(h, 10);
+        if (isNaN(numH)) return time24;
+        const ampm = numH >= 12 ? "PM" : "AM";
+        const finalH = numH % 12 || 12;
+        return `${finalH}:${m} ${ampm}`;
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -280,6 +292,35 @@ function TimetableTab({ batchId, subjects = [] }) {
 
                 if (assignIdx === -1) {
                     assignments.push({ timeSlotId: slotId, [field]: value });
+                } else {
+                    assignments[assignIdx] = { ...assignments[assignIdx], [field]: value };
+                }
+                newSchedule[dayIdx] = { ...newSchedule[dayIdx], assignments };
+            }
+            return newSchedule;
+        });
+    };
+
+    const updateAssignmentOverride = (dayOfWeek, timeSlotId, field, value) => {
+        setSchedule(prev => {
+            const dayIdx = prev.findIndex(d => d.dayOfWeek === dayOfWeek);
+            const newSchedule = [...prev];
+
+            if (dayIdx === -1) {
+                if (value) {
+                    newSchedule.push({
+                        dayOfWeek,
+                        assignments: [{ timeSlotId, [field]: value }]
+                    });
+                }
+            } else {
+                const assignments = [...newSchedule[dayIdx].assignments];
+                const assignIdx = assignments.findIndex(a => String(a.timeSlotId) === String(timeSlotId) || String(a.timeSlotId?._id) === String(timeSlotId));
+
+                if (assignIdx === -1) {
+                    if (value) {
+                        assignments.push({ timeSlotId, [field]: value });
+                    }
                 } else {
                     assignments[assignIdx] = { ...assignments[assignIdx], [field]: value };
                 }
@@ -408,7 +449,16 @@ function TimetableTab({ batchId, subjects = [] }) {
                                     <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 sticky left-0 bg-white z-10 min-w-[120px]">Time Slot</th>
                                     {DAYS.map(day => (
                                         <th key={day.id} className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 min-w-[140px]">
-                                            {day.name}
+                                            <div className="flex items-center justify-between">
+                                                <span>{day.name}</span>
+                                                <button 
+                                                    onClick={() => setEditingOverridesDay(day.id)}
+                                                    className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
+                                                    title="Edit specific timings for this day"
+                                                >
+                                                    <Settings size={12} />
+                                                </button>
+                                            </div>
                                         </th>
                                     ))}
                                 </tr>
@@ -418,7 +468,7 @@ function TimetableTab({ batchId, subjects = [] }) {
                                     <tr key={slot._id} className="hover:bg-slate-50/30 transition-colors">
                                         <td className="px-6 py-4 border-r border-slate-50 sticky left-0 bg-white z-10">
                                             <div className="font-bold text-slate-800 text-xs">{slot.name}</div>
-                                            <div className="text-[9px] text-slate-400 font-mono mt-1">{slot.startTime}-{slot.endTime}</div>
+                                            <div className="text-[9px] text-slate-400 font-mono mt-1">{formatTime12Hour(slot.startTime)} - {formatTime12Hour(slot.endTime)}</div>
                                         </td>
                                         {DAYS.map(day => {
                                             if (slot.isBreak) return (
@@ -489,6 +539,90 @@ function TimetableTab({ batchId, subjects = [] }) {
                         </div>
                     )}
                 </div>
+
+                {/* Editing Overrides Modal */}
+                {editingOverridesDay !== null && typeof document !== 'undefined' && createPortal(
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 transform scale-100 transition-all">
+                            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                                <h3 className="text-sm font-bold text-slate-900">
+                                    Edit Timings for {DAYS.find(d => d.id === editingOverridesDay)?.name}
+                                </h3>
+                                <button onClick={() => setEditingOverridesDay(null)} className="p-1.5 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                            <div className="p-5 space-y-2.5 max-h-[60vh] overflow-y-auto">
+                                <p className="text-[11px] text-slate-500 mb-3 font-medium leading-relaxed">
+                                    Override default start and end times for specific periods. Leave blank to use default.
+                                </p>
+                                {timeSlots.map(slot => {
+                                    if (slot.isBreak) return null;
+                                    const dayData = schedule.find(d => d.dayOfWeek === editingOverridesDay);
+                                    const assignment = dayData?.assignments.find(a => String(a.timeSlotId) === String(slot._id) || String(a.timeSlotId?._id) === String(slot._id)) || {};
+                                    const hasOverride = assignment.startTimeOverride || assignment.endTimeOverride;
+                                    
+                                    return (
+                                        <div key={slot._id} className={`flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 px-3 rounded-xl border transition-colors ${hasOverride ? 'bg-blue-50/30 border-blue-100' : 'bg-slate-50 border-slate-100'}`}>
+                                            <div className="w-24 shrink-0">
+                                                <p className="text-[11px] font-bold text-slate-800">{slot.name}</p>
+                                                <p className="text-[9px] text-slate-400 font-medium">Default: {formatTime12Hour(slot.startTime)} - {formatTime12Hour(slot.endTime)}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 flex-1">
+                                                {!hasOverride ? (
+                                                    <button 
+                                                        onClick={() => {
+                                                            updateAssignmentOverride(editingOverridesDay, slot._id, 'startTimeOverride', slot.startTime);
+                                                            updateAssignmentOverride(editingOverridesDay, slot._id, 'endTimeOverride', slot.endTime);
+                                                        }}
+                                                        className="w-full flex justify-center items-center gap-1.5 bg-white text-slate-400 border border-slate-200 border-dashed rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                                                    >
+                                                        <Plus size={10} /> Add Override
+                                                    </button>
+                                                ) : (
+                                                    <>
+                                                        <input 
+                                                            type="time" 
+                                                            value={assignment.startTimeOverride || ""}
+                                                            onChange={(e) => updateAssignmentOverride(editingOverridesDay, slot._id, 'startTimeOverride', e.target.value)}
+                                                            className="w-full bg-white border border-blue-200 rounded-lg px-2 py-1.5 text-[11px] font-medium outline-none focus:border-premium-blue text-blue-900 transition-colors"
+                                                        />
+                                                        <span className="text-slate-400 text-xs">-</span>
+                                                        <input 
+                                                            type="time" 
+                                                            value={assignment.endTimeOverride || ""}
+                                                            onChange={(e) => updateAssignmentOverride(editingOverridesDay, slot._id, 'endTimeOverride', e.target.value)}
+                                                            className="w-full bg-white border border-blue-200 rounded-lg px-2 py-1.5 text-[11px] font-medium outline-none focus:border-premium-blue text-blue-900 transition-colors"
+                                                        />
+                                                        <button 
+                                                            onClick={() => {
+                                                                updateAssignmentOverride(editingOverridesDay, slot._id, 'startTimeOverride', null);
+                                                                updateAssignmentOverride(editingOverridesDay, slot._id, 'endTimeOverride', null);
+                                                            }}
+                                                            className="p-1.5 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-md transition-colors shrink-0"
+                                                            title="Remove Override"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="p-3 px-5 border-t border-slate-100 bg-slate-50/80 flex justify-end">
+                                <button 
+                                    onClick={() => setEditingOverridesDay(null)}
+                                    className="bg-slate-900 text-white px-6 py-2 rounded-lg text-[11px] font-bold hover:bg-slate-800 shadow-sm transition-colors"
+                                >
+                                    Done
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
             </div>
 
             {/* Right Column: Subject Palette Sidebar */}
@@ -565,69 +699,117 @@ function TimetableTab({ batchId, subjects = [] }) {
                 </div>
 
                 {showPreview && (
-                    <div className="p-6 bg-slate-50/50">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {DAYS.map(day => {
-                                const daySchedule = schedule.find(d => d.dayOfWeek === day.id);
-                                if (!daySchedule || daySchedule.assignments.length === 0) return null;
-
-                                return (
-                                    <div key={day.id} className="space-y-4">
-                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-200 pb-2">{day.name}</h4>
-                                        <div className="space-y-3">
-                                            {timeSlots.map(slot => {
-                                                const assign = daySchedule.assignments.find(a => a.timeSlotId === slot._id);
-                                                if (!assign && !slot.isBreak) return null;
-
-                                                const subject = subjects.find(s => String(s._id) === String(assign?.subject));
-                                                const instructor = instructors.find(i => String(i._id) === String(assign?.instructor));
-
-                                                return (
-                                                    <div 
-                                                        key={slot._id} 
-                                                        className={`p-4 rounded-2xl border transition-all ${
-                                                            slot.isBreak 
-                                                                ? "bg-orange-50 border-orange-100/50" 
-                                                                : "bg-white border-slate-100 shadow-sm"
-                                                        }`}
-                                                    >
-                                                        <div className="flex justify-between items-start mb-2">
-                                                            <div className="flex items-center gap-1.5 text-slate-900 font-black text-xs">
-                                                                <Clock size={12} className={slot.isBreak ? "text-orange-400" : "text-slate-400"} />
-                                                                <span>{slot.startTime} - {slot.endTime}</span>
-                                                            </div>
-                                                            {slot.isBreak ? (
-                                                                <Badge variant="secondary" className="text-[8px] bg-orange-100 text-orange-600 border-none uppercase">Break</Badge>
-                                                            ) : (
-                                                                <Badge variant="primary" className="text-[8px] uppercase">{subject?.code || "???"}</Badge>
-                                                            )}
-                                                        </div>
-                                                        <h5 className={`text-sm font-black ${slot.isBreak ? "text-orange-800" : "text-slate-800"}`}>
-                                                            {slot.isBreak ? slot.name : (subject?.name || "No Subject Assigned")}
-                                                        </h5>
-                                                        {!slot.isBreak && (
-                                                            <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-2">
-                                                                <div className="w-5 h-5 rounded-lg bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-400">
-                                                                    {instructor?.profile?.firstName?.[0] || "?"}
-                                                                </div>
-                                                                <p className="text-[10px] font-bold text-slate-500">
-                                                                    {instructor ? `${instructor.profile.firstName} ${instructor.profile.lastName}` : "No Teacher"}
-                                                                </p>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
+                    <div className="p-6 bg-[#FAFAFA] overflow-x-auto rounded-b-2xl">
+                        <style dangerouslySetInnerHTML={{__html: `
+                            .timetable-gap-bg {
+                                background-image: repeating-linear-gradient(
+                                    -45deg,
+                                    transparent,
+                                    transparent 4px,
+                                    rgba(0,0,0,0.03) 4px,
+                                    rgba(0,0,0,0.03) 8px
                                 );
-                            })}
-                            {(!schedule || schedule.every(d => d.assignments.length === 0)) && (
-                                <div className="col-span-full text-center py-10">
-                                    <AlertTriangle size={24} className="mx-auto text-slate-300 mb-2" />
-                                    <p className="text-xs text-slate-400 font-medium">Assign some subjects in Step 2 to see the preview here.</p>
-                                </div>
-                            )}
+                            }
+                        `}} />
+                        <div className="min-w-[900px]">
+                            <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                                <thead>
+                                    <tr>
+                                        <th className="w-16 border-r border-slate-200/50"></th>
+                                        {DAYS.map(day => (
+                                            <th key={day.id} className="pb-3 pt-2 px-2 text-left align-bottom border-b border-slate-200/50">
+                                                <div className="text-[12px] font-bold uppercase tracking-wider text-slate-800 ml-1">
+                                                    {day.name}
+                                                </div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {timeSlots.map(slot => {
+                                        if (slot.isBreak) {
+                                            return (
+                                                <tr key={slot._id}>
+                                                    <td className="pr-4 py-2 align-top text-right w-16 border-r border-slate-200/50 relative">
+                                                        <div className="text-[10px] text-slate-400 font-medium -mt-2 bg-[#FAFAFA]">{formatTime12Hour(slot.startTime)}</div>
+                                                    </td>
+                                                    <td colSpan={DAYS.length} className="p-0 align-top border-b border-slate-200/50">
+                                                        <div className="timetable-gap-bg h-14 flex items-center justify-center relative border-l border-slate-200/50">
+                                                            <div className="absolute inset-0 bg-gradient-to-b from-black/[0.02] to-transparent pointer-events-none"></div>
+                                                            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-400">{slot.name}</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }
+
+                                        return (
+                                            <tr key={slot._id}>
+                                                <td className="pr-4 py-2 align-top text-right w-16 border-r border-slate-200/50 relative">
+                                                    <div className="text-[10px] text-slate-400 font-medium -mt-2 bg-[#FAFAFA]">{formatTime12Hour(slot.startTime)}</div>
+                                                </td>
+                                                {DAYS.map(day => {
+                                                    const daySchedule = schedule.find(d => d.dayOfWeek === day.id);
+                                                    const assign = daySchedule?.assignments.find(a => String(a.timeSlotId) === String(slot._id) || String(a.timeSlotId?._id) === String(slot._id));
+                                                    
+                                                    const subjectId = assign?.subject?._id || assign?.subject;
+                                                    const instructorId = assign?.instructor?._id || assign?.instructor;
+                                                    
+                                                    const subject = subjects.find(s => String(s._id) === String(subjectId));
+                                                    const instructor = instructors.find(i => String(i._id) === String(instructorId));
+
+                                                    if (!assign || (!subject && !instructor)) {
+                                                        return (
+                                                            <td key={day.id} className="p-0 align-top h-[110px] border-l border-b border-slate-200/50">
+                                                                <div className="timetable-gap-bg w-full h-full flex justify-center items-center relative">
+                                                                    <div className="absolute inset-0 bg-gradient-to-b from-black/[0.01] to-transparent pointer-events-none"></div>
+                                                                    <span className="text-[9px] font-medium text-slate-400 uppercase tracking-[0.2em] opacity-0 hover:opacity-100 transition-opacity select-none z-10">GAP</span>
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    }
+
+                                                    // Assign pseudo-random badge colors based on subject ID length or char code to keep them consistent but varied
+                                                    const badgeColors = ["bg-purple-500", "bg-orange-400", "bg-green-500", "bg-blue-500", "bg-rose-500"];
+                                                    const colorClass = badgeColors[(subject?._id?.charCodeAt(0) || 0) % badgeColors.length];
+
+                                                    return (
+                                                        <td key={day.id} className="p-1 align-top h-[110px] border-l border-b border-slate-200/50">
+                                                            <div className="bg-white rounded-[2px] p-3.5 shadow-[0_6px_20px_rgba(0,0,0,0.06)] h-full flex flex-col hover:shadow-[0_8px_25px_rgba(0,0,0,0.08)] transition-all duration-200 relative overflow-hidden">
+                                                                <div className="flex-1">
+                                                                    <div className="flex justify-between items-start gap-1">
+                                                                        <h5 className="text-[13px] font-bold text-[#0ea5e9] leading-tight mb-1 tracking-tight">
+                                                                            {subject?.name || "Unknown"}
+                                                                        </h5>
+                                                                        {(assign.startTimeOverride || assign.endTimeOverride) && (
+                                                                            <span className="shrink-0 text-[8px] font-black text-rose-500 bg-rose-50 px-1 py-0.5 rounded uppercase tracking-wider border border-rose-100">
+                                                                                {formatTime12Hour(assign.startTimeOverride || slot.startTime)} - {formatTime12Hour(assign.endTimeOverride || slot.endTime)}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-[11.5px] text-slate-400 font-medium truncate">
+                                                                        {instructor ? `${instructor.profile.firstName} ${instructor.profile.lastName}` : "No Instructor"}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 mt-auto pt-2">
+                                                                    {subject?.code && (
+                                                                        <span className={`text-[8.5px] ${colorClass} text-white px-1.5 py-0.5 rounded-[3px] font-black uppercase tracking-wider`}>
+                                                                            {subject.code}
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="text-[8.5px] border border-slate-200 text-slate-400 px-1.5 py-0.5 rounded-[3px] font-black uppercase tracking-wider">
+                                                                        {slot.name.replace(/Period\s/i, 'P')}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}

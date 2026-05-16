@@ -66,8 +66,13 @@ export async function GET(req) {
                                 instructor: assignment.instructor 
                                     ? `${assignment.instructor.profile?.firstName} ${assignment.instructor.profile?.lastName}`.trim() 
                                     : (batch.instructor ? `${batch.instructor.profile?.firstName} ${batch.instructor.profile?.lastName}`.trim() : 'N/A'),
-                                startTime: slot.startTime,
-                                endTime: slot.endTime,
+                                originalStartTime: slot.startTime,
+                                originalEndTime: slot.endTime,
+                                startTime: assignment.startTimeOverride || slot.startTime,
+                                endTime: assignment.endTimeOverride || slot.endTime,
+                                startTimeOverride: assignment.startTimeOverride || null,
+                                endTimeOverride: assignment.endTimeOverride || null,
+                                slotName: slot.name,
                                 type: slot.isBreak ? 'Break' : 'Lec',
                                 isBreak: slot.isBreak
                             });
@@ -87,8 +92,13 @@ export async function GET(req) {
                                     courseName: slot.name,
                                     courseCode: "BREAK",
                                     instructor: "N/A",
+                                    originalStartTime: slot.startTime,
+                                    originalEndTime: slot.endTime,
                                     startTime: slot.startTime,
                                     endTime: slot.endTime,
+                                    startTimeOverride: null,
+                                    endTimeOverride: null,
+                                    slotName: slot.name,
                                     type: 'Break',
                                     isBreak: true
                                 });
@@ -107,8 +117,13 @@ export async function GET(req) {
                             courseName: batch.course?.name,
                             courseCode: batch.course?.code,
                             instructor: batch.instructor ? `${batch.instructor.profile?.firstName} ${batch.instructor.profile?.lastName}`.trim() : 'N/A',
+                            originalStartTime: schedule.timeSlot.start,
+                            originalEndTime: schedule.timeSlot.end,
                             startTime: schedule.timeSlot.start,
                             endTime: schedule.timeSlot.end,
+                            startTimeOverride: null,
+                            endTimeOverride: null,
+                            slotName: `Time Slot`,
                             type: 'Lec',
                             isBreak: false
                         });

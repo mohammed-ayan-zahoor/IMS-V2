@@ -4,48 +4,41 @@ import { useState, useEffect } from "react";
 import { 
     Clock, 
     Calendar, 
-    MapPin, 
-    User, 
-    ChevronLeft, 
-    ChevronRight,
-    Search,
-    BookOpen,
-    Bell,
-    CheckCircle2,
     Loader2,
-    Info,
-    LayoutGrid,
-    List
+    Info
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import Card from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
 import { cn } from "@/lib/utils";
 
 const DAYS = [
-    { id: 0, name: "Sunday", short: "Sun" },
     { id: 1, name: "Monday", short: "Mon" },
     { id: 2, name: "Tuesday", short: "Tue" },
     { id: 3, name: "Wednesday", short: "Wed" },
     { id: 4, name: "Thursday", short: "Thu" },
     { id: 5, name: "Friday", short: "Fri" },
-    { id: 6, name: "Saturday", short: "Sat" }
+    { id: 6, name: "Saturday", short: "Sat" },
+    { id: 0, name: "Sunday", short: "Sun" }
 ];
+
+const formatTime12Hour = (time24) => {
+    if (!time24) return "";
+    const [h, m] = time24.split(":");
+    const numH = parseInt(h, 10);
+    if (isNaN(numH)) return time24;
+    const ampm = numH >= 12 ? "PM" : "AM";
+    const finalH = numH % 12 || 12;
+    return `${finalH}:${m} ${ampm}`;
+};
 
 export default function StudentTimetablePage() {
     const toast = useToast();
     const [loading, setLoading] = useState(true);
-    const [timetable, setTimetable] = useState(null);
-    const [viewMode, setViewMode] = useState("list"); // list (mobile/compact), grid (desktop)
-    const [selectedDay, setSelectedDay] = useState(new Date().getDay());
-    const [currentTime, setCurrentTime] = useState(new Date());
+    const [timetable, setTimetable] = useState(null); 
+    const [unifiedSlots, setUnifiedSlots] = useState([]);
 
     useEffect(() => {
         fetchTimetable();
-        const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-        return () => clearInterval(timer);
     }, []);
 
     const fetchTimetable = async () => {
@@ -54,6 +47,28 @@ export default function StudentTimetablePage() {
             if (res.ok) {
                 const data = await res.json();
                 setTimetable(data.timetable);
+                
+                // Build unified time slots map
+                const slotsMap = new Map();
+                Object.values(data.timetable).flat().forEach(cls => {
+                    const key = `${cls.slotName}-${cls.originalStartTime}-${cls.originalEndTime}-${cls.isBreak}`;
+                    if (!slotsMap.has(key)) {
+                        slotsMap.set(key, {
+                            startTime: cls.originalStartTime,
+                            endTime: cls.originalEndTime,
+                            isBreak: cls.isBreak,
+                            name: cls.slotName || (cls.isBreak ? "Break" : "Class")
+                        });
+                    }
+                });
+                
+                // Sort by time, then by slot name to maintain relative order for identical times
+                const sortedSlots = Array.from(slotsMap.values()).sort((a,b) => {
+                    const timeCmp = a.startTime.localeCompare(b.startTime);
+                    if (timeCmp !== 0) return timeCmp;
+                    return (a.name || "").localeCompare(b.name || "");
+                });
+                setUnifiedSlots(sortedSlots);
             } else {
                 toast.error("Failed to load timetable");
             }
@@ -65,22 +80,6 @@ export default function StudentTimetablePage() {
         }
     };
 
-    const isCurrentlyOngoing = (start, end, day) => {
-        if (day !== currentTime.getDay()) return false;
-        
-        const [startH, startM] = start.split(':').map(Number);
-        const [endH, endM] = end.split(':').map(Number);
-        
-        const nowH = currentTime.getHours();
-        const nowM = currentTime.getMinutes();
-        
-        const startTimeInMinutes = startH * 60 + startM;
-        const endTimeInMinutes = endH * 60 + endM;
-        const nowTimeInMinutes = nowH * 60 + nowM;
-        
-        return nowTimeInMinutes >= startTimeInMinutes && nowTimeInMinutes <= endTimeInMinutes;
-    };
-
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -89,8 +88,6 @@ export default function StudentTimetablePage() {
             </div>
         );
     }
-
-    const currentDayClasses = timetable?.[selectedDay] || [];
 
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-12">
@@ -107,107 +104,139 @@ export default function StudentTimetablePage() {
                         </div>
                         <div>
                             <h1 className="text-3xl font-black text-slate-900 tracking-tighter italic">Weekly Schedule</h1>
-                            <p className="text-slate-400 font-medium text-xs uppercase tracking-[0.2em] mt-0.5">Academic Calendar 2025-26</p>
+                            <p className="text-slate-400 font-medium text-xs uppercase tracking-[0.2em] mt-0.5">Academic Calendar</p>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div className="relative flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                    <button 
-                        onClick={() => setViewMode("list")}
-                        className={cn(
-                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all",
-                            viewMode === "list" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+            {/* Grid Table */}
+            <div className="bg-white border border-slate-100 rounded-3xl shadow-lg overflow-hidden relative z-10">
+                <div className="p-6 bg-[#FAFAFA] overflow-x-auto rounded-b-2xl">
+                    <style dangerouslySetInnerHTML={{__html: `
+                        .timetable-gap-bg {
+                            background-image: repeating-linear-gradient(
+                                -45deg,
+                                transparent,
+                                transparent 4px,
+                                rgba(0,0,0,0.03) 4px,
+                                rgba(0,0,0,0.03) 8px
+                            );
+                        }
+                    `}} />
+                    <div className="min-w-[900px]">
+                        {unifiedSlots.length === 0 ? (
+                            <div className="py-20 flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-dashed border-slate-200 mt-2">
+                                <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-slate-300 mb-4 ring-1 ring-slate-100">
+                                    <Calendar size={32} strokeWidth={1.5} />
+                                </div>
+                                <h4 className="text-lg font-black text-slate-800 tracking-tight italic">Schedule TBD</h4>
+                                <p className="text-slate-400 text-xs mt-1.5 max-w-[280px] font-medium">
+                                    Your batches don't have any classes scheduled yet.
+                                </p>
+                            </div>
+                        ) : (
+                            <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                                <thead>
+                                    <tr>
+                                        <th className="w-16 border-r border-slate-200/50"></th>
+                                        {DAYS.map(day => (
+                                            <th key={day.id} className="pb-3 pt-2 px-2 text-left align-bottom border-b border-slate-200/50">
+                                                <div className="text-[12px] font-bold uppercase tracking-wider text-slate-800 ml-1">
+                                                    {day.name}
+                                                </div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {unifiedSlots.map((slot, idx) => {
+                                        if (slot.isBreak) {
+                                            return (
+                                                <tr key={`slot-${idx}`}>
+                                                    <td className="pr-4 py-2 align-top text-right w-16 border-r border-slate-200/50 relative">
+                                                        <div className="text-[10px] text-slate-400 font-medium -mt-2 bg-[#FAFAFA]">{formatTime12Hour(slot.startTime)}</div>
+                                                    </td>
+                                                    <td colSpan={DAYS.length} className="p-0 align-top border-b border-slate-200/50">
+                                                        <div className="timetable-gap-bg h-14 flex items-center justify-center relative border-l border-slate-200/50">
+                                                            <div className="absolute inset-0 bg-gradient-to-b from-black/[0.02] to-transparent pointer-events-none"></div>
+                                                            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-400">{slot.name}</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }
+
+                                        return (
+                                            <tr key={`slot-${idx}`}>
+                                                <td className="pr-4 py-2 align-top text-right w-16 border-r border-slate-200/50 relative">
+                                                    <div className="text-[10px] text-slate-400 font-medium -mt-2 bg-[#FAFAFA]">{formatTime12Hour(slot.startTime)}</div>
+                                                </td>
+                                                {DAYS.map(day => {
+                                                    const dayClasses = timetable?.[day.id] || [];
+                                                    const assign = dayClasses.find(c => 
+                                                        c.slotName === slot.name && 
+                                                        c.originalStartTime === slot.startTime && 
+                                                        c.originalEndTime === slot.endTime && 
+                                                        !c.isBreak
+                                                    );
+
+                                                    if (!assign) {
+                                                        return (
+                                                            <td key={day.id} className="p-0 align-top h-[110px] border-l border-b border-slate-200/50">
+                                                                <div className="timetable-gap-bg w-full h-full flex justify-center items-center relative">
+                                                                    <div className="absolute inset-0 bg-gradient-to-b from-black/[0.01] to-transparent pointer-events-none"></div>
+                                                                    <span className="text-[9px] font-medium text-slate-400 uppercase tracking-[0.2em] opacity-0 hover:opacity-100 transition-opacity select-none z-10">GAP</span>
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    }
+
+                                                    // Color badges
+                                                    const badgeColors = ["bg-purple-500", "bg-orange-400", "bg-green-500", "bg-blue-500", "bg-rose-500"];
+                                                    const colorClass = badgeColors[(assign.courseName?.charCodeAt(0) || 0) % badgeColors.length];
+
+                                                    return (
+                                                        <td key={day.id} className="p-1 align-top h-[110px] border-l border-b border-slate-200/50">
+                                                            <div className="bg-white rounded-[2px] p-3.5 shadow-[0_6px_20px_rgba(0,0,0,0.06)] h-full flex flex-col hover:shadow-[0_8px_25px_rgba(0,0,0,0.08)] transition-all duration-200 relative overflow-hidden">
+                                                                <div className="flex-1">
+                                                                    <div className="flex justify-between items-start gap-1">
+                                                                        <h5 className="text-[13px] font-bold text-[#0ea5e9] leading-tight mb-1 tracking-tight">
+                                                                            {assign.courseName || "Unknown"}
+                                                                        </h5>
+                                                                        {(assign.startTimeOverride || assign.endTimeOverride) && (
+                                                                            <span className="shrink-0 text-[8px] font-black text-rose-500 bg-rose-50 px-1 py-0.5 rounded uppercase tracking-wider border border-rose-100">
+                                                                                {formatTime12Hour(assign.startTime)} - {formatTime12Hour(assign.endTime)}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-[11.5px] text-slate-400 font-medium truncate">
+                                                                        {assign.instructor}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 mt-auto pt-2">
+                                                                    {assign.courseCode && (
+                                                                        <span className={`text-[8.5px] ${colorClass} text-white px-1.5 py-0.5 rounded-[3px] font-black uppercase tracking-wider`}>
+                                                                            {assign.courseCode}
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="text-[8.5px] border border-slate-200 text-slate-400 px-1.5 py-0.5 rounded-[3px] font-black uppercase tracking-wider">
+                                                                        {slot.name.replace(/Period\s/i, 'P')}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         )}
-                    >
-                        <List size={14} /> List
-                    </button>
-                    <button 
-                        onClick={() => setViewMode("grid")}
-                        className={cn(
-                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all",
-                            viewMode === "grid" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
-                        )}
-                    >
-                        <LayoutGrid size={14} /> Grid
-                    </button>
+                    </div>
                 </div>
             </div>
-
-            {/* Day Selector */}
-            <div className="bg-white p-3 rounded-[2rem] border border-slate-100 shadow-lg flex overflow-x-auto no-scrollbar gap-2">
-                {DAYS.map((day) => {
-                    const hasClasses = timetable?.[day.id]?.length > 0;
-                    const isToday = day.id === currentTime.getDay();
-                    const isSelected = selectedDay === day.id;
-
-                    return (
-                        <button
-                            key={day.id}
-                            onClick={() => setSelectedDay(day.id)}
-                            className={cn(
-                                "flex-1 min-w-[80px] py-4 rounded-2xl flex flex-col items-center gap-2 transition-all relative group",
-                                isSelected 
-                                    ? "bg-premium-blue text-white shadow-xl scale-105 z-10" 
-                                    : "bg-slate-50 text-slate-500 hover:bg-slate-100"
-                            )}
-                        >
-                            <span className={cn(
-                                "text-[10px] font-black uppercase tracking-widest",
-                                isSelected ? "text-slate-400" : "text-slate-400"
-                            )}>{day.short}</span>
-                            <span className="text-sm font-black">{day.name.split('')[0]}</span>
-                            
-                            {hasClasses && !isSelected && (
-                                <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-blue-500" />
-                            )}
-                            {isToday && (
-                                <div className={cn(
-                                    "absolute -bottom-1 w-6 h-1 rounded-full",
-                                    isSelected ? "bg-white" : "bg-premium-blue"
-                                )} />
-                            )}
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* Timetable Content */}
-            <AnimatePresence mode="wait">
-                <motion.div
-                    key={selectedDay + viewMode}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-6"
-                >
-                    {currentDayClasses.length > 0 ? (
-                        <div className={cn(
-                            viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"
-                        )}>
-                            {currentDayClasses.map((cls, idx) => (
-                                <ClassCard 
-                                    key={`${cls.batchId}-${idx}`} 
-                                    cls={cls} 
-                                    isOngoing={isCurrentlyOngoing(cls.startTime, cls.endTime, selectedDay)}
-                                    viewMode={viewMode}
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="py-32 flex flex-col items-center justify-center text-center bg-white rounded-[3rem] border border-dashed border-slate-200 shadow-inner">
-                            <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center text-slate-200 mb-6 ring-1 ring-slate-100">
-                                <BookOpen size={40} strokeWidth={1} />
-                            </div>
-                            <h4 className="text-xl font-black text-slate-900 tracking-tight italic">Day Off!</h4>
-                            <p className="text-slate-400 text-sm mt-2 max-w-[280px] font-medium">
-                                No classes scheduled for {DAYS[selectedDay].name}. Use this time for self-study or relaxation.
-                            </p>
-                        </div>
-                    )}
-                </motion.div>
-            </AnimatePresence>
 
             {/* Quick Info Bar */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl">
@@ -227,110 +256,5 @@ export default function StudentTimetablePage() {
                 </Button>
             </div>
         </div>
-    );
-}
-
-function ClassCard({ cls, isOngoing, viewMode }) {
-    const isBreak = cls.type === 'Break' || cls.isBreak;
-
-    return (
-        <motion.div
-            whileHover={{ y: -5 }}
-            className={cn(
-                "group relative overflow-hidden transition-all duration-500",
-                viewMode === "grid" ? "h-full" : "w-full"
-            )}
-        >
-            <div className={cn(
-                "p-6 rounded-[2rem] border transition-all duration-500",
-                isBreak ? "bg-orange-50/30 border-orange-100/50" : "bg-white",
-                isOngoing 
-                    ? "border-blue-200 shadow-2xl ring-4 ring-blue-50" 
-                    : "border-slate-100 hover:border-slate-300 hover:shadow-xl"
-            )}>
-                {/* Status Indicator */}
-                {isOngoing && (
-                    <div className="absolute top-6 right-6 flex items-center gap-2">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                        </span>
-                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Ongoing Now</span>
-                    </div>
-                )}
-
-                <div className={cn(
-                    "flex gap-6",
-                    viewMode === "grid" ? "flex-col" : "items-center"
-                )}>
-                    {/* Time Column */}
-                    <div className={cn(
-                        "flex flex-col",
-                        viewMode === "grid" ? "items-start" : "min-w-[120px] border-r border-slate-100"
-                    )}>
-                        <div className="flex items-center gap-2 text-slate-900 font-black text-lg">
-                            <Clock size={16} className={cn("text-slate-400", isBreak && "text-orange-400")} />
-                            <span>{cls.startTime}</span>
-                        </div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-6">
-                            to {cls.endTime}
-                        </div>
-                    </div>
-
-                    {/* Info Column */}
-                    <div className="flex-1 space-y-4">
-                        <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <Badge 
-                                    variant="primary" 
-                                    className={cn(
-                                        "text-[9px] font-black uppercase tracking-widest border",
-                                        isBreak 
-                                            ? "bg-orange-100 text-orange-600 border-orange-200" 
-                                            : "bg-blue-50 text-blue-600 border-blue-100"
-                                    )}
-                                >
-                                    {cls.courseCode}
-                                </Badge>
-                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.1em]">{cls.type}</span>
-                            </div>
-                            <h3 className={cn(
-                                "text-xl font-black tracking-tight leading-tight transition-colors",
-                                isBreak ? "text-orange-900" : "text-slate-900 group-hover:text-blue-600"
-                            )}>
-                                {cls.courseName}
-                            </h3>
-                            {!isBreak && <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-tight">{cls.batchName}</p>}
-                        </div>
-
-                        {!isBreak && (
-                            <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shadow-inner">
-                                        <User size={14} />
-                                    </div>
-                                    <div>
-                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Instructor</p>
-                                        <p className="text-xs font-black text-slate-700 mt-1">{cls.instructor}</p>
-                                    </div>
-                                </div>
-                                
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 hover:text-blue-500 transition-colors cursor-pointer">
-                                        <Bell size={14} />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {isBreak && (
-                            <div className="pt-4 border-t border-orange-100/50 italic text-[10px] font-bold text-orange-400 uppercase tracking-widest">
-                                Rest & Refreshment Break
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </motion.div>
     );
 }

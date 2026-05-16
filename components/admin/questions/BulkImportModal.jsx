@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Upload, FileJson, X, CheckCircle, AlertTriangle, Download, Info, Loader2, ClipboardPaste } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
@@ -39,6 +40,23 @@ const SAMPLE_JSON = [
 export default function BulkImportModal({ isOpen, onClose, courses = [], batches = [], onImportComplete }) {
     const toast = useToast();
     const fileInputRef = useRef(null);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "unset";
+        }
+        return () => {
+            document.body.style.overflow = "unset";
+        };
+    }, [isOpen]);
 
     const [step, setStep] = useState(1); // 1: upload, 2: preview, 3: result
     const [jsonData, setJsonData] = useState(null);
@@ -182,7 +200,7 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
         onClose();
     };
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
     const courseOptions = [{ label: "No Course (General)", value: "" }, ...courses.map(c => ({ label: c.name, value: c._id }))];
     const batchOptions = [{ label: "No Batch", value: "" }, ...filteredBatches.map(b => ({ label: b.name, value: b._id }))];
@@ -193,8 +211,8 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
         return acc;
     }, {}) : {};
 
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleClose}>
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={handleClose}>
             <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -485,6 +503,7 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
                     </div>
                 </div>
             </motion.div>
-        </div>
+        </div>,
+        document.body
     );
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
@@ -54,6 +55,56 @@ export async function POST(req, { params }) {
 
         await connectDB();
 
+        // Convert temporary frontend IDs to valid Mongo ObjectIds
+        const idMap = new Map();
+
+        const validTimeSlots = (timeSlots || []).map(ts => {
+            const tempId = ts._id || ts.id;
+            let validId;
+
+            if (mongoose.Types.ObjectId.isValid(tempId) && (String(tempId).length === 12 || String(tempId).length === 24)) {
+                validId = new mongoose.Types.ObjectId(tempId);
+            } else {
+                validId = new mongoose.Types.ObjectId();
+                if (tempId) {
+                    idMap.set(tempId, validId);
+                }
+            }
+
+            return {
+                ...ts,
+                _id: validId
+            };
+        });
+
+        const validSchedule = (schedule || []).map(day => {
+            return {
+                ...day,
+                assignments: (day.assignments || []).map(ass => {
+                    let tsId = ass.timeSlotId;
+                    if (idMap.has(tsId)) {
+                        tsId = idMap.get(tsId);
+                    } else if (mongoose.Types.ObjectId.isValid(tsId) && (String(tsId).length === 12 || String(tsId).length === 24)) {
+                        tsId = new mongoose.Types.ObjectId(tsId);
+                    } else {
+                        // Fallback (prevents CastError but might be orphaned)
+                        tsId = new mongoose.Types.ObjectId();
+                    }
+
+                    return {
+                        ...ass,
+                        timeSlotId: tsId,
+                        subject: ass.subject || null,
+                        instructor: ass.instructor || null,
+                        startTimeOverride: ass.startTimeOverride || undefined,
+                        endTimeOverride: ass.endTimeOverride || undefined
+                    };
+                })
+            };
+        });
+
+        await connectDB();
+
         // Verify batch ownership
         const batch = await Batch.findOne({ 
             _id: batchId, 
@@ -70,8 +121,8 @@ export async function POST(req, { params }) {
             { batch: batchId, institute: scope.instituteId, deletedAt: null },
             {
                 $set: {
-                    timeSlots,
-                    schedule,
+                    timeSlots: validTimeSlots,
+                    schedule: validSchedule,
                     session: batch.session,
                     createdBy: session.user.id
                 }

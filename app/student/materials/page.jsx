@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle, X, UploadCloud, CheckCircle, HelpCircle } from "lucide-react";
 import dynamic from 'next/dynamic';
@@ -10,6 +11,7 @@ const PdfViewer = dynamic(() => import('./PdfViewer'), { ssr: false });
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { cn } from "@/lib/utils";
 
 export default function StudentMaterialsPage() {
     const [materials, setMaterials] = useState([]);
@@ -20,6 +22,10 @@ export default function StudentMaterialsPage() {
     const [selectedPdf, setSelectedPdf] = useState(null);
     const [videoError, setVideoError] = useState(false);
     const [error, setError] = useState(null);
+    const searchParams = useSearchParams();
+    const targetId = searchParams.get("id");
+    const [highlightedId, setHighlightedId] = useState(null);
+    const scrollRefs = useRef({});
 
     // Homework Submission State
     const [submittingMat, setSubmittingMat] = useState(null);
@@ -36,6 +42,13 @@ export default function StudentMaterialsPage() {
                 if (!controller.signal.aborted) {
                     setMaterials(data.materials || []);
                     setError(null);
+
+                    // If targetId is present, set it for highlighting
+                    if (targetId) {
+                        setHighlightedId(targetId);
+                        // Clear highlight after 3 seconds
+                        setTimeout(() => setHighlightedId(null), 3000);
+                    }
                 }
             } catch (error) {
                 if (error.name !== 'AbortError') {
@@ -50,7 +63,16 @@ export default function StudentMaterialsPage() {
         };
         fetchMaterials();
         return () => controller.abort();
-    }, []);
+    }, [targetId]);
+
+    // Handle scrolling to targeted ID
+    useEffect(() => {
+        if (!loading && targetId && scrollRefs.current[targetId]) {
+            setTimeout(() => {
+                scrollRefs.current[targetId].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+    }, [loading, targetId, materials]);
 
     // Fetch existing submissions for assignments
     useEffect(() => {
@@ -183,10 +205,17 @@ export default function StudentMaterialsPage() {
                 </div>
             </div>
 
-            {/* Content Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredMaterials.map(mat => (
-                    <Card key={mat._id} className="group hover:border-premium-blue/30 transition-all flex flex-col h-full hover:shadow-lg">
+                    <div 
+                        key={mat._id} 
+                        ref={el => scrollRefs.current[mat._id] = el}
+                        className={cn(
+                            "transition-all duration-500 rounded-2xl",
+                            highlightedId === mat._id ? "ring-4 ring-blue-600 ring-offset-4 scale-[1.02] z-10" : ""
+                        )}
+                    >
+                        <Card className="group hover:border-premium-blue/30 transition-all flex flex-col h-full hover:shadow-lg bg-white overflow-hidden">
                         <div className="flex justify-between items-start mb-4">
                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${mat.file?.type === 'pdf' ? 'bg-red-50 text-red-600' :
                                 mat.file?.type === 'video' ? 'bg-purple-50 text-purple-600' :
@@ -315,6 +344,7 @@ export default function StudentMaterialsPage() {
                             )}
                         </div>
                     </Card>
+                </div>
                 ))}
 
                 {!loading && filteredMaterials.length === 0 && (

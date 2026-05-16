@@ -58,15 +58,14 @@ export default function StudentLayout({ children }) {
 
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)] bg-slate-50 text-foreground h-screen w-screen overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)] bg-slate-50 text-foreground h-screen w-screen overflow-hidden">
             
-            {/* Desktop Sidebar */}
-            <aside className="hidden md:flex flex-col w-[240px] h-screen bg-white border-r border-slate-200 fixed inset-y-0 left-0 z-40">
-                <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+            {/* Desktop Sidebar - Collapsible on tablet/small desktop */}
+            <aside className="hidden md:flex flex-col w-20 lg:w-60 h-screen bg-white border-r border-slate-200 fixed lg:relative inset-y-0 left-0 z-40 transition-all duration-300">
+                <div className="p-4 lg:p-6 border-b border-slate-100 flex items-center gap-3">
                     {session?.user?.institute?.logo ? (
                         <img
                             src={session.user.institute.logo}
-                            alt={session.user.institute.name}
                             className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-slate-100 shadow-sm shrink-0"
                             crossOrigin="anonymous"
                         />
@@ -77,7 +76,7 @@ export default function StudentLayout({ children }) {
                             </span>
                         </div>
                     )}
-                    <div className="min-w-0">
+                    <div className="min-w-0 hidden lg:block">
                         <h1 className="text-sm font-black tracking-tighter leading-tight text-slate-900 truncate">
                             {session?.user?.institute?.name || "Quantech"}
                         </h1>
@@ -85,8 +84,7 @@ export default function StudentLayout({ children }) {
                     </div>
                 </div>
 
-                <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1 scrollbar-hide">
-                    <p className="px-4 text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 mb-2">Menu</p>
+                <nav className="flex-1 overflow-y-auto px-2 lg:px-4 py-6 space-y-1 scrollbar-hide">
                     {[...primaryNav, ...secondaryNav].map((item, index) => {
                         const isActive = pathname === item.href;
                         return (
@@ -94,16 +92,20 @@ export default function StudentLayout({ children }) {
                                 key={item.href}
                                 href={item.href}
                                 className={cn(
-                                    "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group text-[13px] font-semibold relative",
+                                    "flex items-center lg:gap-3 px-3 lg:px-4 py-2.5 rounded-xl transition-all group text-[13px] font-semibold relative justify-center lg:justify-start",
                                     isActive
-                                        ? "bg-premium-blue/10 text-premium-blue"
+                                        ? "bg-premium-blue text-white shadow-lg shadow-blue-900/10"
                                         : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                                 )}
+                                title={item.label}
                             >
-                                <item.icon size={18} className={isActive ? "text-premium-blue" : "text-slate-400 group-hover:text-slate-600"} />
-                                <span>{item.label}</span>
+                                <item.icon size={20} className={isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"} />
+                                <span className="hidden lg:block">{item.label}</span>
                                 {isActive && (
-                                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-premium-blue rounded-r-full" />
+                                    <motion.span 
+                                        layoutId="sidebarActive"
+                                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-r-full hidden lg:block" 
+                                    />
                                 )}
                             </Link>
                         );
@@ -145,26 +147,29 @@ export default function StudentLayout({ children }) {
                     </div>
 
                     <div className="flex items-center gap-4 ml-auto">
-                        <div className="flex items-center gap-3 group">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-sm font-bold leading-none text-slate-900">{session?.user?.name || "Student"}</p>
-                                <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tight">{session?.user?.role}</p>
-                            </div>
-                            <Link href="/student/settings" className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-transparent hover:border-premium-blue transition-all shrink-0">
+                        <div className="flex items-center gap-3 bg-slate-50 p-1 pr-3 rounded-full border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer group">
+                            <div className="w-8 h-8 rounded-full bg-premium-blue flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
                                 {session?.user?.image ? (
                                     <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
                                 ) : (
-                                    <User size={20} className="text-slate-500" />
+                                    <span className="text-white text-xs font-bold uppercase">
+                                        {session?.user?.name?.substring(0, 2) || "MP"}
+                                    </span>
                                 )}
-                            </Link>
-                            <button
-                                onClick={() => signOut({ callbackUrl: "/login" })}
-                                className="hidden md:flex w-10 h-10 rounded-full hover:bg-red-50 items-center justify-center text-slate-400 hover:text-red-600 transition-colors"
-                                title="Sign Out"
-                            >
-                                <LogOut size={18} />
-                            </button>
+                            </div>
+                            <div className="hidden sm:block min-w-0">
+                                <p className="text-[12px] font-bold text-slate-900 truncate">
+                                    {session?.user?.name?.split(' ')[0] || "Muskan"}
+                                </p>
+                            </div>
                         </div>
+                        <button
+                            onClick={() => signOut({ callbackUrl: "/login" })}
+                            className="hidden md:flex w-10 h-10 rounded-full hover:bg-red-50 items-center justify-center text-slate-400 hover:text-red-600 transition-colors"
+                            title="Sign Out"
+                        >
+                            <LogOut size={18} />
+                        </button>
                     </div>
                 </header>
 

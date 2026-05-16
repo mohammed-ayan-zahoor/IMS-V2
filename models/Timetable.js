@@ -20,7 +20,9 @@ const TimetableSchema = new Schema({
         assignments: [{
             timeSlotId: { type: Schema.Types.ObjectId, required: true },
             subject: { type: Schema.Types.ObjectId, ref: 'Subject' },
-            instructor: { type: Schema.Types.ObjectId, ref: 'User' }
+            instructor: { type: Schema.Types.ObjectId, ref: 'User' },
+            startTimeOverride: { type: String, match: /^([01]\d|2[0-3]):([0-5]\d)$/ },
+            endTimeOverride: { type: String, match: /^([01]\d|2[0-3]):([0-5]\d)$/ }
         }]
     }],
     

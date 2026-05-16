@@ -197,7 +197,10 @@ export async function POST(req) {
             course: courses[0], // Keep first course for backwards compatibility
             batches: body.batches || [], // Array of IDs
             visibleToStudents: !!body.visibleToStudents,
-            tags: Array.isArray(body.tags) ? body.tags : []
+            tags: Array.isArray(body.tags) ? body.tags : [],
+            allowSubmissions: !!body.allowSubmissions,
+            dueDate: body.dueDate || null,
+            totalMarks: body.totalMarks || null
         };
 
         // Determine Institute
