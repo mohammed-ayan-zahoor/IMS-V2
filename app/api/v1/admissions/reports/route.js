@@ -157,12 +157,19 @@ export async function GET(req) {
                 break;
 
             case 'details':
-                reportData = await admissionReportService.getAdmissionDetails(
-                    instituteId,
-                    dateRange.start,
-                    dateRange.end,
-                    { page, limit, status, courseId }
-                );
+                try {
+                    console.log('[API] Fetching details with params:', { instituteId, page, limit, status, courseId, startDate: dateRange.start, endDate: dateRange.end });
+                    reportData = await admissionReportService.getAdmissionDetails(
+                        instituteId,
+                        dateRange.start,
+                        dateRange.end,
+                        { page, limit, status, courseId }
+                    );
+                    console.log('[API] Details retrieved, records:', reportData?.data?.length);
+                } catch (detailsError) {
+                    console.error('[API] Details error:', detailsError.message, detailsError.stack);
+                    throw detailsError;
+                }
                 break;
 
             case 'monthly-with-details':
