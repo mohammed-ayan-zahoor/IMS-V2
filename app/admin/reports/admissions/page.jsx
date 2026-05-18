@@ -186,10 +186,11 @@ export default function AdmissionReportsPage() {
                 monthlyData.monthlyData.map(item => ({
                     Month: item.date,
                     'Total Applications': item.totalApplications,
-                    Converted: item.converted,
-                    Pending: item.pending,
-                    Cancelled: item.cancelled,
-                    'Conversion Rate': item.conversionRate
+                    Converted: item.enquiryConverted || 0,
+                    Pending: item.enquiryPending || 0,
+                    Cancelled: item.enquiryCancelled || 0,
+                    'Conversion Rate': item.enquiryConversionRate,
+                    'Manual Admissions': item.manualAdmissions || 0
                 }))
             );
 
@@ -356,9 +357,9 @@ export default function AdmissionReportsPage() {
 
         const data = monthlyData.monthlyData.map(item => ({
             month: item.date,
-            converted: item.converted,
-            pending: item.pending,
-            cancelled: item.cancelled
+            converted: item.enquiryConverted || 0,
+            pending: item.enquiryPending || 0,
+            cancelled: item.enquiryCancelled || 0
         }));
 
         return (

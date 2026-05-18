@@ -411,7 +411,7 @@ class AdmissionReportService {
         ];
 
         try {
-            const dailyData = await AdmissionApplication.aggregate(pipeline);
+            const dailyData = await AdmissionApplication.aggregate(pipeline).exec();
 
             const result = dailyData.map(item => ({
                 date: item._id,
@@ -488,7 +488,7 @@ class AdmissionReportService {
         ];
 
         try {
-            const courseData = await AdmissionApplication.aggregate(pipeline);
+            const courseData = await AdmissionApplication.aggregate(pipeline).exec();
 
             const result = courseData.map(item => ({
                 courseId: item._id.toString(),
@@ -545,7 +545,7 @@ class AdmissionReportService {
         ];
 
         try {
-            const referralData = await AdmissionApplication.aggregate(pipeline);
+            const referralData = await AdmissionApplication.aggregate(pipeline).exec();
 
             const result = referralData.map(item => ({
                 source: item._id || 'Direct',
@@ -753,7 +753,7 @@ class AdmissionReportService {
         ];
 
         try {
-            const monthlyDetails = await AdmissionApplication.aggregate(pipeline);
+            const monthlyDetails = await AdmissionApplication.aggregate(pipeline).exec();
 
             const result = monthlyDetails.map(item => ({
                 month: `${item._id.year}-${String(item._id.month).padStart(2, '0')}`,
