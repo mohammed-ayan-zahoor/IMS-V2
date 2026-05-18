@@ -624,7 +624,7 @@ class AdmissionReportService {
                 status: { $ne: 'DROPPED' }
             };
 
-            console.log('[DEBUG] Manual query:', JSON.stringify(manualQuery, null, 2));
+            console.log('[DEBUG] Manual query institute:', instId.toString(), 'Date range:', startDate, '-', endDate);
 
             const manualAdmissions = await User.find(manualQuery)
                 .sort({ createdAt: -1 })
