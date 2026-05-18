@@ -2,6 +2,7 @@ import AdmissionApplication from '@/models/AdmissionApplication';
 import User from '@/models/User';
 import Institute from '@/models/Institute';
 import Course from '@/models/Course';
+import Batch from '@/models/Batch';
 import mongoose from 'mongoose';
 
 /**
@@ -204,6 +205,103 @@ class AdmissionReportService {
             const totalManualAdmissions = manualData.reduce((sum, m) => sum + m.manualAdmissions, 0);
             const totalTotalAdmissions = totalEnquiryConverted + totalManualAdmissions;
 
+            // Get admission student IDs (both converted enquiries and manual admissions)
+            const convertedApplications = await AdmissionApplication.find({
+                institute: instId,
+                status: 'converted',
+                createdAt: { $gte: startDate, $lte: endDate }
+            }, { course: 1 }).lean();
+
+            const manualAdmittedUsers = await User.find({
+                institute: instId,
+                admissionDate: { $gte: startDate, $lte: endDate },
+                status: { $ne: 'DROPPED' }
+            }, { _id: 1 }).lean();
+
+            const admittedStudentIds = [
+                ...convertedApplications.map(app => app._id),
+                ...manualAdmittedUsers.map(user => user._id)
+            ];
+
+            // Get current enrollments (active batches)
+            let currentEnrollmentMetrics = { totalCurrentEnrollments: 0, totalStudentsEnrolled: 0 };
+            let allTimeEnrollmentMetrics = { totalEnrollments: 0, totalStudentsEnrolled: 0 };
+
+            if (admittedStudentIds.length > 0) {
+                const currentEnrollments = await Batch.aggregate([
+                    {
+                        $match: {
+                            institute: instId,
+                            'enrolledStudents.student': { $in: admittedStudentIds },
+                            'schedule.startDate': { $gte: new Date() } // Future/current batches
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            totalEnrollments: {
+                                $sum: {
+                                    $size: {
+                                        $filter: {
+                                            input: '$enrolledStudents',
+                                            as: 'enrollment',
+                                            cond: {
+                                                $and: [
+                                                    { $in: ['$$enrollment.student', admittedStudentIds] },
+                                                    { $eq: ['$$enrollment.status', 'active'] }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            uniqueStudents: { $addToSet: '$enrolledStudents.student' }
+                        }
+                    }
+                ]);
+
+                if (currentEnrollments.length > 0) {
+                    currentEnrollmentMetrics = {
+                        totalCurrentEnrollments: currentEnrollments[0].totalEnrollments,
+                        totalStudentsEnrolled: currentEnrollments[0].uniqueStudents.flat().length
+                    };
+                }
+
+                // Get all-time enrollments (all batches)
+                const allTimeEnrollments = await Batch.aggregate([
+                    {
+                        $match: {
+                            institute: instId,
+                            'enrolledStudents.student': { $in: admittedStudentIds }
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            totalEnrollments: {
+                                $sum: {
+                                    $size: {
+                                        $filter: {
+                                            input: '$enrolledStudents',
+                                            as: 'enrollment',
+                                            cond: { $in: ['$$enrollment.student', admittedStudentIds] }
+                                        }
+                                    }
+                                }
+                            },
+                            uniqueStudents: { $addToSet: '$enrolledStudents.student' }
+                        }
+                    }
+                ]);
+
+                if (allTimeEnrollments.length > 0) {
+                    allTimeEnrollmentMetrics = {
+                        totalEnrollments: allTimeEnrollments[0].totalEnrollments,
+                        totalStudentsEnrolled: allTimeEnrollments[0].uniqueStudents.flat().length
+                    };
+                }
+            }
+
             const result = {
                 instituteId: instituteId,
                 reportPeriod: {
@@ -240,7 +338,24 @@ class AdmissionReportService {
                     totalAdmitted: totalTotalAdmissions,
                     overallAdmissionRate: (totalEnquiryApplications + totalManualAdmissions) > 0
                         ? ((totalTotalAdmissions / (totalEnquiryApplications + totalManualAdmissions)) * 100).toFixed(2) + '%'
-                        : '0%'
+                        : '0%',
+                    // Enrollment metrics
+                    enrollments: {
+                        current: {
+                            totalCourseEnrollments: currentEnrollmentMetrics.totalCurrentEnrollments,
+                            totalStudentsEnrolled: currentEnrollmentMetrics.totalStudentsEnrolled,
+                            averageCoursesPerStudent: currentEnrollmentMetrics.totalStudentsEnrolled > 0
+                                ? (currentEnrollmentMetrics.totalCurrentEnrollments / currentEnrollmentMetrics.totalStudentsEnrolled).toFixed(2)
+                                : '0'
+                        },
+                        allTime: {
+                            totalCourseEnrollments: allTimeEnrollmentMetrics.totalEnrollments,
+                            totalStudentsEnrolled: allTimeEnrollmentMetrics.totalStudentsEnrolled,
+                            averageCoursesPerStudent: allTimeEnrollmentMetrics.totalStudentsEnrolled > 0
+                                ? (allTimeEnrollmentMetrics.totalEnrollments / allTimeEnrollmentMetrics.totalStudentsEnrolled).toFixed(2)
+                                : '0'
+                        }
+                    }
                 },
                 pagination: { page, limit }
             };
