@@ -145,8 +145,8 @@ class AdmissionReportService {
             ];
 
             const [enquiryData, manualData] = await Promise.all([
-                AdmissionApplication.aggregate(enquiryPipeline),
-                User.aggregate(manualAdmissionsPipeline)
+                AdmissionApplication.aggregate(enquiryPipeline).exec(),
+                User.aggregate(manualAdmissionsPipeline).exec()
             ]);
 
             // Merge data by month
@@ -258,7 +258,7 @@ class AdmissionReportService {
                             uniqueStudents: { $addToSet: '$enrolledStudents.student' }
                         }
                     }
-                ]);
+                ]).exec();
 
                 if (currentEnrollments.length > 0) {
                     currentEnrollmentMetrics = {
@@ -292,7 +292,7 @@ class AdmissionReportService {
                             uniqueStudents: { $addToSet: '$enrolledStudents.student' }
                         }
                     }
-                ]);
+                ]).exec();
 
                 if (allTimeEnrollments.length > 0) {
                     allTimeEnrollmentMetrics = {
