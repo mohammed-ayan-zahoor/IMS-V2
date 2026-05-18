@@ -1,4 +1,5 @@
 import AdmissionApplication from '@/models/AdmissionApplication';
+import User from '@/models/User';
 import Institute from '@/models/Institute';
 import Course from '@/models/Course';
 import mongoose from 'mongoose';
@@ -60,6 +61,7 @@ class AdmissionReportService {
     /**
      * Get monthly admission report for a vocational institution
      * Returns: total applications, converted, pending, cancelled by month
+     * Includes both enquiry-based applications and manual student admissions
      * 
      * @param {string} instituteId - ObjectId of the institute
      * @param {Date} startDate - Report start date
@@ -82,46 +84,125 @@ class AdmissionReportService {
         const cached = this._getCached(cacheKey);
         if (cached) return cached;
 
-        const pipeline = [
-            // Step 1: STRICT DATA ISOLATION - Filter by institute
-            {
-                $match: {
-                    institute: instId,
-                    createdAt: { $gte: startDate, $lte: endDate }
-                }
-            },
+        try {
+            // Get enquiry-based admissions
+            const enquiryPipeline = [
+                // Step 1: STRICT DATA ISOLATION - Filter by institute
+                {
+                    $match: {
+                        institute: instId,
+                        createdAt: { $gte: startDate, $lte: endDate }
+                    }
+                },
 
-            // Step 2: GROUP BY MONTH with status breakdown
-            {
-                $group: {
-                    _id: {
-                        year: { $year: '$createdAt' },
-                        month: { $month: '$createdAt' }
-                    },
-                    totalApplications: { $sum: 1 },
-                    converted: {
-                        $sum: { $cond: [{ $eq: ['$status', 'converted'] }, 1, 0] }
-                    },
-                    pending: {
-                        $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
-                    },
-                    cancelled: {
-                        $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] }
-                    },
-                    conversionRate: {
-                        $avg: { $cond: [{ $eq: ['$status', 'converted'] }, 1, 0] }
+                // Step 2: GROUP BY MONTH with status breakdown
+                {
+                    $group: {
+                        _id: {
+                            year: { $year: '$createdAt' },
+                            month: { $month: '$createdAt' }
+                        },
+                        totalApplications: { $sum: 1 },
+                        converted: {
+                            $sum: { $cond: [{ $eq: ['$status', 'converted'] }, 1, 0] }
+                        },
+                        pending: {
+                            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
+                        },
+                        cancelled: {
+                            $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] }
+                        },
+                        conversionRate: {
+                            $avg: { $cond: [{ $eq: ['$status', 'converted'] }, 1, 0] }
+                        },
+                        source: { $first: { $literal: 'enquiry' } }
                     }
                 }
-            },
+            ];
 
-            // Step 3: SORT by date descending
-            {
-                $sort: { '_id.year': -1, '_id.month': -1 }
-            }
-        ];
+            // Get manual admissions (students with admissionDate in User model)
+            const manualAdmissionsPipeline = [
+                {
+                    $match: {
+                        institute: instId,
+                        admissionDate: { $gte: startDate, $lte: endDate },
+                        status: { $ne: 'DROPPED' } // Exclude dropped students
+                    }
+                },
 
-        try {
-            const monthlyData = await AdmissionApplication.aggregate(pipeline);
+                // GROUP BY MONTH
+                {
+                    $group: {
+                        _id: {
+                            year: { $year: '$admissionDate' },
+                            month: { $month: '$admissionDate' }
+                        },
+                        manualAdmissions: { $sum: 1 },
+                        source: { $first: { $literal: 'manual' } }
+                    }
+                }
+            ];
+
+            const [enquiryData, manualData] = await Promise.all([
+                AdmissionApplication.aggregate(enquiryPipeline),
+                User.aggregate(manualAdmissionsPipeline)
+            ]);
+
+            // Merge data by month
+            const monthlyMap = new Map();
+
+            // Add enquiry data
+            enquiryData.forEach(item => {
+                const key = `${item._id.year}-${String(item._id.month).padStart(2, '0')}`;
+                monthlyMap.set(key, {
+                    date: key,
+                    enquiryApplications: item.totalApplications,
+                    enquiryConverted: item.converted,
+                    enquiryPending: item.pending,
+                    enquiryCancelled: item.cancelled,
+                    enquiryConversionRate: (item.conversionRate * 100).toFixed(2) + '%',
+                    manualAdmissions: 0,
+                    _id: item._id
+                });
+            });
+
+            // Add manual admission data
+            manualData.forEach(item => {
+                const key = `${item._id.year}-${String(item._id.month).padStart(2, '0')}`;
+                if (monthlyMap.has(key)) {
+                    const existing = monthlyMap.get(key);
+                    existing.manualAdmissions = item.manualAdmissions;
+                    existing.totalAdmissions = (existing.enquiryConverted || 0) + item.manualAdmissions;
+                } else {
+                    monthlyMap.set(key, {
+                        date: key,
+                        enquiryApplications: 0,
+                        enquiryConverted: 0,
+                        enquiryPending: 0,
+                        enquiryCancelled: 0,
+                        enquiryConversionRate: '0%',
+                        manualAdmissions: item.manualAdmissions,
+                        totalAdmissions: item.manualAdmissions,
+                        _id: item._id
+                    });
+                }
+            });
+
+            // Convert map to sorted array
+            const monthlyArray = Array.from(monthlyMap.values())
+                .sort((a, b) => {
+                    const [aY, aM] = a.date.split('-').map(Number);
+                    const [bY, bM] = b.date.split('-').map(Number);
+                    return bY === aY ? bM - aM : bY - aY;
+                });
+
+            // Calculate summaries
+            const totalEnquiryApplications = enquiryData.reduce((sum, m) => sum + m.totalApplications, 0);
+            const totalEnquiryConverted = enquiryData.reduce((sum, m) => sum + m.converted, 0);
+            const totalEnquiryPending = enquiryData.reduce((sum, m) => sum + m.pending, 0);
+            const totalEnquiryCancelled = enquiryData.reduce((sum, m) => sum + m.cancelled, 0);
+            const totalManualAdmissions = manualData.reduce((sum, m) => sum + m.manualAdmissions, 0);
+            const totalTotalAdmissions = totalEnquiryConverted + totalManualAdmissions;
 
             const result = {
                 instituteId: instituteId,
@@ -129,27 +210,40 @@ class AdmissionReportService {
                     start: startDate,
                     end: endDate
                 },
-                monthlyData: monthlyData.map(item => ({
-                    date: `${item._id.year}-${String(item._id.month).padStart(2, '0')}`,
-                    totalApplications: item.totalApplications,
-                    converted: item.converted,
-                    pending: item.pending,
-                    cancelled: item.cancelled,
-                    conversionRate: (item.conversionRate * 100).toFixed(2) + '%'
+                monthlyData: monthlyArray.map(item => ({
+                    date: item.date,
+                    // Enquiry data
+                    enquiryApplications: item.enquiryApplications,
+                    enquiryConverted: item.enquiryConverted,
+                    enquiryPending: item.enquiryPending,
+                    enquiryCancelled: item.enquiryCancelled,
+                    enquiryConversionRate: item.enquiryConversionRate,
+                    // Manual admissions
+                    manualAdmissions: item.manualAdmissions,
+                    // Combined totals
+                    totalApplications: (item.enquiryApplications || 0) + (item.manualAdmissions || 0),
+                    totalAdmitted: (item.enquiryConverted || 0) + (item.manualAdmissions || 0)
                 })),
                 summary: {
-                    totalApplications: monthlyData.reduce((sum, m) => sum + m.totalApplications, 0),
-                    totalConverted: monthlyData.reduce((sum, m) => sum + m.converted, 0),
-                    totalPending: monthlyData.reduce((sum, m) => sum + m.pending, 0),
-                    totalCancelled: monthlyData.reduce((sum, m) => sum + m.cancelled, 0)
+                    // Enquiry applications
+                    enquiryApplications: totalEnquiryApplications,
+                    enquiryConverted: totalEnquiryConverted,
+                    enquiryPending: totalEnquiryPending,
+                    enquiryCancelled: totalEnquiryCancelled,
+                    enquiryConversionRate: totalEnquiryApplications > 0
+                        ? ((totalEnquiryConverted / totalEnquiryApplications) * 100).toFixed(2) + '%'
+                        : '0%',
+                    // Manual admissions
+                    manualAdmissions: totalManualAdmissions,
+                    // Totals
+                    totalApplications: totalEnquiryApplications + totalManualAdmissions,
+                    totalAdmitted: totalTotalAdmissions,
+                    overallAdmissionRate: (totalEnquiryApplications + totalManualAdmissions) > 0
+                        ? ((totalTotalAdmissions / (totalEnquiryApplications + totalManualAdmissions)) * 100).toFixed(2) + '%'
+                        : '0%'
                 },
                 pagination: { page, limit }
             };
-
-            // Calculate overall conversion rate
-            result.summary.overallConversionRate = result.summary.totalApplications > 0
-                ? ((result.summary.totalConverted / result.summary.totalApplications) * 100).toFixed(2) + '%'
-                : '0%';
 
             this._setCache(cacheKey, result);
             return result;
