@@ -612,6 +612,9 @@ class AdmissionReportService {
             const enquiryEmails = enquiryRecords.map(app => app.email);
             const enquiryTotal = enquiryRecords.length;
 
+            console.log('[DEBUG] Enquiry records found:', enquiryTotal);
+            console.log('[DEBUG] Enquiry emails:', enquiryEmails);
+
             // Get manual admissions (from User model - NOT in AdmissionApplication)
             const manualQuery = {
                 institute: instId,
@@ -621,15 +624,22 @@ class AdmissionReportService {
                 status: { $ne: 'DROPPED' }
             };
 
+            console.log('[DEBUG] Manual query:', JSON.stringify(manualQuery, null, 2));
+
             const manualAdmissions = await User.find(manualQuery)
                 .sort({ createdAt: -1 })
                 .lean();
             
             const manualTotal = manualAdmissions.length;
+            
+            console.log('[DEBUG] Manual admissions found:', manualTotal);
+            if (manualTotal > 0) {
+                console.log('[DEBUG] First 3 manual students:', manualAdmissions.slice(0, 3).map(s => ({ name: `${s.firstName} ${s.lastName}`, email: s.email, createdAt: s.createdAt, status: s.status })));
+            }
 
             // Combine and format both sources
             const allAdmissions = [
-                ...enquiryAdmissions.map(item => ({
+                ...enquiryRecords.map(item => ({
                     _id: item._id.toString(),
                     firstName: item.firstName,
                     lastName: item.lastName,
