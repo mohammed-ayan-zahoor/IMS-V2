@@ -148,7 +148,7 @@ export default function AdminLayout({ children }) {
             items: [
                 { label: "Follow-up Queue", icon: History, href: "/admin/reports/follow-ups" },
                 { label: "Attendance", icon: Calendar, href: "/admin/reports/attendance" },
-                { label: "Admissions", icon: TrendingUp, href: "/admin/reports/admissions" },
+                { label: "Admissions", icon: TrendingUp, href: "/admin/reports/admissions", instituteType: ["VOCATIONAL"] },
                 { label: "Audit Logs", icon: History, href: "/admin/audit-logs", role: ["admin", "super_admin"] },
             ]
         },
@@ -168,7 +168,11 @@ export default function AdminLayout({ children }) {
     ].filter(group => !group.role || group.role.includes(session?.user?.role))
      .map(group => ({
          ...group,
-         items: group.items.filter(item => !item.role || item.role.includes(session?.user?.role))
+         items: group.items.filter(item => {
+             const hasRole = !item.role || item.role.includes(session?.user?.role);
+             const hasInstituteType = !item.instituteType || item.instituteType.includes(session?.user?.institute?.type);
+             return hasRole && hasInstituteType;
+         })
      }));
 
     if (session?.user?.role === "super_admin") {

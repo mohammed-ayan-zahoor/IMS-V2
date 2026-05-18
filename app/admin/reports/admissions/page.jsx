@@ -81,7 +81,7 @@ export default function AdmissionReportsPage() {
         if (hasCheckedVocational) return;
         
         if (session && !isVocational) {
-            toast.error('This report is only available for vocational institutions');
+            router.push('/admin/dashboard');
             setHasCheckedVocational(true);
             return;
         }
@@ -90,7 +90,7 @@ export default function AdmissionReportsPage() {
             fetchCourses();
             setHasCheckedVocational(true);
         }
-    }, [session, isVocational, instituteId, hasCheckedVocational, toast]);
+    }, [session, isVocational, instituteId, hasCheckedVocational, router]);
 
     const fetchCourses = async () => {
         try {
@@ -530,6 +530,15 @@ export default function AdmissionReportsPage() {
                 </Card>
             </div>
         );
+    }
+
+    // Don't render if not vocational (should be redirected, but add safety check)
+    if (!hasCheckedVocational) {
+        return null;
+    }
+
+    if (!isVocational) {
+        return null;
     }
 
     return (
