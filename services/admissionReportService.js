@@ -126,7 +126,8 @@ class AdmissionReportService {
                 {
                     $match: {
                         institute: instId,
-                        admissionDate: { $gte: startDate, $lte: endDate },
+                        role: 'student',
+                        admissionDate: { $exists: true, $ne: null, $gte: startDate, $lte: endDate },
                         status: { $ne: 'DROPPED' } // Exclude dropped students
                     }
                 },
@@ -214,7 +215,8 @@ class AdmissionReportService {
 
             const manualAdmittedUsers = await User.find({
                 institute: instId,
-                admissionDate: { $gte: startDate, $lte: endDate },
+                role: 'student',
+                admissionDate: { $exists: true, $ne: null, $gte: startDate, $lte: endDate },
                 status: { $ne: 'DROPPED' }
             }, { _id: 1 }).lean();
 
