@@ -578,31 +578,83 @@ class AdmissionReportService {
 
         const instId = new mongoose.Types.ObjectId(instituteId);
 
-        const query = {
-            institute: instId,
-            createdAt: { $gte: startDate, $lte: endDate }
-        };
-
-        if (status) query.status = status;
-        if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
-            query.course = new mongoose.Types.ObjectId(courseId);
-        }
-
         try {
             const skip = (page - 1) * limit;
 
-            const [admissions, total] = await Promise.all([
-                AdmissionApplication.find(query)
+            // Get enquiry-based admissions
+            const enquiryQuery = {
+                institute: instId,
+                createdAt: { $gte: startDate, $lte: endDate }
+            };
+            if (status) enquiryQuery.status = status;
+            if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
+                enquiryQuery.course = new mongoose.Types.ObjectId(courseId);
+            }
+
+            // Get manual admissions (from User model)
+            const manualQuery = {
+                institute: instId,
+                role: 'student',
+                admissionDate: { $exists: true, $ne: null, $gte: startDate, $lte: endDate },
+                status: { $ne: 'DROPPED' }
+            };
+
+            const [enquiryAdmissions, manualAdmissions, enquiryTotal, manualTotal] = await Promise.all([
+                AdmissionApplication.find(enquiryQuery)
                     .populate('course', 'name code')
                     .sort({ createdAt: -1 })
-                    .skip(skip)
-                    .limit(limit)
                     .lean(),
-                AdmissionApplication.countDocuments(query)
+                User.find(manualQuery)
+                    .sort({ admissionDate: -1 })
+                    .lean(),
+                AdmissionApplication.countDocuments(enquiryQuery),
+                User.countDocuments(manualQuery)
             ]);
 
+            // Combine and format both sources
+            const allAdmissions = [
+                ...enquiryAdmissions.map(item => ({
+                    _id: item._id.toString(),
+                    firstName: item.firstName,
+                    lastName: item.lastName,
+                    email: item.email,
+                    phone: item.phone,
+                    status: item.status,
+                    course: item.course?.name,
+                    courseCode: item.course?.code,
+                    learningMode: item.learningMode,
+                    referredBy: item.referredBy,
+                    createdAt: item.createdAt,
+                    updatedAt: item.updatedAt,
+                    admissionType: 'enquiry',
+                    admissionDate: item.createdAt
+                })),
+                ...manualAdmissions.map(item => ({
+                    _id: item._id.toString(),
+                    firstName: item.firstName,
+                    lastName: item.lastName,
+                    email: item.email,
+                    phone: item.phone,
+                    status: item.status,
+                    course: null,
+                    courseCode: null,
+                    learningMode: null,
+                    referredBy: null,
+                    createdAt: item.admissionDate,
+                    updatedAt: item.updatedAt,
+                    admissionType: 'manual',
+                    admissionDate: item.admissionDate
+                }))
+            ];
+
+            // Sort all by admission date
+            allAdmissions.sort((a, b) => new Date(b.admissionDate) - new Date(a.admissionDate));
+
+            // Apply pagination on combined results
+            const paginatedAdmissions = allAdmissions.slice(skip, skip + limit);
+
             // Get enrollment details (count + course names) for each admitted student
-            const admissionIds = admissions.map(item => item._id);
+            const admissionIds = paginatedAdmissions.map(item => new mongoose.Types.ObjectId(item._id));
             let enrollmentDetails = {};
 
             if (admissionIds.length > 0) {
@@ -661,21 +713,12 @@ class AdmissionReportService {
                 });
             }
 
+            const total = enquiryTotal + manualTotal;
+
             return {
-                data: admissions.map(item => ({
-                    _id: item._id.toString(),
-                    firstName: item.firstName,
-                    lastName: item.lastName,
-                    email: item.email,
-                    phone: item.phone,
-                    status: item.status,
-                    course: item.course?.name,
-                    courseCode: item.course?.code,
-                    learningMode: item.learningMode,
-                    referredBy: item.referredBy,
-                    createdAt: item.createdAt,
-                    updatedAt: item.updatedAt,
-                    enrollments: enrollmentDetails[item._id.toString()] || { 
+                data: paginatedAdmissions.map(item => ({
+                    ...item,
+                    enrollments: enrollmentDetails[item._id] || { 
                         current: 0, 
                         total: 0, 
                         currentCourses: '',
