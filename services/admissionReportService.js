@@ -599,6 +599,47 @@ class AdmissionReportService {
                 AdmissionApplication.countDocuments(query)
             ]);
 
+            // Get enrollment counts for each admitted student
+            const admissionIds = admissions.map(item => item._id);
+            let enrollmentCounts = {};
+
+            if (admissionIds.length > 0) {
+                const enrollments = await Batch.aggregate([
+                    {
+                        $match: {
+                            institute: instId,
+                            'enrolledStudents.student': { $in: admissionIds }
+                        }
+                    },
+                    {
+                        $unwind: '$enrolledStudents'
+                    },
+                    {
+                        $match: {
+                            'enrolledStudents.student': { $in: admissionIds }
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: '$enrolledStudents.student',
+                            currentCourses: {
+                                $sum: {
+                                    $cond: [{ $eq: ['$enrolledStudents.status', 'active'] }, 1, 0]
+                                }
+                            },
+                            totalCourses: { $sum: 1 }
+                        }
+                    }
+                ]).exec();
+
+                enrollments.forEach(e => {
+                    enrollmentCounts[e._id.toString()] = {
+                        current: e.currentCourses,
+                        total: e.totalCourses
+                    };
+                });
+            }
+
             return {
                 data: admissions.map(item => ({
                     _id: item._id.toString(),
@@ -612,7 +653,8 @@ class AdmissionReportService {
                     learningMode: item.learningMode,
                     referredBy: item.referredBy,
                     createdAt: item.createdAt,
-                    updatedAt: item.updatedAt
+                    updatedAt: item.updatedAt,
+                    enrollments: enrollmentCounts[item._id.toString()] || { current: 0, total: 0 }
                 })),
                 pagination: {
                     page,

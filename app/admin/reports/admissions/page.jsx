@@ -240,10 +240,17 @@ export default function AdmissionReportsPage() {
     const SummaryCards = () => {
         if (!monthlyData?.summary) return null;
 
-        const { totalApplications, totalConverted, totalPending, totalCancelled, overallConversionRate } = monthlyData.summary;
+        const summary = monthlyData.summary;
+        // Use enquiry metrics for the cards (main admission source)
+        const totalApplications = summary.enquiryApplications || 0;
+        const totalConverted = summary.enquiryConverted || 0;
+        const totalPending = summary.enquiryPending || 0;
+        const totalCancelled = summary.enquiryCancelled || 0;
+        const overallConversionRate = summary.enquiryConversionRate || '0%';
+        const manualAdmissions = summary.manualAdmissions || 0;
 
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
                 <Card>
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
@@ -297,9 +304,21 @@ export default function AdmissionReportsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-600">Conversion Rate</p>
-                                <p className="text-2xl font-bold mt-2 text-blue-600">{overallConversionRate}</p>
+                                <p className="text-2xl font-bold mt-2 text-purple-600">{overallConversionRate}</p>
                             </div>
-                            <TrendingUp className="w-8 h-8 text-blue-500" />
+                            <TrendingUp className="w-8 h-8 text-purple-500" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-600">Manual Admissions</p>
+                                <p className="text-2xl font-bold mt-2 text-indigo-600">{manualAdmissions}</p>
+                            </div>
+                            <Users className="w-8 h-8 text-indigo-500" />
                         </div>
                     </CardContent>
                 </Card>
@@ -448,42 +467,50 @@ export default function AdmissionReportsPage() {
                 <CardHeader title="Admission Details" />
                 <CardContent>
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50 border-b">
-                                <tr>
-                                    <th className="px-4 py-2 text-left font-semibold">Name</th>
-                                    <th className="px-4 py-2 text-left font-semibold">Email</th>
-                                    <th className="px-4 py-2 text-left font-semibold">Phone</th>
-                                    <th className="px-4 py-2 text-left font-semibold">Course</th>
-                                    <th className="px-4 py-2 text-left font-semibold">Status</th>
-                                    <th className="px-4 py-2 text-left font-semibold">Applied On</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {detailsData.data.map(item => (
-                                    <tr key={item._id} className="border-b hover:bg-gray-50">
-                                        <td className="px-4 py-2">{`${item.firstName} ${item.lastName}`}</td>
-                                        <td className="px-4 py-2 text-blue-600">{item.email}</td>
-                                        <td className="px-4 py-2">{item.phone}</td>
-                                        <td className="px-4 py-2">{item.courseCode}</td>
-                                        <td className="px-4 py-2">
-                                            <span
-                                                className={`px-2 py-1 rounded text-xs font-semibold ${
-                                                    item.status === 'converted'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : item.status === 'pending'
-                                                        ? 'bg-yellow-100 text-yellow-800'
-                                                        : 'bg-red-100 text-red-800'
-                                                }`}
-                                            >
-                                                {item.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-2">{format(new Date(item.createdAt), 'yyyy-MM-dd')}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                         <table className="w-full text-sm">
+                             <thead className="bg-gray-50 border-b">
+                                 <tr>
+                                     <th className="px-4 py-2 text-left font-semibold">Name</th>
+                                     <th className="px-4 py-2 text-left font-semibold">Email</th>
+                                     <th className="px-4 py-2 text-left font-semibold">Phone</th>
+                                     <th className="px-4 py-2 text-left font-semibold">Course</th>
+                                     <th className="px-4 py-2 text-left font-semibold">Status</th>
+                                     <th className="px-4 py-2 text-left font-semibold">Current Courses</th>
+                                     <th className="px-4 py-2 text-left font-semibold">Total Courses</th>
+                                     <th className="px-4 py-2 text-left font-semibold">Applied On</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 {detailsData.data.map(item => (
+                                     <tr key={item._id} className="border-b hover:bg-gray-50">
+                                         <td className="px-4 py-2">{`${item.firstName} ${item.lastName}`}</td>
+                                         <td className="px-4 py-2 text-blue-600">{item.email}</td>
+                                         <td className="px-4 py-2">{item.phone}</td>
+                                         <td className="px-4 py-2">{item.courseCode}</td>
+                                         <td className="px-4 py-2">
+                                             <span
+                                                 className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                     item.status === 'converted'
+                                                         ? 'bg-green-100 text-green-800'
+                                                         : item.status === 'pending'
+                                                         ? 'bg-yellow-100 text-yellow-800'
+                                                         : 'bg-red-100 text-red-800'
+                                                 }`}
+                                             >
+                                                 {item.status}
+                                             </span>
+                                         </td>
+                                         <td className="px-4 py-2 text-center font-semibold text-blue-600">
+                                             {item.enrollments?.current || 0}
+                                         </td>
+                                         <td className="px-4 py-2 text-center font-semibold text-purple-600">
+                                             {item.enrollments?.total || 0}
+                                         </td>
+                                         <td className="px-4 py-2">{format(new Date(item.createdAt), 'yyyy-MM-dd')}</td>
+                                     </tr>
+                                 ))}
+                             </tbody>
+                         </table>
                     </div>
 
                     {/* Pagination */}
