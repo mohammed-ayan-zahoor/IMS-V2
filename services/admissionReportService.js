@@ -121,13 +121,22 @@ class AdmissionReportService {
                 }
             ];
 
-            // Get manual admissions (students with admissionDate in User model)
+            // First, get all student IDs from AdmissionApplication to exclude them from manual count
+            const enrolledStudentIds = await AdmissionApplication.find(
+                { institute: instId },
+                { firstName: 1, lastName: 1, email: 1 }
+            ).lean();
+            const enrolledEmails = enrolledStudentIds.map(app => app.email);
+
+            // Get manual admissions (students added directly, NOT from AdmissionApplication)
+            // Use createdAt as admission date since admissionDate field is not populated
             const manualAdmissionsPipeline = [
                 {
                     $match: {
                         institute: instId,
                         role: 'student',
-                        admissionDate: { $exists: true, $ne: null, $gte: startDate, $lte: endDate },
+                        email: { $nin: enrolledEmails }, // Exclude students from enquiry applications
+                        createdAt: { $gte: startDate, $lte: endDate }, // Use createdAt as admission date
                         status: { $ne: 'DROPPED' } // Exclude dropped students
                     }
                 },
@@ -136,8 +145,8 @@ class AdmissionReportService {
                 {
                     $group: {
                         _id: {
-                            year: { $year: '$admissionDate' },
-                            month: { $month: '$admissionDate' }
+                            year: { $year: '$createdAt' },
+                            month: { $month: '$createdAt' }
                         },
                         manualAdmissions: { $sum: 1 },
                         source: { $first: { $literal: 'manual' } }
@@ -211,12 +220,15 @@ class AdmissionReportService {
                 institute: instId,
                 status: 'converted',
                 createdAt: { $gte: startDate, $lte: endDate }
-            }, { course: 1 }).lean();
+            }, { course: 1, email: 1 }).lean();
+
+            const convertedEmails = convertedApplications.map(app => app.email);
 
             const manualAdmittedUsers = await User.find({
                 institute: instId,
                 role: 'student',
-                admissionDate: { $exists: true, $ne: null, $gte: startDate, $lte: endDate },
+                email: { $nin: convertedEmails }, // Exclude converted enquiry applicants
+                createdAt: { $gte: startDate, $lte: endDate }, // Use createdAt as admission date
                 status: { $ne: 'DROPPED' }
             }, { _id: 1 }).lean();
 
@@ -591,25 +603,29 @@ class AdmissionReportService {
                 enquiryQuery.course = new mongoose.Types.ObjectId(courseId);
             }
 
-            // Get manual admissions (from User model)
+            // Get all enquiry emails first to exclude them from manual admissions
+            const enquiryRecords = await AdmissionApplication.find(enquiryQuery)
+                .populate('course', 'name code')
+                .sort({ createdAt: -1 })
+                .lean();
+            
+            const enquiryEmails = enquiryRecords.map(app => app.email);
+            const enquiryTotal = enquiryRecords.length;
+
+            // Get manual admissions (from User model - NOT in AdmissionApplication)
             const manualQuery = {
                 institute: instId,
                 role: 'student',
-                admissionDate: { $exists: true, $ne: null, $gte: startDate, $lte: endDate },
+                email: { $nin: enquiryEmails }, // Exclude students from enquiry
+                createdAt: { $gte: startDate, $lte: endDate }, // Use createdAt as admission date
                 status: { $ne: 'DROPPED' }
             };
 
-            const [enquiryAdmissions, manualAdmissions, enquiryTotal, manualTotal] = await Promise.all([
-                AdmissionApplication.find(enquiryQuery)
-                    .populate('course', 'name code')
-                    .sort({ createdAt: -1 })
-                    .lean(),
-                User.find(manualQuery)
-                    .sort({ admissionDate: -1 })
-                    .lean(),
-                AdmissionApplication.countDocuments(enquiryQuery),
-                User.countDocuments(manualQuery)
-            ]);
+            const manualAdmissions = await User.find(manualQuery)
+                .sort({ createdAt: -1 })
+                .lean();
+            
+            const manualTotal = manualAdmissions.length;
 
             // Combine and format both sources
             const allAdmissions = [
@@ -640,10 +656,10 @@ class AdmissionReportService {
                     courseCode: null,
                     learningMode: null,
                     referredBy: null,
-                    createdAt: item.admissionDate,
+                    createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
                     admissionType: 'manual',
-                    admissionDate: item.admissionDate
+                    admissionDate: item.createdAt // Use createdAt as admission date for manual students
                 }))
             ];
 
