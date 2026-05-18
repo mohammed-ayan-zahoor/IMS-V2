@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import {
     Calendar,
@@ -44,6 +45,7 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 export default function AdmissionReportsPage() {
     const toast = useToast();
     const { data: session } = useSession();
+    const router = useRouter();
 
     // State Management
     const [loading, setLoading] = useState(false);
@@ -51,6 +53,7 @@ export default function AdmissionReportsPage() {
     const [courses, setCourses] = useState([]);
     const [selectedCourse, setSelectedCourse] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('');
+    const [hasCheckedVocational, setHasCheckedVocational] = useState(false);
 
     // Date Filters
     const [startDate, setStartDate] = useState(
@@ -73,16 +76,21 @@ export default function AdmissionReportsPage() {
     const instituteId = session?.user?.instituteId;
     const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
 
-    // Fetch courses on mount
+    // Check vocational institute access once on load
     useEffect(() => {
-        if (!isVocational) {
+        if (hasCheckedVocational) return;
+        
+        if (session && !isVocational) {
             toast.error('This report is only available for vocational institutions');
+            setHasCheckedVocational(true);
             return;
         }
-        if (instituteId) {
+        
+        if (session && isVocational && instituteId) {
             fetchCourses();
+            setHasCheckedVocational(true);
         }
-    }, [isVocational, instituteId, toast]);
+    }, [session, isVocational, instituteId, hasCheckedVocational, toast]);
 
     const fetchCourses = async () => {
         try {
