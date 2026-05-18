@@ -114,12 +114,22 @@ export async function GET(req) {
 
         switch (reportType) {
             case 'monthly':
-                reportData = await admissionReportService.getMonthlyReport(
-                    instituteId,
-                    dateRange.start,
-                    dateRange.end,
-                    { page, limit }
-                );
+                try {
+                    reportData = await admissionReportService.getMonthlyReport(
+                        instituteId,
+                        dateRange.start,
+                        dateRange.end,
+                        { page, limit }
+                    );
+                } catch (error) {
+                    console.error('[Monthly Report Error]', {
+                        instituteId,
+                        startDate,
+                        endDate,
+                        error: error.message
+                    });
+                    throw error;
+                }
                 break;
 
             case 'daily':

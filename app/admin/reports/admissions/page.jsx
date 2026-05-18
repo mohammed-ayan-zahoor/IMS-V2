@@ -79,13 +79,19 @@ export default function AdmissionReportsPage() {
             toast.error('This report is only available for vocational institutions');
             return;
         }
-        fetchCourses();
-    }, [isVocational]);
+        if (instituteId) {
+            fetchCourses();
+        }
+    }, [isVocational, instituteId, toast]);
 
     const fetchCourses = async () => {
         try {
-            const res = await fetch('/api/v1/courses?active=true');
-            if (!res.ok) return;
+            if (!instituteId) return;
+            const res = await fetch(`/api/v1/courses?instituteId=${instituteId}`);
+            if (!res.ok) {
+                console.error('Failed to fetch courses:', res.statusText);
+                return;
+            }
             const data = await res.json();
             if (data.courses) setCourses(data.courses);
         } catch (error) {
@@ -95,6 +101,11 @@ export default function AdmissionReportsPage() {
 
     // Main report fetching function
     const fetchReport = async () => {
+        if (!instituteId) {
+            toast.error('Institute information is not loaded');
+            return;
+        }
+
         if (!startDate || !endDate) {
             toast.error('Please select a date range');
             return;
@@ -125,7 +136,10 @@ export default function AdmissionReportsPage() {
                 fetch(`/api/v1/admissions/reports?${baseQuery}&type=monthly-with-details`)
             ]);
 
-            if (!monthlyRes.ok) throw new Error('Failed to fetch monthly report');
+            if (!monthlyRes.ok) {
+                const errorData = await monthlyRes.json();
+                throw new Error(errorData.error || 'Failed to fetch monthly report');
+            }
 
             const [monthly, daily, course, referral, details, monthlyDetails] = await Promise.all([
                 monthlyRes.json(),
