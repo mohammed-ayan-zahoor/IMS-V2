@@ -73,7 +73,7 @@ export default function AdmissionReportsPage() {
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(50);
 
-    const instituteId = session?.user?.instituteId;
+    const instituteId = session?.user?.institute?.id;
     const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
 
     // Check vocational institute access once on load
