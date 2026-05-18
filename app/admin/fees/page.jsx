@@ -291,11 +291,22 @@ export default function FeesPage() {
 
     const openPaymentModal = (fee) => {
         setSelectedFee(fee);
-        // Default to first pending installment
-        const firstPending = fee.installments.find(i => i.status === 'pending');
-        if (firstPending) {
-            setPaymentData(prev => ({ ...prev, installmentId: firstPending._id, amount: firstPending.amount, collectedBy: "" }));
-        }
+        
+        // Find next pending installment
+        const nextPending = fee?.installments?.find(i => i.status === 'pending');
+        
+        setPaymentData({
+            installmentId: nextPending ? nextPending._id : "adhoc",
+            amount: nextPending 
+                ? nextPending.amount.toString() 
+                : (fee.totalAmount - (fee.paidAmount || 0)).toString(),
+            method: "cash",
+            transactionId: "",
+            collectedBy: "",
+            notes: "",
+            date: format(new Date(), "yyyy-MM-dd"),
+            nextDueDate: ""
+        });
         fetchCollectors();
         setIsPaymentModalOpen(true);
     };
@@ -777,10 +788,16 @@ export default function FeesPage() {
                                     value={paymentData.installmentId}
                                     onChange={(val) => {
                                         const inst = selectedFee.installments.find(i => i._id === val);
+                                        let amt = "";
+                                        if (val === "adhoc") {
+                                            amt = (selectedFee.totalAmount - (selectedFee.paidAmount || 0)).toString();
+                                        } else if (inst) {
+                                            amt = inst.amount.toString();
+                                        }
                                         setPaymentData({
                                             ...paymentData,
                                             installmentId: val,
-                                            amount: inst ? inst.amount : ""
+                                            amount: amt
                                         });
                                     }}
                                     options={[

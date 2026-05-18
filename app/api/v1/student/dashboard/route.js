@@ -9,6 +9,7 @@ import ExamSubmission from "@/models/ExamSubmission";
 import Attendance from "@/models/Attendance";
 import BatchSyllabusProgress from "@/models/BatchSyllabusProgress";
 import Subject from "@/models/Subject";
+import "@/models/Course"; // Ensure Course schema is registered
 
 export async function GET(req) {
     try {

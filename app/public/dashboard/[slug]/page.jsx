@@ -213,7 +213,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     const aggregatedStats = useMemo(() => {
         if (!data?.fees) return { totalPending: 0, totalStudents: 0 };
         return data.fees.reduce((acc, fee) => {
-            const pending = fee.installments.reduce((sum, inst) =>
+            const pending = (fee.installments || []).reduce((sum, inst) =>
                 inst.status === 'pending' ? sum + inst.amount : sum, 0);
             if (pending === 0) return acc; // Only count students with pending balance
             return {
@@ -237,7 +237,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
     const filteredFees = useMemo(() => {
         if (!data?.fees) return [];
         return data.fees.filter(fee => {
-            const pending = fee.installments.reduce((sum, inst) =>
+            const pending = (fee.installments || []).reduce((sum, inst) =>
                 inst.status === 'pending' ? sum + inst.amount : sum, 0);
             if (pending === 0) return false; // Hide cleared students
             if (filterInstitute !== "all" && fee.institute?._id !== filterInstitute) return false;
@@ -337,12 +337,10 @@ export default function VisitorDashboard({ params: paramsPromise }) {
 
                         <div className={`grid gap-6 transition-all duration-500 ${isTVMode ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 lg:grid-cols-2'}`}>
                             {(filteredFees.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage)).map((fee) => {
-                                const studentPending = fee.installments.reduce((sum, inst) =>
+                                const studentPending = (fee.installments || []).reduce((sum, inst) =>
                                     inst.status === 'pending' ? sum + inst.amount : sum, 0);
                                 const lastComment = data.link.comments?.filter(c => c.studentId === fee.student?._id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-                                const isExpanded = expandedStudentId === fee.student?._id;
-
-                                return (
+                                const isExpanded = expandedStudentId === fee.student?._id;                                return (
                                     <SharpCard key={fee._id} className="group overflow-hidden">
                                         <div 
                                             onClick={() => setExpandedStudentId(isExpanded ? null : fee.student?._id)}
@@ -371,7 +369,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                                         <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em]">{fee.batch?.name}</p>
                                                     </div>
                                                 </div>
-
+ 
                                                 {/* Pending Info */}
                                                 <div className="col-span-12 md:col-span-6 p-6">
                                                     <div className="flex justify-between items-center">
@@ -381,7 +379,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                                         </div>
                                                         <div className="text-right">
                                                             <SharpBadge variant={studentPending > 10000 ? "danger" : "warning"}>
-                                                                {fee.installments.find(i => i.status === 'pending') ? 'OVERDUE' : 'DUE'}
+                                                                {(fee.installments || []).find(i => i.status === 'pending') ? 'OVERDUE' : 'DUE'}
                                                             </SharpBadge>
                                                         </div>
                                                     </div>
@@ -449,7 +447,7 @@ export default function VisitorDashboard({ params: paramsPromise }) {
                                                         <div className="space-y-4">
                                                             <h5 className="text-[10px] font-black uppercase tracking-[0.3em] border-b border-black pb-1">Installment History</h5>
                                                             <div className="space-y-2">
-                                                                {fee.installments.map((inst, idx) => (
+                                                                {(fee.installments || []).map((inst, idx) => (
                                                                     <div key={idx} className="flex justify-between items-center bg-white p-2 border border-black text-[10px] font-bold">
                                                                         <span className="uppercase text-gray-400">{new Date(inst.dueDate).toLocaleDateString()}</span>
                                                                         <span>₹{inst.amount.toLocaleString()}</span>

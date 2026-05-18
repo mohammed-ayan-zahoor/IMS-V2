@@ -94,6 +94,204 @@ export default function StudentDetailsPage({ params }) {
     });
     const [collectors, setCollectors] = useState([]);
 
+    // Installments Configuration State
+    const [configureInstallments, setConfigureInstallments] = useState(false);
+    const [numInstallments, setNumInstallments] = useState(3);
+    const [installmentInterval, setInstallmentInterval] = useState("monthly");
+    const [enrollmentInstallments, setEnrollmentInstallments] = useState([]);
+
+    // Standalone Installments Modal State
+    const [isInstallmentsModalOpen, setIsInstallmentsModalOpen] = useState(false);
+    const [manageInstallmentsList, setManageInstallmentsList] = useState([]);
+    const [isSavingInstallments, setIsSavingInstallments] = useState(false);
+
+    // Dynamic Equal Split Installments Generator
+    const generateEqualInstallments = (totalAmount, count, interval) => {
+        if (!totalAmount || count <= 0) return [];
+        const baseAmount = Math.floor(totalAmount / count);
+        const cents = totalAmount % count;
+        const generated = [];
+        const today = new Date();
+        
+        for (let i = 0; i < count; i++) {
+            const dueDate = new Date(today);
+            if (interval === 'monthly') {
+                dueDate.setMonth(dueDate.getMonth() + (i + 1));
+            } else if (interval === 'quarterly') {
+                dueDate.setMonth(dueDate.getMonth() + (i + 1) * 3);
+            } else {
+                dueDate.setDate(dueDate.getDate() + (i + 1) * 15);
+            }
+            
+            // Add cents to the first installment to avoid fractions
+            const amount = i === 0 ? baseAmount + cents : baseAmount;
+            
+            generated.push({
+                amount: amount.toString(),
+                dueDate: format(dueDate, "yyyy-MM-dd")
+            });
+        }
+        return generated;
+    };
+
+    // Calculate total enrollment fee amount dynamically
+    const getEnrollmentTotalAmount = () => {
+        if (selectedPreset) {
+            const preset = feePresets.find(p => p._id === selectedPreset);
+            if (preset) return preset.amount;
+        }
+        if (selectedCourse) {
+            const course = courses.find(c => c._id === selectedCourse);
+            if (course) return course.fees?.amount || 0;
+        }
+        return 0;
+    };
+
+    // Auto-generate installments when enrollment options or amounts change
+    useEffect(() => {
+        if (configureInstallments) {
+            const total = getEnrollmentTotalAmount();
+            const generated = generateEqualInstallments(total, numInstallments, installmentInterval);
+            setEnrollmentInstallments(generated);
+        } else {
+            setEnrollmentInstallments([]);
+        }
+    }, [selectedPreset, selectedCourse, configureInstallments, numInstallments, installmentInterval, courses, feePresets]);
+
+    const handleEnrollmentInstallmentChange = (index, field, value) => {
+        const updated = [...enrollmentInstallments];
+        updated[index] = {
+            ...updated[index],
+            [field]: value
+        };
+        setEnrollmentInstallments(updated);
+    };
+
+    const handleManageInstallmentChange = (index, field, value) => {
+        const updated = [...manageInstallmentsList];
+        updated[index] = {
+            ...updated[index],
+            [field]: value
+        };
+        setManageInstallmentsList(updated);
+    };
+
+    const handleAddManageInstallment = () => {
+        const today = new Date();
+        const nextMonth = new Date(today);
+        nextMonth.setMonth(today.getMonth() + 1);
+        
+        setManageInstallmentsList([
+            ...manageInstallmentsList,
+            {
+                amount: 0,
+                dueDate: format(nextMonth, "yyyy-MM-dd"),
+                status: "pending"
+            }
+        ]);
+    };
+
+    const handleDeleteManageInstallment = (index) => {
+        if (manageInstallmentsList[index].status === 'paid') {
+            toast.error("Cannot delete a paid installment");
+            return;
+        }
+        const updated = manageInstallmentsList.filter((_, i) => i !== index);
+        setManageInstallmentsList(updated);
+    };
+
+    const handleGenerateManageInstallments = (count, interval) => {
+        if (!selectedFee || count <= 0) return;
+        
+        // Keep paid installments
+        const paidInsts = manageInstallmentsList.filter(i => i.status === 'paid');
+        const paidSum = paidInsts.reduce((sum, i) => sum + i.amount, 0);
+        
+        // Remaining balance to split
+        const finalExpected = selectedFee.totalAmount - (selectedFee.discount?.amount || 0) + (selectedFee.extraCharges?.amount || 0);
+        const remaining = Math.max(0, finalExpected - paidSum);
+        
+        if (remaining <= 0) {
+            toast.error("Fee is already fully paid by existing installments");
+            return;
+        }
+
+        // Generate count equal splits
+        const baseAmount = Math.floor(remaining / count);
+        const cents = remaining % count;
+        const generated = [];
+        const today = new Date();
+
+        for (let i = 0; i < count; i++) {
+            const dueDate = new Date(today);
+            if (interval === 'monthly') {
+                dueDate.setMonth(dueDate.getMonth() + (i + 1));
+            } else if (interval === 'quarterly') {
+                dueDate.setMonth(dueDate.getMonth() + (i + 1) * 3);
+            } else {
+                dueDate.setDate(dueDate.getDate() + (i + 1) * 15);
+            }
+            
+            const amount = i === 0 ? baseAmount + cents : baseAmount;
+            generated.push({
+                amount: amount,
+                dueDate: format(dueDate, "yyyy-MM-dd"),
+                status: "pending"
+            });
+        }
+
+        // Combine paid + new pending
+        setManageInstallmentsList([...paidInsts, ...generated]);
+        toast.success(`Generated ${count} pending installments of ₹${baseAmount.toLocaleString()}!`);
+    };
+
+    const handleSaveInstallmentPlan = async (e) => {
+        e.preventDefault();
+        if (!selectedFee) return;
+
+        const finalExpected = selectedFee.totalAmount - (selectedFee.discount?.amount || 0) + (selectedFee.extraCharges?.amount || 0);
+        const currentSum = manageInstallmentsList.reduce((sum, inst) => sum + (parseFloat(inst.amount) || 0), 0);
+        
+        const EPSILON = 0.01;
+        if (Math.abs(currentSum - finalExpected) > EPSILON) {
+            toast.error(`Installments sum (₹${currentSum.toLocaleString()}) must equal expected total (₹${finalExpected.toLocaleString()})`);
+            return;
+        }
+
+        try {
+            setIsSavingInstallments(true);
+            const res = await fetch(`/api/v1/fees/${selectedFee._id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    installments: manageInstallmentsList.map(i => ({
+                        amount: parseFloat(i.amount),
+                        dueDate: i.dueDate,
+                        status: i.status || 'pending',
+                        paidDate: i.paidDate,
+                        paymentMethod: i.paymentMethod,
+                        transactionId: i.transactionId,
+                        collectedBy: i.collectedBy,
+                        notes: i.notes
+                    }))
+                })
+            });
+
+            if (res.ok) {
+                setIsInstallmentsModalOpen(false);
+                fetchStudentDetails();
+                toast.success("Installment plan updated successfully!");
+            } else {
+                const err = await res.json();
+                toast.error(err.error || "Failed to update installment plan");
+            }
+        } catch (error) {
+            toast.error("Failed to save installment plan");
+        } finally {
+            setIsSavingInstallments(false);
+        }
+    };
+
     const [isDeleting, setIsDeleting] = useState(false);
     const [isTogglingStatus, setIsTogglingStatus] = useState(false);
     const [deletingFeeId, setDeletingFeeId] = useState(null);
@@ -505,13 +703,28 @@ export default function StudentDetailsPage({ params }) {
         try {
             setIsEnrolling(true);
             const preset = feePresets.find(p => p._id === selectedPreset);
+            const totalAmount = preset ? preset.amount : (courses.find(c => c._id === selectedCourse)?.fees?.amount || 0);
+
+            if (configureInstallments) {
+                const sum = enrollmentInstallments.reduce((acc, inst) => acc + (parseFloat(inst.amount) || 0), 0);
+                const EPSILON = 0.01;
+                if (Math.abs(sum - totalAmount) > EPSILON) {
+                    toast.error(`Installment sum (₹${sum.toLocaleString()}) must equal total fee (₹${totalAmount.toLocaleString()})`);
+                    return;
+                }
+            }
+
             const res = await fetch(`/api/v1/students/${id}/enroll`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     batchId: selectedBatch,
                     customAmount: preset ? preset.amount : null,
-                    presetId: selectedPreset || null
+                    presetId: selectedPreset || null,
+                    installments: configureInstallments ? enrollmentInstallments.map(i => ({
+                        amount: parseFloat(i.amount),
+                        dueDate: i.dueDate
+                    })) : null
                 })
             });
 
@@ -519,6 +732,8 @@ export default function StudentDetailsPage({ params }) {
                 setIsEnrollModalOpen(false);
                 setSelectedBatch("");
                 setSelectedCourse("");
+                setConfigureInstallments(false);
+                setEnrollmentInstallments([]);
                 fetchStudentDetails();
                 toast.success("Student enrolled successfully!");
             } else {
@@ -617,15 +832,21 @@ export default function StudentDetailsPage({ params }) {
     const openPaymentModal = (fee) => {
         setIsTransportPayment(false);
         setSelectedFee(fee);
+        
+        // Find next pending installment
+        const nextPending = fee?.installments?.find(i => i.status === 'pending');
+        
         setPaymentData({
-            amount: (fee.totalAmount - (fee.paidAmount || 0)).toString(),
+            amount: nextPending 
+                ? nextPending.amount.toString() 
+                : (fee.totalAmount - (fee.paidAmount || 0)).toString(),
             method: "cash",
             transactionId: "",
             notes: "",
             collectedBy: "",
             date: format(new Date(), "yyyy-MM-dd"),
             nextDueDate: "",
-            installmentId: ""
+            installmentId: nextPending ? nextPending._id : "adhoc"
         });
         setIsPayModalOpen(true);
     };
@@ -633,15 +854,21 @@ export default function StudentDetailsPage({ params }) {
     const openTransportPaymentModal = (fee) => {
         setIsTransportPayment(true);
         setSelectedFee(fee);
+        
+        // Find next pending installment if any
+        const nextPending = fee?.installments?.find(i => i.status === 'pending');
+        
         setPaymentData({
-            amount: (fee.totalAmount - (fee.paidAmount || 0)).toString(),
+            amount: nextPending 
+                ? nextPending.amount.toString() 
+                : (fee.totalAmount - (fee.paidAmount || 0)).toString(),
             method: "cash",
             transactionId: "",
             notes: "",
             collectedBy: "",
             date: format(new Date(), "yyyy-MM-dd"),
             nextDueDate: "",
-            installmentId: ""
+            installmentId: nextPending ? nextPending._id : "adhoc"
         });
         setIsPayModalOpen(true);
     };
@@ -1386,6 +1613,19 @@ export default function StudentDetailsPage({ params }) {
                                                                 <Button
                                                                     size="sm"
                                                                     variant="ghost"
+                                                                    className="text-premium-blue hover:text-blue-700 hover:bg-blue-50"
+                                                                    onClick={() => {
+                                                                        setSelectedFee(fee);
+                                                                        setManageInstallmentsList(fee.installments || []);
+                                                                        setIsInstallmentsModalOpen(true);
+                                                                    }}
+                                                                    title="Manage Installment Plan"
+                                                                >
+                                                                    <Calendar size={14} />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
                                                                     className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                                                     onClick={() => handleDeleteFee(fee._id, fee.paidAmount ?? 0)}
                                                                     disabled={deletingFeeId === fee._id}
@@ -1419,6 +1659,50 @@ export default function StudentDetailsPage({ params }) {
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            {fee?.installments && fee.installments.length > 0 && (
+                                                <div className="mt-4 pt-4 border-t border-slate-100/80 space-y-2">
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Installment Schedule</p>
+                                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                                        {fee.installments.map((inst, index) => {
+                                                            const isInstPaid = inst.status === 'paid';
+                                                            const isOverdue = inst.status === 'overdue' || (inst.status === 'pending' && new Date(inst.dueDate) < new Date());
+                                                            
+                                                            return (
+                                                                <div 
+                                                                    key={inst._id || index}
+                                                                    className={`p-2 rounded-xl border flex flex-col justify-between shadow-sm relative overflow-hidden transition-all ${
+                                                                        isInstPaid 
+                                                                            ? 'bg-emerald-50/50 border-emerald-100 text-emerald-800' 
+                                                                            : isOverdue
+                                                                                ? 'bg-rose-50/50 border-rose-100 text-rose-800 animate-pulse'
+                                                                                : 'bg-slate-50/50 border-slate-100 text-slate-700'
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-[9px] font-bold uppercase tracking-wider bg-white/80 px-1.5 py-0.5 rounded-full border shadow-sm">
+                                                                            #{index + 1}
+                                                                        </span>
+                                                                        <span className={`w-1.5 h-1.5 rounded-full ${
+                                                                            isInstPaid 
+                                                                                ? 'bg-emerald-500' 
+                                                                                : isOverdue 
+                                                                                    ? 'bg-rose-500 animate-pulse' 
+                                                                                    : 'bg-slate-400'
+                                                                        }`} />
+                                                                    </div>
+                                                                    <div className="mt-2 flex justify-between items-baseline gap-1">
+                                                                        <span className="text-xs font-black">₹{inst.amount.toLocaleString()}</span>
+                                                                        <span className="text-[9px] font-medium text-slate-400">
+                                                                            {format(new Date(inst.dueDate), "MMM d")}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </Card>
                                     );
                                 });
@@ -1936,6 +2220,95 @@ export default function StudentDetailsPage({ params }) {
                                 </p>
                             </div>
                         )}
+
+                        {selectedBatch && (
+                            <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 space-y-4 animate-fade-in">
+                                <label className="flex items-center gap-2.5 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={configureInstallments}
+                                        onChange={(e) => setConfigureInstallments(e.target.checked)}
+                                        className="rounded border-slate-300 text-premium-blue focus:ring-premium-blue w-4 h-4"
+                                    />
+                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Configure Installment Plan?</span>
+                                </label>
+                                
+                                {configureInstallments && (
+                                    <div className="space-y-4 pt-2 border-t border-slate-100/80 animate-fade-in">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Installments Count</label>
+                                                <input 
+                                                    type="number" 
+                                                    min="2" 
+                                                    max="12"
+                                                    value={numInstallments}
+                                                    onChange={(e) => setNumInstallments(Math.max(2, parseInt(e.target.value) || 2))}
+                                                    className="w-full text-xs p-2 bg-white border border-slate-200 rounded-xl focus:border-premium-blue focus:ring-premium-blue font-bold text-slate-700"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Billing Interval</label>
+                                                <select
+                                                    value={installmentInterval}
+                                                    onChange={(e) => setInstallmentInterval(e.target.value)}
+                                                    className="w-full text-xs p-2 bg-white border border-slate-200 rounded-xl focus:border-premium-blue focus:ring-premium-blue font-bold text-slate-700"
+                                                >
+                                                    <option value="monthly">Monthly</option>
+                                                    <option value="quarterly">Quarterly</option>
+                                                    <option value="custom">Bi-Weekly</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                                            {enrollmentInstallments.map((inst, index) => (
+                                                <div key={index} className="flex gap-2 items-center p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
+                                                    <span className="text-[10px] font-black text-slate-400 bg-slate-50 w-5 h-5 rounded-full flex items-center justify-center border border-slate-100">
+                                                        #{index + 1}
+                                                    </span>
+                                                    <div className="flex-1">
+                                                        <input 
+                                                            type="number"
+                                                            value={inst.amount}
+                                                            onChange={(e) => handleEnrollmentInstallmentChange(index, 'amount', e.target.value)}
+                                                            placeholder="Amount"
+                                                            className="w-full text-xs p-1.5 border border-slate-100 rounded-lg text-slate-700 font-bold focus:border-premium-blue focus:ring-0"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <input 
+                                                            type="date"
+                                                            value={inst.dueDate}
+                                                            onChange={(e) => handleEnrollmentInstallmentChange(index, 'dueDate', e.target.value)}
+                                                            className="w-full text-xs p-1.5 border border-slate-100 rounded-lg text-slate-700 font-medium focus:border-premium-blue focus:ring-0"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {(() => {
+                                            const expected = getEnrollmentTotalAmount();
+                                            const currentSum = enrollmentInstallments.reduce((sum, inst) => sum + (parseFloat(inst.amount) || 0), 0);
+                                            const matches = Math.abs(currentSum - expected) < 0.01;
+                                            return (
+                                                <div className={`p-2.5 rounded-xl text-center text-xs font-bold border transition-colors ${
+                                                    matches 
+                                                        ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                                                        : 'bg-red-50 border-red-100 text-red-700'
+                                                }`}>
+                                                    {matches 
+                                                        ? `✓ Plan Configured Correctly! Sum matches ₹${expected.toLocaleString()}`
+                                                        : `⚠ Mismatch: Split Sum is ₹${currentSum.toLocaleString()} (Must be exactly ₹${expected.toLocaleString()})`
+                                                    }
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsEnrollModalOpen(false)}>Cancel</Button>
@@ -1946,6 +2319,222 @@ export default function StudentDetailsPage({ params }) {
                                     Enrolling...
                                 </>
                             ) : `Enroll Student`}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Manage Installments Modal */}
+            <Modal
+                isOpen={isInstallmentsModalOpen}
+                onClose={() => setIsInstallmentsModalOpen(false)}
+                title="Manage Fee Installment Plan"
+            >
+                <form onSubmit={handleSaveInstallmentPlan} className="space-y-6">
+                    {selectedFee && (
+                        <div className="space-y-4">
+                            {/* Financial Summary Info */}
+                            {(() => {
+                                const expectedTotal = selectedFee.totalAmount - (selectedFee.discount?.amount || 0) + (selectedFee.extraCharges?.amount || 0);
+                                const paidAmount = selectedFee.paidAmount || 0;
+                                const unpaidRemaining = Math.max(0, expectedTotal - paidAmount);
+                                
+                                return (
+                                    <div className="grid grid-cols-3 gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 text-center">
+                                        <div>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Expected Total</p>
+                                            <p className="text-sm font-black text-slate-700 mt-0.5">₹{expectedTotal.toLocaleString()}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Paid</p>
+                                            <p className="text-sm font-black text-emerald-600 mt-0.5">₹{paidAmount.toLocaleString()}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Unpaid Balance</p>
+                                            <p className="text-sm font-black text-amber-600 mt-0.5">₹{unpaidRemaining.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Split Configuration Panel */}
+                            {(() => {
+                                const expectedTotal = selectedFee.totalAmount - (selectedFee.discount?.amount || 0) + (selectedFee.extraCharges?.amount || 0);
+                                const paidAmount = selectedFee.paidAmount || 0;
+                                const unpaidRemaining = Math.max(0, expectedTotal - paidAmount);
+
+                                if (unpaidRemaining <= 0) return null;
+
+                                return (
+                                    <div className="p-3.5 rounded-2xl border border-blue-50 bg-blue-50/10 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-premium-blue animate-pulse" />
+                                            <h4 className="text-[10px] font-black text-premium-blue uppercase tracking-widest">Auto Split Remaining Balance</h4>
+                                        </div>
+                                        
+                                        <div className="flex gap-2 items-end">
+                                            <div className="flex-1 space-y-1">
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Parts</label>
+                                                <input 
+                                                    id="split_parts_input"
+                                                    type="number"
+                                                    min="1"
+                                                    max="12"
+                                                    defaultValue="3"
+                                                    className="w-full text-xs p-1.5 bg-white border border-slate-200 rounded-xl text-slate-700 font-bold"
+                                                />
+                                            </div>
+                                            <div className="flex-1 space-y-1">
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Interval</label>
+                                                <select
+                                                    id="split_interval_select"
+                                                    className="w-full text-xs p-1.5 bg-white border border-slate-200 rounded-xl text-slate-700 font-bold"
+                                                >
+                                                    <option value="monthly">Monthly</option>
+                                                    <option value="quarterly">Quarterly</option>
+                                                    <option value="custom">Bi-Weekly</option>
+                                                </select>
+                                            </div>
+                                            <Button 
+                                                type="button" 
+                                                size="sm"
+                                                className="h-[32px] px-3 font-bold text-xs"
+                                                onClick={() => {
+                                                    const partsVal = parseInt(document.getElementById('split_parts_input')?.value) || 3;
+                                                    const intervalVal = document.getElementById('split_interval_select')?.value || 'monthly';
+                                                    handleGenerateManageInstallments(partsVal, intervalVal);
+                                                }}
+                                            >
+                                                Split
+                                            </Button>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Interactive Installment Schedules List */}
+                            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Installment Schedule Details</label>
+                                {manageInstallmentsList.map((inst, index) => {
+                                    const isPaid = inst.status === 'paid';
+                                    return (
+                                        <div 
+                                            key={index}
+                                            className={`p-2.5 rounded-xl border flex gap-3 items-center shadow-sm relative transition-all ${
+                                                isPaid 
+                                                    ? 'bg-emerald-50/40 border-emerald-100/60' 
+                                                    : 'bg-white border-slate-100'
+                                            }`}
+                                        >
+                                            <div className="flex flex-col items-center justify-center">
+                                                <span className={`text-[9px] font-black w-6 h-6 rounded-full flex items-center justify-center border ${
+                                                    isPaid 
+                                                        ? 'bg-emerald-100 border-emerald-200 text-emerald-700' 
+                                                        : 'bg-slate-50 border-slate-200 text-slate-400'
+                                                }`}>
+                                                    #{index + 1}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex-1 grid grid-cols-2 gap-2">
+                                                <div className="space-y-0.5">
+                                                    <span className="text-[9px] text-slate-400 uppercase font-black tracking-wider">Amount</span>
+                                                    <input 
+                                                        type="number"
+                                                        value={inst.amount}
+                                                        onChange={(e) => handleManageInstallmentChange(index, 'amount', e.target.value)}
+                                                        disabled={isPaid}
+                                                        className="w-full text-xs p-1.5 border border-slate-100 rounded-lg text-slate-700 font-black disabled:bg-slate-50 disabled:text-slate-500 focus:border-premium-blue"
+                                                    />
+                                                </div>
+                                                <div className="space-y-0.5">
+                                                    <span className="text-[9px] text-slate-400 uppercase font-black tracking-wider">Due Date</span>
+                                                    <input 
+                                                        type="date"
+                                                        value={inst.dueDate ? format(new Date(inst.dueDate), "yyyy-MM-dd") : ""}
+                                                        onChange={(e) => handleManageInstallmentChange(index, 'dueDate', e.target.value)}
+                                                        disabled={isPaid}
+                                                        className="w-full text-xs p-1.5 border border-slate-100 rounded-lg text-slate-700 font-medium disabled:bg-slate-50 disabled:text-slate-500 focus:border-premium-blue"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {!isPaid ? (
+                                                <Button 
+                                                    type="button"
+                                                    size="xs"
+                                                    variant="ghost"
+                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg"
+                                                    onClick={() => handleDeleteManageInstallment(index)}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </Button>
+                                            ) : (
+                                                <div className="px-2 py-1 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded-lg border border-emerald-200 flex items-center gap-1 uppercase">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                    Paid
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+
+                                {manageInstallmentsList.length === 0 && (
+                                    <div className="p-6 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                        <p className="text-slate-400 text-xs font-medium">No installments defined for this fee.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Add Custom Installment Action */}
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm" 
+                                className="w-full border-dashed text-premium-blue border-blue-200 hover:bg-blue-50"
+                                onClick={handleAddManageInstallment}
+                            >
+                                <Plus size={14} className="mr-1.5" /> Add Custom Installment
+                            </Button>
+
+                            {/* Summary Match Alert */}
+                            {(() => {
+                                const expectedTotal = selectedFee.totalAmount - (selectedFee.discount?.amount || 0) + (selectedFee.extraCharges?.amount || 0);
+                                const currentSum = manageInstallmentsList.reduce((sum, inst) => sum + (parseFloat(inst.amount) || 0), 0);
+                                const matches = Math.abs(currentSum - expectedTotal) < 0.01;
+                                
+                                return (
+                                    <div className={`p-3 rounded-xl border text-center text-xs font-bold transition-colors ${
+                                        matches 
+                                            ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                                            : 'bg-red-50 border-red-100 text-red-700'
+                                    }`}>
+                                        {matches 
+                                            ? `✓ Perfect! Total matches ₹${expectedTotal.toLocaleString()}`
+                                            : `⚠ Mismatch: Sum of installments is ₹${currentSum.toLocaleString()} (Must equal expected total ₹${expectedTotal.toLocaleString()})`
+                                        }
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    )}
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
+                        <Button type="button" variant="ghost" onClick={() => setIsInstallmentsModalOpen(false)}>Cancel</Button>
+                        <Button 
+                            type="submit" 
+                            disabled={
+                                isSavingInstallments || 
+                                !(() => {
+                                    if (!selectedFee) return false;
+                                    const expectedTotal = selectedFee.totalAmount - (selectedFee.discount?.amount || 0) + (selectedFee.extraCharges?.amount || 0);
+                                    const currentSum = manageInstallmentsList.reduce((sum, inst) => sum + (parseFloat(inst.amount) || 0), 0);
+                                    return Math.abs(currentSum - expectedTotal) < 0.01;
+                                })()
+                            }
+                        >
+                            {isSavingInstallments ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> : null}
+                            Save Installment Plan
                         </Button>
                     </div>
                 </form>
@@ -1964,10 +2553,16 @@ export default function StudentDetailsPage({ params }) {
                             value={paymentData.installmentId}
                             onChange={(val) => {
                                 const inst = selectedFee?.installments?.find(i => i._id === val);
+                                let amt = "";
+                                if (val === "adhoc") {
+                                    amt = (selectedFee.totalAmount - (selectedFee.paidAmount || 0)).toString();
+                                } else if (inst) {
+                                    amt = inst.amount.toString();
+                                }
                                 setPaymentData({
                                     ...paymentData,
                                     installmentId: val,
-                                    amount: inst ? inst.amount.toString() : paymentData.amount
+                                    amount: amt
                                 });
                             }}
                             options={[

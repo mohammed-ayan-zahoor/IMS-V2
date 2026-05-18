@@ -577,67 +577,61 @@ export class FeeService {
 
                 if (pendingInstallments.length === 0) throw new Error("No pending installments to pay");
 
-                // We only support clearing EXACT installments or splitting the FIRST one for now to avoid complexity?
-                // Actually, let's just create a new 'paid' installment and reduce the pending one?
-                // No, that changes the number of installments.
-
-                // Let's go with: Apply to first pending.
-                const current = pendingInstallments[0];
-
-                if (Math.abs(current.amount - remaining) < 1.0) {
-                    // Exact match
-                    current.status = 'paid';
-                    current.paidDate = paymentDetails.date ? new Date(paymentDetails.date) : new Date();
-                    current.paymentMethod = paymentDetails.method;
-                    current.transactionId = paymentDetails.transactionId;
-                    current.collectedBy = paymentDetails.collectedBy;
-                    current.notes = paymentDetails.notes;
-                    remaining = 0;
-                } else if (remaining < current.amount) {
-                    // Partial payment of installment
-                    // Split current into Paid (remaining) + Pending (current - remaining)
-                    const originalAmount = current.amount;
-                    const paidPart = remaining;
-                    const balancePart = originalAmount - remaining;
-
-                    // Update current to be the Balance (Pending)
-                    // Update current to be the Balance (Pending)
-                    current.amount = balancePart;
-                    const nextDate = parseValidDate(paymentDetails.nextDueDate);
-                    if (nextDate) {
-                        current.dueDate = nextDate;
+                // Apply a complete Waterfall Payment Algorithm across pending installments
+                for (let i = 0; i < pendingInstallments.length; i++) {
+                    if (remaining <= 0.01) break;
+                    
+                    const current = pendingInstallments[i];
+                    
+                    if (remaining >= current.amount - 0.01) {
+                        // The remaining amount covers this entire installment (or extremely close to it)
+                        const paidAmount = current.amount;
+                        current.status = 'paid';
+                        current.paidDate = paymentDetails.date ? new Date(paymentDetails.date) : new Date();
+                        current.paymentMethod = paymentDetails.method;
+                        current.transactionId = paymentDetails.transactionId;
+                        current.collectedBy = paymentDetails.collectedBy;
+                        current.notes = paymentDetails.notes;
+                        
+                        remaining -= paidAmount;
+                    } else {
+                        // Partial payment of this installment
+                        // Split current into Paid (remaining) + Pending (current - remaining)
+                        const originalAmount = current.amount;
+                        const paidPart = Math.round(remaining * 100) / 100;
+                        const balancePart = Math.round((originalAmount - remaining) * 100) / 100;
+                        
+                        // Update current to be the Balance (Pending)
+                        current.amount = balancePart;
+                        const nextDate = parseValidDate(paymentDetails.nextDueDate);
+                        if (nextDate) {
+                            current.dueDate = nextDate;
+                        }
+                        
+                        // Insert new Paid installment BEFORE current
+                        const idx = fee.installments.indexOf(current);
+                        const newPaidInstallment = {
+                            amount: paidPart,
+                            dueDate: current.dueDate,
+                            status: 'paid',
+                            paidDate: paymentDetails.date ? new Date(paymentDetails.date) : new Date(),
+                            paymentMethod: paymentDetails.method,
+                            transactionId: paymentDetails.transactionId,
+                            collectedBy: paymentDetails.collectedBy,
+                            notes: paymentDetails.notes
+                        };
+                        
+                        fee.installments.splice(idx, 0, newPaidInstallment);
+                        remaining = 0;
                     }
-
-                    // Insert new Paid installment BEFORE current
-                    // Use MongoDB's native array operations via Mongoose
-                    const idx = fee.installments.indexOf(current);
-                    
-                    const newPaidInstallment = {
-                        amount: paidPart,
-                        dueDate: current.dueDate,
-                        status: 'paid',
-                        paidDate: paymentDetails.date ? new Date(paymentDetails.date) : new Date(),
-                        paymentMethod: paymentDetails.method,
-                        transactionId: paymentDetails.transactionId,
-                        collectedBy: paymentDetails.collectedBy,
-                        notes: paymentDetails.notes
-                    };
-                    
-                    // Splice to insert the paid installment before the current (now pending) one
-                    fee.installments.splice(idx, 0, newPaidInstallment);
-                    fee.markModified('installments');
-                    remaining = 0;
-                } else {
-                    // Overpayment of single installment (Waterfall to next)
-                    // For safety, let's BLOCK overpayment for now or just handle single installment.
-                    // The UI sends "Remaining Balance" by default.
-
-                    // If user tries to pay 4000 but installment is 2000.
-                    // We pay 2000. Remaining 2000 goes to next.
-                    // Implementation of full waterfall is complex and risky for now.
-                    // Let's throw if amount > 1st pending installment + epsilon
-                    throw new Error(`Payment amount (${amountToPay}) exceeds current pending installment (${current.amount}). Please pay installments sequentially.`);
                 }
+                
+                // If there's still a remainder (overpaying the entire fee balance)
+                if (remaining > 0.01) {
+                    throw new Error(`Payment amount (₹${amountToPay.toLocaleString()}) exceeds the total outstanding balance of the fee (₹${(amountToPay - remaining).toLocaleString()}).`);
+                }
+                
+                fee.markModified('installments');
                 details = {
                     name: getStudentName(fee.student),
                     type: 'waterfall',
@@ -809,6 +803,50 @@ export class FeeService {
                 student: fee.student?._id,
                 amount: chargeAmount,
                 reason: typeof chargesData === 'object' ? chargesData.reason : 'Extra Charge'
+            }
+        });
+
+        return fee;
+    }
+
+    static async updateInstallments(feeId, newInstallments, actorId) {
+        await connectDB();
+        const fee = await FeeDb.findById(feeId).populate('student').populate('batch');
+        if (!fee) throw new Error("Fee record not found");
+
+        // Validate that the sum of new installments matches the expected total
+        const expectedTotal = fee.totalAmount - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0);
+        const installmentsTotal = newInstallments.reduce((sum, i) => sum + parseFloat(i.amount), 0);
+        
+        const EPSILON = 0.01;
+        if (Math.abs(installmentsTotal - expectedTotal) > EPSILON) {
+            throw new Error(`Installments total (₹${installmentsTotal.toFixed(2)}) must equal expected total (₹${expectedTotal.toFixed(2)})`);
+        }
+
+        // Replace the installments array
+        fee.installments = newInstallments.map(i => ({
+            amount: parseFloat(i.amount),
+            dueDate: new Date(i.dueDate),
+            status: i.status || 'pending',
+            paidDate: i.paidDate ? new Date(i.paidDate) : undefined,
+            paymentMethod: i.paymentMethod,
+            transactionId: i.transactionId,
+            collectedBy: i.collectedBy,
+            notes: i.notes
+        }));
+
+        fee.markModified('installments');
+        await fee.save();
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'fee.update',
+            resource: { type: 'Fee', id: feeId },
+            institute: fee.institute,
+            details: {
+                field: 'installments',
+                count: newInstallments.length,
+                total: expectedTotal
             }
         });
 

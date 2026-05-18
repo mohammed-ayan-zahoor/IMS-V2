@@ -489,7 +489,7 @@ export class StudentService {
     /**
      * Enroll student in a batch and initialize fees
      */
-    static async enrollInBatch(studentId, batchId, actorId, instituteId, customAmount = null, presetId = null) {
+    static async enrollInBatch(studentId, batchId, actorId, instituteId, customAmount = null, presetId = null, installments = null) {
         const session = await mongoose.startSession();
         try {
             session.startTransaction();
@@ -592,7 +592,11 @@ export class StudentService {
                 batch: batchId,
                 institute: targetInstitute,
                 totalAmount: customAmount !== null ? parseFloat(customAmount) : batch.course.fees.amount,
-                installments: [],
+                installments: (installments && installments.length > 0) ? installments.map(i => ({
+                    amount: parseFloat(i.amount),
+                    dueDate: new Date(i.dueDate),
+                    status: 'pending'
+                })) : [],
                 status: 'not_started',
                 feePreset: presetId || null
             }], { session });
@@ -625,7 +629,7 @@ export class StudentService {
             await session.abortTransaction();
             // Fallback for standalone mongo (Replica Set required for transactions)
             if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
-                return this.enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount, presetId);
+                return this.enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount, presetId, installments);
             }
             throw error;
         } finally {
@@ -634,7 +638,7 @@ export class StudentService {
     }
 
     // Fallback for standalone DB without transactions
-    static async enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount = null, presetId = null) {
+    static async enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount = null, presetId = null, installments = null) {
         const student = await User.findById(studentId);
         if (!student || student.role !== 'student' || student.deletedAt) throw new Error('Invalid or inactive student');
 
@@ -691,7 +695,11 @@ export class StudentService {
             batch: batchId,
             institute: batch.institute,
             totalAmount: customAmount !== null ? parseFloat(customAmount) : batch.course.fees.amount,
-            installments: [],
+            installments: (installments && installments.length > 0) ? installments.map(i => ({
+                amount: parseFloat(i.amount),
+                dueDate: new Date(i.dueDate),
+                status: 'pending'
+            })) : [],
             status: 'not_started',
             feePreset: presetId || null
         });

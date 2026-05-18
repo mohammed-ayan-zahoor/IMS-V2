@@ -175,6 +175,17 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ success: true, fee });
         }
 
+        // Handle installments update/generation
+        if ('installments' in body) {
+            const { installments } = body;
+            if (!Array.isArray(installments)) {
+                return NextResponse.json({ error: "Installments must be an array" }, { status: 400 });
+            }
+
+            const fee = await FeeService.updateInstallments(id, installments, session.user.id);
+            return NextResponse.json({ success: true, fee });
+        }
+
         return NextResponse.json({ error: "No valid fields provided for update" }, { status: 400 });
 
     } catch (error) {

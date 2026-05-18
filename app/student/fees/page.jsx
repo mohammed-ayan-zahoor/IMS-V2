@@ -4,9 +4,25 @@ import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Skeleton from "@/components/shared/Skeleton";
-import { CreditCard, Calendar, CheckCircle2, AlertCircle, Clock, Receipt, ChevronRight, ArrowUpRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { 
+    CreditCard, 
+    Calendar, 
+    CheckCircle2, 
+    AlertCircle, 
+    Clock, 
+    Receipt, 
+    ChevronRight, 
+    ArrowUpRight,
+    Sparkles,
+    Smartphone,
+    Info,
+    Check,
+    Loader2,
+    Shield
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import Button from "@/components/ui/Button";
 
@@ -15,6 +31,54 @@ export default function StudentFeesPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const router = useRouter();
+
+    // UPI Autopay Simulation States
+    const [autopayStates, setAutopayStates] = useState({}); // mapped by feeId: { enabled: boolean, vpa?: string }
+    const [activeFeeForAutopay, setActiveFeeForAutopay] = useState(null);
+    const [vpaInput, setVpaInput] = useState('');
+    const [vpaError, setVpaError] = useState('');
+    const [isSettingUp, setIsSettingUp] = useState(false);
+    const [setupStep, setSetupStep] = useState(1); // 1: Input VPA, 2: App Pending Approval, 3: Success
+
+    const handleAutopayToggle = (feeId, currentlyEnabled) => {
+        if (currentlyEnabled) {
+            // Cancel Autopay Simulation
+            setAutopayStates(prev => ({
+                ...prev,
+                [feeId]: { enabled: false }
+            }));
+        } else {
+            // Launch Setup Modal Simulation
+            setActiveFeeForAutopay(feeId);
+            setVpaInput('');
+            setVpaError('');
+            setSetupStep(1);
+        }
+    };
+
+    const handleSetupAutopay = async () => {
+        if (!vpaInput.trim() || !vpaInput.includes('@')) {
+            setVpaError('Please enter a valid UPI VPA (e.g. name@okaxis)');
+            return;
+        }
+        setVpaError('');
+        setIsSettingUp(true);
+        
+        // Simulating Merchant Request & Push Notification Handshake (1.5 seconds)
+        setTimeout(() => {
+            setIsSettingUp(false);
+            setSetupStep(2);
+            
+            // Simulating user opening GPay/PhonePe and authenticating with UPI PIN (3.5 seconds)
+            setTimeout(() => {
+                setSetupStep(3);
+                setAutopayStates(prev => ({
+                    ...prev,
+                    [activeFeeForAutopay]: { enabled: true, vpa: vpaInput }
+                }));
+            }, 3500);
+        }, 1500);
+    };
 
     useEffect(() => {
         const controller = new AbortController();
@@ -163,6 +227,47 @@ export default function StudentFeesPage() {
                                     </div>
                                 </div>
 
+                                {/* UPI Autopay Control Card */}
+                                {fee.status !== 'paid' && (
+                                    <div className="mb-10 p-6 rounded-[2rem] border border-slate-200/60 bg-gradient-to-r from-slate-50 via-white to-slate-50/50 shadow-sm relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+                                        <div className="absolute top-0 left-0 w-24 h-24 bg-blue-500/5 rounded-full -ml-12 -mt-12 blur-2xl"></div>
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-sm shrink-0">
+                                                <Sparkles size={22} className="animate-pulse" />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="text-sm font-black text-slate-800 tracking-tight">UPI Autopay (Auto-Debit)</h4>
+                                                    <span className="text-[9px] font-black uppercase bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md tracking-wider">
+                                                        NPCI Standard
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 font-medium mt-1 max-w-xl">
+                                                    Automatically clear your upcoming monthly installments using Google Pay, PhonePe, or Paytm. Safe, instant, and completely automated.
+                                                </p>
+                                                {autopayStates[fee._id]?.enabled && (
+                                                    <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-[10px] font-black text-emerald-700 uppercase tracking-widest animate-fade-in">
+                                                        <Check size={12} strokeWidth={3} /> Active Mandate: {autopayStates[fee._id]?.vpa}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="shrink-0 w-full md:w-auto">
+                                            <Button
+                                                onClick={() => handleAutopayToggle(fee._id, autopayStates[fee._id]?.enabled)}
+                                                className={cn(
+                                                    "w-full md:w-auto font-black uppercase tracking-widest text-[10px] py-3 px-6 rounded-2xl transition-all shadow-sm",
+                                                    autopayStates[fee._id]?.enabled
+                                                        ? "bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100"
+                                                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/10"
+                                                )}
+                                            >
+                                                {autopayStates[fee._id]?.enabled ? "Disable Autopay" : "Configure Autopay"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Installments Table */}
                                 <div className="space-y-4">
                                     <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-2">Installment Plan</h3>
@@ -216,6 +321,189 @@ export default function StudentFeesPage() {
                     </div>
                 )}
             </div>
+
+            {/* UPI Autopay Setup Modal Simulation */}
+            <AnimatePresence>
+                {activeFeeForAutopay && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        {/* Backdrop */}
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => {
+                                if (setupStep !== 2) setActiveFeeForAutopay(null);
+                            }}
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                        />
+
+                        {/* Modal Container */}
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl w-full max-w-lg p-8 relative z-10 overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+
+                            {/* Step 1: Input VPA */}
+                            {setupStep === 1 && (
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-sm shrink-0">
+                                            <Smartphone size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black text-slate-900 italic tracking-tight">Configure UPI Autopay</h3>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Step 1 of 2: Authorize Mandate</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-3">
+                                        <div className="flex gap-2">
+                                            <Shield size={16} className="text-blue-500 shrink-0 mt-0.5" />
+                                            <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                                                By setting up Autopay, you authorize our secure payment system to auto-debit your scheduled fee installments directly on the due dates.
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Info size={16} className="text-slate-400 shrink-0 mt-0.5" />
+                                            <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                                                Under RBI regulations, you will receive a notification 24 hours before any debit. No UPI PIN is required for transactions up to ₹15,000.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block ml-1">Your UPI ID / VPA</label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="e.g. parent@okaxis" 
+                                            value={vpaInput}
+                                            onChange={(e) => setVpaInput(e.target.value)}
+                                            disabled={isSettingUp}
+                                            className={cn(
+                                                "w-full px-5 py-4 rounded-2xl border bg-slate-50 text-slate-900 text-sm font-semibold outline-none transition-all shadow-inner focus:bg-white focus:ring-2 focus:ring-blue-500/20",
+                                                vpaError ? "border-rose-300 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"
+                                            )}
+                                        />
+                                        {vpaError && (
+                                            <p className="text-xs text-rose-500 font-medium ml-1 flex items-center gap-1">
+                                                <AlertCircle size={12} /> {vpaError}
+                                            </p>
+                                        )}
+                                        <div className="flex items-center justify-between text-[10px] text-slate-400 px-1 pt-1 font-medium">
+                                            <span>Accepted: GPay, PhonePe, Paytm, BHIM</span>
+                                            <span className="flex items-center gap-1"><Shield size={10} className="text-emerald-500" /> Secure 256-Bit SSL</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 pt-2">
+                                        <Button 
+                                            variant="ghost" 
+                                            onClick={() => setActiveFeeForAutopay(null)}
+                                            disabled={isSettingUp}
+                                            className="flex-1 py-4 font-bold border border-slate-200 text-slate-500 rounded-2xl transition-all"
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button 
+                                            onClick={handleSetupAutopay}
+                                            disabled={isSettingUp}
+                                            className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-500/10 font-bold flex items-center justify-center gap-2"
+                                        >
+                                            {isSettingUp ? (
+                                                <>
+                                                    <Loader2 size={16} className="animate-spin" />
+                                                    Connecting...
+                                                </>
+                                            ) : (
+                                                'Initiate Setup'
+                                            )}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 2: Verification Pending inside the UPI App */}
+                            {setupStep === 2 && (
+                                <div className="space-y-8 py-4 text-center">
+                                    <div className="relative w-24 h-24 mx-auto mb-6">
+                                        <div className="absolute inset-0 bg-blue-500/10 rounded-full animate-ping"></div>
+                                        <div className="w-24 h-24 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-sm relative">
+                                            <Loader2 size={40} className="animate-spin" />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <h3 className="text-xl font-black text-slate-900 italic tracking-tight">App Authorization Pending</h3>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Step 2 of 2: Authorize in your App</p>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4 max-w-sm mx-auto text-left">
+                                        <div className="flex gap-3">
+                                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-black shrink-0">1</div>
+                                            <p className="text-xs text-slate-600 font-medium">Open your UPI App (**{vpaInput}**).</p>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-black shrink-0">2</div>
+                                            <p className="text-xs text-slate-600 font-medium">Review the pending mandate authorization notification.</p>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-black shrink-0">3</div>
+                                            <p className="text-xs text-slate-600 font-medium">Enter your **UPI PIN** to verify a refundable ₹1 authorization.</p>
+                                        </div>
+                                    </div>
+
+                                    <p className="text-[10px] text-slate-400 font-medium italic animate-pulse">
+                                        Listening for Payment Gateway confirmation...
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Step 3: Success Screen */}
+                            {setupStep === 3 && (
+                                <div className="space-y-6 text-center py-4">
+                                    <div className="w-20 h-20 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shadow-md mx-auto mb-6">
+                                        <CheckCircle2 size={40} className="animate-bounce" />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <h3 className="text-2xl font-black text-slate-900 italic tracking-tight">UPI Autopay Active!</h3>
+                                        <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto">
+                                            Mandate registration successful. Upcoming course installments will be automatically debited.
+                                        </p>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-left space-y-2.5 max-w-sm mx-auto">
+                                        <div className="flex justify-between text-xs font-medium">
+                                            <span className="text-slate-400">Linked VPA:</span>
+                                            <span className="text-slate-800 font-black italic">{vpaInput}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs font-medium">
+                                            <span className="text-slate-400">Billing Mode:</span>
+                                            <span className="text-slate-800 font-black italic">Auto-Debit (NPCI)</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs font-medium">
+                                            <span className="text-slate-400">Pre-Debit Alert:</span>
+                                            <span className="text-slate-800 font-black italic">SMS / WhatsApp</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2">
+                                        <Button 
+                                            onClick={() => setActiveFeeForAutopay(null)}
+                                            className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-slate-900/10 transition-all"
+                                        >
+                                            Got It
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

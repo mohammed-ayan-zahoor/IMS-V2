@@ -77,11 +77,67 @@ const FeeSchema = new Schema({
 FeeSchema.index({ institute: 1, student: 1, batch: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
 // Pre-save hook to calculate balances
 FeeSchema.pre('save', async function () {
-    // Validate installment amounts sum
+    // Auto-balance and validate installment amounts sum
     if (this.installments && this.installments.length > 0) {
-        const installmentsTotal = this.installments.reduce((sum, i) => sum + i.amount, 0);
         const expectedTotal = this.totalAmount - (this.discount?.amount || 0) + (this.extraCharges?.amount || 0);
-        const EPSILON = 0.01; // 1 cent tolerance
+        let installmentsTotal = this.installments.reduce((sum, i) => sum + i.amount, 0);
+        let diff = expectedTotal - installmentsTotal;
+        const EPSILON = 0.01;
+
+        if (Math.abs(diff) > EPSILON) {
+            const pending = this.installments.filter(i => i.status === 'pending');
+
+            if (pending.length > 0) {
+                if (diff > 0) {
+                    // Extra charge applied -> add to pending
+                    const share = Math.floor((diff / pending.length) * 100) / 100;
+                    const remainder = Math.round((diff - (share * pending.length)) * 100) / 100;
+                    
+                    pending.forEach((inst, idx) => {
+                        inst.amount = Math.round((inst.amount + share + (idx === 0 ? remainder : 0)) * 100) / 100;
+                    });
+                } else {
+                    // Discount applied -> reduce from pending
+                    let absDiff = Math.abs(diff);
+                    
+                    for (let inst of pending) {
+                        if (absDiff <= 0) break;
+                        if (inst.amount >= absDiff) {
+                            inst.amount = Math.round((inst.amount - absDiff) * 100) / 100;
+                            absDiff = 0;
+                        } else {
+                            absDiff = Math.round((absDiff - inst.amount) * 100) / 100;
+                            inst.amount = 0;
+                        }
+                    }
+
+                    // Remove any pending installments that reached 0
+                    this.installments = this.installments.filter(i => i.status !== 'pending' || i.amount > 0.01);
+
+                    if (absDiff > 0.01) {
+                        throw new Error(`Discount exceeds the remaining unpaid installment balance (₹${(installmentsTotal - this.installments.filter(i => i.status === 'paid').reduce((sum, x) => sum + x.amount, 0)).toLocaleString()})`);
+                    }
+                }
+            } else {
+                // All installments are already paid!
+                if (diff > 0) {
+                    const today = new Date();
+                    const nextMonth = new Date(today);
+                    nextMonth.setMonth(today.getMonth() + 1);
+
+                    this.installments.push({
+                        amount: Math.round(diff * 100) / 100,
+                        dueDate: nextMonth,
+                        status: 'pending'
+                    });
+                } else {
+                    throw new Error("Cannot apply discount because this fee is already fully paid.");
+                }
+            }
+
+            // Recalculate installments total after auto-balancing
+            installmentsTotal = this.installments.reduce((sum, i) => sum + i.amount, 0);
+        }
 
         if (Math.abs(installmentsTotal - expectedTotal) > EPSILON) {
             throw new Error(
