@@ -1,0 +1,311 @@
+
+> quantech@0.1.0 build
+> next build
+
+▲ Next.js 16.1.1 (Turbopack)
+- Environments: .env.local
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 22.4s
+  Running TypeScript ...
+  Collecting page data using 11 workers ...
+(node:51332) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:51336) [MONGOOSE] Warning: Duplicate schema index on {"expiresAt":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:51337) [MONGOOSE] Warning: Duplicate schema index on {"expiresAt":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:51332) [MONGOOSE] Warning: Duplicate schema index on {"batch":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:51340) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:51333) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:51342) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:51335) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:51338) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+  Generating static pages using 11 workers (0/168) ...
+  Generating static pages using 11 workers (42/168) 
+(node:51336) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(node:51335) [MONGOOSE] Warning: Duplicate schema index on {"expiresAt":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:51334) [MONGOOSE] Warning: Duplicate schema index on {"expiresAt":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  Generating static pages using 11 workers (84/168) 
+(node:51335) [MONGOOSE] Warning: Duplicate schema index on {"batch":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+  Generating static pages using 11 workers (126/168) 
+✓ Generating static pages using 11 workers (168/168) in 1146.1ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /admin/accounts
+├ ○ /admin/attendance
+├ ○ /admin/audit-logs
+├ ○ /admin/batches
+├ ƒ /admin/batches/[id]
+├ ƒ /admin/batches/[id]/students/[studentId]/marksheet
+├ ○ /admin/certificate-management
+├ ƒ /admin/chat
+├ ○ /admin/collections
+├ ○ /admin/completion-analytics
+├ ○ /admin/completion-tracking
+├ ○ /admin/courses
+├ ƒ /admin/courses/[id]/subjects
+├ ○ /admin/dashboard
+├ ○ /admin/enquiries
+├ ○ /admin/enquiries/applications
+├ ○ /admin/enquiries/new
+├ ○ /admin/exams
+├ ƒ /admin/exams/[id]
+├ ƒ /admin/exams/[id]/manage
+├ ƒ /admin/exams/[id]/results
+├ ○ /admin/exams/create
+├ ○ /admin/expenses/add
+├ ○ /admin/expenses/master
+├ ○ /admin/expenses/report
+├ ○ /admin/fees
+├ ○ /admin/fees/presets
+├ ○ /admin/id-cards
+├ ○ /admin/materials
+├ ƒ /admin/materials/[id]/submissions
+├ ○ /admin/notices
+├ ○ /admin/question-bank
+├ ƒ /admin/question-bank/[id]/edit
+├ ○ /admin/question-bank/create
+├ ƒ /admin/receipts/[id]
+├ ○ /admin/reports/admissions
+├ ○ /admin/reports/attendance
+├ ○ /admin/reports/follow-ups
+├ ○ /admin/settings
+├ ○ /admin/students
+├ ƒ /admin/students/[id]
+├ ƒ /admin/students/[id]/admission-form
+├ ○ /admin/subjects
+├ ƒ /admin/subjects/[id]/syllabus
+├ ○ /admin/transport
+├ ○ /admin/users
+├ ○ /admin/utility/backup
+├ ○ /admin/utility/restore
+├ ○ /admin/website
+├ ƒ /admission/[instituteId]
+├ ƒ /api/admin/stats
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/debug/batch-check
+├ ƒ /api/debug/fix-duplicates
+├ ƒ /api/debug/repair-fee-balances
+├ ƒ /api/debug/repair-student
+├ ƒ /api/debug/repair-student-v2
+├ ƒ /api/debug/student-status
+├ ƒ /api/pusher/auth
+├ ƒ /api/test
+├ ƒ /api/test-db
+├ ƒ /api/upload
+├ ƒ /api/uploads/check
+├ ƒ /api/uploads/cleanup
+├ ƒ /api/uploads/files/[filename]
+├ ƒ /api/v1/admin/sync-balances
+├ ƒ /api/v1/admissions
+├ ƒ /api/v1/admissions/convert
+├ ƒ /api/v1/admissions/reports
+├ ƒ /api/v1/assignments/[id]/submissions
+├ ƒ /api/v1/assignments/[id]/submit
+├ ƒ /api/v1/attendance/batch
+├ ƒ /api/v1/attendance/students/[id]
+├ ƒ /api/v1/audit-logs
+├ ƒ /api/v1/auth/student/change-password
+├ ƒ /api/v1/auth/switch-institute
+├ ƒ /api/v1/batches
+├ ƒ /api/v1/batches/[id]
+├ ƒ /api/v1/batches/[id]/marksheets
+├ ƒ /api/v1/batches/[id]/students/[studentId]/marksheet
+├ ƒ /api/v1/batches/[id]/timetable
+├ ƒ /api/v1/batches/clone
+├ ƒ /api/v1/certificate-templates
+├ ƒ /api/v1/certificate-templates/[id]
+├ ƒ /api/v1/certificate-templates/preview-data
+├ ƒ /api/v1/certificates/[id]
+├ ƒ /api/v1/certificates/[id]/toggle-visibility
+├ ƒ /api/v1/certificates/bulk-visibility
+├ ƒ /api/v1/chat/beams-auth
+├ ƒ /api/v1/chat/conversations
+├ ƒ /api/v1/chat/conversations/[id]
+├ ƒ /api/v1/chat/messages
+├ ƒ /api/v1/chat/messages/[id]
+├ ƒ /api/v1/chat/messages/bulk-delete
+├ ƒ /api/v1/chat/pusher-auth
+├ ƒ /api/v1/collectors
+├ ƒ /api/v1/collectors/[id]
+├ ƒ /api/v1/collectors/transfers
+├ ƒ /api/v1/courses
+├ ƒ /api/v1/courses/[id]
+├ ƒ /api/v1/courses/[id]/assign-subjects
+├ ƒ /api/v1/dashboard/activity
+├ ƒ /api/v1/dashboard/stats
+├ ƒ /api/v1/debug/fee-details
+├ ƒ /api/v1/enquiries
+├ ƒ /api/v1/enquiries/[id]
+├ ƒ /api/v1/exams
+├ ƒ /api/v1/exams/[id]
+├ ƒ /api/v1/exams/[id]/instructions
+├ ƒ /api/v1/exams/[id]/start
+├ ƒ /api/v1/exams/[id]/submissions
+├ ƒ /api/v1/exams/student
+├ ƒ /api/v1/exams/submissions/[id]/admin-result
+├ ƒ /api/v1/exams/submissions/[id]/autosave
+├ ƒ /api/v1/exams/submissions/[id]/result
+├ ƒ /api/v1/exams/submissions/[id]/submit
+├ ƒ /api/v1/expense-heads
+├ ƒ /api/v1/expense-heads/[id]
+├ ƒ /api/v1/expenses
+├ ƒ /api/v1/expenses/[id]
+├ ƒ /api/v1/fee-presets
+├ ƒ /api/v1/fee-presets/[id]
+├ ƒ /api/v1/fees
+├ ƒ /api/v1/fees/[id]
+├ ƒ /api/v1/fees/[id]/cancel
+├ ƒ /api/v1/fees/[id]/payment
+├ ƒ /api/v1/fees/stats
+├ ƒ /api/v1/files/[filename]
+├ ƒ /api/v1/id-card-templates
+├ ƒ /api/v1/id-card-templates/[id]
+├ ƒ /api/v1/id-cards/generate
+├ ƒ /api/v1/institute
+├ ƒ /api/v1/institutes
+├ ƒ /api/v1/institutes/[id]
+├ ƒ /api/v1/master-subjects
+├ ƒ /api/v1/master-subjects/[id]
+├ ƒ /api/v1/master-subjects/import
+├ ƒ /api/v1/materials
+├ ƒ /api/v1/materials/[id]
+├ ƒ /api/v1/materials/[id]/download
+├ ƒ /api/v1/notices
+├ ƒ /api/v1/public/courses
+├ ƒ /api/v1/public/institute/[code]
+├ ƒ /api/v1/public/institute/fetch-by-id/[id]
+├ ƒ /api/v1/public/institute/find-by-email
+├ ƒ /api/v1/public/shared-dashboard/[slug]
+├ ƒ /api/v1/questions
+├ ƒ /api/v1/questions/[id]
+├ ƒ /api/v1/questions/import
+├ ƒ /api/v1/reports/attendance
+├ ƒ /api/v1/reports/collections
+├ ƒ /api/v1/reports/follow-ups
+├ ƒ /api/v1/reports/follow-ups/export
+├ ƒ /api/v1/sessions
+├ ƒ /api/v1/sessions/activate/[id]
+├ ƒ /api/v1/sessions/delete/[id]
+├ ƒ /api/v1/shared-links
+├ ƒ /api/v1/shared-links/[id]
+├ ƒ /api/v1/student/assignments/calendar
+├ ƒ /api/v1/student/attendance
+├ ƒ /api/v1/student/batches
+├ ƒ /api/v1/student/batches/[id]
+├ ƒ /api/v1/student/dashboard
+├ ƒ /api/v1/student/documents
+├ ƒ /api/v1/student/fees
+├ ƒ /api/v1/student/id-card
+├ ƒ /api/v1/student/materials
+├ ƒ /api/v1/student/notices
+├ ƒ /api/v1/student/practice
+├ ƒ /api/v1/student/practice/%5Bid%5D/submit
+├ ƒ /api/v1/student/profile
+├ ƒ /api/v1/student/syllabus
+├ ƒ /api/v1/student/syllabus-progress
+├ ƒ /api/v1/student/timetable
+├ ƒ /api/v1/students
+├ ƒ /api/v1/students/[id]
+├ ƒ /api/v1/students/[id]/admission-form
+├ ƒ /api/v1/students/[id]/certificate-preview
+├ ƒ /api/v1/students/[id]/certificates
+├ ƒ /api/v1/students/[id]/documents
+├ ƒ /api/v1/students/[id]/enroll
+├ ƒ /api/v1/students/[id]/follow-ups
+├ ƒ /api/v1/students/[id]/generate-certificate
+├ ƒ /api/v1/students/[id]/mark-complete
+├ ƒ /api/v1/students/[id]/status
+├ ƒ /api/v1/students/bulk-change-status
+├ ƒ /api/v1/students/bulk-generate-certificates
+├ ƒ /api/v1/students/bulk-mark-completed
+├ ƒ /api/v1/students/certificates/[id]
+├ ƒ /api/v1/students/certificates/[id]/download
+├ ƒ /api/v1/students/completion-analytics
+├ ƒ /api/v1/students/completion-report
+├ ƒ /api/v1/students/export-completion-report
+├ ƒ /api/v1/students/import
+├ ƒ /api/v1/students/promote
+├ ƒ /api/v1/students/template
+├ ƒ /api/v1/subjects
+├ ƒ /api/v1/subjects/[id]
+├ ƒ /api/v1/subjects/[id]/syllabus
+├ ƒ /api/v1/subjects/[id]/syllabus/export
+├ ƒ /api/v1/subjects/[id]/syllabus/import
+├ ƒ /api/v1/submissions/[id]/grade
+├ ƒ /api/v1/syllabus-progress
+├ ƒ /api/v1/syllabus-progress/[id]/mark
+├ ƒ /api/v1/syllabus-progress/stale
+├ ƒ /api/v1/temp/seed
+├ ƒ /api/v1/transport/drivers
+├ ƒ /api/v1/transport/drivers/[id]
+├ ƒ /api/v1/transport/fee-presets
+├ ƒ /api/v1/transport/fee-presets/[id]
+├ ƒ /api/v1/transport/fees
+├ ƒ /api/v1/transport/fees/[id]
+├ ƒ /api/v1/transport/fees/[id]/pay
+├ ƒ /api/v1/transport/fees/[id]/payment
+├ ƒ /api/v1/transport/reports
+├ ƒ /api/v1/transport/routes
+├ ƒ /api/v1/transport/routes/[id]
+├ ƒ /api/v1/transport/vehicles
+├ ƒ /api/v1/transport/vehicles/[id]
+├ ƒ /api/v1/upload
+├ ƒ /api/v1/users
+├ ƒ /api/v1/users/[id]
+├ ƒ /api/v1/users/[id]/memberships
+├ ƒ /api/v1/website/config
+├ ƒ /api/v1/website/courses
+├ ƒ /api/v1/website/leads
+├ ƒ /api/v1/website/media
+├ ƒ /api/v1/website/notices
+├ ƒ /api/v1/website/notices/click
+├ ƒ /api/v1/website/pages
+├ ○ /icon.png
+├ ○ /login
+├ ƒ /public/dashboard/[slug]
+├ ○ /quantech
+├ ○ /student/attendance
+├ ○ /student/batches
+├ ƒ /student/batches/[id]
+├ ○ /student/calendar
+├ ƒ /student/chat
+├ ○ /student/dashboard
+├ ○ /student/documents
+├ ○ /student/exams
+├ ƒ /student/exams/[id]/result
+├ ƒ /student/exams/[id]/take
+├ ○ /student/fees
+├ ○ /student/materials
+├ ○ /student/notices
+├ ○ /student/practice
+├ ƒ /student/receipts/[id]
+├ ○ /student/settings
+├ ○ /student/syllabus
+├ ○ /student/timetable
+├ ○ /super-admin
+├ ○ /super-admin/institutes
+├ ƒ /super-admin/institutes/[id]/edit
+├ ○ /super-admin/institutes/create
+├ ○ /super-admin/settings
+├ ○ /super-admin/shared-links
+├ ○ /super-admin/users
+└ ƒ /website/[instituteCode]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

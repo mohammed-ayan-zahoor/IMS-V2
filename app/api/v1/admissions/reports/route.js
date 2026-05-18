@@ -114,22 +114,12 @@ export async function GET(req) {
 
         switch (reportType) {
             case 'monthly':
-                try {
-                    reportData = await admissionReportService.getMonthlyReport(
-                        instituteId,
-                        dateRange.start,
-                        dateRange.end,
-                        { page, limit }
-                    );
-                } catch (error) {
-                    console.error('[Monthly Report Error]', {
-                        instituteId,
-                        startDate,
-                        endDate,
-                        error: error.message
-                    });
-                    throw error;
-                }
+                reportData = await admissionReportService.getMonthlyReport(
+                    instituteId,
+                    dateRange.start,
+                    dateRange.end,
+                    { page, limit }
+                );
                 break;
 
             case 'daily':
@@ -157,19 +147,12 @@ export async function GET(req) {
                 break;
 
             case 'details':
-                try {
-                    console.log('[API] Fetching details with params:', { instituteId, page, limit, status, courseId, startDate: dateRange.start, endDate: dateRange.end });
-                    reportData = await admissionReportService.getAdmissionDetails(
-                        instituteId,
-                        dateRange.start,
-                        dateRange.end,
-                        { page, limit, status, courseId }
-                    );
-                    console.log('[API] Details retrieved, records:', reportData?.data?.length);
-                } catch (detailsError) {
-                    console.error('[API] Details error:', detailsError.message, detailsError.stack);
-                    throw detailsError;
-                }
+                reportData = await admissionReportService.getAdmissionDetails(
+                    instituteId,
+                    dateRange.start,
+                    dateRange.end,
+                    { page, limit, status, courseId }
+                );
                 break;
 
             case 'monthly-with-details':
