@@ -469,47 +469,61 @@ export default function AdmissionReportsPage() {
                 <CardContent>
                     <div className="overflow-x-auto">
                          <table className="w-full text-sm">
-                             <thead className="bg-gray-50 border-b">
-                                 <tr>
-                                     <th className="px-4 py-2 text-left font-semibold">Name</th>
-                                     <th className="px-4 py-2 text-left font-semibold">Email</th>
-                                     <th className="px-4 py-2 text-left font-semibold">Phone</th>
-                                     <th className="px-4 py-2 text-left font-semibold">Course</th>
-                                     <th className="px-4 py-2 text-left font-semibold">Status</th>
-                                     <th className="px-4 py-2 text-left font-semibold">Current Courses</th>
-                                     <th className="px-4 py-2 text-left font-semibold">Total Courses</th>
-                                     <th className="px-4 py-2 text-left font-semibold">Applied On</th>
-                                 </tr>
-                             </thead>
+                              <thead className="bg-gray-50 border-b">
+                                  <tr>
+                                      <th className="px-4 py-2 text-left font-semibold">Name</th>
+                                      <th className="px-4 py-2 text-left font-semibold">Email</th>
+                                      <th className="px-4 py-2 text-left font-semibold">Phone</th>
+                                      <th className="px-4 py-2 text-left font-semibold">Applied For</th>
+                                      <th className="px-4 py-2 text-left font-semibold">Status</th>
+                                      <th className="px-4 py-2 text-left font-semibold">Current Courses</th>
+                                      <th className="px-4 py-2 text-left font-semibold">All Courses Enrolled</th>
+                                      <th className="px-4 py-2 text-left font-semibold">Applied On</th>
+                                  </tr>
+                              </thead>
                              <tbody>
-                                 {detailsData.data.map(item => (
-                                     <tr key={item._id} className="border-b hover:bg-gray-50">
-                                         <td className="px-4 py-2">{`${item.firstName} ${item.lastName}`}</td>
-                                         <td className="px-4 py-2 text-blue-600">{item.email}</td>
-                                         <td className="px-4 py-2">{item.phone}</td>
-                                         <td className="px-4 py-2">{item.courseCode}</td>
-                                         <td className="px-4 py-2">
-                                             <span
-                                                 className={`px-2 py-1 rounded text-xs font-semibold ${
-                                                     item.status === 'converted'
-                                                         ? 'bg-green-100 text-green-800'
-                                                         : item.status === 'pending'
-                                                         ? 'bg-yellow-100 text-yellow-800'
-                                                         : 'bg-red-100 text-red-800'
-                                                 }`}
-                                             >
-                                                 {item.status}
-                                             </span>
-                                         </td>
-                                         <td className="px-4 py-2 text-center font-semibold text-blue-600">
-                                             {item.enrollments?.current || 0}
-                                         </td>
-                                         <td className="px-4 py-2 text-center font-semibold text-purple-600">
-                                             {item.enrollments?.total || 0}
-                                         </td>
-                                         <td className="px-4 py-2">{format(new Date(item.createdAt), 'yyyy-MM-dd')}</td>
-                                     </tr>
-                                 ))}
+                                  {detailsData.data.map(item => (
+                                      <tr key={item._id} className="border-b hover:bg-gray-50">
+                                          <td className="px-4 py-2">{`${item.firstName} ${item.lastName}`}</td>
+                                          <td className="px-4 py-2 text-blue-600">{item.email}</td>
+                                          <td className="px-4 py-2">{item.phone}</td>
+                                          <td className="px-4 py-2">{item.courseCode}</td>
+                                          <td className="px-4 py-2">
+                                              <span
+                                                  className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                      item.status === 'converted'
+                                                          ? 'bg-green-100 text-green-800'
+                                                          : item.status === 'pending'
+                                                          ? 'bg-yellow-100 text-yellow-800'
+                                                          : 'bg-red-100 text-red-800'
+                                                  }`}
+                                              >
+                                                  {item.status}
+                                              </span>
+                                          </td>
+                                          <td className="px-4 py-2 text-sm">
+                                              {item.enrollments?.currentCourses ? (
+                                                  <div className="text-blue-600 font-semibold">
+                                                      <div className="mb-1">({item.enrollments.current})</div>
+                                                      <div>{item.enrollments.currentCourses}</div>
+                                                  </div>
+                                              ) : (
+                                                  <span className="text-gray-500">Not enrolled</span>
+                                              )}
+                                          </td>
+                                          <td className="px-4 py-2 text-sm">
+                                              {item.enrollments?.totalCourses ? (
+                                                  <div className="text-purple-600 font-semibold">
+                                                      <div className="mb-1">({item.enrollments.total})</div>
+                                                      <div>{item.enrollments.totalCourses}</div>
+                                                  </div>
+                                              ) : (
+                                                  <span className="text-gray-500">No enrollment</span>
+                                              )}
+                                          </td>
+                                          <td className="px-4 py-2">{format(new Date(item.createdAt), 'yyyy-MM-dd')}</td>
+                                      </tr>
+                                  ))}
                              </tbody>
                          </table>
                     </div>

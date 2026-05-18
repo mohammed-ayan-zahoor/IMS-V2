@@ -599,9 +599,9 @@ class AdmissionReportService {
                 AdmissionApplication.countDocuments(query)
             ]);
 
-            // Get enrollment counts for each admitted student
+            // Get enrollment details (count + course names) for each admitted student
             const admissionIds = admissions.map(item => item._id);
-            let enrollmentCounts = {};
+            let enrollmentDetails = {};
 
             if (admissionIds.length > 0) {
                 const enrollments = await Batch.aggregate([
@@ -609,6 +609,20 @@ class AdmissionReportService {
                         $match: {
                             institute: instId,
                             'enrolledStudents.student': { $in: admissionIds }
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: 'courses',
+                            localField: 'course',
+                            foreignField: '_id',
+                            as: 'courseInfo'
+                        }
+                    },
+                    {
+                        $unwind: {
+                            path: '$courseInfo',
+                            preserveNullAndEmptyArrays: true
                         }
                     },
                     {
@@ -622,20 +636,25 @@ class AdmissionReportService {
                     {
                         $group: {
                             _id: '$enrolledStudents.student',
-                            currentCourses: {
-                                $sum: {
-                                    $cond: [{ $eq: ['$enrolledStudents.status', 'active'] }, 1, 0]
+                            enrollments: {
+                                $push: {
+                                    courseName: '$courseInfo.name',
+                                    courseCode: '$courseInfo.code',
+                                    status: '$enrolledStudents.status',
+                                    batchName: '$name'
                                 }
-                            },
-                            totalCourses: { $sum: 1 }
+                            }
                         }
                     }
                 ]).exec();
 
                 enrollments.forEach(e => {
-                    enrollmentCounts[e._id.toString()] = {
-                        current: e.currentCourses,
-                        total: e.totalCourses
+                    const currentEnrollments = e.enrollments.filter(en => en.status === 'active');
+                    enrollmentDetails[e._id.toString()] = {
+                        current: currentEnrollments.length,
+                        total: e.enrollments.length,
+                        currentCourses: currentEnrollments.map(en => en.courseName).join(', '),
+                        totalCourses: e.enrollments.map(en => en.courseName).join(', ')
                     };
                 });
             }
@@ -654,7 +673,12 @@ class AdmissionReportService {
                     referredBy: item.referredBy,
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
-                    enrollments: enrollmentCounts[item._id.toString()] || { current: 0, total: 0 }
+                    enrollments: enrollmentDetails[item._id.toString()] || { 
+                        current: 0, 
+                        total: 0, 
+                        currentCourses: '',
+                        totalCourses: ''
+                    }
                 })),
                 pagination: {
                     page,
