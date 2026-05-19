@@ -71,9 +71,13 @@ export class FeeService {
 
         if (!data.institute) throw new Error("Institute context missing"); // Validate here if not checked before
 
+        const batchDoc = await Batch.findById(batch).select('session');
+        const session = batchDoc?.session;
+
         const fee = await FeeDb.create({
             student,
             batch,
+            session,
             totalAmount,
             installments: installments.map(i => ({
                 ...i,
@@ -262,9 +266,16 @@ export class FeeService {
         if (filters.institute) query.institute = new mongoose.Types.ObjectId(filters.institute);
         
         // If a session is explicitly provided, filter by it.
-        // Otherwise, do NOT filter by session (allows non-school institutes with no sessions to see totals)
+        // Fall back to matching batches belonging to this session for robust support of manual fee profiles
         if (filters.session) {
-            query.session = new mongoose.Types.ObjectId(filters.session);
+            const batchQuery = { session: filters.session, deletedAt: null };
+            if (filters.institute) batchQuery.institute = filters.institute;
+            const batchIds = await Batch.find(batchQuery).distinct('_id');
+            
+            query.$or = [
+                { session: new mongoose.Types.ObjectId(filters.session) },
+                { batch: { $in: batchIds } }
+            ];
         }
         
         if (filters.batch) query.batch = new mongoose.Types.ObjectId(filters.batch);
@@ -332,7 +343,18 @@ export class FeeService {
         
         const query = { deletedAt: null };
         if (filters.institute) query.institute = new mongoose.Types.ObjectId(filters.institute);
-        if (filters.session) query.session = new mongoose.Types.ObjectId(filters.session);
+        
+        if (filters.session) {
+            const batchQuery = { session: filters.session, deletedAt: null };
+            if (filters.institute) batchQuery.institute = filters.institute;
+            const batchIds = await Batch.find(batchQuery).distinct('_id');
+            
+            query.$or = [
+                { session: new mongoose.Types.ObjectId(filters.session) },
+                { batch: { $in: batchIds } }
+            ];
+        }
+        
         if (filters.batch) query.batch = new mongoose.Types.ObjectId(filters.batch);
         
         if (filters.course) {
@@ -386,6 +408,17 @@ export class FeeService {
         if (batch) feeQuery.batch = batch;
         if (institute) feeQuery.institute = institute;
         if (!includeCancelled) feeQuery.status = { $ne: 'cancelled' };
+
+        if (session) {
+            const batchQuery = { session, deletedAt: null };
+            if (institute) batchQuery.institute = institute;
+            const batchIds = await Batch.find(batchQuery).distinct('_id');
+            
+            feeQuery.$or = [
+                { session: new mongoose.Types.ObjectId(session) },
+                { batch: { $in: batchIds } }
+            ];
+        }
 
         const fees = await FeeDb.find(feeQuery)
             .populate('student', 'profile.firstName profile.lastName enrollmentNumber')

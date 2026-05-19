@@ -599,6 +599,7 @@ export class StudentService {
             const fee = await Fee.create([{
                 student: studentId,
                 batch: batchId,
+                session: batch.session,
                 institute: targetInstitute,
                 totalAmount: customAmount !== null ? parseFloat(customAmount) : batch.course.fees.amount,
                 installments: (installments && installments.length > 0) ? installments.map(i => ({
@@ -702,6 +703,7 @@ export class StudentService {
         const fee = await Fee.create({
             student: studentId,
             batch: batchId,
+            session: batch.session,
             institute: batch.institute,
             totalAmount: customAmount !== null ? parseFloat(customAmount) : batch.course.fees.amount,
             installments: (installments && installments.length > 0) ? installments.map(i => ({
