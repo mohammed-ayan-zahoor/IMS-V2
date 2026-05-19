@@ -235,7 +235,7 @@ export default function StudentsPage() {
         }
     };
 
-    const fetchStudents = async (page = pagination.page) => {
+    const fetchStudents = async (page = pagination.page, customLimit = pagination.limit) => {
         // Cancellation logic
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
@@ -251,7 +251,7 @@ export default function StudentsPage() {
                 instituteId: filters.instituteId, // Include in API call
                 isActive: filters.isActive,
                 page: page.toString(),
-                limit: pagination.limit.toString()
+                limit: customLimit.toString()
             });
 
             const res = await fetch(`/api/v1/students?${queryParams.toString()}`, {
@@ -614,6 +614,11 @@ export default function StudentsPage() {
         }
     };
 
+    const handleLimitChange = (newLimit) => {
+        setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+        fetchStudents(1, newLimit);
+    };
+
     const handlePromote = async (targetBatchId) => {
         try {
             const res = await fetch("/api/v1/students/promote", {
@@ -888,10 +893,26 @@ export default function StudentsPage() {
 
                             {/* Pagination */}
                             <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-                                <div className="text-xs text-slate-500 font-medium">
-                                    Showing <span className="font-bold text-slate-700">{Math.min(students.length, pagination.limit)}</span> of <span className="font-bold text-slate-700">{pagination.total}</span> students
-                                    <span className="mx-2 text-slate-300">|</span>
-                                    Page <span className="font-bold text-slate-700">{pagination.page}</span> of <span className="font-bold text-slate-700">{pagination.pages}</span>
+                                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 font-medium">
+                                    <div>
+                                        Showing <span className="font-bold text-slate-700">{Math.min(students.length, pagination.limit)}</span> of <span className="font-bold text-slate-700">{pagination.total}</span> students
+                                        <span className="mx-2 text-slate-300">|</span>
+                                        Page <span className="font-bold text-slate-700">{pagination.page}</span> of <span className="font-bold text-slate-700">{pagination.pages}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span>Show:</span>
+                                        <select
+                                            value={pagination.limit}
+                                            onChange={(e) => handleLimitChange(Number(e.target.value))}
+                                            className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 font-bold focus:outline-none focus:border-premium-blue cursor-pointer transition-all"
+                                        >
+                                            <option value={10}>10</option>
+                                            <option value={25}>25</option>
+                                            <option value={50}>50</option>
+                                            <option value={100}>100</option>
+                                            <option value={1000}>All</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
