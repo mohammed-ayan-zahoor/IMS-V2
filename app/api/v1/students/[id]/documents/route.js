@@ -4,7 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import AuditLog from "@/models/AuditLog";
-import cloudinary from "@/lib/cloudinary";
+import { v2 as cloudinary } from "cloudinary";
+import { getCloudinaryOptions, getUploadFolder } from "@/lib/cloudinaryResolver";
 
 export async function POST(req, { params }) {
     try {
@@ -31,10 +32,15 @@ export async function POST(req, { params }) {
         // Upload to Cloudinary
         let uploadResponse;
         try {
+            // Get tenant-specific credentials
+            const scopedOptions = await getCloudinaryOptions(session.user.institute?.id);
+            const uploadFolder = getUploadFolder(session.user.institute?.id, `students/${id}/documents`);
+            
             uploadResponse = await new Promise((resolve, reject) => {
                 const options = {
-                    folder: `quantech/students/${id}/documents`,
+                    folder: uploadFolder,
                     resource_type: "auto", // Handles images and PDFs automatically
+                    ...scopedOptions // Thread-safe scoped injection of credentials
                 };
                 cloudinary.uploader.upload(base64, options, (error, result) => {
                     if (error) reject(error);
@@ -101,9 +107,10 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ error: "Document not found" }, { status: 404 });
         }
 
-        // Delete from Cloudinary
+        // Delete from Cloudinary with scoped credentials
         try {
-            await cloudinary.uploader.destroy(document.publicId);
+            const scopedOptions = await getCloudinaryOptions(session.user.institute?.id);
+            await cloudinary.uploader.destroy(document.publicId, scopedOptions);
         } catch (cloudinaryError) {
             console.warn("Failed to delete from Cloudinary, continuing with DB removal:", cloudinaryError);
         }

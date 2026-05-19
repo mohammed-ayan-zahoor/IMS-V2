@@ -3,7 +3,8 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import cloudinary from "@/lib/cloudinary";
+import { getCloudinaryOptions, getUploadFolder } from "@/lib/cloudinaryResolver";
 
 export async function POST(req) {
     try {
@@ -11,6 +12,9 @@ export async function POST(req) {
         if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+
+        // SECURITY: Extract institute ID from session ONLY
+        const instituteId = session.user.institute?.id || session.user.instituteId;
 
         const formData = await req.formData();
         const file = formData.get("file");
@@ -60,41 +64,75 @@ export async function POST(req) {
 
         // Special Case: Certificate Templates or Website Media go to Cloudinary
         if (fileType === "certificate-template" || fileType === "website-media") {
-            const folder = fileType === "certificate-template" 
-                ? "ims/certificate-templates" 
-                : `ims/website-media/${session.user.institute?.id || 'global'}`;
+            // Determine folder based on file type
+            let uploadFolder;
+            if (fileType === "certificate-template") {
+                uploadFolder = "ims/certificate-templates";
+            } else {
+                // Website media uses tenant-specific folder
+                uploadFolder = getUploadFolder(instituteId, 'website-media');
+            }
 
-            console.log(`Routing to Cloudinary for ${fileType}...`);
+            console.log(`[Upload] Routing to Cloudinary for ${fileType}...`);
+            
             try {
-                const result = await uploadToCloudinary(buffer, folder);
-                console.log("Cloudinary upload successful:", result.secure_url);
+                // Get tenant-specific Cloudinary options (thread-safe scoped injection)
+                let tenantOptions = {};
+                if (fileType === "website-media" && instituteId) {
+                    try {
+                        tenantOptions = await getCloudinaryOptions(instituteId);
+                    } catch (error) {
+                        console.warn(`[Upload] Failed to get tenant options, using defaults:`, error.message);
+                    }
+                }
+
+                // Perform upload with scoped injection
+                const uploadResult = await new Promise((resolve, reject) => {
+                    const options = {
+                        folder: uploadFolder,
+                        resource_type: "auto",
+                        ...tenantOptions  // Thread-safe scoped injection
+                    };
+
+                    const uploadStream = cloudinary.uploader.upload_stream(
+                        options,
+                        (error, result) => {
+                            if (error) reject(error);
+                            else resolve(result);
+                        }
+                    );
+                    uploadStream.end(buffer);
+                });
+
+                console.log("[Upload] Cloudinary upload successful:", uploadResult.secure_url);
 
                 // For website media, also register in DB
                 if (fileType === "website-media") {
                     const WebsiteMedia = (await import("@/models/WebsiteMedia")).default;
                     await WebsiteMedia.create({
-                        instituteId: session.user.institute?.id,
-                        url: result.secure_url,
-                        publicId: result.public_id,
+                        instituteId,
+                        url: uploadResult.secure_url,
+                        publicId: uploadResult.public_id,
                         uploadedBy: session.user.id,
                         metadata: {
-                            width: result.width,
-                            height: result.height,
-                            fileSize: result.bytes,
-                            format: result.format
+                            width: uploadResult.width,
+                            height: uploadResult.height,
+                            fileSize: uploadResult.bytes,
+                            format: uploadResult.format
                         }
                     });
                 }
 
                 return NextResponse.json({ 
                     success: true, 
-                    url: result.secure_url, 
+                    url: uploadResult.secure_url,
                     originalName: file.name, 
                     type: file.type,
-                    provider: "cloudinary"
+                    provider: "cloudinary",
+                    institute: instituteId
                 });
             } catch (cloudErr) {
-                console.error("Detailed Cloudinary Upload Error:", cloudErr);
+                console.error("[Upload] Cloudinary error:", cloudErr.message);
                 return NextResponse.json({ 
                     error: "Cloudinary upload failed", 
                     details: cloudErr.message || String(cloudErr)
@@ -127,12 +165,18 @@ export async function POST(req) {
         // Return the API route URL instead of direct /uploads/ path
         const url = `/api/uploads/files/${filename}`;
 
-        console.log("File uploaded successfully locally:", { filename, url, filepath });
+        console.log("[Upload] File uploaded successfully locally:", { filename, url });
 
-        return NextResponse.json({ success: true, url, originalName: file.name, type: file.type, provider: "local" });
+        return NextResponse.json({ 
+            success: true, 
+            url, 
+            originalName: file.name, 
+            type: file.type, 
+            provider: "local" 
+        });
 
     } catch (error) {
-        console.error("Upload Error:", error);
+        console.error("[Upload] Error:", error.message);
         return NextResponse.json({ error: "Upload failed" }, { status: 500 });
     }
 }
