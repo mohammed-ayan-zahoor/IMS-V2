@@ -7,6 +7,177 @@ import { getInstituteScope } from "@/middleware/instituteScope";
 import { validateAndDeriveSession } from "@/middleware/sessionValidation";
 import * as XLSX from "xlsx";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
+
+// Smart parser to normalize legacy class names and Roman numerals to standard Courses and Batches
+function parseClassString(classStr) {
+    if (!classStr) return { courseName: "Unknown", batchName: "A" };
+    
+    let cleanStr = classStr.toString().trim();
+    let coursePart = cleanStr;
+    let batchPart = "A";
+    
+    // Pattern 1: Course(Batch) e.g., "1st(A)", "I(A)", "Nursery(B)"
+    const bracketMatch = cleanStr.match(/^([^(]+)\(([^)]+)\)$/);
+    if (bracketMatch) {
+        coursePart = bracketMatch[1].trim();
+        batchPart = bracketMatch[2].trim();
+    } else {
+        // Pattern 2: Course - Batch e.g., "1st Std - A"
+        const hyphenMatch = cleanStr.match(/^([^-]+)-\s*([^-]+)$/);
+        if (hyphenMatch) {
+            coursePart = hyphenMatch[1].trim();
+            batchPart = hyphenMatch[2].trim();
+        }
+    }
+    
+    let courseName = coursePart;
+    const upperCourse = coursePart.toUpperCase();
+    
+    // Standard translation dictionary for Roman numerals and legacy shorthand
+    const courseMap = {
+        "I": "1st Std",
+        "1": "1st Std",
+        "1ST": "1st Std",
+        "FIRST": "1st Std",
+        
+        "II": "2nd Std",
+        "2": "2nd Std",
+        "2ND": "2nd Std",
+        "SECOND": "2nd Std",
+        
+        "III": "3rd Std",
+        "3": "3rd Std",
+        "3RD": "3rd Std",
+        "THIRD": "3rd Std",
+        
+        "IV": "4th Std",
+        "4": "4th Std",
+        "4TH": "4th Std",
+        "FOURTH": "4th Std",
+        
+        "V": "5th Std",
+        "5": "5th Std",
+        "5TH": "5th Std",
+        "FIFTH": "5th Std",
+        
+        "VI": "6th Std",
+        "6": "6th Std",
+        "6TH": "6th Std",
+        "SIXTH": "6th Std",
+        
+        "VII": "7th Std",
+        "7": "7th Std",
+        "7TH": "7th Std",
+        "SEVENTH": "7th Std",
+        
+        "VIII": "8th Std",
+        "8": "8th Std",
+        "8TH": "8th Std",
+        "EIGHTH": "8th Std",
+        
+        "IX": "9th Std",
+        "9": "9th Std",
+        "9TH": "9th Std",
+        "NINTH": "9th Std",
+        
+        "X": "10th Std",
+        "10": "10th Std",
+        "10TH": "10th Std",
+        "TENTH": "10th Std",
+        
+        "XI": "11th Std",
+        "11": "11th Std",
+        "11TH": "11th Std",
+        "ELEVENTH": "11th Std",
+        
+        "XII": "12th Std",
+        "12": "12th Std",
+        "12TH": "12th Std",
+        "TWELFTH": "12th Std",
+        
+        "NURSERY": "Nursery",
+        "JRKG": "Jr.Kg",
+        "JR.KG": "Jr.Kg",
+        "JR KG": "Jr.Kg",
+        "SRKG": "Sr.Kg",
+        "SR.KG": "Sr.Kg",
+        "SR KG": "Sr.Kg"
+    };
+    
+    if (courseMap[upperCourse]) {
+        courseName = courseMap[upperCourse];
+    } else {
+        // Fallback title casing capitalization
+        courseName = coursePart.split(' ')
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ');
+    }
+    
+    return { courseName, batchName: batchPart };
+}
+
+// Self-healing course lookup & creation
+async function resolveCourse(courseName, instituteId, userId) {
+    const Course = (await import("@/models/Course")).default;
+    
+    let course = await Course.findOne({
+        institute: instituteId,
+        name: { $regex: new RegExp(`^${courseName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+        deletedAt: null
+    });
+    
+    if (!course) {
+        const code = courseName.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) || "CL";
+        course = await Course.create({
+            institute: instituteId,
+            name: courseName,
+            code,
+            description: `Auto-created during bulk import`,
+            createdBy: userId
+        });
+        console.log(`[IMPORT] Self-Healing: Auto-created Course: ${courseName} (${code})`);
+    }
+    return course;
+}
+
+// Self-healing batch lookup & creation
+async function resolveBatch(batchName, courseId, sessionId, instituteId, userId) {
+    const Batch = (await import("@/models/Batch")).default;
+    
+    let batch = await Batch.findOne({
+        institute: instituteId,
+        course: courseId,
+        session: sessionId,
+        name: { $regex: new RegExp(`^${batchName}$`, 'i') },
+        deletedAt: null
+    });
+    
+    if (!batch) {
+        const Session = (await import("@/models/Session")).default;
+        const session = await Session.findById(sessionId);
+        const startDate = session ? session.startDate : new Date();
+        const endDate = session ? session.endDate : new Date(new Date().setFullYear(new Date().getFullYear() + 1));
+        
+        batch = await Batch.create({
+            institute: instituteId,
+            course: courseId,
+            session: sessionId,
+            name: batchName,
+            schedule: {
+                startDate,
+                endDate,
+                daysOfWeek: [1, 2, 3, 4, 5],
+                timeSlot: { start: "09:00", end: "14:00" }
+            },
+            capacity: 40,
+            enrolledStudents: [],
+            createdBy: userId
+        });
+        console.log(`[IMPORT] Self-Healing: Auto-created Batch: ${batchName} for course ID ${courseId} in session ${sessionId}`);
+    }
+    return batch;
+}
 
 export async function POST(req) {
     try {
@@ -32,38 +203,92 @@ export async function POST(req) {
             return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
         }
 
-        // Buffer the file
+        // Parse file buffer
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Parse Excel
         const workbook = XLSX.read(buffer, { type: "buffer" });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const rawData = XLSX.utils.sheet_to_json(sheet);
-
-        if (!rawData || rawData.length === 0) {
+        
+        // 1. READ RAW CELLS TO AUTOMATICALLY DETECT HEADER OFFSET (Highly Premium SaaS Feature)
+        const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+        if (!rawRows || rawRows.length === 0) {
             return NextResponse.json({ error: "Excel file is empty" }, { status: 400 });
         }
 
-        // Derive session for imported students
+        let headerRowIndex = 0;
+        let bestMatchCount = 0;
+        const knownHeaders = ["student name", "admission no", "class", "gender", "mobile number", "mothers name", "gr number", "aadhar", "pen number"];
+        
+        // Scan first 5 rows to identify the exact column headers
+        for (let r = 0; r < Math.min(5, rawRows.length); r++) {
+            const rowCells = rawRows[r].map(c => String(c || "").trim().toLowerCase());
+            let matchCount = 0;
+            rowCells.forEach(cell => {
+                if (knownHeaders.some(kh => cell.includes(kh))) {
+                    matchCount++;
+                }
+            });
+            if (matchCount > bestMatchCount) {
+                bestMatchCount = matchCount;
+                headerRowIndex = r;
+            }
+        }
+
+        console.log(`[IMPORT] Detected header row at index: ${headerRowIndex} with ${bestMatchCount} match counts.`);
+        
+        const headers = rawRows[headerRowIndex].map(h => String(h || "").trim());
+        const dataRows = rawRows.slice(headerRowIndex + 1);
+
+        // 2. LOOSE COLUMN INDEX MAPPING (Alias Engine)
+        const getColIndex = (aliases) => {
+            return headers.findIndex(h => {
+                const norm = h.toLowerCase().replace(/[^a-z0-9]/g, "");
+                return aliases.some(alias => {
+                    const normAlias = alias.toLowerCase().replace(/[^a-z0-9]/g, "");
+                    return norm.includes(normAlias) || normAlias.includes(norm);
+                });
+            });
+        };
+
+        const idxAdmissionNo = getColIndex(["Admission No", "Admission Number", "Student ID", "Enrollment Number", "Roll No", "Roll Number", "Student List"]);
+        const idxName = getColIndex(["Student Name", "StudentName", "Name", "Full Name", "FullName"]);
+        const idxRollNo = getColIndex(["Roll No", "Roll Number", "RollNo"]);
+        const idxClass = getColIndex(["Class", "Standard", "Std", "Grade", "Course"]);
+        const idxDOB = getColIndex(["Date Of Birth", "DateOfBirth", "DOB", "Birth Date"]);
+        const idxGender = getColIndex(["Gender", "Sex"]);
+        const idxCategory = getColIndex(["Category", "Caste", "SubCaste"]);
+        const idxPhone = getColIndex(["Mobile Number", "Mobile", "Phone", "Phone Number", "Contact"]);
+        const idxMotherName = getColIndex(["Mothers Name", "Mother Name", "Mother's Name"]);
+        const idxAadhar = getColIndex(["Aadhar", "Aadhar No", "Aadhar Number"]);
+        const idxPEN = getColIndex(["PEN Number", "PEN No", "PEN"]);
+        const idxAPAAR = getColIndex(["APAAR ID", "APAAR", "APAAR ID"]);
+        const idxGRNo = getColIndex(["GR Number", "GR No", "GR"]);
+
+        const getValByColIndex = (row, colIndex) => {
+            if (colIndex === -1 || colIndex >= row.length) return "";
+            return String(row[colIndex] || "").trim();
+        };
+
+        // Derive active session for the imported students
         let sessionId = null;
         try {
             const sessionResult = await validateAndDeriveSession(req, scope);
             sessionId = sessionResult.sessionId;
         } catch (err) {
             console.error("[IMPORT_SESSION_ERROR]", err.message);
-            // We allow import even if session fails, but it's recommended
         }
 
         const successResults = [];
         const errors = [];
         const seenEmails = new Set();
+        const seenEnrollments = new Set();
 
         const existingStudents = await Student.find({
             institute: scope.instituteId,
             isDeleted: { $ne: true }
-        }).select("email").lean();
+        }).select("email enrollmentNumber").lean();
 
         const existingEmailSet = new Set(
             existingStudents
@@ -71,118 +296,142 @@ export async function POST(req) {
                 .map(s => s.email.toLowerCase())
         );
 
-        // 4.5 Get Institute Type for logic differentiation
+        const existingEnrollmentSet = new Set(
+            existingStudents
+                .filter(s => s.enrollmentNumber)
+                .map(s => s.enrollmentNumber.toUpperCase())
+        );
+
+        // Fetch Institute Type & Code
         const Institute = (await import("@/models/Institute")).default;
-        const instDoc = await Institute.findById(scope.instituteId).select("type").lean();
+        const instDoc = await Institute.findById(scope.instituteId).select("type code").lean();
         const isVocational = instDoc?.type === "VOCATIONAL";
+        const instCode = instDoc?.code || "INST";
+        const emailDomain = `${instCode.toLowerCase()}.edu`;
 
-        // Process Loop
-        for (let i = 0; i < rawData.length; i++) {
-            const row = rawData[i];
-            const rowNum = i + 2;
+        // 3. PROCESS ROWS & DYNAMIC INFRASTRUCTURE RESOLUTION
+        const studentBatchMappings = []; // array of { studentIdx, batchId }
+        const resolvedBatches = {}; // cache to speed up row parsing
 
-            // Mapping Helper: Support multiple header variations
-            const getVal = (keys) => {
-                for (const key of keys) {
-                    if (row[key] !== undefined) return row[key];
+        for (let i = 0; i < dataRows.length; i++) {
+            const row = dataRows[i];
+            const rowNum = headerRowIndex + i + 2;
+
+            const admissionNo = getValByColIndex(row, idxAdmissionNo);
+            const studentName = getValByColIndex(row, idxName);
+            const rawClass = getValByColIndex(row, idxClass);
+            const rawDOB = getValByColIndex(row, idxDOB);
+            const gender = getValByColIndex(row, idxGender);
+            const category = getValByColIndex(row, idxCategory);
+            const phone = getValByColIndex(row, idxPhone);
+            const motherName = getValByColIndex(row, idxMotherName);
+            const rawAadhar = getValByColIndex(row, idxAadhar);
+            const penNumber = getValByColIndex(row, idxPEN);
+            const apaarId = getValByColIndex(row, idxAPAAR);
+            const grNumber = getValByColIndex(row, idxGRNo);
+
+            // Basic checks
+            if (!studentName) {
+                errors.push({ row: rowNum, identifier: 'N/A', reason: "Missing required Student Name" });
+                continue;
+            }
+
+            // Clean Name
+            const nameParts = studentName.trim().split(/\s+/);
+            const firstName = nameParts[0];
+            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Student';
+
+            // Generate clean unique enrollment ID
+            let enrollmentNumber = admissionNo ? admissionNo.toUpperCase() : null;
+            
+            // Check unique enrollment (In File)
+            if (enrollmentNumber) {
+                if (seenEnrollments.has(enrollmentNumber)) {
+                    errors.push({ row: rowNum, identifier: enrollmentNumber, reason: `Duplicate Admission No "${enrollmentNumber}" in spreadsheet` });
+                    continue;
                 }
-                return undefined;
-            };
+                seenEnrollments.add(enrollmentNumber);
 
-            const firstName = getVal(["FirstName", "First Name", "Firstname"]);
-            const lastName = getVal(["LastName", "Last Name", "Lastname"]);
-            const email = getVal(["Email", "Email Address", "email"])?.toString().toLowerCase().trim();
-            const phone = getVal(["Phone", "Mobile", "Student Phone"])?.toString();
-            const password = getVal(["Password", "password"])?.toString();
-            const enrollmentNumber = getVal(["EnrollmentNumber", "Enrollment Number", "Roll No", "Roll Number"])?.toString();
-            const gender = getVal(["Gender", "gender"]);
-
-            // New Parental Metadata
-            const fatherName = getVal(["FatherName", "Father Name", "Father's Name"]);
-            const fatherPhone = getVal(["FatherPhone", "Father Phone", "Father's Phone Number"]);
-            const fatherAadhar = getVal(["FatherAadhar", "Father Aadhar", "Father's Aadhar"]);
-            const motherName = getVal(["MotherName", "Mother Name", "Mother's Name"]);
-            const motherPhone = getVal(["MotherPhone", "Mother Phone", "Mother's Phone Number"]);
-            const motherAadhar = getVal(["MotherAadhar", "Mother Aadhar", "Mother's Aadhar"]);
-
-            // New Identity Metadata
-            const grNumber = getVal(["GRNumber", "GR Number", "GR No"]);
-            const aadharNumber = getVal(["AadharNumber", "Aadhar Number", "Aadhar No"]);
-            const studentIdUdise = getVal(["UdiseID", "Udise ID", "Udise", "StudentIdUdise"]);
-            const apaarId = getVal(["ApaarID", "Apaar ID", "Apaar"]);
-            const penNumber = getVal(["PenNumber", "Pen Number", "Pen No"]);
-
-            // Demographic & Academic
-            const nationality = getVal(["Nationality"]) || "Indian";
-            const religion = getVal(["Religion"]);
-            const caste = getVal(["Caste"]);
-            const subCaste = getVal(["SubCaste", "Sub Caste"]);
-            const admissionStd = getVal(["AdmissionStd", "Admission Standard", "Standard", "Class"]);
-            const admissionDate = getVal(["AdmissionDate", "Admission Date"]);
-
-            // 1. Basic Validation
-            if (!firstName || !lastName || !email) {
-                errors.push({ row: rowNum, identifier: email || 'N/A', reason: "Missing required fields (Name or Email)" });
-                continue;
+                // Check unique enrollment (In DB)
+                if (existingEnrollmentSet.has(enrollmentNumber)) {
+                    errors.push({ row: rowNum, identifier: enrollmentNumber, reason: `Student with Admission No "${enrollmentNumber}" already exists` });
+                    continue;
+                }
             }
 
-            // 2. Email Validation
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                errors.push({ row: rowNum, identifier: email, reason: "Invalid Email Format" });
-                continue;
-            }
+            // Generate unique professional school email (SaaS Standard)
+            let email = enrollmentNumber 
+                ? `${enrollmentNumber.toLowerCase()}@${emailDomain}`
+                : `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/[^a-z]/g, "")}.${rowNum}@${emailDomain}`;
 
-            // 3. Duplicate Check (In File)
-            if (seenEmails.has(email)) {
-                errors.push({ row: rowNum, identifier: email, reason: "Duplicate Email in file" });
-                continue;
+            if (seenEmails.has(email) || existingEmailSet.has(email)) {
+                // Add unique timestamp sequence suffix if collision
+                const suffix = Math.floor(Math.random() * 10000);
+                email = email.replace(`@${emailDomain}`, `${suffix}@${emailDomain}`);
             }
             seenEmails.add(email);
 
-            // 4. Duplicate Check (In DB)
-            if (existingEmailSet.has(email)) {
-                errors.push({ row: rowNum, identifier: email, reason: "Student already exists" });
-                continue;
+            // Parse Date of Birth cleanly (DD-MM-YYYY or general format)
+            let dateOfBirth = null;
+            if (rawDOB) {
+                const parts = rawDOB.split('-');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1; // 0-indexed
+                    const year = parseInt(parts[2], 10);
+                    dateOfBirth = new Date(year, month, day);
+                } else {
+                    dateOfBirth = new Date(rawDOB);
+                }
+                if (isNaN(dateOfBirth.getTime())) dateOfBirth = null;
             }
 
-            // Valid -> Prepare Object
+            // Clean Aadhar Number
+            const cleanAadhar = rawAadhar ? rawAadhar.replace(/\s+/g, '') : "";
+
+            // Dynamic Self-Healing Class and Batch Generation
+            let targetBatchId = null;
+            if (!isVocational && sessionId && rawClass) {
+                try {
+                    const { courseName, batchName } = parseClassString(rawClass);
+                    const cacheKey = `${courseName}_${batchName}`;
+                    
+                    if (resolvedBatches[cacheKey]) {
+                        targetBatchId = resolvedBatches[cacheKey];
+                    } else {
+                        const course = await resolveCourse(courseName, scope.instituteId, session.user.id);
+                        const batch = await resolveBatch(batchName, course._id, sessionId, scope.instituteId, session.user.id);
+                        targetBatchId = batch._id;
+                        resolvedBatches[cacheKey] = targetBatchId;
+                    }
+                } catch (err) {
+                    console.error(`[IMPORT] Self-Healing Batch resolution failed for row ${rowNum}:`, err.message);
+                }
+            }
+
             const studentObject = {
                 fullName: `${firstName} ${lastName}`,
                 email: email,
-                password: password || "Welcome@123",
+                password: "Welcome@123",
                 institute: scope.instituteId,
                 role: "student",
                 profile: {
                     firstName,
                     lastName,
                     phone: phone || "",
-                    gender: gender || "Not Specified"
+                    gender: gender || "Not Specified",
+                    dateOfBirth: dateOfBirth || undefined
                 },
-                enrollmentNumber: enrollmentNumber || null,
+                enrollmentNumber: enrollmentNumber,
                 
-                // Parent Info
-                fatherName,
-                fatherPhone,
-                fatherAadhar,
-                motherName,
-                motherPhone,
-                motherAadhar,
-
-                // Metadata
+                // Metadata details
                 grNumber,
-                aadharNumber,
-                studentIdUdise,
+                aadharNumber: cleanAadhar || null,
                 apaarId,
                 penNumber,
-
-                // Demographic
-                nationality,
-                religion,
-                caste,
-                subCaste,
-                admissionStd,
-                admissionDate: admissionDate ? new Date(admissionDate) : undefined,
-
+                caste: category || null,
+                motherName,
+                
                 isActive: true,
                 createdBy: session.user.id,
                 activeSession: isVocational ? null : (sessionId || null),
@@ -194,21 +443,21 @@ export async function POST(req) {
                 activeSessions: (!isVocational && sessionId) ? [sessionId] : []
             };
 
+            const idx = successResults.length;
             successResults.push(studentObject);
+            
+            if (targetBatchId) {
+                studentBatchMappings.push({ studentIdx: idx, batchId: targetBatchId });
+            }
         }
 
-        // Bulk Insert if any valid
+        // 4. BULK UPLOAD EXECUTION
         if (successResults.length > 0) {
-            // 1. Auto-generate Enrollment IDs for students who are missing one
+            // A. Auto-generate Enrollment IDs for students missing one
             const studentsMissingId = successResults.filter(s => !s.enrollmentNumber);
-
             if (studentsMissingId.length > 0) {
                 const year = new Date().getFullYear();
                 const counterId = `student_enrollment_${year}`;
-
-                // Atomically reserve a block of IDs
-                // Note: We need to import Counter model dynamically or at top-level
-                // Ideally import Counter from '@/models/Counter'; at top
                 const Counter = (await import("@/models/Counter")).default;
 
                 const counter = await Counter.findByIdAndUpdate(
@@ -219,29 +468,57 @@ export async function POST(req) {
 
                 if (!counter) throw new Error("Failed to generate enrollment sequence");
 
-                // Calculate starting sequence for this batch
-                // If current seq is 105 and we reserved 5, valid IDs are 101, 102, 103, 104, 105
                 let currentSeq = counter.seq - studentsMissingId.length + 1;
-
-                // Assign IDs
                 studentsMissingId.forEach(s => {
                     s.enrollmentNumber = `STU${year}${String(currentSeq).padStart(4, '0')}`;
+                    // Update email based on generated enrollment ID
+                    s.email = `${s.enrollmentNumber.toLowerCase()}@${emailDomain}`;
                     currentSeq++;
                 });
             }
 
-            // 2. Parallel Password Hashing
+            // B. Parallel Password Hashing
             const hashedPasswords = await Promise.all(
                 successResults.map(s => bcrypt.hash(s.password, 10))
             );
 
-            // Assign hashes back
             successResults.forEach((s, idx) => {
-                s.passwordHash = hashedPasswords[idx]; // Map to correct DB field
-                delete s.password; // Remove temp field
+                s.passwordHash = hashedPasswords[idx];
+                delete s.password;
             });
 
-            await Student.insertMany(successResults);
+            // C. Bulk Insert Students
+            const insertedDocs = await Student.insertMany(successResults);
+            console.log(`[IMPORT] Successfully bulk-inserted ${insertedDocs.length} students into User collection.`);
+
+            // D. High-Performance Bulk Enrollment in Batches
+            if (studentBatchMappings.length > 0) {
+                const batchGroups = {}; // batchId -> Array of student ObjectId strings
+                studentBatchMappings.forEach(mapping => {
+                    const studentId = insertedDocs[mapping.studentIdx]._id.toString();
+                    if (!batchGroups[mapping.batchId]) {
+                        batchGroups[mapping.batchId] = [];
+                    }
+                    batchGroups[mapping.batchId].push(studentId);
+                });
+
+                const Batch = (await import("@/models/Batch")).default;
+                for (const batchId in batchGroups) {
+                    const studentIds = batchGroups[batchId];
+                    await Batch.findByIdAndUpdate(batchId, {
+                        $addToSet: {
+                            enrolledStudents: {
+                                $each: studentIds.map(id => ({
+                                    student: new mongoose.Types.ObjectId(id),
+                                    enrolledAt: new Date(),
+                                    status: "active"
+                                }))
+                            }
+                        }
+                    });
+                    console.log(`[IMPORT] Enrolled ${studentIds.length} students in Batch ID: ${batchId}`);
+                }
+            }
         }
 
         return NextResponse.json({
@@ -252,7 +529,7 @@ export async function POST(req) {
         });
 
     } catch (error) {
-        console.error("Import Error:", error);
+        console.error("[IMPORT_FATAL]", error);
         return NextResponse.json({ error: "Import failed: " + error.message }, { status: 500 });
     }
 }
