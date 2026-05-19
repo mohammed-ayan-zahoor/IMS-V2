@@ -323,7 +323,8 @@ export async function POST(req) {
             const rawDOB = getValByColIndex(row, idxDOB);
             const gender = getValByColIndex(row, idxGender);
             const category = getValByColIndex(row, idxCategory);
-            const phone = getValByColIndex(row, idxPhone);
+                        const rawPhone = getValByColIndex(row, idxPhone);
+            const phone = rawPhone ? rawPhone.toString().trim().replace(/[^0-9+\-()\s]/g, "").trim() : undefined;
             const motherName = getValByColIndex(row, idxMotherName);
             const rawAadhar = getValByColIndex(row, idxAadhar);
             const penNumber = getValByColIndex(row, idxPEN);
@@ -418,7 +419,7 @@ export async function POST(req) {
                 profile: {
                     firstName,
                     lastName,
-                    phone: phone || "",
+                    phone: phone || undefined,
                     gender: gender || "Not Specified",
                     dateOfBirth: dateOfBirth || undefined
                 },
