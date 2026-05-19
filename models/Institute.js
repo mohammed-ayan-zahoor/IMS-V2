@@ -113,6 +113,24 @@ const InstituteSchema = new Schema({
         smsNotifications: { type: Boolean, default: false }
     },
 
+    // Multi-Tenant Cloudinary Storage Configuration
+    // Enables each institute to use their own Cloudinary account
+    cloudinary: {
+        enabled: { type: Boolean, default: false },
+        cloudName: String,
+        apiKey: String,
+        // apiSecret is encrypted with STORAGE_ENCRYPTION_KEY before storage
+        apiSecret: String,
+        // Timestamps for audit trail
+        configuredAt: Date,
+        lastTestedAt: Date,
+        lastTestResult: {
+            success: Boolean,
+            error: String,
+            timestamp: Date
+        }
+    },
+
     // Audit
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' }, // Super Admin who created it
     isActive: { type: Boolean, default: true },

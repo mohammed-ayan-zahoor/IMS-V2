@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import cloudinary from "@/lib/cloudinary";
+import { getCloudinaryOptions, getUploadFolder } from "@/lib/cloudinaryResolver";
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
@@ -18,6 +19,13 @@ export async function POST(req) {
         const session = await getServerSession(authOptions);
         if (!session || !['super_admin', 'admin', 'student'].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        // SECURITY: Extract instituteId from session (never from query params)
+        // This is the trusted source of truth for institute isolation
+        const instituteId = session.user.institute?.id || session.user.instituteId;
+        if (!instituteId) {
+            return NextResponse.json({ error: "No institute context" }, { status: 400 });
         }
 
         const formData = await req.formData();
@@ -79,6 +87,16 @@ export async function POST(req) {
 
         } else {
             // Cloudinary for Images (Public/Visible)
+            // Use tenant-specific credentials if configured, otherwise platform defaults
+
+            // Get tenant-specific Cloudinary options (thread-safe scoped injection)
+            let tenantOptions = {};
+            try {
+                tenantOptions = await getCloudinaryOptions(instituteId);
+            } catch (error) {
+                console.warn(`[Upload] Failed to get tenant Cloudinary options for ${instituteId}, using platform defaults:`, error.message);
+                // Fall back to platform defaults
+            }
 
             // Configure transformation based on file type
             let transformation;
@@ -88,11 +106,19 @@ export async function POST(req) {
                 transformation = [{ width: 500, height: 500, crop: "limit" }];
             }
 
+            // SECURITY: Dynamic folder namespacing
+            // All uploads are prefixed with institutes/{instituteId}/uploads
+            // This ensures clean data partitioning even if credentials were compromised
+            const uploadFolder = getUploadFolder(instituteId, 'uploads');
+
             const uploadResponse = await new Promise((resolve, reject) => {
                 const options = {
-                    folder: "quantech/uploads",
+                    folder: uploadFolder,
                     resource_type: "auto",
-                    transformation
+                    transformation,
+                    // Thread-safe scoped injection: pass tenant credentials directly
+                    // SDK processes each request independently without global mutation
+                    ...tenantOptions
                 };
 
                 const uploadStream = cloudinary.uploader.upload_stream(
@@ -107,12 +133,14 @@ export async function POST(req) {
 
             return NextResponse.json({
                 url: uploadResponse.secure_url,
-                public_id: uploadResponse.public_id
+                public_id: uploadResponse.public_id,
+                institute: instituteId  // Echo back for verification
             });
         }
 
     } catch (error) {
-        console.error("Upload Error:", error);
+        console.error("[Upload Error]:", error.message);
         return NextResponse.json({ error: "Failed to upload file" }, { status: 500 });
     }
 }
+

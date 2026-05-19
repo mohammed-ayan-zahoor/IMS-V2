@@ -66,7 +66,7 @@ const SubjectSchema = new Schema({
 // A course cannot have the same master subject twice
 SubjectSchema.index(
     { course: 1, masterSubject: 1 },
-    { unique: true, partialFilterExpression: { deletedAt: null, masterSubject: { $ne: null } } }
+    { unique: true, partialFilterExpression: { deletedAt: null, masterSubject: { $exists: true } } }
 );
 
 // Fallback: A course cannot have the same code twice (for custom subjects)
