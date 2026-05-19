@@ -330,6 +330,15 @@ export class StudentService {
             if (instituteId) batchQuery.institute = instituteId;
             if (batchId) batchQuery._id = batchId;
             if (courseId) batchQuery.course = courseId;
+            
+            // Strictly scope course/batch filtering by the active academic year to prevent cross-session leakage
+            if (sessionId && (targetInstituteType === 'SCHOOL' || !targetInstituteType)) {
+                try {
+                    batchQuery.session = new mongoose.Types.ObjectId(sessionId);
+                } catch (e) {
+                    batchQuery.session = sessionId;
+                }
+            }
 
             const batches = await Batch.find(batchQuery).select('enrolledStudents.student');
             
