@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>MOU – Quantech Platform School Agreement</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm 15mm 12mm 15mm;
+  }
+  body { background: #fff !important; padding: 0 !important; margin: 0 !important; font-size: 13px !important; line-height: 1.45 !important; color: #1e293b !important; }
+  .form-card, .actions, #toast { display: none !important; }
+  .page-wrapper { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+  .mou-doc { background: transparent !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; width: 100% !important; }
+  
+  .mou-page {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+    page-break-after: always !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    min-height: 0 !important;
+    height: 272mm !important; /* Force exact printable A4 height bounds */
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+  }
+  .mou-page:last-child { page-break-after: avoid !important; }
+  .sig-clear, .sig-upload-label, .sig-control-sep { display: none !important; }
+  
+  /* Compact layout sizes for print to prevent page overflow */
+  .mou-letterhead { padding-bottom: 8px !important; margin-bottom: 12px !important; border-bottom-width: 1.5px !important; }
+  .logo-container { height: 38px !important; padding: 4px 8px !important; }
+  .lh-details-area h2 { font-size: 13px !important; }
+  .lh-details-area p { font-size: 8.5px !important; margin-top: 1px !important; }
+  
+  .mou-header { text-align: center !important; margin-bottom: 10px !important; padding-bottom: 8px !important; border-bottom-width: 1.5px !important; }
+  .mou-header .badge { font-size: 8px !important; padding: 2px 8px !important; margin-bottom: 8px !important; }
+  .mou-header h1 { font-size: 19px !important; letter-spacing: 0.5px !important; margin-bottom: 2px !important; }
+  .mou-header .subtitle { font-size: 11px !important; }
+  
+  .mou-parties { grid-template-columns: 1fr 1fr !important; gap: 16px !important; padding: 12px !important; margin-bottom: 12px !important; border-radius: 8px !important; }
+  .party-block h4 { font-size: 8.5px !important; margin-bottom: 4px !important; }
+  .party-block .party-name { font-size: 13.5px !important; }
+  .party-block .party-detail { font-size: 10.5px !important; margin-top: 2px !important; }
+  .party-sep { font-size: 16px !important; display: flex !important; align-items: center; justify-content: center; }
+  .party-sep::before, .party-sep::after { display: none !important; }
+  
+  .mou-section { margin-bottom: 10px !important; }
+  .mou-section h3 { font-size: 11px !important; margin-bottom: 5px !important; padding-bottom: 3px !important; }
+  .mou-section p { font-size: 13px !important; line-height: 1.45 !important; margin-bottom: 4px !important; }
+  .mou-section ul, .mou-section li { font-size: 12.5px !important; line-height: 1.4 !important; margin-bottom: 3px !important; }
+  
+  .highlight-box { padding: 10px !important; margin: 8px 0 !important; border-radius: 8px !important; }
+  .highlight-box .label { font-size: 10px !important; }
+  .highlight-box .value { font-size: 17px !important; }
+  .highlight-box .sub { font-size: 9.5px !important; }
+  
+  .sig-section { grid-template-columns: 1fr 1fr !important; gap: 32px !important; margin-top: 16px !important; }
+  .sig-canvas-wrap canvas { height: 105px !important; }
+  .sig-meta { margin-top: 10px !important; }
+  .sig-meta p { font-size: 12px !important; line-height: 1.3 !important; }
+  .sig-meta span { font-size: 11px !important; }
+  
+  .ref-badge { font-size: 10px !important; padding-top: 6px !important; margin-top: auto !important; border-top-width: 1px !important; }
+}
+</style>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f0f2f5;font-family:'Inter',sans-serif;min-height:100vh;padding:40px 16px}
+.page-wrapper{max-width:860px;margin:0 auto}
+
+/* Form card */
+.form-card{background:#fff;border-radius:16px;padding:32px;margin-bottom:24px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.form-card h2{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.form-card h2 span{background:#1e3a8a;color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grid.full{grid-template-columns:1fr}
+.field label{display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.field input,.field textarea,.field select{width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:'Inter',sans-serif;color:#1e293b;transition:.2s}
+.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:#1e3a8a;box-shadow:0 0 0 3px rgba(30,58,138,.1)}
+.field textarea{resize:vertical;min-height:64px}
+.highlight-field input{border-color:#f59e0b;background:#fffbeb}
+.highlight-field label{color:#92400e}
+
+/* MOU Document Wrapper & Pages */
+.mou-doc{background:transparent;box-shadow:none;border-radius:0;padding:0;font-family:'EB Garamond',serif;line-height:1.8}
+.mou-page {
+  background: #fff;
+  border-radius: 16px;
+  padding: 56px 64px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.08);
+  margin-bottom: 24px;
+  position: relative;
+  min-height: 297mm; /* Standard aspect ratio */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+/* Letterhead Styling */
+.mou-letterhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #1e3a8a;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+.lh-logo-area {
+  display: flex;
+  align-items: center;
+}
+.logo-container {
+  background: #1e3a8a !important; /* Theme deep blue to perfectly contrast the white logo letters */
+  padding: 6px 14px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.12);
+  height: 52px;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.logo-container img {
+  height: 100%;
+  max-width: 140px;
+  object-fit: contain;
+}
+.lh-details-area {
+  text-align: right;
+}
+.lh-details-area h2 {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin: 0 0 2px 0;
+  letter-spacing: 0.5px;
+}
+.lh-details-area p {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: #64748b;
+  margin: 2px 0 0 0;
+  line-height: 1.3;
+}
+
+/* Commercials & Enrollment Wrapper */
+.enrollment-commercial-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1.30fr;
+  gap: 20px;
+  margin: 20px 0;
+}
+.commercial-box {
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.comm-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #166534;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.comm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.comm-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #64748b;
+}
+.comm-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: #14532d;
+  margin-top: 2px;
+}
+.comm-value.upfront {
+  color: #166534;
+}
+.comm-footer {
+  font-family: 'Inter', sans-serif;
+  font-size: 9.5px;
+  color: #64748b;
+  margin-top: 8px;
+  border-top: 1px dashed #dcfce7;
+  padding-top: 6px;
+  line-height: 1.3;
+}
+
+.mou-header{text-align:center;border-bottom:3px double #1e3a8a;padding-bottom:28px;margin-bottom:32px}
+.mou-header .badge{display:inline-block;background:#1e3a8a;color:#fff;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:4px 12px;border-radius:4px;margin-bottom:16px}
+.mou-header h1{font-size:28px;font-weight:700;color:#1e293b;letter-spacing:1px;margin-bottom:4px}
+.mou-header .subtitle{font-size:14px;color:#64748b;font-family:'Inter',sans-serif;font-weight:500}
+
+.mou-parties{display:grid;grid-template-columns:1fr 1fr;gap:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin-bottom:28px}
+.party-block h4{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:8px}
+.party-block .party-name{font-size:17px;font-weight:700;color:#1e3a8a}
+.party-block .party-detail{font-size:13px;color:#475569;margin-top:4px;font-family:'Inter',sans-serif}
+.party-sep{display:flex;align-items:center;justify-content:center;font-size:22px;color:#94a3b8;font-weight:300}
+
+.mou-section{margin-bottom:24px}
+.mou-section h3{font-family:'Inter',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#1e3a8a;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e2e8f0}
+.mou-section p{font-size:15.5px;color:#334155;margin-bottom:8px;text-align:justify}
+.mou-section ul{padding-left:20px}
+.mou-section ul li{font-size:15.5px;color:#334155;margin-bottom:6px}
+
+.highlight-box{background:linear-gradient(135deg,#1e3a8a08,#f59e0b08);border:1.5px solid #f59e0b;border-radius:10px;padding:16px 20px;margin:20px 0;text-align:center}
+.highlight-box .label{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#92400e;margin-bottom:4px}
+.highlight-box .value{font-size:26px;font-weight:700;color:#1e3a8a;font-family:'Inter',sans-serif}
+.highlight-box .sub{font-size:13px;color:#64748b;font-family:'Inter',sans-serif;margin-top:2px}
+
+/* Signature area */
+.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px;padding-top:32px;border-top:2px solid #e2e8f0}
+.sig-block h4{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:12px}
+.sig-canvas-wrap{border:1.5px dashed #cbd5e1;border-radius:10px;background:#f8fafc;position:relative;overflow:hidden}
+.sig-canvas-wrap canvas{display:block;width:100%;height:140px;cursor:crosshair;touch-action:none}
+.sig-canvas-wrap .sig-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Inter',sans-serif;font-size:12px;color:#94a3b8;font-weight:500;pointer-events:none;transition:.2s}
+.sig-canvas-wrap.signed .sig-hint{opacity:0}
+.sig-meta{margin-top:10px}
+.sig-meta .sig-line{border-bottom:1px solid #1e293b;margin-bottom:4px;height:20px}
+.sig-meta p{font-size:13px;color:#334155;font-family:'Inter',sans-serif}
+.sig-meta p strong{font-weight:600}
+.sig-clear{margin-top:6px;font-family:'Inter',sans-serif;font-size:11px;color:#ef4444;cursor:pointer;background:none;border:none;padding:0;font-weight:600}
+.sig-clear:hover{text-decoration:underline}
+
+.provider-sig{text-align:center}
+.provider-sig .stamp{display:inline-block;border:3px solid #1e3a8a;border-radius:50%;width:80px;height:80px;line-height:80px;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;color:#1e3a8a;letter-spacing:1px;margin:4px auto 8px}
+
+/* Footer actions */
+.actions{display:flex;gap:12px;justify-content:flex-end;margin-top:24px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:.2s}
+.btn-primary{background:#1e3a8a;color:#fff;box-shadow:0 4px 12px rgba(30,58,138,.3)}
+.btn-primary:hover{background:#1e40af}
+.btn-secondary{background:#fff;color:#475569;border:1.5px solid #e2e8f0}
+.btn-secondary:hover{border-color:#94a3b8}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.ref-badge{font-family:'Inter',monospace;font-size:11px;color:#94a3b8;text-align:center;margin-top:auto;padding-top:16px;border-top:1px solid #f1f5f9}
+
+.status-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;background:#dcfce7;color:#16a34a;margin-bottom:16px}
+.status-pill::before{content:'';width:7px;height:7px;background:#16a34a;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+#toast{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;padding:14px 20px;border-radius:12px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.2);transform:translateY(100px);opacity:0;transition:.3s;z-index:999}
+#toast.show{transform:translateY(0);opacity:1}
+
+@media (max-width: 680px) {
+  body {
+    padding: 16px 8px !important;
+  }
+  .form-card {
+    padding: 24px 16px !important;
+  }
+  .form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .mou-page {
+    padding: 36px 20px !important; /* Classic formal document page spacing on mobile */
+    border-radius: 12px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05) !important;
+    min-height: 0 !important;
+    margin-bottom: 16px !important;
+  }
+  .enrollment-commercial-wrapper {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    margin: 16px 0 !important;
+  }
+  .mou-header {
+    margin-bottom: 24px !important;
+    padding-bottom: 20px !important;
+  }
+  .mou-header h1 {
+    font-size: 21px !important;
+    line-height: 1.3 !important;
+  }
+  .mou-header .subtitle {
+    font-size: 12px !important;
+    margin-top: 6px;
+  }
+  .mou-parties {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 16px !important;
+    margin-bottom: 20px !important;
+  }
+  .party-sep {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px !important;
+    color: #94a3b8;
+    margin: 4px 0 !important;
+  }
+  .party-sep::before, .party-sep::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #e2e8f0;
+    margin: 0 12px;
+  }
+  .highlight-box {
+    padding: 12px !important;
+    margin: 16px 0 !important;
+  }
+  .highlight-box .value {
+    font-size: 20px !important;
+  }
+  .sig-section {
+    grid-template-columns: 1fr !important;
+    gap: 36px !important;
+    margin-top: 32px !important;
+    padding-top: 24px !important;
+  }
+  .sig-block {
+    width: 100% !important;
+  }
+  .sig-canvas-wrap canvas {
+    height: 120px !important;
+  }
+  .actions {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* Force standard A4 proportions during PDF capture regardless of viewport size */
+body.is-exporting {
+  width: 1024px !important;
+  background: #f0f2f5 !important;
+}
+body.is-exporting .page-wrapper {
+  max-width: 860px !important;
+  width: 860px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+}
+body.is-exporting .mou-doc {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  width: 860px !important;
+}
+body.is-exporting .mou-page {
+  padding: 56px 64px !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  width: 860px !important;
+  height: 1216px !important; /* Perfect aspect ratio */
+  margin-bottom: 0 !important;
+  position: relative !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+}
+body.is-exporting .form-card, body.is-exporting .actions, body.is-exporting #toast {
+  display: none !important;
+}
+body.is-exporting .mou-parties {
+  grid-template-columns: 1fr 1fr !important;
+  gap: 24px !important;
+}
+body.is-exporting .party-sep {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+body.is-exporting .party-sep::before, body.is-exporting .party-sep::after {
+  display: none !important;
+}
+body.is-exporting .sig-section {
+  grid-template-columns: 1fr 1fr !important;
+  gap: 40px !important;
+}
+body.is-exporting .sig-block {
+  width: auto !important;
+}
+body.is-exporting .sig-canvas-wrap canvas {
+  height: 140px !important;
+}
+body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-exporting .sig-control-sep {
+  display: none !important;
+}
+</style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- Step 1: Fill Details -->
+  <div class="form-card" id="step-form">
+    <h2><span>1</span> School Details — Fill Before Signing</h2>
+    <div class="form-grid">
+      <div class="field">
+        <label>School / Institution Name *</label>
+        <input id="f-school" type="text" placeholder="e.g. Delhi Public School, Bhopal" oninput="updateDoc()"/>
+      </div>
+      <div class="field">
+        <label>City / District *</label>
+        <input id="f-city" type="text" placeholder="e.g. Bhopal, MP" oninput="updateDoc()"/>
+      </div>
+      <div class="field">
+        <label>Principal / Authorised Signatory Name *</label>
+        <input id="f-principal" type="text" placeholder="Full name" oninput="updateDoc()"/>
+      </div>
+      <div class="field">
+        <label>Designation</label>
+        <input id="f-designation" type="text" placeholder="e.g. Principal, Director" oninput="updateDoc()"/>
+      </div>
+      <div class="field">
+        <label>Contact Email *</label>
+        <input id="f-email" type="email" placeholder="principal@school.edu" oninput="updateDoc()"/>
+      </div>
+      <div class="field">
+        <label>Contact Phone</label>
+        <input id="f-phone" type="tel" placeholder="+91 98765 43210" oninput="updateDoc()"/>
+      </div>
+    </div>
+    <div style="margin-top:16px" class="form-grid">
+      <div class="field highlight-field">
+        <label>Total Number of Students to be Enrolled *</label>
+        <input id="f-students" type="number" min="1" placeholder="e.g. 450" oninput="updateDoc()" style="font-size:18px;font-weight:700"/>
+      </div>
+      <div class="field" style="border-radius:10px;">
+        <label style="color:#1e3a8a;font-weight:700;">UDISE Code (School Code)</label>
+        <input id="f-udise" type="text" placeholder="e.g. 23260100101" oninput="updateDoc()" style="font-size:18px;font-weight:700;border-color:#1e3a8a;background:#f8fafc;"/>
+      </div>
+    </div>
+    <div style="margin-top:16px" class="form-grid full">
+      <div class="field">
+        <label>School Address (optional)</label>
+        <textarea id="f-address" rows="2" placeholder="Street, Area, City – PIN" oninput="updateDoc()"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOU Document -->
+  <div class="mou-doc" id="mou-document">
+    <div class="mou-page" id="mou-page-1">
+
+      <!-- Corporate Letterhead -->
+      <div class="mou-letterhead">
+        <div class="lh-logo-area">
+          <div class="logo-container">
+            <img src="/assets/logo-long-white.png" alt="Quantech Infosystem Logo"/>
+          </div>
+        </div>
+        <div class="lh-details-area">
+          <h2>QUANTECH INFOSYSTEM LLP.</h2>
+          <p style="font-size:10px; line-height:1.35; color:#64748b; margin-top:2px;">3rd Floor, Behind Gurudwara, Mumbai-Agra Highway,<br/>Dhule, Maharashtra – 424001.</p>
+          <p style="margin-top:2px;">Email: admin@quantechinfosystem.com | Web: https://quantechinfosystem.com</p>
+        </div>
+      </div>
+
+
+    <div class="mou-header">
+      <div class="badge">Official Document</div>
+      <h1>Memorandum of Understanding</h1>
+      <div class="subtitle">For Implementation of Quantech Platform</div>
+    </div>
+
+    <div style="text-align:right;margin-bottom:20px;font-family:'Inter',sans-serif;font-size:13px;color:#64748b">
+      Ref No: <strong id="doc-ref">QP/MOU/2025-26/—</strong>&nbsp;&nbsp;|&nbsp;&nbsp;Date: <strong id="doc-date"></strong>
+    </div>
+
+    <div class="mou-parties">
+      <div class="party-block">
+        <h4>Party A — Service Provider</h4>
+        <div class="party-name">Quantech Infosystem LLP.</div>
+        <div class="party-detail">Developers of Quantech Platform<br/>India</div>
+      </div>
+      <div class="party-sep">&amp;</div>
+      <div class="party-block">
+        <h4>Party B — Institution</h4>
+        <div class="party-name" id="d-school">[ School Name ]</div>
+        <div class="party-detail">
+          <span id="d-city-addr">[ City / District ]</span>
+          <div style="font-weight:600;margin-top:4px;color:#475569;" id="d-udise-wrap">UDISE Code: <strong id="d-udise" style="color:#1e3a8a;">—</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mou-section">
+      <h3>1. Background &amp; Purpose</h3>
+      <p>This Memorandum of Understanding ("MOU") is entered into between <strong>Quantech Infosystem LLP.</strong> (hereinafter "the Provider") and <strong id="d-school2">the Institution</strong> (hereinafter "the School"), collectively referred to as "the Parties."</p>
+      <p>The purpose of this MOU is to set forth the terms under which the Provider shall grant the School access to the <strong>Quantech Platform</strong> — a cloud-based software platform for managing academics, fees, attendance, hostel, transport, and administrative operations.</p>
+    </div>
+
+    <div class="mou-section">
+      <h3>2. Scope of Enrollment</h3>
+      <p>The School hereby confirms its intent to onboard the following number of students onto the Quantech Platform for the academic year 2025–26:</p>
+      <div class="enrollment-commercial-wrapper">
+        <div class="highlight-box" style="margin: 0 !important;">
+          <div class="label">Agreed Student Enrollment Strength</div>
+          <div class="value" id="d-students">— Students</div>
+          <div class="sub" id="d-school-inline">[ School Name ]</div>
+        </div>
+        
+        <div class="commercial-box">
+          <div class="comm-title">Commercial Terms &amp; Billing Breakdown</div>
+          <div class="comm-grid">
+            <div>
+              <div class="comm-label">Annual Price (at ₹59 / Student)</div>
+              <div class="comm-value" id="d-total-price">₹0.00</div>
+            </div>
+            <div>
+              <div class="comm-label">70% Upfront Commercial Amount</div>
+              <div class="comm-value upfront" id="d-upfront-price">₹0.00</div>
+            </div>
+          </div>
+          <div class="comm-footer">
+            * Calculated on agreed student strength. Billed annually. Taxes extra.
+          </div>
+        </div>
+      </div>
+      <p>Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond <span id="d-students-plus">—</span> students during the agreement period shall be subject to a revised quote.</p>
+    </div><!-- end Clause 2 -->
+  </div><!-- end Page 1 -->
+
+    <div class="mou-page" id="mou-page-2">
+
+    <div class="mou-section">
+      <h3>3. Obligations of the Provider</h3>
+      <ul>
+        <li>Provide full access to the Quantech Platform modules as agreed, including Academics, Fee Management, Attendance, Reports, Hostel, and Transport (as applicable).</li>
+        <li>Ensure 99.5% platform uptime during school operational hours.</li>
+        <li>Provide onboarding support, staff training sessions (online/on-site), and technical documentation.</li>
+        <li>Maintain data confidentiality and comply with applicable data protection laws.</li>
+        <li>Deliver feature updates and security patches throughout the agreement period at no additional cost.</li>
+      </ul>
+    </div>
+
+    <div class="mou-section">
+      <h3>4. Obligations of the School</h3>
+      <ul>
+        <li>Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.</li>
+        <li>Provide accurate and complete student data for onboarding within 14 days of agreement execution.</li>
+        <li>Ensure timely payment of subscription fees, with 70% of commercials to be paid upfront upon invoice issuance by the Provider.</li>
+        <li>Not share, sub-license, or resell access to the Quantech Platform to any third party.</li>
+        <li>Report technical issues through the designated support channel promptly.</li>
+      </ul>
+    </div>
+
+    <div class="mou-section">
+      <h3>5. Confidentiality</h3>
+      <p>Both Parties agree to maintain strict confidentiality of all information exchanged under this MOU, including student data, pricing, and platform configurations. Student data shall be used solely for the purpose of providing the agreed services and shall not be shared with any third party without prior written consent.</p>
+    </div><!-- end Clause 5 -->
+  </div><!-- end Page 2 -->
+
+    <div class="mou-page" id="mou-page-3">
+
+    <div class="mou-section">
+      <h3>6. Duration &amp; Termination</h3>
+      <p>This MOU shall be effective from the date of signing and shall remain valid for a period of <strong>one (1) academic year</strong>, renewable annually by mutual written consent. Either Party may terminate this MOU with <strong>30 days' written notice</strong>. Upon termination, the School's data shall be made available for export for a period of 30 days before deletion.</p>
+    </div>
+
+    <div class="mou-section">
+      <h3>7. Limitation of Liability</h3>
+      <p>The Provider's total liability under this MOU shall not exceed the total fees paid by the School in the preceding 3 months. The Provider shall not be liable for indirect, incidental, or consequential damages arising from the use or inability to use the platform.</p>
+    </div>
+
+    <div class="mou-section">
+      <h3>8. Governing Law</h3>
+      <p>This MOU shall be governed by the laws of India. Any disputes arising out of or in connection with this MOU shall be subject to the exclusive jurisdiction of the courts in <strong>Dhule, Maharashtra</strong>.</p>
+    </div>
+
+    <div class="mou-section">
+      <h3>9. Entire Agreement</h3>
+      <p>This MOU constitutes the entire understanding between the Parties with respect to its subject matter and supersedes all prior discussions, representations, or agreements. Amendments to this MOU shall be valid only if made in writing and signed by both Parties.</p>
+    </div>
+
+    <!-- Signatures -->
+    <div class="sig-section">
+      <div class="sig-block">
+        <h4>Signature — Party B (School)</h4>
+        <div class="sig-canvas-wrap" id="sigWrap">
+          <canvas id="sigCanvas"></canvas>
+          <div class="sig-hint">Sign here using mouse or finger</div>
+        </div>
+        <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+          <button class="sig-clear" onclick="clearSig()">Clear signature</button>
+          <span class="sig-control-sep" style="color:#cbd5e1; font-family:'Inter',sans-serif; font-size:11px;">|</span>
+          <label class="sig-upload-label" style="font-family:'Inter',sans-serif; font-size:11px; color:#1e3a8a; font-weight:600; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center;">
+            Upload signature image
+            <input type="file" id="sigUploadInput" accept="image/png, image/jpeg" style="display:none;" onchange="handleSigUpload(event)"/>
+          </label>
+        </div>
+        <div class="sig-meta" style="margin-top:14px">
+          <div class="sig-line"></div>
+          <p><strong id="d-principal">[ Authorised Signatory ]</strong></p>
+          <p id="d-designation" style="color:#64748b;font-size:13px">[ Designation ]</p>
+          <p id="d-school3" style="color:#64748b;font-size:13px">[ School Name ]</p>
+          <p id="d-udise-sig" style="color:#64748b;font-size:12px;margin-top:2px;">UDISE Code: —</p>
+          <p style="color:#94a3b8;font-size:12px;margin-top:4px">Date: <span id="sig-date"></span></p>
+        </div>
+      </div>
+
+      <div class="sig-block provider-sig">
+        <h4>Signature — Party A (Provider)</h4>
+        <div style="height:140px;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:12px">
+          <img src="/assets/sign.png" alt="Quantech Authorised Signatory" style="max-height:100%; max-width:100%; object-fit:contain; mix-blend-mode: multiply;"/>
+        </div>
+        <div class="sig-meta" style="margin-top:14px">
+          <div class="sig-line"></div>
+          <p><strong>Authorised Representative</strong></p>
+          <p style="color:#64748b;font-size:13px">Director / CEO</p>
+          <p style="color:#64748b;font-size:13px">Quantech Infosystem LLP.</p>
+          <p style="color:#94a3b8;font-size:12px;margin-top:4px">For office use only</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-badge">
+      This document was digitally signed via Quantech Platform MOU Portal &nbsp;|&nbsp; <span id="doc-ref2"></span> &nbsp;|&nbsp; <span id="doc-date2"></span>
+    </div>
+
+    </div><!-- end Page 3 -->
+
+  </div><!-- end .mou-doc -->
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="btn btn-secondary" onclick="window.print()">Print</button>
+    <button class="btn btn-primary" id="btn-download" onclick="downloadPDF()">Download &amp; Send PDF</button>
+  </div>
+
+</div><!-- end .page-wrapper -->
+
+<div id="toast">PDF generated — ready to send!</div>
+
+<script>
+// ── Date & Ref ──────────────────────────────────────────────
+const today = new Date();
+const dateStr = today.toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
+const refId = 'QP/MOU/2025-26/' + String(Math.floor(Math.random()*9000)+1000);
+
+document.querySelectorAll('#doc-date,#doc-date2').forEach(el => el.textContent = dateStr);
+document.querySelectorAll('#doc-ref,#doc-ref2').forEach(el => el.textContent = refId);
+document.querySelector('#sig-date').textContent = dateStr;
+
+// ── Live doc update ─────────────────────────────────────────
+function updateDoc() {
+  const school = document.getElementById('f-school').value.trim() || '[ School Name ]';
+  const city = document.getElementById('f-city').value.trim() || '[ City / District ]';
+  const principal = document.getElementById('f-principal').value.trim() || '[ Authorised Signatory ]';
+  const desig = document.getElementById('f-designation').value.trim() || '[ Designation ]';
+  const students = document.getElementById('f-students').value.trim();
+  const addr = document.getElementById('f-address').value.trim();
+
+  const udise = document.getElementById('f-udise').value.trim() || '—';
+
+  document.getElementById('d-school').textContent = school;
+  document.getElementById('d-school2').textContent = school;
+  document.getElementById('d-school3').textContent = school;
+  document.getElementById('d-school-inline').textContent = school;
+  document.getElementById('d-city-addr').innerHTML = city + (addr ? '<br/>' + addr : '');
+  document.getElementById('d-principal').textContent = principal;
+  document.getElementById('d-designation').textContent = desig;
+  document.getElementById('d-udise').textContent = udise;
+  document.getElementById('d-udise-sig').textContent = udise !== '—' ? 'UDISE Code: ' + udise : 'UDISE Code: —';
+
+  if (students) {
+    const studentCount = parseInt(students);
+    const totalPrice = studentCount * 59;
+    const upfrontPrice = totalPrice * 0.7;
+    document.getElementById('d-students').textContent = studentCount.toLocaleString('en-IN') + ' Students';
+    document.getElementById('d-students-plus').textContent = studentCount.toLocaleString('en-IN');
+    document.getElementById('d-total-price').textContent = '₹' + totalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('d-upfront-price').textContent = '₹' + upfrontPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  } else {
+    document.getElementById('d-students').textContent = '— Students';
+    document.getElementById('d-students-plus').textContent = '—';
+    document.getElementById('d-total-price').textContent = '₹0.00';
+    document.getElementById('d-upfront-price').textContent = '₹0.00';
+  }
+}
+updateDoc();
+
+// ── Signature Pad ───────────────────────────────────────────
+const canvas = document.getElementById('sigCanvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('sigWrap');
+let drawing = false, hasSig = false;
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  ctx.strokeStyle = '#1e3a8a';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+}
+
+canvas.addEventListener('mousedown', e => { drawing = true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+canvas.addEventListener('mousemove', e => { if (!drawing) return; const p=getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); markSigned(); });
+canvas.addEventListener('mouseup', () => drawing = false);
+canvas.addEventListener('mouseleave', () => drawing = false);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }, {passive:false});
+canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!drawing)return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); markSigned(); }, {passive:false});
+canvas.addEventListener('touchend', () => drawing = false);
+
+function markSigned() { hasSig=true; wrap.classList.add('signed'); }
+
+function clearSig() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  hasSig = false;
+  wrap.classList.remove('signed');
+  // Reset file input so same file can be re-uploaded if needed
+  const fileInput = document.getElementById('sigUploadInput');
+  if (fileInput) fileInput.value = '';
+}
+
+function handleSigUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    const img = new Image();
+    img.onload = function() {
+      // Clear canvas first
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const canvasWidth = canvas.width / window.devicePixelRatio;
+      const canvasHeight = canvas.height / window.devicePixelRatio;
+      
+      const imgRatio = img.width / img.height;
+      const canvasRatio = canvasWidth / canvasHeight;
+      
+      let renderWidth, renderHeight, xOffset, yOffset;
+      
+      // Scale and center the image with 12px margin padding
+      if (imgRatio > canvasRatio) {
+        renderWidth = canvasWidth - 24;
+        renderHeight = renderWidth / imgRatio;
+        xOffset = 12;
+        yOffset = (canvasHeight - renderHeight) / 2;
+      } else {
+        renderHeight = canvasHeight - 24;
+        renderWidth = renderHeight * imgRatio;
+        xOffset = (canvasWidth - renderWidth) / 2;
+        yOffset = 12;
+      }
+      
+      ctx.drawImage(img, xOffset, yOffset, renderWidth, renderHeight);
+      markSigned();
+    };
+    img.src = event.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── PDF Generation ──────────────────────────────────────────
+async function downloadPDF() {
+  const btn = document.getElementById('btn-download');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+
+  // Paste sig into doc
+  const sigImg = canvas.toDataURL('image/png');
+  const sigPlaceholder = document.createElement('img');
+  sigPlaceholder.src = sigImg;
+  sigPlaceholder.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none';
+  wrap.appendChild(sigPlaceholder);
+
+  try {
+    const { jsPDF } = window.jspdf;
+    
+    // Force standard desktop layout proportions for capture
+    document.body.classList.add('is-exporting');
+    await new Promise(r => setTimeout(r, 150)); // let layout engine settle
+    
+    const pages = document.querySelectorAll('.mou-page');
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    
+    for (let i = 0; i < pages.length; i++) {
+      if (i > 0) pdf.addPage();
+      const canvasPage = await html2canvas(pages[i], { 
+        scale: 2.5, 
+        useCORS: true, 
+        backgroundColor: '#fff' 
+      });
+      const imgData = canvasPage.toDataURL('image/jpeg', 0.98);
+      const pW = pdf.internal.pageSize.getWidth();
+      const pH = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, 'JPEG', 0, 0, pW, pH);
+    }
+    
+    // Restore mobile layout immediately after capture
+    document.body.classList.remove('is-exporting');
+    
+    const school = (document.getElementById('f-school').value.trim() || 'School').replace(/\s+/g,'_');
+    pdf.save(`MOU_Quantech_${school}_2025-26.pdf`);
+    showToast();
+  } catch(e) {
+    document.body.classList.remove('is-exporting');
+    console.error(e);
+    alert('PDF generation failed. Please try printing instead.');
+  } finally {
+    wrap.removeChild(sigPlaceholder);
+    btn.disabled = false;
+    btn.textContent = 'Download & Send PDF';
+  }
+}
+
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
