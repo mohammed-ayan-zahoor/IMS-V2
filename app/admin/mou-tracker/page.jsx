@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { 
@@ -280,8 +280,8 @@ export default function MouTrackerPage() {
                                     const statusObj = STATUSES.find(s => s.value === sub.status) || STATUSES[0];
                                     
                                     return (
-                                        <>
-                                            <tr key={sub._id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                                        <Fragment key={sub._id}>
+                                            <tr className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                                                 <td className="p-4">
                                                     <p className="text-xs font-black text-indigo-500 uppercase tracking-wider">{sub.refId}</p>
                                                     <p className="text-sm font-bold text-slate-800 mt-1">{sub.schoolName}</p>
@@ -422,7 +422,7 @@ export default function MouTrackerPage() {
                                                     </td>
                                                 </tr>
                                             )}
-                                        </>
+                                        </Fragment>
                                     );
                                 })
                             )}
