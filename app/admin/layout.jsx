@@ -38,7 +38,8 @@ import {
     TrendingUp,
     Contact,
     Megaphone,
-    Bus
+    Bus,
+    Hotel
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -73,23 +74,27 @@ export default function AdminLayout({ children }) {
         else if (status === "authenticated" && session?.user?.role === "student") router.push("/student/dashboard");
     }, [status, session, router]);
 
-    // Auto-expand group logic...
-    useEffect(() => {
-        if (!expandedGroup && pathname) {
-            const activeGroup = menuGroups.find(g => 
-                g.items.some(i => {
-                    const actualHref = i.href.startsWith("/admin") && pathname.startsWith("/instructor") 
-                        ? i.href.replace("/admin", "/instructor") 
-                        : i.href;
-                    return pathname === actualHref || pathname.startsWith(actualHref + "/");
-                })
-            );
-            if (activeGroup) setExpandedGroup(activeGroup.label);
-        }
-    }, [pathname]);
 
+
+    const [liveFeatures, setLiveFeatures] = useState(null);
+
+    useEffect(() => {
+        if (session?.user?.institute?.id) {
+            fetch("/api/v1/institute")
+                .then(res => res.json())
+                .then(data => {
+                    if (data?.institute?.settings?.features) {
+                        setLiveFeatures(data.institute.settings.features);
+                    }
+                })
+                .catch(err => console.error("Failed to load live features in layout", err));
+        }
+    }, [session?.user?.institute?.id, pathname]);
+
+    const features = liveFeatures || session?.user?.institute?.features || {};
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
-    const isTransportEnabled = isSchool || session?.user?.institute?.features?.transport;
+    const isTransportEnabled = isSchool || features.transport;
+    const isHostelEnabled = !!features.hostel;
     const menuGroups = [
         {
             label: "Academic",
@@ -143,6 +148,14 @@ export default function AdminLayout({ children }) {
                 { label: "Transport", icon: Bus, href: "/admin/transport" }
             ]
         }] : []),
+        // Hostel - always visible for SCHOOL, opt-in via toggle for VOCATIONAL
+        ...((isSchool || isHostelEnabled) ? [{
+            label: "Hostel",
+            role: ["admin", "super_admin"],
+            items: [
+                { label: "Hostel", icon: Hotel, href: "/admin/hostel" }
+            ]
+        }] : []),
         {
             label: "Reports",
             items: [
@@ -162,6 +175,7 @@ export default function AdminLayout({ children }) {
                 { label: "Certificate Management", icon: Award, href: "/admin/certificate-management" },
                 { label: "ID Card Management", icon: Contact, href: "/admin/id-cards" },
                 { label: "Completion Analytics", icon: TrendingUp, href: "/admin/completion-analytics" },
+                { label: "MOU Tracker", icon: FileSignature, href: "/admin/mou-tracker" },
                 { label: "Settings", icon: Settings, href: "/admin/settings" },
             ]
         }
@@ -184,6 +198,22 @@ export default function AdminLayout({ children }) {
             ]
         });
     }
+
+    // Auto-expand group logic...
+    useEffect(() => {
+        if (!expandedGroup && pathname) {
+            const activeGroup = menuGroups.find(g => 
+                g.items.some(i => {
+                    const actualHref = i.href.startsWith("/admin") && pathname.startsWith("/instructor") 
+                        ? i.href.replace("/admin", "/instructor") 
+                        : i.href;
+                    return pathname === actualHref || pathname.startsWith(actualHref + "/");
+                })
+            );
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            if (activeGroup) setExpandedGroup(activeGroup.label);
+        }
+    }, [pathname, expandedGroup, menuGroups]);
 
     if (status === "loading") return <LoadingSpinner fullPage />;
     if (status === "unauthenticated" || session?.user?.role === "student") return null;

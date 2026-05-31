@@ -650,7 +650,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 
   <!-- Actions -->
   <div class="actions">
-    <button class="btn btn-secondary" onclick="window.print()">Print</button>
+    <button class="btn btn-secondary" onclick="triggerPrint()">Print</button>
     <button class="btn btn-primary" id="btn-download" onclick="downloadPDF()">Download &amp; Send PDF</button>
   </div>
 
@@ -832,6 +832,9 @@ async function downloadPDF() {
     const school = (document.getElementById('f-school').value.trim() || 'School').replace(/\s+/g,'_');
     pdf.save(`MOU_Quantech_${school}_2025-26.pdf`);
     showToast();
+    
+    // Log download action to DB in the background
+    trackMouAction('download_pdf');
   } catch(e) {
     document.body.classList.remove('is-exporting');
     console.error(e);
@@ -847,6 +850,66 @@ function showToast() {
   const t = document.getElementById('toast');
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── Background Database MOU Activity Logger ──────────────────
+async function trackMouAction(actionType) {
+  try {
+    const schoolName = document.getElementById('f-school').value.trim();
+    const city = document.getElementById('f-city').value.trim();
+    const principalName = document.getElementById('f-principal').value.trim();
+    const designation = document.getElementById('f-designation').value.trim();
+    const contactEmail = document.getElementById('f-email').value.trim();
+    const contactPhone = document.getElementById('f-phone').value.trim();
+    const students = document.getElementById('f-students').value.trim();
+    const udise = document.getElementById('f-udise').value.trim();
+    const address = document.getElementById('f-address').value.trim();
+
+    if (!schoolName || !principalName || !contactEmail || !students) {
+      // Don't log incomplete forms to the database
+      return;
+    }
+
+    const studentCount = parseInt(students) || 0;
+    const totalPrice = studentCount * 59;
+    const upfrontPrice = totalPrice * 0.7;
+
+    const sigImg = hasSig ? canvas.toDataURL('image/png') : '';
+
+    const payload = {
+      refId: refId || '',
+      schoolName,
+      city,
+      principalName,
+      designation,
+      contactEmail,
+      contactPhone,
+      studentCount,
+      udiseCode: udise,
+      address,
+      totalPrice,
+      upfrontPrice,
+      action: actionType,
+      signatureDataUrl: sigImg,
+      screenWidth: window.innerWidth,
+      screenHeight: window.innerHeight
+    };
+
+    fetch('/api/v1/mou/submissions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }).catch(err => console.error('Tracking log transmission error:', err));
+  } catch (e) {
+    console.error('MOU tracking mechanism error:', e);
+  }
+}
+
+function triggerPrint() {
+  trackMouAction('print');
+  window.print();
 }
 </script>
 </body>
