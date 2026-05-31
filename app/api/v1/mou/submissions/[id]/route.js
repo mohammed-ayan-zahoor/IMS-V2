@@ -8,7 +8,7 @@ import MouSubmission from "@/models/MouSubmission";
 export async function PATCH(req, { params }) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !['admin', 'super_admin'].includes(session.user.role)) {
+        if (!session || session.user.role !== 'super_admin') {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

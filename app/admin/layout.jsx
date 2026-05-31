@@ -175,7 +175,7 @@ export default function AdminLayout({ children }) {
                 { label: "Certificate Management", icon: Award, href: "/admin/certificate-management" },
                 { label: "ID Card Management", icon: Contact, href: "/admin/id-cards" },
                 { label: "Completion Analytics", icon: TrendingUp, href: "/admin/completion-analytics" },
-                { label: "MOU Tracker", icon: FileSignature, href: "/admin/mou-tracker" },
+                { label: "MOU Tracker", icon: FileSignature, href: "/admin/mou-tracker", role: ["super_admin"] },
                 { label: "Settings", icon: Settings, href: "/admin/settings" },
             ]
         }

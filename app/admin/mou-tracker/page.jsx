@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { 
     FileSignature, 
     Search, 
@@ -33,6 +35,9 @@ const STATUSES = [
 ];
 
 export default function MouTrackerPage() {
+    const { data: session, status: sessionStatus } = useSession();
+    const router = useRouter();
+
     const [submissions, setSubmissions] = useState([]);
     const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, pages: 1 });
     const [loading, setLoading] = useState(true);
@@ -42,6 +47,13 @@ export default function MouTrackerPage() {
     const [expandedRow, setExpandedRow] = useState(null);
     const [savingNotes, setSavingNotes] = useState({});
     const [notesText, setNotesText] = useState({});
+
+    // Client-side authentication role protection redirect
+    useEffect(() => {
+        if (sessionStatus === "authenticated" && session?.user?.role !== "super_admin") {
+            router.push("/admin/dashboard");
+        }
+    }, [session, sessionStatus, router]);
 
     const fetchSubmissions = async () => {
         setLoading(true);
@@ -121,6 +133,13 @@ export default function MouTrackerPage() {
     const totalPDFs = submissions.filter(s => s.action === 'download_pdf').length;
     const totalStudents = submissions.reduce((sum, s) => sum + (s.studentCount || 0), 0);
     const totalOpportunity = submissions.reduce((sum, s) => sum + (s.totalPrice || 0), 0);
+    if (sessionStatus === "loading" || (sessionStatus === "authenticated" && session?.user?.role !== "super_admin")) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 p-1">
