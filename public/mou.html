@@ -26,9 +26,9 @@
     page-break-after: always !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    min-height: 0 !important;
-    height: 272mm !important; /* Force exact printable A4 height bounds */
-    overflow: hidden !important;
+    min-height: 272mm !important;
+    height: auto !important; /* Avoid strict text truncation on varying operating systems */
+    overflow: visible !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
