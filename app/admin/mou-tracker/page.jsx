@@ -323,7 +323,7 @@ export default function MouTrackerPage() {
                                                     )}
                                                 </td>
                                                 <td className="p-4">
-                                                    <div className="relative">
+                                                    <div className="flex items-center gap-2">
                                                         <select
                                                             value={sub.status}
                                                             onChange={(e) => handleUpdateStatus(sub._id, e.target.value)}
@@ -335,6 +335,15 @@ export default function MouTrackerPage() {
                                                                 </option>
                                                             ))}
                                                         </select>
+                                                        {sub.status === "converted" && (
+                                                            <button
+                                                                onClick={() => window.open(`/admin/mou-tracker/receipt/${sub._id}`, '_blank')}
+                                                                title="Generate Commercial Receipt"
+                                                                className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 hover:text-indigo-700 rounded-full px-3 py-1 text-xs font-bold transition-all shadow-sm"
+                                                            >
+                                                                <FileText size={12} /> Receipt
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="p-4 text-center">

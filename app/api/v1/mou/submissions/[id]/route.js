@@ -4,6 +4,29 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import MouSubmission from "@/models/MouSubmission";
 
+// GET /api/v1/mou/submissions/[id] (Admin-only fetch single submission)
+export async function GET(req, { params }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || session.user.role !== 'super_admin') {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = params;
+        await connectDB();
+
+        const submission = await MouSubmission.findById(id);
+        if (!submission) {
+            return NextResponse.json({ error: "MOU submission not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true, submission });
+    } catch (error) {
+        console.error("Failed to fetch MOU submission:", error);
+        return NextResponse.json({ error: "Failed to fetch submission" }, { status: 500 });
+    }
+}
+
 // PATCH /api/v1/mou/submissions/[id] (Admin-only status and notes updater)
 export async function PATCH(req, { params }) {
     try {
