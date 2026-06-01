@@ -23,7 +23,9 @@ import {
     User,
     ChevronDown,
     ChevronUp,
-    FileText
+    FileText,
+    Plus,
+    Landmark
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -47,6 +49,90 @@ export default function MouTrackerPage() {
     const [expandedRow, setExpandedRow] = useState(null);
     const [savingNotes, setSavingNotes] = useState({});
     const [notesText, setNotesText] = useState({});
+
+    // Payment collection modal states
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [selectedSubmission, setSelectedSubmission] = useState(null);
+    const [paymentAmount, setPaymentAmount] = useState("");
+    const [paymentMethod, setPaymentMethod] = useState("upi");
+    const [paymentReference, setPaymentReference] = useState("");
+    const [paymentNotes, setPaymentNotes] = useState("");
+    const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+    const [paymentError, setPaymentError] = useState(null);
+
+    // Helpers
+    const getMethodLabel = (method) => {
+        const labels = {
+            cash: 'Cash',
+            card: 'Debit/Credit Card',
+            upi: 'UPI (GPay/PhonePe)',
+            bank_transfer: 'Bank Transfer / NEFT',
+            cheque: 'Cheque'
+        };
+        return labels[method] || method;
+    };
+
+    const openPaymentModal = (sub) => {
+        setSelectedSubmission(sub);
+        
+        // Compute default amount: if no payments recorded yet, default to upfront price.
+        // Otherwise, default to remaining balance.
+        const totalPaid = sub.payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+        const balance = Math.max(0, sub.totalPrice - totalPaid);
+        
+        if (totalPaid === 0) {
+            setPaymentAmount(String(sub.upfrontPrice));
+        } else {
+            setPaymentAmount(String(balance));
+        }
+        
+        setPaymentMethod("upi");
+        setPaymentReference("");
+        setPaymentNotes("");
+        setPaymentError(null);
+        setIsPaymentModalOpen(true);
+    };
+
+    const handleRecordPayment = async (e) => {
+        e.preventDefault();
+        if (!paymentAmount || isNaN(paymentAmount) || Number(paymentAmount) <= 0) {
+            setPaymentError("Please enter a valid positive payment amount.");
+            return;
+        }
+
+        setIsRecordingPayment(true);
+        setPaymentError(null);
+
+        try {
+            const res = await fetch(`/api/v1/mou/submissions/${selectedSubmission._id}/payments`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    amount: Number(paymentAmount),
+                    paymentMethod,
+                    referenceId: paymentReference,
+                    notes: paymentNotes
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to record payment.");
+            }
+
+            // Success
+            setIsPaymentModalOpen(false);
+            fetchSubmissions(); // Refresh dashboard list & statistics!
+            
+            // Automatically open dynamic print receipt in new tab
+            window.open(`/admin/mou-tracker/receipt/${selectedSubmission._id}`, '_blank');
+        } catch (err) {
+            console.error("handleRecordPayment error:", err);
+            setPaymentError(err.message || "Failed to submit payment transaction.");
+        } finally {
+            setIsRecordingPayment(false);
+        }
+    };
 
     // Client-side authentication role protection redirect
     useEffect(() => {
@@ -82,6 +168,14 @@ export default function MouTrackerPage() {
     }, [search, statusFilter, page]);
 
     const handleUpdateStatus = async (id, newStatus) => {
+        if (newStatus === "converted") {
+            const sub = submissions.find(s => s._id === id);
+            if (sub) {
+                openPaymentModal(sub);
+            }
+            return;
+        }
+
         try {
             const res = await fetch(`/api/v1/mou/submissions/${id}`, {
                 method: "PATCH",
@@ -428,6 +522,80 @@ export default function MouTrackerPage() {
                                                                 </div>
                                                             </div>
                                                         </div>
+
+                                                        {/* Payment History Management section (Only for Converted status leads) */}
+                                                        {sub.status === 'converted' && (
+                                                            <div className="mt-6 pt-6 border-t border-slate-200/60 grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                                <div className="md:col-span-2 bg-white border border-slate-200/60 rounded-2xl p-5">
+                                                                    <div className="flex justify-between items-center mb-4">
+                                                                        <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                                                                            <Landmark size={14} className="text-indigo-500" /> Transaction Payment Logs ({(sub.payments || []).length})
+                                                                        </h4>
+                                                                        <button
+                                                                            onClick={() => openPaymentModal(sub)}
+                                                                            className="inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                                                        >
+                                                                            <Plus size={14} /> Record Payment
+                                                                        </button>
+                                                                    </div>
+                                                                    
+                                                                    {!sub.payments || sub.payments.length === 0 ? (
+                                                                        <p className="text-xs text-slate-400 italic py-6 text-center">No payment logs recorded yet. Click "Record Payment" to track collections.</p>
+                                                                    ) : (
+                                                                        <div className="overflow-x-auto">
+                                                                            <table className="w-full text-left text-xs border-collapse">
+                                                                                <thead>
+                                                                                    <tr className="border-b border-slate-100 text-slate-400 font-bold">
+                                                                                        <th className="pb-2">Date</th>
+                                                                                        <th className="pb-2">Method</th>
+                                                                                        <th className="pb-2">Reference ID</th>
+                                                                                        <th className="pb-2 text-right">Amount</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="divide-y divide-slate-50 font-medium text-slate-700">
+                                                                                    {sub.payments.map((p, index) => (
+                                                                                        <tr key={p._id || index}>
+                                                                                            <td className="py-2 text-slate-400">{new Date(p.paidDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                                                                                            <td className="py-2 font-bold">{getMethodLabel(p.paymentMethod)}</td>
+                                                                                            <td className="py-2 font-mono text-[10px] text-slate-500">{p.referenceId || "—"}</td>
+                                                                                            <td className="py-2 text-right font-black text-slate-800">₹{p.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between">
+                                                                    <div>
+                                                                        <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">Billing Ledger Summary</h4>
+                                                                        <div className="space-y-3 mt-4">
+                                                                            <div className="flex justify-between text-xs font-bold">
+                                                                                <span className="text-slate-400">Total MOU Valuation:</span>
+                                                                                <span className="font-mono text-slate-700 font-bold">₹{sub.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between text-xs font-bold">
+                                                                                <span className="text-slate-400">Cumulative Paid:</span>
+                                                                                <span className="font-mono text-emerald-600 font-bold">₹{(sub.payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between text-xs font-black pt-2 border-t border-slate-100">
+                                                                                <span>Remaining Balance:</span>
+                                                                                <span className="font-mono text-indigo-600 font-black">₹{Math.max(0, sub.totalPrice - (sub.payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="pt-4 mt-4 border-t border-slate-100">
+                                                                        <button
+                                                                            onClick={() => window.open(`/admin/mou-tracker/receipt/${sub._id}`, '_blank')}
+                                                                            className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                                                        >
+                                                                            <FileText size={14} /> Print Commercial Receipt
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             )}
@@ -465,6 +633,127 @@ export default function MouTrackerPage() {
                         </div>
                     </div>
                 )}
+            {/* Collect Payment Modal overlay */}
+            {isPaymentModalOpen && selectedSubmission && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-[32px] w-full max-w-lg shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-200">
+                        {/* Modal Header */}
+                        <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 p-6 text-white relative">
+                            <h3 className="text-lg font-black tracking-tight flex items-center gap-2">
+                                <Landmark size={20} /> Record Commercial Payment
+                            </h3>
+                            <p className="text-xs text-indigo-100 font-medium uppercase tracking-wider mt-1">{selectedSubmission.schoolName}</p>
+                            <button
+                                type="button"
+                                onClick={() => setIsPaymentModalOpen(false)}
+                                className="absolute top-4 right-4 text-indigo-200 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full"
+                            >
+                                <span className="sr-only">Close</span>
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Modal Form */}
+                        <form onSubmit={handleRecordPayment} className="p-6 space-y-5">
+                            {paymentError && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 p-3.5 rounded-2xl text-xs font-bold leading-relaxed">
+                                    {paymentError}
+                                </div>
+                            )}
+
+                            {/* Info Summary */}
+                            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs">
+                                <div>
+                                    <span className="text-slate-400 block mb-0.5">Total Valuation:</span>
+                                    <span className="font-bold text-slate-800 text-sm">₹{selectedSubmission.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                                <div>
+                                    <span className="text-slate-400 block mb-0.5">Already Paid:</span>
+                                    <span className="font-bold text-emerald-600 text-sm">
+                                        ₹{(selectedSubmission.payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Amount input */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Amount Paid (₹)</label>
+                                <input
+                                    type="number"
+                                    required
+                                    step="0.01"
+                                    min="0.01"
+                                    value={paymentAmount}
+                                    onChange={(e) => setPaymentAmount(e.target.value)}
+                                    placeholder="Enter payment amount..."
+                                    className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800"
+                                />
+                            </div>
+
+                            {/* Payment Method select */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Payment Route / Method</label>
+                                <select
+                                    value={paymentMethod}
+                                    onChange={(e) => setPaymentMethod(e.target.value)}
+                                    className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 cursor-pointer bg-white"
+                                >
+                                    <option value="upi">UPI (GPay / PhonePe / Paytm)</option>
+                                    <option value="bank_transfer">Bank Transfer / NEFT</option>
+                                    <option value="cash">Cash Settlement</option>
+                                    <option value="card">Debit / Credit Card</option>
+                                    <option value="cheque">Cheque Payment</option>
+                                </select>
+                            </div>
+
+                            {/* Reference Transaction ID */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Transaction Reference ID (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={paymentReference}
+                                    onChange={(e) => setPaymentReference(e.target.value)}
+                                    placeholder="e.g. UTR Number, Txn reference, cheque number..."
+                                    className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-mono text-slate-800"
+                                />
+                            </div>
+
+                            {/* Optional Notes */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Payment Comments / Notes (Optional)</label>
+                                <textarea
+                                    value={paymentNotes}
+                                    onChange={(e) => setPaymentNotes(e.target.value)}
+                                    placeholder="Comments..."
+                                    rows="2"
+                                    className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-700 resize-none"
+                                />
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-3 pt-2">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setIsPaymentModalOpen(false)}
+                                    className="w-1/2 rounded-xl py-2.5 text-xs font-bold"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={isRecordingPayment}
+                                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 text-xs font-bold"
+                                >
+                                    {isRecordingPayment ? "Recording..." : "Record & View Receipt"}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
             </div>
         </div>
     );
