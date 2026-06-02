@@ -29,8 +29,8 @@ export async function POST(req) {
             screenHeight
         } = body;
 
-        // Strict validation
-        if (!refId || !schoolName || !city || !principalName || !contactEmail || !studentCount || !action) {
+        // Strict validation — city is optional; not all schools fill it in
+        if (!refId || !schoolName || !principalName || !contactEmail || !studentCount || !action) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
