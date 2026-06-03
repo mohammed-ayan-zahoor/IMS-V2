@@ -41,7 +41,9 @@ export async function DELETE(req) {
 
         // Delete from Cloudinary
         const { default: cloudinary } = await import("@/lib/cloudinary");
-        await cloudinary.uploader.destroy(media.publicId);
+        const { getCloudinaryOptions } = await import("@/lib/cloudinaryResolver");
+        const scopedOptions = await getCloudinaryOptions(scope.instituteId);
+        await cloudinary.uploader.destroy(media.publicId, scopedOptions);
 
         // Delete from DB
         await WebsiteMedia.findByIdAndDelete(id);

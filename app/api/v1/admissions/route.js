@@ -21,11 +21,16 @@ export async function POST(req) {
         // Handle Photo Upload via Cloudinary if provided as base64 string
         if (body.photo && body.photo.startsWith('data:image')) {
             try {
+                // Get tenant-specific Cloudinary options
+                const { getCloudinaryOptions } = await import("@/lib/cloudinaryResolver");
+                const scopedOptions = await getCloudinaryOptions(body.institute);
+
                 const uploadResponse = await new Promise((resolve, reject) => {
                     const options = {
                         folder: "quantech/uploads/admissions",
                         resource_type: "image",
-                        transformation: [{ width: 500, height: 500, crop: "limit" }]
+                        transformation: [{ width: 500, height: 500, crop: "limit" }],
+                        ...scopedOptions
                     };
                     cloudinary.uploader.upload(body.photo, options, (error, result) => {
                         if (error) reject(error);
