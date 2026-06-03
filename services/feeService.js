@@ -5,6 +5,7 @@ import User from '@/models/User';
 import Collector from '@/models/Collector';
 import { createAuditLog } from './auditService';
 import { connectDB } from '@/lib/mongodb';
+import HostelAllotment from '@/models/HostelAllotment';
 
 // Ensure we have the model
 const FeeDb = Fee;
@@ -16,6 +17,48 @@ const getStudentName = (student) => {
         return `${student.profile.firstName || ''} ${student.profile.lastName || ''}`.trim();
     }
     return student.displayName || student.email || 'Unknown Student';
+};
+
+// Helper to attach hostel info to a list of fee records
+const attachHostelInfo = async (feesList, instituteId) => {
+    if (!feesList || feesList.length === 0 || !instituteId) return feesList;
+    try {
+        const studentIds = feesList
+            .map(f => f.student?._id || f.student)
+            .filter(Boolean);
+        
+        if (studentIds.length === 0) return feesList;
+
+        const allotments = await HostelAllotment.find({
+            institute: instituteId,
+            student: { $in: studentIds },
+            status: 'active',
+            deletedAt: null
+        }).select('student room block balanceAmount feeStatus').lean();
+
+        const hostelMap = {};
+        allotments.forEach(a => {
+            hostelMap[a.student.toString()] = {
+                balanceAmount: a.balanceAmount,
+                feeStatus: a.feeStatus
+            };
+        });
+
+        feesList.forEach(fee => {
+            const studentId = fee.student?._id ? fee.student._id.toString() : fee.student?.toString();
+            if (studentId && hostelMap[studentId]) {
+                if (fee.student && typeof fee.student === 'object') {
+                    if (typeof fee.student.toObject === 'function') {
+                        fee.student = fee.student.toObject();
+                    }
+                    fee.student.hostelInfo = hostelMap[studentId];
+                }
+            }
+        });
+    } catch (err) {
+        console.error("Failed to attach hostel info to fees:", err);
+    }
+    return feesList;
 };
 
 // Helper to validate dates
@@ -252,6 +295,7 @@ export class FeeService {
             return studentA.localeCompare(studentB);
         });
 
+        await attachHostelInfo(fees, institute);
         return { fees, total, page: parseInt(page), totalPages: Math.ceil(total / limit) };
     }
 
@@ -498,7 +542,10 @@ export class FeeService {
             }
         }
 
-        // 8. Apply percentage filter
+        // 8. Attach hostel info
+        await attachHostelInfo(results, institute);
+
+        // 9. Apply percentage filter
         const finalResults = applyPercentageFilter(results, filters.percentage);
         
         // 9. Natural Sort for Sections (1A, 1B, 2A, 10A...)

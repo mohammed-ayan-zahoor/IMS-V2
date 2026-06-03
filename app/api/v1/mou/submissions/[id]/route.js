@@ -12,7 +12,7 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         await connectDB();
 
         const submission = await MouSubmission.findById(id);
@@ -35,7 +35,7 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         const body = await req.json();
         const { status, notes } = body;
 

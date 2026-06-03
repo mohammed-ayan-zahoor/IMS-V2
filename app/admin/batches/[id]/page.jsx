@@ -533,7 +533,7 @@ function TimetableTab({ batchId, subjects = [] }) {
                                 onClick={handleSave}
                                 className="flex items-center gap-2 bg-slate-900 text-white px-8 py-3 rounded-2xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg disabled:opacity-50"
                             >
-                                {saving ? <LoadingSpinner size={16} /> : <Save size={16} />}
+                                {saving ? <LoadingSpinner size="sm" /> : <Save size={16} />}
                                 Save Timetable
                             </button>
                         </div>

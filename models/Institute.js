@@ -105,7 +105,8 @@ const InstituteSchema = new Schema({
             attendance: { type: Boolean, default: true },
             fees: { type: Boolean, default: true },
             materials: { type: Boolean, default: true },
-            transport: { type: Boolean, default: false }
+            transport: { type: Boolean, default: false },
+            hostel: { type: Boolean, default: false }
         },
 
         // Email settings
@@ -129,6 +130,28 @@ const InstituteSchema = new Schema({
             error: String,
             timestamp: Date
         }
+    },
+
+    // Multi-Tenant Notification Provider Configuration
+    notifications: {
+        smsProvider: { type: String, enum: ['mock', 'twilio', 'msg91'], default: 'mock' },
+        // Msg91 Credentials (encrypted)
+        msg91AuthKey: String,
+        msg91SenderId: String,
+        msg91TemplateId: String,
+        
+        // Twilio Credentials (encrypted)
+        twilioSid: String,
+        twilioToken: String,
+        twilioNumber: String,
+        
+        // WhatsApp Credentials (encrypted)
+        whatsappProvider: { type: String, enum: ['mock', 'twilio', 'meta'], default: 'mock' },
+        metaPhoneNumberId: String,
+        metaAccessToken: String,
+        
+        configuredAt: Date,
+        lastTestedAt: Date
     },
 
     // Audit

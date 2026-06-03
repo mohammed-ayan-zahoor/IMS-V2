@@ -592,8 +592,18 @@ export default function FeesPage() {
                                                 <tr key={fee._id || fee.student?._id} className="group hover:bg-slate-50/50 transition-colors">
                                                     <td className="px-6 py-4">
                                                         <div>
-                                                            <p className="text-sm font-bold text-slate-900">
+                                                            <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
                                                                 {fee.student?.profile?.firstName} {fee.student?.profile?.lastName}
+                                                                {fee.student?.hostelInfo && (
+                                                                    <span className={cn(
+                                                                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shrink-0",
+                                                                        fee.student.hostelInfo.balanceAmount > 0 
+                                                                            ? "bg-rose-50 text-rose-600 border-rose-100" 
+                                                                            : "bg-indigo-50 text-indigo-600 border-indigo-100"
+                                                                    )} title={`Hostel Balance: ₹${fee.student.hostelInfo.balanceAmount}`}>
+                                                                        🏠 {fee.student.hostelInfo.balanceAmount > 0 ? "Hostel Dues" : "Hostel"}
+                                                                    </span>
+                                                                )}
                                                             </p>
                                                             <p className="text-[11px] font-medium text-slate-400 font-mono tracking-wide">{fee.student?.enrollmentNumber}</p>
                                                         </div>

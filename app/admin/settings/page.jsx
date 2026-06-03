@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2 } from "lucide-react";
+import { Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2, Hotel } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { useToast } from "@/contexts/ToastContext";
 import CertificateTemplateManager from "@/components/admin/CertificateTemplateManager";
 import HtmlCertificateEditor from "@/components/admin/HtmlCertificateEditor";
 import SessionManager from "@/components/admin/SessionManager";
+import CloudinarySettingsForm from "@/components/CloudinarySettingsForm";
 
 export default function SettingsPage() {
     const toast = useToast();
@@ -297,47 +298,82 @@ export default function SettingsPage() {
                     </div>
                 </Card>
 
-                {/* Module Toggles (Vocational Only) */}
-                {institute.type !== 'SCHOOL' && (
-                    <Card title="Module Toggles">
-                        <div className="space-y-4">
-                            <p className="text-xs text-slate-500 font-medium -mt-2">Enable or disable optional features for your institute.</p>
-                            <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg>
-                                    </div>
-                                    <div>
-                                        <h4 className="text-sm font-bold text-slate-700">Transport Management</h4>
-                                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Manage routes, vehicles, drivers and transport fees</p>
-                                    </div>
+                {/* Module Toggles */}
+                <Card title="Module Toggles">
+                    <div className="space-y-4">
+                        <p className="text-xs text-slate-500 font-medium -mt-2">Enable or disable optional features for your institute.</p>
+                        
+                        {/* Transport Toggle */}
+                        <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setInstitute({
-                                        ...institute,
-                                        settings: {
-                                            ...institute.settings,
-                                            features: {
-                                                ...institute.settings?.features,
-                                                transport: !institute.settings?.features?.transport
-                                            }
-                                        }
-                                    })}
-                                    className={cn(
-                                        "relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0",
-                                        institute.settings?.features?.transport ? "bg-emerald-500" : "bg-slate-200"
-                                    )}
-                                >
-                                    <span className={cn(
-                                        "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200",
-                                        institute.settings?.features?.transport ? "translate-x-6" : "translate-x-0"
-                                    )} />
-                                </button>
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-700">Transport Management</h4>
+                                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">Manage routes, vehicles, drivers and transport fees</p>
+                                </div>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => setInstitute({
+                                    ...institute,
+                                    settings: {
+                                        ...institute.settings,
+                                        features: {
+                                            ...institute.settings?.features,
+                                            transport: !institute.settings?.features?.transport
+                                        }
+                                    }
+                                })}
+                                className={cn(
+                                    "relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0",
+                                    institute.settings?.features?.transport ? "bg-emerald-500" : "bg-slate-200"
+                                )}
+                            >
+                                <span className={cn(
+                                    "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200",
+                                    institute.settings?.features?.transport ? "translate-x-6" : "translate-x-0"
+                                )} />
+                            </button>
                         </div>
-                    </Card>
-                )}
+
+                        {/* Hostel Toggle */}
+                        <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
+                                    <Hotel size={20} />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-700">Hostel Management</h4>
+                                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">Manage blocks, rooms, allotments and hostel fees</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setInstitute({
+                                    ...institute,
+                                    settings: {
+                                        ...institute.settings,
+                                        features: {
+                                            ...institute.settings?.features,
+                                            hostel: !institute.settings?.features?.hostel
+                                        }
+                                    }
+                                })}
+                                className={cn(
+                                    "relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0",
+                                    institute.settings?.features?.hostel ? "bg-emerald-500" : "bg-slate-200"
+                                )}
+                            >
+                                <span className={cn(
+                                    "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200",
+                                    institute.settings?.features?.hostel ? "translate-x-6" : "translate-x-0"
+                                )} />
+                            </button>
+                        </div>
+                    </div>
+                </Card>
 
                 {/* Receipt Settings */}
                 <Card title="Fee Receipt Settings">
@@ -466,6 +502,11 @@ export default function SettingsPage() {
                     <h3 className="text-lg font-bold text-slate-900 mb-4">HTML Certificate Templates</h3>
                     <HtmlCertificateEditor />
                 </div>
+            </div>
+
+            {/* Cloudinary Storage Settings */}
+            <div className="border-t border-slate-200 pt-8">
+                <CloudinarySettingsForm />
             </div>
         
         </div>

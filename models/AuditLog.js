@@ -30,14 +30,17 @@ const AuditLogSchema = new Schema({
             'subject.create', 'subject.update', 'subject.delete', 'subject.syllabus_update', 'subject.syllabus_import',
             'fee_preset.create', 'fee_preset.update', 'fee_preset.delete',
             'session.create', 'session.activate', 'session.delete', 'session.student_fetch', 'session.student_create', 'session.dashboard_stats_access',
-            'masterSubject.create', 'masterSubject.update', 'masterSubject.delete', 'masterSubject.import'
+            'masterSubject.create', 'masterSubject.update', 'masterSubject.delete', 'masterSubject.import',
+            'hostel.block.create', 'hostel.block.update', 'hostel.block.delete',
+            'hostel.room.create', 'hostel.room.update', 'hostel.room.delete',
+            'hostel.allotment.create', 'hostel.allotment.vacate', 'hostel.allotment.payment'
         ],
         index: true
     },
      resource: {
           type: {
               type: String,
-              enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'Subject', 'Enquiry', 'FeePreset', 'Session', 'MasterSubject', 'CollectorTransfer']
+              enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'Subject', 'Enquiry', 'FeePreset', 'Session', 'MasterSubject', 'CollectorTransfer', 'HostelBlock', 'HostelRoom', 'HostelAllotment']
           },
           id: Schema.Types.ObjectId
       },
