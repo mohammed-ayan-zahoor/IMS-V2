@@ -404,6 +404,11 @@ export default function MouTrackerPage() {
                                                     <p className="text-[10px] text-emerald-600 font-bold mt-0.5">
                                                         70% Upfront: ₹{sub.upfrontPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </p>
+                                                    {sub.mouDuration && (
+                                                        <p className="text-[10px] text-indigo-500 font-bold mt-1">
+                                                            📅 {sub.mouDuration} Yr Agreement
+                                                        </p>
+                                                    )}
                                                 </td>
                                                 <td className="p-4 text-center">
                                                     {sub.action === 'print' ? (
@@ -459,6 +464,12 @@ export default function MouTrackerPage() {
                                                             <div className="bg-white border border-slate-200/60 rounded-2xl p-5 space-y-4">
                                                                 <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">Extended Information</h4>
                                                                 <div className="space-y-2 text-sm text-slate-700">
+                                                                    {sub.mouDuration && (
+                                                                        <p className="flex items-center gap-1.5">
+                                                                            <span className="font-bold text-slate-500">Agreement Duration:</span>
+                                                                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full px-2 py-0.5 text-xs font-black">{sub.mouDuration} {sub.mouDuration === 1 ? 'Year' : 'Years'}</span>
+                                                                        </p>
+                                                                    )}
                                                                     {sub.udiseCode && (
                                                                         <p><span className="font-bold text-slate-500">UDISE Code:</span> {sub.udiseCode}</p>
                                                                     )}
