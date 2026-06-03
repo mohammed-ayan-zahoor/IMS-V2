@@ -62,6 +62,12 @@ const MouSubmissionSchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    mouDuration: {
+        type: Number,
+        default: 1,
+        min: 1,
+        max: 5
+    },
     signatureDataUrl: {
         type: String // Optional Base64 signature image
     },
@@ -80,7 +86,14 @@ const MouSubmissionSchema = new mongoose.Schema({
     notes: {
         type: String,
         trim: true
-    }
+    },
+    payments: [{
+        amount: { type: Number, required: true },
+        paymentMethod: { type: String, required: true, enum: ['cash', 'card', 'upi', 'bank_transfer', 'cheque'] },
+        referenceId: { type: String, trim: true },
+        paidDate: { type: Date, default: Date.now },
+        notes: { type: String, trim: true }
+    }]
 }, { timestamps: true });
 
 // Auto-delete compilation model in dev environment if re-imported

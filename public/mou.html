@@ -456,7 +456,17 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
         <input id="f-udise" type="text" placeholder="e.g. 23260100101" oninput="updateDoc()" style="font-size:18px;font-weight:700;border-color:#1e3a8a;background:#f8fafc;"/>
       </div>
     </div>
-    <div style="margin-top:16px" class="form-grid full">
+    <div style="margin-top:16px" class="form-grid">
+      <div class="field" style="border-radius:10px;">
+        <label style="color:#1e3a8a;font-weight:700;">Duration of Agreement (Years) *</label>
+        <select id="f-duration" onchange="updateDoc()" style="font-size:16px;font-weight:700;border-color:#1e3a8a;background:#f8fafc;padding:10px 14px;border-radius:10px;border:1.5px solid #1e3a8a;color:#1e3a8a;cursor:pointer;">
+          <option value="1">1 Year</option>
+          <option value="2">2 Years</option>
+          <option value="3">3 Years</option>
+          <option value="4">4 Years</option>
+          <option value="5">5 Years</option>
+        </select>
+      </div>
       <div class="field">
         <label>School Address (optional)</label>
         <textarea id="f-address" rows="2" placeholder="Street, Area, City – PIN" oninput="updateDoc()"></textarea>
@@ -581,7 +591,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 
     <div class="mou-section">
       <h3>6. Duration &amp; Termination</h3>
-      <p>This MOU shall be effective from the date of signing and shall remain valid for a period of <strong>one (1) academic year</strong>, renewable annually by mutual written consent. Either Party may terminate this MOU with <strong>30 days' written notice</strong>. Upon termination, the School's data shall be made available for export for a period of 30 days before deletion.</p>
+      <p>This MOU shall be effective from the date of signing and shall remain valid for a period of <strong id="d-duration">one (1) academic year</strong>, renewable by mutual written consent. Either Party may terminate this MOU with <strong>30 days' written notice</strong>. Upon termination, the School's data shall be made available for export for a period of 30 days before deletion.</p>
     </div>
 
     <div class="mou-section">
@@ -669,6 +679,15 @@ document.querySelectorAll('#doc-ref,#doc-ref2').forEach(el => el.textContent = r
 document.querySelector('#sig-date').textContent = dateStr;
 
 // ── Live doc update ─────────────────────────────────────────
+// Duration word map for Clause 6
+const durationWords = {
+  '1': 'one (1) academic year',
+  '2': 'two (2) academic years',
+  '3': 'three (3) academic years',
+  '4': 'four (4) academic years',
+  '5': 'five (5) academic years'
+};
+
 function updateDoc() {
   const school = document.getElementById('f-school').value.trim() || '[ School Name ]';
   const city = document.getElementById('f-city').value.trim() || '[ City / District ]';
@@ -676,6 +695,7 @@ function updateDoc() {
   const desig = document.getElementById('f-designation').value.trim() || '[ Designation ]';
   const students = document.getElementById('f-students').value.trim();
   const addr = document.getElementById('f-address').value.trim();
+  const duration = document.getElementById('f-duration').value;
 
   const udise = document.getElementById('f-udise').value.trim() || '—';
 
@@ -688,6 +708,9 @@ function updateDoc() {
   document.getElementById('d-designation').textContent = desig;
   document.getElementById('d-udise').textContent = udise;
   document.getElementById('d-udise-sig').textContent = udise !== '—' ? 'UDISE Code: ' + udise : 'UDISE Code: —';
+
+  // Update Clause 6 duration text dynamically
+  document.getElementById('d-duration').textContent = durationWords[duration] || 'one (1) academic year';
 
   if (students) {
     const studentCount = parseInt(students);
@@ -876,6 +899,8 @@ async function trackMouAction(actionType) {
 
     const sigImg = hasSig ? canvas.toDataURL('image/png') : '';
 
+    const duration = parseInt(document.getElementById('f-duration')?.value || '1');
+
     const payload = {
       refId: refId || '',
       schoolName,
@@ -889,6 +914,7 @@ async function trackMouAction(actionType) {
       address,
       totalPrice,
       upfrontPrice,
+      mouDuration: duration,
       action: actionType,
       signatureDataUrl: sigImg,
       screenWidth: window.innerWidth,

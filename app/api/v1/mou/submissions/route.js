@@ -23,6 +23,7 @@ export async function POST(req) {
             address,
             totalPrice,
             upfrontPrice,
+            mouDuration,
             action,
             signatureDataUrl,
             screenWidth,
@@ -51,6 +52,7 @@ export async function POST(req) {
             address,
             totalPrice: Number(totalPrice),
             upfrontPrice: Number(upfrontPrice),
+            mouDuration: Number(mouDuration) || 1,
             action,
             signatureDataUrl,
             metadata: {
