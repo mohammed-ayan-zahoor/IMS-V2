@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2, Hotel } from "lucide-react";
+import { Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2, Hotel, MessageSquare } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [activeApiTab, setActiveApiTab] = useState('cloudinary');
 
     // Form State
     const [institute, setInstitute] = useState({
@@ -504,9 +505,57 @@ export default function SettingsPage() {
                 </div>
             </div>
 
-            {/* Cloudinary Storage Settings */}
-            <div className="border-t border-slate-200 pt-8">
-                <CloudinarySettingsForm />
+            {/* Integrations & BY-APIs */}
+            <div className="space-y-6 border-t border-slate-200 pt-8">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Integrations & BY-APIs</h3>
+                    <p className="text-[13px] text-slate-500 font-medium tracking-tight mb-6">Connect your own accounts for dedicated storage, SMS, and other external services.</p>
+                    
+                    {/* Tabs Navigation */}
+                    <div className="flex space-x-1 border-b border-slate-200 mb-6">
+                        <button
+                            type="button"
+                            onClick={() => setActiveApiTab('cloudinary')}
+                            className={cn(
+                                "px-4 py-3 text-sm font-bold tracking-wide border-b-2 transition-all duration-200 flex items-center gap-2",
+                                activeApiTab === 'cloudinary' 
+                                    ? "border-premium-blue text-premium-blue bg-premium-blue/5" 
+                                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                            )}
+                        >
+                            Cloudinary Storage
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveApiTab('msg91')}
+                            className={cn(
+                                "px-4 py-3 text-sm font-bold tracking-wide border-b-2 transition-all duration-200 flex items-center gap-2",
+                                activeApiTab === 'msg91' 
+                                    ? "border-premium-blue text-premium-blue bg-premium-blue/5" 
+                                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                            )}
+                        >
+                            MSG91 SMS Gateway
+                        </button>
+                    </div>
+
+                    {/* Tab Content */}
+                    <div className="mt-4">
+                        {activeApiTab === 'cloudinary' && (
+                            <CloudinarySettingsForm />
+                        )}
+                        {activeApiTab === 'msg91' && (
+                            <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[300px]">
+                                <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                                    <MessageSquare size={24} />
+                                </div>
+                                <h4 className="text-lg font-bold text-slate-700 mb-2">MSG91 Gateway Settings</h4>
+                                <p className="text-sm text-slate-500 max-w-md">Connect your own MSG91 account to send SMS notifications to your students directly from your dedicated sender ID.</p>
+                                <span className="mt-6 px-4 py-1.5 bg-slate-200 text-slate-600 text-[10px] font-black tracking-widest uppercase rounded-full">Coming Soon</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         
         </div>

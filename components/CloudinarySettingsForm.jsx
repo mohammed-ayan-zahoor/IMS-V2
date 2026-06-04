@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, Lock, Eye, EyeOff, Loader } from 'lucide-react';
+import { AlertCircle, CheckCircle, Lock, Eye, EyeOff, Loader, Cloud, Save, Zap } from 'lucide-react';
+import Card, { CardHeader } from '@/components/ui/Card';
 
 /**
  * CloudinarySettingsForm Component
@@ -178,14 +179,12 @@ export default function CloudinarySettingsForm() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl">
+    <Card>
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Cloudinary Settings</h2>
-        <p className="text-sm text-gray-600 mt-1">
-          Configure your own Cloudinary account for secure, dedicated file storage
-        </p>
-      </div>
+      <CardHeader 
+        title="Cloudinary Settings" 
+        subtitle="Configure your own Cloudinary account for secure, dedicated file storage" 
+      />
 
       {/* Existing Config Warning */}
       {hasExistingConfig && (
@@ -279,7 +278,7 @@ export default function CloudinarySettingsForm() {
                 required={formData.enabled}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Found in your Cloudinary dashboard → Settings → Account
+                Found in the blue badge at the top of your Cloudinary dashboard → API Keys page
               </p>
             </div>
 
@@ -356,7 +355,10 @@ export default function CloudinarySettingsForm() {
                   Testing Connection...
                 </>
               ) : (
-                '🔌 Test Cloudinary Connection'
+                <>
+                  <Zap className="w-4 h-4" />
+                  Test Cloudinary Connection
+                </>
               )}
             </button>
           </>
@@ -375,7 +377,10 @@ export default function CloudinarySettingsForm() {
                 Saving...
               </>
             ) : (
-              '💾 Save Settings'
+              <>
+                <Save className="w-4 h-4" />
+                Save Settings
+              </>
             )}
           </button>
           <button
@@ -395,7 +400,10 @@ export default function CloudinarySettingsForm() {
 
       {/* Info Section */}
       <div className="mt-8 pt-6 border-t space-y-4">
-        <h3 className="font-semibold text-gray-900">How it works:</h3>
+        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+          <Cloud className="w-4 h-4" />
+          How it works:
+        </h3>
         <ul className="text-sm text-gray-700 space-y-2 list-disc list-inside">
           <li>
             <strong>Enable custom Cloudinary:</strong> Check the toggle to use your own Cloudinary account
@@ -432,6 +440,6 @@ export default function CloudinarySettingsForm() {
           <li>Only super_admin and admin can modify settings</li>
         </ul>
       </div>
-    </div>
+    </Card>
   );
 }
