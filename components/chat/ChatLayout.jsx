@@ -10,17 +10,34 @@ export default function ChatLayout({ currentUserId }) {
     const [conversations, setConversations] = useState([]);
     const [activeConversation, setActiveConversation] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [pusherConfig, setPusherConfig] = useState(null);
+
+    // Fetch dynamic Pusher configuration
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const res = await fetch('/api/v1/pusher/config');
+                if (res.ok) {
+                    const data = await res.json();
+                    setPusherConfig(data);
+                }
+            } catch (err) {
+                console.error("Failed to load Pusher config dynamically:", err);
+            }
+        };
+        fetchConfig();
+    }, []);
 
     // Initialize Pusher Beams for web push notifications
     useEffect(() => {
-        if (!currentUserId || !process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID) return;
+        if (!currentUserId || !pusherConfig?.beamsInstanceId) return;
 
         let beamsClient;
         const initBeams = async () => {
             try {
                 const { Client, TokenProvider } = await import('@pusher/push-notifications-web');
                 beamsClient = new Client({
-                    instanceId: process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID,
+                    instanceId: pusherConfig.beamsInstanceId,
                     serviceWorkerRegistration: await navigator.serviceWorker.register('/service-worker.js'),
                 });
 
@@ -43,13 +60,13 @@ export default function ChatLayout({ currentUserId }) {
         return () => {
             // No need to stop beams on unmount - it stays registered
         };
-    }, [currentUserId]);
+    }, [currentUserId, pusherConfig]);
 
     useEffect(() => {
-        if (!currentUserId) return;
+        if (!currentUserId || !pusherConfig?.key) return;
 
-        const pusher = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY, {
-            cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+        const pusher = new PusherClient(pusherConfig.key, {
+            cluster: pusherConfig.cluster || 'mt1',
             authEndpoint: '/api/v1/chat/pusher-auth',
         });
 
@@ -68,7 +85,7 @@ export default function ChatLayout({ currentUserId }) {
             pusher.unsubscribe(userChannel);
             pusher.disconnect();
         };
-    }, [currentUserId, activeConversation]);
+    }, [currentUserId, activeConversation, pusherConfig]);
 
     useEffect(() => {
         const controller = new AbortController();

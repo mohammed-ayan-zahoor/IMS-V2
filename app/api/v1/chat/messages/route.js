@@ -3,16 +3,46 @@ import { connectDB } from "@/lib/mongodb";
 import Message from "@/models/Message";
 import Conversation from "@/models/Conversation";
 import { getInstituteScope } from "@/middleware/instituteScope";
-import { pusherServer } from "@/lib/pusher";
-import PushNotifications from "@pusher/push-notifications-server";
+import { getPusherInstance, getBeamsInstance } from "@/lib/pusher";
 import User from "@/models/User";
-import { getRecipientRoles, buildPayload, ADMIN_ROLES } from "@/services/notificationService";
+const ADMIN_ROLES = ['admin', 'super_admin'];
 
-const beamsClient = new PushNotifications({
-    instanceId: process.env.PUSHER_BEAMS_INSTANCE_ID,
-    secretKey: process.env.PUSHER_BEAMS_PRIMARY_KEY,
-});
+async function getRecipientRoles(userIds) {
+    const users = await User.find({ _id: { $in: userIds } }, 'role');
+    const roleMap = {};
+    for (const user of users) {
+        roleMap[user._id.toString()] = user.role;
+    }
+    return roleMap;
+}
 
+function buildPayload({ chatTitle, text, isBatch, senderName, role }) {
+    const bodyText = isBatch ? `${senderName}: ${text}` : text;
+    return {
+        apns: {
+            aps: {
+                alert: {
+                    title: chatTitle,
+                    body: bodyText
+                },
+                sound: "default"
+            }
+        },
+        fcm: {
+            notification: {
+                title: chatTitle,
+                body: bodyText
+            }
+        },
+        web: {
+            notification: {
+                title: chatTitle,
+                body: bodyText,
+                deep_link: role === 'admin' ? '/admin/chat' : '/chat'
+            }
+        }
+    };
+}
 export async function GET(req) {
     try {
         await connectDB();
@@ -121,18 +151,17 @@ export async function POST(req) {
                     select: 'profile.firstName profile.lastName'
                 }
             });
-        }
-
-        // Trigger Pusher Event
-        // Channel name combines institute ID and conversation ID to ensure uniqueness
+        }        // Trigger Pusher Event dynamically
+        const pusher = await getPusherInstance(scope.instituteId);
         const channelName = `presence-conversation-${conversationId}`;
-        await pusherServer.trigger(channelName, 'new-message', newMessage.toObject());
+        await pusher.trigger(channelName, 'new-message', newMessage.toObject());
 
         const recipientIds = conversation.participants
             .map(p => p.toString())
             .filter(id => id !== currentUserId.toString());
 
-        if (recipientIds.length > 0 && process.env.PUSHER_BEAMS_INSTANCE_ID) {
+        const beamsClient = await getBeamsInstance(scope.instituteId);
+        if (recipientIds.length > 0 && beamsClient) {
             try {
                 // Get roles for all recipients
                 const roleMap = await getRecipientRoles(recipientIds);
@@ -181,7 +210,6 @@ export async function POST(req) {
                 console.warn('Beams push failed:', beamsErr.message);
             }
         }
-
         return NextResponse.json({ message: newMessage }, { status: 201 });
     } catch (error) {
         console.error("POST /api/v1/chat/messages error:", error);

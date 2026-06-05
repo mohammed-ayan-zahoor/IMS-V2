@@ -11,6 +11,7 @@ import CertificateTemplateManager from "@/components/admin/CertificateTemplateMa
 import HtmlCertificateEditor from "@/components/admin/HtmlCertificateEditor";
 import SessionManager from "@/components/admin/SessionManager";
 import CloudinarySettingsForm from "@/components/CloudinarySettingsForm";
+import PusherSettingsForm from "@/components/PusherSettingsForm";
 
 export default function SettingsPage() {
     const toast = useToast();
@@ -537,6 +538,18 @@ export default function SettingsPage() {
                         >
                             MSG91 SMS Gateway
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveApiTab('pusher')}
+                            className={cn(
+                                "px-4 py-3 text-sm font-bold tracking-wide border-b-2 transition-all duration-200 flex items-center gap-2",
+                                activeApiTab === 'pusher' 
+                                    ? "border-premium-blue text-premium-blue bg-premium-blue/5" 
+                                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                            )}
+                        >
+                            Pusher WebSockets & Beams
+                        </button>
                     </div>
 
                     {/* Tab Content */}
@@ -553,6 +566,9 @@ export default function SettingsPage() {
                                 <p className="text-sm text-slate-500 max-w-md">Connect your own MSG91 account to send SMS notifications to your students directly from your dedicated sender ID.</p>
                                 <span className="mt-6 px-4 py-1.5 bg-slate-200 text-slate-600 text-[10px] font-black tracking-widest uppercase rounded-full">Coming Soon</span>
                             </div>
+                        )}
+                        {activeApiTab === 'pusher' && (
+                            <PusherSettingsForm />
                         )}
                     </div>
                 </div>

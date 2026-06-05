@@ -1,4 +1,4 @@
-import { pusherServer } from '@/lib/pusher';
+import { getPusherInstance } from '@/lib/pusher';
 import { getInstituteScope } from "@/middleware/instituteScope";
 import { connectDB } from "@/lib/mongodb";
 import Conversation from "@/models/Conversation";
@@ -51,8 +51,10 @@ export async function POST(req) {
             }
         };
 
+        const pusher = await getPusherInstance(scope.instituteId);
+
         // Authenticate with Pusher
-        const authResponse = pusherServer.authorizeChannel(socketId, channelName, presenceData);
+        const authResponse = pusher.authorizeChannel(socketId, channelName, presenceData);
         return new Response(JSON.stringify(authResponse), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },

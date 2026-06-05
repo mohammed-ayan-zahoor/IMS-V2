@@ -11,6 +11,23 @@ import ConfirmDialog from "../ui/ConfirmDialog";
 export default function ChatWindow({ conversation, currentUserId, onBack }) {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
+    const [pusherConfig, setPusherConfig] = useState(null);
+
+    // Fetch dynamic Pusher configuration
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const res = await fetch('/api/v1/pusher/config');
+                if (res.ok) {
+                    const data = await res.json();
+                    setPusherConfig(data);
+                }
+            } catch (err) {
+                console.error("Failed to load Pusher config dynamically:", err);
+            }
+        };
+        fetchConfig();
+    }, []);
     const [replyingTo, setReplyingTo] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -117,10 +134,10 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
 
     // Subscribe to Pusher channel for real-time updates
     useEffect(() => {
-        if (!conversation) return;
+        if (!conversation || !pusherConfig?.key) return;
 
-        const pusher = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY, {
-            cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+        const pusher = new PusherClient(pusherConfig.key, {
+            cluster: pusherConfig.cluster || 'mt1',
             authEndpoint: '/api/v1/chat/pusher-auth',
         });
 
@@ -149,7 +166,7 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
             pusher.unsubscribe(channelName);
             pusher.disconnect();
         };
-    }, [conversation]);
+    }, [conversation, pusherConfig]);
 
     // Auto-scroll to bottom
     useEffect(() => {

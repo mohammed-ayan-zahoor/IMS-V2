@@ -3,18 +3,33 @@
 import { useEffect, useState } from 'react';
 import Pusher from 'pusher-js';
 
-const PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY;
-const PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
-
 export const useWebsitePresence = (instituteId, pageSlug, onPageUpdate) => {
     const [presence, setPresence] = useState([]);
     const [pusher, setPusher] = useState(null);
+    const [pusherConfig, setPusherConfig] = useState(null);
+
+    // Fetch custom or fallback Pusher configurations dynamically
+    useEffect(() => {
+        if (!instituteId) return;
+        const fetchConfig = async () => {
+            try {
+                const res = await fetch(`/api/v1/pusher/config?instituteId=${instituteId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setPusherConfig(data);
+                }
+            } catch (err) {
+                console.error("Failed to load website Pusher config dynamically:", err);
+            }
+        };
+        fetchConfig();
+    }, [instituteId]);
 
     useEffect(() => {
-        if (!instituteId || !PUSHER_KEY) return;
+        if (!instituteId || !pusherConfig?.key) return;
 
-        const pusherClient = new Pusher(PUSHER_KEY, {
-            cluster: PUSHER_CLUSTER,
+        const pusherClient = new Pusher(pusherConfig.key, {
+            cluster: pusherConfig.cluster || 'mt1',
             authEndpoint: '/api/pusher/auth',
         });
 
@@ -48,8 +63,9 @@ export const useWebsitePresence = (instituteId, pageSlug, onPageUpdate) => {
         return () => {
             channel.unbind_all();
             pusherClient.unsubscribe(channelName);
+            pusherClient.disconnect();
         };
-    }, [instituteId, pageSlug]);
+    }, [instituteId, pageSlug, pusherConfig, onPageUpdate]);
 
     return { presence, pusher };
 };

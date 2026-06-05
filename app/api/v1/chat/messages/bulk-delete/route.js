@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Message from "@/models/Message";
 import { getInstituteScope } from "@/middleware/instituteScope";
-import { pusherServer } from "@/lib/pusher";
+import { getPusherInstance } from "@/lib/pusher";
 
 export async function POST(req) {
     try {
@@ -40,8 +40,9 @@ export async function POST(req) {
         );
 
         // Broadcast the bulk deletion via Pusher
+        const pusher = await getPusherInstance(scope.instituteId);
         const channelName = `presence-conversation-${conversationId}`;
-        await pusherServer.trigger(channelName, 'messages-bulk-deleted', {
+        await pusher.trigger(channelName, 'messages-bulk-deleted', {
             messageIds,
             conversationId
         });

@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
-import PushNotifications from "@pusher/push-notifications-server";
 import { getInstituteScope } from "@/middleware/instituteScope";
-
-const beamsClient = new PushNotifications({
-    instanceId: process.env.PUSHER_BEAMS_INSTANCE_ID,
-    secretKey: process.env.PUSHER_BEAMS_PRIMARY_KEY,
-});
+import { getBeamsInstance } from "@/lib/pusher";
 
 export async function GET(req) {
     try {
@@ -33,6 +28,15 @@ export async function GET(req) {
                 { status: 403 }
             );
         }
+
+        const beamsClient = await getBeamsInstance(scope.instituteId);
+        if (!beamsClient) {
+            return NextResponse.json(
+                { error: "Pusher Beams is not configured for this institute context." },
+                { status: 500 }
+            );
+        }
+
         const beamsToken = beamsClient.generateToken(userId);
         return NextResponse.json(beamsToken);
 

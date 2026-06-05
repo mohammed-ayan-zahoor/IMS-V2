@@ -154,6 +154,24 @@ const InstituteSchema = new Schema({
         lastTestedAt: Date
     },
 
+    // Multi-Tenant Pusher Realtime & Beams Configuration
+    pusher: {
+        enabled: { type: Boolean, default: false },
+        appId: String,
+        key: String,
+        secret: String, // Encrypted with STORAGE_ENCRYPTION_KEY
+        cluster: String,
+        beamsInstanceId: String,
+        beamsSecretKey: String, // Encrypted with STORAGE_ENCRYPTION_KEY
+        configuredAt: Date,
+        lastTestedAt: Date,
+        lastTestResult: {
+            success: Boolean,
+            error: String,
+            timestamp: Date
+        }
+    },
+
     // Audit
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' }, // Super Admin who created it
     isActive: { type: Boolean, default: true },

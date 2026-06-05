@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import Message from "@/models/Message";
 import Conversation from "@/models/Conversation";
 import { getInstituteScope } from "@/middleware/instituteScope";
-import { pusherServer } from "@/lib/pusher";
+import { getPusherInstance } from "@/lib/pusher";
 
 export async function DELETE(req, { params }) {
     try {
@@ -36,8 +36,9 @@ export async function DELETE(req, { params }) {
         await message.save();
 
         // Broadcast the deletion via Pusher
+        const pusher = await getPusherInstance(scope.instituteId);
         const channelName = `presence-conversation-${message.conversationId}`;
-        await pusherServer.trigger(channelName, 'message-deleted', {
+        await pusher.trigger(channelName, 'message-deleted', {
             messageId: id,
             conversationId: message.conversationId
         });

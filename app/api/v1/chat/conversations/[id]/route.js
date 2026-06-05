@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import Conversation from "@/models/Conversation";
 import Message from "@/models/Message";
 import { getInstituteScope } from "@/middleware/instituteScope";
-import { pusherServer } from "@/lib/pusher";
+import { getPusherInstance } from "@/lib/pusher";
 
 export async function DELETE(req, { params }) {
     try {
@@ -50,9 +50,10 @@ export async function DELETE(req, { params }) {
         );
 
         // Broadcast to all participants that the conversation is gone
+        const pusher = await getPusherInstance(scope.instituteId);
         for (const participantId of conversation.participants) {
             const userChannel = `user-updates-${participantId}`;
-            await pusherServer.trigger(userChannel, 'conversation-deleted', {
+            await pusher.trigger(userChannel, 'conversation-deleted', {
                 conversationId: id
             });
         }

@@ -37,9 +37,10 @@ export async function POST(req) {
         );
 
         // Trigger Real-time update
-        const { pusherServer } = await import("@/lib/pusher");
+        const { getPusherInstance } = await import("@/lib/pusher");
         const config = await WebsiteConfig.findById(configId);
-        await pusherServer.trigger(
+        const pusher = await getPusherInstance(config.instituteId);
+        await pusher.trigger(
             `presence-website-${config.instituteId}-${slug || 'index'}`,
             'page-update',
             { sections, updatedBy: session.user.id }
