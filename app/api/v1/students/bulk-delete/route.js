@@ -1,9 +1,10 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { connectDB } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import AuditLog from "@/models/AuditLog";
 import { StudentService } from "@/services/studentService";
+import { getInstituteScope } from "@/middleware/instituteScope";
 
 export async function POST(req) {
   try {
@@ -34,11 +35,20 @@ export async function POST(req) {
     }
 
     await connectDB();
+    
+    const scope = await getInstituteScope(req);
+    if (!scope.instituteId) {
+      return Response.json(
+        { error: "No institute context found" },
+        { status: 404 }
+      );
+    }
 
     // Fetch students
     const students = await User.find({
       _id: { $in: studentIds },
       role: "student",
+      institute: scope.instituteId
     });
 
     if (students.length === 0) {
@@ -47,20 +57,16 @@ export async function POST(req) {
         { status: 400 }
       );
     }
-
-    // For admin role, verify institute access
-    let instituteId = session.user.instituteId;
-    if (session.user.role === "admin") {
-      const unauthorizedCount = students.filter(
-        (s) => s.institute?.toString() !== instituteId
-      ).length;
-      if (unauthorizedCount > 0) {
-        return Response.json(
-          { error: "Access denied: Some students are not in your institute" },
-          { status: 403 }
-        );
-      }
+    
+    // Verify all requested students were found (to catch any that don't belong to this institute)
+    if (students.length !== studentIds.length) {
+      return Response.json(
+        { error: "Access denied: Some students are not in your institute" },
+        { status: 403 }
+      );
     }
+    
+    let instituteId = scope.instituteId;
 
     const results = {
       successCount: 0,
