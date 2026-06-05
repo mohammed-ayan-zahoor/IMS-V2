@@ -5,6 +5,7 @@ import User from "@/models/User";
 import AuditLog from "@/models/AuditLog";
 import { StudentService } from "@/services/studentService";
 import { getInstituteScope } from "@/middleware/instituteScope";
+import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
 
 export async function POST(req) {
   try {
@@ -77,7 +78,7 @@ export async function POST(req) {
     // Process each student
     for (const student of students) {
       try {
-        // Delete student using StudentService
+        // Delete student using StudentService (which handles all cleanup)
         await StudentService.deleteStudent(student._id, session.user.id);
 
         results.successCount++;
@@ -105,12 +106,33 @@ export async function POST(req) {
       }
     }
 
-    return Response.json({
-      message: `Successfully deleted ${results.successCount} students`,
-      successCount: results.successCount,
-      failedCount: results.failedCount,
-      errors: results.errors,
-    });
+    // Clear dashboard cache for this institute to reflect new student count
+    clearDashboardCache(instituteId.toString());
+
+    // If all succeeded or all failed, return appropriate status
+    if (results.failedCount === 0) {
+      return Response.json({
+        message: `Successfully deleted ${results.successCount} students`,
+        successCount: results.successCount,
+        failedCount: 0,
+        errors: [],
+      }, { status: 200 });
+    } else if (results.successCount === 0) {
+      return Response.json({
+        error: `Failed to delete all ${results.failedCount} students`,
+        successCount: 0,
+        failedCount: results.failedCount,
+        errors: results.errors,
+      }, { status: 500 });
+    } else {
+      // Partial success - return 207 Multi-Status
+      return Response.json({
+        message: `Deleted ${results.successCount} students, failed for ${results.failedCount}`,
+        successCount: results.successCount,
+        failedCount: results.failedCount,
+        errors: results.errors,
+      }, { status: 207 });
+    }
   } catch (error) {
     console.error("Bulk delete students error:", error);
     return Response.json(

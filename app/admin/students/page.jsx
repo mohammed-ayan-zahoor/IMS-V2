@@ -658,9 +658,13 @@ export default function StudentsPage() {
                 })
             });
 
-            if (res.ok) {
-                const result = await res.json();
-                toast.success(`${result.successCount} students deleted successfully`);
+            const result = await res.json();
+
+            // Handle success (200) or partial success (207)
+            if (res.ok || res.status === 207) {
+                if (result.successCount > 0) {
+                    toast.success(`${result.successCount} students deleted successfully`);
+                }
                 if (result.failedCount > 0) {
                     toast.error(`Failed to delete ${result.failedCount} students`);
                 }
@@ -668,8 +672,8 @@ export default function StudentsPage() {
                 setSelectedStudents(new Set());
                 fetchStudents();
             } else {
-                const error = await res.json();
-                toast.error(error.error || "Deletion failed");
+                // Complete failure
+                toast.error(result.error || "Deletion failed");
             }
         } catch (error) {
             console.error("Delete error", error);
