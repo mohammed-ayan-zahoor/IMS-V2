@@ -57,9 +57,11 @@ export default function StudentsPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isChatLoading, setIsChatLoading] = useState(false);
-    const [selectedStudents, setSelectedStudents] = useState(new Set());
-    const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
-    const { selectedSessionId, sessions } = useAcademicSession();
+     const [selectedStudents, setSelectedStudents] = useState(new Set());
+     const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
+     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+     const [isDeleting, setIsDeleting] = useState(false);
+     const { selectedSessionId, sessions } = useAcademicSession();
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -645,6 +647,38 @@ export default function StudentsPage() {
         }
     };
 
+    const handleBulkDelete = async () => {
+        try {
+            setIsDeleting(true);
+            const res = await fetch("/api/v1/students/bulk-delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    studentIds: Array.from(selectedStudents)
+                })
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                toast.success(`${result.successCount} students deleted successfully`);
+                if (result.failedCount > 0) {
+                    toast.error(`Failed to delete ${result.failedCount} students`);
+                }
+                setIsDeleteModalOpen(false);
+                setSelectedStudents(new Set());
+                fetchStudents();
+            } else {
+                const error = await res.json();
+                toast.error(error.error || "Deletion failed");
+            }
+        } catch (error) {
+            console.error("Delete error", error);
+            toast.error("Deletion failed");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Promotion Modal */}
@@ -662,24 +696,73 @@ export default function StudentsPage() {
                     onPromote={handlePromote}
                     onClose={() => setIsPromotionModalOpen(false)}
                 />
-            </Modal>
-            
-            {/* Page Action Bar */}
+             </Modal>
+             
+             {/* Delete Confirmation Modal */}
+             <Modal
+                 isOpen={isDeleteModalOpen}
+                 onClose={() => !isDeleting && setIsDeleteModalOpen(false)}
+                 title="Delete Students"
+             >
+                 <div className="space-y-4">
+                     <div className="flex items-start gap-3">
+                         <AlertCircle size={24} className="text-red-500 flex-shrink-0 mt-0.5" />
+                         <div>
+                             <p className="text-sm font-medium text-gray-900">
+                                 Delete {selectedStudents.size} student{selectedStudents.size !== 1 ? 's' : ''}?
+                             </p>
+                             <p className="text-sm text-gray-600 mt-1">
+                                 This action cannot be undone. All student data including enrollment, fees, and attendance records will be permanently deleted.
+                             </p>
+                         </div>
+                     </div>
+                     <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
+                         <Button
+                             onClick={() => setIsDeleteModalOpen(false)}
+                             variant="outline"
+                             disabled={isDeleting}
+                         >
+                             Cancel
+                         </Button>
+                         <Button
+                             onClick={handleBulkDelete}
+                             variant="primary"
+                             className="bg-red-600 hover:bg-red-700"
+                             disabled={isDeleting}
+                         >
+                             {isDeleting ? "Deleting..." : `Delete ${selectedStudents.size} Students`}
+                         </Button>
+                     </div>
+                 </div>
+             </Modal>
+             
+             {/* Page Action Bar */}
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div /> {/* Spacer for Title in Global Header */}
                 <div className="flex items-center gap-2">
-                    {selectedStudents.size > 0 && (
-                        <Button 
-                            onClick={() => setIsPromotionModalOpen(true)} 
-                            variant="primary" 
-                            size="md" 
-                            className="flex items-center gap-2 px-6 bg-emerald-600 hover:bg-emerald-700 shadow-sm"
-                        >
-                            <UserPlus size={18} strokeWidth={2.5} />
-                            <span>Promote {selectedStudents.size} Students</span>
-                        </Button>
-                    )}
+                     {selectedStudents.size > 0 && (
+                         <>
+                             <Button 
+                                 onClick={() => setIsPromotionModalOpen(true)} 
+                                 variant="primary" 
+                                 size="md" 
+                                 className="flex items-center gap-2 px-6 bg-emerald-600 hover:bg-emerald-700 shadow-sm"
+                             >
+                                 <UserPlus size={18} strokeWidth={2.5} />
+                                 <span>Promote {selectedStudents.size} Students</span>
+                             </Button>
+                             <Button 
+                                 onClick={() => setIsDeleteModalOpen(true)} 
+                                 variant="primary" 
+                                 size="md" 
+                                 className="flex items-center gap-2 px-6 bg-red-600 hover:bg-red-700 shadow-sm"
+                             >
+                                 <Trash2 size={18} strokeWidth={2.5} />
+                                 <span>Delete {selectedStudents.size} Students</span>
+                             </Button>
+                         </>
+                     )}
                     <Button onClick={() => setIsImportModalOpen(true)} variant="outline" size="md" className="hidden sm:flex items-center gap-2 border-slate-200">
                         <Upload size={16} />
                         <span>Import Students</span>
