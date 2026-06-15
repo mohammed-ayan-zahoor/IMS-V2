@@ -1,0 +1,169 @@
+<USER_REQUEST>
+html
+<body>
+  <!-- ───── ANNOUNCEMENT BAR ───── -->
+  <div class="ea-bar">
+	🎉 Admissions Open for 2025–26  ·  Limited seats available
+	<a href="#admissions" class="ea-bar-link">Apply Now →</a>
+  </div>
+  <!-- ───── NAVBAR ───── -->
+  <nav class="ea-nav">
+	<div class="ea-nav-inner">
+	  <div class="ea-logo">
+		<div class="ea-logo-icon">E
+		</div>
+		<div class="ea-logo-text">
+		  <span class="ea-logo-name">Evergreen Academy</span>
+		  <span class="ea-logo-sub">Est. 2003 · Excellence in Education</span>
+		</div>
+	  </div>
+	  <div class="ea-nav-links">
+		<a href="#home">Home</a>
+		<a href="#about">About</a>
+		<a href="#academics">Academics</a>
+		<a href="#admissions">Admissions</a>
+		<a href="#gallery">Gallery</a>
+		<a href="#contact">Contact</a>
+		<a href="#admissions" class="ea-nav-cta">Apply Now</a>
+	  </div>
+	  <button id="eaHamburger" aria-label="Menu" class="ea-hamburger"><span></span><span></span><span></span></button>
+	</div>
+	<!-- Mobile menu -->
+	<div id="eaMobileMenu" class="ea-mobile-menu">
+	  <a href="#home">Home</a>
+	  <a href="#about">About</a>
+	  <a href="#academics">Academics</a>
+	  <a href="#admissions">Admissions</a>
+	  <a href="#gallery">Gallery</a>
+	  <a href="#contact">Contact</a>
+	  <a href="#admissions" class="ea-nav-cta-mobile">Apply Now</a>
+	</div>
+  </nav>
+  <!-- ───── HERO ───── -->
+  <section id="home" class="ea-hero">
+	<div class="ea-hero-bg">
+	</div>
+	<div class="ea-hero-grid">
+	</div>
+	<div class="ea-hero-inner">
+	  <!-- LEFT: Copy -->
+	  <div class="ea-hero-copy">
+		<div class="ea-badge">
+		  <span class="ea-badge-dot"></span>
+		  Admissions Open · 2025–26 Session
+		</div>
+		<h1 class="ea-h1">
+		  Where 
+		  <em>Curious Minds</em>
+		  <br />
+		  Become
+		  <br />
+		  Future Leaders
+		</h1>
+		<p class="ea-hero-sub">
+		  Evergreen Academy offers a world-class education from Kindergarten through
+		  Grade 12 — blending academic rigour with creativity, character, and
+		  compassion.
+		</p>
+		<div cla
+<truncated 45214 bytes>
+: var(--ea-sh);
+}
+.ea-testi-stars {
+  color: var(--ea-gold);
+  font-size: 0.9rem;
+  margin-bottom: 14px;
+}
+.ea-testi-text {
+  font-family: "Playfair Display", serif;
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--ea-navy);
+  line-height: 1.7;
+  margin-bottom: 22px;
+}
+.ea-testi-author {
+  display: flex;
+  align-items: center;
+  row-gap: 11px;
+  column-gap: 11px;
+}
+.ea-testi-avatar {
+  width: 42px;
+  height: 42px;
+  border-top-left-radius: 50%;
+  border-top-right-radius: 50%;
+  border-bottom-right-radius: 50%;
+  border-bottom-left-radius: 50%;
+  color: var(--ea-gold);
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ea-testi-name {
+  font-size: 0.87rem;
+  font-weight: 600;
+  color: var(--ea-navy);
+}
+.ea-testi-role {
+  font-size: 0.73rem;
+  color: var(--ea-muted);
+}
+.ea-contact {
+  padding-top: 96px;
+  padding-right: 0px;
+  padding-bottom: 96px;
+  padding-left: 0px;
+}
+.ea-contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  row-gap: 60px;
+  column-gap: 60px;
+  align-items: start;
+}
+.ea-contact-desc {
+  font-size: 0.9rem;
+  color: var(--ea-muted);
+  line-height: 1.75;
+  margin-bottom: 32px;
+}
+.ea-contact-info {
+  display: flex;
+  flex-direction: column;
+  row-gap: 16px;
+  column-gap: 16px;
+}
+.ea-contact-item {
+  display: flex;
+  row-gap: 14px;
+  column-gap: 14px;
+  padding-top: 20px;
+  padding-right: 20px;
+  padding-bottom: 20px;
+  padding-left: 20px;
+}
+.ea-contact-item:hover {
+  box-shadow: var(--ea-sh);
+}
+.ea-contact-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  border-bottom-left-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+.ea-contact-label {
+<truncated 4696 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.

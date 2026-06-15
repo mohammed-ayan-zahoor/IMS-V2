@@ -312,7 +312,8 @@ export default function StudentFeesPage() {
                                         </div>
                                     </div>
                                 </div>
-                         </motion.div>
+                         </div>
+                          </motion.div>
                     );
                 })}
 

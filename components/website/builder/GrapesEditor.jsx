@@ -392,6 +392,22 @@ const SCHOOL_BLOCKS = [
   <p style="color:#475569;font-size:16px;line-height:1.8;margin:0 0 16px;">This is a paragraph of text. Click to edit and add your own content. You can change the font, size, color and more using the styles panel on the right.</p>
   <p style="color:#475569;font-size:16px;line-height:1.8;margin:0;">Add as many text blocks as you need to tell your story clearly and compellingly.</p>
 </div>`
+    },
+    {
+        id: 'image-block',
+        label: 'Image',
+        category: 'Basic',
+        content: {
+            type: 'image',
+            style: { width: '100%', height: 'auto', 'max-width': '100%', display: 'block', 'border-radius': '8px' },
+            attributes: { src: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&w=800&q=80' }
+        }
+    },
+    {
+        id: 'button-block',
+        label: 'Button',
+        category: 'Basic',
+        content: `<a href="#" style="display:inline-block;background:#2563eb;color:#ffffff;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;font-family:Inter,sans-serif;text-align:center;">Click Here</a>`
     }
 ];
 
@@ -408,7 +424,8 @@ const GRAPES_STYLES = `
   .gjs-three-bg { background: #1e293b; }
   .gjs-four-color, .gjs-four-color-h:hover { color: #60a5fa; }
   .gjs-block-category .gjs-title { background: #1e293b; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 10px 14px; }
-  .gjs-blocks-c { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; padding: 12px !important; max-height: none !important; }
+  .gjs-blocks-c { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; padding: 12px !important; }
+  .gjs-blocks-cs, .gjs-block-categories, .gjs-block-category, .gjs-blocks-c { max-height: none !important; height: auto !important; overflow: visible !important; }
   .gjs-block { background: #1e293b; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #cbd5e1; font-size: 11px; padding: 12px 8px; text-align: center; transition: all 0.15s; width: 100% !important; max-width: none !important; min-height: 75px !important; margin: 0 !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; }
   .gjs-block:hover { background: #243448; border-color: #3b82f6; color: #ffffff; }
   .gjs-block__media { font-size: 24px; margin-bottom: 6px; }
@@ -487,6 +504,73 @@ export default function GrapesEditor({
     const [showNewPage, setShowNewPage] = useState(false);
     const [newPageTitle, setNewPageTitle] = useState('');
     const [newPageSlug, setNewPageSlug] = useState('');
+
+    // ── Website Settings State ──
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [settingsTab, setSettingsTab] = useState('branding');
+    const [configState, setConfigState] = useState({
+        branding: { logo: '', favicon: '', primaryColor: '#3B82F6', secondaryColor: '#8B5CF6', fontFamily: 'Inter' },
+        settings: { seoTitle: '', seoDescription: '', googleAnalyticsId: '', headerConfig: { showSocialLinks: true, sticky: true }, footerConfig: { text: '', showNewsletter: true } },
+        theme: { preset: 'modern' },
+        subdomain: '',
+        domain: ''
+    });
+    const [customDomainInput, setCustomDomainInput] = useState('');
+    const [verifyingDomain, setVerifyingDomain] = useState(false);
+    const [domainError, setDomainError] = useState('');
+    const [domainSuccess, setDomainSuccess] = useState('');
+    const [savingSettings, setSavingSettings] = useState(false);
+
+    useEffect(() => {
+        if (initialConfig) {
+            setConfigState({
+                ...initialConfig,
+                branding: {
+                    logo: '',
+                    favicon: '',
+                    primaryColor: '#3B82F6',
+                    secondaryColor: '#8B5CF6',
+                    fontFamily: 'Inter',
+                    ...(initialConfig.branding || {})
+                },
+                settings: {
+                    seoTitle: '',
+                    seoDescription: '',
+                    googleAnalyticsId: '',
+                    headerConfig: {
+                        showSocialLinks: true,
+                        sticky: true,
+                        ...(initialConfig.settings?.headerConfig || {})
+                    },
+                    footerConfig: {
+                        text: '',
+                        showNewsletter: true,
+                        ...(initialConfig.settings?.footerConfig || {})
+                    },
+                    ...(initialConfig.settings || {})
+                },
+                theme: {
+                    preset: 'modern',
+                    ...(initialConfig.theme || {})
+                }
+            });
+            if (initialConfig.domain) {
+                setCustomDomainInput(initialConfig.domain);
+            }
+        }
+    }, [initialConfig]);
+
+    const inputStyle = {
+        width: '100%',
+        background: '#1e293b',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '8px',
+        padding: '10px 14px',
+        color: '#e2e8f0',
+        fontSize: '13px',
+        outline: 'none',
+        boxSizing: 'border-box'
+    };
 
     // ── Init GrapesJS ────────────────────────────────────────────────────
     useEffect(() => {
@@ -650,7 +734,7 @@ export default function GrapesEditor({
                             open: false,
                             properties: [
                                 { property: 'background-color', type: 'color' },
-                                { property: 'background-image', type: 'text' },
+                                { property: 'background-image', type: 'file' },
                                 { property: 'background-size', type: 'select', options: [{ value: 'auto' }, { value: 'cover' }, { value: 'contain' }] },
                                 { property: 'background-position', type: 'select', options: [{ value: 'center' }, { value: 'top' }, { value: 'bottom' }, { value: 'left' }, { value: 'right' }] },
                             ]
@@ -675,7 +759,8 @@ export default function GrapesEditor({
 
                 canvas: {
                     styles: [
-                        'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap'
+                        'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap',
+                        '/assets/css/editor-reset.css'
                     ]
                 },
 
@@ -935,6 +1020,7 @@ export default function GrapesEditor({
             });
 
             // ── Load existing content ────────────────────────────────────
+            // ── Style resets and helper styling inside canvas are loaded via canvas.styles configuration using '/assets/css/editor-reset.css'
             const gjsData = activePage?.draftContent?.gjsData || activePage?.liveContent?.gjsData;
             if (gjsData) {
                 gjs.loadProjectData(gjsData);
@@ -948,36 +1034,7 @@ export default function GrapesEditor({
                 `);
             }
 
-            // ── Style Helper inside canvas iframe on load ─────────────────
-            gjs.on('load', () => {
-                const doc = gjs.Canvas.getDocument();
-                if (doc) {
-                    const style = doc.createElement('style');
-                    style.innerHTML = `
-                        /* Helper to display transparent elements inside editor */
-                        nav[style*="rgba(255,255,255,0.1)"] {
-                            background-color: #1e293b !important;
-                            border: 1px dashed #3b82f6 !important;
-                        }
-                        /* Helper to ensure empty sections/containers have visual height */
-                        section:empty, div:empty {
-                            min-height: 80px !important;
-                            outline: 1px dashed rgba(59, 130, 246, 0.5) !important;
-                            background: rgba(59, 130, 246, 0.05) !important;
-                            display: flex !important;
-                            align-items: center !important;
-                            justify-content: center !important;
-                        }
-                        section:empty::after, div:empty::after {
-                            content: "Empty Canvas Section — drag elements here" !important;
-                            color: #94a3b8 !important;
-                            font-size: 13px !important;
-                            font-family: Inter, sans-serif !important;
-                        }
-                    `;
-                    doc.head.appendChild(style);
-                }
-            });
+
 
             if (!active) {
                 gjs.destroy();
@@ -1026,7 +1083,9 @@ export default function GrapesEditor({
         try {
             const gjsData = gjsInstance.current.getProjectData();
             const gjsHtml = gjsInstance.current.getHtml();
-            const gjsCss = gjsInstance.current.getCss();
+            // avoidProtected: true excludes canvas.styles external CSS (editor-reset.css, Google Fonts)
+            // so those editor-only resets never leak into the saved gjsCss / live site
+            const gjsCss = gjsInstance.current.getCss({ avoidProtected: true });
             await onSave({ gjsData, gjsHtml, gjsCss }, {});
             toast.success('Page saved!');
         } catch (e) {
@@ -1043,7 +1102,9 @@ export default function GrapesEditor({
         try {
             const gjsData = gjsInstance.current.getProjectData();
             const gjsHtml = gjsInstance.current.getHtml();
-            const gjsCss = gjsInstance.current.getCss();
+            // avoidProtected: true excludes canvas.styles external CSS (editor-reset.css, Google Fonts)
+            // so those editor-only resets never leak into the saved gjsCss / live site
+            const gjsCss = gjsInstance.current.getCss({ avoidProtected: true });
             // First save draft
             await onSave({ gjsData, gjsHtml, gjsCss }, {});
             // Then publish
@@ -1083,6 +1144,93 @@ export default function GrapesEditor({
         setShowPageMenu(false);
     };
 
+    // ── Website settings handlers ──────────────────────────────────────
+    const handleSaveSettings = async () => {
+        setSavingSettings(true);
+        try {
+            const res = await fetch('/api/v1/website/config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subdomain: configState.subdomain,
+                    branding: configState.branding,
+                    settings: configState.settings,
+                    theme: configState.theme
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success('Website configuration saved successfully!');
+                setShowSettingsModal(false);
+                window.location.reload();
+            } else {
+                toast.error(data.error || 'Failed to save configuration');
+            }
+        } catch (err) {
+            console.error('Save settings error:', err);
+            toast.error('Error saving website configuration');
+        } finally {
+            setSavingSettings(false);
+        }
+    };
+
+    const handleVerifyDomain = async () => {
+        if (!customDomainInput.trim()) {
+            setDomainError('Please enter a domain name first.');
+            return;
+        }
+        setVerifyingDomain(true);
+        setDomainError('');
+        setDomainSuccess('');
+        try {
+            const res = await fetch('/api/v1/website/verify-domain', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ domain: customDomainInput.trim().toLowerCase() })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setDomainSuccess('Domain verified and linked successfully!');
+                setConfigState(prev => ({ ...prev, domain: customDomainInput.trim().toLowerCase() }));
+                toast.success('Domain verified and linked!');
+            } else {
+                setDomainError(data.error || 'Verification failed. Please check your DNS records and try again.');
+            }
+        } catch (err) {
+            console.error('Verify domain error:', err);
+            setDomainError('An error occurred during DNS verification.');
+        } finally {
+            setVerifyingDomain(false);
+        }
+    };
+
+    const handleUnlinkDomain = async () => {
+        if (!confirm('Are you sure you want to unlink this custom domain?')) return;
+        setVerifyingDomain(true);
+        setDomainError('');
+        setDomainSuccess('');
+        try {
+            const res = await fetch('/api/v1/website/config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ domain: '' })
+            });
+            if (res.ok) {
+                setDomainSuccess('Domain unlinked successfully.');
+                setCustomDomainInput('');
+                setConfigState(prev => ({ ...prev, domain: '' }));
+                toast.success('Domain unlinked.');
+            } else {
+                setDomainError('Failed to unlink domain.');
+            }
+        } catch (err) {
+            setDomainError('Error occurred while unlinking.');
+        } finally {
+            setVerifyingDomain(false);
+        }
+    };
+
+
     return (
         <div className="grapes-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0f172a', fontFamily: 'Inter, sans-serif' }}>
 
@@ -1110,6 +1258,13 @@ export default function GrapesEditor({
                                 style={{ background: publishing ? '#374151' : '#16a34a', color: '#fff', border: 'none', borderRadius: '7px', padding: '6px 10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.15s' }}
                             >
                                 <Globe size={12} />
+                            </button>
+                            <button
+                                onClick={() => setShowSettingsModal(true)}
+                                title="Website Settings"
+                                style={{ background: '#1e293b', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            >
+                                <Settings2 size={12} />
                             </button>
                         </div>
                     </div>
@@ -1292,7 +1447,7 @@ export default function GrapesEditor({
                     {/* Live site link */}
                     {instituteCode && pageSlug && (
                         <a
-                            href={`/${instituteCode}/${pageSlug === 'index' ? '' : pageSlug}`}
+                            href={`/website/${instituteCode}/${pageSlug === 'index' ? '' : pageSlug}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{ color: '#60a5fa', fontSize: '12px', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -1371,6 +1526,494 @@ export default function GrapesEditor({
                     </div>
                 </div>
             </div>
+
+            {/* Website Settings Modal */}
+            {showSettingsModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    background: 'rgba(15, 23, 42, 0.85)',
+                    backdropFilter: 'blur(10px)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px',
+                    color: '#e2e8f0',
+                    fontFamily: 'Inter, sans-serif'
+                }}>
+                    <div style={{
+                        width: '100%',
+                        maxWidth: '850px',
+                        background: '#0f172a',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        maxHeight: '90vh',
+                        boxShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.6)',
+                        overflow: 'hidden'
+                    }}>
+                        {/* Header */}
+                        <div style={{
+                            padding: '20px 24px',
+                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: '#1e293b'
+                        }}>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#ffffff' }}>Website Settings</h3>
+                                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>Configure branding, domains, SEO, and navigation layout.</p>
+                            </div>
+                            <button
+                                onClick={() => setShowSettingsModal(false)}
+                                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '6px', transition: 'all 0.15s' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                            {/* Left Navigation */}
+                            <div style={{
+                                width: '220px',
+                                background: '#090d16',
+                                borderRight: '1px solid rgba(255,255,255,0.06)',
+                                padding: '16px 8px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px'
+                            }}>
+                                {[
+                                    { id: 'branding', label: 'Branding & Theme' },
+                                    { id: 'domain', label: 'Domain & DNS' },
+                                    { id: 'seo', label: 'SEO & Metadata' },
+                                    { id: 'navigation', label: 'Navigation & Footer' }
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setSettingsTab(tab.id)}
+                                        style={{
+                                            padding: '10px 16px',
+                                            borderRadius: '8px',
+                                            border: 'none',
+                                            background: settingsTab === tab.id ? 'rgba(59,130,246,0.15)' : 'transparent',
+                                            color: settingsTab === tab.id ? '#60a5fa' : '#94a3b8',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            textAlign: 'left',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s'
+                                        }}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Right Content Area */}
+                            <div style={{ flex: 1, padding: '28px', overflowY: 'auto', background: '#0f172a' }}>
+                                {settingsTab === 'branding' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>Theme Preset</label>
+                                            <select
+                                                value={configState.theme?.preset || 'modern'}
+                                                onChange={e => setConfigState(prev => ({
+                                                    ...prev,
+                                                    theme: { ...prev.theme, preset: e.target.value }
+                                                }))}
+                                                style={inputStyle}
+                                            >
+                                                <option value="modern">Modern (Blue/Purple)</option>
+                                                <option value="classic">Classic (Navy/Gold)</option>
+                                                <option value="bold">Bold (Violet/Pink)</option>
+                                                <option value="minimal">Minimal (Charcoal/Zinc)</option>
+                                                <option value="dark">Dark (Emerald/Blue)</option>
+                                            </select>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                            <div>
+                                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>Primary Color</label>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <input
+                                                        type="color"
+                                                        value={configState.branding?.primaryColor || '#3B82F6'}
+                                                        onChange={e => setConfigState(prev => ({
+                                                            ...prev,
+                                                            branding: { ...prev.branding, primaryColor: e.target.value }
+                                                        }))}
+                                                        style={{ width: '40px', height: '38px', padding: 0, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer', background: 'transparent' }}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={configState.branding?.primaryColor || '#3B82F6'}
+                                                        onChange={e => setConfigState(prev => ({
+                                                            ...prev,
+                                                            branding: { ...prev.branding, primaryColor: e.target.value }
+                                                        }))}
+                                                        style={inputStyle}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>Secondary Color</label>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <input
+                                                        type="color"
+                                                        value={configState.branding?.secondaryColor || '#8B5CF6'}
+                                                        onChange={e => setConfigState(prev => ({
+                                                            ...prev,
+                                                            branding: { ...prev.branding, secondaryColor: e.target.value }
+                                                        }))}
+                                                        style={{ width: '40px', height: '38px', padding: 0, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer', background: 'transparent' }}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={configState.branding?.secondaryColor || '#8B5CF6'}
+                                                        onChange={e => setConfigState(prev => ({
+                                                            ...prev,
+                                                            branding: { ...prev.branding, secondaryColor: e.target.value }
+                                                        }))}
+                                                        style={inputStyle}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>Font Family</label>
+                                            <select
+                                                value={configState.branding?.fontFamily || 'Inter'}
+                                                onChange={e => setConfigState(prev => ({
+                                                    ...prev,
+                                                    branding: { ...prev.branding, fontFamily: e.target.value }
+                                                }))}
+                                                style={inputStyle}
+                                            >
+                                                <option value="Inter">Inter (Sans-serif)</option>
+                                                <option value="Merriweather">Merriweather (Serif)</option>
+                                                <option value="Outfit">Outfit (Geometric Sans)</option>
+                                                <option value="DM Sans">DM Sans (Neo-Grotesque)</option>
+                                                <option value="Space Grotesk">Space Grotesk (Tech/Display)</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>Logo URL</label>
+                                            <input
+                                                type="text"
+                                                placeholder="https://example.com/logo.png"
+                                                value={configState.branding?.logo || ''}
+                                                onChange={e => setConfigState(prev => ({
+                                                    ...prev,
+                                                    branding: { ...prev.branding, logo: e.target.value }
+                                                }))}
+                                                style={inputStyle}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>Favicon URL</label>
+                                            <input
+                                                type="text"
+                                                placeholder="https://example.com/favicon.ico"
+                                                value={configState.branding?.favicon || ''}
+                                                onChange={e => setConfigState(prev => ({
+                                                    ...prev,
+                                                    branding: { ...prev.branding, favicon: e.target.value }
+                                                }))}
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {settingsTab === 'domain' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>Subdomain Prefix</label>
+                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                <input
+                                                    type="text"
+                                                    value={configState.subdomain || ''}
+                                                    onChange={e => setConfigState(prev => ({ ...prev, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                                                    style={{ ...inputStyle, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+                                                />
+                                                <span style={{
+                                                    background: '#1e293b',
+                                                    border: '1px solid rgba(255,255,255,0.08)',
+                                                    borderLeft: 'none',
+                                                    padding: '9px 12px',
+                                                    fontSize: '13px',
+                                                    color: '#64748b',
+                                                    borderTopRightRadius: '8px',
+                                                    borderBottomRightRadius: '8px'
+                                                }}>.imsportal.3ftech.in</span>
+                                            </div>
+                                            <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#64748b' }}>Only lowercase letters, numbers, and hyphens allowed.</p>
+                                        </div>
+
+                                        <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.06)' }} />
+
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>Custom Domain</label>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="school.example.com"
+                                                    value={customDomainInput}
+                                                    onChange={e => setCustomDomainInput(e.target.value)}
+                                                    style={inputStyle}
+                                                />
+                                                {configState.domain && configState.domain === customDomainInput.trim().toLowerCase() ? (
+                                                    <button
+                                                        onClick={handleUnlinkDomain}
+                                                        disabled={verifyingDomain}
+                                                        style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '0 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                                                    >
+                                                        Unlink
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={handleVerifyDomain}
+                                                        disabled={verifyingDomain || !customDomainInput.trim()}
+                                                        style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', padding: '0 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: (!customDomainInput.trim() || verifyingDomain) ? 0.6 : 1 }}
+                                                    >
+                                                        {verifyingDomain ? 'Verifying…' : 'Verify & Link'}
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {domainError && (
+                                                <div style={{ marginTop: '10px', padding: '10px 12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', fontSize: '12px', color: '#f87171' }}>
+                                                    {domainError}
+                                                </div>
+                                            )}
+
+                                            {domainSuccess && (
+                                                <div style={{ marginTop: '10px', padding: '10px 12px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: '8px', fontSize: '12px', color: '#4ade80' }}>
+                                                    {domainSuccess}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {customDomainInput.trim() && (!configState.domain || configState.domain !== customDomainInput.trim().toLowerCase()) && (
+                                            <div style={{
+                                                background: '#1e293b',
+                                                border: '1px solid rgba(255,255,255,0.06)',
+                                                borderRadius: '10px',
+                                                padding: '16px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '12px'
+                                            }}>
+                                                <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#f59e0b' }}>DNS Setup Instructions</h4>
+                                                <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', lineHeight: 1.5 }}>
+                                                    To point your domain here and verify ownership, create a **TXT** record with your DNS provider:
+                                                </p>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '8px 16px', background: '#0f172a', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Type:</span>
+                                                    <code style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 700 }}>TXT</code>
+
+                                                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Host:</span>
+                                                    <code style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 700 }}>@</code>
+
+                                                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Value:</span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <code style={{ fontSize: '12px', color: '#60a5fa', fontWeight: 700 }}>yourapp-verify={configState.instituteId}</code>
+                                                        <button
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(`yourapp-verify=${configState.instituteId}`);
+                                                                toast.success('TXT record copied to clipboard!');
+                                                            }}
+                                                            style={{ background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', padding: '2px 6px', fontSize: '10px', cursor: 'pointer' }}
+                                                        >Copy</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {settingsTab === 'seo' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>SEO Title Template</label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. Nehru English School | Premium Quality Education"
+                                                value={configState.settings?.seoTitle || ''}
+                                                onChange={e => setConfigState(prev => ({
+                                                    ...prev,
+                                                    settings: { ...prev.settings, seoTitle: e.target.value }
+                                                }))}
+                                                style={inputStyle}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>SEO Meta Description</label>
+                                            <textarea
+                                                rows={4}
+                                                placeholder="Write a brief, compelling summary of your institute to display on search results..."
+                                                value={configState.settings?.seoDescription || ''}
+                                                onChange={e => setConfigState(prev => ({
+                                                    ...prev,
+                                                    settings: { ...prev.settings, seoDescription: e.target.value }
+                                                }))}
+                                                style={{ ...inputStyle, resize: 'none', height: 'auto' }}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>Google Analytics Tracking ID</label>
+                                            <input
+                                                type="text"
+                                                placeholder="G-XXXXXXXXXX"
+                                                value={configState.settings?.googleAnalyticsId || ''}
+                                                onChange={e => setConfigState(prev => ({
+                                                    ...prev,
+                                                    settings: { ...prev.settings, googleAnalyticsId: e.target.value }
+                                                }))}
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {settingsTab === 'navigation' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '16px' }}>
+                                            <h4 style={{ margin: '0 0 4px', fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>Header Options</h4>
+                                            
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#cbd5e1', cursor: 'pointer' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={configState.settings?.headerConfig?.sticky !== false}
+                                                    onChange={e => setConfigState(prev => ({
+                                                        ...prev,
+                                                        settings: {
+                                                            ...prev.settings,
+                                                            headerConfig: { ...prev.settings.headerConfig, sticky: e.target.checked }
+                                                        }
+                                                    }))}
+                                                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                                />
+                                                Sticky Navigation Header
+                                            </label>
+
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#cbd5e1', cursor: 'pointer' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={configState.settings?.headerConfig?.showSocialLinks !== false}
+                                                    onChange={e => setConfigState(prev => ({
+                                                        ...prev,
+                                                        settings: {
+                                                            ...prev.settings,
+                                                            headerConfig: { ...prev.settings.headerConfig, showSocialLinks: e.target.checked }
+                                                        }
+                                                    }))}
+                                                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                                />
+                                                Show Social Media Links in Header
+                                            </label>
+                                        </div>
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '16px' }}>
+                                            <h4 style={{ margin: '0 0 4px', fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>Footer Options</h4>
+
+                                            <div>
+                                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>Footer Text / Copyright</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="© 2026 Nehru English School. All rights reserved."
+                                                    value={configState.settings?.footerConfig?.text || ''}
+                                                    onChange={e => setConfigState(prev => ({
+                                                        ...prev,
+                                                        settings: {
+                                                            ...prev.settings,
+                                                            footerConfig: { ...prev.settings.footerConfig, text: e.target.value }
+                                                        }
+                                                    }))}
+                                                    style={inputStyle}
+                                                />
+                                            </div>
+
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#cbd5e1', cursor: 'pointer', marginTop: '4px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={configState.settings?.footerConfig?.showNewsletter !== false}
+                                                    onChange={e => setConfigState(prev => ({
+                                                        ...prev,
+                                                        settings: {
+                                                            ...prev.settings,
+                                                            footerConfig: { ...prev.settings.footerConfig, showNewsletter: e.target.checked }
+                                                        }
+                                                    }))}
+                                                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                                />
+                                                Show Newsletter Subscription Form
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div style={{
+                            padding: '16px 24px',
+                            borderTop: '1px solid rgba(255,255,255,0.06)',
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: '12px',
+                            background: '#1e293b'
+                        }}>
+                            <button
+                                onClick={() => setShowSettingsModal(false)}
+                                style={{
+                                    background: 'transparent',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    color: '#cbd5e1',
+                                    borderRadius: '8px',
+                                    padding: '10px 20px',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveSettings}
+                                disabled={savingSettings}
+                                style={{
+                                    background: '#2563eb',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    padding: '10px 24px',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    opacity: savingSettings ? 0.6 : 1
+                                }}
+                            >
+                                {savingSettings ? 'Saving…' : 'Save Settings'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -1409,4 +2052,6 @@ const BLOCK_ICONS = {
     'blank-section': '▭',
     'two-column': '⊟',
     'text-block': '📝',
+    'image-block': '🖼️',
+    'button-block': '🔘',
 };

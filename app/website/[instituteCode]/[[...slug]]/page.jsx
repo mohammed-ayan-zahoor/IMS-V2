@@ -37,14 +37,21 @@ export async function generateMetadata({ params }) {
     const pageSlug = (slug && slug[0]) || 'index';
     await connectDB();
 
-    const institute = await Institute.findOne({
+    let institute = await Institute.findOne({
         code: { $regex: new RegExp(`^${instituteCode}$`, 'i') }
     }).select('name type branding address contactPhone contactEmail');
 
-    if (!institute) return {};
+    let config = null;
+    if (institute) {
+        config = await WebsiteConfig.findOne({ instituteId: institute._id });
+    } else {
+        config = await WebsiteConfig.findOne({ subdomain: { $regex: new RegExp(`^${instituteCode}$`, 'i') } });
+        if (config) {
+            institute = await Institute.findById(config.instituteId).select('name type branding address contactPhone contactEmail');
+        }
+    }
 
-    const config = await WebsiteConfig.findOne({ instituteId: institute._id });
-    if (!config) return {};
+    if (!institute || !config) return {};
 
     const page = await WebsitePage.findOne({ websiteConfigId: config._id, slug: pageSlug });
 
@@ -127,13 +134,21 @@ async function PublicWebsitePage({ params }) {
     const pageSlug = (slug && slug[0]) || 'index';
     await connectDB();
 
-    const institute = await Institute.findOne({
+    let institute = await Institute.findOne({
         code: { $regex: new RegExp(`^${instituteCode}$`, 'i') }
     }).select('name type branding address contactPhone contactEmail');
-    if (!institute) notFound();
 
-    const config = await WebsiteConfig.findOne({ instituteId: institute._id });
-    if (!config || !config.isActive || config.status !== 'published') notFound();
+    let config = null;
+    if (institute) {
+        config = await WebsiteConfig.findOne({ instituteId: institute._id });
+    } else {
+        config = await WebsiteConfig.findOne({ subdomain: { $regex: new RegExp(`^${instituteCode}$`, 'i') } });
+        if (config) {
+            institute = await Institute.findById(config.instituteId).select('name type branding address contactPhone contactEmail');
+        }
+    }
+
+    if (!institute || !config || !config.isActive || config.status !== 'published') notFound();
 
     let page = await WebsitePage.findOne({ websiteConfigId: config._id, slug: pageSlug });
     if (!page) notFound();
