@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import cloudinary from "@/lib/cloudinary";
+import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
 
 export async function POST(req) {
     try {
@@ -45,6 +46,10 @@ export async function POST(req) {
         }
 
         const application = await AdmissionApplication.create(body);
+
+        // Invalidate dashboard stats cache
+        clearDashboardCache(application.institute.toString());
+
         return NextResponse.json({ success: true, id: application._id }, { status: 201 });
     } catch (error) {
         console.error("[Admission Submission Error]:", error);
@@ -117,6 +122,9 @@ export async function PATCH(req) {
         if (!updated) {
             return NextResponse.json({ error: "Application not found" }, { status: 404 });
         }
+
+        // Invalidate dashboard stats cache
+        clearDashboardCache(updated.institute.toString());
 
         return NextResponse.json({ success: true, application: updated });
     } catch (error) {

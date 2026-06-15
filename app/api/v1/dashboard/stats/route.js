@@ -4,6 +4,7 @@ import User from "@/models/User";
 import Batch from "@/models/Batch";
 import Course from "@/models/Course";
 import Enquiry from "@/models/Enquiry";
+import AdmissionApplication from "@/models/AdmissionApplication";
 import mongoose from "mongoose";
 import { getInstituteScope } from "@/middleware/instituteScope";
 import { validateAndDeriveSession, logSessionAccess } from "@/middleware/sessionValidation";
@@ -89,7 +90,7 @@ export async function GET(req) {
         let instituteQuery = { $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] };
 
         if (!isGlobalView) {
-            const safeInstituteId = new mongoose.Types.ObjectId(scope.instituteId);
+            const safeInstituteId = new mongoose.Types.ObjectId(targetInstituteId);
             instituteQuery.institute = safeInstituteId;
 
             const Membership = (await import("@/models/Membership")).default;
@@ -163,7 +164,11 @@ export async function GET(req) {
         ]);
 
         // 3. Enquiry Count
-        const enquiriesCountPromise = Enquiry.countDocuments(instituteQuery);
+        const enquiriesCountPromise = (async () => {
+            const offline = await Enquiry.countDocuments({ ...instituteQuery, status: { $ne: 'Confirmed' } });
+            const online = await AdmissionApplication.countDocuments({ ...instituteQuery, status: { $ne: 'converted' } });
+            return offline + online;
+        })();
 
         // 4. Top Courses (Leaderboard)
         const topCoursesPromise = Batch.aggregate([
@@ -258,7 +263,7 @@ export async function GET(req) {
 
         // 7. Activity Feed (Audit Log)
         const AuditLog = (await import("@/models/AuditLog")).default;
-        const activityFeedPromise = AuditLog.find(isGlobalView ? {} : { institute: scope.instituteId })
+        const activityFeedPromise = AuditLog.find(isGlobalView ? {} : { institute: new mongoose.Types.ObjectId(targetInstituteId) })
             .sort({ createdAt: -1 })
             .limit(20)
             .populate('actor', 'profile.firstName profile.lastName');
@@ -271,6 +276,19 @@ export async function GET(req) {
         const getGrowth = async (model, query) => {
             const currentCount = await model.countDocuments({ ...query, createdAt: { $gte: thirtyDaysAgo } });
             const previousCount = await model.countDocuments({ ...query, createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } });
+            if (previousCount === 0) return currentCount > 0 ? 100 : 0;
+            return Math.round(((currentCount - previousCount) / previousCount) * 100);
+        };
+
+        const getGrowthCombined = async (model1, query1, model2, query2) => {
+            const current1 = await model1.countDocuments({ ...query1, createdAt: { $gte: thirtyDaysAgo } });
+            const current2 = await model2.countDocuments({ ...query2, createdAt: { $gte: thirtyDaysAgo } });
+            const currentCount = current1 + current2;
+
+            const previous1 = await model1.countDocuments({ ...query1, createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } });
+            const previous2 = await model2.countDocuments({ ...query2, createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } });
+            const previousCount = previous1 + previous2;
+
             if (previousCount === 0) return currentCount > 0 ? 100 : 0;
             return Math.round(((currentCount - previousCount) / previousCount) * 100);
         };
@@ -301,7 +319,10 @@ export async function GET(req) {
             recentAdmissionsPromise,
             revenueTrendsPromise,
             getGrowth(User, studentBaseQuery),
-            getGrowth(Enquiry, instituteQuery),
+            getGrowthCombined(
+                Enquiry, { ...instituteQuery, status: { $ne: 'Confirmed' } }, 
+                AdmissionApplication, { ...instituteQuery, status: { $ne: 'converted' } }
+            ),
             getGrowth(Batch, { 
                 ...instituteQuery, 
                 ...(sessionParam ? { session: new mongoose.Types.ObjectId(sessionParam) } : {}),

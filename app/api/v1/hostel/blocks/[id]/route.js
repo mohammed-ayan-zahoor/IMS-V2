@@ -12,7 +12,7 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         await connectDB();
 
         const block = await HostelBlock.findOne({ _id: id, deletedAt: null });
@@ -89,7 +89,7 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         await connectDB();
 
         const block = await HostelBlock.findOne({ _id: id, deletedAt: null });

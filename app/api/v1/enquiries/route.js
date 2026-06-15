@@ -6,6 +6,7 @@ import Enquiry from '@/models/Enquiry';
 import Course from '@/models/Course';
 import { getInstituteScope } from '@/middleware/instituteScope';
 import { createAuditLog } from '@/services/auditService';
+import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
 
 // GET: List Enquiries (Scoped to Institute) with Pagination
 export async function GET(req) {
@@ -135,6 +136,9 @@ export async function POST(req) {
             institute: scope.instituteId,
             details: { studentName, contactNumber }
         });
+
+        // Invalidate dashboard stats cache
+        clearDashboardCache(scope.instituteId.toString());
 
         return NextResponse.json({ success: true, enquiry: newEnquiry }, { status: 201 });
 

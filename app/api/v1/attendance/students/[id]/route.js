@@ -63,7 +63,8 @@ export async function GET(req, { params }) {
             absent: attendance.filter(a => a.status === 'absent').length,
             late: attendance.filter(a => a.status === 'late').length,
             excused: attendance.filter(a => a.status === 'excused').length,
-            total: attendance.length
+            holiday: attendance.filter(a => a.status === 'holiday').length,
+            total: attendance.filter(a => a.status !== 'holiday').length
         };
 
         return NextResponse.json({ attendance, stats });

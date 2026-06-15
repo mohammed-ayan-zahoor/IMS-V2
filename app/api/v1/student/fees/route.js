@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Fee from "@/models/Fee";
 import Batch from "@/models/Batch";
+import TransportFee from "@/models/TransportFee";
+import HostelAllotment from "@/models/HostelAllotment";
 
 export async function GET(req) {
     try {
@@ -20,7 +22,21 @@ export async function GET(req) {
             .populate("batch", "name")
             .sort({ updatedAt: -1 });
 
-        return NextResponse.json({ fees });
+        const transportFees = await TransportFee.find({
+            student: session.user.id,
+            deletedAt: null
+        })
+            .populate("route vehicle preset")
+            .sort({ updatedAt: -1 });
+
+        const hostelAllotments = await HostelAllotment.find({
+            student: session.user.id,
+            deletedAt: null
+        })
+            .populate("room block")
+            .sort({ updatedAt: -1 });
+
+        return NextResponse.json({ fees, transportFees, hostelAllotments });
 
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

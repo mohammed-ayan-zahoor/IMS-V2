@@ -510,11 +510,49 @@ export default function StudentsPage() {
         }
     };
 
-    const handleImport = async () => {
+    const handleUploadAndPreview = async () => {
         if (!importFile) return;
-        setLoading(true); // Re-use main loading or local
-        // Actually better to have local loading state for modal
+        setLoading(true);
         setImportStatus("uploading");
+
+        try {
+            const formData = new FormData();
+            formData.append("file", importFile);
+
+            const res = await fetch("/api/v1/students/import?preview=true", {
+                method: "POST",
+                headers: {
+                    'x-session-id': selectedSessionId || ''
+                },
+                body: formData
+            });
+            const data = await res.json();
+
+            if (res.ok && data.isPreview) {
+                setImportResult({
+                    rows: data.rows,
+                    totalRows: data.totalRows,
+                    validRows: data.validRows,
+                    invalidRows: data.invalidRows
+                });
+                setImportStatus("preview");
+            } else {
+                setImportStatus("error");
+                toast.error(data.error || "Preview failed");
+            }
+        } catch (error) {
+            setImportStatus("error");
+            console.error("Preview error", error);
+            toast.error("Preview failed");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleConfirmImport = async () => {
+        if (!importFile) return;
+        setLoading(true);
+        setImportStatus("importing");
 
         try {
             const formData = new FormData();
@@ -544,7 +582,6 @@ export default function StudentsPage() {
                 setImportStatus("error");
                 toast.error(data.error || "Import failed");
             }
-
         } catch (error) {
             setImportStatus("error");
             console.error("Import error", error);
@@ -891,6 +928,7 @@ export default function StudentsPage() {
                                                 />
                                             </th>
                                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
+                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{isSchool ? "Class & Section" : "Course & Batch"}</th>
                                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Enrollment ID</th>
                                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact</th>
                                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
@@ -922,6 +960,19 @@ export default function StudentsPage() {
                                                             <p className="text-[11px] font-medium text-slate-400 break-all">{student.email}</p>
                                                         </div>
                                                     </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {student.batches && student.batches.length > 0 ? (
+                                                        <div className="flex flex-col gap-1">
+                                                            {student.batches.map((b) => (
+                                                                <span key={b._id} className="text-xs font-bold text-slate-700">
+                                                                    {b.course?.name || "No Class"} / {b.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs font-medium text-slate-400">—</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-bold font-mono border border-slate-200">
@@ -1622,6 +1673,7 @@ export default function StudentsPage() {
                 isOpen={isImportModalOpen}
                 onClose={resetImport}
                 title="Bulk Import Students"
+                className={importStatus === "preview" ? "max-w-4xl" : "max-w-lg"}
             >
                 <div className="space-y-6">
                     {importStatus === "idle" && (
@@ -1649,9 +1701,9 @@ export default function StudentsPage() {
                                 />
                             </div>
                             {importFile && (
-                                <Button onClick={handleImport} className="w-full" disabled={!importFile}>
+                                <Button onClick={handleUploadAndPreview} className="w-full" disabled={!importFile}>
                                     <Upload className="mr-2" size={16} />
-                                    Start Import
+                                    Upload & Preview
                                 </Button>
                             )}
                         </div>
@@ -1660,8 +1712,114 @@ export default function StudentsPage() {
                     {importStatus === "uploading" && (
                         <div className="flex flex-col items-center justify-center p-8">
                             <LoadingSpinner />
-                            <p className="text-sm font-bold text-slate-600 mt-4">Processing Excel File...</p>
-                            <p className="text-xs text-slate-400">Please do not close this window.</p>
+                            <p className="text-sm font-bold text-slate-600 mt-4">Validating Spreadsheet...</p>
+                            <p className="text-xs text-slate-400">Performing dry-run check on student records.</p>
+                        </div>
+                    )}
+
+                    {importStatus === "importing" && (
+                        <div className="flex flex-col items-center justify-center p-8">
+                            <LoadingSpinner />
+                            <p className="text-sm font-bold text-slate-600 mt-4">Importing Students...</p>
+                            <p className="text-xs text-slate-400">Writing records to database. Please do not close this window.</p>
+                        </div>
+                    )}
+
+                    {importStatus === "preview" && importResult && (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-800">Pre-Import Summary</h4>
+                                    <p className="text-xs text-slate-500">Please review validation results before confirming.</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600">
+                                        Total: {importResult.totalRows}
+                                    </span>
+                                    <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-100">
+                                        Valid: {importResult.validRows}
+                                    </span>
+                                    <span className="px-2.5 py-1 bg-red-50 text-red-700 rounded-lg text-xs font-bold border border-red-100">
+                                        Errors: {importResult.invalidRows}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="max-h-[350px] overflow-y-auto border border-slate-200 rounded-xl">
+                                <table className="w-full text-left border-collapse">
+                                    <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-16">Row</th>
+                                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-1/4">Name</th>
+                                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Admission ID</th>
+                                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Class</th>
+                                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Infrastructure Status / Errors</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-slate-100">
+                                        {importResult.rows.map((row, idx) => (
+                                            <tr 
+                                                key={idx} 
+                                                className={cn(
+                                                    "transition-colors",
+                                                    row.isValid 
+                                                        ? "hover:bg-slate-50/50" 
+                                                        : "bg-red-50/50 hover:bg-red-50 text-red-900 border-l-4 border-l-red-500"
+                                                )}
+                                            >
+                                                <td className="px-4 py-3 text-xs font-mono text-slate-500 align-top">{row.row}</td>
+                                                <td className="px-4 py-3 text-xs font-bold align-top">
+                                                    {row.studentName}
+                                                    {row.phone && row.phone !== "N/A" && (
+                                                        <span className="block text-[10px] font-medium text-slate-400 mt-0.5">{row.phone}</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-xs font-mono text-slate-600 align-top">{row.admissionNo}</td>
+                                                <td className="px-4 py-3 text-xs font-medium text-slate-600 align-top">{row.className}</td>
+                                                <td className="px-4 py-3 text-xs align-top">
+                                                    {row.isValid ? (
+                                                        <div className="space-y-1">
+                                                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                                                <CheckCircle size={10} /> Valid
+                                                            </span>
+                                                            {row.batchStatus && row.batchStatus !== "Ok" && (
+                                                                <span className="block text-[10px] font-medium text-amber-600">
+                                                                    💡 {row.batchStatus}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-1 text-red-600">
+                                                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                                                                <AlertCircle size={10} /> Invalid
+                                                            </span>
+                                                            <ul className="list-disc list-inside text-[10px] font-semibold space-y-0.5 mt-1">
+                                                                {row.errors.map((err, errIdx) => (
+                                                                    <li key={errIdx}>{err}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <Button onClick={() => setImportStatus("idle")} variant="outline" className="flex-1">
+                                    Cancel & Re-upload
+                                </Button>
+                                <Button 
+                                    onClick={handleConfirmImport} 
+                                    className="flex-1" 
+                                    disabled={importResult.validRows === 0}
+                                >
+                                    <Upload className="mr-2" size={16} />
+                                    Confirm Import ({importResult.validRows} Students)
+                                </Button>
+                            </div>
                         </div>
                     )}
 
@@ -1684,10 +1842,10 @@ export default function StudentsPage() {
                                 <div className="space-y-2">
                                     <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Error Report</h4>
                                     <div className="max-h-[200px] overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
-                                        <table className="w-full text-left">
-                                            <thead className="bg-slate-50 sticky top-0 z-10">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
                                                 <tr>
-                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Row</th>
+                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase w-16">Row</th>
                                                     <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Input</th>
                                                     <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Reason</th>
                                                 </tr>
@@ -1712,7 +1870,6 @@ export default function StudentsPage() {
                                 </Button>
                             </div>
                         </div>
-
                     )}
 
                     {importStatus === "error" && (
@@ -1721,49 +1878,19 @@ export default function StudentsPage() {
                                 <AlertCircle className="text-red-500 mb-2" size={32} />
                                 <h3 className="text-lg font-bold text-red-800">Import Failed</h3>
                                 <p className="text-sm font-medium text-red-600 mt-1">
-                                    {/* Show specific error if importResult exists (valid file but parse error), else generic */}
-                                    {importResult?.failedCount > 0
-                                        ? "Some rows contained errors."
-                                        : "The file could not be processed. Please check the format."}
+                                    The file could not be processed. Please check the format and try again.
                                 </p>
                             </div>
 
-                            {/* Reuse the same error table if we have detail errors (e.g. from partial failure response) */}
-                            {importResult?.errors?.length > 0 && (
-                                <div className="space-y-2">
-                                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Error Details</h4>
-                                    <div className="max-h-[200px] overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
-                                        <table className="w-full text-left">
-                                            <thead className="bg-slate-50 sticky top-0 z-10">
-                                                <tr>
-                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Row</th>
-                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Input</th>
-                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Reason</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="bg-white">
-                                                {importResult.errors.map((err, idx) => (
-                                                    <tr key={idx} className="hover:bg-red-50/50">
-                                                        <td className="px-3 py-2 text-xs font-mono text-slate-500">{err.row}</td>
-                                                        <td className="px-3 py-2 text-xs font-medium text-slate-700">{err.identifier}</td>
-                                                        <td className="px-3 py-2 text-xs font-bold text-red-600">{err.reason}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            )}
-
                             <div className="pt-2">
-                                <Button onClick={resetImport} variant="outline" className="w-full">
+                                <Button onClick={() => setImportStatus("idle")} variant="outline" className="w-full">
                                     Try Again
                                 </Button>
                             </div>
                         </div>
                     )}
                 </div>
-            </Modal >
+            </Modal>
         </div >
     );
 }

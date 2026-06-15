@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import AdmissionApplication from "@/models/AdmissionApplication";
 import { StudentService } from "@/services/studentService";
+import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
 
 export async function POST(req) {
     try {
@@ -80,6 +81,9 @@ export async function POST(req) {
         application.status = 'converted';
         application.notes = application.notes ? `${application.notes}\n[System]: Converted to student on ${new Date().toLocaleString()}` : `[System]: Converted to student on ${new Date().toLocaleString()}`;
         await application.save();
+
+        // Invalidate dashboard stats cache
+        clearDashboardCache(application.institute.toString());
 
         return NextResponse.json({ 
             success: true, 

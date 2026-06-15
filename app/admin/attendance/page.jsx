@@ -299,6 +299,9 @@ export default function AttendanceMarkingPage() {
                                 <Button variant="outline" size="sm" onClick={() => markAll('absent')} className="text-red-600 border-red-100 hover:bg-red-50">
                                     <XCircle size={16} className="mr-2" /> Mark All Absent
                                 </Button>
+                                <Button variant="outline" size="sm" onClick={() => markAll('holiday')} className="text-indigo-600 border-indigo-100 hover:bg-indigo-50">
+                                    <Calendar size={16} className="mr-2" /> Mark All Holiday
+                                </Button>
                                 <Button onClick={handleSave} disabled={saving} className="bg-premium-blue hover:bg-premium-blue/90 shadow-lg shadow-blue-500/20">
                                     {saving ? "Saving..." : <><Save size={18} className="mr-2" /> Save Attendance</>}
                                 </Button>
@@ -344,7 +347,8 @@ export default function AttendanceMarkingPage() {
                                                                 { id: 'present', icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50 border-emerald-200' },
                                                                 { id: 'absent', icon: XCircle, color: 'text-rose-500', bg: 'bg-rose-50 border-rose-200' },
                                                                 { id: 'late', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50 border-amber-200' },
-                                                                { id: 'excused', icon: AlertCircle, color: 'text-blue-400', bg: 'bg-blue-50 border-blue-200' }
+                                                                { id: 'excused', icon: AlertCircle, color: 'text-blue-400', bg: 'bg-blue-50 border-blue-200' },
+                                                                { id: 'holiday', icon: Calendar, color: 'text-indigo-500', bg: 'bg-indigo-50 border-indigo-200' }
                                                             ].map((opt) => (
                                                                 <button
                                                                     key={opt.id}
@@ -353,7 +357,8 @@ export default function AttendanceMarkingPage() {
                                                                         ? `${opt.bg} ${opt.color} shadow-sm ring-2 ring-offset-1 ${opt.id === 'present' ? 'ring-emerald-100' :
                                                                             opt.id === 'absent' ? 'ring-rose-100' :
                                                                                 opt.id === 'late' ? 'ring-amber-100' :
-                                                                                    'ring-blue-100'
+                                                                                    opt.id === 'holiday' ? 'ring-indigo-100' :
+                                                                                        'ring-blue-100'
                                                                         }`
                                                                         : 'border-transparent text-slate-300 hover:bg-slate-100 hover:text-slate-400'
                                                                         }`}

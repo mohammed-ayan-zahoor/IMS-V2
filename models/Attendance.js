@@ -5,7 +5,7 @@ const AttendanceRecordSchema = new Schema({
     student: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     status: {
         type: String,
-        enum: ['present', 'absent', 'late', 'excused'],
+        enum: ['present', 'absent', 'late', 'excused', 'holiday'],
         required: true
     },
     remarks: { type: String, maxlength: 500 }

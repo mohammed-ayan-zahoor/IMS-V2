@@ -9,7 +9,8 @@ import {
     Clock,
     AlertCircle,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Calendar
 } from "lucide-react";
 import {
     format,
@@ -62,7 +63,8 @@ export default function StudentAttendancePage() {
         absent: monthRecords.filter(r => r.status === 'absent').length,
         late: monthRecords.filter(r => r.status === 'late').length,
         excused: monthRecords.filter(r => r.status === 'excused').length,
-        total: monthRecords.length
+        holiday: monthRecords.filter(r => r.status === 'holiday').length,
+        total: monthRecords.filter(r => r.status !== 'holiday').length
     };
 
     const attendanceRate = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
@@ -127,6 +129,7 @@ export default function StudentAttendancePage() {
                 <StatsBadge label="Absent" value={stats.absent} total={stats.total} color="red" />
                 <StatsBadge label="Late" value={stats.late} total={stats.total} color="amber" />
                 <StatsBadge label="Excused" value={stats.excused} total={stats.total} color="blue" />
+                <StatsBadge label="Holidays" value={stats.holiday} total={stats.total} color="indigo" />
                 <div className="stat-box-mobile px-4 py-4 rounded-2xl border border-slate-200 bg-white flex flex-col items-center justify-center shadow-sm">
                     <span className="text-2xl font-black text-slate-700">
                         {attendanceRate}%
@@ -169,6 +172,9 @@ export default function StudentAttendancePage() {
                             } else if (record.status === 'excused') {
                                 statusColor = "bg-blue-50 text-blue-600 border border-blue-100";
                                 icon = <AlertCircle size={16} />;
+                            } else if (record.status === 'holiday') {
+                                statusColor = "bg-indigo-50 text-indigo-600 border border-indigo-100";
+                                icon = <Calendar size={16} />;
                             }
                         }
 
@@ -209,6 +215,7 @@ function StatsBadge({ label, value, total, color }) {
         red: "bg-red-50 text-red-600 border-red-100",
         amber: "bg-amber-50 text-amber-600 border-amber-100",
         blue: "bg-blue-50 text-blue-600 border-blue-100",
+        indigo: "bg-indigo-50 text-indigo-600 border-indigo-100",
     };
 
     return (

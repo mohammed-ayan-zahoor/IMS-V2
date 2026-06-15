@@ -179,6 +179,26 @@ async function resolveBatch(batchName, courseId, sessionId, instituteId, userId)
     return batch;
 }
 
+async function checkCourseExists(courseName, instituteId) {
+    const Course = (await import("@/models/Course")).default;
+    return await Course.findOne({
+        institute: instituteId,
+        name: { $regex: new RegExp(`^${courseName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+        deletedAt: null
+    });
+}
+
+async function checkBatchExists(batchName, courseId, sessionId, instituteId) {
+    const Batch = (await import("@/models/Batch")).default;
+    return await Batch.findOne({
+        institute: instituteId,
+        course: courseId,
+        session: sessionId,
+        name: { $regex: new RegExp(`^${batchName}$`, 'i') },
+        deletedAt: null
+    });
+}
+
 export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
@@ -195,6 +215,9 @@ export async function POST(req) {
         if (scope.isSuperAdmin && !scope.instituteId) {
             return NextResponse.json({ error: "Institute must be specified for super_admin" }, { status: 400 });
         }
+
+        const { searchParams } = new URL(req.url);
+        const isPreview = searchParams.get("preview") === "true";
 
         const formData = await req.formData();
         const file = formData.get("file");
@@ -282,6 +305,7 @@ export async function POST(req) {
 
         const successResults = [];
         const errors = [];
+        const previewRows = [];
         const seenEmails = new Set();
         const seenEnrollments = new Set();
 
@@ -323,7 +347,7 @@ export async function POST(req) {
             const rawDOB = getValByColIndex(row, idxDOB);
             const gender = getValByColIndex(row, idxGender);
             const category = getValByColIndex(row, idxCategory);
-                        const rawPhone = getValByColIndex(row, idxPhone);
+            const rawPhone = getValByColIndex(row, idxPhone);
             const phone = rawPhone ? rawPhone.toString().trim().replace(/[^0-9+\-()\s]/g, "").trim() : undefined;
             const motherName = getValByColIndex(row, idxMotherName);
             const rawAadhar = getValByColIndex(row, idxAadhar);
@@ -331,16 +355,20 @@ export async function POST(req) {
             const apaarId = getValByColIndex(row, idxAPAAR);
             const grNumber = getValByColIndex(row, idxGRNo);
 
+            const rowErrors = [];
+
             // Basic checks
             if (!studentName) {
-                errors.push({ row: rowNum, identifier: 'N/A', reason: "Missing required Student Name" });
-                continue;
+                rowErrors.push("Student Name is required");
             }
 
             // Clean Name
-            const nameParts = studentName.trim().split(/\s+/);
-            const firstName = nameParts[0];
-            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Student';
+            const nameParts = studentName ? studentName.trim().split(/\s+/) : [];
+            const firstName = nameParts[0] || "";
+            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : "";
+            if (studentName && !lastName) {
+                rowErrors.push("Last Name is required");
+            }
 
             // Generate clean unique enrollment ID
             let enrollmentNumber = admissionNo ? admissionNo.toUpperCase() : null;
@@ -348,22 +376,22 @@ export async function POST(req) {
             // Check unique enrollment (In File)
             if (enrollmentNumber) {
                 if (seenEnrollments.has(enrollmentNumber)) {
-                    errors.push({ row: rowNum, identifier: enrollmentNumber, reason: `Duplicate Admission No "${enrollmentNumber}" in spreadsheet` });
-                    continue;
+                    rowErrors.push(`Duplicate Admission No "${enrollmentNumber}" in spreadsheet`);
+                } else {
+                    seenEnrollments.add(enrollmentNumber);
                 }
-                seenEnrollments.add(enrollmentNumber);
 
                 // Check unique enrollment (In DB)
                 if (existingEnrollmentSet.has(enrollmentNumber)) {
-                    errors.push({ row: rowNum, identifier: enrollmentNumber, reason: `Student with Admission No "${enrollmentNumber}" already exists` });
-                    continue;
+                    rowErrors.push(`Admission No "${enrollmentNumber}" already exists in database`);
                 }
             }
 
             // Generate unique professional school email (SaaS Standard)
+            const lastNamePart = lastName ? `${lastName.toLowerCase().replace(/[^a-z]/g, "")}.` : "";
             let email = enrollmentNumber 
                 ? `${enrollmentNumber.toLowerCase()}@${emailDomain}`
-                : `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/[^a-z]/g, "")}.${rowNum}@${emailDomain}`;
+                : `${firstName.toLowerCase()}.${lastNamePart}${rowNum}@${emailDomain}`;
 
             if (seenEmails.has(email) || existingEmailSet.has(email)) {
                 // Add unique timestamp sequence suffix if collision
@@ -390,24 +418,67 @@ export async function POST(req) {
             // Clean Aadhar Number
             const cleanAadhar = rawAadhar ? rawAadhar.replace(/\s+/g, '') : "";
 
-            // Dynamic Self-Healing Class and Batch Generation
+            // Dynamic Self-Healing Class and Batch Generation / Check
             let targetBatchId = null;
+            let batchStatus = "Ok";
             if (!isVocational && sessionId && rawClass) {
                 try {
                     const { courseName, batchName } = parseClassString(rawClass);
-                    const cacheKey = `${courseName}_${batchName}`;
                     
-                    if (resolvedBatches[cacheKey]) {
-                        targetBatchId = resolvedBatches[cacheKey];
+                    if (isPreview) {
+                        const courseExists = await checkCourseExists(courseName, scope.instituteId);
+                        let batchExists = false;
+                        if (courseExists) {
+                            batchExists = await checkBatchExists(batchName, courseExists._id, sessionId, scope.instituteId);
+                        }
+                        if (!courseExists) {
+                            batchStatus = "Course & Batch will be auto-created";
+                        } else if (!batchExists) {
+                            batchStatus = "Batch will be auto-created";
+                        }
                     } else {
-                        const course = await resolveCourse(courseName, scope.instituteId, session.user.id);
-                        const batch = await resolveBatch(batchName, course._id, sessionId, scope.instituteId, session.user.id);
-                        targetBatchId = batch._id;
-                        resolvedBatches[cacheKey] = targetBatchId;
+                        const cacheKey = `${courseName}_${batchName}`;
+                        if (resolvedBatches[cacheKey]) {
+                            targetBatchId = resolvedBatches[cacheKey];
+                        } else {
+                            const course = await resolveCourse(courseName, scope.instituteId, session.user.id);
+                            const batch = await resolveBatch(batchName, course._id, sessionId, scope.instituteId, session.user.id);
+                            targetBatchId = batch._id;
+                            resolvedBatches[cacheKey] = targetBatchId;
+                        }
                     }
                 } catch (err) {
                     console.error(`[IMPORT] Self-Healing Batch resolution failed for row ${rowNum}:`, err.message);
                 }
+            } else if (!isVocational && sessionId && !rawClass) {
+                batchStatus = "No class specified";
+            }
+
+            if (isPreview) {
+                previewRows.push({
+                    row: rowNum,
+                    studentName: studentName || "N/A",
+                    firstName,
+                    lastName,
+                    admissionNo: enrollmentNumber || "Auto-generated",
+                    className: rawClass || "N/A",
+                    phone: phone || "N/A",
+                    gender: gender || "Not Specified",
+                    batchStatus,
+                    errors: rowErrors,
+                    isValid: rowErrors.length === 0
+                });
+                continue;
+            }
+
+            // Actual Import Mode: Skip row if it has validation errors
+            if (rowErrors.length > 0) {
+                errors.push({ 
+                    row: rowNum, 
+                    identifier: studentName || 'N/A', 
+                    reason: rowErrors.join(', ') 
+                });
+                continue;
             }
 
             const studentObject = {
@@ -450,6 +521,17 @@ export async function POST(req) {
             if (targetBatchId) {
                 studentBatchMappings.push({ studentIdx: idx, batchId: targetBatchId });
             }
+        }
+
+        if (isPreview) {
+            return NextResponse.json({
+                success: true,
+                isPreview: true,
+                rows: previewRows,
+                totalRows: previewRows.length,
+                validRows: previewRows.filter(r => r.isValid).length,
+                invalidRows: previewRows.filter(r => !r.isValid).length
+            });
         }
 
         // 4. BULK UPLOAD EXECUTION

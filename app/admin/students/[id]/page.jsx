@@ -36,7 +36,8 @@ import {
     File,
     Bus,
     Route,
-    Car
+    Car,
+    Hotel
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -68,6 +69,7 @@ export default function StudentDetailsPage({ params }) {
     const [transportVehicles, setTransportVehicles] = useState([]);
     const [transportPresets, setTransportPresets] = useState([]);
     const isTransportEnabled = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.features?.transport;
+    const isHostelEnabled = session?.user?.institute?.features?.hostel;
 
 
     // Enrollment Modal State
@@ -297,6 +299,7 @@ export default function StudentDetailsPage({ params }) {
     const [deletingFeeId, setDeletingFeeId] = useState(null);
     const [isEnrolling, setIsEnrolling] = useState(false);
     const [isTransportPayment, setIsTransportPayment] = useState(false);
+    const [isHostelPayment, setIsHostelPayment] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [formData, setFormData] = useState({
         guardianDetails: { name: "", relation: "", phone: "" },
@@ -831,6 +834,7 @@ export default function StudentDetailsPage({ params }) {
 
     const openPaymentModal = (fee) => {
         setIsTransportPayment(false);
+        setIsHostelPayment(false);
         setSelectedFee(fee);
         
         // Find next pending installment
@@ -850,9 +854,10 @@ export default function StudentDetailsPage({ params }) {
         });
         setIsPayModalOpen(true);
     };
-
+ 
     const openTransportPaymentModal = (fee) => {
         setIsTransportPayment(true);
+        setIsHostelPayment(false);
         setSelectedFee(fee);
         
         // Find next pending installment if any
@@ -862,6 +867,29 @@ export default function StudentDetailsPage({ params }) {
             amount: nextPending 
                 ? nextPending.amount.toString() 
                 : (fee.totalAmount - (fee.paidAmount || 0)).toString(),
+            method: "cash",
+            transactionId: "",
+            notes: "",
+            collectedBy: "",
+            date: format(new Date(), "yyyy-MM-dd"),
+            nextDueDate: "",
+            installmentId: nextPending ? nextPending._id : "adhoc"
+        });
+        setIsPayModalOpen(true);
+    };
+
+    const openHostelPaymentModal = (fee) => {
+        setIsTransportPayment(false);
+        setIsHostelPayment(true);
+        setSelectedFee(fee);
+        
+        // Find next pending or overdue installment if any
+        const nextPending = fee?.installments?.find(i => i.status === 'pending' || i.status === 'overdue');
+        
+        setPaymentData({
+            amount: nextPending 
+                ? nextPending.amount.toString() 
+                : (fee.balanceAmount || 0).toString(),
             method: "cash",
             transactionId: "",
             notes: "",
@@ -1014,7 +1042,12 @@ export default function StudentDetailsPage({ params }) {
             }
 
             // 2. Record the payment
-            const baseUrl = isTransportPayment ? `/api/v1/transport/fees` : `/api/v1/fees`;
+            let baseUrl = "/api/v1/fees";
+            if (isTransportPayment) {
+                baseUrl = "/api/v1/transport/fees";
+            } else if (isHostelPayment) {
+                baseUrl = "/api/v1/hostel/allotments";
+            }
             const res = await fetch(`${baseUrl}/${feeId}/payment`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1785,6 +1818,101 @@ export default function StudentDetailsPage({ params }) {
                                 </div>
                             </div>
                         )}
+
+                        {/* Hostel Fees Section */}
+                        {isHostelEnabled && (studentData?.hostelAllotments || []).length > 0 && (
+                            <div className="space-y-6 mt-8">
+                                <h3 className="text-lg font-bold text-slate-900 px-1">Hostel Fees</h3>
+                                <div className="grid gap-4">
+                                    {(studentData.hostelAllotments).map(allotment => {
+                                        const paidAmount = allotment.paidAmount || 0;
+                                        const totalAmount = allotment.totalAmount || 0;
+                                        const isPaid = allotment.feeStatus === 'paid';
+
+                                        return (
+                                            <Card key={allotment._id} className="border-indigo-100 bg-indigo-50/10">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
+                                                            <Hotel size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <h4 className="font-bold text-slate-900">
+                                                                    {allotment.room?.roomNumber ? `Room ${allotment.room.roomNumber}` : 'Hostel Fee'}
+                                                                </h4>
+                                                                {allotment.block?.blockName && (
+                                                                    <span className="px-2 py-0.5 text-[10px] bg-indigo-100 text-indigo-700 rounded-full border border-indigo-200 uppercase font-medium">
+                                                                        {allotment.block.blockName}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-slate-500 capitalize">Billing Plan: {allotment.billingCycle} (₹{allotment.feePerCycle?.toLocaleString()}/cycle)</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-6">
+                                                        <div className="text-right">
+                                                            <div className="text-xl font-black text-slate-900">
+                                                                ₹{paidAmount.toLocaleString()}
+                                                                <span className="text-xs text-slate-400 font-medium ml-1">/ {totalAmount.toLocaleString()}</span>
+                                                            </div>
+                                                            <p className={`text-xs font-bold ${isPaid ? 'text-emerald-500' : 'text-indigo-500'}`}>
+                                                                {isPaid ? 'Fully Paid' : `Pending: ₹${Math.max(0, totalAmount - paidAmount).toLocaleString()}`}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            {!isPaid && (
+                                                                <Button size="sm" variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-100" onClick={() => openHostelPaymentModal(allotment)}>
+                                                                    Pay Hostel
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Render installments inside a table if there are installments */}
+                                                {allotment.installments && allotment.installments.length > 0 && (
+                                                    <div className="mt-4 pt-4 border-t border-slate-100 overflow-x-auto">
+                                                        <table className="w-full text-left text-xs">
+                                                            <thead>
+                                                                <tr className="text-slate-400 uppercase font-semibold">
+                                                                    <th className="pb-2">Period / Installment</th>
+                                                                    <th className="pb-2">Amount</th>
+                                                                    <th className="pb-2">Due Date</th>
+                                                                    <th className="pb-2 text-right">Status</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-slate-100">
+                                                                {allotment.installments.map((inst, index) => (
+                                                                    <tr key={inst._id || index} className="text-slate-700">
+                                                                        <td className="py-2">{inst.label}</td>
+                                                                        <td className="py-2 font-semibold">₹{inst.amount?.toLocaleString()}</td>
+                                                                        <td className="py-2 font-mono">
+                                                                            {inst.dueDate && !isNaN(new Date(inst.dueDate)) 
+                                                                                ? format(new Date(inst.dueDate), 'MMM d, yyyy') 
+                                                                                : 'TBD'}
+                                                                        </td>
+                                                                        <td className="py-2 text-right">
+                                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                                                inst.status === 'paid' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                                                                inst.status === 'overdue' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                                                                'bg-amber-50 text-amber-600 border border-amber-100'
+                                                                            }`}>
+                                                                                {inst.status}
+                                                                            </span>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )}
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -1868,11 +1996,12 @@ export default function StudentDetailsPage({ params }) {
 
                         {/* Stats Overview */}
                         {attendanceStats && (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                 <StatsBadge label="Present" value={attendanceStats.present} total={attendanceStats.total} color="emerald" />
                                 <StatsBadge label="Absent" value={attendanceStats.absent} total={attendanceStats.total} color="red" />
                                 <StatsBadge label="Late" value={attendanceStats.late} total={attendanceStats.total} color="amber" />
-                                <div className="px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center">
+                                <StatsBadge label="Holidays" value={attendanceStats.holiday} total={attendanceStats.total} color="indigo" />
+                                <div className="px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center">
                                     <span className="text-xl font-black text-slate-700">
                                         {attendanceStats.total > 0
                                             ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
@@ -1917,6 +2046,9 @@ export default function StudentDetailsPage({ params }) {
                                         } else if (record.status === 'excused') {
                                             statusColor = "bg-blue-100 text-blue-600 border border-blue-200";
                                             icon = <AlertCircle size={14} />;
+                                        } else if (record.status === 'holiday') {
+                                            statusColor = "bg-indigo-100 text-indigo-600 border border-indigo-200";
+                                            icon = <Calendar size={14} />;
                                         }
                                     }
 
@@ -2544,7 +2676,7 @@ export default function StudentDetailsPage({ params }) {
             <Modal
                 isOpen={isPayModalOpen}
                 onClose={() => setIsPayModalOpen(false)}
-                title={isTransportPayment ? "Record Transport Fee Payment" : "Record Fee Payment"}
+                title={isTransportPayment ? "Record Transport Fee Payment" : isHostelPayment ? "Record Hostel Fee Payment" : "Record Fee Payment"}
             >
                 <form onSubmit={handleRecordPayment} className="space-y-5">
                     <div className="space-y-1.5">
@@ -3264,6 +3396,7 @@ function StatsBadge({ label, value, total, color }) {
         emerald: "bg-emerald-50 text-emerald-600 border-emerald-200",
         red: "bg-red-50 text-red-600 border-red-200",
         amber: "bg-amber-50 text-amber-600 border-amber-200",
+        indigo: "bg-indigo-50 text-indigo-600 border-indigo-200",
     };
 
     return (

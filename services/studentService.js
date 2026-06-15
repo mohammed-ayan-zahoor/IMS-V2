@@ -14,6 +14,7 @@ import { connectDB } from '@/lib/mongodb';
 import SharedLink from '@/models/SharedLink';
 import { TransportService } from './transportService';
 import TransportFee from '@/models/TransportFee';
+import HostelAllotment from '@/models/HostelAllotment';
 
 export class StudentService {
     /**
@@ -474,6 +475,27 @@ export class StudentService {
             });
         }
 
+        // Fetch all active batches for the page's students to map course and batch/section details
+        const studentIds = students.map(s => s._id);
+        const enrolledBatches = await Batch.find({
+            'enrolledStudents.student': { $in: studentIds },
+            deletedAt: null
+        }).populate('course', 'name code');
+
+        // Create a map of student ID string -> array of batches
+        const studentBatchMap = {};
+        enrolledBatches.forEach(b => {
+            b.enrolledStudents.forEach(e => {
+                if (e.status === 'active') {
+                    const sIdStr = e.student.toString();
+                    if (!studentBatchMap[sIdStr]) {
+                        studentBatchMap[sIdStr] = [];
+                    }
+                    studentBatchMap[sIdStr].push(b);
+                }
+            });
+        });
+
         // Format students with name field for UI
         const formattedStudents = students.map(student => {
             const studentObj = student.toObject();
@@ -481,6 +503,19 @@ export class StudentService {
             studentObj.name = `${student.profile.firstName} ${student.profile.lastName}`.trim();
             studentObj.isTemplateIssued = issuedMap.has(sId);
             studentObj.targetCertificateId = issuedMap.get(sId) || null;
+            
+            // Add batch and course info
+            const studentBatches = studentBatchMap[sId] || [];
+            studentObj.batches = studentBatches.map(b => ({
+                _id: b._id,
+                name: b.name,
+                course: b.course ? {
+                    _id: b.course._id,
+                    name: b.course.name,
+                    code: b.course.code
+                } : null
+            }));
+            
             return studentObj;
         });
 
@@ -790,6 +825,12 @@ export class StudentService {
             deletedAt: null
         }).populate('route vehicle preset');
 
+        // Get hostel allotments
+        const hostelAllotments = await HostelAllotment.find({
+            student: studentId,
+            deletedAt: null
+        }).populate('room block');
+
         return {
             student,
             batches: batches.map(b => ({
@@ -802,6 +843,7 @@ export class StudentService {
             })),
             fees,
             transportFees,
+            hostelAllotments,
             documents: student.documents,
             externalNotes: await SharedLink.aggregate([
                 { $match: { 'comments.studentId': new mongoose.Types.ObjectId(studentId) } },

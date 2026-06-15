@@ -19,7 +19,9 @@ import {
     Info,
     Check,
     Loader2,
-    Shield
+    Shield,
+    Bus,
+    Hotel
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,6 +30,8 @@ import Button from "@/components/ui/Button";
 
 export default function StudentFeesPage() {
     const [fees, setFees] = useState([]);
+    const [transportFees, setTransportFees] = useState([]);
+    const [hostelAllotments, setHostelAllotments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const router = useRouter();
@@ -91,6 +95,8 @@ export default function StudentFeesPage() {
                 const data = await res.json();
                 if (!controller.signal.aborted) {
                     setFees(data.fees || []);
+                    setTransportFees(data.transportFees || []);
+                    setHostelAllotments(data.hostelAllotments || []);
                 }
             } catch (error) {
                 if (error.name !== "AbortError") {
@@ -306,12 +312,237 @@ export default function StudentFeesPage() {
                                         </div>
                                     </div>
                                 </div>
+                         </motion.div>
+                    );
+                })}
+
+                {transportFees.map((fee, tfIdx) => {
+                    const finalAmount = fee.totalAmount;
+                    return (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: (fees.length + tfIdx) * 0.1 }}
+                            key={fee._id} 
+                            className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500"
+                        >
+                            <div className="p-8 md:p-10">
+                                <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shadow-sm transition-all">
+                                                <Bus size={24} />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <h2 className="text-2xl font-black text-slate-900 italic tracking-tight">
+                                                        {fee.route?.name || "Transport Fee"}
+                                                    </h2>
+                                                    {fee.preset?.name && (
+                                                        <span className="px-2 py-0.5 text-[10px] bg-amber-100 text-amber-700 rounded-full border border-amber-200 uppercase font-medium">
+                                                            {fee.preset.name}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-slate-500 mt-1">Vehicle: {fee.vehicle?.registrationNumber || "N/A"}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col md:items-end gap-3 w-full md:w-auto">
+                                        <StatusBadge status={fee.status} />
+                                    </div>
+                                </div>
+
+                                {/* Progress Bar */}
+                                <div className="mb-10 bg-amber-50/10 p-8 rounded-[2rem] border border-amber-100/50 shadow-inner">
+                                    <div className="flex flex-col md:flex-row justify-between gap-6 mb-6">
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Total Transport Fee</p>
+                                            <p className="text-2xl font-black italic tracking-tighter text-slate-900">₹{finalAmount.toLocaleString()}</p>
+                                        </div>
+                                        <div className="flex wrap gap-8">
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Total Paid</p>
+                                                <p className="text-xl font-black italic tracking-tighter text-emerald-600">₹{fee.paidAmount.toLocaleString()}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 mb-1">Outstanding</p>
+                                                <p className="text-xl font-black italic tracking-tighter text-amber-600">₹{fee.balanceAmount.toLocaleString()}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="relative h-4 w-full bg-white rounded-full overflow-hidden border border-slate-200 shadow-sm">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${finalAmount > 0 ? (fee.paidAmount / finalAmount) * 100 : 0}%` }}
+                                            transition={{ duration: 1, ease: "easeOut" }}
+                                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full"
+                                        />
+                                    </div>
+                                    <div className="flex justify-center mt-4">
+                                        <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-4 py-1 rounded-full uppercase tracking-widest shadow-sm">
+                                            {Math.round((fee.paidAmount / finalAmount) * 100)}% Cleared
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Installments Table */}
+                                <div className="space-y-4">
+                                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-2">Installment Plan</h3>
+                                    <div className="border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+                                        <div className="table-scroll-wrapper">
+                                            <table className="w-full text-left text-sm min-w-[500px]">
+                                                <thead className="bg-slate-50 border-b border-slate-100">
+                                                    <tr>
+                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Period / Month</th>
+                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Amount</th>
+                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Due Date</th>
+                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest text-right">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50">
+                                                    {fee.installments?.map((inst, idx) => (
+                                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors group/row">
+                                                            <td className="px-8 py-5 font-black text-slate-700 italic">
+                                                                {inst.label}
+                                                            </td>
+                                                            <td className="px-8 py-5 font-black text-slate-900 text-lg tracking-tighter">
+                                                                ₹{inst.amount.toLocaleString()}
+                                                            </td>
+                                                            <td className="px-8 py-5 font-mono text-xs text-slate-500">
+                                                                {inst.dueDate && !isNaN(new Date(inst.dueDate)) ? format(new Date(inst.dueDate), "MMM dd, yyyy") : '-'}
+                                                            </td>
+                                                            <td className="px-8 py-5 text-right">
+                                                                <div className="inline-flex justify-end">
+                                                                    <InstallmentStatusBadge status={inst.status} />
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </motion.div>
                     );
                 })}
 
-                {!loading && fees.length === 0 && (
+                {hostelAllotments.map((allotment, hIdx) => {
+                    const finalAmount = allotment.totalAmount;
+                    return (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: (fees.length + transportFees.length + hIdx) * 0.1 }}
+                            key={allotment._id} 
+                            className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500"
+                        >
+                            <div className="p-8 md:p-10">
+                                <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm transition-all">
+                                                <Hotel size={24} />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <h2 className="text-2xl font-black text-slate-900 italic tracking-tight">
+                                                        {allotment.room?.roomNumber ? `Room ${allotment.room.roomNumber}` : 'Hostel Fee'}
+                                                    </h2>
+                                                    {allotment.block?.blockName && (
+                                                        <span className="px-2 py-0.5 text-[10px] bg-indigo-100 text-indigo-700 rounded-full border border-indigo-200 uppercase font-medium">
+                                                            {allotment.block.blockName}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-slate-500 mt-1 capitalize">Billing Plan: {allotment.billingCycle} (₹{allotment.feePerCycle?.toLocaleString()}/cycle)</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col md:items-end gap-3 w-full md:w-auto">
+                                        <StatusBadge status={allotment.feeStatus} />
+                                    </div>
+                                </div>
+
+                                {/* Progress Bar */}
+                                <div className="mb-10 bg-indigo-50/10 p-8 rounded-[2rem] border border-indigo-100/50 shadow-inner">
+                                    <div className="flex flex-col md:flex-row justify-between gap-6 mb-6">
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Total Hostel Fee</p>
+                                            <p className="text-2xl font-black italic tracking-tighter text-slate-900">₹{finalAmount.toLocaleString()}</p>
+                                        </div>
+                                        <div className="flex wrap gap-8">
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Total Paid</p>
+                                                <p className="text-xl font-black italic tracking-tighter text-emerald-600">₹{allotment.paidAmount.toLocaleString()}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 mb-1">Outstanding</p>
+                                                <p className="text-xl font-black italic tracking-tighter text-indigo-600">₹{allotment.balanceAmount.toLocaleString()}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="relative h-4 w-full bg-white rounded-full overflow-hidden border border-slate-200 shadow-sm">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${finalAmount > 0 ? (allotment.paidAmount / finalAmount) * 100 : 0}%` }}
+                                            transition={{ duration: 1, ease: "easeOut" }}
+                                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full"
+                                        />
+                                    </div>
+                                    <div className="flex justify-center mt-4">
+                                        <span className="text-[10px] font-black bg-indigo-100 text-indigo-700 px-4 py-1 rounded-full uppercase tracking-widest shadow-sm">
+                                            {Math.round((allotment.paidAmount / finalAmount) * 100)}% Cleared
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Installments Table */}
+                                <div className="space-y-4">
+                                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-2">Installment Plan</h3>
+                                    <div className="border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+                                        <div className="table-scroll-wrapper">
+                                            <table className="w-full text-left text-sm min-w-[500px]">
+                                                <thead className="bg-slate-50 border-b border-slate-100">
+                                                    <tr>
+                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Period / Month</th>
+                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Amount</th>
+                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Due Date</th>
+                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest text-right">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50">
+                                                    {allotment.installments?.map((inst, idx) => (
+                                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors group/row">
+                                                            <td className="px-8 py-5 font-black text-slate-700 italic">
+                                                                {inst.label}
+                                                            </td>
+                                                            <td className="px-8 py-5 font-black text-slate-900 text-lg tracking-tighter">
+                                                                ₹{inst.amount.toLocaleString()}
+                                                            </td>
+                                                            <td className="px-8 py-5 font-mono text-xs text-slate-500">
+                                                                {inst.dueDate && !isNaN(new Date(inst.dueDate)) ? format(new Date(inst.dueDate), "MMM dd, yyyy") : '-'}
+                                                            </td>
+                                                            <td className="px-8 py-5 text-right">
+                                                                <div className="inline-flex justify-end">
+                                                                    <InstallmentStatusBadge status={inst.status} />
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    );
+                })}
+
+                {!loading && fees.length === 0 && transportFees.length === 0 && hostelAllotments.length === 0 && (
                     <div className="py-32 text-center text-slate-400 bg-white rounded-[3rem] border border-dashed border-slate-200 shadow-inner">
                         <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center text-slate-200 mx-auto mb-6">
                             <CreditCard size={40} />

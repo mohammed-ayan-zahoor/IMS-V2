@@ -89,7 +89,9 @@ export async function GET(req) {
             {
                 $group: {
                     _id: "$records.student",
-                    totalDays: { $sum: 1 },
+                    totalDays: {
+                        $sum: { $cond: [{ $eq: ["$records.status", "holiday"] }, 0, 1] }
+                    },
                     present: {
                         $sum: { $cond: [{ $eq: ["$records.status", "present"] }, 1, 0] }
                     },

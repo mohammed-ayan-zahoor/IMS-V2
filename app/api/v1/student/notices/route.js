@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Notice from "@/models/Notice";
 import Batch from "@/models/Batch";
+import mongoose from "mongoose";
 
 /**
  * @route   GET /api/v1/student/notices
@@ -22,7 +23,7 @@ export async function GET(req) {
         const studentBatches = await Batch.find({
             "enrolledStudents": {
                 $elemMatch: {
-                    student: session.user.id,
+                    student: new mongoose.Types.ObjectId(session.user.id),
                     status: "active"
                 }
             },
@@ -34,7 +35,7 @@ export async function GET(req) {
 
         // 2. Build Query
         const query = {
-            institute: session.user.institute.id,
+            institute: new mongoose.Types.ObjectId(session.user.institute.id),
             isActive: true,
             $or: [
                 { target: 'all' },

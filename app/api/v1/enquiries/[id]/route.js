@@ -5,6 +5,7 @@ import { connectDB } from '@/lib/mongodb';
 import Enquiry from '@/models/Enquiry';
 import { getInstituteScope } from '@/middleware/instituteScope';
 import { createAuditLog } from '@/services/auditService';
+import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
 
 export async function PATCH(req, { params }) {
     try {
@@ -51,6 +52,9 @@ export async function PATCH(req, { params }) {
             institute: scope.instituteId,
             details: { updates }
         });
+
+        // Invalidate dashboard stats cache
+        clearDashboardCache(scope.instituteId.toString());
 
         return NextResponse.json({ success: true, enquiry: updatedEnquiry });
     } catch (error) {
