@@ -28,7 +28,8 @@ export async function POST(req) {
                         liveContent: { $ifNull: ["$draftContent", "$sections"] }
                     }
                 }
-            ]
+            ],
+            { updatePipeline: true }
         );
 
         // Update WebsiteConfig status to published
