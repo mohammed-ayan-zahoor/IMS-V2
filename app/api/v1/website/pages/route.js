@@ -46,7 +46,7 @@ export async function POST(req) {
         await pusher.trigger(
             `presence-website-${config.instituteId}-${slug || 'index'}`,
             'page-update',
-            { sections, updatedBy: session.user.id }
+            { updatedBy: session.user.id }
         );
 
         return Response.json({ success: true, page });
