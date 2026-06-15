@@ -10,7 +10,7 @@ export async function POST(req) {
         const session = await getServerSession(authOptions);
         if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-        const { title, slug, sections, websiteConfigId } = await req.json();
+        const { title, slug, sections, websiteConfigId, seoTitle, seoDescription, keywords } = await req.json();
 
         await connectDB();
         const scope = await getInstituteScope(req);
@@ -29,7 +29,10 @@ export async function POST(req) {
             { 
                 $set: { 
                     title: title || 'Home',
-                    sections,
+                    draftContent: sections,
+                    seoTitle,
+                    seoDescription,
+                    keywords,
                     lastModifiedBy: session.user.id
                 } 
             },

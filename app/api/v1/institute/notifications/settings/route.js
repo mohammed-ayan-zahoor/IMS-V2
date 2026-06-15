@@ -24,10 +24,12 @@ export async function GET(req) {
             return NextResponse.json({ error: "Institute not found" }, { status: 404 });
         }
 
-        // Deep copy the notifications sub-document to mask the actual secrets before returning to UI
         const notifications = institute.notifications ? institute.notifications.toObject() : {
             smsProvider: 'mock',
-            whatsappProvider: 'mock'
+            whatsappProvider: 'mock',
+            voiceCallProvider: 'mock',
+            overdueVoiceReminderEnabled: false,
+            dedicatedCallerId: ''
         };
 
         // Apply strict mask placeholders
@@ -74,11 +76,13 @@ export async function POST(req) {
             return NextResponse.json({ error: "Institute not found" }, { status: 404 });
         }
 
-        // Initialize empty notifications object if it doesn't exist
         if (!institute.notifications) {
             institute.notifications = {
                 smsProvider: 'mock',
-                whatsappProvider: 'mock'
+                whatsappProvider: 'mock',
+                voiceCallProvider: 'mock',
+                overdueVoiceReminderEnabled: false,
+                dedicatedCallerId: ''
             };
         }
 
@@ -118,6 +122,17 @@ export async function POST(req) {
         }
         if (body.metaAccessToken && body.metaAccessToken !== 'meta_••••••••••••') {
             institute.notifications.metaAccessToken = encryptSecret(body.metaAccessToken.trim());
+        }
+
+        // 5. Voice Call Settings
+        if (body.voiceCallProvider) {
+            institute.notifications.voiceCallProvider = body.voiceCallProvider;
+        }
+        if (body.overdueVoiceReminderEnabled !== undefined) {
+            institute.notifications.overdueVoiceReminderEnabled = !!body.overdueVoiceReminderEnabled;
+        }
+        if (body.dedicatedCallerId !== undefined) {
+            institute.notifications.dedicatedCallerId = body.dedicatedCallerId.trim();
         }
 
         // Set timestamps

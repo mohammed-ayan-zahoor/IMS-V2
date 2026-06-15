@@ -39,7 +39,8 @@ import {
     Contact,
     Megaphone,
     Bus,
-    Hotel
+    Hotel,
+    Globe
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -174,7 +175,9 @@ export default function AdminLayout({ children }) {
                 { label: "Completion Tracking", icon: CheckCircle2, href: "/admin/completion-tracking" },
                 { label: "Certificate Management", icon: Award, href: "/admin/certificate-management" },
                 { label: "ID Card Management", icon: Contact, href: "/admin/id-cards" },
+                { label: "ID Card (PDFMe) [Test]", icon: Contact, href: "/admin/id-cards-pdfme" },
                 { label: "Completion Analytics", icon: TrendingUp, href: "/admin/completion-analytics" },
+                { label: "Website Builder", icon: Globe, href: "/admin/website", target: "_blank" },
                 { label: "MOU Tracker", icon: FileSignature, href: "/admin/mou-tracker", role: ["super_admin"] },
                 { label: "Settings", icon: Settings, href: "/admin/settings" },
             ]
@@ -217,6 +220,10 @@ export default function AdminLayout({ children }) {
 
     if (status === "loading") return <LoadingSpinner fullPage />;
     if (status === "unauthenticated" || session?.user?.role === "student") return null;
+
+    if (pathname === "/admin/website") {
+        return <>{children}</>;
+    }
 
     const toggleGroup = (groupLabel) => setExpandedGroup(prev => prev === groupLabel ? null : groupLabel);
     const isDashboard = pathname === "/admin/dashboard" || pathname === "/instructor/dashboard";
@@ -316,6 +323,7 @@ export default function AdminLayout({ children }) {
                                          <Link
                                              key={item.href}
                                              href={item.href}
+                                             target={item.target}
                                              onClick={() => setIsSidebarOpen(false)}
                                              className={cn(
                                                  "flex items-center gap-3 px-4 py-2 rounded-full transition-all group text-[13px] font-semibold relative ml-2",
@@ -429,12 +437,12 @@ export default function AdminLayout({ children }) {
                 )}>
                     <div className={cn(
                         "flex-1 overflow-y-auto bg-[#f9fafb] scrollbar-hide print-reset min-w-0",
-                        pathname === "/admin/chat" ? "p-0" : "p-4 sm:p-8"
+                        (pathname === "/admin/chat" || pathname.startsWith("/admin/website")) ? "p-0" : "p-4 sm:p-8"
                     )}>
                         <div className={cn(
-                            "animate-fade-in",
-                            pathname === "/admin/chat" ? "w-full h-full" : "mx-auto space-y-8",
-                            isDashboard || pathname === "/admin/chat" ? "w-full" : "w-full max-w-[1600px]"
+                            "animate-fade-in h-full w-full",
+                            (pathname === "/admin/chat" || pathname.startsWith("/admin/website")) ? "w-full h-full" : "mx-auto space-y-8",
+                            isDashboard || pathname === "/admin/chat" || pathname.startsWith("/admin/website") ? "w-full" : "w-full max-w-[1600px]"
                         )}>
                             {children}
                         </div>

@@ -18,7 +18,8 @@ const TransportInstallmentSchema = new Schema({
     },
     transactionId: String,
     collectedBy: String,
-    notes: String
+    notes: String,
+    voiceReminderSentAt: Date
 });
 
 const TransportFeeSchema = new Schema({

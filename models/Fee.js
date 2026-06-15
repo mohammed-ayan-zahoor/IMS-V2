@@ -16,7 +16,8 @@ const InstallmentSchema = new Schema({
     },
     transactionId: String,
     collectedBy: String,
-    notes: String
+    notes: String,
+    voiceReminderSentAt: Date
 });
 
 const FeeSchema = new Schema({

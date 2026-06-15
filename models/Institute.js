@@ -76,7 +76,9 @@ const InstituteSchema = new Schema({
         studentCount: { type: Number, default: 0 },
         adminCount: { type: Number, default: 0 },
         courseCount: { type: Number, default: 0 },
-        storageUsedGB: { type: Number, default: 0 }
+        storageUsedGB: { type: Number, default: 0 },
+        voiceCallsSent: { type: Number, default: 0 },
+        voiceCallsQuota: { type: Number, default: 5000 } // Default monthly or total limit
     },
 
     // Branding & Customization
@@ -149,6 +151,11 @@ const InstituteSchema = new Schema({
         whatsappProvider: { type: String, enum: ['mock', 'twilio', 'meta'], default: 'mock' },
         metaPhoneNumberId: String,
         metaAccessToken: String,
+
+        // Voice Call Configurations (Master/Platform Billed Model)
+        voiceCallProvider: { type: String, enum: ['mock', 'exotel', 'twilio'], default: 'mock' },
+        overdueVoiceReminderEnabled: { type: Boolean, default: false },
+        dedicatedCallerId: String,
         
         configuredAt: Date,
         lastTestedAt: Date

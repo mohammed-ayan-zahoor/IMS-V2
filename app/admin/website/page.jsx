@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import DragDropEditor from '@/components/website/builder/DragDropEditor';
-import { getTemplateSections } from '@/services/pageBuilderService';
+import GrapesEditor from '@/components/website/builder/GrapesEditor';
 import { useToast } from '@/contexts/ToastContext';
 import { Loader2 } from 'lucide-react';
 
@@ -14,27 +13,39 @@ export default function WebsiteAdminPage() {
     const [instituteCode, setInstituteCode] = useState('');
     const toast = useToast();
 
+    const fetchPages = async () => {
+        try {
+            const res = await fetch('/api/v1/website/pages');
+            const data = await res.json();
+            if (res.ok) {
+                setPages(data.pages || []);
+            }
+        } catch (error) {
+            console.error("Fetch Pages Error:", error);
+        }
+    };
+
     useEffect(() => {
         const init = async () => {
             try {
-                // Fetch config and home page
                 const res = await fetch('/api/v1/website/config');
                 const data = await res.json();
-                
+
                 if (res.ok) {
                     setConfig(data.config);
                     setInstituteCode(data.instituteCode);
-                    // For now, let's just initialize a default home page if none exists
                     if (!data.pages || data.pages.length === 0) {
-                        const defaultSections = getTemplateSections(data.config?.template || 'SCHOOL');
-                        setActivePage({
+                        // New site — create a blank home page shell
+                        const homePage = {
                             title: 'Home',
                             slug: 'index',
-                            sections: defaultSections
-                        });
+                            sections: []
+                        };
+                        setActivePage(homePage);
+                        setPages([homePage]);
                     } else {
                         setPages(data.pages);
-                        setActivePage(data.pages[0]);
+                        setActivePage(data.pages.find(p => p.slug === 'index') || data.pages[0]);
                     }
                 }
             } catch (error) {
@@ -47,43 +58,100 @@ export default function WebsiteAdminPage() {
         init();
     }, []);
 
-    const handleSave = async (sections) => {
+    const handleSave = async (gjsContent, pageDetails = {}) => {
         try {
             const res = await fetch('/api/v1/website/pages', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...activePage,
-                    sections
+                    ...pageDetails,
+                    sections: gjsContent, // store GrapesJS data in sections field
                 })
             });
-            
+
+            const data = await res.json();
             if (res.ok) {
-                toast.success("Website updated successfully");
+                await fetchPages();
+                if (data.page) {
+                    setActivePage(data.page);
+                }
             } else {
-                toast.error("Failed to save website");
+                toast.error(data.error || "Failed to save website");
             }
         } catch (error) {
             toast.error("Error saving website");
         }
     };
 
+    const handleCreatePage = async (title, slug) => {
+        try {
+            const res = await fetch('/api/v1/website/pages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, slug, sections: [] })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                toast.success("New page created!");
+                setPages(prev => [...prev, data.page]);
+                setActivePage(data.page);
+            } else {
+                toast.error(data.error || "Failed to create page");
+            }
+        } catch (error) {
+            toast.error("Error creating page");
+        }
+    };
+
+    const handleDeletePage = async (pageId) => {
+        if (!confirm("Delete this page? This cannot be undone.")) return;
+        try {
+            const res = await fetch(`/api/v1/website/pages?id=${pageId}`, { method: 'DELETE' });
+            if (res.ok) {
+                toast.success("Page deleted");
+                setPages(prev => {
+                    const filtered = prev.filter(p => p._id !== pageId);
+                    setActivePage(filtered.find(p => p.slug === 'index') || filtered[0] || null);
+                    return filtered;
+                });
+            } else {
+                toast.error("Failed to delete page");
+            }
+        } catch (error) {
+            toast.error("Error deleting page");
+        }
+    };
+
+    const handleSwitchPage = (page) => {
+        setActivePage(page);
+    };
+
     if (loading) {
         return (
-            <div className="h-screen flex items-center justify-center bg-slate-50">
-                <Loader2 className="animate-spin text-blue-600" size={48} />
+            <div className="h-screen flex items-center justify-center bg-slate-950">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="animate-spin text-blue-500" size={36} />
+                    <span className="text-slate-400 text-sm font-medium">Loading Website Builder…</span>
+                </div>
             </div>
         );
     }
 
     return (
         <div className="h-screen overflow-hidden">
-            <DragDropEditor 
-                initialSections={activePage?.sections || []} 
-                onSave={handleSave} 
-                instituteId={config?.instituteId}
+            <GrapesEditor
+                initialSections={activePage?.draftContent || activePage?.liveContent || activePage?.sections || []}
+                onSave={handleSave}
                 instituteCode={instituteCode}
                 pageSlug={activePage?.slug}
+                initialConfig={config}
+                pages={pages}
+                activePage={activePage}
+                onCreatePage={handleCreatePage}
+                onDeletePage={handleDeletePage}
+                onSwitchPage={handleSwitchPage}
             />
         </div>
     );
