@@ -18,7 +18,8 @@ const HostelInstallmentSchema = new Schema({
     },
     transactionId: String,
     collectedBy: String,
-    notes: String
+    notes: String,
+    voiceReminderSentAt: Date
 });
 
 const HostelAllotmentSchema = new Schema({

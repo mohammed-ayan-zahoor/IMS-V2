@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Menu, X, Phone, Mail, Globe, Layout } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
-const WebsiteHeader = ({ config = {}, isDark = false }) => {
+const WebsiteHeader = ({ config = {}, pages = [], instituteCode = '', isDark = false }) => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -19,13 +19,21 @@ const WebsiteHeader = ({ config = {}, isDark = false }) => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const navLinks = [
-        { name: 'Home', href: '#' },
-        { name: 'Programs', href: '#programs' },
-        { name: 'Faculty', href: '#faculty' },
-        { name: 'Gallery', href: '#gallery' },
-        { name: 'Contact', href: '#contact' }
-    ];
+    // Build navigation links dynamically if pages exist
+    const navLinks = pages && pages.length > 0
+        ? pages.map((p) => ({
+            name: p.title,
+            href: p.slug === 'index' 
+                ? `/website/${instituteCode}` 
+                : `/website/${instituteCode}/${p.slug}`
+          }))
+        : [
+            { name: 'Home', href: '#' },
+            { name: 'Programs', href: '#programs' },
+            { name: 'Faculty', href: '#faculty' },
+            { name: 'Gallery', href: '#gallery' },
+            { name: 'Contact', href: '#contact' }
+          ];
 
     return (
         <header className={cn(

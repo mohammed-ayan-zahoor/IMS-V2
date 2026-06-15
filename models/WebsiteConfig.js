@@ -23,6 +23,11 @@ const WebsiteConfigSchema = new Schema({
         trim: true,
         lowercase: true
     },
+    status: {
+        type: String,
+        enum: ['draft', 'published'],
+        default: 'draft'
+    },
     isActive: {
         type: Boolean,
         default: true
@@ -50,6 +55,15 @@ const WebsiteConfigSchema = new Schema({
         footerConfig: {
             text: String,
             showNewsletter: { type: Boolean, default: true }
+        }
+    },
+
+    // Theme preset — controls the visual design of the public website
+    theme: {
+        preset: {
+            type: String,
+            enum: ['modern', 'classic', 'bold', 'minimal', 'dark'],
+            default: 'modern'
         }
     }
 }, { 

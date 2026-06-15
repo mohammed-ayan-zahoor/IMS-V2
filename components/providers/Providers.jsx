@@ -4,6 +4,7 @@ import { SessionProvider } from "next-auth/react";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { ConfirmProvider } from "@/contexts/ConfirmContext";
 import { AcademicSessionProvider } from "@/contexts/AcademicSessionContext";
+import { WebsiteThemeProvider } from "@/contexts/WebsiteThemeContext";
 
 export default function Providers({ children }) {
     return (
@@ -11,10 +12,14 @@ export default function Providers({ children }) {
             <AcademicSessionProvider>
                 <ToastProvider>
                     <ConfirmProvider>
-                        {children}
+                        <WebsiteThemeProvider>
+                            {children}
+                        </WebsiteThemeProvider>
                     </ConfirmProvider>
                 </ToastProvider>
             </AcademicSessionProvider>
         </SessionProvider>
     );
 }
+
+

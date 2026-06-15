@@ -31,6 +31,18 @@ const WebsitePageSchema = new Schema({
         type: String,
         default: 'default'
     },
+    seoTitle: {
+        type: String,
+        trim: true
+    },
+    seoDescription: {
+        type: String,
+        trim: true
+    },
+    keywords: {
+        type: String,
+        trim: true
+    },
     visibility: {
         type: String,
         enum: ['public', 'private', 'scheduled'],
@@ -38,6 +50,7 @@ const WebsitePageSchema = new Schema({
     },
     publishedAt: Date,
     draftContent: Schema.Types.Mixed,
+    liveContent: Schema.Types.Mixed,
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
     lastModifiedBy: { type: Schema.Types.ObjectId, ref: 'User' }
 }, { 

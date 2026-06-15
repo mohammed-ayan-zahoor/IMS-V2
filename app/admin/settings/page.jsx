@@ -12,6 +12,7 @@ import HtmlCertificateEditor from "@/components/admin/HtmlCertificateEditor";
 import SessionManager from "@/components/admin/SessionManager";
 import CloudinarySettingsForm from "@/components/CloudinarySettingsForm";
 import PusherSettingsForm from "@/components/PusherSettingsForm";
+import NotificationSettingsForm from "@/components/NotificationSettingsForm";
 
 export default function SettingsPage() {
     const toast = useToast();
@@ -536,7 +537,7 @@ export default function SettingsPage() {
                                     : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                             )}
                         >
-                            MSG91 SMS Gateway
+                            Notification Gateways
                         </button>
                         <button
                             type="button"
@@ -558,14 +559,7 @@ export default function SettingsPage() {
                             <CloudinarySettingsForm />
                         )}
                         {activeApiTab === 'msg91' && (
-                            <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[300px]">
-                                <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center mb-4 text-slate-400">
-                                    <MessageSquare size={24} />
-                                </div>
-                                <h4 className="text-lg font-bold text-slate-700 mb-2">MSG91 Gateway Settings</h4>
-                                <p className="text-sm text-slate-500 max-w-md">Connect your own MSG91 account to send SMS notifications to your students directly from your dedicated sender ID.</p>
-                                <span className="mt-6 px-4 py-1.5 bg-slate-200 text-slate-600 text-[10px] font-black tracking-widest uppercase rounded-full">Coming Soon</span>
-                            </div>
+                            <NotificationSettingsForm />
                         )}
                         {activeApiTab === 'pusher' && (
                             <PusherSettingsForm />

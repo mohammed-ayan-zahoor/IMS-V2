@@ -2,20 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Bell } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bell, Calendar } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
-const SlidingNotices = ({ instituteId, isEditing = false }) => {
+const SlidingNotices = ({ instituteId, isEditing = false, content = {}, onUpdate }) => {
     const [notices, setNotices] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
+
+    const {
+        title = "Latest Announcements",
+        layout = "ticker"
+    } = content;
 
     useEffect(() => {
         const fetchNotices = async () => {
             try {
                 const res = await fetch(`/api/v1/website/notices?instituteId=${instituteId}`);
                 const data = await res.json();
-                if (res.ok) setNotices(data.notices);
+                if (res.ok) setNotices(data.notices || []);
             } catch (error) {
                 console.error("Failed to fetch public notices");
             } finally {
@@ -28,17 +33,17 @@ const SlidingNotices = ({ instituteId, isEditing = false }) => {
 
     // Mock data if empty
     const displayNotices = notices.length > 0 ? notices : [
-        { id: 1, title: "Admissions Open for 2024-25", description: "Enroll your child today in our premium school environment." },
-        { id: 2, title: "Upcoming Vocational Workshop", description: "Join our weekend workshop on digital literacy and skill development." }
+        { _id: '1', title: "Admissions Open for 2024-25", description: "Enroll your child today in our premium school environment." },
+        { _id: '2', title: "Upcoming Vocational Workshop", description: "Join our weekend workshop on digital literacy and skill development." }
     ];
 
     useEffect(() => {
-        if (displayNotices.length <= 1) return;
+        if (layout !== 'ticker' || displayNotices.length <= 1) return;
         const timer = setInterval(() => {
             setCurrentIndex(prev => (prev + 1) % displayNotices.length);
         }, 5000);
         return () => clearInterval(timer);
-    }, [displayNotices]);
+    }, [displayNotices, layout]);
 
     if (loading && !isEditing) return null;
 
@@ -55,12 +60,53 @@ const SlidingNotices = ({ instituteId, isEditing = false }) => {
             });
             window.open(notice.link, '_blank');
         } catch (error) {
-            console.error("Click tracking failed");
+            console.error("Notice click tracking failed");
         }
     };
 
+    if (layout === 'list') {
+        return (
+            <section className="py-20 bg-slate-50/50">
+                <div className="container px-6 mx-auto max-w-4xl">
+                    <div className="text-center mb-12">
+                        <h2 className="text-3xl font-extrabold text-slate-900">
+                            {isEditing ? (
+                                <input 
+                                    className="bg-transparent border-b border-slate-200 focus:border-blue-500 outline-none w-full text-center"
+                                    value={title}
+                                    onChange={(e) => onUpdate({ title: e.target.value })}
+                                />
+                            ) : title}
+                        </h2>
+                    </div>
+                    <div className="space-y-6">
+                        {displayNotices.map((notice) => (
+                            <motion.div 
+                                key={notice._id}
+                                initial={{ opacity: 0, y: 10 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                                onClick={() => handleNoticeClick(notice)}
+                            >
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="inline-flex px-2.5 py-1 bg-red-50 text-red-650 rounded-lg text-[9px] font-black uppercase tracking-wider">Notice</span>
+                                    <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                                        <Calendar size={12} />
+                                        Recent
+                                    </span>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800">{notice.title}</h3>
+                                <p className="text-slate-500 text-sm mt-1">{notice.description}</p>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+        );
+    }
+
     return (
-        <div className="bg-premium-blue text-white py-3 overflow-hidden">
+        <div className="bg-premium-blue text-white py-3 overflow-hidden" style={{ backgroundColor: 'var(--color-primary)' }}>
             <div className="container px-6 mx-auto flex items-center gap-4">
                 <div className="shrink-0 flex items-center gap-2 font-bold text-xs uppercase tracking-widest bg-white/20 px-3 py-1 rounded-full border border-white/30">
                     <Bell size={12} className="animate-bounce" />

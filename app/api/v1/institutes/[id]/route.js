@@ -50,6 +50,25 @@ export async function PATCH(req, { params }) {
         if (body.contactPhone) updateData.contactPhone = body.contactPhone;
         if (body.addressStr) updateData.addressStr = body.addressStr;
 
+        // Support for Voice Reminders & Quota settings management
+        if (body.voiceCallsQuota !== undefined) {
+            updateData['usage.voiceCallsQuota'] = Number(body.voiceCallsQuota);
+        }
+        if (body.voiceCallsSent !== undefined) {
+            updateData['usage.voiceCallsSent'] = Number(body.voiceCallsSent);
+        }
+        if (body.overdueVoiceReminderEnabled !== undefined) {
+            updateData['notifications.overdueVoiceReminderEnabled'] = Boolean(body.overdueVoiceReminderEnabled);
+        }
+        if (body.dedicatedCallerId !== undefined) {
+            updateData['notifications.dedicatedCallerId'] = body.dedicatedCallerId;
+        }
+        if (body.voiceCallProvider !== undefined) {
+            if (['mock', 'exotel', 'twilio'].includes(body.voiceCallProvider)) {
+                updateData['notifications.voiceCallProvider'] = body.voiceCallProvider;
+            }
+        }
+
         if (body.status) {
             if (['active', 'suspended', 'inactive'].includes(body.status)) {
                 updateData.status = body.status;
