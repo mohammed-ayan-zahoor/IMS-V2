@@ -1,4 +1,5 @@
 import Subject from '@/models/Subject';
+import '@/models/MasterSubject'; // Register for populate
 import { createAuditLog } from './auditService';
 import { connectDB } from '@/lib/mongodb';
 
