@@ -79,30 +79,30 @@ export async function GET(req) {
                         }
                     });
 
-                    // Add breaks if they aren't explicitly assigned subjects but exist in slots
+                    // Add breaks and empty slots if they aren't explicitly assigned
                     timetable.timeSlots.forEach(slot => {
-                        if (slot.isBreak) {
-                            const alreadyAdded = weeklySchedule[day].some(item => 
-                                String(item.batchId) === String(batch._id) && item.startTime === slot.startTime
-                            );
-                            if (!alreadyAdded) {
-                                weeklySchedule[day].push({
-                                    batchId: batch._id,
-                                    batchName: batch.name,
-                                    courseName: slot.name,
-                                    courseCode: "BREAK",
-                                    instructor: "N/A",
-                                    originalStartTime: slot.startTime,
-                                    originalEndTime: slot.endTime,
-                                    startTime: slot.startTime,
-                                    endTime: slot.endTime,
-                                    startTimeOverride: null,
-                                    endTimeOverride: null,
-                                    slotName: slot.name,
-                                    type: 'Break',
-                                    isBreak: true
-                                });
-                            }
+                        const isRecess = slot.isBreak || (slot.name && (slot.name.toLowerCase().includes('recess') || slot.name.toLowerCase().includes('break')));
+                        
+                        const alreadyAdded = weeklySchedule[day].some(item => 
+                            String(item.batchId) === String(batch._id) && item.originalStartTime === slot.startTime
+                        );
+                        if (!alreadyAdded) {
+                            weeklySchedule[day].push({
+                                batchId: batch._id,
+                                batchName: batch.name,
+                                courseName: slot.name,
+                                courseCode: isRecess ? "BREAK" : "GAP",
+                                instructor: "N/A",
+                                originalStartTime: slot.startTime,
+                                originalEndTime: slot.endTime,
+                                startTime: slot.startTime,
+                                endTime: slot.endTime,
+                                startTimeOverride: null,
+                                endTimeOverride: null,
+                                slotName: slot.name,
+                                type: isRecess ? 'Break' : 'Gap',
+                                isBreak: !!isRecess
+                            });
                         }
                     });
                 });

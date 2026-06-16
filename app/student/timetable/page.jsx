@@ -178,7 +178,8 @@ export default function StudentTimetablePage() {
                                                         c.slotName === slot.name && 
                                                         c.originalStartTime === slot.startTime && 
                                                         c.originalEndTime === slot.endTime && 
-                                                        !c.isBreak
+                                                        !c.isBreak &&
+                                                        c.type !== 'Gap'
                                                     );
 
                                                     if (!assign) {
