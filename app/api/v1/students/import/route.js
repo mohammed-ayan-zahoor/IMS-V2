@@ -574,6 +574,17 @@ export async function POST(req) {
             const insertedDocs = await Student.insertMany(successResults);
             console.log(`[IMPORT] Successfully bulk-inserted ${insertedDocs.length} students into User collection.`);
 
+            // C2. Bulk Insert Memberships for the new students
+            const Membership = (await import("@/models/Membership")).default;
+            const membershipDocs = insertedDocs.map(doc => ({
+                user: doc._id,
+                institute: scope.instituteId,
+                role: 'student',
+                isActive: true
+            }));
+            await Membership.insertMany(membershipDocs);
+            console.log(`[IMPORT] Successfully bulk-inserted ${membershipDocs.length} memberships.`);
+
             // D. High-Performance Bulk Enrollment in Batches
             if (studentBatchMappings.length > 0) {
                 const batchGroups = {}; // batchId -> Array of student ObjectId strings
