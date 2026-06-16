@@ -56,6 +56,24 @@ export default function StudentLayout({ children }) {
 
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
+    // If student is attempting an exam, hide all navigation for a distraction-free environment
+    if (pathname.includes('/take')) {
+        return (
+            <div className="bg-slate-50 text-foreground h-screen w-screen overflow-hidden">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={pathname}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="h-full w-full"
+                    >
+                        {children}
+                    </motion.div>
+                </AnimatePresence>
+            </div>
+        );
+    }
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)] bg-slate-50 text-foreground h-screen w-screen overflow-hidden">
