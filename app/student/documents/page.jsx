@@ -293,12 +293,17 @@ export default function StudentDocumentsPage() {
 function CertificateCard({ cert }) {
     return (
         <Card className="p-0 overflow-hidden border-slate-100 hover:border-premium-blue/30 transition-all duration-500 group hover:shadow-2xl">
-            <div className="relative h-32 bg-white border-b border-slate-100 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-premium-blue/10 to-premium-purple/10 opacity-40 group-hover:opacity-60 transition-opacity" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-premium-blue/5">
-                    <FileCheck size={120} strokeWidth={1} />
+            <div className="relative h-32 bg-white border-b border-slate-100 overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-premium-blue/5 to-premium-purple/5 z-0" />
+                <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30 group-hover:opacity-60 transition-opacity duration-700 mix-blend-multiply">
+                    <iframe 
+                        src={`${cert.pdfUrl || `/api/v1/students/certificates/${cert._id}/download`}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                        className="w-[200%] h-[400px] origin-top-left scale-50 -mt-8 -ml-4"
+                        tabIndex={-1}
+                    />
                 </div>
-                <div className="absolute bottom-4 left-6 right-6 flex items-end justify-between text-slate-900">
+                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent z-10" />
+                <div className="absolute bottom-4 left-6 right-6 flex items-end justify-between text-slate-900 z-20">
                     <div className="space-y-0.5">
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none">Certificate</p>
                         <h3 className="text-base font-black truncate max-w-[180px]">{cert.template?.templateName || "Academic Record"}</h3>
@@ -344,13 +349,18 @@ function CertificateCard({ cert }) {
 function PersonalDocCard({ doc }) {
     return (
         <Card className="p-5 flex items-start gap-4 hover:border-slate-300 transition-all group">
-            <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border",
-                doc.category === 'Aadhar' ? "bg-blue-50 border-blue-100 text-blue-600" :
-                doc.category === 'Marksheet' ? "bg-amber-50 border-amber-100 text-amber-600" :
-                "bg-slate-50 border-slate-100 text-slate-400"
-            )}>
-                <FileText size={20} />
+            <div className="w-12 h-12 rounded-2xl shrink-0 shadow-sm border border-slate-200 overflow-hidden relative bg-slate-50">
+                {doc.url?.match(/\.(jpeg|jpg|png|webp|gif)$/i) ? (
+                    <img src={doc.url} className="w-full h-full object-cover" alt="Preview" />
+                ) : doc.url ? (
+                    <div className="absolute w-[200px] h-[200px] origin-top-left scale-[0.24] pointer-events-none">
+                        <iframe src={`${doc.url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`} className="w-full h-full" tabIndex={-1} />
+                    </div>
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                        <FileText size={20} />
+                    </div>
+                )}
             </div>
             <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
