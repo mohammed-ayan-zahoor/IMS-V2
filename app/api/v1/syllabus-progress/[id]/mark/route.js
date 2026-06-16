@@ -45,7 +45,7 @@ export async function POST(req, { params }) {
         }
 
         const body = await req.json();
-        const { itemId, itemType, chapterId, topicId, isCompleted, notes } = body;
+        const { itemId, itemType, chapterId, topicId, isCompleted, notes, completedAt } = body;
 
         if (!itemId || !itemType || !chapterId) {
             return NextResponse.json({ error: 'itemId, itemType, and chapterId are required' }, { status: 400 });
@@ -55,7 +55,7 @@ export async function POST(req, { params }) {
         }
 
         const updated = await SyllabusService.markItem(id, {
-            itemId, itemType, chapterId, topicId, isCompleted, notes
+            itemId, itemType, chapterId, topicId, isCompleted, notes, completedAt
         }, session.user.id);
 
         return NextResponse.json({ progress: updated });

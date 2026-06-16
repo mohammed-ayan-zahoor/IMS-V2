@@ -148,8 +148,8 @@ export class SyllabusService {
     static async markItem(progressId, payload, actorId) {
         await connectDB();
 
-        const { itemId, itemType, chapterId, topicId, isCompleted, notes } = payload;
-        const now = new Date();
+        const { itemId, itemType, chapterId, topicId, isCompleted, notes, completedAt } = payload;
+        const now = completedAt ? new Date(completedAt) : new Date();
 
         const progress = await BatchSyllabusProgress.findById(progressId).populate('subject');
         if (!progress) throw new Error('Progress tracker not found');

@@ -830,6 +830,10 @@ export default function BatchDetailPage() {
     const [activeTab, setActiveTab] = useState("overview");
     const [expandedChapters, setExpandedChapters] = useState({});
     const [markingItem, setMarkingItem] = useState(null); // itemId being toggled
+    const [markingDates, setMarkingDates] = useState({});
+
+    const getMarkingDate = (id) => markingDates[id] || new Date().toISOString().split('T')[0];
+    const handleMarkingDateChange = (id, date) => setMarkingDates(p => ({ ...p, [id]: date }));
 
     const canMark = session?.user?.role === 'instructor' || session?.user?.role === 'admin' || session?.user?.role === 'super_admin';
 
@@ -1107,15 +1111,30 @@ export default function BatchDetailPage() {
                                                                 {/* Primary Action Button */}
                                                                 <div className="shrink-0 flex items-center gap-2 opacity-0 group-hover/chapter:opacity-100 transition-opacity">
                                                                     {canMark && (
-                                                                        <button
-                                                                            disabled={markingItem === ch._id}
-                                                                            onClick={() => handleMark(String(pg._id), {
-                                                                                itemId: ch._id, itemType: 'chapter', chapterId: ch._id, topicId: null, isCompleted: !chDone
-                                                                            })}
-                                                                            className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${chDone ? 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100' : 'bg-white border-slate-200 text-slate-700 hover:border-premium-blue hover:text-premium-blue shadow-sm'}`}
-                                                                        >
-                                                                            {chDone ? <><CheckCircle2 size={14}/> Completed</> : <><Square size={14}/> Mark Chapter Done</>}
-                                                                        </button>
+                                                                        <>
+                                                                            {!chDone && (
+                                                                                <input 
+                                                                                    type="date"
+                                                                                    max={new Date().toISOString().split('T')[0]}
+                                                                                    value={getMarkingDate(ch._id)}
+                                                                                    onChange={(e) => handleMarkingDateChange(ch._id, e.target.value)}
+                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                    className="text-[10px] px-1.5 py-1 rounded border border-slate-200 outline-none focus:border-premium-blue text-slate-600 bg-white"
+                                                                                />
+                                                                            )}
+                                                                            <button
+                                                                                disabled={markingItem === ch._id}
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleMark(String(pg._id), {
+                                                                                        itemId: ch._id, itemType: 'chapter', chapterId: ch._id, topicId: null, isCompleted: !chDone, completedAt: !chDone ? getMarkingDate(ch._id) : null
+                                                                                    });
+                                                                                }}
+                                                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${chDone ? 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100' : 'bg-white border-slate-200 text-slate-700 hover:border-premium-blue hover:text-premium-blue shadow-sm'}`}
+                                                                            >
+                                                                                {chDone ? <><CheckCircle2 size={14}/> Completed</> : <><Square size={14}/> Mark Chapter Done</>}
+                                                                            </button>
+                                                                        </>
                                                                     )}
                                                                 </div>
                                                             </div>
@@ -1159,15 +1178,27 @@ export default function BatchDetailPage() {
                                                                                         
                                                                                         <div className="opacity-0 group-hover/topic:opacity-100 transition-opacity">
                                                                                             {canMark && (
-                                                                                                <button
-                                                                                                    disabled={markingItem === tp._id}
-                                                                                                    onClick={() => handleMark(String(pg._id), {
-                                                                                                        itemId: tp._id, itemType: 'topic', chapterId: ch._id, topicId: tp._id, isCompleted: !tpDone
-                                                                                                    })}
-                                                                                                    className={`px-3 py-1.5 rounded-md text-[11px] font-bold flex items-center gap-1.5 border shadow-sm ${tpDone ? 'bg-white border-slate-200 text-slate-400 hover:text-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-premium-blue hover:text-premium-blue transition-colors'}`}
-                                                                                                >
-                                                                                                    {tpDone ? <>Undo</> : <>Mark Topic Done</>}
-                                                                                                </button>
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    {!tpDone && (
+                                                                                                        <input 
+                                                                                                            type="date"
+                                                                                                            max={new Date().toISOString().split('T')[0]}
+                                                                                                            value={getMarkingDate(tp._id)}
+                                                                                                            onChange={(e) => handleMarkingDateChange(tp._id, e.target.value)}
+                                                                                                            onClick={(e) => e.stopPropagation()}
+                                                                                                            className="text-[10px] px-1.5 py-1 rounded border border-slate-200 outline-none focus:border-premium-blue text-slate-600 bg-white"
+                                                                                                        />
+                                                                                                    )}
+                                                                                                    <button
+                                                                                                        disabled={markingItem === tp._id}
+                                                                                                        onClick={() => handleMark(String(pg._id), {
+                                                                                                            itemId: tp._id, itemType: 'topic', chapterId: ch._id, topicId: tp._id, isCompleted: !tpDone, completedAt: !tpDone ? getMarkingDate(tp._id) : null
+                                                                                                        })}
+                                                                                                        className={`px-3 py-1.5 rounded-md text-[11px] font-bold flex items-center gap-1.5 border shadow-sm ${tpDone ? 'bg-white border-slate-200 text-slate-400 hover:text-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-premium-blue hover:text-premium-blue transition-colors'}`}
+                                                                                                    >
+                                                                                                        {tpDone ? <>Undo</> : <>Mark Topic Done</>}
+                                                                                                    </button>
+                                                                                                </div>
                                                                                             )}
                                                                                         </div>
                                                                                     </div>
@@ -1180,13 +1211,25 @@ export default function BatchDetailPage() {
                                                                                                 return (
                                                                                                     <div key={st._id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-slate-50 transition-colors group/subtopic">
                                                                                                         {canMark ? (
-                                                                                                            <button
-                                                                                                                disabled={markingItem === st._id}
-                                                                                                                onClick={() => handleMark(String(pg._id), { itemId: st._id, itemType: 'subtopic', chapterId: ch._id, topicId: tp._id, isCompleted: !stDone })}
-                                                                                                                className="shrink-0 text-slate-300 hover:text-premium-blue transition-colors focus:outline-none"
-                                                                                                            >
-                                                                                                                {stDone ? <CheckSquare size={16} className="text-green-500" /> : <Square size={16} />}
-                                                                                                            </button>
+                                                                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                                                                {!stDone && (
+                                                                                                                    <input 
+                                                                                                                        type="date"
+                                                                                                                        max={new Date().toISOString().split('T')[0]}
+                                                                                                                        value={getMarkingDate(st._id)}
+                                                                                                                        onChange={(e) => handleMarkingDateChange(st._id, e.target.value)}
+                                                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                                                        className="text-[10px] px-1 py-0.5 rounded border border-slate-200 outline-none focus:border-premium-blue text-slate-600 bg-white w-24 opacity-0 group-hover/subtopic:opacity-100 transition-opacity"
+                                                                                                                    />
+                                                                                                                )}
+                                                                                                                <button
+                                                                                                                    disabled={markingItem === st._id}
+                                                                                                                    onClick={() => handleMark(String(pg._id), { itemId: st._id, itemType: 'subtopic', chapterId: ch._id, topicId: tp._id, isCompleted: !stDone, completedAt: !stDone ? getMarkingDate(st._id) : null })}
+                                                                                                                    className="shrink-0 text-slate-300 hover:text-premium-blue transition-colors focus:outline-none"
+                                                                                                                >
+                                                                                                                    {stDone ? <CheckSquare size={16} className="text-green-500" /> : <Square size={16} />}
+                                                                                                                </button>
+                                                                                                            </div>
                                                                                                         ) : (
                                                                                                             <span>{stDone ? <CheckCircle2 size={16} className="text-green-500" /> : <Circle size={16} className="text-slate-200" />}</span>
                                                                                                         )}
