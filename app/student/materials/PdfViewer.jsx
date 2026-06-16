@@ -13,6 +13,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 export default function PdfViewer({ file, onClose }) {
     const [numPages, setNumPages] = useState(null);
     const [pageNumber, setPageNumber] = useState(1);
+    const [pageInput, setPageInput] = useState(1);
     const [scale, setScale] = useState(1.0);
     const [loading, setLoading] = useState(true);
     const [pageWidth, setPageWidth] = useState(800); // Initialize with default width
@@ -43,10 +44,30 @@ export default function PdfViewer({ file, onClose }) {
     // Reset pagination when file changes
     useEffect(() => {
         setPageNumber(1);
+        setPageInput(1);
         setLoading(true);
         setError(null);
         setRetryCount(0);
     }, [file]);
+
+    // Sync input with page number
+    useEffect(() => {
+        setPageInput(pageNumber);
+    }, [pageNumber]);
+
+    const handlePageInputBlur = () => {
+        let val = parseInt(pageInput);
+        if (isNaN(val) || val < 1) val = 1;
+        if (numPages && val > numPages) val = numPages;
+        setPageNumber(val);
+        setPageInput(val);
+    };
+
+    const handlePageInputKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handlePageInputBlur();
+        }
+    };
 
     // Lock/unlock body scroll when modal opens/closes
     useEffect(() => {
@@ -168,9 +189,19 @@ export default function PdfViewer({ file, onClose }) {
                         >
                             <ChevronLeft size={16} />
                         </button>
-                        <span className="text-xs font-medium text-slate-500">
-                            {pageNumber} / {numPages || '--'}
-                        </span>
+                        <div className="flex items-center gap-1 text-xs font-medium text-slate-500">
+                            <input
+                                type="number"
+                                min={1}
+                                max={numPages || 1}
+                                value={pageInput}
+                                onChange={(e) => setPageInput(e.target.value)}
+                                onBlur={handlePageInputBlur}
+                                onKeyDown={handlePageInputKeyDown}
+                                className="w-10 text-center border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:border-premium-blue bg-white text-slate-900"
+                            />
+                            <span>/ {numPages || '--'}</span>
+                        </div>
                         <button
                             onClick={() => setPageNumber(p => Math.min(numPages || 1, p + 1))}
                             disabled={pageNumber >= (numPages || 1)}
@@ -289,9 +320,21 @@ export default function PdfViewer({ file, onClose }) {
                         <ChevronLeft size={16} />
                         <span>Previous</span>
                     </button>
-                    <span className="text-xs md:text-sm font-medium text-slate-500 flex-shrink-0">
-                        {pageNumber} / {numPages || '--'}
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <input
+                            type="number"
+                            min={1}
+                            max={numPages || 1}
+                            value={pageInput}
+                            onChange={(e) => setPageInput(e.target.value)}
+                            onBlur={handlePageInputBlur}
+                            onKeyDown={handlePageInputKeyDown}
+                            className="w-12 text-center border border-slate-200 rounded-lg px-2 py-1 text-sm font-bold text-slate-900 focus:outline-none focus:border-premium-blue focus:ring-2 focus:ring-premium-blue/20 transition-all bg-white"
+                        />
+                        <span className="text-sm font-medium text-slate-500">
+                            / {numPages || '--'}
+                        </span>
+                    </div>
                     <button
                         onClick={() => setPageNumber(p => Math.min(numPages || 1, p + 1))}
                         disabled={pageNumber >= (numPages || 1)}
