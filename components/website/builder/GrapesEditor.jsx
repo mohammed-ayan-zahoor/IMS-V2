@@ -1112,10 +1112,10 @@ export default function GrapesEditor({
             if (res.ok) {
                 toast.success('Page published to live site!');
             } else {
-                toast.error('Publish failed');
+                const data = await res.json().catch(()=>({})); toast.error(data.error || 'Publish failed');
             }
         } catch (e) {
-            toast.error('Publish failed');
+            const data = await res.json().catch(()=>({})); toast.error(data.error || 'Publish failed');
         } finally {
             setPublishing(false);
         }
