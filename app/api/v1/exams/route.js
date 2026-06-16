@@ -74,6 +74,8 @@ export async function POST(req) {
             scheduledAt: body.scheduledAt,
             schedule: body.schedule,
             instructions: body.instructions,
+            maxAttempts: body.maxAttempts,
+            resultPublication: body.resultPublication,
             resultsPublished: body.resultsPublished,
             resultsPublishedAt: body.resultsPublishedAt,
             showCorrectAnswers: body.showCorrectAnswers,

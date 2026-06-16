@@ -80,7 +80,6 @@ export async function PATCH(req, { params }) {
         // 1. Direct Field Updates
         if (body.questions !== undefined) exam.questions = body.questions;
         if (body.title !== undefined) exam.title = body.title;
-        if (body.description !== undefined) exam.description = body.description;
         if (body.totalMarks !== undefined) exam.totalMarks = body.totalMarks;
         if (body.course !== undefined) exam.course = body.course;
         if (body.subject !== undefined) exam.subject = body.subject;

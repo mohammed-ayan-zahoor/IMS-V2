@@ -23,7 +23,7 @@ export default function EditExamPage({ params }) {
     
     const [formData, setFormData] = useState({
         title: "",
-        description: "",
+        instructions: "",
         course: "",
         subject: null,
         batches: [],
@@ -63,7 +63,7 @@ export default function EditExamPage({ params }) {
 
             setFormData({
                 title: exam.title || "",
-                description: exam.description || "",
+                instructions: exam.instructions || "",
                 course: exam.course?._id || exam.course || "",
                 subject: exam.subject?._id || exam.subject || null,
                 batches: exam.batches ? exam.batches.map(b => b._id || b) : [],
@@ -114,7 +114,7 @@ export default function EditExamPage({ params }) {
         try {
             const payload = {
                 title: formData.title.trim(),
-                description: formData.description,
+                instructions: formData.instructions,
                 course: formData.course,
                 subject: formData.subject,
                 duration: Number(formData.duration),
@@ -173,6 +173,15 @@ export default function EditExamPage({ params }) {
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             required
                         />
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Description / Instructions</label>
+                            <textarea
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700 min-h-[100px]"
+                                placeholder="Instructions for students..."
+                                value={formData.instructions}
+                                onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+                            />
+                        </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1">

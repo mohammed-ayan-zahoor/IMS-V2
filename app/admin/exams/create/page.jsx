@@ -22,7 +22,7 @@ export default function CreateExamPage() {
 
     const [formData, setFormData] = useState({
         title: "",
-        description: "",
+        instructions: "",
         course: "",
         subject: null, // nullable subject ID
         batches: [], // Array of batch IDs
@@ -202,8 +202,8 @@ export default function CreateExamPage() {
                         <textarea
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700 min-h-[100px]"
                             placeholder="Instructions for students..."
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            value={formData.instructions}
+                            onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                         />
                     </div>
 
