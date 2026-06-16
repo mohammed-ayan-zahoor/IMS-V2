@@ -21,7 +21,7 @@ export default function SubjectSelect({ value, onChange, subjects = [], courses 
     // If a course is selected, only show subjects assigned to that course.
     // Otherwise, show all available subjects.
     const filteredSubjects = selectedCourse
-        ? subjects.filter(s => allowedIds.some(aid => String(aid) === String(s._id || s)))
+        ? subjects.filter(s => allowedIds.some(aid => String(aid._id || aid) === String(s._id || s)))
         : subjects;
 
     return (
