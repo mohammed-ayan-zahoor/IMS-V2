@@ -10,6 +10,7 @@ import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 
 export default function ExamListPage() {
     const toast = useToast();
@@ -23,16 +24,20 @@ export default function ExamListPage() {
     const [search, setSearch] = useState("");
     const [showHelpModal, setShowHelpModal] = useState(false);
 
+    const { selectedSessionId } = useAcademicSession();
+
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (selectedSessionId) {
+            fetchData();
+        }
+    }, [selectedSessionId]);
 
     const fetchData = async () => {
         try {
             setLoading(true);
             const [onlineRes, offlineRes] = await Promise.all([
-                fetch("/api/v1/exams"),
-                fetch("/api/v1/offline-exams")
+                fetch(`/api/v1/exams?session=${selectedSessionId}`),
+                fetch(`/api/v1/offline-exams?session=${selectedSessionId}`)
             ]);
             const onlineData = await onlineRes.json();
             const offlineData = await offlineRes.json();

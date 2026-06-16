@@ -22,11 +22,24 @@ export async function GET(req) {
         const courseId = searchParams.get("courseId");
         const batchId = searchParams.get("batch"); // "batch" param from checking UI
         const status = searchParams.get("status");
+        const sessionParam = searchParams.get("session");
 
         const query = { deletedAt: null };
         if (courseId) query.course = courseId;
         if (batchId) query.batches = batchId; // Autos-maps to checking existence in array
         if (status) query.status = status;
+
+        if (sessionParam) {
+            const Batch = (await import("@/models/Batch")).default;
+            const batchesInSession = await Batch.find({ session: sessionParam, institute: scope.instituteId }).select('_id');
+            const batchIds = batchesInSession.map(b => b._id);
+            // Return exams that are explicitly assigned to a batch in this session,
+            // or exams that have no batches assigned (global to the course).
+            query.$or = [
+                { batches: { $in: batchIds } },
+                { batches: { $size: 0 } }
+            ];
+        }
 
         // Apply Scope
         const scopedQuery = addInstituteFilter(query, scope);
