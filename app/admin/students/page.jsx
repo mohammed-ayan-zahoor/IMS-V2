@@ -75,7 +75,6 @@ export default function StudentsPage() {
     }, [searchParams]);
 
     // Import Logic State
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [importFile, setImportFile] = useState(null);
     const [importCourseId, setImportCourseId] = useState("");
     const [importBatchId, setImportBatchId] = useState("");
