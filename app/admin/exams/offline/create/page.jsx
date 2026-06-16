@@ -231,7 +231,7 @@ export default function CreateOfflineExamPage() {
                             <Select
                                 value={formData.session}
                                 onChange={(val) => setFormData({ ...formData, session: val, batches: [] })}
-                                options={sessions.map(s => ({ label: s.name, value: s._id }))}
+                                options={sessions.map(s => ({ label: s.sessionName, value: s._id }))}
                             />
                         </div>
                         <div className="space-y-1">
