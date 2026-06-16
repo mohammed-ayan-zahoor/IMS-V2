@@ -1308,7 +1308,7 @@ export default function BatchDetailPage() {
                                                     <p className="text-xs text-slate-400 mt-0.5">{titles.chapter}</p>
                                                 )}
                                             </div>
-                                            <span className="text-[10px] text-slate-400 shrink-0">{when}</span>
+                                            <span className="text-sm font-semibold text-slate-600 shrink-0 bg-slate-50 px-2 py-1 rounded-md border border-slate-100 shadow-sm">{when}</span>
                                         </div>
                                         <div className="flex items-center gap-1.5 mt-2">
                                             <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-500">
