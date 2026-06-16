@@ -75,8 +75,11 @@ export default function StudentsPage() {
     }, [searchParams]);
 
     // Import Logic State
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [importFile, setImportFile] = useState(null);
-    const [importStatus, setImportStatus] = useState("idle"); // idle, uploading, success, error
+    const [importCourseId, setImportCourseId] = useState("");
+    const [importBatchId, setImportBatchId] = useState("");
+    const [importStatus, setImportStatus] = useState("idle"); // idle, uploading, preview, importing, success, error
     const [importResult, setImportResult] = useState(null); // { successCount, failedCount, errors }
 
     // Filter State
@@ -511,13 +514,17 @@ export default function StudentsPage() {
     };
 
     const handleUploadAndPreview = async () => {
-        if (!importFile) return;
+        if (!importFile || !importBatchId) {
+            toast.error("Please select a file and a target class/section.");
+            return;
+        }
         setLoading(true);
         setImportStatus("uploading");
 
         try {
             const formData = new FormData();
             formData.append("file", importFile);
+            formData.append("targetBatchId", importBatchId);
 
             const res = await fetch("/api/v1/students/import?preview=true", {
                 method: "POST",
@@ -550,13 +557,14 @@ export default function StudentsPage() {
     };
 
     const handleConfirmImport = async () => {
-        if (!importFile) return;
+        if (!importFile || !importBatchId) return;
         setLoading(true);
         setImportStatus("importing");
 
         try {
             const formData = new FormData();
             formData.append("file", importFile);
+            formData.append("targetBatchId", importBatchId);
 
             const res = await fetch("/api/v1/students/import", {
                 method: "POST",
@@ -1678,6 +1686,30 @@ export default function StudentsPage() {
                 <div className="space-y-6">
                     {importStatus === "idle" && (
                         <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Select
+                                    label={isSchool ? "Target Class" : "Target Course"}
+                                    value={importCourseId}
+                                    onChange={(val) => { setImportCourseId(val); setImportBatchId(""); }}
+                                    options={[
+                                        { label: "Select...", value: "" },
+                                        ...courses.map(c => ({ label: c.name, value: c._id }))
+                                    ]}
+                                />
+                                <Select
+                                    label={isSchool ? "Target Section" : "Target Batch"}
+                                    value={importBatchId}
+                                    onChange={(val) => setImportBatchId(val)}
+                                    options={[
+                                        { label: "Select...", value: "" },
+                                        ...batches
+                                            .filter(b => b.course === importCourseId || b.course?._id === importCourseId)
+                                            .map(b => ({ label: b.name, value: b._id }))
+                                    ]}
+                                    disabled={!importCourseId}
+                                />
+                            </div>
+
                             <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center">
                                 <FileSpreadsheet className="mx-auto text-premium-blue mb-2" size={32} />
                                 <h3 className="text-sm font-bold text-slate-800">Upload Excel File</h3>
@@ -1701,7 +1733,7 @@ export default function StudentsPage() {
                                 />
                             </div>
                             {importFile && (
-                                <Button onClick={handleUploadAndPreview} className="w-full" disabled={!importFile}>
+                                <Button onClick={handleUploadAndPreview} className="w-full" disabled={!importFile || !importBatchId}>
                                     <Upload className="mr-2" size={16} />
                                     Upload & Preview
                                 </Button>

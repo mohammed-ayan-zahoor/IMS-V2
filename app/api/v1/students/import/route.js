@@ -221,9 +221,13 @@ export async function POST(req) {
 
         const formData = await req.formData();
         const file = formData.get("file");
+        const globalTargetBatchId = formData.get("targetBatchId");
 
         if (!file) {
             return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+        }
+        if (!globalTargetBatchId) {
+            return NextResponse.json({ error: "No target class/section selected" }, { status: 400 });
         }
 
         // Parse file buffer
@@ -418,41 +422,9 @@ export async function POST(req) {
             // Clean Aadhar Number
             const cleanAadhar = rawAadhar ? rawAadhar.replace(/\s+/g, '') : "";
 
-            // Dynamic Self-Healing Class and Batch Generation / Check
-            let targetBatchId = null;
-            let batchStatus = "Ok";
-            if (!isVocational && sessionId && rawClass) {
-                try {
-                    const { courseName, batchName } = parseClassString(rawClass);
-                    
-                    if (isPreview) {
-                        const courseExists = await checkCourseExists(courseName, scope.instituteId);
-                        let batchExists = false;
-                        if (courseExists) {
-                            batchExists = await checkBatchExists(batchName, courseExists._id, sessionId, scope.instituteId);
-                        }
-                        if (!courseExists) {
-                            batchStatus = "Course & Batch will be auto-created";
-                        } else if (!batchExists) {
-                            batchStatus = "Batch will be auto-created";
-                        }
-                    } else {
-                        const cacheKey = `${courseName}_${batchName}`;
-                        if (resolvedBatches[cacheKey]) {
-                            targetBatchId = resolvedBatches[cacheKey];
-                        } else {
-                            const course = await resolveCourse(courseName, scope.instituteId, session.user.id);
-                            const batch = await resolveBatch(batchName, course._id, sessionId, scope.instituteId, session.user.id);
-                            targetBatchId = batch._id;
-                            resolvedBatches[cacheKey] = targetBatchId;
-                        }
-                    }
-                } catch (err) {
-                    console.error(`[IMPORT] Self-Healing Batch resolution failed for row ${rowNum}:`, err.message);
-                }
-            } else if (!isVocational && sessionId && !rawClass) {
-                batchStatus = "No class specified";
-            }
+            // Use the global targetBatchId provided by the user in the UI
+            let targetBatchId = globalTargetBatchId;
+            let batchStatus = "Assigned Manually";
 
             if (isPreview) {
                 previewRows.push({
