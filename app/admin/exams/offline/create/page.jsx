@@ -48,7 +48,7 @@ export default function CreateOfflineExamPage() {
         if (formData.course) {
             const courseBatches = batches.filter(b => 
                 (b.course?._id === formData.course || b.course === formData.course) &&
-                (b.session?._id === formData.session || b.session === formData.session)
+                (!formData.session || !b.session || b.session?._id === formData.session || b.session === formData.session)
             );
             setFilteredBatches(courseBatches);
 
@@ -84,7 +84,7 @@ export default function CreateOfflineExamPage() {
             setBatches(bData.batches || []);
             setSubjects(sData.subjects || []);
             
-            const activeSession = sessData.sessions?.find(s => s.status === 'active');
+            const activeSession = sessData.sessions?.find(s => s.isActive === true);
             setSessions(sessData.sessions || []);
             setGradingScales(scaleData.gradingScales || []);
 
