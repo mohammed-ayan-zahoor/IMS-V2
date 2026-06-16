@@ -27,7 +27,7 @@ export default function Select({
     const listRef = useRef(null);
 
     const filteredOptions = options.filter(opt =>
-        opt.label.toLowerCase().includes(search.toLowerCase())
+        (opt.label || "").toString().toLowerCase().includes(search.toLowerCase())
     );
 
     const selectedOption = options.find(opt => opt.value === value);
