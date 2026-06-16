@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { format, isPast } from "date-fns";
-import { Plus, Search, Filter, Trash2, Edit, FileText, Clock, CheckCircle, Settings, Layers, Archive, Monitor, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit, FileText, Clock, CheckCircle, Settings, Layers, Archive, Monitor, FileSpreadsheet, Info, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -21,6 +21,7 @@ export default function ExamListPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("upcoming"); // upcoming, closed
     const [search, setSearch] = useState("");
+    const [showHelpModal, setShowHelpModal] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -107,19 +108,27 @@ export default function ExamListPage() {
             </div>
 
             {/* Mode Switcher */}
-            <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit">
-                <button
-                    onClick={() => { setExamMode("online"); setActiveTab("upcoming"); }}
-                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${examMode === "online" ? "bg-white text-premium-blue shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                >
-                    <Monitor size={16} /> Online Exams
-                </button>
-                <button
-                    onClick={() => { setExamMode("offline"); setActiveTab("upcoming"); }}
-                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${examMode === "offline" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                >
-                    <FileSpreadsheet size={16} /> Offline Exams
-                </button>
+            <div className="flex items-center gap-4">
+                <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit">
+                    <button
+                        onClick={() => { setExamMode("online"); setActiveTab("upcoming"); }}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${examMode === "online" ? "bg-white text-premium-blue shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                        <Monitor size={16} /> Online Exams
+                    </button>
+                    <button
+                        onClick={() => { setExamMode("offline"); setActiveTab("upcoming"); }}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${examMode === "offline" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                        <FileSpreadsheet size={16} /> Offline Exams
+                    </button>
+                </div>
+                
+                {examMode === "offline" && (
+                    <Button variant="outline" size="sm" onClick={() => setShowHelpModal(true)} className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 rounded-full px-4">
+                        <Info size={16} className="mr-2" /> How it works
+                    </Button>
+                )}
             </div>
 
             {/* Tabs & Search */}
@@ -322,6 +331,44 @@ export default function ExamListPage() {
                     </div>
                 )}
             </div>
+
+            {/* Help Modal */}
+            {showHelpModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                    <Card className="w-full max-w-2xl max-h-[85vh] overflow-y-auto flex flex-col">
+                        <div className="flex justify-between items-center p-6 border-b border-slate-100 sticky top-0 bg-white z-10">
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-900">How to use Offline Exams</h2>
+                                <p className="text-sm text-slate-500">A quick guide to setting up and managing offline tests.</p>
+                            </div>
+                            <button onClick={() => setShowHelpModal(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-6 text-slate-700">
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-slate-900 flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-premium-blue text-white flex items-center justify-center text-xs">1</div> Grading Scales (Optional)</h3>
+                                <p className="pl-8 text-sm">If your school uses letter grades (A1, B2) based on percentage ranges, create a <strong>Grading Scale</strong> first using the button at the top right. Otherwise, the system will just use numeric marks.</p>
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-slate-900 flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-premium-blue text-white flex items-center justify-center text-xs">2</div> Create Exam</h3>
+                                <p className="pl-8 text-sm">Click <strong>Create Offline Exam</strong>. Give it a name like "Term 1", select the class, and add the subjects that will be tested along with their maximum marks.</p>
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-slate-900 flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-premium-blue text-white flex items-center justify-center text-xs">3</div> Enter Marks</h3>
+                                <p className="pl-8 text-sm">Once created, the exam will be in the <strong>ENTRY OPEN</strong> state. Click <strong>Manage Marks</strong> on the exam card. Select a batch, and enter marks for all students in the spreadsheet grid. You can toggle AB (Absent) or NA (Not Appeared).</p>
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-slate-900 flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs">4</div> Publish & Print Reports</h3>
+                                <p className="pl-8 text-sm">When all marks are entered, go to the <strong>Manage Marks</strong> page and click <strong>Publish Results</strong>. This locks the marks so they can't be edited. You can then click <strong>Report Cards</strong> to view the class performance and print individual report cards.</p>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-100 bg-slate-50 sticky bottom-0 flex justify-end">
+                            <Button onClick={() => setShowHelpModal(false)}>Got it, thanks!</Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 }
