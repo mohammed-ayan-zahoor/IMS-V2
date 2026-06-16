@@ -736,7 +736,9 @@ const wrap = document.getElementById('sigWrap');
 let drawing = false, hasSig = false;
 
 function resizeCanvas() {
+  if (hasSig) return; // Prevent clearing the signature if already signed
   const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
   canvas.width = rect.width * window.devicePixelRatio;
   canvas.height = rect.height * window.devicePixelRatio;
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
@@ -935,7 +937,23 @@ async function trackMouAction(actionType) {
 
 function triggerPrint() {
   trackMouAction('print');
+  
+  // Inject signature as an image for print reliability (canvases often drop in print dialogs)
+  const sigPlaceholder = document.createElement('img');
+  if (hasSig) {
+    sigPlaceholder.src = canvas.toDataURL('image/png');
+    sigPlaceholder.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none';
+    wrap.appendChild(sigPlaceholder);
+    canvas.style.display = 'none';
+  }
+
   window.print();
+
+  // Restore the canvas immediately after the print dialog closes
+  if (hasSig) {
+    wrap.removeChild(sigPlaceholder);
+    canvas.style.display = 'block';
+  }
 }
 </script>
 </body>
