@@ -208,6 +208,14 @@ async function PublicWebsitePage({ params }) {
     // If this page was built with GrapesJS, liveContent is an object with
     // gjsHtml / gjsCss fields. Render the raw HTML directly.
     if (liveContent && liveContent.gjsHtml) {
+        // SECURITY / STABILITY FIX:
+        // Empty `src=""` on iframes/images or `<meta http-equiv="refresh">` tags
+        // cause the browser to endlessly request the current page URL in a loop,
+        // spamming the Next.js server and blocking the event loop.
+        const safeHtml = liveContent.gjsHtml
+            .replace(/<meta[^>]*http-equiv=["']?refresh["']?[^>]*>/gi, '')
+            .replace(/src=["']\s*["']/gi, 'src="about:blank"');
+
         return (
             <>
                 <script
@@ -218,7 +226,7 @@ async function PublicWebsitePage({ params }) {
                     <style dangerouslySetInnerHTML={{ __html: liveContent.gjsCss }} />
                 )}
                 <div
-                    dangerouslySetInnerHTML={{ __html: liveContent.gjsHtml }}
+                    dangerouslySetInnerHTML={{ __html: safeHtml }}
                     style={{ fontFamily: `'${fontFamily}', sans-serif` }}
                 />
             </>
