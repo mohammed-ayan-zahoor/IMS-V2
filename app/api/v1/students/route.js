@@ -137,11 +137,16 @@ export async function POST(req) {
 
         try {
             // Get institute type to know if session isolation applies
-            const inst = await Institute.findById(targetInstituteId).select('type');
+            const inst = await Institute.findById(targetInstituteId).select('type settings');
             if (!inst) {
                 return NextResponse.json({ error: "Institute not found" }, { status: 404 });
             }
             instituteType = inst.type;
+
+            // Validate transport module status
+            if (body.transport?.isAvailing && !inst.settings?.features?.transport) {
+                return NextResponse.json({ error: "Transport module is disabled for this institute. Enable it in settings first." }, { status: 400 });
+            }
 
             // Derive session server-side
             const sessionValidationResult = await validateAndDeriveSession(req, {

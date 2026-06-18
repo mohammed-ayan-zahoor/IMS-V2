@@ -94,7 +94,7 @@ export default function AdminLayout({ children }) {
 
     const features = liveFeatures || session?.user?.institute?.features || {};
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
-    const isTransportEnabled = isSchool || features.transport;
+    const isTransportEnabled = !!features.transport;
     const isHostelEnabled = !!features.hostel;
     const menuGroups = [
         {
@@ -141,7 +141,7 @@ export default function AdminLayout({ children }) {
                 { label: "Expense Master", icon: Receipt, href: "/admin/expenses/master" },
             ]
         },
-        // Transport - conditionally visible (always for SCHOOL, opt-in for VOCATIONAL)
+        // Transport
         ...(isTransportEnabled ? [{
             label: "Transport",
             role: ["admin", "super_admin"],
@@ -149,8 +149,8 @@ export default function AdminLayout({ children }) {
                 { label: "Transport", icon: Bus, href: "/admin/transport" }
             ]
         }] : []),
-        // Hostel - always visible for SCHOOL, opt-in via toggle for VOCATIONAL
-        ...((isSchool || isHostelEnabled) ? [{
+        // Hostel
+        ...(isHostelEnabled ? [{
             label: "Hostel",
             role: ["admin", "super_admin"],
             items: [
