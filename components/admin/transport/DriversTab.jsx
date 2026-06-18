@@ -178,9 +178,9 @@ export default function DriversTab() {
                     {drivers.map(driver => {
                         const isExpired = driver.licenseExpiry && new Date(driver.licenseExpiry) < new Date();
                         return (
-                        <Card key={driver._id} padding="p-0" className={cn("group hover:shadow-md transition-all overflow-hidden flex flex-row h-full border", isExpired ? "!bg-red-50 !border-red-200" : "border-transparent")}>
+                        <Card key={driver._id} padding="p-0" className={cn("group hover:shadow-md transition-all overflow-hidden flex flex-row h-full", isExpired ? "!bg-red-100 !border !border-red-300" : "border border-transparent")}>
                             {/* Photo Column */}
-                            <div className={cn("w-32 sm:w-40 border-r flex items-center justify-center shrink-0", isExpired ? "!bg-red-100 !border-red-100" : "bg-slate-50 border-slate-100")}>
+                            <div className={cn("w-32 sm:w-40 border-r flex items-center justify-center shrink-0", isExpired ? "!bg-red-200 !border-red-300" : "bg-slate-50 border-slate-100")}>
                                 {driver.photo ? (
                                     <img src={driver.photo} alt={driver.name} className="w-full h-full object-cover" />
                                 ) : (
