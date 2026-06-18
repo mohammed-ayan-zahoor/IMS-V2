@@ -2200,6 +2200,8 @@ export default function StudentDetailsPage({ params }) {
                         transportRoutes={transportRoutes}
                         transportVehicles={transportVehicles}
                         transportPresets={transportPresets}
+                        studentData={studentData}
+                        selectedSessionId={selectedSessionId}
                     />
                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
@@ -2956,7 +2958,7 @@ export default function StudentDetailsPage({ params }) {
     );
 }
 
-function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets }) {
+function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets, studentData, selectedSessionId }) {
     const [editTab, setEditTab] = useState("basic");
 
     const tabClasses = (tab) => `
