@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, Car, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, Edit2, Trash2, Car, Bus, Truck, AlertTriangle, CheckCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -15,6 +15,16 @@ const VEHICLE_TYPES = [
     { label: "Bus", value: "Bus" }, { label: "Van", value: "Van" },
     { label: "Auto", value: "Auto" }, { label: "Car", value: "Car" }, { label: "Other", value: "Other" }
 ];
+
+const getVehicleIcon = (type, size = 16) => {
+    switch (type?.toLowerCase()) {
+        case 'bus': return <Bus size={size} className="text-blue-500" />;
+        case 'van': return <Truck size={size} className="text-amber-500" />;
+        case 'car': return <Car size={size} className="text-emerald-500" />;
+        case 'auto': return <Car size={size} className="text-orange-500" />;
+        default: return <Car size={size} className="text-slate-400" />;
+    }
+};
 
 export default function VehiclesTab() {
     const toast = useToast();
@@ -115,7 +125,12 @@ export default function VehiclesTab() {
                             {vehicles.map(v => (
                                 <tr key={v._id} className="border-b border-slate-50 hover:bg-slate-50/40 transition-colors">
                                     <td className="px-4 py-3 font-bold text-slate-800 font-mono">{v.registrationNumber}</td>
-                                    <td className="px-4 py-3 text-slate-600">{v.type}{v.make ? ` · ${v.make}` : ""}</td>
+                                    <td className="px-4 py-3 text-slate-600">
+                                        <div className="flex items-center gap-2">
+                                            {getVehicleIcon(v.type)}
+                                            <span>{v.type}{v.make ? ` · ${v.make}` : ""}</span>
+                                        </div>
+                                    </td>
                                     <td className="px-4 py-3 text-slate-600">{v.route?.name || <span className="text-slate-300 italic">Unassigned</span>}</td>
                                     <td className="px-4 py-3 text-center">
                                         <span className={cn("text-xs font-bold px-2 py-1 rounded-full", v.currentOccupancy >= v.capacity ? "bg-red-50 text-red-600" : v.currentOccupancy > v.capacity * 0.8 ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600")}>
