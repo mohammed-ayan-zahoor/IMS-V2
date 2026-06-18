@@ -19,6 +19,7 @@ export default function DriversTab() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [deleting, setDeleting] = useState(null);
+    const [uploading, setUploading] = useState(false);
     const [form, setForm] = useState({
         name: "",
         phone: "",
@@ -26,7 +27,8 @@ export default function DriversTab() {
         licenseNumber: "",
         licenseExpiry: "",
         address: "",
-        assignedVehicle: ""
+        assignedVehicle: "",
+        photo: ""
     });
 
     useEffect(() => {
@@ -60,7 +62,8 @@ export default function DriversTab() {
             licenseNumber: "",
             licenseExpiry: "",
             address: "",
-            assignedVehicle: ""
+            assignedVehicle: "",
+            photo: ""
         });
         setIsModalOpen(true);
     };
@@ -74,7 +77,8 @@ export default function DriversTab() {
             licenseNumber: driver.licenseNumber || "",
             licenseExpiry: driver.licenseExpiry ? new Date(driver.licenseExpiry).toISOString().slice(0, 10) : "",
             address: driver.address || "",
-            assignedVehicle: driver.assignedVehicle?._id || driver.assignedVehicle || ""
+            assignedVehicle: driver.assignedVehicle?._id || driver.assignedVehicle || "",
+            photo: driver.photo || ""
         });
         setIsModalOpen(true);
     };
@@ -102,6 +106,36 @@ export default function DriversTab() {
             }
         } catch (e) {
             toast.error("Failed to save driver");
+        }
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            setUploading(true);
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const res = await fetch('/api/v1/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                setForm(prev => ({
+                    ...prev,
+                    photo: data.url
+                }));
+            } else {
+                toast.error("Failed to upload image");
+            }
+        } catch (error) {
+            toast.error("Error uploading image");
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -214,30 +248,70 @@ export default function DriversTab() {
                 </Card>
             )}
 
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editing ? "Edit Driver" : "Add Driver"} className="max-w-xl">
-                <form onSubmit={handleSave} className="space-y-4">
-                    <Input label="Driver Name" placeholder="e.g. John Doe" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Phone Number" placeholder="e.g. 9876543210" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
-                        <Input label="Alt Phone Number" placeholder="e.g. 9876543210" value={form.altPhone} onChange={(e) => setForm({ ...form, altPhone: e.target.value })} />
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editing ? "Edit Driver" : "Add Driver"} className="max-w-3xl">
+                <form onSubmit={handleSave} className="flex flex-col gap-6">
+                    <div className="flex flex-col md:flex-row gap-6">
+                        {/* Column 1: Photo Upload */}
+                        <div className="flex flex-col items-center justify-start gap-4 md:w-1/3 shrink-0">
+                            <div className="w-40 h-40 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-200 shadow-sm overflow-hidden mt-2">
+                                {form.photo ? (
+                                    <img src={form.photo} alt="Preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="flex flex-col items-center text-slate-300 gap-2">
+                                        <UserCheck size={40} />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest">No Photo</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="w-full">
+                                <label className="block w-full">
+                                    <span className="sr-only">Choose profile photo</span>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleFileChange}
+                                        disabled={uploading}
+                                        className="block w-full text-xs text-slate-500
+                                          file:mr-0 file:mb-2 file:py-1.5 file:px-3
+                                          file:rounded-lg file:border-0
+                                          file:text-[10px] file:font-black
+                                          file:bg-premium-blue/10 file:text-premium-blue
+                                          hover:file:bg-premium-blue/20
+                                          cursor-pointer file:w-full file:cursor-pointer
+                                        "
+                                    />
+                                </label>
+                                {uploading && <p className="text-[10px] text-premium-blue mt-1 font-bold animate-pulse text-center">Uploading...</p>}
+                            </div>
+                        </div>
+
+                        {/* Column 2: Driver Details */}
+                        <div className="flex-1 space-y-4">
+                            <Input label="Driver Name" placeholder="e.g. John Doe" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Phone Number" placeholder="e.g. 9876543210" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
+                                <Input label="Alt Phone Number" placeholder="e.g. 9876543210" value={form.altPhone} onChange={(e) => setForm({ ...form, altPhone: e.target.value })} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="License Number" placeholder="e.g. DL-123456789" value={form.licenseNumber} onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })} />
+                                <Input label="License Expiry" type="date" value={form.licenseExpiry} onChange={(e) => setForm({ ...form, licenseExpiry: e.target.value })} />
+                            </div>
+                            <Input label="Address" placeholder="Driver's residential address..." value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                            <Select 
+                                label="Assign Vehicle" 
+                                value={form.assignedVehicle} 
+                                onChange={(val) => setForm({ ...form, assignedVehicle: val })} 
+                                options={[
+                                    { label: "No Assignment", value: "" }, 
+                                    ...vehicles.map(v => ({ label: `${v.registrationNumber} (${v.type})`, value: v._id }))
+                                ]} 
+                            />
+                        </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="License Number" placeholder="e.g. DL-123456789" value={form.licenseNumber} onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })} />
-                        <Input label="License Expiry" type="date" value={form.licenseExpiry} onChange={(e) => setForm({ ...form, licenseExpiry: e.target.value })} />
-                    </div>
-                    <Input label="Address" placeholder="Driver's residential address..." value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-                    <Select 
-                        label="Assign Vehicle" 
-                        value={form.assignedVehicle} 
-                        onChange={(val) => setForm({ ...form, assignedVehicle: val })} 
-                        options={[
-                            { label: "No Assignment", value: "" }, 
-                            ...vehicles.map(v => ({ label: `${v.registrationNumber} (${v.type})`, value: v._id }))
-                        ]} 
-                    />
-                    <div className="pt-4 flex gap-3">
+                    
+                    <div className="pt-4 flex gap-3 border-t border-slate-100">
                         <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                        <Button type="submit" className="flex-1">{editing ? "Update Driver" : "Add Driver"}</Button>
+                        <Button type="submit" className="flex-1" disabled={uploading}>{editing ? "Update Driver" : "Add Driver"}</Button>
                     </div>
                 </form>
             </Modal>
