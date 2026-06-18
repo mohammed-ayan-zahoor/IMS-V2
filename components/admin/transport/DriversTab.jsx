@@ -10,6 +10,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 import Avatar from "@/components/shared/Avatar";
+import { cn } from "@/lib/utils";
 
 export default function DriversTab() {
     const toast = useToast();
