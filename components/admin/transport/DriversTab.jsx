@@ -117,6 +117,7 @@ export default function DriversTab() {
             setUploading(true);
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('fileType', 'image');
             
             const res = await fetch('/api/v1/upload', {
                 method: 'POST',
