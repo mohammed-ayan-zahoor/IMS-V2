@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Institute from '@/models/Institute';
+import User from '@/models/User';
 import { getInstituteScope } from '@/middleware/instituteScope';
 import { createAuditLog } from '@/services/auditService';
 
@@ -100,6 +101,20 @@ export async function PATCH(req) {
                         updateData.settings.features[feature] = Boolean(body.settings.features[feature]);
                     }
                 });
+            }
+        }
+
+        // Validate Transport Module Disablement
+        if (updateData.settings?.features?.transport === false) {
+            const activeStudentsWithTransport = await User.findOne({
+                institute: scope.instituteId,
+                role: 'student',
+                'transport.isAvailing': true,
+                deletedAt: null
+            }).select('_id');
+
+            if (activeStudentsWithTransport) {
+                return NextResponse.json({ error: "Cannot disable transport module because one or more active students are currently assigned to transport." }, { status: 400 });
             }
         }
 
