@@ -122,8 +122,10 @@ export default function VehiclesTab() {
                             </tr>
                         </thead>
                         <tbody>
-                            {vehicles.map(v => (
-                                <tr key={v._id} className="border-b border-slate-50 hover:bg-slate-50/40 transition-colors">
+                            {vehicles.map(v => {
+                                const isRowExpired = (v.insuranceExpiry && isExpired(v.insuranceExpiry)) || (v.fitnessExpiry && isExpired(v.fitnessExpiry));
+                                return (
+                                <tr key={v._id} className={cn("border-b border-slate-50 transition-colors", isRowExpired ? "bg-red-50/50 hover:bg-red-100/50" : "hover:bg-slate-50/40")}>
                                     <td className="px-4 py-3 font-bold text-slate-800 font-mono">{v.registrationNumber}</td>
                                     <td className="px-4 py-3 text-slate-600">
                                         <div className="flex items-center gap-2">
@@ -168,7 +170,7 @@ export default function VehiclesTab() {
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            )})}
                         </tbody>
                     </table>
                 </div>

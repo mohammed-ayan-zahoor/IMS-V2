@@ -174,10 +174,12 @@ export default function DriversTab() {
 
             {drivers.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {drivers.map(driver => (
-                        <Card key={driver._id} padding="p-0" className="group hover:shadow-md transition-all overflow-hidden flex flex-row h-full">
+                    {drivers.map(driver => {
+                        const isExpired = driver.licenseExpiry && new Date(driver.licenseExpiry) < new Date();
+                        return (
+                        <Card key={driver._id} padding="p-0" className={cn("group hover:shadow-md transition-all overflow-hidden flex flex-row h-full border", isExpired ? "bg-red-50/50 border-red-200" : "border-transparent")}>
                             {/* Photo Column */}
-                            <div className="w-32 sm:w-40 bg-slate-50 border-r border-slate-100 flex items-center justify-center shrink-0">
+                            <div className={cn("w-32 sm:w-40 border-r flex items-center justify-center shrink-0", isExpired ? "bg-red-100/50 border-red-100" : "bg-slate-50 border-slate-100")}>
                                 {driver.photo ? (
                                     <img src={driver.photo} alt={driver.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -212,7 +214,7 @@ export default function DriversTab() {
                                     </div>
                                 </div>
 
-                                <div className="mt-4 grid grid-cols-2 gap-3 pt-4 border-t border-slate-50">
+                                <div className={cn("mt-4 grid grid-cols-2 gap-3 pt-4 border-t", isExpired ? "border-red-100/50" : "border-slate-50")}>
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Assigned Vehicle</p>
                                         {driver.assignedVehicle ? (
@@ -232,7 +234,7 @@ export default function DriversTab() {
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">License Expiry</p>
                                         {driver.licenseExpiry ? (
-                                            <p className={`text-xs font-bold ${new Date(driver.licenseExpiry) < new Date() ? 'text-red-500' : 'text-slate-700'}`}>
+                                            <p className={`text-xs font-bold ${isExpired ? 'text-red-600' : 'text-slate-700'}`}>
                                                 {new Date(driver.licenseExpiry).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                                             </p>
                                         ) : (
@@ -242,13 +244,13 @@ export default function DriversTab() {
                                 </div>
                                 {driver.address && (
                                     <div className="mt-3 flex items-start gap-1.5">
-                                        <MapPin size={12} className="text-slate-300 mt-0.5 shrink-0" />
+                                        <MapPin size={12} className={isExpired ? "text-red-300 mt-0.5 shrink-0" : "text-slate-300 mt-0.5 shrink-0"} />
                                         <p className="text-[11px] text-slate-400 line-clamp-1">{driver.address}</p>
                                     </div>
                                 )}
                             </div>
                         </Card>
-                    ))}
+                    )})}
                 </div>
             ) : (
                 <Card className="py-16 flex flex-col items-center text-center">
