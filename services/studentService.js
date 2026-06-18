@@ -5,6 +5,11 @@ import Membership from '@/models/Membership';
 import '@/models/Course'; // Ensure Course schema is registered
 import '@/models/FeePreset'; // Ensure FeePreset schema is registered
 import '@/models/Certificate'; // Ensure Certificate schema is registered
+import '@/models/Vehicle'; // Ensure Vehicle schema is registered
+import '@/models/TransportRoute'; // Ensure TransportRoute schema is registered
+import '@/models/TransportFeePreset'; // Ensure TransportFeePreset schema is registered
+import '@/models/HostelRoom'; // Ensure HostelRoom schema is registered
+import '@/models/HostelBlock'; // Ensure HostelBlock schema is registered
 import { createAuditLog } from './auditService';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
