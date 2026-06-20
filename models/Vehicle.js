@@ -9,6 +9,7 @@ const VehicleSchema = new Schema({
         enum: ['Bus', 'Van', 'Auto', 'Car', 'Other'], 
         default: 'Bus' 
     },
+    photo: { type: String },
     capacity: { type: Number, required: true, min: 1 },
     make: { type: String, trim: true },   // "Tata" / "Ashok Leyland"
     model: { type: String, trim: true },  // "Starbus"
