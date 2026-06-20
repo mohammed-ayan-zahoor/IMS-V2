@@ -1749,11 +1749,18 @@ export default function StudentDetailsPage({ params }) {
                         </div>
 
                         {/* Transport Fees Section */}
-                        {isTransportEnabled && (studentData?.transportFees || []).length > 0 && (
-                            <div className="space-y-6 mt-8">
-                                <h3 className="text-lg font-bold text-slate-900 px-1">Transport Fees</h3>
-                                <div className="grid gap-4">
-                                    {(studentData.transportFees).map(fee => {
+                        {(() => {
+                            const filteredTransportFees = selectedSessionId 
+                                ? (studentData?.transportFees || []).filter(f => f.session?._id === selectedSessionId || f.session === selectedSessionId)
+                                : (studentData?.transportFees || []);
+                            
+                            if (!isTransportEnabled || filteredTransportFees.length === 0) return null;
+
+                            return (
+                                <div className="space-y-6 mt-8">
+                                    <h3 className="text-lg font-bold text-slate-900 px-1">Transport Fees</h3>
+                                    <div className="grid gap-4">
+                                        {filteredTransportFees.map(fee => {
                                         const paidAmount = fee.paidAmount || 0;
                                         const totalAmount = fee.totalAmount || 0;
                                         const isPaid = fee.status === 'paid';
@@ -1817,14 +1824,22 @@ export default function StudentDetailsPage({ params }) {
                                     })}
                                 </div>
                             </div>
-                        )}
+                        );
+                    })()}
 
                         {/* Hostel Fees Section */}
-                        {isHostelEnabled && (studentData?.hostelAllotments || []).length > 0 && (
-                            <div className="space-y-6 mt-8">
-                                <h3 className="text-lg font-bold text-slate-900 px-1">Hostel Fees</h3>
-                                <div className="grid gap-4">
-                                    {(studentData.hostelAllotments).map(allotment => {
+                        {(() => {
+                            const filteredHostelAllotments = selectedSessionId
+                                ? (studentData?.hostelAllotments || []).filter(a => a.session?._id === selectedSessionId || a.session === selectedSessionId)
+                                : (studentData?.hostelAllotments || []);
+                                
+                            if (!isHostelEnabled || filteredHostelAllotments.length === 0) return null;
+
+                            return (
+                                <div className="space-y-6 mt-8">
+                                    <h3 className="text-lg font-bold text-slate-900 px-1">Hostel Fees</h3>
+                                    <div className="grid gap-4">
+                                        {filteredHostelAllotments.map(allotment => {
                                         const paidAmount = allotment.paidAmount || 0;
                                         const totalAmount = allotment.totalAmount || 0;
                                         const isPaid = allotment.feeStatus === 'paid';
@@ -1912,7 +1927,8 @@ export default function StudentDetailsPage({ params }) {
                                     })}
                                 </div>
                             </div>
-                        )}
+                        );
+                    })()}
                     </div>
                 )}
 
