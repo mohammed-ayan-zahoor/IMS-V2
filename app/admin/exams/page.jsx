@@ -24,20 +24,29 @@ export default function ExamListPage() {
     const [search, setSearch] = useState("");
     const [showHelpModal, setShowHelpModal] = useState(false);
 
-    const { selectedSessionId } = useAcademicSession();
+    const { selectedSessionId, loading: sessionLoading } = useAcademicSession();
 
     useEffect(() => {
-        if (selectedSessionId) {
+        if (!sessionLoading) {
             fetchData();
         }
-    }, [selectedSessionId]);
+    }, [selectedSessionId, sessionLoading]);
 
     const fetchData = async () => {
         try {
             setLoading(true);
+            
+            const onlineUrl = selectedSessionId 
+                ? `/api/v1/exams?session=${selectedSessionId}` 
+                : `/api/v1/exams`;
+            
+            const offlineUrl = selectedSessionId 
+                ? `/api/v1/offline-exams?session=${selectedSessionId}` 
+                : `/api/v1/offline-exams`;
+
             const [onlineRes, offlineRes] = await Promise.all([
-                fetch(`/api/v1/exams?session=${selectedSessionId}`),
-                fetch(`/api/v1/offline-exams?session=${selectedSessionId}`)
+                fetch(onlineUrl),
+                fetch(offlineUrl)
             ]);
             const onlineData = await onlineRes.json();
             const offlineData = await offlineRes.json();

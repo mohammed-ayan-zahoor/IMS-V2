@@ -148,15 +148,17 @@ export default function HostelManagementPage() {
     }, [selectedSessionId]);
 
     // Trigger initial data load when session changes
+    const { loading: sessionLoading } = useAcademicSession();
+    
     useEffect(() => {
-        if (selectedSessionId) {
+        if (!sessionLoading) {
             fetchStats();
             fetchBlocks();
             fetchRooms();
             fetchAllotments();
             fetchStudents();
         }
-    }, [selectedSessionId, fetchStats, fetchBlocks, fetchRooms, fetchAllotments, fetchStudents]);
+    }, [selectedSessionId, sessionLoading, fetchStats, fetchBlocks, fetchRooms, fetchAllotments, fetchStudents]);
 
     // Form handlers
     const handleCreateBlock = async (e) => {
