@@ -1750,7 +1750,7 @@ export default function StudentDetailsPage({ params }) {
 
                         {/* Transport Fees Section */}
                         {(() => {
-                            const filteredTransportFees = selectedSessionId 
+                            const filteredTransportFees = (isSchool && selectedSessionId) 
                                 ? (studentData?.transportFees || []).filter(f => f.session?._id === selectedSessionId || f.session === selectedSessionId)
                                 : (studentData?.transportFees || []);
                             
@@ -1829,7 +1829,7 @@ export default function StudentDetailsPage({ params }) {
 
                         {/* Hostel Fees Section */}
                         {(() => {
-                            const filteredHostelAllotments = selectedSessionId
+                            const filteredHostelAllotments = (isSchool && selectedSessionId)
                                 ? (studentData?.hostelAllotments || []).filter(a => a.session?._id === selectedSessionId || a.session === selectedSessionId)
                                 : (studentData?.hostelAllotments || []);
                                 
@@ -2218,6 +2218,7 @@ export default function StudentDetailsPage({ params }) {
                         transportPresets={transportPresets}
                         studentData={studentData}
                         selectedSessionId={selectedSessionId}
+                        isSchool={isSchool}
                     />
                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
@@ -2974,7 +2975,7 @@ export default function StudentDetailsPage({ params }) {
     );
 }
 
-function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets, studentData, selectedSessionId }) {
+function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets, studentData, selectedSessionId, isSchool }) {
     const [editTab, setEditTab] = useState("basic");
 
     const tabClasses = (tab) => `
@@ -3357,9 +3358,9 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
 
                                 {/* Session Awareness - Manual Initialization */}
                                 {(() => {
-                                    const hasFeeForCurrentSession = (studentData?.transportFees || []).some(f => 
-                                        f.session?._id === selectedSessionId || f.session === selectedSessionId
-                                    );
+                                    const hasFeeForCurrentSession = (isSchool && selectedSessionId)
+                                        ? (studentData?.transportFees || []).some(f => f.session?._id === selectedSessionId || f.session === selectedSessionId)
+                                        : (studentData?.transportFees || []).length > 0;
 
                                     if (!hasFeeForCurrentSession && formData.transport.isAvailing) {
                                         return (
