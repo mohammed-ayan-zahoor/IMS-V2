@@ -154,6 +154,8 @@ export async function GET(req) {
         const activeStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, status: 'ACTIVE' });
         const completedStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, status: 'COMPLETED' });
         const droppedStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, status: 'DROPPED' });
+        const maleStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, 'profile.gender': 'Male' });
+        const femaleStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, 'profile.gender': 'Female' });
         const staffCountPromise = User.countDocuments({ ...hybridBaseQuery, role: { $in: ['admin', 'staff'] } });
 
         // 2. Total Enrollments (Sum of student counts across all active batches)
@@ -298,6 +300,8 @@ export async function GET(req) {
             activeStudentsCount,
             completedStudentsCount,
             droppedStudentsCount,
+            maleStudentsCount,
+            femaleStudentsCount,
             staffCount, 
             totalEnrollmentsResult, 
             enquiriesCount, 
@@ -312,6 +316,8 @@ export async function GET(req) {
             activeStudentsCountPromise,
             completedStudentsCountPromise,
             droppedStudentsCountPromise,
+            maleStudentsCountPromise,
+            femaleStudentsCountPromise,
             staffCountPromise,
             totalEnrollmentsPromise,
             enquiriesCountPromise,
@@ -356,6 +362,8 @@ export async function GET(req) {
                 activeStudents: activeStudentsCount,
                 completedStudents: completedStudentsCount,
                 droppedStudents: droppedStudentsCount,
+                maleStudents: maleStudentsCount,
+                femaleStudents: femaleStudentsCount,
                 coursesEnrolled: totalEnrollmentsResult[0]?.total || 0,
                 staff: staffCount,
                 enquiries: enquiriesCount,

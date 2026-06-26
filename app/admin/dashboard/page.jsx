@@ -6,6 +6,7 @@ import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import {
     Users,
+    User,
     BookOpen,
     Layers3,
     CreditCard,
@@ -147,6 +148,26 @@ export default function AdminDashboard() {
             trend: `${dashboardData?.trends?.enquiry >= 0 ? '+' : ''}${dashboardData?.trends?.enquiry || 0}%`, 
             trendType: (dashboardData?.trends?.enquiry || 0) >= 0 ? "up" : "down",
             colorClass: "bg-gradient-to-br from-cyan-50 to-cyan-100 border-l-4 border-cyan-600"
+        },
+        { 
+            title: "BOYS", 
+            value: loading ? "0" : (dashboardData?.counts?.maleStudents || 0).toLocaleString(), 
+            icon: User, 
+            trend: dashboardData?.counts?.totalStudents > 0 
+                ? `${Math.round(((dashboardData?.counts?.maleStudents || 0) / dashboardData.counts.totalStudents) * 100)}%`
+                : "0%", 
+            trendType: "neutral",
+            colorClass: "bg-gradient-to-br from-indigo-50 to-indigo-100 border-l-4 border-indigo-600"
+        },
+        { 
+            title: "GIRLS", 
+            value: loading ? "0" : (dashboardData?.counts?.femaleStudents || 0).toLocaleString(), 
+            icon: User, 
+            trend: dashboardData?.counts?.totalStudents > 0 
+                ? `${Math.round(((dashboardData?.counts?.femaleStudents || 0) / dashboardData.counts.totalStudents) * 100)}%`
+                : "0%", 
+            trendType: "neutral",
+            colorClass: "bg-gradient-to-br from-pink-50 to-pink-100 border-l-4 border-pink-600"
         },
         { 
             title: "STAFF", 
