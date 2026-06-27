@@ -150,26 +150,6 @@ export default function AdminDashboard() {
             colorClass: "bg-gradient-to-br from-cyan-50 to-cyan-100 border-l-4 border-cyan-600"
         },
         { 
-            title: "BOYS", 
-            value: loading ? "0" : (dashboardData?.counts?.maleStudents || 0).toLocaleString(), 
-            icon: User, 
-            trend: dashboardData?.counts?.totalStudents > 0 
-                ? `${Math.round(((dashboardData?.counts?.maleStudents || 0) / dashboardData.counts.totalStudents) * 100)}%`
-                : "0%", 
-            trendType: "neutral",
-            colorClass: "bg-gradient-to-br from-indigo-50 to-indigo-100 border-l-4 border-indigo-600"
-        },
-        { 
-            title: "GIRLS", 
-            value: loading ? "0" : (dashboardData?.counts?.femaleStudents || 0).toLocaleString(), 
-            icon: User, 
-            trend: dashboardData?.counts?.totalStudents > 0 
-                ? `${Math.round(((dashboardData?.counts?.femaleStudents || 0) / dashboardData.counts.totalStudents) * 100)}%`
-                : "0%", 
-            trendType: "neutral",
-            colorClass: "bg-gradient-to-br from-pink-50 to-pink-100 border-l-4 border-pink-600"
-        },
-        { 
             title: "STAFF", 
             value: loading ? "0" : (dashboardData?.counts?.staff || 0).toLocaleString(), 
             icon: Layers3, 
@@ -195,6 +175,54 @@ export default function AdminDashboard() {
                     </motion.div>
                 ))}
             </div>
+
+            {/* Gender Demographics Banner */}
+            {dashboardData?.counts && (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                >
+                    <Card className="premium-card p-6 overflow-hidden relative border-l-4 border-indigo-500">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="space-y-1">
+                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                    <Users size={16} className="text-indigo-600" />
+                                    Student Demographics
+                                </h3>
+                                <p className="text-[12px] font-medium text-slate-500">Gender distribution of active enrollments</p>
+                            </div>
+                            
+                            <div className="flex-1 max-w-2xl w-full">
+                                <div className="flex justify-between text-[11px] font-bold mb-2 uppercase tracking-wider">
+                                    <div className="text-indigo-600 flex items-center gap-1">
+                                        <User size={12} /> Boys ({(dashboardData.counts.maleStudents || 0).toLocaleString()})
+                                    </div>
+                                    <div className="text-pink-600 flex items-center gap-1">
+                                        <User size={12} /> Girls ({(dashboardData.counts.femaleStudents || 0).toLocaleString()})
+                                    </div>
+                                </div>
+                                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                                    {loading ? (
+                                        <div className="w-full h-full bg-slate-200 animate-pulse" />
+                                    ) : (
+                                        <>
+                                            <div 
+                                                className="h-full bg-indigo-500 transition-all duration-1000" 
+                                                style={{ width: `${dashboardData.counts.totalStudents > 0 ? (dashboardData.counts.maleStudents / dashboardData.counts.totalStudents) * 100 : 50}%` }}
+                                            />
+                                            <div 
+                                                className="h-full bg-pink-500 transition-all duration-1000" 
+                                                style={{ width: `${dashboardData.counts.totalStudents > 0 ? (dashboardData.counts.femaleStudents / dashboardData.counts.totalStudents) * 100 : 50}%` }}
+                                            />
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </motion.div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Admissions List */}
