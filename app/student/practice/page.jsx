@@ -71,12 +71,14 @@ export default function PracticeArenaPage() {
             const uniqueSubjects = [];
             const subIds = new Set();
             (subData.batches || []).forEach(batch => {
-                (batch.subjects || []).forEach(sub => {
-                    if (!subIds.has(sub._id)) {
-                        subIds.add(sub._id);
-                        uniqueSubjects.push(sub);
-                    }
-                });
+                if (batch.course && batch.course.subjects) {
+                    batch.course.subjects.forEach(sub => {
+                        if (!subIds.has(sub._id)) {
+                            subIds.add(sub._id);
+                            uniqueSubjects.push(sub);
+                        }
+                    });
+                }
             });
 
             setSubjects(uniqueSubjects);

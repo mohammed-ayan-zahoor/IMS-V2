@@ -21,8 +21,15 @@ export async function GET(req) {
             },
             deletedAt: null
         })
-            .populate("course", "name code")
-            .select("name schedule instructor"); // Select entire schedule object
+            .populate({
+                path: "course",
+                select: "name code subjects",
+                populate: {
+                    path: "subjects",
+                    select: "name"
+                }
+            })
+            .select("name schedule instructor course"); // Select entire schedule object and course
 
         return NextResponse.json({ batches });
 
