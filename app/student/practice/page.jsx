@@ -222,9 +222,14 @@ export default function PracticeArenaPage() {
                                         <select 
                                             value={config.subjectId}
                                             onChange={(e) => setConfig({ ...config, subjectId: e.target.value })}
-                                            className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all font-bold text-sm"
+                                            disabled={subjects.length === 0}
+                                            className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all font-bold text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                         >
-                                            {subjects.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                                            {subjects.length === 0 ? (
+                                                <option value="">No subjects assigned</option>
+                                            ) : (
+                                                subjects.map(s => <option key={s._id} value={s._id}>{s.name}</option>)
+                                            )}
                                         </select>
                                     </div>
 
@@ -234,7 +239,8 @@ export default function PracticeArenaPage() {
                                             <select 
                                                 value={config.count}
                                                 onChange={(e) => setConfig({ ...config, count: e.target.value })}
-                                                className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm"
+                                                disabled={subjects.length === 0}
+                                                className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                             >
                                                 {[5, 10, 15, 20, 25].map(v => <option key={v} value={v}>{v}</option>)}
                                             </select>
@@ -244,7 +250,8 @@ export default function PracticeArenaPage() {
                                             <select 
                                                 value={config.difficulty}
                                                 onChange={(e) => setConfig({ ...config, difficulty: e.target.value })}
-                                                className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm"
+                                                disabled={subjects.length === 0}
+                                                className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                             >
                                                 <option value="mixed">Mixed</option>
                                                 <option value="easy">Easy</option>
@@ -254,8 +261,13 @@ export default function PracticeArenaPage() {
                                         </div>
                                     </div>
 
-                                    <Button onClick={startSession} className="w-full h-14 rounded-2xl shadow-xl shadow-blue-500/20 font-black uppercase tracking-widest text-xs">
-                                        Start Mock Test <Play size={16} className="ml-2 fill-current" />
+                                    <Button 
+                                        onClick={startSession} 
+                                        disabled={subjects.length === 0}
+                                        className="w-full h-14 rounded-2xl shadow-xl shadow-blue-500/20 font-black uppercase tracking-widest text-xs disabled:opacity-60 disabled:shadow-none disabled:cursor-not-allowed"
+                                    >
+                                        {subjects.length === 0 ? "Unavailable" : "Start Mock Test"} 
+                                        {subjects.length > 0 && <Play size={16} className="ml-2 fill-current" />}
                                     </Button>
                                 </div>
                             </Card>
