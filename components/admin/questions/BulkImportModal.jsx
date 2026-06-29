@@ -67,11 +67,16 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
 
     const [courseId, setCourseId] = useState("");
     const [batchId, setBatchId] = useState("");
+    const [subjectId, setSubjectId] = useState("");
     const [inputMode, setInputMode] = useState("file"); // "file" or "paste"
     const [pasteText, setPasteText] = useState("");
 
     const filteredBatches = courseId
         ? batches.filter(b => String(b.course?._id || b.course) === String(courseId))
+        : [];
+
+    const filteredSubjects = courseId
+        ? courses.find(c => String(c._id) === String(courseId))?.subjects || []
         : [];
 
     const handleFileChange = (e) => {
@@ -123,6 +128,7 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
                     questions: jsonData,
                     courseId: courseId || undefined,
                     batchId: batchId || undefined,
+                    subjectId: subjectId || undefined,
                 }),
             });
 
@@ -195,6 +201,7 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
         setResult(null);
         setCourseId("");
         setBatchId("");
+        setSubjectId("");
         setInputMode("file");
         setPasteText("");
         onClose();
@@ -355,11 +362,11 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
                                 </div>
 
                                 {/* Optional Course/Batch Assignment */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <Select
                                         label="Assign to Course (optional)"
                                         value={courseId}
-                                        onChange={(val) => { setCourseId(val); setBatchId(""); }}
+                                        onChange={(val) => { setCourseId(val); setBatchId(""); setSubjectId(""); }}
                                         options={courseOptions}
                                         placeholder="Select Course"
                                     />
@@ -370,6 +377,14 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
                                         options={batchOptions}
                                         placeholder="Select Batch"
                                         disabled={!courseId}
+                                    />
+                                    <Select
+                                        label="Assign to Subject (optional)"
+                                        value={subjectId}
+                                        onChange={(val) => setSubjectId(val)}
+                                        options={[{ label: "No Subject", value: "" }, ...filteredSubjects.map(s => ({ label: s.name, value: s._id }))]}
+                                        placeholder="Select Subject"
+                                        disabled={!courseId || filteredSubjects.length === 0}
                                     />
                                 </div>
 

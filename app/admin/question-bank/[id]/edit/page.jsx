@@ -24,11 +24,13 @@ export default function EditQuestionPage({ params }) {
     const [courses, setCourses] = useState([]);
     const [batches, setBatches] = useState([]); // All batches
     const [filteredBatches, setFilteredBatches] = useState([]); // Filtered by course
+    const [filteredSubjects, setFilteredSubjects] = useState([]); // Filtered by course
 
     const [formData, setFormData] = useState({
         text: "",
         course: "",
         batch: "",
+        subject: "",
         type: "mcq", // mcq, descriptive
         difficulty: "medium",
         marks: 1,
@@ -48,10 +50,14 @@ export default function EditQuestionPage({ params }) {
                 String(b.course?._id || b.course) === String(formData.course)
             );
             setFilteredBatches(courseBatches);
+            
+            const selectedCourse = courses.find(c => String(c._id) === String(formData.course));
+            setFilteredSubjects(selectedCourse?.subjects || []);
         } else {
             setFilteredBatches([]);
+            setFilteredSubjects([]);
         }
-    }, [formData.course, batches]);
+    }, [formData.course, batches, courses]);
 
     const fetchDropdowns = async () => {
         try {
@@ -80,6 +86,7 @@ export default function EditQuestionPage({ params }) {
                 text: q.text || "",
                 course: q.course || "",
                 batch: q.batch || "",
+                subject: q.subject || "",
                 type: q.type || "mcq",
                 difficulty: q.difficulty || "medium",
                 marks: q.marks || 1,
@@ -148,6 +155,7 @@ export default function EditQuestionPage({ params }) {
 
             const payload = {
                 ...formData,
+                subject: formData.subject || undefined,
                 marks: Number(formData.marks),
                 correctAnswer: String(formData.correctOption),
                 snippet: showSnippet ? formData.snippet : undefined
@@ -175,6 +183,7 @@ export default function EditQuestionPage({ params }) {
     // Prepare Options
     const courseOptions = courses.map(c => ({ label: c.name, value: c._id }));
     const batchOptions = filteredBatches.map(b => ({ label: b.name, value: b._id }));
+    const subjectOptions = filteredSubjects.map(s => ({ label: s.name, value: s._id }));
     const difficultyOptions = [
         { label: "Easy", value: "easy" },
         { label: "Medium", value: "medium" },
@@ -205,14 +214,14 @@ export default function EditQuestionPage({ params }) {
                 <Card className="overflow-visible">
                     <CardContent className="p-6 space-y-6">
                         {/* Meta Data */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <div>
                                 <Select
                                     label="Course"
                                     name="course"
                                     value={formData.course}
                                     onChange={(val) => {
-                                        setFormData(prev => ({ ...prev, course: val, batch: "" }));
+                                        setFormData(prev => ({ ...prev, course: val, batch: "", subject: "" }));
                                     }}
                                     options={courseOptions}
                                     placeholder="Select Course"
@@ -227,6 +236,17 @@ export default function EditQuestionPage({ params }) {
                                     options={batchOptions}
                                     placeholder="Select Batch"
                                     disabled={!formData.course}
+                                />
+                            </div>
+                            <div>
+                                <Select
+                                    label="Subject"
+                                    name="subject"
+                                    value={formData.subject}
+                                    onChange={(val) => setFormData(prev => ({ ...prev, subject: val }))}
+                                    options={subjectOptions}
+                                    placeholder="Select Subject"
+                                    disabled={!formData.course || subjectOptions.length === 0}
                                 />
                             </div>
                             <div>

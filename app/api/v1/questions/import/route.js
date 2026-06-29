@@ -67,7 +67,7 @@ export async function POST(req) {
         await connectDB();
         const body = await req.json();
 
-        const { questions: rawQuestions, courseId, batchId } = body;
+        const { questions: rawQuestions, courseId, batchId, subjectId } = body;
 
         if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
             return NextResponse.json({ 
@@ -111,7 +111,7 @@ export async function POST(req) {
                     marks: Number(q.marks ?? 1),
                     explanation: q.explanation || '',
                     tags: Array.isArray(q.tags) ? q.tags : [],
-                    subject: q.subject || null,
+                    subject: subjectId || q.subject || null,
                     classLevel: q.classLevel || null,
                     course: courseId || q.course || null,
                     batch: batchId || q.batch || null,
