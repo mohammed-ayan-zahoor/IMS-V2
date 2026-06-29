@@ -17,7 +17,8 @@ const SAMPLE_JSON = [
         correctAnswer: 2,
         marks: 1,
         explanation: "Paris is the capital and largest city of France.",
-        tags: ["geography", "europe"]
+        tags: ["geography", "europe"],
+        subject: "60d5ec..."
     },
     {
         text: "The Earth revolves around the Sun.",

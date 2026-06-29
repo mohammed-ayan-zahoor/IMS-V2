@@ -282,7 +282,7 @@ export default function QuestionBankPage() {
                             <button
                                 onClick={() => {
                                     const template = JSON.stringify([
-                                        { text: "What is the capital of France?", type: "mcq", difficulty: "easy", options: ["London", "Berlin", "Paris", "Madrid"], correctAnswer: 2, marks: 1, explanation: "Paris is the capital of France.", tags: ["geography"] },
+                                        { text: "What is the capital of France?", type: "mcq", difficulty: "easy", options: ["London", "Berlin", "Paris", "Madrid"], correctAnswer: 2, marks: 1, explanation: "Paris is the capital of France.", tags: ["geography"], subject: "60d5ec..." },
                                         { text: "The Earth revolves around the Sun.", type: "true_false", difficulty: "easy", correctAnswer: "true", marks: 1 },
                                         { text: "Explain the process of photosynthesis.", type: "short_answer", difficulty: "medium", correctAnswer: "Photosynthesis is the process by which green plants convert sunlight, water, and CO2 into glucose and oxygen.", marks: 3, tags: ["biology"] }
                                     ], null, 2);
@@ -305,7 +305,8 @@ export default function QuestionBankPage() {
     "correctAnswer": 2,          // Index of correct option (0-based)
     "marks": 1,
     "explanation": "Paris is the capital of France.",
-    "tags": ["geography", "europe"]
+    "tags": ["geography", "europe"],
+    "subject": "60d5ec..."       // Optional: ObjectId of the Subject
   },
   {
     "text": "The Earth revolves around the Sun.",
