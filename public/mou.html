@@ -544,7 +544,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
               <div class="comm-value" id="d-total-price">₹0.00</div>
             </div>
             <div>
-              <div class="comm-label">70% Upfront Commercial Amount</div>
+              <div class="comm-label" id="d-upfront-label">Upfront Commercial Amount</div>
               <div class="comm-value upfront" id="d-upfront-price">₹0.00</div>
             </div>
           </div>
@@ -575,7 +575,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
       <ul>
         <li>Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.</li>
         <li>Provide accurate and complete student data for onboarding within 14 days of agreement execution.</li>
-        <li>Ensure timely payment of subscription fees, with 70% of commercials to be paid upfront upon invoice issuance by the Provider.</li>
+        <li>Ensure timely payment of subscription fees, with <span id="d-upfront-text-percent">100%</span> of commercials to be paid upfront upon invoice issuance by the Provider.</li>
         <li>Not share, sub-license, or resell access to the Quantech Platform to any third party.</li>
         <li>Report technical issues through the designated support channel promptly.</li>
       </ul>
@@ -715,12 +715,28 @@ function updateDoc() {
   if (students) {
     const studentCount = parseInt(students);
     const totalPrice = studentCount * 59;
-    const upfrontPrice = totalPrice * 0.7;
+    
+    let upfrontPercent = 0.5;
+    if (studentCount <= 500) {
+      upfrontPercent = 1;
+    } else if (studentCount <= 1000) {
+      upfrontPercent = 0.75;
+    }
+    const upfrontPrice = totalPrice * upfrontPercent;
+    
+    document.getElementById('d-upfront-label').textContent = `${upfrontPercent * 100}% Upfront Commercial Amount`;
+    const upfrontTextSpan = document.getElementById('d-upfront-text-percent');
+    if(upfrontTextSpan) upfrontTextSpan.textContent = `${upfrontPercent * 100}%`;
+
     document.getElementById('d-students').textContent = studentCount.toLocaleString('en-IN') + ' Students';
     document.getElementById('d-students-plus').textContent = studentCount.toLocaleString('en-IN');
     document.getElementById('d-total-price').textContent = '₹' + totalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('d-upfront-price').textContent = '₹' + upfrontPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   } else {
+    document.getElementById('d-upfront-label').textContent = `Upfront Commercial Amount`;
+    const upfrontTextSpan = document.getElementById('d-upfront-text-percent');
+    if(upfrontTextSpan) upfrontTextSpan.textContent = `100%`;
+
     document.getElementById('d-students').textContent = '— Students';
     document.getElementById('d-students-plus').textContent = '—';
     document.getElementById('d-total-price').textContent = '₹0.00';
