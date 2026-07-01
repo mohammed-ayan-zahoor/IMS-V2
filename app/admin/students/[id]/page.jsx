@@ -1277,15 +1277,17 @@ export default function StudentDetailsPage({ params }) {
                                 <Lock size={16} className="mr-2 text-slate-400" />
                                 {isResettingPassword ? "Resetting..." : "Reset Password"}
                             </Button>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-purple-600 border-purple-200 hover:bg-purple-50"
-                                onClick={() => router.push(`/admin/students/${id}/holistic-report`)}
-                            >
-                                <BarChart2 size={16} className="mr-2" />
-                                Holistic Report
-                            </Button>
+                            {isSchool && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                                    onClick={() => router.push(`/admin/students/${id}/holistic-report`)}
+                                >
+                                    <BarChart2 size={16} className="mr-2" />
+                                    Holistic Report
+                                </Button>
+                            )}
                             <Button
                                 size="sm"
                                 onClick={() => setIsEditModalOpen(true)}
