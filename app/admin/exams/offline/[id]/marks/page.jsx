@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, CheckCircle, AlertCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -12,7 +12,7 @@ import { useToast } from "@/contexts/ToastContext";
 export default function OfflineExamMarksPage({ params }) {
     const router = useRouter();
     const toast = useToast();
-    const examId = params.id;
+    const { id: examId } = use(params);
 
     const [exam, setExam] = useState(null);
     const [loading, setLoading] = useState(true);

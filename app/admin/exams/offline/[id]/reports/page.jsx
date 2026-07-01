@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, Printer, Lock, Unlock, Download } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -15,7 +15,7 @@ export default function OfflineExamReportsPage({ params }) {
     const router = useRouter();
     const toast = useToast();
     const confirm = useConfirm();
-    const examId = params.id;
+    const { id: examId } = use(params);
 
     const [exam, setExam] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -331,7 +331,7 @@ export default function OfflineExamReportsPage({ params }) {
                                 <div className="mb-12">
                                     <p className="text-sm font-bold text-slate-500 mb-1">Class Teacher Remarks:</p>
                                     <p className="p-3 border border-slate-200 rounded-lg italic text-slate-700 bg-slate-50/50">
-                                        "{result.teacherRemarks}"
+                                        &quot;{result.teacherRemarks}&quot;
                                     </p>
                                 </div>
                             )}

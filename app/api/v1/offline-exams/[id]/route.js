@@ -18,7 +18,8 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
         }
 
-        const query = { _id: params.id, deletedAt: null };
+        const { id } = await params;
+        const query = { _id: id, deletedAt: null };
         if (scope.instituteId) {
             query.institute = scope.instituteId;
         }
@@ -56,7 +57,8 @@ export async function PATCH(req, { params }) {
 
         const body = await req.json();
 
-        const query = { _id: params.id, institute: scope.instituteId, deletedAt: null };
+        const { id } = await params;
+        const query = { _id: id, institute: scope.instituteId, deletedAt: null };
         
         const exam = await OfflineExam.findOneAndUpdate(
             query,
@@ -88,7 +90,8 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
         }
 
-        const query = { _id: params.id, institute: scope.instituteId, deletedAt: null };
+        const { id } = await params;
+        const query = { _id: id, institute: scope.instituteId, deletedAt: null };
         
         const exam = await OfflineExam.findOneAndUpdate(
             query,
