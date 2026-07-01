@@ -540,7 +540,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
           <div class="comm-title">Commercial Terms &amp; Billing Breakdown</div>
           <div class="comm-grid">
             <div>
-              <div class="comm-label">Annual Price (at ₹59 / Student)</div>
+              <div class="comm-label" id="d-total-label">Total Price (at ₹59 / Student)</div>
               <div class="comm-value" id="d-total-price">₹0.00</div>
             </div>
             <div>
@@ -548,8 +548,8 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
               <div class="comm-value upfront" id="d-upfront-price">₹0.00</div>
             </div>
           </div>
-          <div class="comm-footer">
-            * Calculated on agreed student strength. Billed annually. Taxes extra.
+          <div class="comm-footer" id="d-comm-footer">
+            * Calculated on agreed student strength. Taxes extra.
           </div>
         </div>
       </div>
@@ -712,9 +712,13 @@ function updateDoc() {
   // Update Clause 6 duration text dynamically
   document.getElementById('d-duration').textContent = durationWords[duration] || 'one (1) academic year';
 
+  const durationInt = parseInt(duration) || 1;
+  document.getElementById('d-total-label').textContent = `Total Price (for ${durationInt} Year${durationInt > 1 ? 's' : ''} at ₹59 / Student / Year)`;
+  document.getElementById('d-comm-footer').textContent = `* Calculated on agreed student strength for ${durationInt} year${durationInt > 1 ? 's' : ''}. Taxes extra.`;
+
   if (students) {
     const studentCount = parseInt(students);
-    const totalPrice = studentCount * 59;
+    const totalPrice = studentCount * 59 * durationInt;
     
     let upfrontPercent = 0.5;
     if (studentCount <= 500) {
