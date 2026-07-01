@@ -137,11 +137,21 @@ export async function POST(req) {
 
         try {
             // Get institute type to know if session isolation applies
-            const inst = await Institute.findById(targetInstituteId).select('type settings');
+            const inst = await Institute.findById(targetInstituteId).select('type settings limits');
             if (!inst) {
                 return NextResponse.json({ error: "Institute not found" }, { status: 404 });
             }
             instituteType = inst.type;
+
+            // Enforce student limit check
+            const maxStudents = inst.limits?.maxStudents || 0;
+            if (maxStudents > 0) {
+                const User = (await import("@/models/User")).default;
+                const currentStudentCount = await User.countDocuments({ institute: targetInstituteId, role: 'student', deletedAt: null });
+                if (currentStudentCount >= maxStudents) {
+                    return NextResponse.json({ error: "Token is over, please contact us for the increase" }, { status: 403 });
+                }
+            }
 
             // Validate transport module status
             if (body.transport?.isAvailing && !inst.settings?.features?.transport) {
