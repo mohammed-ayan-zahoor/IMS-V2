@@ -3,10 +3,9 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import WebsiteConfig from "@/models/WebsiteConfig";
 import { getInstituteScope } from "@/middleware/instituteScope";
-import dns from "dns";
-import { promisify } from "util";
+import { promises as dnsPromises } from "dns";
 
-const resolveTxt = promisify(dns.resolveTxt);
+const { Resolver } = dnsPromises;
 
 export async function POST(req) {
     try {
@@ -25,18 +24,36 @@ export async function POST(req) {
         // Expected verification string
         const expectedRecord = `yourapp-verify=${config.instituteId}`;
 
-        try {
-            // DNS Lookup for TXT records
-            const records = await resolveTxt(domain);
+            // Setup custom resolver to bypass local DNS caching
+            const resolver = new Resolver();
+            resolver.setServers(['8.8.8.8', '1.1.1.1']); // Google and Cloudflare
+
+            let flatRecords = [];
             
-            // Flatten the array of arrays returned by dns.resolveTxt
-            const flatRecords = records.map(r => r.join(''));
+            // Try resolving the exact domain provided
+            try {
+                const records = await resolver.resolveTxt(domain);
+                flatRecords = flatRecords.concat(records.map(r => r.join('')));
+            } catch (e) {
+                console.log(`No TXT for ${domain}`);
+            }
+
+            // If it starts with www., also check the root domain since users often put the TXT record on '@'
+            if (domain.startsWith('www.')) {
+                const rootDomain = domain.replace(/^www\./, '');
+                try {
+                    const rootRecords = await resolver.resolveTxt(rootDomain);
+                    flatRecords = flatRecords.concat(rootRecords.map(r => r.join('')));
+                } catch (e) {
+                    console.log(`No TXT for ${rootDomain}`);
+                }
+            }
             
-            if (flatRecords.includes(expectedRecord)) {
+            // Loose matching to account for quotes or whitespace added by some DNS providers
+            const isVerified = flatRecords.some(record => record.includes(expectedRecord));
+
+            if (isVerified) {
                 // Verification successful
-                // Note: Actual saving of domain might happen in a different settings save endpoint, 
-                // or you can save it here. Let's save it here for simplicity.
-                
                 // Check if another institute already has this domain
                 const existing = await WebsiteConfig.findOne({ domain, instituteId: { $ne: scope.instituteId } });
                 if (existing) {
@@ -49,18 +66,12 @@ export async function POST(req) {
                 return Response.json({ success: true, message: "Domain verified and linked successfully" });
             } else {
                 return Response.json({ 
-                    error: "Verification failed. DNS record not found.",
+                    error: "Verification failed. DNS record not found. Note: DNS changes can take up to 48 hours to propagate.",
                     expected: expectedRecord,
                     found: flatRecords
                 }, { status: 400 });
             }
-        } catch (dnsError) {
-            console.error("DNS Resolution Error:", dnsError);
-            return Response.json({ 
-                error: "Failed to resolve DNS records. Ensure the domain exists and has the TXT record.",
-                expected: expectedRecord
-            }, { status: 400 });
-        }
+
 
     } catch (error) {
         console.error("Verify Domain Error:", error);
