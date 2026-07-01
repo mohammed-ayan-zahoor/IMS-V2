@@ -158,8 +158,20 @@ export async function DELETE(req, { params }) {
         const { id } = await params;
         await connectDB();
 
+        // Find student first to retrieve instituteId for cache clearing
+        const studentDoc = await User.findOne({ _id: id }).select("institute");
+
         // Perform hard delete via service
         await StudentService.deleteStudent(id, session.user.id);
+
+        if (studentDoc && studentDoc.institute) {
+            try {
+                const { clearDashboardCache } = await import("@/app/api/v1/dashboard/stats/route");
+                clearDashboardCache(studentDoc.institute.toString());
+            } catch (e) {
+                console.error("Failed to clear dashboard cache:", e);
+            }
+        }
 
         return NextResponse.json({ message: "Student deleted successfully" });
     } catch (error) {

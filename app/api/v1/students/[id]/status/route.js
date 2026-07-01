@@ -16,6 +16,15 @@ export async function PATCH(req, { params }) {
 
         const updatedStudent = await StudentService.toggleStudentStatus(id, session.user.id);
 
+        if (updatedStudent && updatedStudent.institute) {
+            try {
+                const { clearDashboardCache } = await import("@/app/api/v1/dashboard/stats/route");
+                clearDashboardCache(updatedStudent.institute.toString());
+            } catch (e) {
+                console.error("Failed to clear dashboard cache:", e);
+            }
+        }
+
         return NextResponse.json({ 
             success: true, 
             message: updatedStudent.deletedAt ? "Student disabled successfully" : "Student enabled successfully",

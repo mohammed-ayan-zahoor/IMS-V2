@@ -205,6 +205,14 @@ export async function POST(req) {
 
         const student = await StudentService.createStudent(studentData, session.user.id, sessionId);
 
+        // Clear dashboard cache for this institute
+        try {
+            const { clearDashboardCache } = await import("@/app/api/v1/dashboard/stats/route");
+            clearDashboardCache(targetInstituteId.toString());
+        } catch (e) {
+            console.error("Failed to clear dashboard cache:", e);
+        }
+
         return NextResponse.json(student, { status: 201 });
     } catch (error) {
         console.error("API Error [Students POST]:", error);
