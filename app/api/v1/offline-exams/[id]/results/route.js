@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
         if (!batch) return NextResponse.json({ error: "Batch not found" }, { status: 404 });
 
         const activeStudents = batch.enrolledStudents
-            .filter(e => e.status === 'active')
+            .filter(e => ['active', 'completed'].includes(e.status) && e.student)
             .map(e => e.student);
 
         // Fetch existing results
