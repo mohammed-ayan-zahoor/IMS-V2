@@ -70,11 +70,14 @@ export default function InstituteSwitcher() {
                 )}
             >
                 {/* Logo / Initials */}
-                <div className="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm shadow-blue-200 overflow-hidden">
+                <div className={cn(
+                    "shrink-0 w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden",
+                    (!activeInstitute?.logo || isSwitching) && "bg-gradient-to-br from-blue-500 to-blue-600"
+                )}>
                     {isSwitching ? (
                         <Loader2 size={15} className="animate-spin text-white" />
                     ) : activeInstitute?.logo ? (
-                        <img src={activeInstitute.logo} alt="" className="w-full h-full object-contain p-1.5" />
+                        <img src={activeInstitute.logo} alt="" className="w-full h-full object-contain" />
                     ) : (
                         <span className="text-white text-[11px] font-bold tracking-tight">
                             {getInitials(activeInstitute?.name)}
@@ -140,12 +143,11 @@ export default function InstituteSwitcher() {
                                             {/* Avatar */}
                                             <div className={cn(
                                                 "shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold overflow-hidden",
-                                                isActive
-                                                    ? "bg-blue-100 text-blue-600"
-                                                    : "bg-slate-100 text-slate-500"
+                                                !inst.logo && isActive && "bg-blue-100 text-blue-600",
+                                                !inst.logo && !isActive && "bg-slate-100 text-slate-500"
                                             )}>
                                                 {inst.logo
-                                                    ? <img src={inst.logo} alt="" className="w-full h-full object-contain p-1" />
+                                                    ? <img src={inst.logo} alt="" className="w-full h-full object-contain" />
                                                     : getInitials(inst.name)
                                                 }
                                             </div>
