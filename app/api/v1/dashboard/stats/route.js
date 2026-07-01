@@ -45,13 +45,38 @@ export async function GET(req) {
         let sessionId = null;
         let sessionValidationResult = null;
 
+        let subscriptionInfo = null;
         if (targetInstituteId) {
             const Institute = (await import("@/models/Institute")).default;
-            const inst = await Institute.findById(targetInstituteId).select('type');
+            const inst = await Institute.findById(targetInstituteId).select('type subscription limits');
             if (!inst) {
                 return NextResponse.json({ error: "Institute not found" }, { status: 404 });
             }
             instituteType = inst.type;
+
+            let remainingDays = null;
+            if (inst.subscription?.endDate) {
+                const diffTime = new Date(inst.subscription.endDate) - new Date();
+                remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (remainingDays < 0) remainingDays = 0;
+            }
+
+            const maxStudents = inst.limits?.maxStudents || 100;
+            const totalStudentsUsed = await User.countDocuments({
+                institute: targetInstituteId,
+                role: 'student',
+                deletedAt: null
+            });
+
+            subscriptionInfo = {
+                plan: inst.subscription?.plan || 'free',
+                endDate: inst.subscription?.endDate,
+                remainingDays: remainingDays !== null ? remainingDays : 0,
+                maxStudents,
+                usedStudents: totalStudentsUsed,
+                availableStudents: Math.max(0, maxStudents - totalStudentsUsed),
+                isActive: inst.subscription?.isActive ?? true
+            };
 
             // SECURITY FIX: Server-side session derivation & validation
             // Do NOT trust client-provided x-session-id header
@@ -379,7 +404,8 @@ export async function GET(req) {
             topCourses,
             recentAdmissions,
             revenueTrends: formattedRevenue,
-            totalRevenue
+            totalRevenue,
+            subscription: subscriptionInfo
         };
 
         // Cache the response

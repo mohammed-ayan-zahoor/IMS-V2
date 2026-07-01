@@ -163,6 +163,73 @@ export default function AdminDashboard() {
 
     return (
         <div className="space-y-10">
+            {/* Subscription & Student Quota Status */}
+            {isSchool && dashboardData?.subscription && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                >
+                    <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-stretch gap-6">
+                        {/* Subscription Info */}
+                        <div className="flex-1 flex gap-4 items-start md:border-r md:border-slate-100 md:pr-6">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                                <CalendarIcon size={22} />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Subscription Plan</h3>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                                        {dashboardData.subscription.plan} Plan
+                                    </span>
+                                    <Badge variant={dashboardData.subscription.isActive ? "success" : "danger"} className="text-[10px] uppercase font-bold px-2 py-0.5">
+                                        {dashboardData.subscription.isActive ? "Active" : "Inactive"}
+                                    </Badge>
+                                </div>
+                                <p className="text-xs text-slate-500 font-medium">
+                                    {dashboardData.subscription.remainingDays > 0 ? (
+                                        <>
+                                            <strong>{dashboardData.subscription.remainingDays} days</strong> remaining (Expires on {new Date(dashboardData.subscription.endDate).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })})
+                                        </>
+                                    ) : (
+                                        <span className="text-rose-600 font-black">Subscription Expired! Please contact support to renew.</span>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Student Limit Progress */}
+                        <div className="flex-1 flex gap-4 items-start pl-0 md:pl-6">
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                                <Users size={22} />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Students Quota</h3>
+                                        <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                            <strong>{dashboardData.subscription.usedStudents}</strong> used of <strong>{dashboardData.subscription.maxStudents}</strong> allotted
+                                        </p>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-800 bg-slate-100 px-2 py-1 rounded-lg">
+                                        {dashboardData.subscription.availableStudents} left
+                                    </span>
+                                </div>
+                                {/* Progress Bar */}
+                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden relative">
+                                    <div 
+                                        className={cn(
+                                            "h-full rounded-full transition-all duration-1000",
+                                            (dashboardData.subscription.usedStudents / dashboardData.subscription.maxStudents) >= 0.9 ? "bg-rose-500" : (dashboardData.subscription.usedStudents / dashboardData.subscription.maxStudents) >= 0.75 ? "bg-amber-500" : "bg-blue-500"
+                                        )} 
+                                        style={{ width: `${Math.min(100, (dashboardData.subscription.usedStudents / dashboardData.subscription.maxStudents) * 100)}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+
             {/* Metric Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {stats.map((stat) => (
