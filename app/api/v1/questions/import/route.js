@@ -8,6 +8,11 @@ import { getInstituteScope } from "@/middleware/instituteScope";
 const ALLOWED_TYPES = ['mcq', 'true_false', 'short_answer', 'essay'];
 const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'];
 
+function isValidObjectId(id) {
+    if (!id) return false;
+    return /^[0-9a-fA-F]{24}$/.test(String(id));
+}
+
 function validateQuestion(q, index) {
     const errors = [];
     const prefix = `Question ${index + 1}`;
@@ -102,6 +107,10 @@ export async function POST(req) {
                     correctAnswer = String(q.correctAnswer).trim();
                 }
 
+                const finalSubject = subjectId || q.subject;
+                const finalCourse = courseId || q.course;
+                const finalBatch = batchId || q.batch;
+
                 validQuestions.push({
                     text: q.text.trim(),
                     type: q.type,
@@ -111,10 +120,10 @@ export async function POST(req) {
                     marks: Number(q.marks ?? 1),
                     explanation: q.explanation || '',
                     tags: Array.isArray(q.tags) ? q.tags : [],
-                    subject: subjectId || q.subject || null,
+                    subject: isValidObjectId(finalSubject) ? finalSubject : null,
                     classLevel: q.classLevel || null,
-                    course: courseId || q.course || null,
-                    batch: batchId || q.batch || null,
+                    course: isValidObjectId(finalCourse) ? finalCourse : null,
+                    batch: isValidObjectId(finalBatch) ? finalBatch : null,
                     institute: scope.instituteId,
                     createdBy: session.user.id,
                     isActive: true,
