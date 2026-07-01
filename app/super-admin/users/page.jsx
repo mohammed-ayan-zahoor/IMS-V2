@@ -222,10 +222,10 @@ export default function AdminManagementPage() {
                             initial={{ scale: 0.95, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className="relative w-full max-w-2xl bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white"
+                            className="relative w-full max-w-2xl bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white max-h-[85vh] flex flex-col"
                         >
-                            <div className="p-10">
-                                <header className="flex items-center justify-between mb-8">
+                            <div className="p-10 flex flex-col overflow-hidden">
+                                <header className="flex items-center justify-between mb-8 shrink-0">
                                     <div>
                                         <h2 className="text-2xl font-black text-slate-900 tracking-tight">Manage Access</h2>
                                         <p className="text-slate-500 font-medium">{selectedUser?.email}</p>
@@ -238,7 +238,7 @@ export default function AdminManagementPage() {
                                     </button>
                                 </header>
 
-                                <div className="space-y-6">
+                                <div className="space-y-6 overflow-y-auto pr-2 -mr-2">
                                     <div>
                                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Authorized Institutes</h3>
                                         <div className="space-y-3">
