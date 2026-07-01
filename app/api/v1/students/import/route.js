@@ -332,10 +332,16 @@ export async function POST(req) {
 
         // Fetch Institute Type & Code
         const Institute = (await import("@/models/Institute")).default;
-        const instDoc = await Institute.findById(scope.instituteId).select("type code").lean();
+        const instDoc = await Institute.findById(scope.instituteId).select("type code limits").lean();
         const isVocational = instDoc?.type === "VOCATIONAL";
         const instCode = instDoc?.code || "INST";
         const emailDomain = `${instCode.toLowerCase()}.edu`;
+
+        const maxStudents = instDoc?.limits?.maxStudents || 0;
+        let currentStudentCount = 0;
+        if (maxStudents > 0) {
+            currentStudentCount = await Student.countDocuments({ institute: scope.instituteId, role: 'student', deletedAt: null });
+        }
 
         // 3. PROCESS ROWS & DYNAMIC INFRASTRUCTURE RESOLUTION
         const studentBatchMappings = []; // array of { studentIdx, batchId }
@@ -372,6 +378,11 @@ export async function POST(req) {
             const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : "";
             if (studentName && !lastName) {
                 rowErrors.push("Last Name is required");
+            }
+
+            // Quota Limit Check
+            if (maxStudents > 0 && currentStudentCount >= maxStudents) {
+                rowErrors.push("Token is over, please contact us for the increase");
             }
 
             // Generate clean unique enrollment ID
@@ -490,6 +501,10 @@ export async function POST(req) {
             const idx = successResults.length;
             successResults.push(studentObject);
             
+            if (maxStudents > 0) {
+                currentStudentCount++; // Increment local count to enforce limit correctly within the loop
+            }
+
             if (targetBatchId) {
                 studentBatchMappings.push({ studentIdx: idx, batchId: targetBatchId });
             }

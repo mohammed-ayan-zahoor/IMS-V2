@@ -106,6 +106,9 @@ export async function POST(req) {
                      startDate: new Date(),
                      isActive: true
                  },
+                 limits: {
+                     maxStudents: Number(body.maxStudents) || 500
+                 },
                  createdBy: session.user.id
              }], opts);
 

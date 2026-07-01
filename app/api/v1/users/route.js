@@ -122,6 +122,21 @@ export async function POST(req) {
             return NextResponse.json({ error: "Unauthorized role assignment" }, { status: 403 });
         }
 
+        if (requestedRole === 'student') {
+            const Institute = (await import("@/models/Institute")).default;
+            const instDoc = await Institute.findById(targetInstituteId).select("limits").lean();
+            if (instDoc) {
+                const maxStudents = instDoc.limits?.maxStudents || 0; 
+                // Only enforce limit if maxStudents > 0, though normally it's set.
+                if (maxStudents > 0) {
+                    const currentStudentCount = await User.countDocuments({ institute: targetInstituteId, role: 'student', deletedAt: null });
+                    if (currentStudentCount >= maxStudents) {
+                        return NextResponse.json({ error: "Token is over, please contact us for the increase" }, { status: 403 });
+                    }
+                }
+            }
+        }
+
         const normalizedEmail = body.email.toLowerCase().trim();
         let user = await User.findOne({ email: normalizedEmail, deletedAt: null });
 

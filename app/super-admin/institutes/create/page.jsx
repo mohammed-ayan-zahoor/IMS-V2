@@ -49,7 +49,8 @@ export default function CreateInstitutePage() {
          adminName: "",
          contactPhone: "",
          addressStr: "",
-         type: "VOCATIONAL"  // Default to VOCATIONAL for backwards compatibility
+         type: "VOCATIONAL",  // Default to VOCATIONAL for backwards compatibility
+         maxStudents: 500
      });
 
     const handleChange = (e) => {
@@ -154,6 +155,15 @@ export default function CreateInstitutePage() {
                              value={formData.contactPhone}
                              onChange={handleChange}
                              icon={Phone}
+                         />
+                         <FormField
+                             label="Max Students Allowed"
+                             type="number"
+                             name="maxStudents"
+                             value={formData.maxStudents}
+                             onChange={handleChange}
+                             icon={User}
+                             required
                          />
                          <div className="space-y-2">
                              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
