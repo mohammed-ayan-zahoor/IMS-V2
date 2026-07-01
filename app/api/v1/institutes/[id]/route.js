@@ -50,6 +50,18 @@ export async function PATCH(req, { params }) {
         if (body.contactPhone) updateData.contactPhone = body.contactPhone;
         if (body.addressStr) updateData.addressStr = body.addressStr;
 
+        if (body.maxStudents !== undefined) {
+            const User = mongoose.models.User || (await import("@/models/User")).default;
+            const currentStudentCount = await User.countDocuments({ institute: id, role: 'student', deletedAt: null });
+            const newLimit = Number(body.maxStudents);
+            if (newLimit < currentStudentCount) {
+                return NextResponse.json({ 
+                    error: `Cannot set student limit to ${newLimit}. This organization already has ${currentStudentCount} active students.` 
+                }, { status: 400 });
+            }
+            updateData['limits.maxStudents'] = newLimit;
+        }
+
         // Support for Voice Reminders & Quota settings management
         if (body.voiceCallsQuota !== undefined) {
             updateData['usage.voiceCallsQuota'] = Number(body.voiceCallsQuota);

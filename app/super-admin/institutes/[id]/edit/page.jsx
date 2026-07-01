@@ -11,7 +11,8 @@ import {
     MapPin,
     Zap,
     Save,
-    Activity
+    Activity,
+    Users
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
@@ -46,7 +47,8 @@ export default function EditInstitutePage() {
         code: "",
         contactPhone: "",
         addressStr: "",
-        status: "active"
+        status: "active",
+        maxStudents: 500
     });
 
     useEffect(() => {
@@ -66,7 +68,8 @@ export default function EditInstitutePage() {
                     code: inst.code || "",
                     contactPhone: inst.contactPhone || "",
                     addressStr: inst.addressStr || "",
-                    status: inst.status || "active"
+                    status: inst.status || "active",
+                    maxStudents: inst.limits?.maxStudents || 500
                 });
             } catch (error) {
                 if (error.name === "AbortError") return;
@@ -100,7 +103,10 @@ export default function EditInstitutePage() {
                 body: JSON.stringify(formData)
             });
 
-            if (!res.ok) throw new Error("Failed to synchronize updates.");
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to synchronize updates.");
+            }
 
             toast.success("Organization archives updated successfully.");
             router.push("/super-admin/institutes");
@@ -177,6 +183,16 @@ export default function EditInstitutePage() {
                             value={formData.contactPhone}
                             onChange={handleChange}
                             icon={Phone}
+                        />
+                        <FormField
+                            label="Max Students Allowed"
+                            name="maxStudents"
+                            type="number"
+                            min="1"
+                            value={formData.maxStudents}
+                            onChange={handleChange}
+                            icon={Users}
+                            required
                         />
                         <div className="space-y-2">
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
