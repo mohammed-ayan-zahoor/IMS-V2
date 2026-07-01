@@ -107,6 +107,14 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Institute not found" }, { status: 404 });
         }
 
+        // Clear dashboard cache for this institute
+        try {
+            const { clearDashboardCache } = await import("@/app/api/v1/dashboard/stats/route");
+            clearDashboardCache(id);
+        } catch (e) {
+            console.error("Failed to clear dashboard cache:", e);
+        }
+
         // Audit Log
         await AuditLog.create({
             actor: session.user.id,

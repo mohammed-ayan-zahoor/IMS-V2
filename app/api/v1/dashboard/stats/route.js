@@ -16,9 +16,12 @@ export const statsCache = new Map();
 // Helper function to clear cache for an institute
 export function clearDashboardCache(instituteId = null) {
     if (instituteId) {
-        // Clear cache for specific institute (both scoped and global)
-        statsCache.delete(`stats_${instituteId}_scoped`);
-        statsCache.delete(`stats_${instituteId}_global`);
+        const prefix = `stats_${instituteId}`;
+        for (const key of statsCache.keys()) {
+            if (key.startsWith(prefix)) {
+                statsCache.delete(key);
+            }
+        }
     } else {
         // Clear all cache
         statsCache.clear();
