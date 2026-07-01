@@ -50,6 +50,15 @@ export async function PATCH(req, { params }) {
         if (body.contactPhone) updateData.contactPhone = body.contactPhone;
         if (body.addressStr) updateData.addressStr = body.addressStr;
 
+        if (body.plan !== undefined) {
+            if (['free', 'basic', 'professional', 'enterprise'].includes(body.plan)) {
+                updateData['subscription.plan'] = body.plan;
+            }
+        }
+        if (body.endDate !== undefined) {
+            updateData['subscription.endDate'] = body.endDate ? new Date(body.endDate) : null;
+        }
+
         if (body.maxStudents !== undefined) {
             const User = mongoose.models.User || (await import("@/models/User")).default;
             const currentStudentCount = await User.countDocuments({ institute: id, role: 'student', deletedAt: null });

@@ -48,7 +48,9 @@ export default function EditInstitutePage() {
         contactPhone: "",
         addressStr: "",
         status: "active",
-        maxStudents: 500
+        maxStudents: 500,
+        plan: "free",
+        endDate: ""
     });
 
     useEffect(() => {
@@ -69,7 +71,9 @@ export default function EditInstitutePage() {
                     contactPhone: inst.contactPhone || "",
                     addressStr: inst.addressStr || "",
                     status: inst.status || "active",
-                    maxStudents: inst.limits?.maxStudents || 500
+                    maxStudents: inst.limits?.maxStudents || 500,
+                    plan: inst.subscription?.plan || "free",
+                    endDate: inst.subscription?.endDate ? new Date(inst.subscription.endDate).toISOString().split('T')[0] : ""
                 });
             } catch (error) {
                 if (error.name === "AbortError") return;
@@ -208,6 +212,30 @@ export default function EditInstitutePage() {
                                 <option value="suspended">Suspended / Restricted</option>
                             </select>
                         </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <Zap size={12} /> Service Plan
+                            </label>
+                            <select
+                                name="plan"
+                                value={formData.plan}
+                                onChange={handleChange}
+                                className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 focus:bg-white transition-all appearance-none"
+                            >
+                                <option value="free">Free Trial / Standard</option>
+                                <option value="basic">Basic Plan</option>
+                                <option value="professional">Professional Plan</option>
+                                <option value="enterprise">Enterprise Plan</option>
+                            </select>
+                        </div>
+                        <FormField
+                            label="Subscription Expiry Date (Optional)"
+                            name="endDate"
+                            type="date"
+                            value={formData.endDate}
+                            onChange={handleChange}
+                            icon={Zap}
+                        />
                         <div className="md:col-span-2 space-y-2">
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                 <MapPin size={12} /> Registered Address

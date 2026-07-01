@@ -186,12 +186,16 @@ export default function AdminDashboard() {
                                     </Badge>
                                 </div>
                                 <p className="text-xs text-slate-500 font-medium">
-                                    {dashboardData.subscription.remainingDays > 0 ? (
-                                        <>
-                                            <strong>{dashboardData.subscription.remainingDays} days</strong> remaining (Expires on {new Date(dashboardData.subscription.endDate).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })})
-                                        </>
+                                    {dashboardData.subscription.endDate ? (
+                                        dashboardData.subscription.remainingDays > 0 ? (
+                                            <>
+                                                <strong>{dashboardData.subscription.remainingDays} days</strong> remaining (Expires on {new Date(dashboardData.subscription.endDate).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })})
+                                            </>
+                                        ) : (
+                                            <span className="text-rose-600 font-black">Subscription Expired! Please contact support to renew.</span>
+                                        )
                                     ) : (
-                                        <span className="text-rose-600 font-black">Subscription Expired! Please contact support to renew.</span>
+                                        <span className="text-emerald-600 font-bold">Lifetime Access / Active</span>
                                     )}
                                 </p>
                             </div>

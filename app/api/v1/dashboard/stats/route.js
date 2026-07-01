@@ -70,8 +70,8 @@ export async function GET(req) {
 
             subscriptionInfo = {
                 plan: inst.subscription?.plan || 'free',
-                endDate: inst.subscription?.endDate,
-                remainingDays: remainingDays !== null ? remainingDays : 0,
+                endDate: inst.subscription?.endDate || null,
+                remainingDays: remainingDays,
                 maxStudents,
                 usedStudents: totalStudentsUsed,
                 availableStudents: Math.max(0, maxStudents - totalStudentsUsed),
