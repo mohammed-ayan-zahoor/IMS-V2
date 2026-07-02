@@ -18,10 +18,14 @@ import {
     MessageSquare,
     ChevronRight,
     Loader2,
-    Calendar as CalendarIcon
+    Calendar as CalendarIcon,
+    Plus,
+    Minus,
+    X
 } from "lucide-react";
 import { useAcademicSession } from "@/contexts/AcademicSessionContext";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import StudentSearch from "@/components/admin/StudentSearch";
 
@@ -69,6 +73,105 @@ export default function AdminDashboard() {
     const { sessions, selectedSessionId, changeSession, loading: loadingSessions } = useAcademicSession();
     const { data: session } = useSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+
+    const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+    const [buySlots, setBuySlots] = useState(1);
+    const [purchasing, setPurchasing] = useState(false);
+
+    const loadRazorpayScript = () => {
+        return new Promise((resolve) => {
+            if (window.Razorpay) {
+                resolve(true);
+                return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
+    const handleBuySlots = async () => {
+        try {
+            setPurchasing(true);
+            const loaded = await loadRazorpayScript();
+            if (!loaded) {
+                toast.error("Failed to load payment gateway checkout client.");
+                setPurchasing(false);
+                return;
+            }
+
+            const orderRes = await fetch("/api/v1/billing/create-order", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ slots: buySlots })
+            });
+
+            if (!orderRes.ok) {
+                const errData = await orderRes.json().catch(() => ({}));
+                throw new Error(errData.error || "Failed to initiate purchase order");
+            }
+
+            const orderData = await orderRes.json();
+
+            const options = {
+                key: orderData.keyId,
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: "Quantech platform",
+                description: `Purchase of ${buySlots} Student Limit Slots (adds ${buySlots * 10} students)`,
+                order_id: orderData.orderId,
+                handler: async function (response) {
+                    try {
+                        setPurchasing(true);
+                        const verifyRes = await fetch("/api/v1/billing/verify-payment", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                razorpayOrderId: response.razorpay_order_id,
+                                razorpayPaymentId: response.razorpay_payment_id,
+                                razorpaySignature: response.razorpay_signature
+                            })
+                        });
+
+                        if (!verifyRes.ok) {
+                            const errData = await verifyRes.json().catch(() => ({}));
+                            throw new Error(errData.error || "Payment verification failed");
+                        }
+
+                        const verifyData = await verifyRes.json();
+                        toast.success(verifyData.message || "Purchase successful!");
+                        setIsBuyModalOpen(false);
+                        fetchStats();
+                    } catch (error) {
+                        toast.error(error.message);
+                    } finally {
+                        setPurchasing(false);
+                    }
+                },
+                prefill: {
+                    name: session?.user?.name || "",
+                    email: session?.user?.email || ""
+                },
+                theme: {
+                    color: "#2563EB"
+                },
+                modal: {
+                    ondismiss: function () {
+                        setPurchasing(false);
+                    }
+                }
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+
+        } catch (error) {
+            toast.error(error.message);
+            setPurchasing(false);
+        }
+    };
 
 
 
@@ -214,9 +317,21 @@ export default function AdminDashboard() {
                                             <strong>{dashboardData.subscription.usedStudents}</strong> used of <strong>{dashboardData.subscription.maxStudents}</strong> allotted
                                         </p>
                                     </div>
-                                    <span className="text-xs font-black text-slate-800 bg-slate-100 px-2 py-1 rounded-lg">
-                                        {dashboardData.subscription.availableStudents} left
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-black text-slate-800 bg-slate-100 px-2 py-1 rounded-lg">
+                                            {dashboardData.subscription.availableStudents} left
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setBuySlots(1);
+                                                setIsBuyModalOpen(true);
+                                            }}
+                                            className="text-[11px] font-black text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-xl shadow-sm transition-all uppercase tracking-wider"
+                                        >
+                                            Buy Slots
+                                        </button>
+                                    </div>
                                 </div>
                                 {/* Progress Bar */}
                                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden relative">
@@ -233,6 +348,104 @@ export default function AdminDashboard() {
                     </div>
                 </motion.div>
             )}
+
+            {/* Purchase Extra Slots Modal */}
+            <AnimatePresence>
+                {isBuyModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => !purchasing && setIsBuyModalOpen(false)}
+                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                            className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden border border-slate-100 p-8 flex flex-col"
+                        >
+                            <header className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Buy Student Slots</h2>
+                                    <p className="text-xs text-slate-500 font-medium mt-0.5">Extend your active student quota</p>
+                                </div>
+                                <button
+                                    onClick={() => setIsBuyModalOpen(false)}
+                                    disabled={purchasing}
+                                    className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors disabled:opacity-50"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </header>
+
+                            <div className="space-y-6">
+                                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50 text-xs text-blue-700 font-medium">
+                                    Each slot adds <strong>10 extra student capacity</strong> to your database permanently.
+                                </div>
+
+                                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <span className="text-sm font-bold text-slate-700">Number of Slots</span>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            disabled={buySlots <= 1 || purchasing}
+                                            onClick={() => setBuySlots(prev => prev - 1)}
+                                            className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-600 hover:text-blue-600 transition-all disabled:opacity-50"
+                                        >
+                                            <Minus size={14} />
+                                        </button>
+                                        <span className="text-lg font-black text-slate-800 w-8 text-center">{buySlots}</span>
+                                        <button
+                                            type="button"
+                                            disabled={purchasing}
+                                            onClick={() => setBuySlots(prev => prev + 1)}
+                                            className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-600 hover:text-blue-600 transition-all disabled:opacity-50"
+                                        >
+                                            <Plus size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2.5 pt-2">
+                                    <div className="flex justify-between text-xs text-slate-500 font-medium">
+                                        <span>Capacity to Add:</span>
+                                        <span className="font-bold text-slate-800">{buySlots * 10} Students</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs text-slate-500 font-medium">
+                                        <span>Rate per Slot:</span>
+                                        <span className="font-bold text-slate-800">₹500 INR</span>
+                                    </div>
+                                    <div className="h-px bg-slate-100 my-2" />
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-black text-slate-900">Total Price:</span>
+                                        <span className="text-xl font-black text-blue-600">₹{buySlots * 500} INR</span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleBuySlots}
+                                    disabled={purchasing}
+                                    className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
+                                >
+                                    {purchasing ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" />
+                                            Processing Payment...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CreditCard size={16} />
+                                            Pay with Razorpay
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* Metric Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
