@@ -50,7 +50,7 @@ export async function POST(req) {
             body: JSON.stringify({
                 amount: amountInPaise,
                 currency: "INR",
-                receipt: `receipt_slots_${targetInstituteId}_${Date.now()}`
+                receipt: `rcpt_${Date.now()}_${Math.floor(Math.random() * 1000)}`
             })
         });
 
