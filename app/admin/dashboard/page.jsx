@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
 import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -25,8 +26,8 @@ import {
     Sparkles
 } from "lucide-react";
 import { useAcademicSession } from "@/contexts/AcademicSessionContext";
+import { useToast } from "@/contexts/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import StudentSearch from "@/components/admin/StudentSearch";
 
@@ -73,11 +74,17 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const { sessions, selectedSessionId, changeSession, loading: loadingSessions } = useAcademicSession();
     const { data: session } = useSession();
+    const toast = useToast();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
 
     const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
     const [buySlots, setBuySlots] = useState(1);
     const [purchasing, setPurchasing] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const loadRazorpayScript = () => {
         return new Promise((resolve) => {
@@ -351,115 +358,119 @@ export default function AdminDashboard() {
             )}
 
             {/* Purchase Extra Slots Modal */}
-            <AnimatePresence>
-                {isBuyModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => !purchasing && setIsBuyModalOpen(false)}
-                            className="absolute inset-0 bg-slate-900/50"
-                        />
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden border border-slate-100 p-8 flex flex-col"
-                        >
-                            <header className="flex items-center justify-between mb-6">
-                                <div>
-                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Buy Student Slots</h2>
-                                    <p className="text-xs text-slate-500 font-medium mt-0.5">Extend your active student quota</p>
-                                </div>
-                                <button
-                                    onClick={() => setIsBuyModalOpen(false)}
-                                    disabled={purchasing}
-                                    className="p-2 hover:bg-slate-105 rounded-xl text-slate-400 transition-colors disabled:opacity-50"
-                                >
-                                    <X size={18} />
-                                </button>
-                            </header>
-
-                            <div className="space-y-6">
-                                <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-2xl border border-blue-100/60 flex items-start gap-3">
-                                    <Sparkles className="text-blue-600 mt-0.5 shrink-0 animate-pulse" size={16} />
-                                    <p className="text-xs text-blue-750/90 font-semibold leading-relaxed">
-                                        Each slot instantly increases your student registration limit by <strong>10 capacity seats</strong> permanently.
-                                    </p>
-                                </div>
-
-                                <div className="p-5 bg-slate-50/80 rounded-2xl border border-slate-100 space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Select Quantity</span>
-                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">
-                                            +{buySlots * 10} seats
-                                        </span>
+            {/* Purchase Extra Slots Modal */}
+            {mounted && typeof window !== "undefined" && createPortal(
+                <AnimatePresence>
+                    {isBuyModalOpen && (
+                        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => !purchasing && setIsBuyModalOpen(false)}
+                                className="fixed inset-0 bg-slate-900/50"
+                            />
+                            <motion.div
+                                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                                className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden border border-slate-100 p-8 flex flex-col z-[10000]"
+                            >
+                                <header className="flex items-center justify-between mb-6">
+                                    <div>
+                                        <h2 className="text-xl font-black text-slate-900 tracking-tight">Buy Student Slots</h2>
+                                        <p className="text-xs text-slate-500 font-medium mt-0.5">Extend your active student quota</p>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-bold text-slate-800">Extra Quota Slots</span>
-                                        <div className="flex items-center gap-4 bg-white border border-slate-200 p-1.5 rounded-xl shadow-sm">
-                                            <button
-                                                type="button"
-                                                disabled={buySlots <= 1 || purchasing}
-                                                onClick={() => setBuySlots(prev => prev - 1)}
-                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                                            >
-                                                <Minus size={14} />
-                                            </button>
-                                            <span className="text-base font-black text-slate-800 w-6 text-center select-none">{buySlots}</span>
-                                            <button
-                                                type="button"
-                                                disabled={purchasing}
-                                                onClick={() => setBuySlots(prev => prev + 1)}
-                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-505 hover:bg-slate-100 disabled:opacity-30 transition-all"
-                                            >
-                                                <Plus size={14} />
-                                            </button>
+                                    <button
+                                        onClick={() => setIsBuyModalOpen(false)}
+                                        disabled={purchasing}
+                                        className="p-2 hover:bg-slate-105 rounded-xl text-slate-400 transition-colors disabled:opacity-50"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </header>
+
+                                <div className="space-y-6">
+                                    <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-2xl border border-blue-100/60 flex items-start gap-3">
+                                        <Sparkles className="text-blue-600 mt-0.5 shrink-0 animate-pulse" size={16} />
+                                        <p className="text-xs text-blue-750/90 font-semibold leading-relaxed">
+                                            Each slot instantly increases your student registration limit by <strong>10 capacity seats</strong> permanently.
+                                        </p>
+                                    </div>
+
+                                    <div className="p-5 bg-slate-50/80 rounded-2xl border border-slate-100 space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Select Quantity</span>
+                                            <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                                                +{buySlots * 10} seats
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-bold text-slate-800">Extra Quota Slots</span>
+                                            <div className="flex items-center gap-4 bg-white border border-slate-200 p-1.5 rounded-xl shadow-sm">
+                                                <button
+                                                    type="button"
+                                                    disabled={buySlots <= 1 || purchasing}
+                                                    onClick={() => setBuySlots(prev => prev - 1)}
+                                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-505 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                                                >
+                                                    <Minus size={14} />
+                                                </button>
+                                                <span className="text-base font-black text-slate-800 w-6 text-center select-none">{buySlots}</span>
+                                                <button
+                                                    type="button"
+                                                    disabled={purchasing}
+                                                    onClick={() => setBuySlots(prev => prev + 1)}
+                                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-505 hover:bg-slate-100 disabled:opacity-30 transition-all"
+                                                >
+                                                    <Plus size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="bg-slate-50/40 rounded-2xl border border-slate-100 p-5 space-y-3">
-                                    <div className="flex justify-between text-xs text-slate-500 font-bold">
-                                        <span>Capacity Added:</span>
-                                        <span className="text-slate-800 font-extrabold">{buySlots * 10} Students</span>
+                                    <div className="bg-slate-50/40 rounded-2xl border border-slate-100 p-5 space-y-3">
+                                        <div className="flex justify-between text-xs text-slate-500 font-bold">
+                                            <span>Capacity Added:</span>
+                                            <span className="text-slate-800 font-extrabold">{buySlots * 10} Students</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs text-slate-500 font-bold">
+                                            <span>Rate per Slot:</span>
+                                            <span className="text-slate-800 font-extrabold">₹590 INR</span>
+                                        </div>
+                                        <div className="h-px bg-slate-100 my-1" />
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Total Price</span>
+                                            <span className="text-lg font-black text-slate-900 bg-blue-50 text-blue-600 px-3 py-1 rounded-xl">
+                                                ₹{buySlots * 590} INR
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="flex justify-between text-xs text-slate-500 font-bold">
-                                        <span>Rate per Slot:</span>
-                                        <span className="text-slate-800 font-extrabold">₹590 INR</span>
-                                    </div>
-                                    <div className="h-px bg-slate-100 my-1" />
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Total Price</span>
-                                        <span className="text-lg font-black text-slate-900 bg-blue-50 text-blue-600 px-3 py-1 rounded-xl">
-                                            ₹{buySlots * 590} INR
-                                        </span>
-                                    </div>
-                                </div>
 
-                                <button
-                                    onClick={handleBuySlots}
-                                    disabled={purchasing}
-                                    className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
-                                >
-                                    {purchasing ? (
-                                        <>
-                                            <Loader2 size={16} className="animate-spin" />
-                                            Processing Payment...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CreditCard size={16} />
-                                            Pay with Razorpay
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                                    <button
+                                        onClick={handleBuySlots}
+                                        disabled={purchasing}
+                                        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
+                                    >
+                                        {purchasing ? (
+                                            <>
+                                                <Loader2 size={16} className="animate-spin" />
+                                                Processing Payment...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CreditCard size={16} />
+                                                Pay
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
 
             {/* Metric Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
