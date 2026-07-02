@@ -436,7 +436,11 @@ export default function AdminDashboard() {
                                         </div>
                                         <div className="flex justify-between text-xs text-slate-500 font-bold">
                                             <span>Rate per Slot:</span>
-                                            <span className="text-slate-800 font-extrabold">₹590 INR</span>
+                                            <span className="text-slate-800 font-extrabold">₹500 INR</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs text-slate-500 font-bold">
+                                            <span>GST (18%):</span>
+                                            <span className="text-slate-800 font-extrabold">₹{buySlots * 90} INR</span>
                                         </div>
                                         <div className="h-px bg-slate-100 my-1" />
                                         <div className="flex justify-between items-center">
