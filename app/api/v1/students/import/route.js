@@ -266,7 +266,11 @@ export async function POST(req) {
         console.log(`[IMPORT] Detected header row at index: ${headerRowIndex} with ${bestMatchCount} match counts.`);
         
         const headers = rawRows[headerRowIndex].map(h => String(h || "").trim());
-        const dataRows = rawRows.slice(headerRowIndex + 1);
+        
+        // Filter out empty rows from spreadsheet to prevent processing trailing blank lines
+        const dataRows = rawRows.slice(headerRowIndex + 1).filter(row => {
+            return Array.isArray(row) && row.some(cell => String(cell || "").trim() !== "");
+        });
 
         // 2. LOOSE COLUMN INDEX MAPPING (Alias Engine)
         const getColIndex = (aliases) => {
@@ -313,9 +317,10 @@ export async function POST(req) {
         const seenEmails = new Set();
         const seenEnrollments = new Set();
 
+        // Optimized query matching schema fields (deletedAt) to leverage composite DB index
         const existingStudents = await Student.find({
             institute: scope.instituteId,
-            isDeleted: { $ne: true }
+            deletedAt: null
         }).select("email enrollmentNumber").lean();
 
         const existingEmailSet = new Set(
@@ -572,7 +577,7 @@ export async function POST(req) {
             await Membership.insertMany(membershipDocs);
             console.log(`[IMPORT] Successfully bulk-inserted ${membershipDocs.length} memberships.`);
 
-            // D. High-Performance Bulk Enrollment in Batches
+            // D. High-Performance Bulk Enrollment in Batches and Auto-Billing Initialization
             if (studentBatchMappings.length > 0) {
                 const batchGroups = {}; // batchId -> Array of student ObjectId strings
                 studentBatchMappings.forEach(mapping => {
@@ -584,20 +589,44 @@ export async function POST(req) {
                 });
 
                 const Batch = (await import("@/models/Batch")).default;
+                const Fee = (await import("@/models/Fee")).default;
+
                 for (const batchId in batchGroups) {
                     const studentIds = batchGroups[batchId];
-                    await Batch.findByIdAndUpdate(batchId, {
-                        $addToSet: {
-                            enrolledStudents: {
-                                $each: studentIds.map(id => ({
-                                    student: new mongoose.Types.ObjectId(id),
-                                    enrolledAt: new Date(),
-                                    status: "active"
-                                }))
+                    const batch = await Batch.findById(batchId).populate('course');
+                    
+                    if (batch) {
+                        // 1. Add students to Batch enrolledStudents list
+                        await Batch.findByIdAndUpdate(batchId, {
+                            $addToSet: {
+                                enrolledStudents: {
+                                    $each: studentIds.map(id => ({
+                                        student: new mongoose.Types.ObjectId(id),
+                                        enrolledAt: new Date(),
+                                        status: "active"
+                                    }))
+                                }
                             }
+                        });
+                        console.log(`[IMPORT] Enrolled ${studentIds.length} students in Batch ID: ${batchId}`);
+
+                        // 2. Auto-initialize fee records using the Class/Course Base Fee amount
+                        const baseFeeAmount = batch.course?.fees?.amount || 0;
+                        const feeDocs = studentIds.map(id => ({
+                            student: new mongoose.Types.ObjectId(id),
+                            batch: batch._id,
+                            session: batch.session || sessionId,
+                            institute: scope.instituteId,
+                            totalAmount: baseFeeAmount,
+                            installments: [],
+                            status: 'not_started'
+                        }));
+
+                        if (feeDocs.length > 0) {
+                            await Fee.insertMany(feeDocs);
+                            console.log(`[IMPORT] Created initial fee records (Amount: ₹${baseFeeAmount}) for ${feeDocs.length} students in Batch: ${batch.name}`);
                         }
-                    });
-                    console.log(`[IMPORT] Enrolled ${studentIds.length} students in Batch ID: ${batchId}`);
+                    }
                 }
             }
         }
