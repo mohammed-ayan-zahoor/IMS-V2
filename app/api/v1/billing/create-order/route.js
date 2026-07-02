@@ -35,8 +35,10 @@ export async function POST(req) {
             return NextResponse.json({ error: "Razorpay credentials are not configured on the server" }, { status: 500 });
         }
 
-        const amountInRupees = 590 * slots;
-        const amountInPaise = amountInRupees * 100;
+        const baseAmount = slots * 590;
+        const gstAmount = Math.round(baseAmount * 0.18 * 100) / 100;
+        const amountInRupees = baseAmount + gstAmount;
+        const amountInPaise = Math.round(amountInRupees * 100);
 
         const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
         const rzpResponse = await fetch("https://api.razorpay.com/v1/orders", {
