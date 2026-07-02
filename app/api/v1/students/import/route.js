@@ -201,14 +201,19 @@ async function checkBatchExists(batchName, courseId, sessionId, instituteId) {
 
 export async function POST(req) {
     try {
+        console.log("[IMPORT_DEBUG] 1. Request received");
         const session = await getServerSession(authOptions);
         if (!session?.user?.role || !["admin", "super_admin"].includes(session.user.role)) {
+            console.log("[IMPORT_DEBUG] Unauthorized user role");
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        console.log("[IMPORT_DEBUG] 2. Connecting to DB");
         await connectDB();
+        console.log("[IMPORT_DEBUG] 3. DB connected, getting institute scope");
         const scope = await getInstituteScope(req);
         if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
+            console.log("[IMPORT_DEBUG] Unauthorized scope context");
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -218,10 +223,13 @@ export async function POST(req) {
 
         const { searchParams } = new URL(req.url);
         const isPreview = searchParams.get("preview") === "true";
+        console.log(`[IMPORT_DEBUG] 4. isPreview: ${isPreview}`);
 
+        console.log("[IMPORT_DEBUG] 5. Parsing FormData");
         const formData = await req.formData();
         const file = formData.get("file");
         const globalTargetBatchId = formData.get("targetBatchId");
+        console.log(`[IMPORT_DEBUG] 6. Target batch ID: ${globalTargetBatchId}, file object exists: ${!!file}`);
 
         if (!file) {
             return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
@@ -231,12 +239,15 @@ export async function POST(req) {
         }
 
         // Parse file buffer
+        console.log("[IMPORT_DEBUG] 7. Reading file arrayBuffer");
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
+        console.log("[IMPORT_DEBUG] 8. Parsing XLSX workbook");
         const workbook = XLSX.read(buffer, { type: "buffer" });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
+        console.log(`[IMPORT_DEBUG] 9. Sheet parsed: ${sheetName}`);
         
         // 1. READ RAW CELLS TO AUTOMATICALLY DETECT HEADER OFFSET (Highly Premium SaaS Feature)
         const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
@@ -305,8 +316,10 @@ export async function POST(req) {
         // Derive active session for the imported students
         let sessionId = null;
         try {
+            console.log("[IMPORT_DEBUG] 10. Deriving active academic session");
             const sessionResult = await validateAndDeriveSession(req, scope);
             sessionId = sessionResult.sessionId;
+            console.log(`[IMPORT_DEBUG] 11. Derived sessionId: ${sessionId}`);
         } catch (err) {
             console.error("[IMPORT_SESSION_ERROR]", err.message);
         }
@@ -318,10 +331,12 @@ export async function POST(req) {
         const seenEnrollments = new Set();
 
         // Optimized query matching schema fields (deletedAt) to leverage composite DB index
+        console.log("[IMPORT_DEBUG] 12. Querying existing students list");
         const existingStudents = await Student.find({
             institute: scope.instituteId,
             deletedAt: null
         }).select("email enrollmentNumber").lean();
+        console.log(`[IMPORT_DEBUG] 13. Found ${existingStudents.length} existing students in DB`);
 
         const existingEmailSet = new Set(
             existingStudents
@@ -336,16 +351,20 @@ export async function POST(req) {
         );
 
         // Fetch Institute Type & Code
+        console.log("[IMPORT_DEBUG] 14. Fetching institute configuration details");
         const Institute = (await import("@/models/Institute")).default;
         const instDoc = await Institute.findById(scope.instituteId).select("type code limits").lean();
         const isVocational = instDoc?.type === "VOCATIONAL";
         const instCode = instDoc?.code || "INST";
         const emailDomain = `${instCode.toLowerCase()}.edu`;
+        console.log(`[IMPORT_DEBUG] 15. Institute: ${instDoc?.type}, code: ${instCode}`);
 
         const maxStudents = instDoc?.limits?.maxStudents || 0;
         let currentStudentCount = 0;
         if (maxStudents > 0) {
+            console.log("[IMPORT_DEBUG] 16. Checking student limit count");
             currentStudentCount = await Student.countDocuments({ institute: scope.instituteId, role: 'student', deletedAt: null });
+            console.log(`[IMPORT_DEBUG] 17. Current student count: ${currentStudentCount}`);
         }
 
         // 3. PROCESS ROWS & DYNAMIC INFRASTRUCTURE RESOLUTION
@@ -515,7 +534,10 @@ export async function POST(req) {
             }
         }
 
+        console.log(`[IMPORT_DEBUG] 18. Finished processing all rows. isPreview: ${isPreview}, successResults: ${successResults.length}, previewRows: ${previewRows.length}`);
+
         if (isPreview) {
+            console.log("[IMPORT_DEBUG] 19. Returning preview response JSON");
             return NextResponse.json({
                 success: true,
                 isPreview: true,
