@@ -21,7 +21,8 @@ import {
     Calendar as CalendarIcon,
     Plus,
     Minus,
-    X
+    X,
+    Sparkles
 } from "lucide-react";
 import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -358,7 +359,7 @@ export default function AdminDashboard() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => !purchasing && setIsBuyModalOpen(false)}
-                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                            className="absolute inset-0 bg-slate-900/50"
                         />
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -374,53 +375,66 @@ export default function AdminDashboard() {
                                 <button
                                     onClick={() => setIsBuyModalOpen(false)}
                                     disabled={purchasing}
-                                    className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors disabled:opacity-50"
+                                    className="p-2 hover:bg-slate-105 rounded-xl text-slate-400 transition-colors disabled:opacity-50"
                                 >
                                     <X size={18} />
                                 </button>
                             </header>
 
                             <div className="space-y-6">
-                                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50 text-xs text-blue-700 font-medium">
-                                    Each slot adds <strong>10 extra student capacity</strong> to your database permanently.
+                                <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-2xl border border-blue-100/60 flex items-start gap-3">
+                                    <Sparkles className="text-blue-600 mt-0.5 shrink-0 animate-pulse" size={16} />
+                                    <p className="text-xs text-blue-750/90 font-semibold leading-relaxed">
+                                        Each slot instantly increases your student registration limit by <strong>10 capacity seats</strong> permanently.
+                                    </p>
                                 </div>
 
-                                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <span className="text-sm font-bold text-slate-700">Number of Slots</span>
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            type="button"
-                                            disabled={buySlots <= 1 || purchasing}
-                                            onClick={() => setBuySlots(prev => prev - 1)}
-                                            className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-600 hover:text-blue-600 transition-all disabled:opacity-50"
-                                        >
-                                            <Minus size={14} />
-                                        </button>
-                                        <span className="text-lg font-black text-slate-800 w-8 text-center">{buySlots}</span>
-                                        <button
-                                            type="button"
-                                            disabled={purchasing}
-                                            onClick={() => setBuySlots(prev => prev + 1)}
-                                            className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-600 hover:text-blue-600 transition-all disabled:opacity-50"
-                                        >
-                                            <Plus size={14} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2.5 pt-2">
-                                    <div className="flex justify-between text-xs text-slate-500 font-medium">
-                                        <span>Capacity to Add:</span>
-                                        <span className="font-bold text-slate-800">{buySlots * 10} Students</span>
-                                    </div>
-                                    <div className="flex justify-between text-xs text-slate-500 font-medium">
-                                        <span>Rate per Slot:</span>
-                                        <span className="font-bold text-slate-800">₹500 INR</span>
-                                    </div>
-                                    <div className="h-px bg-slate-100 my-2" />
+                                <div className="p-5 bg-slate-50/80 rounded-2xl border border-slate-100 space-y-4">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-sm font-black text-slate-900">Total Price:</span>
-                                        <span className="text-xl font-black text-blue-600">₹{buySlots * 500} INR</span>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Select Quantity</span>
+                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                                            +{buySlots * 10} seats
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-bold text-slate-800">Extra Quota Slots</span>
+                                        <div className="flex items-center gap-4 bg-white border border-slate-200 p-1.5 rounded-xl shadow-sm">
+                                            <button
+                                                type="button"
+                                                disabled={buySlots <= 1 || purchasing}
+                                                onClick={() => setBuySlots(prev => prev - 1)}
+                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                                            >
+                                                <Minus size={14} />
+                                            </button>
+                                            <span className="text-base font-black text-slate-800 w-6 text-center select-none">{buySlots}</span>
+                                            <button
+                                                type="button"
+                                                disabled={purchasing}
+                                                onClick={() => setBuySlots(prev => prev + 1)}
+                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-505 hover:bg-slate-100 disabled:opacity-30 transition-all"
+                                            >
+                                                <Plus size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-slate-50/40 rounded-2xl border border-slate-100 p-5 space-y-3">
+                                    <div className="flex justify-between text-xs text-slate-500 font-bold">
+                                        <span>Capacity Added:</span>
+                                        <span className="text-slate-800 font-extrabold">{buySlots * 10} Students</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs text-slate-500 font-bold">
+                                        <span>Rate per Slot:</span>
+                                        <span className="text-slate-800 font-extrabold">₹590 INR</span>
+                                    </div>
+                                    <div className="h-px bg-slate-100 my-1" />
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Total Price</span>
+                                        <span className="text-lg font-black text-slate-900 bg-blue-50 text-blue-600 px-3 py-1 rounded-xl">
+                                            ₹{buySlots * 590} INR
+                                        </span>
                                     </div>
                                 </div>
 
