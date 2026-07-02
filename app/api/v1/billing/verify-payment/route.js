@@ -72,7 +72,7 @@ export async function POST(req) {
         const AuditLog = (await import("@/models/AuditLog")).default;
         await AuditLog.create({
             actor: session.user.id,
-            action: 'billing.slots_purchase',
+            action: 'institute.update',
             resource: { type: 'Institute', id: tx.institute },
             institute: tx.institute,
             details: {
