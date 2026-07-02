@@ -47,7 +47,9 @@ export default function UserManagementPage() {
         role: "student",
         assignedBatches: [], // Multi-select IDs
         assignedCourses: [], // Multi-select IDs
-        activeSession: ""
+        activeSession: "",
+        designation: "",
+        basicSalary: ""
     });
 
     const isInitialFetch = useRef(true);
@@ -64,8 +66,23 @@ export default function UserManagementPage() {
         localStorage.setItem("userActiveTab", activeTab);
     }, [activeTab]);
 
+    const [designations, setDesignations] = useState([]);
+
+    const fetchDesignations = async () => {
+        try {
+            const res = await fetch("/api/v1/hr/designations");
+            if (res.ok) {
+                const data = await res.json();
+                setDesignations(data.designations || []);
+            }
+        } catch (e) {
+            console.error("Failed to load designations", e);
+        }
+    };
+
     useEffect(() => {
         fetchUsers();
+        fetchDesignations();
     }, []);
 
     const fetchUsers = async () => {
@@ -209,7 +226,9 @@ export default function UserManagementPage() {
                     password: "", role: "student",
                     assignedBatches: [],
                     assignedCourses: [],
-                    activeSession: ""
+                    activeSession: "",
+                    designation: "",
+                    basicSalary: ""
                 });
                 fetchUsers();
                 toast.success("User created successfully");
@@ -388,7 +407,14 @@ export default function UserManagementPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <RoleBadge role={user.role} />
+                                            <div className="flex flex-col gap-1 items-start">
+                                                <RoleBadge role={user.role} />
+                                                {user.hrDetails?.designation && (
+                                                    <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                                        {typeof user.hrDetails.designation === 'object' ? user.hrDetails.designation.name : 'Staff'}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-600">
                                             <div className="flex flex-col gap-1">
@@ -442,10 +468,32 @@ export default function UserManagementPage() {
                             options={[
                                 { label: "Student", value: "student" },
                                 { label: "Admin", value: "admin" },
-                                { label: "Instructor", value: "instructor" }
+                                { label: "Instructor / Teacher", value: "instructor" },
+                                { label: "Staff", value: "staff" }
                             ]}
                         />
                     </div>
+
+                    {['instructor', 'staff'].includes(formData.role) && (
+                        <div className="grid grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                            <Select
+                                label="Designation"
+                                value={formData.designation}
+                                onChange={val => setFormData({ ...formData, designation: val })}
+                                options={[
+                                    { label: "No Designation", value: "" },
+                                    ...designations.map(d => ({ label: d.name, value: d._id }))
+                                ]}
+                            />
+                            <Input
+                                label="Basic Salary (₹)"
+                                type="number"
+                                min="0"
+                                value={formData.basicSalary}
+                                onChange={e => setFormData({ ...formData, basicSalary: e.target.value })}
+                            />
+                        </div>
+                    )}
 
                     <div className="space-y-1">
                         <Select
@@ -548,5 +596,6 @@ export default function UserManagementPage() {
 function RoleBadge({ role }) {
     if (role === 'admin' || role === 'super_admin') return <Badge variant="primary" className="bg-purple-100 text-purple-700 border-purple-200"><Shield size={10} className="mr-1" /> Admin</Badge>;
     if (role === 'instructor') return <Badge variant="warning" className="bg-orange-100 text-orange-700 border-orange-200"><UserCog size={10} className="mr-1" /> Instructor</Badge>;
+    if (role === 'staff') return <Badge variant="warning" className="bg-blue-100 text-blue-700 border-blue-200"><UserCog size={10} className="mr-1" /> Staff</Badge>;
     return <Badge variant="neutral" className="bg-slate-100 text-slate-600 border-slate-200"><User size={10} className="mr-1" /> Student</Badge>;
 }

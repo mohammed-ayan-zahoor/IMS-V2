@@ -40,7 +40,13 @@ import {
     Megaphone,
     Bus,
     Hotel,
-    Globe
+    Globe,
+    Briefcase,
+    Coins,
+    CalendarDays,
+    UserCheck,
+    FileSpreadsheet,
+    Landmark
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -141,6 +147,15 @@ export default function AdminLayout({ children }) {
                 { label: "Expense Master", icon: Receipt, href: "/admin/expenses/master" },
             ]
         },
+        {
+            label: "Incomes",
+            role: ["admin", "super_admin"],
+            items: [
+                { label: "Add Income", icon: PlusCircle, href: "/admin/incomes/add" },
+                { label: "Income Report", icon: BarChart3, href: "/admin/incomes/report" },
+                { label: "Income Master", icon: Receipt, href: "/admin/incomes/master" },
+            ]
+        },
         // Transport
         ...(isTransportEnabled ? [{
             label: "Transport",
@@ -157,6 +172,17 @@ export default function AdminLayout({ children }) {
                 { label: "Hostel", icon: Hotel, href: "/admin/hostel" }
             ]
         }] : []),
+        {
+            label: "Human Resources",
+            role: ["admin", "super_admin"],
+            items: [
+                { label: "Designations", icon: Briefcase, href: "/admin/hr/designations" },
+                { label: "Earnings & Deductions", icon: Coins, href: "/admin/hr/salary-components" },
+                { label: "Leave Types", icon: CalendarDays, href: "/admin/hr/leave-types" },
+                { label: "Staff Attendance", icon: UserCheck, href: "/admin/hr/attendance" },
+                { label: "Payslip Generator", icon: FileSpreadsheet, href: "/admin/hr/payslips" },
+            ]
+        },
         {
             label: "Reports",
             items: [

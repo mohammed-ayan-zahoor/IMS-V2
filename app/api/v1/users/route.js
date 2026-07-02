@@ -66,6 +66,7 @@ export async function GET(req) {
         }
 
         const users = await User.find(query)
+            .populate('hrDetails.designation', 'name')
             .select("-passwordHash")
             .sort({ createdAt: -1 });
 
@@ -177,6 +178,14 @@ export async function POST(req) {
                 const batches = Array.isArray(body.assignedBatches) ? body.assignedBatches : [];
                 const courses = Array.isArray(body.assignedCourses) ? body.assignedCourses : [];
                 userPayload.assignments = { batches, courses };
+            }
+
+            if (['instructor', 'staff'].includes(requestedRole)) {
+                userPayload.hrDetails = {
+                    designation: body.designation && mongoose.Types.ObjectId.isValid(body.designation) ? body.designation : undefined,
+                    basicSalary: parseFloat(body.basicSalary) || 0,
+                    joiningDate: new Date()
+                };
             }
 
             const session = await mongoose.startSession();

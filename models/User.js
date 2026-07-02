@@ -180,7 +180,33 @@ const UserSchema = new Schema({
     activeSessions: [{
         type: Schema.Types.ObjectId,
         ref: 'Session'
-    }]
+    }],
+    hrDetails: {
+        designation: {
+            type: Schema.Types.ObjectId,
+            ref: 'Designation',
+            index: true
+        },
+        joiningDate: Date,
+        qualification: String,
+        basicSalary: {
+            type: Number,
+            default: 0
+        },
+        earnings: [{
+            component: { type: Schema.Types.ObjectId, ref: 'SalaryComponent' },
+            amount: { type: Number, default: 0 }
+        }],
+        deductions: [{
+            component: { type: Schema.Types.ObjectId, ref: 'SalaryComponent' },
+            amount: { type: Number, default: 0 }
+        }],
+        leaveBalances: [{
+            leaveType: { type: Schema.Types.ObjectId, ref: 'LeaveType' },
+            allowedDays: { type: Number, default: 0 },
+            takenDays: { type: Number, default: 0 }
+        }]
+    }
 }, {
     timestamps: true,
     toJSON: { virtuals: true },

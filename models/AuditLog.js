@@ -27,6 +27,13 @@ const AuditLogSchema = new Schema({
             'institute.create', 'institute.update', 'institute.delete',
             'expense_head.create', 'expense_head.delete',
             'expense.create', 'expense.delete',
+            'income_head.create', 'income_head.delete',
+            'income.create', 'income.delete',
+            'hr.designation.create', 'hr.designation.delete',
+            'hr.component.create', 'hr.component.delete',
+            'hr.leave.create', 'hr.leave.delete',
+            'hr.attendance.mark',
+            'hr.payslip.generate', 'hr.payslip.delete',
             'subject.create', 'subject.update', 'subject.delete', 'subject.syllabus_update', 'subject.syllabus_import',
             'fee_preset.create', 'fee_preset.update', 'fee_preset.delete',
             'session.create', 'session.activate', 'session.delete', 'session.student_fetch', 'session.student_create', 'session.dashboard_stats_access',
@@ -44,7 +51,7 @@ const AuditLogSchema = new Schema({
      resource: {
           type: {
               type: String,
-              enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'Subject', 'Enquiry', 'FeePreset', 'Session', 'MasterSubject', 'CollectorTransfer', 'HostelBlock', 'HostelRoom', 'HostelAllotment', 'Vehicle', 'Driver', 'TransportRoute', 'TransportFeePreset', 'TransportFee']
+              enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'IncomeHead', 'Income', 'Designation', 'SalaryComponent', 'LeaveType', 'StaffAttendance', 'Payslip', 'Subject', 'Enquiry', 'FeePreset', 'Session', 'MasterSubject', 'CollectorTransfer', 'HostelBlock', 'HostelRoom', 'HostelAllotment', 'Vehicle', 'Driver', 'TransportRoute', 'TransportFeePreset', 'TransportFee']
           },
           id: Schema.Types.ObjectId
       },
