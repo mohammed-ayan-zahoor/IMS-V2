@@ -30,7 +30,8 @@ import {
     Bus,
     MapPin,
     Car,
-    Route
+    Route,
+    CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -62,6 +63,12 @@ export default function StudentsPage() {
      const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
      const [isDeleting, setIsDeleting] = useState(false);
      const { selectedSessionId, sessions } = useAcademicSession();
+
+    // Fee Preset Apply State
+    const [isFeePresetModalOpen, setIsFeePresetModalOpen] = useState(false);
+    const [feePresets, setFeePresets] = useState([]);
+    const [feePresetApply, setFeePresetApply] = useState({ batchId: "", presetId: "", numInstallments: 1 });
+    const [isApplyingPreset, setIsApplyingPreset] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -727,6 +734,51 @@ export default function StudentsPage() {
         }
     };
 
+    const fetchFeePresets = async (courseId) => {
+        try {
+            const url = courseId ? `/api/v1/fee-presets?courseId=${courseId}` : "/api/v1/fee-presets";
+            const res = await fetch(url);
+            const data = await res.json();
+            setFeePresets(data.presets || []);
+        } catch (e) {
+            console.error("Failed to fetch fee presets", e);
+        }
+    };
+
+    const handleOpenFeePresetModal = () => {
+        // Pre-fill batchId from active filter if set
+        setFeePresetApply(prev => ({ ...prev, batchId: filters.batchId || "", presetId: "" }));
+        // Fetch presets for active course filter
+        fetchFeePresets(filters.courseId || "");
+        setIsFeePresetModalOpen(true);
+    };
+
+    const handleApplyFeePreset = async () => {
+        if (!feePresetApply.batchId || !feePresetApply.presetId) {
+            toast.error("Please select a batch and a fee preset");
+            return;
+        }
+        try {
+            setIsApplyingPreset(true);
+            const res = await fetch("/api/v1/fees/bulk-apply-preset", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(feePresetApply)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success(`✅ ${data.createdCount} fee records created. ${data.skippedCount > 0 ? `${data.skippedCount} already had fees (skipped).` : ""}`);
+                setIsFeePresetModalOpen(false);
+            } else {
+                toast.error(data.error || "Failed to apply preset");
+            }
+        } catch (e) {
+            toast.error("Failed to apply preset");
+        } finally {
+            setIsApplyingPreset(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Promotion Modal */}
@@ -783,6 +835,78 @@ export default function StudentsPage() {
                      </div>
                  </div>
              </Modal>
+
+             {/* Apply Fee Preset Modal */}
+             <Modal
+                 isOpen={isFeePresetModalOpen}
+                 onClose={() => !isApplyingPreset && setIsFeePresetModalOpen(false)}
+                 title="Apply Fee Preset to Batch"
+             >
+                 <div className="space-y-5">
+                     <p className="text-sm text-slate-500">
+                         Select a batch and a fee preset. A fee record will be created for every active student in that batch who doesn&apos;t already have one.
+                     </p>
+
+                     {/* Batch selector */}
+                     <div>
+                         <label className="block text-xs font-bold text-slate-600 mb-1">{isSchool ? "Section / Batch" : "Batch"}</label>
+                         <Select
+                             value={feePresetApply.batchId}
+                             onChange={(val) => {
+                                 // When batch changes, load presets for its course
+                                 const selectedBatch = batches.find(b => b._id === val);
+                                 const courseId = selectedBatch?.course?._id || selectedBatch?.course || "";
+                                 fetchFeePresets(courseId);
+                                 setFeePresetApply(prev => ({ ...prev, batchId: val, presetId: "" }));
+                             }}
+                             placeholder="Select batch…"
+                             options={batches.map(b => ({ label: b.name, value: b._id }))}
+                         />
+                     </div>
+
+                     {/* Preset selector */}
+                     <div>
+                         <label className="block text-xs font-bold text-slate-600 mb-1">Fee Preset</label>
+                         <Select
+                             value={feePresetApply.presetId}
+                             onChange={(val) => setFeePresetApply(prev => ({ ...prev, presetId: val }))}
+                             placeholder={feePresets.length === 0 ? "No presets for this batch's course" : "Select preset…"}
+                             options={feePresets.map(p => ({ label: `${p.name} — ₹${p.amount.toLocaleString()}`, value: p._id }))}
+                         />
+                     </div>
+
+                     {/* Number of installments */}
+                     <div>
+                         <label className="block text-xs font-bold text-slate-600 mb-1">Number of Installments</label>
+                         <select
+                             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                             value={feePresetApply.numInstallments}
+                             onChange={e => setFeePresetApply(prev => ({ ...prev, numInstallments: parseInt(e.target.value, 10) }))}
+                         >
+                             {[1, 2, 3, 4, 6, 12].map(n => (
+                                 <option key={n} value={n}>{n} {n === 1 ? "(Full payment)" : `installments`}</option>
+                             ))}
+                         </select>
+                         {feePresetApply.presetId && feePresets.find(p => p._id === feePresetApply.presetId) && (
+                             <p className="text-xs text-slate-500 mt-1">
+                                 ₹{(feePresets.find(p => p._id === feePresetApply.presetId)?.amount / feePresetApply.numInstallments).toFixed(2)} per installment
+                             </p>
+                         )}
+                     </div>
+
+                     <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
+                         <Button variant="outline" onClick={() => setIsFeePresetModalOpen(false)} disabled={isApplyingPreset}>Cancel</Button>
+                         <Button
+                             onClick={handleApplyFeePreset}
+                             disabled={isApplyingPreset || !feePresetApply.batchId || !feePresetApply.presetId}
+                             className="flex items-center gap-2"
+                         >
+                             <CreditCard size={16} />
+                             {isApplyingPreset ? "Applying…" : "Apply to Batch"}
+                         </Button>
+                     </div>
+                 </div>
+             </Modal>
              
              {/* Page Action Bar */}
 
@@ -814,6 +938,15 @@ export default function StudentsPage() {
                     <Button onClick={() => setIsImportModalOpen(true)} variant="outline" size="md" className="hidden sm:flex items-center gap-2 border-slate-200">
                         <Upload size={16} />
                         <span>Import Students</span>
+                    </Button>
+                    <Button
+                        onClick={handleOpenFeePresetModal}
+                        variant="outline"
+                        size="md"
+                        className="hidden sm:flex items-center gap-2 border-slate-200 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                    >
+                        <CreditCard size={16} />
+                        <span>Apply Fee Preset</span>
                     </Button>
                     <Button 
                         onClick={() => setIsAddModalOpen(true)} 
