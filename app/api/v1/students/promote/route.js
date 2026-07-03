@@ -9,6 +9,7 @@ import User from '@/models/User';
 import Institute from '@/models/Institute';
 import AuditLog from '@/models/AuditLog';
 import FeePreset from '@/models/FeePreset';
+import Fee from '@/models/Fee';
 import { FeeService } from '@/services/feeService';
 import mongoose from 'mongoose';
 
@@ -105,6 +106,16 @@ export async function POST(req) {
                     continue;
                 }
 
+                // Find current active batches to identify fees to carry forward
+                const activeBatchesForStudent = await Batch.find({
+                    institute: scope.instituteId,
+                    'enrolledStudents': { 
+                        $elemMatch: { student: studentId, status: 'active' } 
+                    },
+                    _id: { $ne: targetBatchId }
+                }).select('_id');
+                const activeBatchIds = activeBatchesForStudent.map(b => b._id);
+
                 // B. Mark current active batches as COMPLETED (same session)
                 await Batch.updateMany(
                     { 
@@ -139,31 +150,57 @@ export async function POST(req) {
                     }
                 });
 
-                 // D. Create fee from preset if available (only for SCHOOL institutes)
-                 if (instituteType === 'SCHOOL') {
-                     if (feePreset) {
-                         try {
-                             await FeeService.createFeeFromPreset({
-                                 student: studentId,
-                                 batch: targetBatchId,
-                                 preset: feePreset,
-                                 institute: scope.instituteId,
-                                 session: targetSessionId,
-                                 numInstallments: 3 // Default to 3 installments
-                             }, session.user.id);
-                             results.feesCreated++;
-                         } catch (feeErr) {
-                             console.error(`Failed to create fee for student ${studentId}:`, feeErr);
-                             results.feesFailed++;
-                             // Don't fail the entire promotion if fee creation fails
-                         }
-                     } else {
-                         results.feesSkipped++;
-                     }
-                 } else {
-                     // VOCATIONAL institute - skip fee creation
-                     results.feesSkipped++;
-                 }
+                // D. Create fee from preset if available (only for SCHOOL institutes)
+                if (instituteType === 'SCHOOL') {
+                    if (feePreset) {
+                        try {
+                            await FeeService.createFeeFromPreset({
+                                student: studentId,
+                                batch: targetBatchId,
+                                preset: feePreset,
+                                institute: scope.instituteId,
+                                session: targetSessionId,
+                                numInstallments: 3 // Default to 3 installments
+                            }, session.user.id);
+                            results.feesCreated++;
+                        } catch (feeErr) {
+                            console.error(`Failed to create fee for student ${studentId}:`, feeErr);
+                            results.feesFailed++;
+                            // Don't fail the entire promotion if fee creation fails
+                        }
+                    } else {
+                        results.feesSkipped++;
+                    }
+
+                    // E. Carry forward unpaid arrears if any exist in the previous batches
+                    if (activeBatchIds.length > 0) {
+                        try {
+                            const unpaidFees = await Fee.find({
+                                student: studentId,
+                                batch: { $in: activeBatchIds },
+                                status: { $in: ['partial', 'overdue', 'not_started'] },
+                                deletedAt: null
+                            });
+
+                            for (const unpaidFee of unpaidFees) {
+                                if (unpaidFee.balanceAmount > 0) {
+                                    await FeeService.createCarryForwardFee({
+                                        student: studentId,
+                                        batch: targetBatchId,
+                                        previousFee: unpaidFee,
+                                        institute: scope.instituteId,
+                                        session: targetSessionId
+                                    }, session.user.id);
+                                }
+                            }
+                        } catch (cfErr) {
+                            console.error(`Failed to execute carryforward logic for student ${studentId}:`, cfErr);
+                        }
+                    }
+                } else {
+                    // VOCATIONAL institute - skip fee creation
+                    results.feesSkipped++;
+                }
 
                 results.success++;
             } catch (err) {

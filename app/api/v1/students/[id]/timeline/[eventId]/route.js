@@ -14,7 +14,7 @@ export async function PATCH(req, { params }) {
         const scope = await getInstituteScope(req);
         if (!scope.instituteId) return NextResponse.json({ error: 'Missing institute context' }, { status: 400 });
 
-        const { eventId } = params;
+        const { eventId } = await params;
         const body = await req.json();
         const { title, description, category, photoUrl, status, date } = body;
 
@@ -85,7 +85,7 @@ export async function DELETE(req, { params }) {
         const scope = await getInstituteScope(req);
         if (!scope.instituteId) return NextResponse.json({ error: 'Missing institute context' }, { status: 400 });
 
-        const { eventId } = params;
+        const { eventId } = await params;
 
         await connectDB();
 

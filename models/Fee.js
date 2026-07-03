@@ -71,11 +71,27 @@ const FeeSchema = new Schema({
     feePreset: {
         type: Schema.Types.ObjectId,
         ref: 'FeePreset'
+    },
+    carryForward: {
+        isCarriedForward: { type: Boolean, default: false },
+        fromFee: { type: Schema.Types.ObjectId, ref: 'Fee' },
+        fromSession: { type: Schema.Types.ObjectId, ref: 'Session' },
+        fromBatch: { type: Schema.Types.ObjectId, ref: 'Batch' },
+        note: String
     }
 }, { timestamps: true });
 
-// Compound index
-FeeSchema.index({ institute: 1, student: 1, batch: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
+// Compound index: Unique only if feePreset is defined (allows custom/carry-forward fees alongside preset fees)
+FeeSchema.index(
+    { institute: 1, student: 1, batch: 1, feePreset: 1 },
+    { 
+        unique: true, 
+        partialFilterExpression: { 
+            deletedAt: null, 
+            feePreset: { $exists: true } 
+        } 
+    }
+);
 // Pre-save hook to calculate balances
 FeeSchema.pre('save', async function () {
     // Auto-balance and validate installment amounts sum

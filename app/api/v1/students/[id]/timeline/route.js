@@ -14,7 +14,7 @@ export async function GET(req, { params }) {
         const scope = await getInstituteScope(req);
         if (!scope.instituteId) return NextResponse.json({ error: 'Missing institute context' }, { status: 400 });
 
-        const studentId = params.id;
+        const { id: studentId } = await params;
 
         // Security check: Students can only view their own timeline
         if (session.user.role === 'student' && session.user.id !== studentId) {
@@ -66,7 +66,7 @@ export async function POST(req, { params }) {
         const scope = await getInstituteScope(req);
         if (!scope.instituteId) return NextResponse.json({ error: 'Missing institute context' }, { status: 400 });
 
-        const studentId = params.id;
+        const { id: studentId } = await params;
         const body = await req.json();
         const { title, description, category, photoUrl, date } = body;
 

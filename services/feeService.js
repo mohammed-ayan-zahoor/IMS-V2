@@ -208,6 +208,92 @@ export class FeeService {
         return fee;
     }
 
+    // Create an arrear fee carried forward from a previous unpaid fee
+    static async createCarryForwardFee(data, actorId) {
+        await connectDB();
+        const { student, batch, previousFee, institute, session } = data;
+
+        if (!previousFee) {
+            throw new Error("Previous fee is required to carry forward");
+        }
+
+        if (!batch || !student || !institute || !session) {
+            throw new Error("Student, batch, institute, and session are required");
+        }
+
+        const carryAmount = previousFee.balanceAmount;
+        if (carryAmount <= 0) {
+            throw new Error("Previous fee has no unpaid balance to carry forward");
+        }
+
+        // Create a single installment for the arrear amount due immediately
+        const installments = [{
+            amount: parseFloat(carryAmount.toFixed(2)),
+            dueDate: new Date(), // due immediately
+            status: 'pending',
+            notes: `Arrear carryforward of unpaid balance from previous session`
+        }];
+
+        const fee = await FeeDb.create({
+            student,
+            batch,
+            totalAmount: carryAmount,
+            installments,
+            status: 'not_started',
+            institute,
+            session,
+            feePreset: null, // Custom/Arrear fee
+            carryForward: {
+                isCarriedForward: true,
+                fromFee: previousFee._id,
+                fromSession: previousFee.session,
+                fromBatch: previousFee.batch,
+                note: `Unpaid balance of ₹${carryAmount.toLocaleString()} carried forward`
+            }
+        });
+
+        // Cancel and discount the old fee record to resolve its balance
+        const originalStatus = previousFee.status;
+        
+        // Convert any overdue installments to pending so they can be discounted/cleared by the pre-save hook
+        if (previousFee.installments && previousFee.installments.length > 0) {
+            previousFee.installments.forEach(inst => {
+                if (inst.status === 'overdue') {
+                    inst.status = 'pending';
+                }
+            });
+        }
+
+        // Apply a discount equal to the carryAmount to bring balance to 0
+        previousFee.discount = {
+            amount: (previousFee.discount?.amount || 0) + carryAmount,
+            reason: `Carried forward to batch ${batch}`,
+            appliedBy: actorId,
+            appliedAt: new Date()
+        };
+
+        previousFee.status = 'cancelled';
+        await previousFee.save();
+
+        await createAuditLog({
+            actor: actorId,
+            action: 'fee.carry_forward',
+            resource: { type: 'Fee', id: fee._id },
+            institute: institute,
+            details: {
+                student,
+                batch,
+                totalAmount: carryAmount,
+                fromFee: previousFee._id,
+                fromBatch: previousFee.batch,
+                originalStatus,
+                reason: 'Arrear carryforward'
+            }
+        });
+
+        return fee;
+    }
+
     static async getFees(filters = {}) {
         await connectDB();
         const {
