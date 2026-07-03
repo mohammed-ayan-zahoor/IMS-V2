@@ -283,40 +283,54 @@ export async function POST(req) {
             return Array.isArray(row) && row.some(cell => String(cell || "").trim() !== "");
         });
 
-        // 2. LOOSE COLUMN INDEX MAPPING (Alias Engine)
+        // 2. COLUMN INDEX MAPPING
+        // Uses exact matching first, then falls back to prefix/suffix matching.
+        // This prevents "Name" from matching "FirstName" or "LastName" columns.
         const getColIndex = (aliases) => {
+            const normHeader = (h) => h.toLowerCase().replace(/[^a-z0-9]/g, "");
+            // First pass: exact match
+            const exactIdx = headers.findIndex(h => {
+                const norm = normHeader(h);
+                return aliases.some(alias => normHeader(alias) === norm);
+            });
+            if (exactIdx !== -1) return exactIdx;
+            // Second pass: starts-with match (e.g. "EnrollmentNumber" matches "Enrollment No")
             return headers.findIndex(h => {
-                const norm = h.toLowerCase().replace(/[^a-z0-9]/g, "");
+                const norm = normHeader(h);
                 return aliases.some(alias => {
-                    const normAlias = alias.toLowerCase().replace(/[^a-z0-9]/g, "");
-                    return norm.includes(normAlias) || normAlias.includes(norm);
+                    const normAlias = normHeader(alias);
+                    return norm.startsWith(normAlias) || normAlias.startsWith(norm);
                 });
             });
         };
 
-        const idxAdmissionNo = getColIndex(["Admission No", "Admission Number", "Student ID", "Enrollment Number", "Roll No", "Roll Number", "Student List"]);
-        const idxName = getColIndex(["Student Name", "StudentName", "Name", "Full Name", "FullName"]);
+        // Separate FirstName / LastName columns (as in the official template)
         const idxFirstName = getColIndex(["FirstName", "First Name", "Given Name"]);
         const idxLastName = getColIndex(["LastName", "Last Name", "Surname", "Family Name"]);
+        // Fallback: single combined Name column (legacy / custom sheets)
+        const idxName = getColIndex(["Student Name", "StudentName", "Full Name", "FullName"]);
+        const idxAdmissionNo = getColIndex(["Admission No", "Admission Number", "Student ID", "Enrollment Number", "GRNumber", "GR Number"]);
         const idxRollNo = getColIndex(["Roll No", "Roll Number", "RollNo"]);
+        // Class/Standard is OPTIONAL — user selects the class from the UI during import
         const idxClass = getColIndex(["Class", "Standard", "Std", "Grade", "Course"]);
         const idxDOB = getColIndex(["Date Of Birth", "DateOfBirth", "DOB", "Birth Date"]);
         const idxGender = getColIndex(["Gender", "Sex"]);
         const idxCategory = getColIndex(["Category", "Caste", "SubCaste"]);
         const idxPhone = getColIndex(["Mobile Number", "Mobile", "Phone", "Phone Number", "Contact"]);
         const idxMotherName = getColIndex(["Mothers Name", "Mother Name", "Mother's Name"]);
-        const idxAadhar = getColIndex(["Aadhar", "Aadhar No", "Aadhar Number"]);
-        const idxPEN = getColIndex(["PEN Number", "PEN No", "PEN"]);
-        const idxAPAAR = getColIndex(["APAAR ID", "APAAR", "APAAR ID"]);
-        const idxGRNo = getColIndex(["GR Number", "GR No", "GR"]);
-
-        console.log(`[IMPORT_DEBUG] 9.1 Column matching results:
-            - headers: ${JSON.stringify(headers)}
-            - idxName: ${idxName}
-            - idxFirstName: ${idxFirstName}
-            - idxLastName: ${idxLastName}
-            - idxClass: ${idxClass}
-        `);
+        const idxFatherName = getColIndex(["FatherName", "Father Name"]);
+        const idxFatherPhone = getColIndex(["FatherPhone", "Father Phone"]);
+        const idxMotherPhone = getColIndex(["MotherPhone", "Mother Phone"]);
+        const idxEmail = getColIndex(["Email", "Email Address"]);
+        const idxAadhar = getColIndex(["AadharNumber", "Aadhar No", "Aadhar Number", "Aadhar"]);
+        const idxPEN = getColIndex(["PenNumber", "PEN Number", "PEN No", "PEN"]);
+        const idxAPAAR = getColIndex(["ApaarID", "APAAR ID", "APAAR"]);
+        const idxGRNo = getColIndex(["GRNumber", "GR Number", "GR No", "GR"]);
+        const idxUdise = getColIndex(["UdiseID", "UDISE", "Udise ID"]);
+        const idxNationality = getColIndex(["Nationality"]);
+        const idxReligion = getColIndex(["Religion"]);
+        const idxEnrollmentNumber = getColIndex(["EnrollmentNumber", "Enrollment Number"]);
+        const idxPassword = getColIndex(["Password"]);
 
         const getValByColIndex = (row, colIndex) => {
             if (colIndex === -1 || colIndex >= row.length) return "";
@@ -385,8 +399,25 @@ export async function POST(req) {
             const row = dataRows[i];
             const rowNum = headerRowIndex + i + 2;
 
-            const admissionNo = getValByColIndex(row, idxAdmissionNo);
-            let studentName = getValByColIndex(row, idxName);
+            // Name: prefer separate FirstName/LastName columns (official template)
+            // fall back to a single combined Name/FullName column (legacy sheets)
+            let firstName = getValByColIndex(row, idxFirstName);
+            let lastName = getValByColIndex(row, idxLastName);
+
+            if (!firstName && !lastName) {
+                // Legacy: combined name column
+                const combinedName = getValByColIndex(row, idxName);
+                if (combinedName) {
+                    const parts = combinedName.trim().split(/\s+/);
+                    firstName = parts[0] || "";
+                    lastName = parts.slice(1).join(" ") || "";
+                }
+            }
+
+            let studentName = `${firstName} ${lastName}`.trim();
+
+            const admissionNo = getValByColIndex(row, idxAdmissionNo) || getValByColIndex(row, idxGRNo) || getValByColIndex(row, idxEnrollmentNumber);
+            // Class is OPTIONAL — user selects destination class from UI
             const rawClass = getValByColIndex(row, idxClass);
             const rawDOB = getValByColIndex(row, idxDOB);
             const gender = getValByColIndex(row, idxGender);
@@ -394,43 +425,24 @@ export async function POST(req) {
             const rawPhone = getValByColIndex(row, idxPhone);
             const phone = rawPhone ? rawPhone.toString().trim().replace(/[^0-9+\-()\s]/g, "").trim() : undefined;
             const motherName = getValByColIndex(row, idxMotherName);
+            const fatherName = getValByColIndex(row, idxFatherName);
+            const fatherPhone = getValByColIndex(row, idxFatherPhone);
+            const motherPhone = getValByColIndex(row, idxMotherPhone);
             const rawAadhar = getValByColIndex(row, idxAadhar);
             const penNumber = getValByColIndex(row, idxPEN);
             const apaarId = getValByColIndex(row, idxAPAAR);
             const grNumber = getValByColIndex(row, idxGRNo);
+            const udiseId = getValByColIndex(row, idxUdise);
+            const nationality = getValByColIndex(row, idxNationality);
+            const religion = getValByColIndex(row, idxReligion);
+            const emailFromSheet = getValByColIndex(row, idxEmail);
+            const passwordFromSheet = getValByColIndex(row, idxPassword);
 
             const rowErrors = [];
 
-            // Name Parsing alias logic: Support single studentName or separate FirstName/LastName fields
-            let firstName = "";
-            let lastName = "";
-
-            if (studentName) {
-                const nameParts = studentName.trim().split(/\s+/);
-                firstName = nameParts[0] || "";
-                lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : "";
-            } else {
-                firstName = getValByColIndex(row, idxFirstName);
-                lastName = getValByColIndex(row, idxLastName);
-                studentName = `${firstName} ${lastName}`.trim();
-            }
-
-            console.log(`[IMPORT_DEBUG] Row ${rowNum} name parsing results:
-                - rawNameVal: "${getValByColIndex(row, idxName)}"
-                - rawFirstNameVal: "${getValByColIndex(row, idxFirstName)}"
-                - rawLastNameVal: "${getValByColIndex(row, idxLastName)}"
-                - derivedFirstName: "${firstName}"
-                - derivedLastName: "${lastName}"
-                - derivedStudentName: "${studentName}"
-            `);
-
-            // Basic checks
-            if (!firstName) {
-                rowErrors.push("First Name is required");
-            }
-            if (!lastName) {
-                rowErrors.push("Last Name is required");
-            }
+            // Basic validation
+            if (!firstName) rowErrors.push("First Name is required");
+            if (!lastName) rowErrors.push("Last Name is required");
 
             // Quota Limit Check
             if (maxStudents > 0 && currentStudentCount >= maxStudents) {
@@ -518,8 +530,8 @@ export async function POST(req) {
 
             const studentObject = {
                 fullName: `${firstName} ${lastName}`,
-                email: email,
-                password: "Welcome@123",
+                email: emailFromSheet || email,
+                password: passwordFromSheet || "Welcome@123",
                 institute: scope.instituteId,
                 role: "student",
                 profile: {
@@ -527,18 +539,24 @@ export async function POST(req) {
                     lastName,
                     phone: phone || undefined,
                     gender: gender || "Not Specified",
-                    dateOfBirth: dateOfBirth || undefined
+                    dateOfBirth: dateOfBirth || undefined,
+                    nationality: nationality || undefined,
+                    religion: religion || undefined,
                 },
                 enrollmentNumber: enrollmentNumber,
-                
+
                 // Metadata details
                 grNumber,
                 aadharNumber: cleanAadhar || null,
                 apaarId,
                 penNumber,
+                udiseId: udiseId || null,
                 caste: category || null,
                 motherName,
-                
+                motherPhone: motherPhone || null,
+                fatherName: fatherName || null,
+                fatherPhone: fatherPhone || null,
+
                 isActive: true,
                 createdBy: session.user.id,
                 activeSession: isVocational ? null : (sessionId || null),
