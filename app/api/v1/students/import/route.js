@@ -296,6 +296,8 @@ export async function POST(req) {
 
         const idxAdmissionNo = getColIndex(["Admission No", "Admission Number", "Student ID", "Enrollment Number", "Roll No", "Roll Number", "Student List"]);
         const idxName = getColIndex(["Student Name", "StudentName", "Name", "Full Name", "FullName"]);
+        const idxFirstName = getColIndex(["FirstName", "First Name", "Given Name"]);
+        const idxLastName = getColIndex(["LastName", "Last Name", "Surname", "Family Name"]);
         const idxRollNo = getColIndex(["Roll No", "Roll Number", "RollNo"]);
         const idxClass = getColIndex(["Class", "Standard", "Std", "Grade", "Course"]);
         const idxDOB = getColIndex(["Date Of Birth", "DateOfBirth", "DOB", "Birth Date"]);
@@ -376,7 +378,7 @@ export async function POST(req) {
             const rowNum = headerRowIndex + i + 2;
 
             const admissionNo = getValByColIndex(row, idxAdmissionNo);
-            const studentName = getValByColIndex(row, idxName);
+            let studentName = getValByColIndex(row, idxName);
             const rawClass = getValByColIndex(row, idxClass);
             const rawDOB = getValByColIndex(row, idxDOB);
             const gender = getValByColIndex(row, idxGender);
@@ -391,16 +393,25 @@ export async function POST(req) {
 
             const rowErrors = [];
 
-            // Basic checks
-            if (!studentName) {
-                rowErrors.push("Student Name is required");
+            // Name Parsing alias logic: Support single studentName or separate FirstName/LastName fields
+            let firstName = "";
+            let lastName = "";
+
+            if (studentName) {
+                const nameParts = studentName.trim().split(/\s+/);
+                firstName = nameParts[0] || "";
+                lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : "";
+            } else {
+                firstName = getValByColIndex(row, idxFirstName);
+                lastName = getValByColIndex(row, idxLastName);
+                studentName = `${firstName} ${lastName}`.trim();
             }
 
-            // Clean Name
-            const nameParts = studentName ? studentName.trim().split(/\s+/) : [];
-            const firstName = nameParts[0] || "";
-            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : "";
-            if (studentName && !lastName) {
+            // Basic checks
+            if (!firstName) {
+                rowErrors.push("First Name is required");
+            }
+            if (!lastName) {
                 rowErrors.push("Last Name is required");
             }
 
