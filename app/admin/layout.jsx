@@ -46,7 +46,10 @@ import {
     CalendarDays,
     UserCheck,
     FileSpreadsheet,
-    Landmark
+    Landmark,
+    ClipboardList,
+    PhoneCall,
+    Mail
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -172,6 +175,16 @@ export default function AdminLayout({ children }) {
                 { label: "Hostel", icon: Hotel, href: "/admin/hostel" }
             ]
         }] : []),
+        {
+            label: "Front Office",
+            role: ["admin", "super_admin"],
+            items: [
+                { label: "Visitor Book", icon: ClipboardList, href: "/admin/front-office/visitor-book" },
+                { label: "Phone Call Log", icon: PhoneCall, href: "/admin/front-office/calls" },
+                { label: "Postals", icon: Mail, href: "/admin/front-office/postals" },
+                { label: "Complaints", icon: MessageSquare, href: "/admin/front-office/complaints" }
+            ]
+        },
         {
             label: "Human Resources",
             role: ["admin", "super_admin"],
