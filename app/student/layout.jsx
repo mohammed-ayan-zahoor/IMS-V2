@@ -23,7 +23,8 @@ import {
     Megaphone,
     Trophy,
     Clock,
-    BookOpen
+    BookOpen,
+    Award
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/contexts/ToastContext";
@@ -46,6 +47,7 @@ export default function StudentLayout({ children }) {
         { label: "Fees", icon: CreditCard, href: "/student/fees" },
         { label: "Syllabus", icon: Target, href: "/student/syllabus" },
         { label: "Materials", icon: BookOpen, href: "/student/materials" },
+        { label: "Timeline", icon: Award, href: "/student/timeline" },
         { label: "Documents", icon: FileText, href: "/student/documents" },
         { label: "Notices", icon: Megaphone, href: "/student/notices" },
         { label: "Mock Tests", icon: Trophy, href: "/student/practice" },

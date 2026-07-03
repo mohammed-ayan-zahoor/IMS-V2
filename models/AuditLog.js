@@ -51,7 +51,7 @@ const AuditLogSchema = new Schema({
      resource: {
           type: {
               type: String,
-              enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'IncomeHead', 'Income', 'Designation', 'SalaryComponent', 'LeaveType', 'StaffAttendance', 'Payslip', 'Subject', 'Enquiry', 'FeePreset', 'Session', 'MasterSubject', 'CollectorTransfer', 'HostelBlock', 'HostelRoom', 'HostelAllotment', 'Vehicle', 'Driver', 'TransportRoute', 'TransportFeePreset', 'TransportFee', 'Visitor', 'PhoneCallLog', 'Postal', 'Complaint']
+              enum: ['Student', 'User', 'Course', 'Batch', 'Fee', 'Material', 'Attendance', 'Exam', 'ExamSubmission', 'Institute', 'Collector', 'ExpenseHead', 'Expense', 'IncomeHead', 'Income', 'Designation', 'SalaryComponent', 'LeaveType', 'StaffAttendance', 'Payslip', 'Subject', 'Enquiry', 'FeePreset', 'Session', 'MasterSubject', 'CollectorTransfer', 'HostelBlock', 'HostelRoom', 'HostelAllotment', 'Vehicle', 'Driver', 'TransportRoute', 'TransportFeePreset', 'TransportFee', 'Visitor', 'PhoneCallLog', 'Postal', 'Complaint', 'StudentTimeline']
           },
           id: Schema.Types.ObjectId
       },

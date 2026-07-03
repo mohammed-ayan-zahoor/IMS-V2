@@ -38,7 +38,9 @@ import {
     Route,
     Car,
     Hotel,
-    BarChart2
+    BarChart2,
+    Award,
+    Camera
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -107,6 +109,21 @@ export default function StudentDetailsPage({ params }) {
     const [isInstallmentsModalOpen, setIsInstallmentsModalOpen] = useState(false);
     const [manageInstallmentsList, setManageInstallmentsList] = useState([]);
     const [isSavingInstallments, setIsSavingInstallments] = useState(false);
+
+    // Timeline State
+    const [timelineEvents, setTimelineEvents] = useState([]);
+    const [timelineLoading, setTimelineLoading] = useState(false);
+    const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
+    const [editingTimelineEvent, setEditingTimelineEvent] = useState(null);
+    const [timelineSubmitting, setTimelineSubmitting] = useState(false);
+    const [timelineUploading, setTimelineUploading] = useState(false);
+    const [timelineFormData, setTimelineFormData] = useState({
+        title: "",
+        description: "",
+        category: "general",
+        photoUrl: "",
+        date: format(new Date(), "yyyy-MM-dd")
+    });
 
     // Dynamic Equal Split Installments Generator
     const generateEqualInstallments = (totalAmount, count, interval) => {
@@ -455,6 +472,8 @@ export default function StudentDetailsPage({ params }) {
             fetchAttendance();
         } else if (activeTab === "follow-ups") {
             fetchFollowUps();
+        } else if (activeTab === "timeline") {
+            fetchTimeline();
         }
     }, [activeTab, currentMonth]);
 
@@ -466,6 +485,129 @@ export default function StudentDetailsPage({ params }) {
             setFollowUps(data.followUps || []);
         } catch (error) {
             console.error("Failed to fetch follow-ups", error);
+        }
+    };
+
+    const fetchTimeline = async () => {
+        try {
+            setTimelineLoading(true);
+            const res = await fetch(`/api/v1/students/${id}/timeline`);
+            if (res.ok) {
+                const data = await res.json();
+                setTimelineEvents(data.events || []);
+            } else {
+                toast.error("Failed to load timeline events");
+            }
+        } catch (error) {
+            console.error("Failed to fetch timeline", error);
+            toast.error("Failed to load timeline events");
+        } finally {
+            setTimelineLoading(false);
+        }
+    };
+
+    const handleImageUploadTimeline = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            setTimelineUploading(true);
+            const data = new FormData();
+            data.append("file", file);
+            data.append("fileType", "image");
+
+            const res = await fetch("/api/v1/upload", {
+                method: "POST",
+                body: data
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                setTimelineFormData(prev => ({ ...prev, photoUrl: result.url }));
+                toast.success("Image uploaded successfully!");
+            } else {
+                const err = await res.json();
+                toast.error(err.error || "Failed to upload image");
+            }
+        } catch (error) {
+            console.error("Error uploading image:", error);
+            toast.error("Image upload failed");
+        } finally {
+            setTimelineUploading(false);
+        }
+    };
+
+    const handleApproveTimelineEvent = async (eventId) => {
+        try {
+            const res = await fetch(`/api/v1/students/${id}/timeline/${eventId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: "approved" })
+            });
+
+            if (res.ok) {
+                toast.success("Timeline event approved successfully!");
+                fetchTimeline();
+            } else {
+                toast.error("Failed to approve timeline event");
+            }
+        } catch (error) {
+            console.error("Error approving timeline event:", error);
+            toast.error("Failed to approve timeline event");
+        }
+    };
+
+    const handleDeleteTimelineEvent = async (eventId) => {
+        if (!window.confirm("Are you sure you want to delete this timeline event?")) return;
+        try {
+            const res = await fetch(`/api/v1/students/${id}/timeline/${eventId}`, {
+                method: "DELETE"
+            });
+
+            if (res.ok) {
+                toast.success("Timeline event deleted successfully");
+                fetchTimeline();
+            } else {
+                toast.error("Failed to delete timeline event");
+            }
+        } catch (error) {
+            console.error("Error deleting timeline event:", error);
+            toast.error("Failed to delete timeline event");
+        }
+    };
+
+    const handleSubmitTimelineEvent = async (e) => {
+        e.preventDefault();
+        if (!timelineFormData.title || !timelineFormData.description) {
+            toast.error("Title and Description are required");
+            return;
+        }
+
+        try {
+            setTimelineSubmitting(true);
+            const url = editingTimelineEvent
+                ? `/api/v1/students/${id}/timeline/${editingTimelineEvent._id}`
+                : `/api/v1/students/${id}/timeline`;
+            const method = editingTimelineEvent ? "PATCH" : "POST";
+
+            const res = await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(timelineFormData)
+            });
+
+            if (res.ok) {
+                toast.success(editingTimelineEvent ? "Event updated successfully" : "Event logged successfully");
+                setIsTimelineModalOpen(false);
+                fetchTimeline();
+            } else {
+                const err = await res.json();
+                toast.error(err.error || "Failed to save timeline event");
+            }
+        } catch (error) {
+            console.error("Error submitting timeline event:", error);
+            toast.error("Failed to save timeline event");
+        } finally {
+            setTimelineSubmitting(false);
         }
     };
 
@@ -1344,7 +1486,7 @@ export default function StudentDetailsPage({ params }) {
                 {/* Tabs */}
                 {/* ... existing tabs code ... */}
                 <div className="flex border-t border-slate-100 px-6">
-                    {["profile", "academic", "financial", "attendance", "follow-ups", "documents"]
+                    {["profile", "academic", "financial", "attendance", "follow-ups", "documents", "timeline"]
                         .filter(tab => {
                             if (tab === 'financial' && session?.user?.role === 'instructor') return false;
                             if (tab === 'follow-ups' && ['student', 'instructor'].includes(session?.user?.role)) return false;
@@ -2208,7 +2350,247 @@ export default function StudentDetailsPage({ params }) {
                         </div>
                     </div>
                 )}
+
+                {activeTab === "timeline" && (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="flex items-center justify-between px-1">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-900 tracking-tight">Student Timeline</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                    Track achievements, milestones, and disciplinary notes
+                                </p>
+                            </div>
+                            <Button 
+                                onClick={() => {
+                                    setEditingTimelineEvent(null);
+                                    setTimelineFormData({
+                                        title: "",
+                                        description: "",
+                                        category: "general",
+                                        photoUrl: "",
+                                        date: format(new Date(), "yyyy-MM-dd")
+                                    });
+                                    setIsTimelineModalOpen(true);
+                                }}
+                                size="sm" 
+                                className="flex items-center gap-2"
+                            >
+                                <Plus size={16} />
+                                <span>Log Timeline Event</span>
+                            </Button>
+                        </div>
+
+                        {timelineLoading ? (
+                            <div className="p-12"><LoadingSpinner /></div>
+                        ) : timelineEvents.length === 0 ? (
+                            <div className="py-20 flex flex-col items-center justify-center text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                                <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center text-slate-200 mb-4 shadow-sm">
+                                    <Award size={32} />
+                                </div>
+                                <h4 className="text-slate-900 font-bold">No Timeline Events Yet</h4>
+                                <p className="text-slate-400 text-xs mt-1 max-w-[250px]">
+                                    Log academic achievements, disciplinary logs, or school milestones for this student.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="relative border-l border-slate-200 ml-4 pl-8 space-y-8 py-2">
+                                {timelineEvents.map((event) => {
+                                    let bg = "bg-slate-50 border-slate-100";
+                                    let badgeVar = "neutral";
+                                    let borderStyle = "border-slate-200";
+
+                                    if (event.status === "pending") {
+                                        bg = "bg-amber-50/70 border-amber-100";
+                                        badgeVar = "warning";
+                                        borderStyle = "border-amber-200";
+                                    } else if (event.category === "achievement") {
+                                        bg = "bg-emerald-50/50 border-emerald-100";
+                                        badgeVar = "success";
+                                        borderStyle = "border-emerald-200";
+                                    } else if (event.category === "disciplinary") {
+                                        bg = "bg-rose-50/50 border-rose-100";
+                                        badgeVar = "danger";
+                                        borderStyle = "border-rose-200";
+                                    } else if (event.category === "milestone") {
+                                        bg = "bg-blue-50/50 border-blue-100";
+                                        badgeVar = "info";
+                                        borderStyle = "border-blue-200";
+                                    }
+
+                                    return (
+                                        <div key={event._id} className="relative group">
+                                            {/* Bullet pin */}
+                                            <div className={`absolute -left-[41px] top-1.5 w-5 h-5 rounded-full border-4 bg-white flex items-center justify-center shadow-sm ${borderStyle}`} />
+
+                                            <Card className={`border shadow-sm overflow-hidden ${bg}`}>
+                                                <div className="p-5 space-y-3">
+                                                    <div className="flex flex-wrap items-start justify-between gap-4">
+                                                        <div className="space-y-1">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                                                                    <Calendar size={12} />
+                                                                    {format(new Date(event.date), "dd MMM yyyy")}
+                                                                </span>
+                                                                <Badge variant={badgeVar} className="capitalize">
+                                                                    {event.status === "pending" ? "Pending Approval" : event.category}
+                                                                </Badge>
+                                                            </div>
+                                                            <h4 className="text-base font-bold text-slate-900">{event.title}</h4>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-1.5">
+                                                            {event.status === "pending" && (
+                                                                <Button
+                                                                    size="xs"
+                                                                    variant="success"
+                                                                    className="px-2.5 py-1 text-xs"
+                                                                    onClick={() => handleApproveTimelineEvent(event._id)}
+                                                                >
+                                                                    Approve
+                                                                </Button>
+                                                            )}
+                                                            <Button
+                                                                size="xs"
+                                                                variant="outline"
+                                                                onClick={() => {
+                                                                    setEditingTimelineEvent(event);
+                                                                    setTimelineFormData({
+                                                                        title: event.title,
+                                                                        description: event.description,
+                                                                        category: event.category,
+                                                                        photoUrl: event.photoUrl || "",
+                                                                        date: format(new Date(event.date), "yyyy-MM-dd")
+                                                                    });
+                                                                    setIsTimelineModalOpen(true);
+                                                                }}
+                                                            >
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                size="xs"
+                                                                variant="outline"
+                                                                className="text-red-600 border-red-100 hover:bg-red-50"
+                                                                onClick={() => handleDeleteTimelineEvent(event._id)}
+                                                            >
+                                                                Delete
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+
+                                                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{event.description}</p>
+
+                                                    {event.photoUrl && (
+                                                        <div className="relative max-w-md overflow-hidden rounded-xl border border-slate-100 bg-white p-1">
+                                                            <img 
+                                                                src={event.photoUrl} 
+                                                                alt={event.title} 
+                                                                className="max-h-60 w-full object-cover rounded-lg"
+                                                                crossOrigin="anonymous"
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    <div className="text-[10px] text-slate-400 font-medium pt-1 border-t border-slate-100/50">
+                                                        Logged by: {event.createdBy?.fullName || "System"} {event.status === "pending" ? "(Unapproved Student Submission)" : ""}
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
+
+            {/* Timeline Event Modal */}
+            <Modal
+                isOpen={isTimelineModalOpen}
+                onClose={() => setIsTimelineModalOpen(false)}
+                title={editingTimelineEvent ? "Edit Timeline Event" : "Log Timeline Event"}
+            >
+                <form onSubmit={handleSubmitTimelineEvent} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Title *</label>
+                        <Input
+                            placeholder="E.g. 1st Prize in Science Exhibition"
+                            value={timelineFormData.title}
+                            onChange={(e) => setTimelineFormData({ ...timelineFormData, title: e.target.value })}
+                            required
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Category</label>
+                            <Select
+                                value={timelineFormData.category}
+                                onChange={(e) => setTimelineFormData({ ...timelineFormData, category: e.target.value })}
+                                options={[
+                                    { value: "general", label: "General Log" },
+                                    { value: "achievement", label: "Academic Achievement" },
+                                    { value: "milestone", label: "School Milestone" },
+                                    { value: "disciplinary", label: "Disciplinary Log" }
+                                ]}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Event Date</label>
+                            <Input
+                                type="date"
+                                value={timelineFormData.date}
+                                onChange={(e) => setTimelineFormData({ ...timelineFormData, date: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Description *</label>
+                        <textarea
+                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            placeholder="Provide details about this milestone or log entry..."
+                            rows={4}
+                            value={timelineFormData.description}
+                            onChange={(e) => setTimelineFormData({ ...timelineFormData, description: e.target.value })}
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Attachment / Photo</label>
+                        <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 cursor-pointer transition-colors shadow-sm">
+                                <Camera size={16} className="text-slate-500" />
+                                <span>{timelineUploading ? "Uploading..." : "Upload Image"}</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUploadTimeline}
+                                    disabled={timelineUploading}
+                                    className="hidden"
+                                />
+                            </label>
+
+                            {timelineFormData.photoUrl && (
+                                <div className="flex items-center gap-2 text-xs text-emerald-600 font-bold">
+                                    <Camera size={14} />
+                                    <span>Attachment Attached!</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
+                        <Button type="button" variant="ghost" onClick={() => setIsTimelineModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={timelineSubmitting || timelineUploading}>
+                            {timelineSubmitting ? "Saving..." : "Save Event"}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
 
 
             {/* Edit Profile Modal */}
