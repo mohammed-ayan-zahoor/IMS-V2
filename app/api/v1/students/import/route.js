@@ -310,6 +310,14 @@ export async function POST(req) {
         const idxAPAAR = getColIndex(["APAAR ID", "APAAR", "APAAR ID"]);
         const idxGRNo = getColIndex(["GR Number", "GR No", "GR"]);
 
+        console.log(`[IMPORT_DEBUG] 9.1 Column matching results:
+            - headers: ${JSON.stringify(headers)}
+            - idxName: ${idxName}
+            - idxFirstName: ${idxFirstName}
+            - idxLastName: ${idxLastName}
+            - idxClass: ${idxClass}
+        `);
+
         const getValByColIndex = (row, colIndex) => {
             if (colIndex === -1 || colIndex >= row.length) return "";
             return String(row[colIndex] || "").trim();
@@ -406,6 +414,15 @@ export async function POST(req) {
                 lastName = getValByColIndex(row, idxLastName);
                 studentName = `${firstName} ${lastName}`.trim();
             }
+
+            console.log(`[IMPORT_DEBUG] Row ${rowNum} name parsing results:
+                - rawNameVal: "${getValByColIndex(row, idxName)}"
+                - rawFirstNameVal: "${getValByColIndex(row, idxFirstName)}"
+                - rawLastNameVal: "${getValByColIndex(row, idxLastName)}"
+                - derivedFirstName: "${firstName}"
+                - derivedLastName: "${lastName}"
+                - derivedStudentName: "${studentName}"
+            `);
 
             // Basic checks
             if (!firstName) {
