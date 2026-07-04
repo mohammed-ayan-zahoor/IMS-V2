@@ -323,6 +323,10 @@ export async function POST(req) {
         const idxFatherPhone = getColIndex(["FatherPhone", "Father Phone"]);
         const idxMotherPhone = getColIndex(["MotherPhone", "Mother Phone"]);
         const idxEmail = getColIndex(["Email", "Email Address", "Email ID", "EmailId", "E-Mail", "Mail", "Student Email", "Student Mail"]);
+        const idxAddress = getColIndex(["Address", "Full Address", "Street Address", "Permanent Address"]);
+        const idxCity = getColIndex(["City", "Town", "District"]);
+        const idxState = getColIndex(["State", "Region"]);
+        const idxPincode = getColIndex(["Pincode", "Pin Code", "Postal Code", "Zipcode"]);
         const idxAadhar = getColIndex(["AadharNumber", "Aadhar No", "Aadhar Number", "Aadhar"]);
         const idxPEN = getColIndex(["PenNumber", "PEN Number", "PEN No", "PEN"]);
         const idxAPAAR = getColIndex(["ApaarID", "APAAR ID", "APAAR"]);
@@ -438,6 +442,10 @@ export async function POST(req) {
             const religion = getValByColIndex(row, idxReligion);
             const emailFromSheet = getValByColIndex(row, idxEmail);
             const passwordFromSheet = getValByColIndex(row, idxPassword);
+            const rawAddress = getValByColIndex(row, idxAddress);
+            const city = getValByColIndex(row, idxCity);
+            const state = getValByColIndex(row, idxState);
+            const pincode = getValByColIndex(row, idxPincode);
 
             const rowErrors = [];
 
@@ -544,6 +552,12 @@ export async function POST(req) {
                     dateOfBirth: dateOfBirth || undefined,
                     nationality: nationality || undefined,
                     religion: religion || undefined,
+                    address: {
+                        street: rawAddress || undefined,
+                        city: city || undefined,
+                        state: state || undefined,
+                        pincode: pincode || undefined
+                    }
                 },
                 enrollmentNumber: enrollmentNumber,
 

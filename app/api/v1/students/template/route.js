@@ -35,6 +35,10 @@ export async function GET(req) {
             "Religion",
             "Caste",
             "SubCaste",
+            "Address",
+            "City",
+            "State",
+            "Pincode",
             "EnrollmentNumber",
             "Password"
         ];
@@ -56,6 +60,10 @@ export async function GET(req) {
                 MotherName: "Mrs. Doe",
                 MotherPhone: "9876543212",
                 Nationality: "Indian",
+                Address: "123 Main Street, Sector 4",
+                City: "Mumbai",
+                State: "Maharashtra",
+                Pincode: "400001",
                 EnrollmentNumber: "STU001",
                 Password: "Welcome@123"
             }
