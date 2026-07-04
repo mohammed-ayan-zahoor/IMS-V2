@@ -202,6 +202,7 @@ async function checkBatchExists(batchName, courseId, sessionId, instituteId) {
 export async function POST(req) {
     try {
         console.log("[IMPORT_DEBUG] 1. Request received");
+        const defaultPassword = process.env.DEFAULT_STUDENT_PASSWORD || "Student@123";
         const session = await getServerSession(authOptions);
         if (!session?.user?.role || !["admin", "super_admin"].includes(session.user.role)) {
             console.log("[IMPORT_DEBUG] Unauthorized user role");
@@ -321,7 +322,7 @@ export async function POST(req) {
         const idxFatherName = getColIndex(["FatherName", "Father Name"]);
         const idxFatherPhone = getColIndex(["FatherPhone", "Father Phone"]);
         const idxMotherPhone = getColIndex(["MotherPhone", "Mother Phone"]);
-        const idxEmail = getColIndex(["Email", "Email Address"]);
+        const idxEmail = getColIndex(["Email", "Email Address", "Email ID", "EmailId", "E-Mail", "Mail", "Student Email", "Student Mail"]);
         const idxAadhar = getColIndex(["AadharNumber", "Aadhar No", "Aadhar Number", "Aadhar"]);
         const idxPEN = getColIndex(["PenNumber", "PEN Number", "PEN No", "PEN"]);
         const idxAPAAR = getColIndex(["ApaarID", "APAAR ID", "APAAR"]);
@@ -330,7 +331,7 @@ export async function POST(req) {
         const idxNationality = getColIndex(["Nationality"]);
         const idxReligion = getColIndex(["Religion"]);
         const idxEnrollmentNumber = getColIndex(["EnrollmentNumber", "Enrollment Number"]);
-        const idxPassword = getColIndex(["Password"]);
+        const idxPassword = getColIndex(["Password", "Student Password", "Default Password", "Pass"]);
 
         const getValByColIndex = (row, colIndex) => {
             if (colIndex === -1 || colIndex >= row.length) return "";
@@ -531,7 +532,8 @@ export async function POST(req) {
             const studentObject = {
                 fullName: `${firstName} ${lastName}`,
                 email: emailFromSheet || email,
-                password: passwordFromSheet || "Welcome@123",
+                emailFromSheetProvided: !!emailFromSheet,
+                password: passwordFromSheet || defaultPassword,
                 institute: scope.instituteId,
                 role: "student",
                 profile: {
@@ -614,8 +616,10 @@ export async function POST(req) {
                 let currentSeq = counter.seq - studentsMissingId.length + 1;
                 studentsMissingId.forEach(s => {
                     s.enrollmentNumber = `STU${year}${String(currentSeq).padStart(4, '0')}`;
-                    // Update email based on generated enrollment ID
-                    s.email = `${s.enrollmentNumber.toLowerCase()}@${emailDomain}`;
+                    // Update email based on generated enrollment ID only if email was NOT provided in the sheet
+                    if (!s.emailFromSheetProvided) {
+                        s.email = `${s.enrollmentNumber.toLowerCase()}@${emailDomain}`;
+                    }
                     currentSeq++;
                 });
             }
@@ -628,6 +632,7 @@ export async function POST(req) {
             successResults.forEach((s, idx) => {
                 s.passwordHash = hashedPasswords[idx];
                 delete s.password;
+                delete s.emailFromSheetProvided;
             });
 
             // C. Bulk Insert Students
