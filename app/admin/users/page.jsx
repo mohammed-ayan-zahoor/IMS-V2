@@ -621,6 +621,7 @@ export default function UserManagementPage() {
                                     {[
                                         { label: "Manage notices (Post announcements)", value: "manage_notices" },
                                         { label: "Manage exams (Create offline exams)", value: "manage_exams" },
+                                        { label: "Fee collection (Collect & record payments)", value: "manage_fees" },
                                         { label: "Process hostel payments", value: "manage_hostel_payments" },
                                         { label: "Generate student ID cards", value: "generate_id_cards" },
                                         { label: "Access Front Office logs (Visitors, Calls)", value: "view_front_office" }
