@@ -38,6 +38,8 @@ export default function UserManagementPage() {
     const [newPassword, setNewPassword] = useState("");
 
     // Form State
+    const [isEditing, setIsEditing] = useState(false);
+    const [editingUserId, setEditingUserId] = useState(null);
     const [formData, setFormData] = useState({
         firstName: "",
         lastName: "",
@@ -49,7 +51,8 @@ export default function UserManagementPage() {
         assignedCourses: [], // Multi-select IDs
         activeSession: "",
         designation: "",
-        basicSalary: ""
+        basicSalary: "",
+        permissions: []
     });
 
     const isInitialFetch = useRef(true);
@@ -180,13 +183,13 @@ export default function UserManagementPage() {
         }
     };
     useEffect(() => {
-        if (isCreateModalOpen && formData.role === 'instructor') {
-            // Optimization: Avoid refetching if data is already loaded
+        if (isCreateModalOpen) {
+            // Always fetch assignment data when modal opens so sessions are ready
             if (availableBatches.length === 0 && availableCourses.length === 0) {
                 fetchAssignmentData();
             }
         }
-    }, [isCreateModalOpen, formData.role, availableBatches.length, availableCourses.length]);
+    }, [isCreateModalOpen]);
 
     const batchOptions = useMemo(() => {
         const groups = {};
@@ -210,31 +213,67 @@ export default function UserManagementPage() {
         [availableCourses]
     );
 
+    const resetForm = () => setFormData({
+        firstName: "", lastName: "", email: "", phone: "",
+        password: "", role: "student",
+        assignedBatches: [], assignedCourses: [],
+        activeSession: "", designation: "", basicSalary: "",
+        permissions: []
+    });
+
+    const openEditModal = (user) => {
+        setFormData({
+            firstName: user.profile?.firstName || "",
+            lastName: user.profile?.lastName || "",
+            email: user.email || "",
+            phone: user.profile?.phone || "",
+            password: "",
+            role: user.role || "student",
+            assignedBatches: user.assignments?.batches?.map(b => typeof b === 'object' ? b._id : b) || [],
+            assignedCourses: user.assignments?.courses?.map(c => typeof c === 'object' ? c._id : c) || [],
+            activeSession: user.activeSession || "",
+            designation: user.hrDetails?.designation?._id || user.hrDetails?.designation || "",
+            basicSalary: user.hrDetails?.basicSalary || "",
+            permissions: user.permissions || []
+        });
+        setEditingUserId(user._id);
+        setIsEditing(true);
+        setIsCreateModalOpen(true);
+    };
+
     const handleCreateUser = async (e) => {
         e.preventDefault();
+        // Warn if creating instructor without any assignment
+        if (formData.role === 'instructor' && formData.assignedBatches.length === 0 && formData.assignedCourses.length === 0) {
+            const proceed = await confirm({
+                title: "No Assignments",
+                message: "This instructor has no assigned batches or courses. They will see an empty portal until you assign them. Continue anyway?",
+                type: "warning"
+            });
+            if (!proceed) return;
+        }
         try {
-            const res = await fetch("/api/v1/users", {
-                method: "POST",
+            const url = isEditing ? `/api/v1/users/${editingUserId}` : "/api/v1/users";
+            const method = isEditing ? "PATCH" : "POST";
+            const payload = { ...formData };
+            if (isEditing && !payload.password) {
+                delete payload.password; // Don't send empty password
+            }
+
+            const res = await fetch(url, {
+                method: method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
                 setIsCreateModalOpen(false);
-                setFormData({
-                    firstName: "", lastName: "", email: "", phone: "",
-                    password: "", role: "student",
-                    assignedBatches: [],
-                    assignedCourses: [],
-                    activeSession: "",
-                    designation: "",
-                    basicSalary: ""
-                });
+                resetForm();
                 fetchUsers();
-                toast.success("User created successfully");
+                toast.success(isEditing ? "User updated successfully" : "User created successfully");
             } else {
                 const contentType = res.headers.get("content-type");
-                let errorMessage = "Failed to create user";
+                let errorMessage = isEditing ? "Failed to update user" : "Failed to create user";
                 if (contentType && contentType.includes("application/json")) {
                     const errorData = await res.json();
                     errorMessage = errorData.error || errorMessage;
@@ -245,7 +284,7 @@ export default function UserManagementPage() {
             }
         } catch (error) {
             console.error(error);
-            toast.error("Network error during creation");
+            toast.error("Network error during operation");
         }
     };
 
@@ -331,6 +370,9 @@ export default function UserManagementPage() {
                 </div>
                 <div>
                     <Button onClick={() => {
+                        setIsEditing(false);
+                        setEditingUserId(null);
+                        resetForm();
                         setFormData(prev => ({ ...prev, role: activeTab === 'students' ? 'student' : 'admin' }));
                         setIsCreateModalOpen(true);
                     }}>
@@ -414,6 +456,11 @@ export default function UserManagementPage() {
                                                         {typeof user.hrDetails.designation === 'object' ? user.hrDetails.designation.name : 'Staff'}
                                                     </span>
                                                 )}
+                                                {user.role === 'instructor' && (
+                                                    <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">
+                                                        {(user.assignments?.batches?.length || 0)} batch{(user.assignments?.batches?.length || 0) !== 1 ? 'es' : ''}
+                                                    </span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-600">
@@ -423,7 +470,6 @@ export default function UserManagementPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            {/* Actions */}
                                             <div className="flex justify-end gap-2">
                                                 <Button
                                                     size="sm"
@@ -432,6 +478,14 @@ export default function UserManagementPage() {
                                                     className="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 shadow-sm px-4 font-medium"
                                                 >
                                                     <Lock size={14} className="mr-2 text-slate-400" /> Password
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    onClick={() => openEditModal(user)}
+                                                    className="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 shadow-sm px-4 font-medium"
+                                                >
+                                                    <UserCog size={14} className="mr-2 text-slate-400" /> Edit
                                                 </Button>
                                                 <Button
                                                     size="sm"
@@ -451,16 +505,22 @@ export default function UserManagementPage() {
                 )}
             </Card>
 
-            <Modal title="Create New User" isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)}>
-                <form onSubmit={handleCreateUser} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+            <Modal title={isEditing ? "Edit User" : "Create New User"} isOpen={isCreateModalOpen} onClose={() => { setIsCreateModalOpen(false); resetForm(); }} className="max-w-3xl">
+                <form onSubmit={handleCreateUser}>
+                    {/* Row 1: Name */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
                         <Input label="First Name" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} required />
                         <Input label="Last Name" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} required />
                     </div>
-                    <Input label="Email" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required />
-                    <Input label="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
 
-                    <div className="space-y-1">
+                    {/* Row 2: Email + Phone */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <Input label="Email" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required />
+                        <Input label="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                    </div>
+
+                    {/* Row 3: Role + Session */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
                         <Select
                             label="Role"
                             value={formData.role}
@@ -472,10 +532,26 @@ export default function UserManagementPage() {
                                 { label: "Staff", value: "staff" }
                             ]}
                         />
+                        <div>
+                            <Select
+                                label="Initial Active Session"
+                                value={formData.activeSession}
+                                onChange={val => setFormData({ ...formData, activeSession: val })}
+                                options={[
+                                    { label: "No Session", value: "" },
+                                    ...availableSessions.map(s => ({
+                                        label: `${s.sessionName}${s.isActive ? ' (Active)' : ''}`,
+                                        value: s._id
+                                    }))
+                                ]}
+                            />
+                            <p className="text-[10px] text-slate-400 font-medium px-1 mt-1 italic">Default academic year for this user.</p>
+                        </div>
                     </div>
 
+                    {/* HR Fields: Designation + Salary (instructor/staff only) */}
                     {['instructor', 'staff'].includes(formData.role) && (
-                        <div className="grid grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                        <div className="grid grid-cols-2 gap-4 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <Select
                                 label="Designation"
                                 value={formData.designation}
@@ -495,74 +571,98 @@ export default function UserManagementPage() {
                         </div>
                     )}
 
-                    <div className="space-y-1">
-                        <Select
-                            label="Initial Active Session"
-                            value={formData.activeSession}
-                            onChange={val => setFormData({ ...formData, activeSession: val })}
-                            options={[
-                                { label: "No Session", value: "" },
-                                ...availableSessions.map(s => ({ 
-                                    label: `${s.sessionName} ${s.isActive ? '(Active)' : ''}`, 
-                                    value: s._id 
-                                }))
-                            ]}
-                        />
-                        <p className="text-[10px] text-slate-400 font-medium px-1 italic">Determines the default academic year for this user.</p>
-                    </div>
-
-                    {/* Instructor Assignments */}
+                    {/* Instructor Access Assignments */}
                     {formData.role === 'instructor' && (
-                        <div className="space-y-5 p-5 bg-slate-50/50 rounded-2xl border border-slate-100 shadow-inner ring-1 ring-slate-100/50">
-                            <div className="flex items-center gap-2 mb-1">
+                        <div className="mb-4 p-5 bg-blue-50/40 rounded-2xl border border-blue-100 ring-1 ring-blue-100/50">
+                            <div className="flex items-center gap-2 mb-3">
                                 <Shield className="text-premium-blue" size={16} />
                                 <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-700">Access Assignments</h4>
                             </div>
-                            
-                            <div className="h-px bg-slate-200/40 w-full mb-4" />
 
-                            <div className="space-y-4">
-                                <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
-                                    <Select 
-                                        label={isSchool ? "Filter Sections by Session" : "Filter Batches by Session"}
-                                        value={selectedAssignmentSession}
-                                        onChange={setSelectedAssignmentSession}
-                                        options={availableSessions.map(s => ({ 
-                                            label: `${s.sessionName} ${s.isActive ? '(Active)' : ''}`, 
-                                            value: s._id 
-                                        }))}
-                                    />
+                            {/* Session filter full-width */}
+                            <div className="mb-4">
+                                <Select
+                                    label={isSchool ? "Filter Sections by Session" : "Filter Batches by Session"}
+                                    value={selectedAssignmentSession}
+                                    onChange={setSelectedAssignmentSession}
+                                    options={availableSessions.map(s => ({
+                                        label: `${s.sessionName}${s.isActive ? ' (Active)' : ''}`,
+                                        value: s._id
+                                    }))}
+                                />
+                            </div>
+
+                            {/* Courses + Batches side by side */}
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <MultiSelect
+                                    label={isSchool ? "Assigned Classes" : "Assigned Courses"}
+                                    placeholder={isSchool ? "Select classes..." : "Select courses..."}
+                                    options={courseOptions}
+                                    value={formData.assignedCourses}
+                                    onChange={(vals) => setFormData({ ...formData, assignedCourses: vals })}
+                                />
+                                <MultiSelect
+                                    label={isSchool ? "Assigned Sections" : "Assigned Batches"}
+                                    placeholder={isSchool ? "Select sections..." : "Select batches..."}
+                                    options={batchOptions}
+                                    value={formData.assignedBatches}
+                                    onChange={(vals) => setFormData({ ...formData, assignedBatches: vals })}
+                                />
+                            </div>
+
+                            {/* Custom Configurable Permissions Checklist */}
+                            <div className="h-px bg-blue-100 w-full my-4" />
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Shield className="text-premium-blue" size={14} />
+                                    <h5 className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-600">Configurable Access Permissions</h5>
                                 </div>
-
-                                <div className="grid grid-cols-1 gap-5">
-                                    <MultiSelect 
-                                        label={isSchool ? "Assigned Classes" : "Assigned Courses"}
-                                        placeholder={isSchool ? "Search and select classes..." : "Search and select courses..."}
-                                        options={courseOptions}
-                                        value={formData.assignedCourses}
-                                        onChange={(vals) => setFormData({ ...formData, assignedCourses: vals })}
-                                    />
-
-                                    <MultiSelect 
-                                        label={isSchool ? "Assigned Sections" : "Assigned Batches"}
-                                        placeholder={isSchool ? "Search and select sections..." : "Search and select batches..."}
-                                        options={batchOptions}
-                                        value={formData.assignedBatches}
-                                        onChange={(vals) => setFormData({ ...formData, assignedBatches: vals })}
-                                    />
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        { label: "Manage notices (Post announcements)", value: "manage_notices" },
+                                        { label: "Manage exams (Create offline exams)", value: "manage_exams" },
+                                        { label: "Process hostel payments", value: "manage_hostel_payments" },
+                                        { label: "Generate student ID cards", value: "generate_id_cards" },
+                                        { label: "Access Front Office logs (Visitors, Calls)", value: "view_front_office" }
+                                    ].map(perm => (
+                                        <label key={perm.value} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 hover:border-blue-100 transition-all cursor-pointer shadow-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.permissions?.includes(perm.value)}
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    setFormData(prev => {
+                                                        const current = prev.permissions || [];
+                                                        const next = checked 
+                                                            ? [...current, perm.value]
+                                                            : current.filter(p => p !== perm.value);
+                                                        return { ...prev, permissions: next };
+                                                    });
+                                                }}
+                                                className="rounded border-slate-300 text-premium-blue focus:ring-premium-blue h-4 w-4"
+                                            />
+                                            <span className="text-xs font-semibold text-slate-700">{perm.label}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
-                            <p className="text-[10px] text-slate-400 font-bold italic mt-2 flex items-center gap-1.5 opacity-80">
-                                <Plus size={10} /> {isSchool ? "Instructors" : "Instructors"} can only access data for these assigned entities.
+
+                            <p className="text-[10px] text-slate-400 font-bold italic mt-4 flex items-center gap-1.5">
+                                <Shield size={10} /> Instructor can only access data for these assigned entities and permissions.
                             </p>
                         </div>
                     )}
 
-                    <Input label="Password" type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} required />
+                    {/* Password full-width (Create mode only) */}
+                    {!isEditing && (
+                        <div className="mb-6">
+                            <Input label="Password" type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} required />
+                        </div>
+                    )}
 
-                    <div className="flex justify-end gap-2 pt-4">
-                        <Button type="button" variant="ghost" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
-                        <Button type="submit">Create User</Button>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <Button type="button" variant="ghost" onClick={() => { setIsCreateModalOpen(false); resetForm(); }}>Cancel</Button>
+                        <Button type="submit">{isEditing ? "Save Changes" : "Create User"}</Button>
                     </div>
                 </form>
             </Modal>

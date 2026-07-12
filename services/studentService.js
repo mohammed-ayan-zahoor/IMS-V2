@@ -2,6 +2,8 @@ import User from '@/models/User';
 import Batch from '@/models/Batch';
 import Fee from '@/models/Fee';
 import Membership from '@/models/Membership';
+import { v2 as cloudinary } from 'cloudinary';
+import { getCloudinaryOptions } from '@/lib/cloudinaryResolver';
 import '@/models/Course'; // Ensure Course schema is registered
 import '@/models/FeePreset'; // Ensure FeePreset schema is registered
 import '@/models/Certificate'; // Ensure Certificate schema is registered
@@ -73,6 +75,7 @@ export class StudentService {
                 motherName: data.motherName,
                 motherPhone: data.motherPhone,
                 motherAadhar: data.motherAadhar,
+                parentalConsent: data.parentalConsent,
                 nationality: data.nationality || 'Indian',
                 motherTongue: data.motherTongue,
                 religion: data.religion,
@@ -141,6 +144,27 @@ export class StudentService {
     }
 
     /**
+     * Helper to purge student documents from Cloudinary
+     */
+    static async purgeStudentDocuments(student) {
+        if (!student || !student.documents || student.documents.length === 0) return;
+        try {
+            const scopedOptions = await getCloudinaryOptions(student.institute?.id || student.institute);
+            for (const doc of student.documents) {
+                if (doc.publicId) {
+                    try {
+                        await cloudinary.uploader.destroy(doc.publicId, scopedOptions);
+                    } catch (cloudinaryErr) {
+                        console.error(`Failed to delete document ${doc.publicId} from Cloudinary:`, cloudinaryErr);
+                    }
+                }
+            }
+        } catch (resolverErr) {
+            console.error("Failed to resolve Cloudinary options during student documents purge:", resolverErr);
+        }
+    }
+
+    /**
      * Hard Delete student and cleanup related data
      */
     static async deleteStudent(studentId, actorId) {
@@ -149,6 +173,9 @@ export class StudentService {
         try {
             const student = await User.findById(studentId).session(session);
             if (!student) throw new Error('Student not found');
+
+            // Purge student files from Cloudinary
+            await StudentService.purgeStudentDocuments(student);
 
             // 1. Remove Fee Records
             await Fee.deleteMany({ student: studentId }).session(session);
@@ -180,6 +207,9 @@ export class StudentService {
                 // Manual Cleanup without transaction (Fallback)
                 const student = await User.findById(studentId);
                 if (!student) return false;
+
+                // Purge student files from Cloudinary
+                await StudentService.purgeStudentDocuments(student);
 
                 await Fee.deleteMany({ student: studentId });
                 await Batch.updateMany(

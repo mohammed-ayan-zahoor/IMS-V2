@@ -57,7 +57,8 @@ export async function POST(req) {
             fatherAadhar: application.fatherAadhar,
             motherName: application.motherName,
             motherAadhar: application.motherAadhar,
-            aadharNumber: application.studentAadhar
+            aadharNumber: application.studentAadhar,
+            parentalConsent: application.parentalConsent
         };
 
         console.log(`[CONVERSION DATA] Email: ${studentData.email}, Target Inst: ${studentData.institute}`);

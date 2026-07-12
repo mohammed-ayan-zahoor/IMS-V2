@@ -11,6 +11,11 @@ export async function POST(req) {
         await connectDB();
         const body = await req.json();
 
+        // Enforce parental consent verification
+        if (!body.parentalConsentCheckbox) {
+            return NextResponse.json({ error: "Parental consent is required under the DPDP Act 2023 to process data." }, { status: 400 });
+        }
+
         // Basic validation
         const requiredFields = ['institute', 'firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'course', 'learningMode'];
         for (const field of requiredFields) {
@@ -18,6 +23,15 @@ export async function POST(req) {
                 return NextResponse.json({ error: `Field '${field}' is required` }, { status: 400 });
             }
         }
+
+        // Set consent metadata
+        const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '127.0.0.1';
+        body.parentalConsent = {
+            verified: true,
+            verifiedBy: body.guardian?.relation || 'None',
+            consentDate: new Date(),
+            consentIpAddress: ipAddress.split(',')[0].trim() // Clean IP in case of proxy chains
+        };
 
         // Handle Photo Upload via Cloudinary if provided as base64 string
         if (body.photo && body.photo.startsWith('data:image')) {

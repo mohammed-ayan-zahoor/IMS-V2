@@ -369,9 +369,10 @@ body.is-exporting .mou-doc {
   border-radius: 0 !important;
   padding: 0 !important;
   width: 860px !important;
+  line-height: 1.55 !important; /* Gain vertical space */
 }
 body.is-exporting .mou-page {
-  padding: 56px 64px !important;
+  padding: 44px 56px !important; /* Reduce padding from 56px 64px to fit content */
   border-radius: 0 !important;
   box-shadow: none !important;
   width: 860px !important;
@@ -386,9 +387,68 @@ body.is-exporting .mou-page {
 body.is-exporting .form-card, body.is-exporting .actions, body.is-exporting #toast {
   display: none !important;
 }
+body.is-exporting .mou-letterhead {
+  padding-bottom: 10px !important;
+  margin-bottom: 16px !important;
+}
+body.is-exporting .logo-container {
+  height: 44px !important;
+  padding: 4px 10px !important;
+}
+body.is-exporting .mou-header {
+  padding-bottom: 14px !important;
+  margin-bottom: 18px !important;
+  border-bottom-width: 2px !important;
+}
+body.is-exporting .mou-header h1 {
+  font-size: 24px !important;
+}
+body.is-exporting .mou-header .badge {
+  margin-bottom: 8px !important;
+}
 body.is-exporting .mou-parties {
-  grid-template-columns: 1fr 1fr !important;
-  gap: 24px !important;
+  padding: 16px 20px !important;
+  margin-bottom: 18px !important;
+  gap: 20px !important;
+}
+body.is-exporting .party-block .party-name {
+  font-size: 15px !important;
+}
+body.is-exporting .party-block .party-detail {
+  font-size: 11.5px !important;
+}
+body.is-exporting .mou-section {
+  margin-bottom: 16px !important;
+}
+body.is-exporting .mou-section h3 {
+  margin-bottom: 8px !important;
+  padding-bottom: 4px !important;
+}
+body.is-exporting .mou-section p {
+  font-size: 14.5px !important;
+  margin-bottom: 6px !important;
+}
+body.is-exporting .mou-section ul li {
+  font-size: 14px !important;
+  margin-bottom: 4px !important;
+}
+body.is-exporting .enrollment-commercial-wrapper {
+  grid-template-columns: 1fr 1.30fr !important;
+  gap: 16px !important;
+  margin: 12px 0 !important;
+}
+body.is-exporting .highlight-box {
+  padding: 10px 14px !important;
+  margin: 12px 0 !important;
+}
+body.is-exporting .highlight-box .value {
+  font-size: 22px !important;
+}
+body.is-exporting .commercial-box {
+  padding: 10px 14px !important;
+}
+body.is-exporting .comm-value {
+  font-size: 16px !important;
 }
 body.is-exporting .party-sep {
   display: flex !important;
@@ -401,6 +461,8 @@ body.is-exporting .party-sep::before, body.is-exporting .party-sep::after {
 body.is-exporting .sig-section {
   grid-template-columns: 1fr 1fr !important;
   gap: 40px !important;
+  margin-top: 24px !important;
+  padding-top: 20px !important;
 }
 body.is-exporting .sig-block {
   width: auto !important;
@@ -500,7 +562,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
     </div>
 
     <div style="text-align:right;margin-bottom:20px;font-family:'Inter',sans-serif;font-size:13px;color:#64748b">
-      Ref No: <strong id="doc-ref">QP/MOU/2025-26/—</strong>&nbsp;&nbsp;|&nbsp;&nbsp;Date: <strong id="doc-date"></strong>
+      Ref No: <strong id="doc-ref">QP/MOU/—/—</strong>&nbsp;&nbsp;|&nbsp;&nbsp;Date: <strong id="doc-date"></strong>
     </div>
 
     <div class="mou-parties">
@@ -528,7 +590,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 
     <div class="mou-section">
       <h3>2. Scope of Enrollment</h3>
-      <p>The School hereby confirms its intent to onboard the following number of students onto the Quantech Platform for the academic year 2025–26:</p>
+      <p>The School hereby confirms its intent to onboard the following number of students onto the Quantech Platform for the academic year <strong id="d-acad-year">2025–26</strong>:</p>
       <div class="enrollment-commercial-wrapper">
         <div class="highlight-box" style="margin: 0 !important;">
           <div class="label">Agreed Student Enrollment Strength</div>
@@ -672,11 +734,27 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 // ── Date & Ref ──────────────────────────────────────────────
 const today = new Date();
 const dateStr = today.toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
-const refId = 'QP/MOU/2025-26/' + String(Math.floor(Math.random()*9000)+1000);
+
+// Calculate Academic Year dynamically (April to March cycle)
+const getAcademicYear = (date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth(); // 0-indexed: Jan is 0, Apr is 3
+  if (month >= 3) {
+    return `${year}-${String(year + 1).slice(-2)}`;
+  } else {
+    return `${year - 1}-${String(year).slice(-2)}`;
+  }
+};
+const acadYear = getAcademicYear(today);
+const refId = 'QP/MOU/' + acadYear + '/' + String(Math.floor(Math.random()*9000)+1000);
 
 document.querySelectorAll('#doc-date,#doc-date2').forEach(el => el.textContent = dateStr);
 document.querySelectorAll('#doc-ref,#doc-ref2').forEach(el => el.textContent = refId);
 document.querySelector('#sig-date').textContent = dateStr;
+const acadYearEl = document.getElementById('d-acad-year');
+if (acadYearEl) {
+  acadYearEl.textContent = acadYear;
+}
 
 // ── Live doc update ─────────────────────────────────────────
 // Duration word map for Clause 6
@@ -875,7 +953,7 @@ async function downloadPDF() {
     document.body.classList.remove('is-exporting');
     
     const school = (document.getElementById('f-school').value.trim() || 'School').replace(/\s+/g,'_');
-    pdf.save(`MOU_Quantech_${school}_2025-26.pdf`);
+    pdf.save(`MOU_Quantech_${school}_${acadYear}.pdf`);
     showToast();
     
     // Log download action to DB in the background

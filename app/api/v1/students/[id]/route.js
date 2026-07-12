@@ -121,10 +121,20 @@ export async function PATCH(req, { params }) {
             );
         }
 
-        // Prepare audit details (exclude internal fields)
+        // Prepare audit details (exclude internal fields and decrypted PII)
         const formatForAudit = (doc) => {
             const json = doc.toJSON ? doc.toJSON() : doc;
-            const { passwordHash, passwordResetToken, passwordResetExpires, ...rest } = json;
+            const { 
+                passwordHash, 
+                passwordResetToken, 
+                passwordResetExpires,
+                aadharNumber,
+                apaarId,
+                penNumber,
+                fatherAadhar,
+                motherAadhar,
+                ...rest 
+            } = json;
             return rest;
         };
 

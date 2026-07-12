@@ -63,7 +63,37 @@ export async function PATCH(req, { params }) {
             user.role = body.role;
         }
 
-        // Handle Assignments Update (Instructors)
+        // Handle Profile Update
+        if (body.firstName || body.lastName || body.phone !== undefined) {
+            if (!user.profile) user.profile = {};
+            if (body.firstName) user.profile.firstName = body.firstName;
+            if (body.lastName) user.profile.lastName = body.lastName;
+            if (body.phone !== undefined) user.profile.phone = body.phone;
+        }
+
+        // Handle Active Session Update
+        if (body.activeSession !== undefined) {
+            user.activeSession = body.activeSession || null;
+        }
+
+        // Handle HR Details Update
+        if (body.designation !== undefined || body.basicSalary !== undefined) {
+            if (!user.hrDetails) user.hrDetails = {};
+            if (body.designation !== undefined) {
+                user.hrDetails.designation = body.designation && mongoose.Types.ObjectId.isValid(body.designation) ? body.designation : undefined;
+            }
+            if (body.basicSalary !== undefined) {
+                user.hrDetails.basicSalary = parseFloat(body.basicSalary) || 0;
+            }
+        }
+
+        // Handle Permissions Update
+        if (body.permissions !== undefined) {
+            if (Array.isArray(body.permissions)) {
+                user.permissions = body.permissions;
+            }
+        }
+
         // Handle Assignments Update (Instructors)
         if (body.assignedBatches !== undefined || body.assignedCourses !== undefined) {
             // Only relevant if user is/becoming instructor

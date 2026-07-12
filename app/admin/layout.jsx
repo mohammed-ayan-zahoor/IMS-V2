@@ -117,6 +117,7 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Enquiry",
+            role: ["admin", "super_admin"],
             items: [
                 { label: "New Entry", icon: Plus, href: "/admin/enquiries/new" },
                 { label: "View Entry", icon: List, href: "/admin/enquiries" },
@@ -177,7 +178,8 @@ export default function AdminLayout({ children }) {
         }] : []),
         {
             label: "Front Office",
-            role: ["admin", "super_admin"],
+            role: ["admin", "super_admin", "instructor"],
+            permission: "view_front_office",
             items: [
                 { label: "Visitor Book", icon: ClipboardList, href: "/admin/front-office/visitor-book" },
                 { label: "Phone Call Log", icon: PhoneCall, href: "/admin/front-office/calls" },
@@ -212,7 +214,7 @@ export default function AdminLayout({ children }) {
                 { label: "Accounts Master", icon: Building2, href: "/admin/accounts" },
                 { label: "User Management", icon: UserCog, href: "/admin/users" },
                 { label: "Completion Tracking", icon: CheckCircle2, href: "/admin/completion-tracking", instituteType: ["VOCATIONAL"] },
-                { label: "Certificate Management", icon: Award, href: "/admin/certificate-management", instituteType: ["VOCATIONAL"] },
+                { label: "Certificate Management", icon: Award, href: "/admin/certificate-management" },
                 { label: "ID Card Management", icon: Contact, href: "/admin/id-cards" },
                 { label: "ID Card (PDFMe) [Test]", icon: Contact, href: "/admin/id-cards-pdfme" },
                 { label: "Completion Analytics", icon: TrendingUp, href: "/admin/completion-analytics", instituteType: ["VOCATIONAL"] },
@@ -221,7 +223,14 @@ export default function AdminLayout({ children }) {
                 { label: "Settings", icon: Settings, href: "/admin/settings" },
             ]
         }
-    ].filter(group => !group.role || group.role.includes(session?.user?.role))
+    ].filter(group => {
+        const hasRole = !group.role || group.role.includes(session?.user?.role);
+        if (!hasRole) return false;
+        if (group.permission && session?.user?.role === 'instructor') {
+            return !!session?.user?.permissions?.includes(group.permission);
+        }
+        return true;
+     })
      .map(group => ({
          ...group,
          items: group.items.filter(item => {

@@ -9,7 +9,9 @@ import { createAuditLog } from '@/services/auditService';
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const hasAccess = session && (['admin', 'super_admin'].includes(session.user.role) || 
+            (session.user.role === 'instructor' && session.user.permissions?.includes('view_front_office')));
+        if (!hasAccess) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const scope = await getInstituteScope(req);
         if (!scope.instituteId) return NextResponse.json({ error: 'Missing institute context' }, { status: 400 });

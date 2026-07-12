@@ -6,7 +6,7 @@ import {
     BookOpen, Users, Save, CheckCircle2, 
     ArrowRight, ArrowLeft, Info, BookCheck, GraduationCap,
     Clock, Globe, School, ShieldCheck, Check, ChevronRight,
-    Lock, Search, Camera
+    Lock, Search, Camera, Plus
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
@@ -60,7 +60,8 @@ export default function PublicAdmissionForm({ params }) {
         fatherAadhar: "",
         motherName: "",
         motherAadhar: "",
-        studentAadhar: ""
+        studentAadhar: "",
+        parentalConsentCheckbox: false
     });
 
     const [selectedCourse, setSelectedCourse] = useState(null);
@@ -203,10 +204,10 @@ export default function PublicAdmissionForm({ params }) {
 
                     {/* Personalized Headline */}
                     <div className="space-y-3">
-                        <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight italic">
-                            🎉 You're officially in, <span className="text-premium-blue">{formData.firstName}</span>!
+                        <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
+                            Application received, <span className="text-premium-blue">{formData.firstName}</span>!
                         </h1>
-                        <p className="text-slate-400 font-medium text-base">Your application for <span className="text-slate-700 font-bold">{selectedCourse?.name || "the course"}</span> is now processing at {institute.name}.</p>
+                        <p className="text-slate-500 font-medium text-base">Your application for <span className="text-slate-700 font-bold">{selectedCourse?.name || "the course"}</span> is now processing at {institute.name}.</p>
                     </div>
 
                     {/* Momentum Checklist (What happens next) */}
@@ -248,10 +249,10 @@ export default function PublicAdmissionForm({ params }) {
                         
                         <Button 
                             variant="ghost"
-                            className="w-full h-14 rounded-2xl font-black text-sm text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+                            className="w-full h-14 rounded-2xl font-bold text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
                             onClick={() => window.location.reload()}
                         >
-                             ➕ Submit Another Application
+                             <Plus size={16} className="mr-2" /> Submit Another Application
                         </Button>
                     </div>
 
@@ -277,36 +278,39 @@ export default function PublicAdmissionForm({ params }) {
     );
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] flex flex-col pb-32 font-geist-sans overflow-x-hidden">
+        <div className="min-h-screen bg-slate-50 flex flex-col pb-32 font-geist-sans overflow-x-hidden relative">
+            {/* Dot Grid Background */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-60 pointer-events-none" />
+
             {/* Top Navigation / Branding */}
-            <div className="max-w-3xl mx-auto w-full pt-8 px-4 flex flex-col items-center">
+            <div className="max-w-3xl mx-auto w-full pt-8 px-4 flex flex-col items-center relative z-10">
                 <header className="w-full flex items-center justify-between mb-8">
                      <div className="flex items-center gap-3">
-                         <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg border border-white">
-                             {institute.branding?.logo ? (
-                                 <img src={institute.branding.logo} alt={institute.name} className="w-full h-full object-contain" />
-                             ) : (
-                                 <School className="text-premium-blue" size={24} />
-                             )}
-                         </div>
-                         <div className="hidden sm:block">
-                            <h2 className="text-lg font-black text-slate-800 tracking-tighter uppercase leading-none">{institute.name}</h2>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Admission portal</p>
-                         </div>
+                          <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-lg border border-white shrink-0">
+                              {institute.branding?.logo ? (
+                                  <img src={institute.branding.logo} alt={institute.name} className="w-full h-full object-contain" />
+                              ) : (
+                                  <School className="text-premium-blue" size={28} />
+                              )}
+                          </div>
+                          <div className="hidden sm:block">
+                             <h2 className="text-lg font-black text-slate-800 tracking-tighter uppercase leading-none">{institute.name}</h2>
+                             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Admission Portal</p>
+                          </div>
                      </div>
                      <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-2xl shadow-sm border border-slate-100">
-                         <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"/>
-                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Applications Open</span>
+                          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"/>
+                          <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Applications Open</span>
                      </div>
                 </header>
 
                 {/* Progress Bar (Compact) */}
                 <div className="w-full mb-10 px-2">
-                    <div className="flex justify-between text-[10px] font-black text-slate-300 uppercase tracking-widest mb-3 px-1">
+                    <div className="flex justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">
                         <span>Step {step} of 5</span>
-                        <span className={cn(step >= 4 ? "text-emerald-500" : "text-slate-400")}>{Math.round((step/5) * 100)}% Complete</span>
+                        <span className={cn(step >= 4 ? "text-emerald-600 font-bold" : "text-slate-400")}>{Math.round((step/5) * 100)}% Complete</span>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                         <motion.div 
                             className="h-full bg-premium-blue shadow-[0_0_10px_rgba(59,130,246,0.5)]"
                             initial={{ width: "0%" }}
@@ -330,11 +334,7 @@ export default function PublicAdmissionForm({ params }) {
                             {/* STEP 1: IDENTITY */}
                             {step === 1 && (
                                 <div className="space-y-6">
-                                    <div className="text-center sm:text-left flex flex-col sm:flex-row justify-between items-center sm:items-start gap-6">
-                                        <div>
-                                            <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2 italic">Who are you? 👤</h1>
-                                            <p className="text-slate-400 font-medium text-sm">Tell us your legal name and contact phone.</p>
-                                        </div>
+                                    <div className="flex flex-col items-center text-center md:items-start md:text-left md:flex-row gap-6 pb-6 border-b border-slate-100">
                                         <div className="relative group cursor-pointer shrink-0">
                                             <input 
                                                 type="file" 
@@ -342,16 +342,26 @@ export default function PublicAdmissionForm({ params }) {
                                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                                 onChange={handlePhotoChange} 
                                             />
-                                            <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center overflow-hidden group-hover:border-premium-blue group-hover:bg-blue-50 transition-colors">
+                                            <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center overflow-hidden group-hover:border-premium-blue group-hover:bg-blue-50 transition-colors shadow-sm">
                                                 {formData.photo ? (
                                                     <img src={formData.photo} alt="Student Preview" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <>
                                                         <Camera size={20} className="text-slate-400 group-hover:text-premium-blue mb-1" />
-                                                        <span className="text-[9px] font-bold text-slate-400 group-hover:text-premium-blue uppercase tracking-wider">Photo</span>
+                                                        <span className="text-xs font-semibold text-slate-500 group-hover:text-premium-blue">Add Photo</span>
                                                     </>
                                                 )}
                                             </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2 justify-center md:justify-start">
+                                                <div className="w-6 h-6 rounded-lg bg-premium-blue/10 flex items-center justify-center text-premium-blue">
+                                                    <User size={14} />
+                                                </div>
+                                                <span className="text-xs font-bold text-premium-blue uppercase tracking-wider">Step 1</span>
+                                            </div>
+                                            <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">Tell us about yourself</h1>
+                                            <p className="text-slate-500 font-medium text-sm">Please provide your full legal name and primary phone number.</p>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -404,9 +414,15 @@ export default function PublicAdmissionForm({ params }) {
                             {/* STEP 2: CONTACT & INFO */}
                             {step === 2 && (
                                 <div className="space-y-6">
-                                    <div className="text-center sm:text-left">
-                                        <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2 italic">More about you 🎂</h1>
-                                        <p className="text-slate-400 font-medium text-sm">Providing correct details helps us reach you faster.</p>
+                                    <div className="flex flex-col gap-2 pb-6 border-b border-slate-100">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+                                                <Mail size={14} />
+                                            </div>
+                                            <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Step 2</span>
+                                        </div>
+                                        <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">Contact & Details</h1>
+                                        <p className="text-slate-500 font-medium text-sm">Providing correct details helps us reach you faster.</p>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="sm:col-span-2">
@@ -454,9 +470,15 @@ export default function PublicAdmissionForm({ params }) {
                             {/* STEP 3: PROGRAM SELECTION */}
                             {step === 3 && (
                                 <div className="space-y-6">
-                                    <div className="text-center sm:text-left">
-                                        <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2 italic">Pick a Program 🎓</h1>
-                                        <p className="text-slate-400 font-medium text-sm">Choose the course and learning mode you prefer.</p>
+                                    <div className="flex flex-col gap-2 pb-6 border-b border-slate-100">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
+                                                <GraduationCap size={14} />
+                                            </div>
+                                            <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Step 3</span>
+                                        </div>
+                                        <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">Choose a Program</h1>
+                                        <p className="text-slate-500 font-medium text-sm">Select the course you wish to apply for and your preferred learning mode.</p>
                                     </div>
                                     
                                     <div className="space-y-4">
@@ -494,7 +516,7 @@ export default function PublicAdmissionForm({ params }) {
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="text-sm font-black text-slate-800 leading-tight truncate">{c.name}</h4>
-                                                        <p className="text-[9px] font-bold text-premium-blue uppercase mt-1">
+                                                        <p className="text-xs font-bold text-premium-blue mt-0.5">
                                                             ₹ {c.fees?.amount?.toLocaleString() || c.fees?.toLocaleString() || "0"}
                                                         </p>
                                                     </div>
@@ -509,7 +531,7 @@ export default function PublicAdmissionForm({ params }) {
                                     </div>
 
                                     <div className="space-y-3 pt-2">
-                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Learning Environment</label>
+                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Learning Environment</label>
                                          <div className="flex bg-white p-1 rounded-2xl border border-slate-100 shadow-sm gap-1">
                                              {['Online', 'Offline', 'Hybrid'].map((m) => (
                                                  <button
@@ -534,13 +556,24 @@ export default function PublicAdmissionForm({ params }) {
                             {/* STEP 4: FAMILY, GUARDIAN & ADDRESS */}
                             {step === 4 && (
                                 <div className="space-y-10">
+                                    <div className="flex flex-col gap-2 pb-6 border-b border-slate-100">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-600">
+                                                <Users size={14} />
+                                            </div>
+                                            <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">Step 4</span>
+                                        </div>
+                                        <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">Additional Details</h1>
+                                        <p className="text-slate-500 font-medium text-sm">Please provide parent/guardian details and your permanent address.</p>
+                                    </div>
+
                                     {/* Family & Identity Section */}
                                     <div className="space-y-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-7 h-7 rounded-lg bg-premium-blue/10 text-premium-blue flex items-center justify-center">
                                                 <Users size={14} />
                                             </div>
-                                            <h3 className="text-base font-black text-slate-800 italic">Family & Identity (Optional)</h3>
+                                            <h3 className="text-base font-bold text-slate-800">Family & Identity (Optional)</h3>
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <Input
@@ -588,7 +621,7 @@ export default function PublicAdmissionForm({ params }) {
                                             <div className="w-7 h-7 rounded-lg bg-orange-100 text-orange-500 flex items-center justify-center">
                                                 <Users size={14} />
                                             </div>
-                                            <h3 className="text-base font-black text-slate-800 italic">Guardian Details (Optional)</h3>
+                                            <h3 className="text-base font-bold text-slate-800">Guardian Details (Optional)</h3>
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="sm:col-span-2">
@@ -622,12 +655,12 @@ export default function PublicAdmissionForm({ params }) {
                                             <div className="w-7 h-7 rounded-lg bg-premium-blue/10 text-premium-blue flex items-center justify-center">
                                                 <MapPin size={14} />
                                             </div>
-                                            <h3 className="text-base font-black text-slate-800 italic">Your Location</h3>
+                                            <h3 className="text-base font-bold text-slate-800">Your Location</h3>
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="sm:col-span-2">
                                                 <Input
-                                                    label="Street"
+                                                    label="Street Address"
                                                     value={formData.address.street}
                                                     onChange={(e) => setFormData({ ...formData, address: { ...formData.address, street: e.target.value } })}
                                                     className="h-12 rounded-xl bg-white"
@@ -639,20 +672,18 @@ export default function PublicAdmissionForm({ params }) {
                                                 onChange={(e) => setFormData({ ...formData, address: { ...formData.address, city: e.target.value } })}
                                                 className="h-12 rounded-xl bg-white"
                                             />
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <Input
-                                                    label="State"
-                                                    value={formData.address.state}
-                                                    onChange={(e) => setFormData({ ...formData, address: { ...formData.address, state: e.target.value } })}
-                                                    className="h-12 rounded-xl bg-white"
-                                                />
-                                                <Input
-                                                    label="Pin"
-                                                    value={formData.address.pincode}
-                                                    onChange={(e) => setFormData({ ...formData, address: { ...formData.address, pincode: e.target.value } })}
-                                                    className="h-12 rounded-xl bg-white"
-                                                />
-                                            </div>
+                                            <Input
+                                                label="State"
+                                                value={formData.address.state}
+                                                onChange={(e) => setFormData({ ...formData, address: { ...formData.address, state: e.target.value } })}
+                                                className="h-12 rounded-xl bg-white"
+                                            />
+                                            <Input
+                                                label="Pincode"
+                                                value={formData.address.pincode}
+                                                onChange={(e) => setFormData({ ...formData, address: { ...formData.address, pincode: e.target.value } })}
+                                                className="h-12 rounded-xl bg-white"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -665,8 +696,8 @@ export default function PublicAdmissionForm({ params }) {
                                         <div className="w-14 h-14 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-emerald-100 shadow-inner">
                                             <ShieldCheck size={28} />
                                         </div>
-                                        <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight mb-1 italic">Ready to submit? 🚀</h1>
-                                        <p className="text-slate-400 font-medium text-xs">One last review before we process your request.</p>
+                                        <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight mb-1">Ready to submit?</h1>
+                                        <p className="text-slate-500 font-medium text-sm">One last review before we process your request.</p>
                                     </div>
 
                                     <div className="space-y-3">
@@ -676,11 +707,11 @@ export default function PublicAdmissionForm({ params }) {
                                                     <User size={18} />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Name</p>
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Name</p>
                                                     <p className="font-bold text-slate-700 leading-tight">{formData.firstName} {formData.lastName}</p>
                                                 </div>
                                             </div>
-                                            <button onClick={() => setStep(1)} className="text-[10px] font-black text-premium-blue uppercase hover:underline">Fix</button>
+                                            <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="text-xs font-bold text-premium-blue">Edit</Button>
                                         </div>
 
                                         <div className="p-4 bg-white rounded-2xl border border-slate-100 flex items-center justify-between group">
@@ -689,15 +720,15 @@ export default function PublicAdmissionForm({ params }) {
                                                     <GraduationCap size={18} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Selected Course</p>
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Selected Course</p>
                                                     <p className="font-bold text-slate-700 truncate leading-tight">{selectedCourse?.name}</p>
                                                 </div>
                                             </div>
-                                            <button onClick={() => setStep(3)} className="text-[10px] font-black text-premium-blue uppercase hover:underline">Change</button>
+                                            <Button variant="ghost" size="sm" onClick={() => setStep(3)} className="text-xs font-bold text-premium-blue">Change</Button>
                                         </div>
 
                                         <div className="space-y-2 pt-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">How did you hear about us? (Referred By)</label>
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">How did you hear about us? (Referred By)</label>
                                             <input
                                                 className="w-full bg-white border border-slate-100 rounded-2xl h-12 px-4 shadow-sm outline-none focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
                                                 placeholder="Friend name, Social Media, etc."
@@ -707,7 +738,7 @@ export default function PublicAdmissionForm({ params }) {
                                         </div>
 
                                         <div className="space-y-2 pt-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Additional Notes (Optional)</label>
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Additional Notes (Optional)</label>
                                             <textarea
                                                 rows={2}
                                                 className="w-full bg-white border border-slate-100 rounded-2xl p-4 outline-none focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
@@ -715,6 +746,20 @@ export default function PublicAdmissionForm({ params }) {
                                                 value={formData.notes}
                                                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                             />
+                                        </div>
+
+                                        <div className="pt-4 border-t border-slate-100">
+                                            <label className="flex items-start gap-3 cursor-pointer group">
+                                                <input
+                                                    type="checkbox"
+                                                    className="mt-1 w-4 h-4 rounded text-premium-blue border-slate-200 focus:ring-premium-blue/10 cursor-pointer"
+                                                    checked={formData.parentalConsentCheckbox}
+                                                    onChange={(e) => setFormData({ ...formData, parentalConsentCheckbox: e.target.checked })}
+                                                />
+                                                <span className="text-xs font-semibold text-slate-500 leading-normal select-none">
+                                                    I, the parent/guardian of the applicant, hereby consent to the processing of personal data for academic, billing, and administrative records under the Digital Personal Data Protection (DPDP) Act 2023.
+                                                </span>
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -725,7 +770,7 @@ export default function PublicAdmissionForm({ params }) {
             </div>
 
             {/* STICKY FOOTER NAVIGATION */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 py-4 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
+            <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-6 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
                 <div className="max-w-3xl mx-auto w-full flex items-center gap-3">
                     {step > 1 && (
                         <button 
@@ -739,16 +784,16 @@ export default function PublicAdmissionForm({ params }) {
                     {step < 5 ? (
                         <Button 
                             onClick={nextStep}
-                            className="flex-1 h-12 rounded-xl font-black text-sm shadow-xl shadow-blue-500/10 group"
+                            className="flex-1 h-12 rounded-xl font-bold text-sm shadow-xl shadow-blue-500/10 group"
                         >
                             Continue <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={16} />
                         </Button>
                     ) : (
                         <Button 
                             onClick={handleSubmit}
-                            disabled={submitting}
+                            disabled={submitting || !formData.parentalConsentCheckbox}
                             variant="premium"
-                            className="flex-1 h-12 rounded-xl font-black text-sm shadow-xl shadow-blue-500/10 group"
+                            className="flex-1 h-12 rounded-xl font-bold text-sm shadow-xl shadow-blue-500/10 group"
                         >
                             {submitting ? (
                                 <LoadingSpinner size="sm" className="mr-3 text-white" />
@@ -761,12 +806,12 @@ export default function PublicAdmissionForm({ params }) {
                 </div>
                 <div className="max-w-3xl mx-auto w-full mt-2 flex items-center justify-between px-1">
                     <div className="flex items-center gap-2">
-                        <Clock size={10} className="text-slate-300" />
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">Takes ~2 mins</p>
+                        <Clock size={12} className="text-slate-400" />
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider leading-none">Takes ~2 mins</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <ShieldCheck size={10} className="text-emerald-400" />
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">SSL Secured</p>
+                        <ShieldCheck size={12} className="text-emerald-500" />
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider leading-none">SSL Secured</p>
                     </div>
                 </div>
             </div>

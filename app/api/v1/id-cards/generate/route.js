@@ -77,6 +77,13 @@ export async function POST(req) {
     try {
         await connectDB();
 
+        const session = await getServerSession(authOptions);
+        const hasAccess = ['admin', 'super_admin'].includes(session?.user?.role) || 
+            (session?.user?.role === 'instructor' && session?.user?.permissions?.includes('generate_id_cards'));
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const scope = await getInstituteScope(req);
         if (!scope.instituteId) {
             return NextResponse.json({ error: "Missing institute context" }, { status: 400 });

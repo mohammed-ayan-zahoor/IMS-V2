@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import './Counter.js'; // Ensure schema is registered
+import { encrypt, decrypt } from '../lib/crypto.js';
 const { Schema } = mongoose;
 const UserSchema = new Schema({
     institute: {
@@ -30,6 +31,7 @@ const UserSchema = new Schema({
         batches: [{ type: Schema.Types.ObjectId, ref: 'Batch' }],
         courses: [{ type: Schema.Types.ObjectId, ref: 'Course' }]
     },
+    permissions: [{ type: String }],
     profile: {
         type: {
             firstName: { type: String, required: true },
@@ -66,21 +68,47 @@ const UserSchema = new Schema({
         phone: String,
         relation: { type: String, enum: ['father', 'mother', 'guardian', 'other', ''] }
     },
+    parentalConsent: {
+        verified: { type: Boolean, default: false },
+        verifiedBy: { type: String, enum: ['Father', 'Mother', 'Guardian', 'None'], default: 'None' },
+        consentDate: Date,
+        consentIpAddress: String
+    },
     referredBy: { type: String, trim: true },
 
     // Advanced Student Metadata (Optional for Certificates)
     grNumber: String,
     studentIdUdise: String,
-    aadharNumber: String,
-    apaarId: String,
-    penNumber: String,
+    aadharNumber: {
+        type: String,
+        set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
+        get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
+    },
+    apaarId: {
+        type: String,
+        set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
+        get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
+    },
+    penNumber: {
+        type: String,
+        set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
+        get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
+    },
 
     fatherName: String,
     fatherPhone: String,
-    fatherAadhar: String,
+    fatherAadhar: {
+        type: String,
+        set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
+        get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
+    },
     motherName: String,
     motherPhone: String,
-    motherAadhar: String,
+    motherAadhar: {
+        type: String,
+        set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
+        get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
+    },
 
     nationality: { type: String, default: 'Indian' },
     motherTongue: String,
@@ -209,8 +237,8 @@ const UserSchema = new Schema({
     }
 }, {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true }
+    toJSON: { virtuals: true, getters: true },
+    toObject: { virtuals: true, getters: true }
 });
 
 

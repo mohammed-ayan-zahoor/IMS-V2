@@ -7,7 +7,9 @@ import { createAuditLog } from "@/services/auditService";
 export async function POST(req, { params }) {
     try {
         const scope = await getInstituteScope(req);
-        if (!scope?.instituteId || !['admin', 'super_admin', 'instructor'].includes(scope.user.role)) {
+        const hasRoleAccess = ['admin', 'super_admin'].includes(scope?.user?.role) || 
+            (scope?.user?.role === 'instructor' && scope?.user?.permissions?.includes('manage_hostel_payments'));
+        if (!scope?.instituteId || !hasRoleAccess) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

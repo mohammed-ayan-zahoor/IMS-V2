@@ -152,7 +152,14 @@ export default function StudentReceiptPage({ params }) {
                             <div>
                                 <p className="text-lg font-black text-slate-900">{batch?.name}</p>
                                 <p className="text-sm font-bold text-slate-500 italic mt-1">{batch?.course?.name}</p>
-                                <p className="text-xs font-black text-slate-400 mt-2 uppercase tracking-tight">Academic Session 2025-26</p>
+                                <p className="text-xs font-black text-slate-400 mt-2 uppercase tracking-tight">
+                                    Academic Session {fee?.createdAt ? (() => {
+                                        const d = new Date(fee.createdAt);
+                                        const year = d.getFullYear();
+                                        const month = d.getMonth();
+                                        return month >= 3 ? `${year}-${String(year + 1).slice(-2)}` : `${year - 1}-${String(year).slice(-2)}`;
+                                    })() : '2025-26'}
+                                </p>
                             </div>
                         </div>
                     </div>

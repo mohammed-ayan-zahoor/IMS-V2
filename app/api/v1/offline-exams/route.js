@@ -51,7 +51,9 @@ export async function POST(req) {
     try {
         await connectDB();
         const session = await getServerSession(authOptions);
-        if (!session || !["admin", "super_admin"].includes(session.user.role)) {
+        const hasAccess = session && (["admin", "super_admin"].includes(session.user.role) || 
+            (session.user.role === "instructor" && session.user.permissions?.includes("manage_exams")));
+        if (!hasAccess) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

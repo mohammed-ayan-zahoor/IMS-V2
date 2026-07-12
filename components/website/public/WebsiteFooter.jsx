@@ -86,8 +86,8 @@ const WebsiteFooter = ({ config = {} }) => {
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-slate-500 text-xs font-bold uppercase tracking-widest">
                     <p>© 2024 {config.instituteName}. All rights reserved.</p>
                     <div className="flex gap-8">
-                        <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-                        <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+                        <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+                        <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
                     </div>
                 </div>
             </div>

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { encrypt, decrypt } from '../lib/crypto.js';
 const { Schema } = mongoose;
 
 const AdmissionApplicationSchema = new Schema({
@@ -47,6 +48,12 @@ const AdmissionApplicationSchema = new Schema({
             required: false
         }
     },
+    parentalConsent: {
+        verified: { type: Boolean, default: false },
+        verifiedBy: { type: String, enum: ['Father', 'Mother', 'Guardian', 'None'], default: 'None' },
+        consentDate: Date,
+        consentIpAddress: String
+    },
     address: {
         street: { type: String, required: false },
         city: { type: String, required: false },
@@ -57,10 +64,25 @@ const AdmissionApplicationSchema = new Schema({
     photo: { type: String, trim: true },
     // Family & Identity (Optional)
     fatherName: { type: String, trim: true },
-    fatherAadhar: { type: String, trim: true },
+    fatherAadhar: {
+        type: String,
+        trim: true,
+        set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
+        get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
+    },
     motherName: { type: String, trim: true },
-    motherAadhar: { type: String, trim: true },
-    studentAadhar: { type: String, trim: true },
+    motherAadhar: {
+        type: String,
+        trim: true,
+        set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
+        get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
+    },
+    studentAadhar: {
+        type: String,
+        trim: true,
+        set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
+        get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
+    },
     status: {
         type: String,
         enum: ['pending', 'converted', 'cancelled'],
@@ -68,7 +90,11 @@ const AdmissionApplicationSchema = new Schema({
     },
     notes: { type: String, trim: true },
     referredBy: { type: String, trim: true }
-}, { timestamps: true });
+}, { 
+    timestamps: true,
+    toJSON: { getters: true },
+    toObject: { getters: true }
+});
 
 // Multi-tenant data isolation and reporting indexes
 AdmissionApplicationSchema.index({ email: 1, institute: 1 });

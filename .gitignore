@@ -51,3 +51,8 @@ next-env.d.ts
 /android
 .idea
 .vscode
+
+# mobile app
+/mobile/
+/docs/execution_plan.md
+/docs/production_roadmap.md

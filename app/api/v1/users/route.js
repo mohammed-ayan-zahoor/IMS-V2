@@ -178,6 +178,7 @@ export async function POST(req) {
                 const batches = Array.isArray(body.assignedBatches) ? body.assignedBatches : [];
                 const courses = Array.isArray(body.assignedCourses) ? body.assignedCourses : [];
                 userPayload.assignments = { batches, courses };
+                userPayload.permissions = Array.isArray(body.permissions) ? body.permissions : [];
             }
 
             if (['instructor', 'staff'].includes(requestedRole)) {
