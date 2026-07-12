@@ -141,8 +141,34 @@ export async function GET(req) {
             };
         }
 
+        const isInstructor = scope.user.role === 'instructor';
+        let instructorStudentIds = [];
+        let instructorBatchIds = [];
+        let instructorCourseIds = [];
+
+        if (isInstructor) {
+            const instructor = await User.findById(scope.user.id).select('assignments');
+            instructorBatchIds = instructor?.assignments?.batches || [];
+            instructorCourseIds = instructor?.assignments?.courses || [];
+
+            const rbacBatchQuery = {
+                institute: new mongoose.Types.ObjectId(targetInstituteId),
+                deletedAt: null,
+                $or: [
+                    { _id: { $in: instructorBatchIds } },
+                    { course: { $in: instructorCourseIds } }
+                ]
+            };
+            const allowedBatches = await Batch.find(rbacBatchQuery).select('enrolledStudents.student');
+            instructorStudentIds = allowedBatches.flatMap(b => b.enrolledStudents.map(e => e.student));
+            instructorBatchIds = allowedBatches.map(b => b._id);
+        }
+
         // 1. User Counts (Students, Staff)
         const studentBaseQuery = { ...hybridBaseQuery, role: 'student' };
+        if (isInstructor) {
+            studentBaseQuery._id = { $in: instructorStudentIds };
+        }
 
         const sessionParam = searchParams.get('session');
         const source = sessionValidationResult?.source || 'UNKNOWN';
@@ -184,25 +210,37 @@ export async function GET(req) {
         const droppedStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, status: 'DROPPED' });
         const maleStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, 'profile.gender': 'Male' });
         const femaleStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, 'profile.gender': 'Female' });
-        const staffCountPromise = User.countDocuments({ ...hybridBaseQuery, role: { $in: ['admin', 'staff'] } });
+        const staffCountPromise = isInstructor
+            ? Promise.resolve(0)
+            : User.countDocuments({ ...hybridBaseQuery, role: { $in: ['admin', 'staff'] } });
 
         // 2. Total Enrollments (Sum of student counts across all active batches)
+        let batchMatch = {
+            ...instituteQuery,
+            ...(sessionId && instituteType === 'SCHOOL' ? { session: new mongoose.Types.ObjectId(sessionId) } : {})
+        };
+        if (isInstructor) {
+            batchMatch._id = { $in: instructorBatchIds };
+        }
+
         const totalEnrollmentsPromise = Batch.aggregate([
-            { $match: { ...instituteQuery, ...(sessionId && instituteType === 'SCHOOL' ? { session: new mongoose.Types.ObjectId(sessionId) } : {}) } },
+            { $match: batchMatch },
             { $project: { enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
             { $group: { _id: null, total: { $sum: "$enrollmentCount" } } }
         ]);
 
         // 3. Enquiry Count
-        const enquiriesCountPromise = (async () => {
-            const offline = await Enquiry.countDocuments({ ...instituteQuery, status: { $ne: 'Confirmed' } });
-            const online = await AdmissionApplication.countDocuments({ ...instituteQuery, status: { $ne: 'converted' } });
-            return offline + online;
-        })();
+        const enquiriesCountPromise = isInstructor
+            ? Promise.resolve(0)
+            : (async () => {
+                const offline = await Enquiry.countDocuments({ ...instituteQuery, status: { $ne: 'Confirmed' } });
+                const online = await AdmissionApplication.countDocuments({ ...instituteQuery, status: { $ne: 'converted' } });
+                return offline + online;
+            })();
 
         // 4. Top Courses (Leaderboard)
         const topCoursesPromise = Batch.aggregate([
-            { $match: { ...instituteQuery, ...(sessionId && instituteType === 'SCHOOL' ? { session: new mongoose.Types.ObjectId(sessionId) } : {}) } },
+            { $match: batchMatch },
             { $project: { course: 1, enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
             { $group: { _id: "$course", totalStudents: { $sum: "$enrollmentCount" } } },
             { $sort: { totalStudents: -1 } },
@@ -267,33 +305,40 @@ export async function GET(req) {
             }
         }
 
-        const revenueTrendsPromise = Fee.aggregate([
-            { 
-                $match: revenueQuery
-            },
-            { $unwind: "$installments" },
-            { 
-                $match: { 
-                    "installments.status": "paid"
-                    // Don't filter by date - show all revenue data
-                } 
-            },
-            {
-                $group: {
-                    _id: {
-                        year: { $year: { $ifNull: ["$installments.paidDate", "$createdAt"] } },
-                        month: { $month: { $ifNull: ["$installments.paidDate", "$createdAt"] } }
-                    },
-                    total: { $sum: "$installments.amount" },
-                    count: { $sum: 1 }  // Count how many paid installments per month
-                }
-            },
-            { $sort: { "_id.year": 1, "_id.month": 1 } }
-        ]);
+        const revenueTrendsPromise = isInstructor
+            ? Promise.resolve([])
+            : Fee.aggregate([
+                { 
+                    $match: revenueQuery
+                },
+                { $unwind: "$installments" },
+                { 
+                    $match: { 
+                        "installments.status": "paid"
+                        // Don't filter by date - show all revenue data
+                    } 
+                },
+                {
+                    $group: {
+                        _id: {
+                            year: { $year: { $ifNull: ["$installments.paidDate", "$createdAt"] } },
+                            month: { $month: { $ifNull: ["$installments.paidDate", "$createdAt"] } }
+                        },
+                        total: { $sum: "$installments.amount" },
+                        count: { $sum: 1 }  // Count how many paid installments per month
+                    }
+                },
+                { $sort: { "_id.year": 1, "_id.month": 1 } }
+            ]);
 
         // 7. Activity Feed (Audit Log)
         const AuditLog = (await import("@/models/AuditLog")).default;
-        const activityFeedPromise = AuditLog.find(isGlobalView ? {} : { institute: new mongoose.Types.ObjectId(targetInstituteId) })
+        const activityFeedQuery = isGlobalView 
+            ? {} 
+            : (isInstructor 
+                ? { institute: new mongoose.Types.ObjectId(targetInstituteId), actor: new mongoose.Types.ObjectId(scope.user.id) } 
+                : { institute: new mongoose.Types.ObjectId(targetInstituteId) });
+        const activityFeedPromise = AuditLog.find(activityFeedQuery)
             .sort({ createdAt: -1 })
             .limit(20)
             .populate('actor', 'profile.firstName profile.lastName');
@@ -353,15 +398,16 @@ export async function GET(req) {
             recentAdmissionsPromise,
             revenueTrendsPromise,
             getGrowth(User, studentBaseQuery),
-            getGrowthCombined(
+            isInstructor ? Promise.resolve(0) : getGrowthCombined(
                 Enquiry, { ...instituteQuery, status: { $ne: 'Confirmed' } }, 
                 AdmissionApplication, { ...instituteQuery, status: { $ne: 'converted' } }
             ),
             getGrowth(Batch, { 
                 ...instituteQuery, 
                 ...(sessionParam ? { session: new mongoose.Types.ObjectId(sessionParam) } : {}),
+                ...(isInstructor ? { _id: { $in: instructorBatchIds } } : {}),
                 enrolledStudents: { $exists: true, $not: { $size: 0 } } 
-            }            )
+            })
         ]);
 
         // Map revenue trends to fill missing months
