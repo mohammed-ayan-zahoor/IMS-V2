@@ -106,7 +106,7 @@ export async function GET(req) {
         }
 
         // Check Cache
-        const cacheKey = `stats_${targetInstituteId}_${isGlobalView ? 'global' : 'scoped'}_${sessionId || 'all'}`;
+        const cacheKey = `stats_${targetInstituteId}_${isGlobalView ? 'global' : 'scoped'}_${sessionId || 'all'}_${scope.user.id}`;
         const cachedEntry = statsCache.get(cacheKey);
         const nowTime = Date.now();
         if (cachedEntry && (nowTime - cachedEntry.timestamp) < CACHE_DURATION) {
