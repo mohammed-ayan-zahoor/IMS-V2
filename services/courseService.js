@@ -314,12 +314,18 @@ export class BatchService {
         });
 
         // 3. RBAC: Restricted view for instructors
-        // If an instructor is querying, only show batches where they are assigned
+        // If an instructor is querying, only show batches where they are assigned (batches, courses or direct instructor field)
         if (filters.instructorRoleContext) {
             const instructorId = filters.instructorRoleContext;
+            const User = mongoose.models.User || mongoose.model('User');
+            const instructor = await User.findById(instructorId).select('assignments');
+            const assignedBatches = instructor?.assignments?.batches || [];
+            const assignedCourses = instructor?.assignments?.courses || [];
+
             query.$or = [
                 { instructor: instructorId },
-                { 'assignments.batches': instructorId } // Fallback for secondary assignments
+                { _id: { $in: assignedBatches } },
+                { course: { $in: assignedCourses } }
             ];
         }
 
