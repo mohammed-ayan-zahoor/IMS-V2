@@ -57,8 +57,8 @@ export async function POST(req, { params }) {
             return NextResponse.json({ error: "Fee record not found" }, { status: 404 });
         }
 
-        const hasAccess = await validateInstituteAccess(feeRecord, scope);
-        if (!hasAccess) {
+        const hasInstituteAccess = await validateInstituteAccess(feeRecord, scope);
+        if (!hasInstituteAccess) {
             return NextResponse.json({ error: "Access denied: This fee record belongs to another institute" }, { status: 403 });
         }
 
