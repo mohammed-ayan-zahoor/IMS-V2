@@ -132,6 +132,7 @@ export default function AdminLayout({ children }) {
                 { label: "Question Bank", icon: Database, href: "/admin/question-bank" },
                 { label: "Notices", icon: Megaphone, href: "/admin/notices" },
                 { label: "Materials", icon: FileText, href: "/admin/materials" },
+                { label: "School Calendar", icon: CalendarDays, href: "/admin/calendar" },
             ]
         },
         {
