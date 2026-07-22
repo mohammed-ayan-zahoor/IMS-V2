@@ -161,6 +161,28 @@ export default function StudentFeesPage() {
                 </div>
             </div>
 
+            {(() => {
+                const isHostelBundled = session?.user?.institute?.settings?.features?.bundleHostelInBaseFee || session?.user?.institute?.settings?.features?.combinedCourseFees;
+                const isTransportBundled = session?.user?.institute?.settings?.features?.bundleTransportInBaseFee || session?.user?.institute?.settings?.features?.combinedCourseFees;
+
+                if (!isHostelBundled && !isTransportBundled) return null;
+
+                const bundledText = isHostelBundled && isTransportBundled
+                    ? "Course, Hostel & Transport services"
+                    : isHostelBundled
+                        ? "Course & Hostel services"
+                        : "Course & Transport services";
+
+                return (
+                    <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200/60 p-4 rounded-2xl text-emerald-800 text-xs font-bold shadow-sm">
+                        <span className="text-base">📦</span>
+                        <div>
+                            <span className="font-black">Bundled Base Fee Schedule:</span> Your main fee schedule covers {bundledText} directly in one structure without separate itemized billing.
+                        </div>
+                    </div>
+                );
+            })()}
+
             <div className="grid gap-8">
                 {fees.map((fee, fIdx) => {
                     const finalAmount = fee.totalAmount - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0);

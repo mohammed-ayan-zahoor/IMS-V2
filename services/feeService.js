@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Fee from '@/models/Fee';
+import Institute from '@/models/Institute';
 import Batch from '@/models/Batch';
 import User from '@/models/User';
 import Collector from '@/models/Collector';
@@ -29,6 +30,9 @@ const attachHostelInfo = async (feesList, instituteId) => {
         
         if (studentIds.length === 0) return feesList;
 
+        const inst = await Institute.findById(instituteId).select('settings.features.bundleHostelInBaseFee settings.features.combinedCourseFees').lean();
+        const isCombinedFeeMode = !!(inst?.settings?.features?.bundleHostelInBaseFee || inst?.settings?.features?.combinedCourseFees);
+
         const allotments = await HostelAllotment.find({
             institute: instituteId,
             student: { $in: studentIds },
@@ -40,7 +44,8 @@ const attachHostelInfo = async (feesList, instituteId) => {
         allotments.forEach(a => {
             hostelMap[a.student.toString()] = {
                 balanceAmount: a.balanceAmount,
-                feeStatus: a.feeStatus
+                feeStatus: a.feeStatus,
+                isCombined: isCombinedFeeMode
             };
         });
 

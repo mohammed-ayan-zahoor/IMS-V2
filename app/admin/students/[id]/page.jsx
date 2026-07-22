@@ -1601,7 +1601,14 @@ export default function StudentDetailsPage({ params }) {
                                                 <Car size={20} />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold text-slate-900">Transport Details</h3>
+                                                <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                                                    Transport Details
+                                                    {(session?.user?.institute?.settings?.features?.bundleTransportInBaseFee || session?.user?.institute?.settings?.features?.combinedCourseFees) && (
+                                                        <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5 font-black uppercase tracking-wider">
+                                                            Bundled in Base Fee
+                                                        </span>
+                                                    )}
+                                                </h3>
                                                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">Active Assignment</p>
                                             </div>
                                         </div>

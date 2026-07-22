@@ -108,7 +108,10 @@ const InstituteSchema = new Schema({
             fees: { type: Boolean, default: true },
             materials: { type: Boolean, default: true },
             transport: { type: Boolean, default: false },
-            hostel: { type: Boolean, default: false }
+            hostel: { type: Boolean, default: false },
+            bundleHostelInBaseFee: { type: Boolean, default: false },
+            bundleTransportInBaseFee: { type: Boolean, default: false },
+            combinedCourseFees: { type: Boolean, default: false }
         },
 
         // Email settings

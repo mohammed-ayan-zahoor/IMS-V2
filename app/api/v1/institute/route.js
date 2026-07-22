@@ -95,7 +95,7 @@ export async function PATCH(req) {
             // Handle nested features object
             if (body.settings.features) {
                 updateData.settings.features = {};
-                const allowedFeatures = ['exams', 'attendance', 'fees', 'materials', 'transport', 'hostel'];
+                const allowedFeatures = ['exams', 'attendance', 'fees', 'materials', 'transport', 'hostel', 'bundleHostelInBaseFee', 'bundleTransportInBaseFee', 'combinedCourseFees'];
                 allowedFeatures.forEach(feature => {
                     if (body.settings.features[feature] !== undefined) {
                         updateData.settings.features[feature] = Boolean(body.settings.features[feature]);

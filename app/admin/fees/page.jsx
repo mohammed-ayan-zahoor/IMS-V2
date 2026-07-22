@@ -600,11 +600,13 @@ export default function FeesPage() {
                                                                 {fee.student?.hostelInfo && (
                                                                     <span className={cn(
                                                                         "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shrink-0",
-                                                                        fee.student.hostelInfo.balanceAmount > 0 
-                                                                            ? "bg-rose-50 text-rose-600 border-rose-100" 
-                                                                            : "bg-indigo-50 text-indigo-600 border-indigo-100"
-                                                                    )} title={`Hostel Balance: ₹${fee.student.hostelInfo.balanceAmount}`}>
-                                                                        🏠 {fee.student.hostelInfo.balanceAmount > 0 ? "Hostel Dues" : "Hostel"}
+                                                                        fee.student.hostelInfo.isCombined
+                                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                                            : fee.student.hostelInfo.balanceAmount > 0 
+                                                                                ? "bg-rose-50 text-rose-600 border-rose-100" 
+                                                                                : "bg-indigo-50 text-indigo-600 border-indigo-100"
+                                                                    )} title={fee.student.hostelInfo.isCombined ? "Combined Base Fee Mode Active (Course, Transport & Hostel included in base fee)" : `Hostel Balance: ₹${fee.student.hostelInfo.balanceAmount}`}>
+                                                                        🏠 {fee.student.hostelInfo.isCombined ? "Combined Base Fee" : (fee.student.hostelInfo.balanceAmount > 0 ? "Hostel Dues" : "Hostel")}
                                                                     </span>
                                                                 )}
                                                             </p>
