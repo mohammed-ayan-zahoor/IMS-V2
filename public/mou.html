@@ -376,10 +376,11 @@ body.is-exporting .mou-page {
   border-radius: 0 !important;
   box-shadow: none !important;
   width: 860px !important;
-  height: 1216px !important; /* Perfect aspect ratio */
+  min-height: 1216px !important; /* Fit content aspect ratio */
+  height: auto !important;
   margin-bottom: 0 !important;
   position: relative !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   display: flex !important;
   flex-direction: column !important;
   justify-content: flex-start !important;
@@ -735,25 +736,41 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 const today = new Date();
 const dateStr = today.toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
 
-// Calculate Academic Year dynamically (April to March cycle)
 const getAcademicYear = (date) => {
   const year = date.getFullYear();
-  const month = date.getMonth(); // 0-indexed: Jan is 0, Apr is 3
-  if (month >= 3) {
-    return `${year}-${String(year + 1).slice(-2)}`;
-  } else {
-    return `${year - 1}-${String(year).slice(-2)}`;
-  }
+  return `${year}-${String(year + 1).slice(-2)}`;
 };
+
 const acadYear = getAcademicYear(today);
 const refId = 'QP/MOU/' + acadYear + '/' + String(Math.floor(Math.random()*9000)+1000);
+
+function validateForm() {
+  const school = document.getElementById('f-school').value.trim();
+  const city = document.getElementById('f-city').value.trim();
+  const principal = document.getElementById('f-principal').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const students = document.getElementById('f-students').value.trim();
+
+  if (!school) { alert('Please enter the School / Institution Name.'); return false; }
+  if (!city) { alert('Please enter the City / District.'); return false; }
+  if (!principal) { alert('Please enter the Principal / Authorised Signatory Name.'); return false; }
+  if (!email) { alert('Please enter the Contact Email.'); return false; }
+  if (!students) { alert('Please enter the Total Number of Students to be Enrolled.'); return false; }
+  
+  if (!hasSig) {
+    alert('Please sign the document before downloading or printing.');
+    return false;
+  }
+  
+  return true;
+}
 
 document.querySelectorAll('#doc-date,#doc-date2').forEach(el => el.textContent = dateStr);
 document.querySelectorAll('#doc-ref,#doc-ref2').forEach(el => el.textContent = refId);
 document.querySelector('#sig-date').textContent = dateStr;
 const acadYearEl = document.getElementById('d-acad-year');
 if (acadYearEl) {
-  acadYearEl.textContent = acadYear;
+  acadYearEl.textContent = acadYear.replace('-', '–');
 }
 
 // ── Live doc update ─────────────────────────────────────────
@@ -776,7 +793,6 @@ function updateDoc() {
   const duration = document.getElementById('f-duration').value;
 
   const udise = document.getElementById('f-udise').value.trim() || '—';
-
   document.getElementById('d-school').textContent = school;
   document.getElementById('d-school2').textContent = school;
   document.getElementById('d-school3').textContent = school;
@@ -915,6 +931,8 @@ function handleSigUpload(e) {
 
 // ── PDF Generation ──────────────────────────────────────────
 async function downloadPDF() {
+  if (!validateForm()) return;
+
   const btn = document.getElementById('btn-download');
   btn.disabled = true;
   btn.textContent = 'Generating...';
@@ -937,17 +955,21 @@ async function downloadPDF() {
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     
     for (let i = 0; i < pages.length; i++) {
-      if (i > 0) pdf.addPage();
       const canvasPage = await html2canvas(pages[i], { 
         scale: 2.5, 
         useCORS: true, 
         backgroundColor: '#fff' 
       });
       const imgData = canvasPage.toDataURL('image/jpeg', 0.98);
-      const pW = pdf.internal.pageSize.getWidth();
-      const pH = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, 'JPEG', 0, 0, pW, pH);
+      const pW = 210; // Standard A4 width in mm
+      const imgHeight = pW * (canvasPage.height / canvasPage.width);
+      
+      pdf.addPage([pW, imgHeight]);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pW, imgHeight);
     }
+    
+    // Delete the first page which was the default empty page
+    pdf.deletePage(1);
     
     // Restore mobile layout immediately after capture
     document.body.classList.remove('is-exporting');
@@ -1034,6 +1056,8 @@ async function trackMouAction(actionType) {
 }
 
 function triggerPrint() {
+  if (!validateForm()) return;
+
   trackMouAction('print');
   
   // Inject signature as an image for print reliability (canvases often drop in print dialogs)

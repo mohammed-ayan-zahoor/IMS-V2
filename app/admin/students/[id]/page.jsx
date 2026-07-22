@@ -1884,6 +1884,14 @@ export default function StudentDetailsPage({ params }) {
                                                                             {format(new Date(inst.dueDate), "MMM d")}
                                                                         </span>
                                                                     </div>
+                                                                    {(inst.penaltyAmount > 0 || inst.penaltyPaid > 0) && (
+                                                                        <div className="mt-2 pt-1 border-t border-slate-100/60 flex justify-between items-center text-[9px] font-bold">
+                                                                            <span className="text-rose-600 uppercase tracking-wider">Penalty: ₹{(inst.penaltyPaid || inst.penaltyAmount).toLocaleString()}</span>
+                                                                            <span className={inst.penaltyStatus === 'paid' ? 'text-emerald-600' : 'text-rose-500 animate-pulse'}>
+                                                                                {inst.penaltyStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             );
                                                         })}

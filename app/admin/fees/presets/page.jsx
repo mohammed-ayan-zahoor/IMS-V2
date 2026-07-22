@@ -47,7 +47,13 @@ export default function FeePresetsPage() {
         description: "",
         subjects: [],
         category: "general",
-        complexity: "standard"
+        complexity: "standard",
+        penaltyConfig: {
+            enabled: false,
+            type: "flat",
+            amount: "",
+            offsetDays: ""
+        }
     });
 
     useEffect(() => {
@@ -124,10 +130,19 @@ export default function FeePresetsPage() {
             const url = editingPreset ? `/api/v1/fee-presets/${editingPreset._id}` : "/api/v1/fee-presets";
             const method = editingPreset ? "PATCH" : "POST";
             
+            const payload = {
+                ...formData,
+                penaltyConfig: {
+                    ...formData.penaltyConfig,
+                    amount: formData.penaltyConfig.enabled ? parseFloat(formData.penaltyConfig.amount) || 0 : 0,
+                    offsetDays: formData.penaltyConfig.enabled ? parseInt(formData.penaltyConfig.offsetDays) || 0 : 0
+                }
+            };
+
             const res = await fetch(url, {
                 method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
@@ -172,7 +187,13 @@ export default function FeePresetsPage() {
             description: "",
             subjects: [],
             category: "general",
-            complexity: "standard"
+            complexity: "standard",
+            penaltyConfig: {
+                enabled: false,
+                type: "flat",
+                amount: "",
+                offsetDays: ""
+            }
         });
         setIsModalOpen(true);
     };
@@ -186,7 +207,13 @@ export default function FeePresetsPage() {
             description: preset.description || "",
             subjects: preset.subjects?.map(s => typeof s === 'object' ? s._id : s) || [],
             category: preset.category || "general",
-            complexity: preset.complexity || "standard"
+            complexity: preset.complexity || "standard",
+            penaltyConfig: {
+                enabled: preset.penaltyConfig?.enabled || false,
+                type: preset.penaltyConfig?.type || "flat",
+                amount: preset.penaltyConfig?.amount !== undefined ? preset.penaltyConfig.amount.toString() : "",
+                offsetDays: preset.penaltyConfig?.offsetDays !== undefined ? preset.penaltyConfig.offsetDays.toString() : ""
+            }
         });
         setIsModalOpen(true);
     };
@@ -288,6 +315,13 @@ export default function FeePresetsPage() {
                                     <div className="text-[20px] font-black text-slate-900">₹{preset.amount.toLocaleString()}</div>
                                 </div>
                                 
+                                {preset.penaltyConfig?.enabled && (
+                                    <div className="mt-2.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200/55 rounded-xl px-3 py-1.5 flex justify-between items-center font-bold font-mono">
+                                        <span>Late Penalty: {preset.penaltyConfig.type === 'flat' ? 'Flat' : 'Daily'} ₹{preset.penaltyConfig.amount}</span>
+                                        <span>Grace: {preset.penaltyConfig.offsetDays}d</span>
+                                    </div>
+                                )}
+                                
                                 {preset.description && (
                                     <p className="mt-4 text-[12px] text-slate-400 italic line-clamp-1">{preset.description}</p>
                                 )}
@@ -374,6 +408,69 @@ export default function FeePresetsPage() {
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         />
+                    </div>
+
+                    <div className="border border-slate-100 bg-slate-50/50 p-4 rounded-2xl space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Overdue Penalty Configuration</h4>
+                                <p className="text-[10px] text-slate-400 font-medium">Charge penalty on late payments automatically</p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={formData.penaltyConfig.enabled}
+                                onChange={(e) => setFormData({
+                                    ...formData,
+                                    penaltyConfig: { ...formData.penaltyConfig, enabled: e.target.checked }
+                                })}
+                                className="w-4 h-4 text-premium-blue bg-gray-100 border-gray-300 rounded focus:ring-premium-blue"
+                            />
+                        </div>
+
+                        {formData.penaltyConfig.enabled && (
+                            <div className="space-y-3 pt-2 border-t border-slate-200">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Penalty Type</label>
+                                        <Select
+                                            value={formData.penaltyConfig.type}
+                                            onChange={(val) => setFormData({
+                                                ...formData,
+                                                penaltyConfig: { ...formData.penaltyConfig, type: val }
+                                            })}
+                                            options={[
+                                                { label: "Flat Amount", value: "flat" },
+                                                { label: "Daily Accumulation", value: "daily" }
+                                            ]}
+                                        />
+                                    </div>
+                                    <Input
+                                        label="Penalty Amount (₹)"
+                                        type="number"
+                                        placeholder="e.g. 500"
+                                        value={formData.penaltyConfig.amount}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            penaltyConfig: { ...formData.penaltyConfig, amount: e.target.value }
+                                        })}
+                                        required={formData.penaltyConfig.enabled}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 gap-3">
+                                    <Input
+                                        label="Grace Period Offset (Days)"
+                                        type="number"
+                                        placeholder="e.g. 5 (days after due date)"
+                                        value={formData.penaltyConfig.offsetDays}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            penaltyConfig: { ...formData.penaltyConfig, offsetDays: e.target.value }
+                                        })}
+                                        required={formData.penaltyConfig.enabled}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="pt-4 flex gap-3">

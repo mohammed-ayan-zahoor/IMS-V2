@@ -54,7 +54,7 @@ export async function POST(req) {
         if (!scope.instituteId) return NextResponse.json({ error: "Missing institute context" }, { status: 400 });
 
         const body = await req.json();
-        const { name, amount, courseId, description, subjects, category, complexity } = body;
+        const { name, amount, courseId, description, subjects, category, complexity, penaltyConfig } = body;
 
         if (!name || !amount || !courseId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -83,7 +83,8 @@ export async function POST(req) {
             description,
             subjects: subjects || [],
             category: category || 'general',
-            complexity: complexity || 'standard'
+            complexity: complexity || 'standard',
+            penaltyConfig: penaltyConfig || { enabled: false, type: 'flat', amount: 0, offsetDays: 0 }
         });
 
         await createAuditLog({

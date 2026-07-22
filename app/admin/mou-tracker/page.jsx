@@ -25,7 +25,8 @@ import {
     ChevronUp,
     FileText,
     Plus,
-    Landmark
+    Landmark,
+    Trash2
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -210,6 +211,29 @@ export default function MouTrackerPage() {
             console.error("Failed to save notes", error);
         } finally {
             setSavingNotes(prev => ({ ...prev, [id]: false }));
+        }
+    };
+
+    const handleDeleteSubmission = async (id) => {
+        if (!confirm("Are you sure you want to permanently delete this MOU submission? This action cannot be undone.")) {
+            return;
+        }
+        
+        try {
+            const res = await fetch(`/api/v1/mou/submissions/${id}`, {
+                method: "DELETE"
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to delete submission.");
+            }
+            
+            setSubmissions(prev => prev.filter(sub => sub._id !== id));
+            alert("MOU submission deleted successfully.");
+            fetchSubmissions();
+        } catch (error) {
+            console.error("Failed to delete MOU submission:", error);
+            alert(error.message || "Failed to delete submission.");
         }
     };
 
@@ -443,6 +467,13 @@ export default function MouTrackerPage() {
                                                                 <FileText size={12} /> Receipt
                                                             </button>
                                                         )}
+                                                        <button
+                                                            onClick={() => handleDeleteSubmission(sub._id)}
+                                                            title="Delete MOU Submission"
+                                                            className="inline-flex items-center justify-center p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-lg transition-all"
+                                                        >
+                                                            <Trash2 size={15} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                                 <td className="p-4 text-center">

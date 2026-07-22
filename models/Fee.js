@@ -17,7 +17,10 @@ const InstallmentSchema = new Schema({
     transactionId: String,
     collectedBy: String,
     notes: String,
-    voiceReminderSentAt: Date
+    voiceReminderSentAt: Date,
+    penaltyAmount: { type: Number, default: 0 },
+    penaltyPaid: { type: Number, default: 0 },
+    penaltyStatus: { type: String, enum: ['none', 'pending', 'paid'], default: 'none' }
 });
 
 const FeeSchema = new Schema({
@@ -78,6 +81,12 @@ const FeeSchema = new Schema({
         fromSession: { type: Schema.Types.ObjectId, ref: 'Session' },
         fromBatch: { type: Schema.Types.ObjectId, ref: 'Batch' },
         note: String
+    },
+    penaltyConfig: {
+        enabled: { type: Boolean, default: false },
+        type: { type: String, enum: ['flat', 'daily'], default: 'flat' },
+        amount: { type: Number, default: 0 },
+        offsetDays: { type: Number, default: 0 }
     }
 }, { timestamps: true });
 
@@ -184,4 +193,44 @@ FeeSchema.pre('save', async function () {
     }
 });
 
+function applyPenalties(doc) {
+    if (!doc.penaltyConfig || !doc.penaltyConfig.enabled) return;
+    const { type, amount, offsetDays } = doc.penaltyConfig;
+    const now = new Date();
+    if (doc.installments && Array.isArray(doc.installments)) {
+        doc.installments.forEach(inst => {
+            if (inst.status === 'paid' || inst.status === 'waived') {
+                inst.penaltyAmount = inst.penaltyPaid || 0;
+                return;
+            }
+            const dueDate = new Date(inst.dueDate);
+            const graceDate = new Date(dueDate.getTime() + (offsetDays * 24 * 60 * 60 * 1000));
+            if (now > graceDate) {
+                let penalty = 0;
+                if (type === 'flat') {
+                    penalty = amount;
+                } else if (type === 'daily') {
+                    const diffTime = Math.abs(now - dueDate);
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    penalty = Math.max(0, diffDays - offsetDays) * amount;
+                }
+                inst.penaltyAmount = penalty;
+                inst.penaltyStatus = 'pending';
+            } else {
+                inst.penaltyAmount = 0;
+                inst.penaltyStatus = 'none';
+            }
+        });
+    }
+}
+
+FeeSchema.post('init', function (doc) {
+    applyPenalties(doc);
+});
+
+FeeSchema.post('save', function (doc) {
+    applyPenalties(doc);
+});
+
+if (process.env.NODE_ENV !== 'production') delete mongoose.models.Fee;
 export default mongoose.models.Fee || mongoose.model('Fee', FeeSchema);

@@ -181,12 +181,7 @@ export default function MouReceiptPage({ params }) {
     // Calculate Academic Year dynamically based on April-March cycle
     const getAcademicYear = (date) => {
         const year = date.getFullYear();
-        const month = date.getMonth(); // 0-indexed: April is 3
-        if (month >= 3) {
-            return `${year}-${String(year + 1).slice(-2)}`;
-        } else {
-            return `${year - 1}-${String(year).slice(-2)}`;
-        }
+        return `${year}-${String(year + 1).slice(-2)}`;
     };
     const createdDate = new Date(submission.createdAt);
     const acadYear = getAcademicYear(createdDate);

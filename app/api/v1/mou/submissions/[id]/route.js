@@ -66,3 +66,26 @@ export async function PATCH(req, { params }) {
         return NextResponse.json({ error: "Failed to update submission" }, { status: 500 });
     }
 }
+
+// DELETE /api/v1/mou/submissions/[id] (Admin-only delete submission)
+export async function DELETE(req, { params }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || session.user.role !== 'super_admin') {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = await params;
+        await connectDB();
+
+        const submission = await MouSubmission.findByIdAndDelete(id);
+        if (!submission) {
+            return NextResponse.json({ error: "MOU submission not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true, message: "MOU submission deleted successfully" });
+    } catch (error) {
+        console.error("Failed to delete MOU submission:", error);
+        return NextResponse.json({ error: "Failed to delete submission" }, { status: 500 });
+    }
+}

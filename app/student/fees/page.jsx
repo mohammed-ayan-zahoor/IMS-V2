@@ -296,6 +296,11 @@ export default function StudentFeesPage() {
                                                             </td>
                                                             <td className="px-8 py-5 font-black text-slate-900 text-lg tracking-tighter">
                                                                 ₹{inst.amount.toLocaleString()}
+                                                                {(inst.penaltyAmount > 0 || inst.penaltyPaid > 0) && (
+                                                                    <div className="mt-1 text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-100 rounded-md px-1.5 py-0.5 inline-block uppercase tracking-wider">
+                                                                        Late
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                             <td className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                                                 {inst.paymentMethod ? inst.paymentMethod.replace('_', ' ') : '-'}
@@ -303,6 +308,31 @@ export default function StudentFeesPage() {
                                                             <td className="px-8 py-5 text-right">
                                                                 <div className="inline-flex justify-end">
                                                                     <InstallmentStatusBadge status={inst.status} />
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {/* Also show penalty payment row separately for each installment if active */}
+                                                    {fee.installments?.filter(inst => inst.penaltyAmount > 0 || inst.penaltyPaid > 0).map((inst, idx) => (
+                                                        <tr key={`penalty-${idx}`} className="bg-rose-50/20 hover:bg-rose-50/40 transition-colors">
+                                                            <td className="px-8 py-4 text-xs font-black text-rose-700 italic pl-12 flex items-center gap-1.5">
+                                                                <span>↳ Penalty Payment</span>
+                                                                <span className="text-[9px] font-medium text-slate-400">(Due: {format(new Date(inst.dueDate), "MMM dd")})</span>
+                                                            </td>
+                                                            <td className="px-8 py-4 font-black text-rose-700 text-sm tracking-tighter">
+                                                                ₹{(inst.penaltyPaid || inst.penaltyAmount).toLocaleString()}
+                                                            </td>
+                                                            <td className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                                -
+                                                            </td>
+                                                            <td className="px-8 py-4 text-right">
+                                                                <div className="inline-flex justify-end">
+                                                                    <span className={cn(
+                                                                        "text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider",
+                                                                        inst.penaltyStatus === 'paid' ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-rose-100 text-rose-700 border border-rose-200"
+                                                                    )}>
+                                                                        {inst.penaltyStatus === 'paid' ? 'Paid' : 'Overdue'}
+                                                                    </span>
                                                                 </div>
                                                             </td>
                                                         </tr>

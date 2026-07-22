@@ -58,7 +58,8 @@ export default function FeesPage() {
         collectedBy: "",
         notes: "",
         date: format(new Date(), "yyyy-MM-dd"), // Default to today
-        nextDueDate: "" // Optional
+        nextDueDate: "", // Optional
+        penaltyPaid: ""
     });
     const [collectors, setCollectors] = useState([]);
 
@@ -238,7 +239,8 @@ export default function FeesPage() {
 
         const payload = {
             ...paymentData,
-            amount: amountNum
+            amount: amountNum,
+            penaltyPaid: paymentData.penaltyPaid ? parseFloat(paymentData.penaltyPaid) || 0 : 0
         };
 
         // Conditional Validation for Transaction ID
@@ -305,7 +307,8 @@ export default function FeesPage() {
             collectedBy: "",
             notes: "",
             date: format(new Date(), "yyyy-MM-dd"),
-            nextDueDate: ""
+            nextDueDate: "",
+            penaltyPaid: nextPending?.penaltyAmount ? nextPending.penaltyAmount.toString() : ""
         });
         fetchCollectors();
         setIsPaymentModalOpen(true);
@@ -779,8 +782,10 @@ export default function FeesPage() {
                 onClose={() => setIsPaymentModalOpen(false)}
                 title="Record Payment"
             >
-                {selectedFee && (
-                    <div className="space-y-6">
+                {selectedFee && (() => {
+                    const selectedInst = selectedFee.installments?.find(i => i._id === paymentData.installmentId);
+                    return (
+                        <div className="space-y-6">
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between items-center">
                             <div>
                                 <p className="text-[10px] uppercase font-bold text-slate-400">Student</p>
@@ -799,15 +804,18 @@ export default function FeesPage() {
                                     onChange={(val) => {
                                         const inst = selectedFee.installments.find(i => i._id === val);
                                         let amt = "";
+                                        let pen = "";
                                         if (val === "adhoc") {
                                             amt = (selectedFee.totalAmount - (selectedFee.paidAmount || 0)).toString();
                                         } else if (inst) {
                                             amt = inst.amount.toString();
+                                            pen = inst.penaltyAmount ? inst.penaltyAmount.toString() : "";
                                         }
                                         setPaymentData({
                                             ...paymentData,
                                             installmentId: val,
-                                            amount: amt
+                                            amount: amt,
+                                            penaltyPaid: pen
                                         });
                                     }}
                                     options={[
@@ -823,6 +831,15 @@ export default function FeesPage() {
                                 />
                             </div>
 
+                            {selectedInst?.penaltyAmount > 0 && (
+                                <div className="bg-amber-50 border border-amber-200/60 text-amber-800 rounded-xl p-3.5 text-xs font-medium space-y-1">
+                                    <div className="font-bold flex justify-between">
+                                        <span>⚠️ Overdue Penalty Notice</span>
+                                        <span className="font-black text-rose-600">₹{selectedInst.penaltyAmount} Pending</span>
+                                    </div>
+                                    <p className="text-[10px] text-amber-600/90 font-medium">This installment is past due. A late fee penalty of ₹{selectedInst.penaltyAmount} has accrued.</p>
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <Input
@@ -843,16 +860,28 @@ export default function FeesPage() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <Input
-                                    id="amount"
-                                    label="Amount Received (₹)"
-                                    type="number"
-                                    value={paymentData.amount}
-                                    onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
-                                    required
-                                />
-                                <div className="space-y-1.5">
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="col-span-1">
+                                    <Input
+                                        id="amount"
+                                        label="Amount Received (₹)"
+                                        type="number"
+                                        value={paymentData.amount}
+                                        onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div className="col-span-1">
+                                    <Input
+                                        id="penaltyPaid"
+                                        label="Penalty Received (₹)"
+                                        type="number"
+                                        placeholder="Optional"
+                                        value={paymentData.penaltyPaid}
+                                        onChange={(e) => setPaymentData({ ...paymentData, penaltyPaid: e.target.value })}
+                                    />
+                                </div>
+                                <div className="col-span-1 space-y-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Payment Method</label>
                                     <Select
                                         value={paymentData.method}
@@ -897,7 +926,8 @@ export default function FeesPage() {
                             </div>
                         </form>
                     </div>
-                )}
+                );
+            })()}
             </Modal>
         </div >
     );

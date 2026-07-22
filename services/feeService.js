@@ -680,6 +680,11 @@ export class FeeService {
             installment.collectedBy = paymentDetails.collectedBy;
             installment.notes = paymentDetails.notes;
 
+            if (paymentDetails.penaltyPaid !== undefined) {
+                installment.penaltyPaid = parseFloat(paymentDetails.penaltyPaid) || 0;
+                installment.penaltyStatus = installment.penaltyPaid > 0 ? 'paid' : 'none';
+            }
+
             // CRITICAL: Mark installments as modified to trigger pre-save hook recalculation
             fee.markModified('installments');
 

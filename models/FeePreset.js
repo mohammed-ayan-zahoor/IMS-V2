@@ -48,6 +48,12 @@ const FeePresetSchema = new Schema({
         type: Boolean,
         default: true
     },
+    penaltyConfig: {
+        enabled: { type: Boolean, default: false },
+        type: { type: String, enum: ['flat', 'daily'], default: 'flat' },
+        amount: { type: Number, default: 0 },
+        offsetDays: { type: Number, default: 0 }
+    },
     deletedAt: {
         type: Date,
         default: null,
