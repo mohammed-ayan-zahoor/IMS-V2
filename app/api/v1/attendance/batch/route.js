@@ -24,26 +24,34 @@ export async function GET(req) {
 
         const date = parseISO(dateString);
 
-        // Find the single attendance document for this batch/date
-        const attendanceDoc = await Attendance.findOne({
-            batch: batchId,
+        const query = {
             date: {
                 $gte: startOfDay(date),
                 $lte: endOfDay(date)
             },
             deletedAt: null
-        }).populate("records.student", "profile.firstName profile.lastName enrollmentNumber");
+        };
 
-        if (!attendanceDoc) {
-            return NextResponse.json({ records: [] });
+        if (batchId !== "all") {
+            query.batch = batchId;
         }
 
-        // Reshape for frontend: flatten the structure to look like a list of records
-        const records = attendanceDoc.records.map(r => ({
-            student: r.student, // Populated student object
-            status: r.status,
-            remarks: r.remarks
-        }));
+        const attendanceDocs = await Attendance.find(query)
+            .populate("records.student", "profile.firstName profile.lastName profile.avatar enrollmentNumber email role");
+
+        const records = [];
+        attendanceDocs.forEach(doc => {
+            (doc.records || []).forEach(r => {
+                if (r.student) {
+                    records.push({
+                        student: r.student,
+                        status: r.status,
+                        remarks: r.remarks,
+                        batchId: doc.batch ? doc.batch.toString() : null
+                    });
+                }
+            });
+        });
 
         return NextResponse.json({ records });
 

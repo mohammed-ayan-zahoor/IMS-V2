@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import PracticeSession from "@/models/PracticeSession";
+import { ObjectId } from "mongodb";
 
 /**
  * @route   PATCH /api/v1/student/practice/[id]/submit
@@ -15,17 +16,32 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = params;
-        const { answers, score, correctCount } = await req.json();
+        const resolvedParams = await params;
+        const id = resolvedParams?.id;
+
+        const body = await req.json();
+        const { answers, score, correctCount } = body;
 
         await connectDB();
+
+        let sessionObjectId = id;
+        if (ObjectId.isValid(id)) {
+            sessionObjectId = new ObjectId(id);
+        }
+
+        const query = {
+            $or: [
+                { _id: id },
+                { _id: sessionObjectId }
+            ]
+        };
         
         const practiceSession = await PracticeSession.findOneAndUpdate(
-            { _id: id, student: session.user.id },
+            query,
             {
-                questions: answers,
-                score,
-                correctCount,
+                ...(answers && answers.length > 0 ? { questions: answers } : {}),
+                score: Number(score ?? 0),
+                correctCount: Number(correctCount ?? 0),
                 status: 'completed',
                 endTime: new Date()
             },
@@ -38,6 +54,7 @@ export async function PATCH(req, { params }) {
 
         return NextResponse.json({ message: "Practice saved", session: practiceSession });
     } catch (error) {
+        console.error("Practice submit error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

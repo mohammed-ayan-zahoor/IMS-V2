@@ -40,8 +40,11 @@ import {
     Hotel,
     BarChart2,
     Award,
-    Camera
+    Camera,
+    QrCode
 } from "lucide-react";
+import EnrollFaceModal from "@/components/users/EnrollFaceModal";
+import IDCardQR from "@/components/users/IDCardQR";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -65,6 +68,8 @@ export default function StudentDetailsPage({ params }) {
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
 
     const [studentData, setStudentData] = useState(null);
+    const [isEnrollFaceOpen, setIsEnrollFaceOpen] = useState(false);
+    const [isIDCardOpen, setIsIDCardOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("profile");
 
@@ -1430,6 +1435,24 @@ export default function StudentDetailsPage({ params }) {
                                     Holistic Report
                                 </Button>
                             )}
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                                onClick={() => router.push(`/admin/students/${id}/enroll-face`)}
+                            >
+                                <Camera size={16} className="mr-2" />
+                                {student?.faceEnrolledAt ? "Re-enroll Face" : "Enroll Face"}
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                onClick={() => router.push(`/admin/students/${id}/id-card`)}
+                            >
+                                <QrCode size={16} className="mr-2" />
+                                ID Card QR
+                            </Button>
                             <Button
                                 size="sm"
                                 onClick={() => setIsEditModalOpen(true)}
@@ -3799,6 +3822,8 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                     </div>
                 )}
             </div>
+
+
         </div>
     );
 }

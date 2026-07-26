@@ -270,7 +270,7 @@ export default function AdminLayout({ children }) {
     if (status === "loading") return <LoadingSpinner fullPage />;
     if (status === "unauthenticated" || session?.user?.role === "student") return null;
 
-    if (pathname === "/admin/website") {
+    if (pathname === "/admin/website" || pathname === "/admin/attendance/scan") {
         return <>{children}</>;
     }
 

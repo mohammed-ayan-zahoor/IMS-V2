@@ -28,33 +28,72 @@ export async function GET(req) {
         }).select("_id");
         const batchIds = studentBatches.map(b => b._id);
 
-        const query = { batch: { $in: batchIds } };
+        const monthParam = searchParams.get("month");
+        const yearParam = searchParams.get("year");
+
+        const query = {
+            batch: { $in: batchIds },
+            "records.student": session.user.id
+        };
+
+        if (monthParam && yearParam) {
+            const m = parseInt(monthParam);
+            const y = parseInt(yearParam);
+            const startDate = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
+            const endDate = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+            query.date = { $gte: startDate, $lte: endDate };
+        }
 
         // Find attendance records for these batches
         const [attendance, totalCount] = await Promise.all([
             Attendance.find(query)
                 .populate("batch", "name")
-                .sort({ date: -1 })
-                .skip(skip)
-                .limit(limit),
+                .sort({ date: 1 }), // ascending date order for calendar/list
             Attendance.countDocuments(query)
         ]);
 
         // Map to simpler format for frontend, checking user's specific status
+        let present = 0;
+        let absent = 0;
+        let late = 0;
+        let excused = 0;
+        let holiday = 0;
+
         const history = attendance.map(record => {
-            // Safe comparison without forcing .toString() on potential nulls
             const studentRecord = record.records.find(r => r.student && String(r.student) === session.user.id);
+            const status = studentRecord ? studentRecord.status : "absent";
+            
+            if (status === 'present') present++;
+            else if (status === 'absent') absent++;
+            else if (status === 'late') late++;
+            else if (status === 'excused') excused++;
+            else if (status === 'holiday') holiday++;
+
             return {
                 _id: record._id,
                 date: record.date,
                 batchName: record.batch?.name || "Unknown Batch",
-                status: studentRecord ? studentRecord.status : "absent",
+                status,
                 topic: record.topic || "-"
             };
         });
 
+        const totalMarked = present + absent + late + excused;
+        const rate = totalMarked > 0 ? Math.min(100, Math.round((present / totalMarked) * 100)) : 0;
+
+        const stats = {
+            present,
+            absent,
+            late,
+            excused,
+            holiday,
+            total: totalMarked,
+            rate
+        };
+
         return NextResponse.json({
             history,
+            stats,
             pagination: {
                 page,
                 limit,

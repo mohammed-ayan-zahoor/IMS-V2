@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import Question from "@/models/Question";
 import PracticeSession from "@/models/PracticeSession";
 import Subject from "@/models/Subject";
+import { ObjectId } from "mongodb";
 
 /**
  * @route   GET /api/v1/student/practice
@@ -45,20 +46,36 @@ export async function POST(req) {
 
         // 1. Build Query for random questions
         const query = { 
-            institute: session.user.institute.id,
-            subject: subjectId,
             isActive: true,
             deletedAt: null
         };
-        if (difficulty !== 'mixed') {
-            query.difficulty = difficulty;
+
+        if (session.user.institute?.id && ObjectId.isValid(session.user.institute.id)) {
+            query.institute = new ObjectId(session.user.institute.id);
+        }
+
+        if (subjectId && ObjectId.isValid(subjectId)) {
+            query.subject = new ObjectId(subjectId);
+        }
+
+        if (difficulty && difficulty !== 'mixed') {
+            query.difficulty = difficulty.toLowerCase();
         }
 
         // 2. Sample random questions
-        const questions = await Question.aggregate([
+        let questions = await Question.aggregate([
             { $match: query },
             { $sample: { size: parseInt(count) } }
         ]);
+
+        // Fallback: If no questions match exact difficulty, try without difficulty filter
+        if (questions.length === 0 && query.difficulty) {
+            delete query.difficulty;
+            questions = await Question.aggregate([
+                { $match: query },
+                { $sample: { size: parseInt(count) } }
+            ]);
+        }
 
         if (questions.length === 0) {
             return NextResponse.json({ error: "No questions found for this subject" }, { status: 404 });

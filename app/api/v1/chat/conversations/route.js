@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Conversation from "@/models/Conversation";
+import Message from "@/models/Message";
 import Batch from "@/models/Batch";
 import { getInstituteScope } from "@/middleware/instituteScope";
 
@@ -32,7 +33,7 @@ export async function GET(req) {
         return NextResponse.json({ conversations });
     } catch (error) {
         console.error("GET /api/v1/chat/conversations error:", error);
-        return NextResponse.json({ error: "Failed to fetch conversations" }, { status: 500 });
+        return NextResponse.json({ error: error.message || "Failed to fetch conversations" }, { status: 500 });
     }
 }
 

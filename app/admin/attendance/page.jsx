@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
@@ -18,12 +19,14 @@ import {
     AlertCircle,
     Search,
     Save,
-    Users
+    Users,
+    ScanLine
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 
 export default function AttendanceMarkingPage() {
+    const router = useRouter();
     const toast = useToast();
     const { data: session } = useSession();
     const { selectedSessionId } = useAcademicSession();
@@ -211,7 +214,19 @@ export default function AttendanceMarkingPage() {
                     <p className="text-[12px] text-slate-400 font-medium tracking-tight">Daily attendance tracking for {isSchool ? "sections" : "batches"}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* Page specific controls could continue here */}
+                    <Button
+                        onClick={() => {
+                            const batchId = selectedBatch || "all";
+                            const batchName = selectedBatch
+                                ? (batches.find(b => b._id === selectedBatch)?.name || "Batch")
+                                : "Global Scanner";
+                            router.push(`/admin/attendance/scan?batchId=${batchId}&date=${selectedDate}&name=${encodeURIComponent(batchName)}`);
+                        }}
+                        className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white gap-2 shadow-md"
+                    >
+                        <ScanLine className="w-4 h-4" />
+                        Live Face & QR Scanner
+                    </Button>
                 </div>
             </div>
 
@@ -399,6 +414,7 @@ export default function AttendanceMarkingPage() {
                     description={`Please select a ${isSchool ? "section" : "batch"} and date to start marking attendance.`}
                 />
             )}
+
         </div>
     );
 }

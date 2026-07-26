@@ -30,7 +30,7 @@ export async function getInstituteScope(req) {
         const isSuperAdmin = user.role === 'super_admin';
 
         // If Super Admin, they might be targeting a specific institute via query/header
-        let instituteId = user.institute?.id;
+        let instituteId = user.institute?.id || user.institute?._id || (typeof user.institute === 'string' ? user.institute : undefined);
 
         if (isSuperAdmin && req && req.url) {
             // Use dummy base for relative URLs

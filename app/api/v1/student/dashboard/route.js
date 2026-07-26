@@ -64,6 +64,9 @@ export async function GET(req) {
             status: { $in: ['evaluated', 'submitted', 'in_progress'] }
         }).select('exam');
         const submittedExamIds = submittedExams.map(s => s.exam);
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
         // 4. Run Independent Queries in Parallel
         const [
             totalAttendanceSessions,
@@ -74,14 +77,18 @@ export async function GET(req) {
             materialsDetailsCount,
             progressRecords
         ] = await Promise.all([
-            // Attendance Total
+            // Attendance Total - current month non-holiday sessions for this student
             Attendance.countDocuments({
                 batch: { $in: batchIds },
-                date: { $lte: now }
+                date: { $gte: startOfMonth, $lte: endOfMonth },
+                records: {
+                    $elemMatch: { student: studentId, status: { $ne: 'holiday' } }
+                }
             }),
-            // Attendance Present
+            // Attendance Present - current month present sessions
             Attendance.countDocuments({
                 batch: { $in: batchIds },
+                date: { $gte: startOfMonth, $lte: endOfMonth },
                 records: {
                     $elemMatch: { student: studentId, status: 'present' }
                 }
@@ -124,7 +131,7 @@ export async function GET(req) {
         }));
 
         const attendancePercentage = totalAttendanceSessions > 0
-            ? Math.round((presentCount / totalAttendanceSessions) * 100)
+            ? Math.min(100, Math.round((presentCount / totalAttendanceSessions) * 100))
             : 0;
 
         return NextResponse.json({

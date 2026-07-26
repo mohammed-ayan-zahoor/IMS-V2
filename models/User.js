@@ -26,6 +26,12 @@ const UserSchema = new Schema({
         required: true,
         index: true
     },
+    faceDescriptor: {
+        type: [Number],
+        select: false // Do not include in general user queries
+    },
+    faceEnrolledAt: Date,
+
     // RBAC: Assignments for Instructors/Staff
     assignments: {
         batches: [{ type: Schema.Types.ObjectId, ref: 'Batch' }],

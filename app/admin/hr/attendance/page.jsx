@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { UserCheck, Calendar, Search, Loader2, Save, CheckCircle2, XCircle, Clock, Moon, AlertTriangle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { UserCheck, Calendar, Search, Loader2, Save, CheckCircle2, XCircle, Clock, Moon, AlertTriangle, ScanLine } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -16,12 +17,34 @@ const statusOptions = [
 ];
 
 export default function StaffAttendancePage() {
+    const router = useRouter();
     const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [attendanceDate, setAttendanceDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [records, setRecords] = useState([]);
+
+    const [useTimeRange, setUseTimeRange] = useState(true);
+    const [checkInStart, setCheckInStart] = useState("08:00");
+    const [checkInEnd, setCheckInEnd] = useState("11:00");
+    const [checkOutStart, setCheckOutStart] = useState("15:00");
+    const [checkOutEnd, setCheckOutEnd] = useState("18:00");
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const savedRange = localStorage.getItem("useTimeRange");
+            if (savedRange !== null) setUseTimeRange(savedRange === "true");
+            const cis = localStorage.getItem("checkInStart");
+            if (cis) setCheckInStart(cis);
+            const cie = localStorage.getItem("checkInEnd");
+            if (cie) setCheckInEnd(cie);
+            const cos = localStorage.getItem("checkOutStart");
+            if (cos) setCheckOutStart(cos);
+            const coe = localStorage.getItem("checkOutEnd");
+            if (coe) setCheckOutEnd(coe);
+        }
+    }, []);
 
     const fetchAttendance = useCallback(async (dateString, signal) => {
         setLoading(true);
@@ -135,6 +158,13 @@ export default function StaffAttendancePage() {
                         />
                     </div>
                     <Button
+                        onClick={() => router.push(`/admin/attendance/scan?staff=true&date=${attendanceDate}`)}
+                        className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-indigo-500/20 flex items-center gap-2"
+                    >
+                        <ScanLine size={16} />
+                        Staff Face & QR Scanner
+                    </Button>
+                    <Button
                         disabled={saving || loading || records.length === 0}
                         onClick={handleSave}
                         className="bg-premium-blue hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-blue-500/20 flex items-center gap-2"
@@ -168,6 +198,71 @@ export default function StaffAttendancePage() {
                     <span className="text-2xl font-black text-slate-900 mt-1">{counts.holiday}</span>
                 </Card>
             </div>
+
+            {/* Teacher Shift/Time Window Settings */}
+            <Card className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            ⚙️ Teacher Shift Scanner Settings
+                        </h3>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Define Check-In and Check-Out windows for teacher face & QR scanner.</p>
+                    </div>
+                    <label className="flex items-center gap-2 font-bold text-xs text-slate-700 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={useTimeRange}
+                            onChange={e => {
+                                setUseTimeRange(e.target.checked);
+                                localStorage.setItem("useTimeRange", e.target.checked);
+                            }}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        Enable Scanner Time Constraints
+                    </label>
+                </div>
+
+                {useTimeRange && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+                        <div>
+                            <label className="block text-[10px] text-slate-450 font-bold uppercase tracking-wider">Check-In Start Time</label>
+                            <input
+                                type="time"
+                                value={checkInStart}
+                                onChange={e => { setCheckInStart(e.target.value); localStorage.setItem("checkInStart", e.target.value); }}
+                                className="w-full mt-1.5 border border-slate-250 rounded-xl px-3 py-2 text-xs text-slate-700 focus:border-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] text-slate-450 font-bold uppercase tracking-wider">Check-In End Time</label>
+                            <input
+                                type="time"
+                                value={checkInEnd}
+                                onChange={e => { setCheckInEnd(e.target.value); localStorage.setItem("checkInEnd", e.target.value); }}
+                                className="w-full mt-1.5 border border-slate-250 rounded-xl px-3 py-2 text-xs text-slate-700 focus:border-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] text-slate-450 font-bold uppercase tracking-wider">Check-Out Start Time</label>
+                            <input
+                                type="time"
+                                value={checkOutStart}
+                                onChange={e => { setCheckOutStart(e.target.value); localStorage.setItem("checkOutStart", e.target.value); }}
+                                className="w-full mt-1.5 border border-slate-250 rounded-xl px-3 py-2 text-xs text-slate-700 focus:border-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] text-slate-450 font-bold uppercase tracking-wider">Check-Out End Time</label>
+                            <input
+                                type="time"
+                                value={checkOutEnd}
+                                onChange={e => { setCheckOutEnd(e.target.value); localStorage.setItem("checkOutEnd", e.target.value); }}
+                                className="w-full mt-1.5 border border-slate-250 rounded-xl px-3 py-2 text-xs text-slate-700 focus:border-indigo-500 outline-none"
+                            />
+                        </div>
+                    </div>
+                )}
+            </Card>
 
             {/* Master Controls card */}
             <Card className="p-4">
@@ -278,6 +373,7 @@ export default function StaffAttendancePage() {
                     <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">Please add users with "Teacher" or "Staff" roles to mark their attendance.</p>
                 </div>
             )}
+
         </div>
     );
 }

@@ -34,11 +34,12 @@ export async function GET(req) {
 
         const batchIds = batches.map(b => b._id);
 
-        // 2. Fetch detailed timetables for these batches
+        // 2. Fetch detailed timetables for these batches (latest first)
         const timetables = await Timetable.find({
             batch: { $in: batchIds },
             deletedAt: null
         })
+        .sort({ updatedAt: -1, createdAt: -1 })
         .populate('schedule.assignments.subject', 'name code')
         .populate('schedule.assignments.instructor', 'profile')
         .lean();
