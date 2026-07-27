@@ -11,6 +11,8 @@ import BatchSyllabusProgress from "@/models/BatchSyllabusProgress";
 import Subject from "@/models/Subject";
 import "@/models/Course"; // Ensure Course schema is registered
 
+import mongoose from "mongoose";
+
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
@@ -20,12 +22,13 @@ export async function GET(req) {
 
         await connectDB();
         const studentId = session.user.id;
+        const studentObjId = new mongoose.Types.ObjectId(studentId);
 
         // 1. Get Enrolled Batches
         const studentBatches = await Batch.find({
             "enrolledStudents": {
                 $elemMatch: {
-                    student: studentId,
+                    student: studentObjId,
                     status: "active"
                 }
             },
@@ -82,7 +85,7 @@ export async function GET(req) {
                 batch: { $in: batchIds },
                 date: { $gte: startOfMonth, $lte: endOfMonth },
                 records: {
-                    $elemMatch: { student: studentId, status: { $ne: 'holiday' } }
+                    $elemMatch: { student: studentObjId, status: { $ne: 'holiday' } }
                 }
             }),
             // Attendance Present - current month present sessions
@@ -90,7 +93,7 @@ export async function GET(req) {
                 batch: { $in: batchIds },
                 date: { $gte: startOfMonth, $lte: endOfMonth },
                 records: {
-                    $elemMatch: { student: studentId, status: 'present' }
+                    $elemMatch: { student: studentObjId, status: 'present' }
                 }
             }),
             // Exams Taken Count
