@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Batch from "@/models/Batch";
 import Timetable from "@/models/Timetable";
+import mongoose from "mongoose";
 
 /**
  * @route   GET /api/v1/student/timetable
@@ -18,11 +19,13 @@ export async function GET(req) {
 
         await connectDB();
 
+        const studentObjId = new mongoose.Types.ObjectId(session.user.id);
+
         // 1. Fetch all active batches where the student is enrolled
         const batches = await Batch.find({
             enrolledStudents: { 
                 $elemMatch: { 
-                    student: session.user.id, 
+                    student: studentObjId, 
                     status: 'active' 
                 } 
             },

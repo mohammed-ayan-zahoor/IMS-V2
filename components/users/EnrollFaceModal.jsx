@@ -58,18 +58,31 @@ function FaceCaptureContent({ user, onClose, onSuccess }) {
     }, []);
 
     const handleCapture = async () => {
-        if (!videoRef.current || !faceapiRef.current) return;
+        if (!videoRef.current || !faceapiRef.current) {
+            toast.error("Camera or AI is not ready yet.");
+            return;
+        }
+
+        if (videoRef.current.readyState !== 4) {
+            toast.error("Camera is warming up — please wait a moment.");
+            return;
+        }
+
         setDetecting(true);
         try {
             const det = await faceapiRef.current
                 .detectSingleFace(videoRef.current)
                 .withFaceLandmarks()
                 .withFaceDescriptor();
-            if (!det) { toast.error("No face detected — align and retry."); return; }
+            if (!det) {
+                toast.error("No face detected — align and retry.");
+                return;
+            }
             setDescriptor(Array.from(det.descriptor));
             setFaceDetected(true);
             toast.success("Face captured!");
         } catch (err) {
+            console.error("Face capture detection error:", err);
             toast.error("Capture failed: " + err.message);
         } finally {
             setDetecting(false);

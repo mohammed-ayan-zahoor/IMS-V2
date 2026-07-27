@@ -35,7 +35,7 @@ export default function EnrollFacePage() {
     useEffect(() => {
         let cancelled = false;
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 640, height: 480 } })
             .then(stream => {
                 if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
                 streamRef.current = stream;
@@ -43,7 +43,10 @@ export default function EnrollFacePage() {
                 setCameraReady(true);
             })
             .catch(err => {
-                if (!cancelled) toast.error("Camera error: " + err.message);
+                if (!cancelled) {
+                    console.error("Camera access error:", err);
+                    toast.error("Camera error: " + err.message);
+                }
             });
 
         return () => {
@@ -66,6 +69,7 @@ export default function EnrollFacePage() {
             ]);
             if (!cancelled) setModelsReady(true);
         }).catch(err => {
+            console.error("AI model load error:", err);
             if (!cancelled) toast.error("AI model load failed: " + err.message);
         });
 
@@ -73,7 +77,16 @@ export default function EnrollFacePage() {
     }, []);
 
     const handleCapture = async () => {
-        if (!videoRef.current || !faceapiRef.current) return;
+        if (!videoRef.current || !faceapiRef.current) {
+            toast.error("Camera or AI is not ready yet.");
+            return;
+        }
+
+        if (videoRef.current.readyState !== 4) {
+            toast.error("Camera is warming up — please wait a moment.");
+            return;
+        }
+
         setDetecting(true);
         try {
             const det = await faceapiRef.current
@@ -81,11 +94,15 @@ export default function EnrollFacePage() {
                 .withFaceLandmarks()
                 .withFaceDescriptor();
 
-            if (!det) { toast.error("No face detected — align your face and retry."); return; }
+            if (!det) {
+                toast.error("No face detected — align your face and retry.");
+                return;
+            }
             setDescriptor(Array.from(det.descriptor));
             setFaceDetected(true);
             toast.success("Face captured! Click Save.");
         } catch (err) {
+            console.error("Face capture detection error:", err);
             toast.error("Detection failed: " + err.message);
         } finally {
             setDetecting(false);

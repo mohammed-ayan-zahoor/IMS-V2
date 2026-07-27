@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Attendance from "@/models/Attendance";
 import Batch from "@/models/Batch";
+import mongoose from "mongoose";
 
 export async function GET(req) {
     try {
@@ -21,10 +22,17 @@ export async function GET(req) {
         if (page < 1) page = 1;
         const skip = (page - 1) * limit;
 
-        // Get batches first
+        const studentObjId = new mongoose.Types.ObjectId(session.user.id);
+
+        // Get batches first with correct elemMatch query
         const studentBatches = await Batch.find({
-            "enrolledStudents.student": session.user.id,
-            "enrolledStudents.status": "active"
+            enrolledStudents: {
+                $elemMatch: {
+                    student: studentObjId,
+                    status: "active"
+                }
+            },
+            deletedAt: null
         }).select("_id");
         const batchIds = studentBatches.map(b => b._id);
 
@@ -33,7 +41,11 @@ export async function GET(req) {
 
         const query = {
             batch: { $in: batchIds },
-            "records.student": session.user.id
+            records: {
+                $elemMatch: {
+                    student: studentObjId
+                }
+            }
         };
 
         if (monthParam && yearParam) {

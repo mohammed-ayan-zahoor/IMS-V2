@@ -19,7 +19,14 @@ export async function GET(req) {
         const fees = await Fee.find({
             student: session.user.id
         })
-            .populate("batch", "name")
+            .populate({
+                path: "batch",
+                select: "name course",
+                populate: {
+                    path: "course",
+                    select: "name"
+                }
+            })
             .sort({ updatedAt: -1 });
 
         const transportFees = await TransportFee.find({
