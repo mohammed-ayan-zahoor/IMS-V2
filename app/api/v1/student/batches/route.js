@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Batch from "@/models/Batch";
+import mongoose from "mongoose";
 
 export async function GET(req) {
     try {
@@ -12,10 +13,12 @@ export async function GET(req) {
         }
         await connectDB();
 
+        const studentObjId = new mongoose.Types.ObjectId(session.user.id);
+
         const batches = await Batch.find({
             enrolledStudents: {
                 $elemMatch: {
-                    student: session.user.id,
+                    student: studentObjId,
                     status: "active"
                 }
             },

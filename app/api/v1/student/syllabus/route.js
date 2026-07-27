@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import Batch from "@/models/Batch";
 import Subject from "@/models/Subject";
 import BatchSyllabusProgress from "@/models/BatchSyllabusProgress";
+import mongoose from "mongoose";
 
 /**
  * @route   GET /api/v1/student/syllabus
@@ -19,11 +20,13 @@ export async function GET(req) {
 
         await connectDB();
 
+        const studentObjId = new mongoose.Types.ObjectId(session.user.id);
+
         // 1. Find all active batches the student is enrolled in
         const myBatches = await Batch.find({
             "enrolledStudents": {
                 $elemMatch: {
-                    student: session.user.id,
+                    student: studentObjId,
                     status: "active"
                 }
             },

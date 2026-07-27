@@ -57,3 +57,7 @@ next-env.d.ts
 /docs/execution_plan.md
 /docs/production_roadmap.md
 /docs/teachers_training_prep.md
+
+# Firebase / Google Credentials
+*firebase-adminsdk*.json
+google-services.json
