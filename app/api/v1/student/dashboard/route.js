@@ -13,6 +13,8 @@ import "@/models/Course"; // Ensure Course schema is registered
 
 import mongoose from "mongoose";
 
+import Session from "@/models/Session";
+
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
@@ -24,21 +26,42 @@ export async function GET(req) {
         const studentId = session.user.id;
         const studentObjId = new mongoose.Types.ObjectId(studentId);
 
-        // 1. Get Enrolled Batches
-        const studentBatches = await Batch.find({
+        // A. Get ALL enrolled batches (for overall attendance history calculation)
+        const allStudentBatches = await Batch.find({
+            "enrolledStudents.student": studentObjId,
+            deletedAt: null
+        }).select("_id");
+        const allBatchIds = allStudentBatches.map(b => b._id);
+
+        // B. Get active session for the institute
+        let activeSession = null;
+        if (session.user.institute?.id) {
+            activeSession = await Session.findOne({
+                instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                isActive: true,
+                deletedAt: null
+            });
+        }
+
+        // C. Filter active student batches for the current session
+        const activeBatchQuery = {
             "enrolledStudents": {
                 $elemMatch: {
                     student: studentObjId,
-                    status: { $in: ["active", "completed"] }
+                    status: "active"
                 }
             },
             deletedAt: null
-        }).select("course _id");
+        };
+        if (activeSession) {
+            activeBatchQuery.session = activeSession._id;
+        }
 
+        const studentBatches = await Batch.find(activeBatchQuery).select("course _id");
         const courseIds = studentBatches.map(b => b.course);
         const batchIds = studentBatches.map(b => b._id);
 
-        if (batchIds.length === 0) {
+        if (allBatchIds.length === 0) {
             return NextResponse.json({
                 attendance: 0,
                 examsTaken: 0,
@@ -80,18 +103,16 @@ export async function GET(req) {
             materialsDetailsCount,
             progressRecords
         ] = await Promise.all([
-            // Attendance Total - current month non-holiday sessions for this student
+            // Attendance Total - all non-holiday sessions for this student
             Attendance.countDocuments({
-                batch: { $in: batchIds },
-                date: { $gte: startOfMonth, $lte: endOfMonth },
+                batch: { $in: allBatchIds },
                 records: {
                     $elemMatch: { student: studentObjId, status: { $ne: 'holiday' } }
                 }
             }),
-            // Attendance Present - current month present sessions
+            // Attendance Present - all present sessions
             Attendance.countDocuments({
-                batch: { $in: batchIds },
-                date: { $gte: startOfMonth, $lte: endOfMonth },
+                batch: { $in: allBatchIds },
                 records: {
                     $elemMatch: { student: studentObjId, status: 'present' }
                 }

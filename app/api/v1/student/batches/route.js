@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Batch from "@/models/Batch";
 import mongoose from "mongoose";
+import Session from "@/models/Session";
 
 export async function GET(req) {
     try {
@@ -15,7 +16,16 @@ export async function GET(req) {
 
         const studentObjId = new mongoose.Types.ObjectId(session.user.id);
 
-        const batches = await Batch.find({
+        let activeSession = null;
+        if (session.user.institute?.id) {
+            activeSession = await Session.findOne({
+                instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                isActive: true,
+                deletedAt: null
+            });
+        }
+
+        const query = {
             enrolledStudents: {
                 $elemMatch: {
                     student: studentObjId,
@@ -23,7 +33,13 @@ export async function GET(req) {
                 }
             },
             deletedAt: null
-        })
+        };
+
+        if (activeSession) {
+            query.session = activeSession._id;
+        }
+
+        const batches = await Batch.find(query)
             .populate({
                 path: "course",
                 select: "name code subjects",

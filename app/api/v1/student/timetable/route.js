@@ -6,6 +6,8 @@ import Batch from "@/models/Batch";
 import Timetable from "@/models/Timetable";
 import mongoose from "mongoose";
 
+import Session from "@/models/Session";
+
 /**
  * @route   GET /api/v1/student/timetable
  * @desc    Fetch student's weekly class schedule across all enrolled batches
@@ -21,8 +23,16 @@ export async function GET(req) {
 
         const studentObjId = new mongoose.Types.ObjectId(session.user.id);
 
-        // 1. Fetch all active batches where the student is enrolled
-        const batches = await Batch.find({
+        let activeSession = null;
+        if (session.user.institute?.id) {
+            activeSession = await Session.findOne({
+                instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                isActive: true,
+                deletedAt: null
+            });
+        }
+
+        const batchQuery = {
             enrolledStudents: { 
                 $elemMatch: { 
                     student: studentObjId, 
@@ -30,7 +40,14 @@ export async function GET(req) {
                 } 
             },
             deletedAt: null
-        })
+        };
+
+        if (activeSession) {
+            batchQuery.session = activeSession._id;
+        }
+
+        // 1. Fetch all active batches where the student is enrolled
+        const batches = await Batch.find(batchQuery)
         .populate('course', 'name code')
         .populate('instructor', 'profile')
         .lean();
