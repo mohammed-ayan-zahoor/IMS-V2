@@ -27,7 +27,7 @@ export async function GET(req) {
             "enrolledStudents": {
                 $elemMatch: {
                     student: studentObjId,
-                    status: "active"
+                    status: { $in: ["active", "completed"] }
                 }
             },
             deletedAt: null
