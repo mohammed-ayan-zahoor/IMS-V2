@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Material from "@/models/Material";
 import Batch from "@/models/Batch";
+import Session from "@/models/Session";
+import mongoose from "mongoose";
 
 export async function GET(req) {
     try {
@@ -15,17 +17,40 @@ export async function GET(req) {
         await connectDB();
         const { searchParams } = new URL(req.url);
         const type = searchParams.get("type"); // Optional filter by type
+        const querySessionId = searchParams.get("sessionId");
 
-        // 1. Find Student's Batches & Courses
-        const studentBatches = await Batch.find({
+        let activeSession = null;
+        if (querySessionId) {
+            activeSession = { _id: new mongoose.Types.ObjectId(querySessionId) };
+        } else if (session.user.institute?.id) {
+            activeSession = await Session.findOne({
+                instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                isActive: true,
+                deletedAt: null
+            });
+            if (!activeSession) {
+                activeSession = await Session.findOne({
+                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                    deletedAt: null
+                }).sort({ startDate: -1 });
+            }
+        }
+
+        const batchQuery = {
             "enrolledStudents": {
                 $elemMatch: {
                     student: session.user.id,
-                    status: "active"
+                    status: { $in: ["active", "completed"] }
                 }
             },
             deletedAt: null
-        }).select("course _id");
+        };
+        if (activeSession) {
+            batchQuery.session = activeSession._id;
+        }
+
+        // 1. Find Student's Batches & Courses
+        const studentBatches = await Batch.find(batchQuery).select("course _id");
 
         const enrolledCourseIds = studentBatches.map(b => b.course);
         const enrolledBatchIds = studentBatches.map(b => b._id.toString()); // Ensure string comparison
