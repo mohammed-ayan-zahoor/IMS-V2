@@ -19,38 +19,31 @@ async function run() {
         await mongoose.connect(process.env.MONGODB_URI);
         console.log('Connected to MongoDB');
 
-        const email = 'zahor.qi@gmail.com';
+        const email = 'zahoor.qi@gmail.com';
         console.log(`\nSimulating login for: ${email}`);
 
         // 1. Find user
-        const users = await User.find({ email: email }).select("+passwordHash");
-        console.log(`Found ${users.length} users with this email.`);
-
-        const activeUser = users.find(u => !u.deletedAt);
-        const user = activeUser || users[0];
-
-        if (!user) {
-            console.error('No user found at all!');
+        const u = await User.findOne({ email }).select("+passwordHash");
+        if (!u) {
+            console.error('User not found!');
             return;
         }
 
-        console.log(`Selected User ID: ${user._id}, DeletedAt: ${user.deletedAt}`);
+        console.log(`User ID: ${u._id}`);
+        console.log(`Role: ${u.role}`);
+        console.log(`DeletedAt: ${u.deletedAt}`);
+        console.log(`Status: ${u.status}`);
 
-        if (user.deletedAt) {
-            console.error('User is deleted! Throwing error.');
-            throw new Error("Your account has been disabled");
-        }
-
-        // 2. Memberships
+        // 2. Find memberships
         const memberships = await Membership.find({
-            user: user._id,
+            user: u._id,
             isActive: true
         }).populate({
             path: 'institute',
             select: 'name code branding status isActive subscription type settings.features'
         });
 
-        console.log(`Found ${memberships.length} memberships.`);
+        console.log(`Found ${memberships.length} active memberships.`);
         for (const m of memberships) {
             console.log(`  - Membership ID: ${m._id}, Institute populated: ${!!m.institute}`);
             if (m.institute) {
@@ -75,30 +68,30 @@ async function run() {
             }
         }
 
-        // 3. Construct userObject (same as lib/auth.js)
+        // 3. Construct userObject
         console.log('Constructing userObject...');
         const userObject = {
-            id: user._id.toString(),
-            email: user.email,
-            role: activeMembership?.role || user.role,
-            name: `${user.profile?.firstName || ""} ${user.profile?.lastName || ""}`.trim(),
-            avatar: user.profile?.avatar || null,
+            id: u._id.toString(),
+            email: u.email,
+            role: activeMembership?.role || u.role,
+            name: `${u.profile?.firstName || ""} ${u.profile?.lastName || ""}`.trim(),
+            avatar: u.profile?.avatar || null,
             profile: {
-                bio: user.profile?.bio || "",
-                phone: user.profile?.phone || "",
-                gender: user.profile?.gender || "",
-                dateOfBirth: user.profile?.dateOfBirth || null,
-                bloodGroup: user.profile?.bloodGroup || "",
-                address: user.profile?.address || {},
-                fatherName: user.fatherName || "",
-                motherName: user.motherName || "",
-                grNumber: user.grNumber || "",
-                aadharNumber: user.aadharNumber || "",
-                socialLinks: user.profile?.socialLinks || {}
+                bio: u.profile?.bio || "",
+                phone: u.profile?.phone || "",
+                gender: u.profile?.gender || "",
+                dateOfBirth: u.profile?.dateOfBirth || null,
+                bloodGroup: u.profile?.bloodGroup || "",
+                address: u.profile?.address || {},
+                fatherName: u.fatherName || "",
+                motherName: u.motherName || "",
+                grNumber: u.grNumber || "",
+                aadharNumber: u.aadharNumber || "",
+                socialLinks: u.profile?.socialLinks || {}
             },
-            enrollmentNumber: user.enrollmentNumber || null,
-            activeSession: user.activeSession || null,
-            permissions: user.permissions || [],
+            enrollmentNumber: u.enrollmentNumber || null,
+            activeSession: u.activeSession || null,
+            permissions: u.permissions || [],
             institute: activeInstitute ? {
                 id: activeInstitute._id.toString(),
                 name: activeInstitute.name,
