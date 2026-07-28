@@ -13,10 +13,37 @@ export default function InstituteSwitcher() {
     const [isOpen, setIsOpen] = useState(false);
     const [isSwitching, setIsSwitching] = useState(false);
     const [switchingId, setSwitchingId] = useState(null);
+    const [availableInstitutes, setAvailableInstitutes] = useState([]);
+    const [loadingInstitutes, setLoadingInstitutes] = useState(false);
 
     const activeInstitute = session?.user?.institute;
-    const availableInstitutes = session?.user?.availableInstitutes || [];
     const isSuperAdmin = session?.user?.role === 'super_admin';
+
+    const fetchInstitutes = async () => {
+        setLoadingInstitutes(true);
+        try {
+            const res = await fetch('/api/v1/auth/my-institutes');
+            if (res.ok) {
+                const data = await res.json();
+                setAvailableInstitutes(data.availableInstitutes || []);
+            } else {
+                throw new Error('Failed to load institutes');
+            }
+        } catch (error) {
+            console.error('Error fetching available institutes:', error);
+            toast.error('Failed to load available institutes');
+        } finally {
+            setLoadingInstitutes(false);
+        }
+    };
+
+    const handleOpenToggle = () => {
+        const nextOpen = !isOpen;
+        setIsOpen(nextOpen);
+        if (nextOpen && availableInstitutes.length === 0) {
+            fetchInstitutes();
+        }
+    };
 
     const handleSwitch = async (institute) => {
         if (institute.id === activeInstitute?.id) {
@@ -60,8 +87,8 @@ export default function InstituteSwitcher() {
         <div className="relative">
             {/* Trigger */}
             <button
-                onClick={() => setIsOpen(!isOpen)}
-                disabled={isSwitching}
+                onClick={handleOpenToggle}
+                disabled={isSwitching || loadingInstitutes}
                 className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl border transition-all duration-200 text-left group",
                     isOpen
@@ -123,7 +150,12 @@ export default function InstituteSwitcher() {
 
                         {/* List */}
                         <div className="max-h-[260px] overflow-y-auto px-1.5 pb-1.5">
-                            {availableInstitutes.length > 0 ? (
+                            {loadingInstitutes ? (
+                                <div className="py-8 text-center text-slate-400 flex flex-col items-center justify-center gap-2 animate-pulse">
+                                    <Loader2 size={24} className="text-blue-500 animate-spin" />
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">Loading institutes...</p>
+                                </div>
+                            ) : availableInstitutes.length > 0 ? (
                                 availableInstitutes.map((inst) => {
                                     const isActive = inst.id === activeInstitute?.id;
                                     const isLoading = switchingId === inst.id;
