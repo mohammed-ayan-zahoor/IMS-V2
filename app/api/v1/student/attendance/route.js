@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import Attendance from "@/models/Attendance";
 import Batch from "@/models/Batch";
 import mongoose from "mongoose";
+import Session from "@/models/Session";
 
 export async function GET(req) {
     try {
@@ -24,8 +25,27 @@ export async function GET(req) {
 
         const studentObjId = new mongoose.Types.ObjectId(session.user.id);
 
-        // Get batches first with correct elemMatch query
-        const studentBatches = await Batch.find({
+        const { searchParams } = new URL(req.url);
+        const querySessionId = searchParams.get("sessionId");
+
+        let activeSession = null;
+        if (querySessionId) {
+            activeSession = { _id: new mongoose.Types.ObjectId(querySessionId) };
+        } else if (session.user.institute?.id) {
+            activeSession = await Session.findOne({
+                instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                isActive: true,
+                deletedAt: null
+            });
+            if (!activeSession) {
+                activeSession = await Session.findOne({
+                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                    deletedAt: null
+                }).sort({ startDate: -1 });
+            }
+        }
+
+        const batchQuery = {
             enrolledStudents: {
                 $elemMatch: {
                     student: studentObjId,
@@ -33,7 +53,14 @@ export async function GET(req) {
                 }
             },
             deletedAt: null
-        }).select("_id");
+        };
+
+        if (activeSession) {
+            batchQuery.session = activeSession._id;
+        }
+
+        // Get batches first with correct elemMatch query
+        const studentBatches = await Batch.find(batchQuery).select("_id");
         const batchIds = studentBatches.map(b => b._id);
 
         const monthParam = searchParams.get("month");
@@ -84,6 +111,7 @@ export async function GET(req) {
             return {
                 _id: record._id,
                 date: record.date,
+                batchId: record.batch?._id || "",
                 batchName: record.batch?.name || "Unknown Batch",
                 status,
                 topic: record.topic || "-"
