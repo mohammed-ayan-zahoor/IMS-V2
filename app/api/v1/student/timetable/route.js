@@ -23,13 +23,24 @@ export async function GET(req) {
 
         const studentObjId = new mongoose.Types.ObjectId(session.user.id);
 
+        const { searchParams } = new URL(req.url);
+        const querySessionId = searchParams.get("sessionId");
+
         let activeSession = null;
-        if (session.user.institute?.id) {
+        if (querySessionId) {
+            activeSession = { _id: new mongoose.Types.ObjectId(querySessionId) };
+        } else if (session.user.institute?.id) {
             activeSession = await Session.findOne({
                 instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
                 isActive: true,
                 deletedAt: null
             });
+            if (!activeSession) {
+                activeSession = await Session.findOne({
+                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                    deletedAt: null
+                }).sort({ startDate: -1 });
+            }
         }
 
         const batchQuery = {

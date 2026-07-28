@@ -33,14 +33,25 @@ export async function GET(req) {
         }).select("_id");
         const allBatchIds = allStudentBatches.map(b => b._id);
 
+        const { searchParams } = new URL(req.url);
+        const querySessionId = searchParams.get("sessionId");
+
         // B. Get active session for the institute
         let activeSession = null;
-        if (session.user.institute?.id) {
+        if (querySessionId) {
+            activeSession = { _id: new mongoose.Types.ObjectId(querySessionId) };
+        } else if (session.user.institute?.id) {
             activeSession = await Session.findOne({
                 instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
                 isActive: true,
                 deletedAt: null
             });
+            if (!activeSession) {
+                activeSession = await Session.findOne({
+                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                    deletedAt: null
+                }).sort({ startDate: -1 });
+            }
         }
 
         // C. Filter active student batches for the current session

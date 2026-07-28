@@ -7,6 +7,8 @@ import Subject from "@/models/Subject";
 import BatchSyllabusProgress from "@/models/BatchSyllabusProgress";
 import mongoose from "mongoose";
 
+import Session from "@/models/Session";
+
 /**
  * @route   GET /api/v1/student/syllabus
  * @desc    Fetch student's syllabus progress for all active subjects
@@ -22,8 +24,27 @@ export async function GET(req) {
 
         const studentObjId = new mongoose.Types.ObjectId(session.user.id);
 
-        // 1. Find all active batches the student is enrolled in
-        const myBatches = await Batch.find({
+        const { searchParams } = new URL(req.url);
+        const querySessionId = searchParams.get("sessionId");
+
+        let activeSession = null;
+        if (querySessionId) {
+            activeSession = { _id: new mongoose.Types.ObjectId(querySessionId) };
+        } else if (session.user.institute?.id) {
+            activeSession = await Session.findOne({
+                instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                isActive: true,
+                deletedAt: null
+            });
+            if (!activeSession) {
+                activeSession = await Session.findOne({
+                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                    deletedAt: null
+                }).sort({ startDate: -1 });
+            }
+        }
+
+        const batchQuery = {
             "enrolledStudents": {
                 $elemMatch: {
                     student: studentObjId,
@@ -31,7 +52,14 @@ export async function GET(req) {
                 }
             },
             deletedAt: null
-        })
+        };
+
+        if (activeSession) {
+            batchQuery.session = activeSession._id;
+        }
+
+        // 1. Find all active batches the student is enrolled in
+        const myBatches = await Batch.find(batchQuery)
         .populate({
             path: 'course',
             select: 'name subjects',
