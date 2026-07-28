@@ -59,7 +59,7 @@ export async function GET(req) {
             "enrolledStudents": {
                 $elemMatch: {
                     student: studentObjId,
-                    status: "active"
+                    status: { $in: ["active", "completed"] }
                 }
             },
             deletedAt: null
@@ -116,14 +116,14 @@ export async function GET(req) {
         ] = await Promise.all([
             // Attendance Total - all non-holiday sessions for this student
             Attendance.countDocuments({
-                batch: { $in: allBatchIds },
+                batch: { $in: batchIds },
                 records: {
                     $elemMatch: { student: studentObjId, status: { $ne: 'holiday' } }
                 }
             }),
             // Attendance Present - all present sessions
             Attendance.countDocuments({
-                batch: { $in: allBatchIds },
+                batch: { $in: batchIds },
                 records: {
                     $elemMatch: { student: studentObjId, status: 'present' }
                 }
