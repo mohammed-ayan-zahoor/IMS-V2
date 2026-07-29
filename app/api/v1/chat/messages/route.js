@@ -33,9 +33,10 @@ function buildPayload({ chatTitle, text, isBatch, senderName, role }) {
             notification: {
                 title: chatTitle,
                 body: bodyText,
-                channel_id: "default_notification_channel",
+                channel_id: "high_importance_channel",
                 sound: "default"
-            }
+            },
+            priority: "high"
         },
         web: {
             notification: {

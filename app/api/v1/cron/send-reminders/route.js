@@ -69,8 +69,11 @@ export async function POST(req) {
                         fcm: {
                             notification: {
                                 title: "Happy Birthday! 🎂",
-                                body: "Wishing you a wonderful birthday from all of us!"
-                            }
+                                body: "Wishing you a wonderful birthday from all of us!",
+                                channel_id: "high_importance_channel",
+                                sound: "default"
+                            },
+                            priority: "high"
                         }
                     };
                     await beamsClient.publishToUsers(studentIds, payload);
@@ -135,8 +138,11 @@ export async function POST(req) {
                             fcm: {
                                 notification: {
                                     title: "Fee Payment Reminder 💰",
-                                    body: bodyText
-                                }
+                                    body: bodyText,
+                                    channel_id: "high_importance_channel",
+                                    sound: "default"
+                                },
+                                priority: "high"
                             }
                         };
                         
