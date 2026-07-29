@@ -48,6 +48,7 @@ export default function FeesPage() {
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
     const [showOverdueOnly, setShowOverdueOnly] = useState(false);
     const [showCancelledOnly, setShowCancelledOnly] = useState(false);
+    const [showDiscountedOnly, setShowDiscountedOnly] = useState(false);
 
     // Payment Form state
     const [paymentData, setPaymentData] = useState({
@@ -110,7 +111,7 @@ export default function FeesPage() {
             fetchStats();
             setCurrentPage(1);
         }
-    }, [selectedCourse, selectedBatch, percentageFilter, showCancelledOnly]);
+    }, [selectedCourse, selectedBatch, percentageFilter, showCancelledOnly, showDiscountedOnly]);
 
     const fetchCourses = async () => {
         try {
@@ -145,6 +146,7 @@ export default function FeesPage() {
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
             if (percentageFilter) url.searchParams.append('percentage', percentageFilter);
             if (showCancelledOnly) url.searchParams.append('includeCancelled', 'true');
+            if (showDiscountedOnly) url.searchParams.append('discountOnly', 'true');
             if (debouncedSearch) url.searchParams.append('search', debouncedSearch);
             url.searchParams.append('page', currentPage.toString());
             url.searchParams.append('limit', rowsPerPage.toString());
@@ -187,6 +189,7 @@ export default function FeesPage() {
             if (selectedSessionId) url.searchParams.append('session', selectedSessionId);
             if (selectedCourse) url.searchParams.append('course', selectedCourse);
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
+            if (showDiscountedOnly) url.searchParams.append('discountOnly', 'true');
             
             const res = await fetch(url);
             if (res.ok) {
@@ -552,6 +555,15 @@ export default function FeesPage() {
                                 onChange={(e) => setShowCancelledOnly(e.target.checked)}
                             />
                             Show Cancelled
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-600 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-slate-300 text-premium-blue focus:ring-premium-blue/20"
+                                checked={showDiscountedOnly}
+                                onChange={(e) => setShowDiscountedOnly(e.target.checked)}
+                            />
+                            Show Discounted
                         </label>
                     </div>
                     <Badge variant="secondary" className="bg-slate-100 text-slate-500 font-mono text-xs">

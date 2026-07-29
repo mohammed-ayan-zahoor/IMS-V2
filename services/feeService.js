@@ -310,7 +310,8 @@ export class FeeService {
             student,
             institute,
             session,
-            includeCancelled
+            includeCancelled,
+            discountOnly
         } = filters;
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -320,6 +321,7 @@ export class FeeService {
         if (status) query.status = status;
         if (student) query.student = student;
         if (institute) query.institute = institute;
+        if (discountOnly) query['discount.amount'] = { $gt: 0 };
 
         // Session filtering
         if (session) {
@@ -399,6 +401,7 @@ export class FeeService {
         
         const query = { deletedAt: null };
         if (filters.institute) query.institute = new mongoose.Types.ObjectId(filters.institute);
+        if (filters.discountOnly) query['discount.amount'] = { $gt: 0 };
         
         // If a session is explicitly provided, filter by it.
         // Fall back to matching batches belonging to this session for robust support of manual fee profiles
@@ -478,6 +481,7 @@ export class FeeService {
         
         const query = { deletedAt: null };
         if (filters.institute) query.institute = new mongoose.Types.ObjectId(filters.institute);
+        if (filters.discountOnly) query['discount.amount'] = { $gt: 0 };
         
         if (filters.session) {
             const batchQuery = { session: filters.session, deletedAt: null };
@@ -533,7 +537,8 @@ export class FeeService {
             institute,
             includeCancelled,
             course,
-            session
+            session,
+            discountOnly
         } = filters;
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -543,6 +548,7 @@ export class FeeService {
         if (batch) feeQuery.batch = batch;
         if (institute) feeQuery.institute = institute;
         if (!includeCancelled) feeQuery.status = { $ne: 'cancelled' };
+        if (discountOnly) feeQuery['discount.amount'] = { $gt: 0 };
 
         if (session) {
             const batchQuery = { session, deletedAt: null };
@@ -599,7 +605,9 @@ export class FeeService {
         const results = fees.map(fee => mapFeeToResult(fee));
 
         // 7. Add students without fee records
-        const studentIdsWithoutFees = Object.keys(studentBatchMap).filter(sid => !studentsWithFees.has(sid));
+        const studentIdsWithoutFees = discountOnly 
+            ? [] 
+            : Object.keys(studentBatchMap).filter(sid => !studentsWithFees.has(sid));
 
         if (studentIdsWithoutFees.length > 0) {
             const students = await User.find({

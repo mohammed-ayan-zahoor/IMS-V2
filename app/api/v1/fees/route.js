@@ -21,6 +21,7 @@ export async function GET(req) {
             percentage: searchParams.get('percentage'),
             includeAll: searchParams.get('includeAll') === 'true',
             includeCancelled: searchParams.get('includeCancelled') === 'true',
+            discountOnly: searchParams.get('discountOnly') === 'true',
             session: searchParams.get('session') || req.headers.get('x-session-id'),
             page: searchParams.get('page') || 1,
             limit: searchParams.get('limit') || 50,
@@ -58,7 +59,7 @@ export async function GET(req) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const useExtendedQuery = filters.includeAll || filters.percentage || filters.course;
+        const useExtendedQuery = filters.includeAll || filters.percentage || filters.course || filters.discountOnly;
         const result = useExtendedQuery
             ? await FeeService.getFeesWithStudents(filters)
             : await FeeService.getFees(filters);
