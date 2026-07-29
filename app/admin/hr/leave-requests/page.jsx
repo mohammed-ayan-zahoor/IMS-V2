@@ -342,7 +342,7 @@ export default function LeaveRequestsPage() {
                                             <td className="px-6 py-4">
                                                 {req.adminComment ? (
                                                     <div>
-                                                        <p className="text-xs text-slate-500 font-medium italic">"{req.adminComment}"</p>
+                                                        <p className="text-xs text-slate-500 font-medium italic">&quot;{req.adminComment}&quot;</p>
                                                         {req.approvedBy && (
                                                             <p className="text-[9px] text-slate-400 mt-0.5">
                                                                 Reviewed by {req.approvedBy.profile?.firstName}
