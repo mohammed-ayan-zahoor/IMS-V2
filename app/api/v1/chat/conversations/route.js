@@ -29,6 +29,7 @@ export async function GET(req) {
                 select: 'text createdAt sender readBy'
             })
             .populate('batch', 'name')
+            .sort({ lastMessageAt: -1 });
         // Calculate unread counts for each conversation
         const conversationIds = conversations.map(c => c._id);
         const unreadCounts = await Message.aggregate([

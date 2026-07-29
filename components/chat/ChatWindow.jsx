@@ -38,6 +38,7 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
     const bottomRef = useRef(null);
     const textareaRef = useRef(null);
     const messageRefs = useRef({});
+    const channelRef = useRef(null);
 
     const isBatch = conversation?.type === 'batch';
     const otherParticipant = !isBatch ? conversation?.participants?.find(p => p._id !== currentUserId) : null;
@@ -164,6 +165,7 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
 
         const channelName = `presence-conversation-${conversation._id}`;
         const channel = pusher.subscribe(channelName);
+        channelRef.current = channel;
 
         channel.bind('new-message', (message) => {
             setMessages((prev) => {
@@ -209,6 +211,7 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
         });
 
         return () => {
+            channelRef.current = null;
             pusher.unsubscribe(channelName);
             pusher.disconnect();
         };
@@ -562,7 +565,22 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
                     <textarea
                         ref={textareaRef}
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                        onChange={(e) => {
+                            setNewMessage(e.target.value);
+                            // Typing indicator: fire client event on presence channel
+                            const ch = channelRef.current;
+                            if (ch) {
+                                clearTimeout(typingTimeoutRef.current);
+                                try { ch.trigger('client-typing-start', { userId: currentUserId, userName: 'You' }); } catch(_) {}
+                                typingTimeoutRef.current = setTimeout(() => {
+                                    try { ch.trigger('client-typing-stop', { userId: currentUserId, userName: 'You' }); } catch(_) {}
+                                }, 2000);
+                            }
+                        }}
+                        onBlur={() => {
+                            clearTimeout(typingTimeoutRef.current);
+                            try { channelRef.current?.trigger('client-typing-stop', { userId: currentUserId, userName: 'You' }); } catch(_) {}
+                        }}
                         placeholder="Type a message..."
                         className="flex-1 resize-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-premium-blue/20 focus:border-premium-blue max-h-32 min-h-[44px]"
                         rows={1}
