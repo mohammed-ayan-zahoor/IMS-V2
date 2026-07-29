@@ -190,13 +190,14 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Human Resources",
-            role: ["admin", "super_admin"],
+            role: ["admin", "super_admin", "instructor"],
             items: [
-                { label: "Designations", icon: Briefcase, href: "/admin/hr/designations" },
-                { label: "Earnings & Deductions", icon: Coins, href: "/admin/hr/salary-components" },
-                { label: "Leave Types", icon: CalendarDays, href: "/admin/hr/leave-types" },
-                { label: "Staff Attendance", icon: UserCheck, href: "/admin/hr/attendance" },
-                { label: "Payslip Generator", icon: FileSpreadsheet, href: "/admin/hr/payslips" },
+                { label: "Designations", icon: Briefcase, href: "/admin/hr/designations", role: ["admin", "super_admin"] },
+                { label: "Earnings & Deductions", icon: Coins, href: "/admin/hr/salary-components", role: ["admin", "super_admin"] },
+                { label: "Leave Types", icon: CalendarDays, href: "/admin/hr/leave-types", role: ["admin", "super_admin"] },
+                { label: "Staff Attendance", icon: UserCheck, href: "/admin/hr/attendance", role: ["admin", "super_admin"] },
+                { label: "Payslip Generator", icon: FileSpreadsheet, href: "/admin/hr/payslips", role: ["admin", "super_admin"] },
+                { label: "Leave Requests", icon: CalendarDays, href: "/admin/hr/leave-requests" }
             ]
         },
         {
