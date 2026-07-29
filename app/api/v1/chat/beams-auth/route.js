@@ -45,3 +45,7 @@ export async function GET(req) {
         return NextResponse.json({ error: "Failed to generate Beams token" }, { status: 500 });
     }
 }
+
+export async function POST(req) {
+    return GET(req);
+}
