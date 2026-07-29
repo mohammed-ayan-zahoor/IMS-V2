@@ -18,7 +18,8 @@ async function getRecipientRoles(userIds) {
 
 function buildPayload({ chatTitle, text, isBatch, senderName, role, conversationId }) {
     const bodyText = isBatch ? `${senderName}: ${text}` : text;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in";
+    const rawUrl = process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in";
+    const baseUrl = rawUrl.replace(/\/+$/, '');
     return {
         apns: {
             aps: {
