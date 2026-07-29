@@ -179,6 +179,8 @@ export class StudentService {
 
             // 1. Remove Fee Records
             await Fee.deleteMany({ student: studentId }).session(session);
+            await TransportFee.deleteMany({ student: studentId }).session(session);
+            await HostelAllotment.deleteMany({ student: studentId }).session(session);
 
             // 2. Remove from Batch Enrollments
             await Batch.updateMany(
@@ -212,6 +214,8 @@ export class StudentService {
                 await StudentService.purgeStudentDocuments(student);
 
                 await Fee.deleteMany({ student: studentId });
+                await TransportFee.deleteMany({ student: studentId });
+                await HostelAllotment.deleteMany({ student: studentId });
                 await Batch.updateMany(
                     { 'enrolledStudents.student': studentId },
                     { $pull: { enrolledStudents: { student: studentId } } }
@@ -245,9 +249,15 @@ export class StudentService {
         if (!student) throw new Error('Student not found');
 
         const isDisabling = !student.deletedAt;
+        const toggleDate = isDisabling ? new Date() : null;
         
-        student.deletedAt = isDisabling ? new Date() : null;
+        student.deletedAt = toggleDate;
         await student.save();
+
+        // Sync soft-delete status to related collections
+        await Fee.updateMany({ student: studentId }, { $set: { deletedAt: toggleDate } });
+        await TransportFee.updateMany({ student: studentId }, { $set: { deletedAt: toggleDate } });
+        await HostelAllotment.updateMany({ student: studentId }, { $set: { deletedAt: toggleDate } });
 
         await createAuditLog({
             actor: actorId,
