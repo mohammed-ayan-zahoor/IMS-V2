@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { cn } from "@/lib/utils";
 import {
     CreditCard,
     Search,
