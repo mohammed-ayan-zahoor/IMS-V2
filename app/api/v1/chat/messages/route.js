@@ -18,6 +18,7 @@ async function getRecipientRoles(userIds) {
 
 function buildPayload({ chatTitle, text, isBatch, senderName, role }) {
     const bodyText = isBatch ? `${senderName}: ${text}` : text;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in";
     return {
         apns: {
             aps: {
@@ -38,7 +39,7 @@ function buildPayload({ chatTitle, text, isBatch, senderName, role }) {
             notification: {
                 title: chatTitle,
                 body: bodyText,
-                deep_link: role === 'admin' ? '/admin/chat' : '/chat'
+                deep_link: role === 'admin' ? `${baseUrl}/admin/chat` : `${baseUrl}/chat`
             }
         }
     };
