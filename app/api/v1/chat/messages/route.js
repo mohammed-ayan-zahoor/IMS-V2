@@ -163,7 +163,12 @@ export async function POST(req) {
             .map(p => p.toString())
             .filter(id => id !== currentUserId.toString());
 
+        console.log(`[Beams Push] Checking push notification trigger for conversation ${conversationId}...`);
+        console.log(`[Beams Push] recipientIds count: ${recipientIds.length}, recipientIds:`, recipientIds);
+
         const beamsClient = await getBeamsInstance(scope.instituteId);
+        console.log(`[Beams Push] resolved beamsClient for institute ${scope.instituteId}:`, !!beamsClient);
+
         if (recipientIds.length > 0 && beamsClient) {
             try {
                 // Get roles for all recipients
@@ -182,6 +187,8 @@ export async function POST(req) {
                     }
                 }
                 
+                console.log(`[Beams Push] adminIds count: ${adminIds.length}, studentIds count: ${studentIds.length}`);
+
                 // Extract data needed for payloads
                 const senderName = newMessage.sender?.profile?.firstName || 'Someone';
                 const isBatch = conversation.type === 'batch';
@@ -189,29 +196,24 @@ export async function POST(req) {
                 
                 // Send notifications to admins
                 if (adminIds.length > 0) {
-                    await beamsClient.publishToUsers(adminIds, buildPayload({
-                        chatTitle,
-                        text,
-                        isBatch,
-                        senderName,
-                        role: 'admin' // any admin role works
-                    }));
+                    const payload = buildPayload({ chatTitle, text, isBatch, senderName, role: 'admin' });
+                    console.log(`[Beams Push] Publishing to adminIds:`, adminIds);
+                    const res = await beamsClient.publishToUsers(adminIds, payload);
+                    console.log(`[Beams Push] Admin publish response:`, res);
                 }
                 
                 // Send notifications to students
                 if (studentIds.length > 0) {
-                    await beamsClient.publishToUsers(studentIds, buildPayload({
-                        chatTitle,
-                        text,
-                        isBatch,
-                        senderName,
-                        role: 'student' // non-admin role
-                    }));
+                    const payload = buildPayload({ chatTitle, text, isBatch, senderName, role: 'student' });
+                    console.log(`[Beams Push] Publishing to studentIds:`, studentIds, JSON.stringify(payload));
+                    const res = await beamsClient.publishToUsers(studentIds, payload);
+                    console.log(`[Beams Push] Student publish response:`, res);
                 }
             } catch (beamsErr) {
-                // Don't fail the whole request if Beams push fails
-                console.warn('Beams push failed:', beamsErr.message);
+                console.error('[Beams Push] Beams push failed:', beamsErr);
             }
+        } else {
+            console.log(`[Beams Push] Skipped push notification: recipientIds empty (${recipientIds.length}) or beamsClient null (${!beamsClient}).`);
         }
         return NextResponse.json({ message: newMessage }, { status: 201 });
     } catch (error) {
