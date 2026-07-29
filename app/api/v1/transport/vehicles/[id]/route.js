@@ -19,7 +19,7 @@ export async function PATCH(req, { params }) {
 
         await connectDB();
         const body = await req.json();
-        const allowedFields = ['registrationNumber', 'type', 'capacity', 'make', 'model', 'year', 'insuranceExpiry', 'fitnessExpiry', 'route', 'isActive'];
+        const allowedFields = ['registrationNumber', 'type', 'capacity', 'make', 'model', 'year', 'insuranceExpiry', 'fitnessExpiry', 'route', 'isActive', 'photo'];
         const updateData = {};
         allowedFields.forEach(f => { if (body[f] !== undefined) updateData[f] = body[f]; });
 
