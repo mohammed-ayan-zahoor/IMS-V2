@@ -12,7 +12,14 @@ export async function GET(req) {
 
         const userId = scope.user.id;
         const { searchParams } = new URL(req.url);
-        const beamsUserId = searchParams.get("user_id");
+        let beamsUserId = searchParams.get("user_id");
+
+        if (!beamsUserId && req.method === "POST") {
+            try {
+                const body = await req.json();
+                beamsUserId = body?.user_id || body?.userId;
+            } catch (_) {}
+        }
 
         if (!beamsUserId) {
             return NextResponse.json(
@@ -22,7 +29,7 @@ export async function GET(req) {
         }
 
         // Security check: ensure the requested Beams user ID matches the logged-in user
-        if (beamsUserId !== String(userId)) {
+        if (String(beamsUserId) !== String(userId)) {
             return NextResponse.json(
                 { error: "Inconsistent request. user_id must match authenticated user." },
                 { status: 403 }

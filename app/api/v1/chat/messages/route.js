@@ -32,7 +32,9 @@ function buildPayload({ chatTitle, text, isBatch, senderName, role }) {
         fcm: {
             notification: {
                 title: chatTitle,
-                body: bodyText
+                body: bodyText,
+                channel_id: "default_notification_channel",
+                sound: "default"
             }
         },
         web: {
