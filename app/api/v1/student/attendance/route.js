@@ -25,7 +25,6 @@ export async function GET(req) {
 
         const studentObjId = new mongoose.Types.ObjectId(session.user.id);
 
-        const { searchParams } = new URL(req.url);
         const querySessionId = searchParams.get("sessionId");
 
         let activeSession = null;
