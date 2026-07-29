@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import Conversation from "@/models/Conversation";
 import Message from "@/models/Message";
@@ -28,9 +29,36 @@ export async function GET(req) {
                 select: 'text createdAt sender readBy'
             })
             .populate('batch', 'name')
-            .sort({ lastMessageAt: -1 });
+        // Calculate unread counts for each conversation
+        const conversationIds = conversations.map(c => c._id);
+        const unreadCounts = await Message.aggregate([
+            {
+                $match: {
+                    conversationId: { $in: conversationIds },
+                    deletedAt: null,
+                    readBy: { $ne: new mongoose.Types.ObjectId(currentUserId) }
+                }
+            },
+            {
+                $group: {
+                    _id: "$conversationId",
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
 
-        return NextResponse.json({ conversations });
+        const unreadMap = {};
+        unreadCounts.forEach(item => {
+            unreadMap[item._id.toString()] = item.count;
+        });
+
+        const conversationsWithUnread = conversations.map(c => {
+            const convObj = c.toObject();
+            convObj.unreadCount = unreadMap[c._id.toString()] || 0;
+            return convObj;
+        });
+
+        return NextResponse.json({ conversations: conversationsWithUnread });
     } catch (error) {
         console.error("GET /api/v1/chat/conversations error:", error);
         return NextResponse.json({ error: error.message || "Failed to fetch conversations" }, { status: 500 });

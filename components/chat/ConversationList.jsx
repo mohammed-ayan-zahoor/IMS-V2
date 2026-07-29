@@ -94,9 +94,16 @@ export default function ConversationList({
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-xs font-medium text-slate-500 truncate line-clamp-1">
-                                    {subtitle}
-                                </p>
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="text-xs font-medium text-slate-500 truncate line-clamp-1 flex-1">
+                                        {subtitle}
+                                    </p>
+                                    {conv.unreadCount > 0 && (
+                                        <span className="px-1.5 py-0.5 text-[10px] font-bold bg-premium-blue text-white rounded-full min-w-[18px] text-center flex-shrink-0">
+                                            {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </button>
                     );

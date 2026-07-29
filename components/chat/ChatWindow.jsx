@@ -108,6 +108,27 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
         }
     };
 
+    const [typingUsers, setTypingUsers] = useState([]);
+    const typingTimeoutRef = useRef(null);
+
+    const markAsRead = async () => {
+        if (!conversation?._id) return;
+        try {
+            await fetch(`/api/v1/chat/conversations/${conversation._id}/read`, {
+                method: 'POST'
+            });
+        } catch (err) {
+            console.error("Failed to mark conversation as read:", err);
+        }
+    };
+
+    // Mark as read when conversation is loaded
+    useEffect(() => {
+        if (conversation?._id) {
+            markAsRead();
+        }
+    }, [conversation?._id]);
+
     // Fetch initial messages when conversation changes
     useEffect(() => {
         if (!conversation) return;
@@ -149,6 +170,31 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
                 if (prev.some(m => m._id === message._id)) return prev;
                 return [...prev, message];
             });
+            if (message.sender?._id !== currentUserId && message.sender !== currentUserId) {
+                markAsRead();
+            }
+        });
+
+        channel.bind('messages-read', ({ readerId }) => {
+            setMessages((prev) => prev.map(m => {
+                const existingIds = (m.readBy || []).map(id => (id._id || id).toString());
+                if (!existingIds.includes(readerId.toString())) {
+                    return { ...m, readBy: [...(m.readBy || []), readerId] };
+                }
+                return m;
+            }));
+        });
+
+        channel.bind('client-typing-start', ({ userId, userName }) => {
+            if (userId !== currentUserId) {
+                setTypingUsers(prev => prev.includes(userName) ? prev : [...prev, userName]);
+            }
+        });
+
+        channel.bind('client-typing-stop', ({ userId, userName }) => {
+            if (userId !== currentUserId) {
+                setTypingUsers(prev => prev.filter(name => name !== userName));
+            }
         });
 
         channel.bind('message-deleted', ({ messageId }) => {
@@ -464,16 +510,32 @@ export default function ChatWindow({ conversation, currentUserId, onBack }) {
                             </div>
 
                             {isLastInGroup && !isDeleted && (
-                                <span className={cn(
-                                    "text-[9px] text-gray-400 mt-1 mx-2 uppercase font-bold tracking-tight",
-                                    isSender ? "text-right" : "text-left"
+                                <div className={cn(
+                                    "flex items-center gap-1 text-[9px] text-gray-400 mt-1 mx-2 uppercase font-bold tracking-tight",
+                                    isSender ? "justify-end" : "justify-start"
                                 )}>
-                                    {format(new Date(msg.createdAt), 'h:mm a')}
-                                </span>
+                                    <span>{format(new Date(msg.createdAt), 'h:mm a')}</span>
+                                    {isSender && (() => {
+                                        const readByOther = (msg.readBy || []).some(id => (id._id || id).toString() !== currentUserId.toString());
+                                        if (readByOther) {
+                                            return <span className="text-sky-500 font-black text-xs" title="Read">✓✓</span>;
+                                        } else if ((msg.readBy || []).length > 0) {
+                                            return <span className="text-slate-400 font-bold text-xs" title="Delivered">✓✓</span>;
+                                        } else {
+                                            return <span className="text-slate-400 font-bold text-xs" title="Sent">✓</span>;
+                                        }
+                                    })()}
+                                </div>
                             )}
                         </div>
                     );
                 })}
+                {typingUsers.length > 0 && (
+                    <div className="text-xs italic text-slate-500 py-1.5 px-3 bg-white border border-slate-200 shadow-sm rounded-full max-w-fit animate-pulse flex items-center gap-2 my-1 mx-2">
+                        <span className="w-2 h-2 rounded-full bg-premium-blue animate-ping"></span>
+                        <span className="font-semibold text-slate-700">{typingUsers.join(', ')}</span> {typingUsers.length === 1 ? 'is' : 'are'} typing...
+                    </div>
+                )}
                 <div ref={bottomRef} />
             </div>
 

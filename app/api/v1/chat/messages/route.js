@@ -30,14 +30,12 @@ function buildPayload({ chatTitle, text, isBatch, senderName, role, conversation
             }
         },
         fcm: {
-            notification: {
+            data: {
                 title: chatTitle,
                 body: bodyText,
-                channel_id: "high_importance_channel",
-                sound: "default"
-            },
-            data: {
-                conversationId: String(conversationId || "")
+                conversationId: String(conversationId || ""),
+                senderName: String(senderName || ""),
+                type: "chat"
             },
             priority: "high"
         },
