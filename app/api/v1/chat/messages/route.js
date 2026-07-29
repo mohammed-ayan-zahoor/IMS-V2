@@ -16,7 +16,7 @@ async function getRecipientRoles(userIds) {
     return roleMap;
 }
 
-function buildPayload({ chatTitle, text, isBatch, senderName, role }) {
+function buildPayload({ chatTitle, text, isBatch, senderName, role, conversationId }) {
     const bodyText = isBatch ? `${senderName}: ${text}` : text;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in";
     return {
@@ -35,6 +35,9 @@ function buildPayload({ chatTitle, text, isBatch, senderName, role }) {
                 body: bodyText,
                 channel_id: "high_importance_channel",
                 sound: "default"
+            },
+            data: {
+                conversationId: String(conversationId || "")
             },
             priority: "high"
         },
@@ -197,7 +200,7 @@ export async function POST(req) {
                 
                 // Send notifications to admins
                 if (adminIds.length > 0) {
-                    const payload = buildPayload({ chatTitle, text, isBatch, senderName, role: 'admin' });
+                    const payload = buildPayload({ chatTitle, text, isBatch, senderName, role: 'admin', conversationId });
                     console.log(`[Beams Push] Publishing to adminIds:`, adminIds);
                     const res = await beamsClient.publishToUsers(adminIds, payload);
                     console.log(`[Beams Push] Admin publish response:`, res);
@@ -205,7 +208,7 @@ export async function POST(req) {
                 
                 // Send notifications to students
                 if (studentIds.length > 0) {
-                    const payload = buildPayload({ chatTitle, text, isBatch, senderName, role: 'student' });
+                    const payload = buildPayload({ chatTitle, text, isBatch, senderName, role: 'student', conversationId });
                     console.log(`[Beams Push] Publishing to studentIds:`, studentIds, JSON.stringify(payload));
                     const res = await beamsClient.publishToUsers(studentIds, payload);
                     console.log(`[Beams Push] Student publish response:`, res);
