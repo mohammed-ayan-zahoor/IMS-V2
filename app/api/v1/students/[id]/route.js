@@ -131,31 +131,41 @@ export async function PATCH(req, { params }) {
 
         // Prepare audit details (exclude internal fields and decrypted PII)
         const formatForAudit = (doc) => {
-            const json = doc.toJSON ? doc.toJSON() : doc;
-            const { 
-                passwordHash, 
-                passwordResetToken, 
-                passwordResetExpires,
-                aadharNumber,
-                apaarId,
-                penNumber,
-                fatherAadhar,
-                motherAadhar,
-                ...rest 
-            } = json;
-            return rest;
+            if (!doc) return null;
+            try {
+                const json = doc.toObject ? doc.toObject({ getters: false }) : (doc.toJSON ? doc.toJSON() : doc);
+                const { 
+                    passwordHash, 
+                    passwordResetToken, 
+                    passwordResetExpires,
+                    aadharNumber,
+                    apaarId,
+                    penNumber,
+                    fatherAadhar,
+                    motherAadhar,
+                    ...rest 
+                } = json;
+                return rest;
+            } catch (_) {
+                return { id: doc._id?.toString() || id };
+            }
         };
 
-        await createAuditLog({
-            req,
-            actor: session.user.id,
-            action: "student.update",
-            resource: { type: "Student", id },
-            details: {
-                before: formatForAudit(oldStudent),
-                after: formatForAudit(updatedStudent)
-            }
-        });
+        try {
+            await createAuditLog({
+                req,
+                actor: session.user.id,
+                action: "student.update",
+                institute: oldStudent.institute || session.user.instituteId,
+                resource: { type: "Student", id },
+                details: {
+                    before: formatForAudit(oldStudent),
+                    after: formatForAudit(updatedStudent)
+                }
+            });
+        } catch (auditErr) {
+            console.error("Audit log creation error (non-fatal):", auditErr);
+        }
 
         return NextResponse.json(updatedStudent);
     } catch (error) {
