@@ -5,7 +5,7 @@ import User from "@/models/User";
 import { getBeamsInstance } from "@/lib/pusher";
 
 const CRON_SECRET = process.env.CRON_SECRET || "ims_cron_secret_2026";
-const BEAMS_BATCH_LIMIT = 1000; // Pusher Beams supports up to 1,000 user IDs per single publish call
+const BEAMS_BATCH_LIMIT = 1000; // Pusher Beams supports up to 1,000 unique user IDs per single publish call
 
 export async function GET(req) {
     return handleFeeDuesCron(req);
@@ -44,7 +44,7 @@ async function handleFeeDuesCron(req) {
         inThreeDays.setDate(inThreeDays.getDate() + 3);
         inThreeDays.setHours(23, 59, 59, 999);
 
-        // Fetch unpaid fees using lean query selecting ONLY required fields for maximum performance with 10k+ records
+        // Fetch unpaid fees using lean query selecting ONLY required fields
         const activeFees = await Fee.find({
             status: { $in: ["not_started", "partial", "overdue"] },
             balanceAmount: { $gt: 0 }
@@ -63,8 +63,7 @@ async function handleFeeDuesCron(req) {
             });
         }
 
-        // Partition notifications by (instituteId + notificationCategory)
-        // Category 1: 'overdue' | Category 2: 'upcoming'
+        // Partition notifications by (instituteId + notificationCategory) using a Set for unique student IDs
         const groupedMap = {};
 
         for (const feeDoc of activeFees) {
@@ -74,7 +73,6 @@ async function handleFeeDuesCron(req) {
             const studentId = student._id.toString();
             const instId = feeDoc.institute?._id?.toString() || "default";
             const instName = feeDoc.institute?.name || "the Institute";
-            const balance = feeDoc.balanceAmount;
 
             let matchingInstallment = null;
             let isOverdue = false;
@@ -103,20 +101,21 @@ async function handleFeeDuesCron(req) {
                     instituteId: instId === "default" ? null : instId,
                     instituteName: instName,
                     category,
-                    studentIds: []
+                    studentIdsSet: new Set()
                 };
             }
 
-            groupedMap[groupKey].studentIds.push(studentId);
+            groupedMap[groupKey].studentIdsSet.add(studentId);
         }
 
         let totalPushedCount = 0;
         const publishLogs = [];
 
-        // Publish using Pusher Beams bulk batching (up to 1,000 users per single API request)
+        // Publish using Pusher Beams bulk batching
         for (const [groupKey, group] of Object.entries(groupedMap)) {
-            const { instituteId, instituteName, category, studentIds } = group;
-            if (studentIds.length === 0) continue;
+            const { instituteId, instituteName, category, studentIdsSet } = group;
+            const uniqueStudentIds = Array.from(studentIdsSet);
+            if (uniqueStudentIds.length === 0) continue;
 
             const beamsClient = await getBeamsInstance(instituteId);
             if (!beamsClient) continue;
@@ -154,12 +153,12 @@ async function handleFeeDuesCron(req) {
                 }
             };
 
-            // Chunk student IDs into batches of 1,000
-            const idChunks = chunkArray(studentIds, BEAMS_BATCH_LIMIT);
+            // Chunk unique student IDs into batches of 1,000
+            const idChunks = chunkArray(uniqueStudentIds, BEAMS_BATCH_LIMIT);
 
             for (const chunk of idChunks) {
                 try {
-                    console.log(`[Fee Dues Bulk] Publishing ${category} fee reminder to ${chunk.length} students (Institute: ${instituteName})`);
+                    console.log(`[Fee Dues Bulk] Publishing ${category} fee reminder to ${chunk.length} unique students (Institute: ${instituteName})`);
                     const res = await beamsClient.publishToUsers(chunk, payload);
                     totalPushedCount += chunk.length;
                     publishLogs.push({
@@ -176,7 +175,7 @@ async function handleFeeDuesCron(req) {
 
         return NextResponse.json({
             success: true,
-            message: `Successfully processed fee dues. Bulk published notifications to ${totalPushedCount} student(s) across ${Object.keys(groupedMap).length} group(s).`,
+            message: `Successfully processed fee dues. Bulk published notifications to ${totalPushedCount} unique student(s) across ${Object.keys(groupedMap).length} group(s).`,
             totalStudentsNotified: totalPushedCount,
             batches: publishLogs
         });
