@@ -34,15 +34,16 @@ async function handleFeeDuesCron(req) {
         inThreeDays.setDate(inThreeDays.getDate() + 3);
         inThreeDays.setHours(23, 59, 59, 999);
 
-        // Query active fees with unpaid balance
+        // Query active fees with unpaid balance (use lean for speed)
         const activeFees = await Fee.find({
             status: { $in: ["not_started", "partial", "overdue"] },
             balanceAmount: { $gt: 0 }
         })
             .populate("student", "profile.firstName profile.lastName email role institute")
-            .populate("institute", "name");
+            .populate("institute", "name")
+            .lean();
 
-        if (activeFees.length === 0) {
+        if (!activeFees || activeFees.length === 0) {
             return NextResponse.json({
                 success: true,
                 message: "No pending or overdue fee dues found",
@@ -50,6 +51,15 @@ async function handleFeeDuesCron(req) {
                 dues: []
             });
         }
+
+        const beamsCache = {};
+        const getBeams = async (instId) => {
+            const key = instId || "default";
+            if (!(key in beamsCache)) {
+                beamsCache[key] = await getBeamsInstance(instId === "default" ? null : instId);
+            }
+            return beamsCache[key];
+        };
 
         const sentResults = [];
 
@@ -80,7 +90,9 @@ async function handleFeeDuesCron(req) {
                 }
             }
 
-            // If no specific installment matched but fee itself is overdue/partial, notify general balance
+            // Only notify if installment is due within 3 days, today, or overdue
+            if (!matchingInstallment && feeDoc.status !== "overdue") continue;
+
             const installmentAmount = matchingInstallment ? matchingInstallment.amount : balance;
             const dueDateFormatted = matchingInstallment 
                 ? new Date(matchingInstallment.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
@@ -95,7 +107,7 @@ async function handleFeeDuesCron(req) {
             }
 
             const instituteIdParam = feeDoc.institute?._id?.toString() || null;
-            const beamsClient = await getBeamsInstance(instituteIdParam);
+            const beamsClient = await getBeams(instituteIdParam);
 
             if (!beamsClient) continue;
 
