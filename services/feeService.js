@@ -805,6 +805,14 @@ export class FeeService {
                 installment.penaltyStatus = installment.penaltyPaid > 0 ? 'paid' : 'none';
             }
 
+            // If nextDueDate is provided, update the next pending installment's due date
+            if (paymentDetails.nextDueDate) {
+                const nextPending = fee.installments.find(i => i._id.toString() !== installmentId && (i.status === 'pending' || i.status === 'overdue'));
+                if (nextPending) {
+                    nextPending.dueDate = parseValidDate(paymentDetails.nextDueDate);
+                }
+            }
+
             // CRITICAL: Mark installments as modified to trigger pre-save hook recalculation
             fee.markModified('installments');
 
