@@ -102,6 +102,23 @@ export async function PATCH(req) {
                     }
                 });
             }
+
+            // Handle nested attendance settings object
+            if (body.settings.attendance) {
+                const att = body.settings.attendance;
+                updateData.settings.attendance = {};
+                if (att.mode !== undefined) updateData.settings.attendance.mode = att.mode;
+                if (att.workingHoursStart !== undefined) updateData.settings.attendance.workingHoursStart = att.workingHoursStart;
+                if (att.workingHoursEnd !== undefined) updateData.settings.attendance.workingHoursEnd = att.workingHoursEnd;
+                if (att.gracePeriodMinutes !== undefined) updateData.settings.attendance.gracePeriodMinutes = Number(att.gracePeriodMinutes) || 0;
+                if (att.pushNotifications) {
+                    updateData.settings.attendance.pushNotifications = {
+                        onPresent: Boolean(att.pushNotifications.onPresent),
+                        onAbsent: Boolean(att.pushNotifications.onAbsent),
+                        onLate: Boolean(att.pushNotifications.onLate)
+                    };
+                }
+            }
         }
 
         // Validate Transport Module Disablement
