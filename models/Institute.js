@@ -126,9 +126,9 @@ const InstituteSchema = new Schema({
             workingHoursEnd: { type: String, default: '17:00' },
             gracePeriodMinutes: { type: Number, default: 15 },
             pushNotifications: {
-                onPresent: { type: Boolean, default: true },
-                onAbsent: { type: Boolean, default: true },
-                onLate: { type: Boolean, default: true }
+                onPresent: { type: Boolean, default: false },
+                onAbsent: { type: Boolean, default: false },
+                onLate: { type: Boolean, default: false }
             }
         }
     },

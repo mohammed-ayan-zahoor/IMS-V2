@@ -27,10 +27,12 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
         if (!instituteDoc) return;
 
         const instName = instituteDoc.name || "the Institute";
+        // ponytail: fallback to all OFF so existing institutes are not surprised after deploy.
+        // Admins explicitly opt-in from Settings → Attendance tab.
         const attSettings = instituteDoc.settings?.attendance?.pushNotifications || {
-            onPresent: true,
-            onAbsent: true,
-            onLate: true
+            onPresent: false,
+            onAbsent: false,
+            onLate: false
         };
 
         const batchDoc = await Batch.findById(batchId).select("name").lean();
