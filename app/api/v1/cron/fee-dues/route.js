@@ -5,6 +5,7 @@ import User from "@/models/User";
 import { getBeamsInstance } from "@/lib/pusher";
 
 const CRON_SECRET = process.env.CRON_SECRET || "ims_cron_secret_2026";
+const BEAMS_BATCH_LIMIT = 1000; // Pusher Beams supports up to 1,000 user IDs per single publish call
 
 export async function GET(req) {
     return handleFeeDuesCron(req);
@@ -12,6 +13,15 @@ export async function GET(req) {
 
 export async function POST(req) {
     return handleFeeDuesCron(req);
+}
+
+// Helper to split array into chunks of 1,000
+function chunkArray(array, chunkSize) {
+    const chunks = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+        chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
 }
 
 async function handleFeeDuesCron(req) {
@@ -34,14 +44,14 @@ async function handleFeeDuesCron(req) {
         inThreeDays.setDate(inThreeDays.getDate() + 3);
         inThreeDays.setHours(23, 59, 59, 999);
 
-        // Query active fees with unpaid balance (use lean for maximum query performance)
+        // Fetch unpaid fees using lean query selecting ONLY required fields for maximum performance with 10k+ records
         const activeFees = await Fee.find({
             status: { $in: ["not_started", "partial", "overdue"] },
             balanceAmount: { $gt: 0 }
         })
-            .populate("student", "profile.firstName profile.lastName email role institute")
+            .select("student institute balanceAmount installments status")
+            .populate("student", "profile.firstName email role")
             .populate("institute", "name")
-            .limit(500)
             .lean();
 
         if (!activeFees || activeFees.length === 0) {
@@ -49,27 +59,20 @@ async function handleFeeDuesCron(req) {
                 success: true,
                 message: "No pending or overdue fee dues found",
                 count: 0,
-                dues: []
+                processed: 0
             });
         }
 
-        const beamsCache = {};
-        const getBeams = async (instId) => {
-            const key = instId || "default";
-            if (!(key in beamsCache)) {
-                beamsCache[key] = await getBeamsInstance(instId === "default" ? null : instId);
-            }
-            return beamsCache[key];
-        };
-
-        const notificationTasks = [];
+        // Partition notifications by (instituteId + notificationCategory)
+        // Category 1: 'overdue' | Category 2: 'upcoming'
+        const groupedMap = {};
 
         for (const feeDoc of activeFees) {
             const student = feeDoc.student;
             if (!student || !student._id) continue;
 
             const studentId = student._id.toString();
-            const firstName = student.profile?.firstName || "Student";
+            const instId = feeDoc.institute?._id?.toString() || "default";
             const instName = feeDoc.institute?.name || "the Institute";
             const balance = feeDoc.balanceAmount;
 
@@ -92,81 +95,90 @@ async function handleFeeDuesCron(req) {
 
             if (!matchingInstallment && feeDoc.status !== "overdue") continue;
 
-            const installmentAmount = matchingInstallment ? matchingInstallment.amount : balance;
-            const dueDateFormatted = matchingInstallment 
-                ? new Date(matchingInstallment.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-                : "soon";
+            const category = isOverdue ? "overdue" : "upcoming";
+            const groupKey = `${instId}::${category}`;
 
-            let title = "💳 Fee Payment Reminder";
-            let body = `Hi ${firstName}, you have a pending fee balance of ₹${balance.toLocaleString("en-IN")} at ${instName}. Due: ${dueDateFormatted}.`;
-
-            if (isOverdue) {
-                title = "⚠️ Overdue Fee Alert";
-                body = `Hi ${firstName}, your fee installment of ₹${installmentAmount.toLocaleString("en-IN")} at ${instName} was due on ${dueDateFormatted} and is now overdue. Please pay at your earliest.`;
+            if (!groupedMap[groupKey]) {
+                groupedMap[groupKey] = {
+                    instituteId: instId === "default" ? null : instId,
+                    instituteName: instName,
+                    category,
+                    studentIds: []
+                };
             }
 
-            const instituteIdParam = feeDoc.institute?._id?.toString() || null;
-
-            notificationTasks.push(async () => {
-                const beamsClient = await getBeams(instituteIdParam);
-                if (!beamsClient) return null;
-
-                const payload = {
-                    apns: {
-                        aps: {
-                            alert: { title, body },
-                            sound: "default"
-                        }
-                    },
-                    fcm: {
-                        data: {
-                            title,
-                            body,
-                            type: "fee_due",
-                            feeId: feeDoc._id.toString(),
-                            studentId
-                        },
-                        priority: "high"
-                    },
-                    web: {
-                        notification: {
-                            title,
-                            body,
-                            deep_link: `${process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in"}/fees`
-                        }
-                    }
-                };
-
-                try {
-                    const res = await beamsClient.publishToUsers([studentId], payload);
-                    return {
-                        studentId,
-                        name: `${firstName} ${student.profile?.lastName || ""}`.trim(),
-                        balance,
-                        isOverdue,
-                        publishId: res.publishId
-                    };
-                } catch (beamsErr) {
-                    console.error(`[Fee Dues Cron] Failed sending push to student ${studentId}:`, beamsErr);
-                    return null;
-                }
-            });
+            groupedMap[groupKey].studentIds.push(studentId);
         }
 
-        // Execute notification tasks in parallel batches of 15 for fast response
-        const sentResults = [];
-        const BATCH_SIZE = 15;
-        for (let i = 0; i < notificationTasks.length; i += BATCH_SIZE) {
-            const batch = notificationTasks.slice(i, i + BATCH_SIZE);
-            const results = await Promise.all(batch.map(fn => fn()));
-            results.forEach(res => { if (res) sentResults.push(res); });
+        let totalPushedCount = 0;
+        const publishLogs = [];
+
+        // Publish using Pusher Beams bulk batching (up to 1,000 users per single API request)
+        for (const [groupKey, group] of Object.entries(groupedMap)) {
+            const { instituteId, instituteName, category, studentIds } = group;
+            if (studentIds.length === 0) continue;
+
+            const beamsClient = await getBeamsInstance(instituteId);
+            if (!beamsClient) continue;
+
+            let title, body;
+            if (category === "overdue") {
+                title = "⚠️ Overdue Fee Alert";
+                body = `Overdue Fee Alert: You have an overdue fee balance at ${instituteName}. Please clear your dues at your earliest.`;
+            } else {
+                title = "💳 Fee Payment Reminder";
+                body = `Fee Reminder: You have an upcoming fee balance payment due at ${instituteName}. Tap to view details.`;
+            }
+
+            const payload = {
+                apns: {
+                    aps: {
+                        alert: { title, body },
+                        sound: "default"
+                    }
+                },
+                fcm: {
+                    data: {
+                        title,
+                        body,
+                        type: "fee_due"
+                    },
+                    priority: "high"
+                },
+                web: {
+                    notification: {
+                        title,
+                        body,
+                        deep_link: `${process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in"}/fees`
+                    }
+                }
+            };
+
+            // Chunk student IDs into batches of 1,000
+            const idChunks = chunkArray(studentIds, BEAMS_BATCH_LIMIT);
+
+            for (const chunk of idChunks) {
+                try {
+                    console.log(`[Fee Dues Bulk] Publishing ${category} fee reminder to ${chunk.length} students (Institute: ${instituteName})`);
+                    const res = await beamsClient.publishToUsers(chunk, payload);
+                    totalPushedCount += chunk.length;
+                    publishLogs.push({
+                        category,
+                        instituteName,
+                        targetCount: chunk.length,
+                        publishId: res.publishId
+                    });
+                } catch (beamsErr) {
+                    console.error(`[Fee Dues Bulk] Error publishing batch of ${chunk.length} students:`, beamsErr);
+                }
+            }
         }
 
         return NextResponse.json({
             success: true,
-            message: `Processed fee dues. Sent ${sentResults.length} reminder notification(s).`,
-            count: sentResults.length,
-            remindersSent: sentResults
+            message: `Successfully processed fee dues. Bulk published notifications to ${totalPushedCount} student(s) across ${Object.keys(groupedMap).length} group(s).`,
+            totalStudentsNotified: totalPushedCount,
+            batches: publishLogs
         });
 
     } catch (error) {
