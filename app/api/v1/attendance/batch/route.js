@@ -4,7 +4,121 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Attendance from "@/models/Attendance";
 import Batch from "@/models/Batch";
+import Institute from "@/models/Institute";
+import { getBeamsInstance } from "@/lib/pusher";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
+
+const BEAMS_BATCH_LIMIT = 1000;
+
+function chunkArray(array, chunkSize) {
+    const chunks = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+        chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
+}
+
+// Fire-and-forget helper function for sending instant attendance push notifications
+async function sendAttendancePushNotifications(instituteId, batchId, records) {
+    try {
+        if (!instituteId || !Array.isArray(records) || records.length === 0) return;
+
+        const instituteDoc = await Institute.findById(instituteId).select("name settings").lean();
+        if (!instituteDoc) return;
+
+        const instName = instituteDoc.name || "the Institute";
+        const attSettings = instituteDoc.settings?.attendance?.pushNotifications || {
+            onPresent: true,
+            onAbsent: true,
+            onLate: true
+        };
+
+        const batchDoc = await Batch.findById(batchId).select("name").lean();
+        const batchName = batchDoc?.name ? ` for ${batchDoc.name}` : "";
+
+        // Group unique student IDs by status
+        const statusGroups = {
+            present: new Set(),
+            absent: new Set(),
+            late: new Set()
+        };
+
+        for (const r of records) {
+            if (!r.studentId || !r.status) continue;
+            const s = r.status.toLowerCase();
+            if (s in statusGroups) {
+                statusGroups[s].add(r.studentId.toString());
+            }
+        }
+
+        const beamsClient = await getBeamsInstance(instituteId);
+        if (!beamsClient) return;
+
+        const notificationsConfig = [
+            {
+                status: "present",
+                enabled: attSettings.onPresent !== false,
+                title: "✅ Attendance Marked",
+                body: `Your attendance${batchName} at ${instName} was marked Present today.`
+            },
+            {
+                status: "absent",
+                enabled: attSettings.onAbsent !== false,
+                title: "⚠️ Attendance Alert",
+                body: `Notice: You were marked Absent${batchName} at ${instName} today.`
+            },
+            {
+                status: "late",
+                enabled: attSettings.onLate !== false,
+                title: "⏰ Attendance Alert",
+                body: `Notice: You were marked Late${batchName} at ${instName} today.`
+            }
+        ];
+
+        for (const config of notificationsConfig) {
+            if (!config.enabled) continue;
+            const studentIds = Array.from(statusGroups[config.status]);
+            if (studentIds.length === 0) continue;
+
+            const payload = {
+                apns: {
+                    aps: {
+                        alert: { title: config.title, body: config.body },
+                        sound: "default"
+                    }
+                },
+                fcm: {
+                    data: {
+                        title: config.title,
+                        body: config.body,
+                        type: "attendance"
+                    },
+                    priority: "high"
+                },
+                web: {
+                    notification: {
+                        title: config.title,
+                        body: config.body,
+                        deep_link: `${process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in"}/attendance`
+                    }
+                }
+            };
+
+            const chunks = chunkArray(studentIds, BEAMS_BATCH_LIMIT);
+            for (const chunk of chunks) {
+                try {
+                    await beamsClient.publishToUsers(chunk, payload);
+                    console.log(`[Attendance Push] Published ${config.status} push notification to ${chunk.length} student(s) at ${instName}`);
+                } catch (err) {
+                    console.error(`[Attendance Push] Error publishing ${config.status} push batch:`, err);
+                }
+            }
+        }
+
+    } catch (err) {
+        console.error("[Attendance Push] Unhandled error sending push notifications:", err);
+    }
+}
 
 export async function GET(req) {
     try {
@@ -71,7 +185,6 @@ export async function POST(req) {
         await connectDB();
         const body = await req.json();
         const { batchId, date, records } = body;
-        // records: [{ studentId, status, remarks }]
 
         if (!batchId || !date || !Array.isArray(records)) {
             return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
@@ -84,14 +197,12 @@ export async function POST(req) {
 
         const targetDate = parseISO(date);
 
-        // Transform frontend records to schema format
         const recordSchema = records.map(r => ({
             student: r.studentId,
             status: r.status,
             remarks: r.remarks || ""
         }));
 
-        // Upsert the single document for this batch and date
         await Attendance.findOneAndUpdate(
             {
                 batch: batchId,
@@ -115,6 +226,11 @@ export async function POST(req) {
             },
             { upsert: true, new: true, runValidators: true }
         );
+
+        // Asynchronously trigger instant push notifications in the background
+        sendAttendancePushNotifications(batchDoc.institute, batchId, records).catch(err => {
+            console.error("[Attendance Push] Non-blocking push notification error:", err);
+        });
 
         return NextResponse.json({ success: true, count: records.length });
 

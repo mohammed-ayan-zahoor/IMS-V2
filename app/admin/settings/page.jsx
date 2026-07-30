@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2, Hotel, MessageSquare, Award } from "lucide-react";
+import { Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2, Hotel, MessageSquare, Award, Clock, CheckSquare, Bell } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -556,6 +556,218 @@ export default function SettingsPage() {
                                         </li>
                                     )}
                                 </ul>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Attendance Settings Card */}
+                <Card title="Attendance Settings">
+                    <div className="space-y-6">
+                        {/* Attendance Mode */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-slate-700">Attendance Tracking Mode</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <label className={cn(
+                                    "p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3",
+                                    (institute.settings?.attendance?.mode || 'checkin_only') === 'checkin_only'
+                                        ? "border-premium-blue bg-blue-50/50 text-slate-900"
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                )}>
+                                    <input
+                                        type="radio"
+                                        name="attMode"
+                                        value="checkin_only"
+                                        checked={(institute.settings?.attendance?.mode || 'checkin_only') === 'checkin_only'}
+                                        onChange={() => setInstitute({
+                                            ...institute,
+                                            settings: {
+                                                ...institute.settings,
+                                                attendance: {
+                                                    ...(institute.settings?.attendance || {}),
+                                                    mode: 'checkin_only'
+                                                }
+                                            }
+                                        })}
+                                        className="mt-1 accent-premium-blue"
+                                    />
+                                    <div>
+                                        <p className="text-sm font-bold">Check-In Only (Single Scan)</p>
+                                        <p className="text-xs text-slate-500 mt-0.5">Records entry/present status once per session/day. Ideal for coaching & quick marking.</p>
+                                    </div>
+                                </label>
+
+                                <label className={cn(
+                                    "p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3",
+                                    institute.settings?.attendance?.mode === 'checkin_checkout'
+                                        ? "border-premium-blue bg-blue-50/50 text-slate-900"
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                )}>
+                                    <input
+                                        type="radio"
+                                        name="attMode"
+                                        value="checkin_checkout"
+                                        checked={institute.settings?.attendance?.mode === 'checkin_checkout'}
+                                        onChange={() => setInstitute({
+                                            ...institute,
+                                            settings: {
+                                                ...institute.settings,
+                                                attendance: {
+                                                    ...(institute.settings?.attendance || {}),
+                                                    mode: 'checkin_checkout'
+                                                }
+                                            }
+                                        })}
+                                        className="mt-1 accent-premium-blue"
+                                    />
+                                    <div>
+                                        <p className="text-sm font-bold">Check-In & Check-Out (In / Out Time)</p>
+                                        <p className="text-xs text-slate-500 mt-0.5">Tracks both morning entry time and evening exit time for full day duration.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Working Hours & Grace Period */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                    <Clock size={14} className="text-slate-400" /> Start Time (In Time)
+                                </label>
+                                <input
+                                    type="time"
+                                    value={institute.settings?.attendance?.workingHoursStart || "08:00"}
+                                    onChange={e => setInstitute({
+                                        ...institute,
+                                        settings: {
+                                            ...institute.settings,
+                                            attendance: {
+                                                ...(institute.settings?.attendance || {}),
+                                                workingHoursStart: e.target.value
+                                            }
+                                        }
+                                    })}
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium focus:border-premium-blue outline-none"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                    <Clock size={14} className="text-slate-400" /> End Time (Out Time)
+                                </label>
+                                <input
+                                    type="time"
+                                    value={institute.settings?.attendance?.workingHoursEnd || "17:00"}
+                                    onChange={e => setInstitute({
+                                        ...institute,
+                                        settings: {
+                                            ...institute.settings,
+                                            attendance: {
+                                                ...(institute.settings?.attendance || {}),
+                                                workingHoursEnd: e.target.value
+                                            }
+                                        }
+                                    })}
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium focus:border-premium-blue outline-none"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                    <CheckSquare size={14} className="text-slate-400" /> Late Grace Period (Minutes)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="120"
+                                    value={institute.settings?.attendance?.gracePeriodMinutes ?? 15}
+                                    onChange={e => setInstitute({
+                                        ...institute,
+                                        settings: {
+                                            ...institute.settings,
+                                            attendance: {
+                                                ...(institute.settings?.attendance || {}),
+                                                gracePeriodMinutes: parseInt(e.target.value) || 0
+                                            }
+                                        }
+                                    })}
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium focus:border-premium-blue outline-none"
+                                    placeholder="15"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Push Notification Preferences */}
+                        <div className="space-y-3 pt-2 border-t border-slate-100">
+                            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <Bell size={14} className="text-slate-400" /> Instant Mobile Push Notifications
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-50">
+                                    <input
+                                        type="checkbox"
+                                        checked={institute.settings?.attendance?.pushNotifications?.onPresent !== false}
+                                        onChange={e => setInstitute({
+                                            ...institute,
+                                            settings: {
+                                                ...institute.settings,
+                                                attendance: {
+                                                    ...(institute.settings?.attendance || {}),
+                                                    pushNotifications: {
+                                                        ...(institute.settings?.attendance?.pushNotifications || {}),
+                                                        onPresent: e.target.checked
+                                                    }
+                                                }
+                                            }
+                                        })}
+                                        className="rounded text-premium-blue accent-premium-blue"
+                                    />
+                                    Notify on Present ✅
+                                </label>
+
+                                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-50">
+                                    <input
+                                        type="checkbox"
+                                        checked={institute.settings?.attendance?.pushNotifications?.onAbsent !== false}
+                                        onChange={e => setInstitute({
+                                            ...institute,
+                                            settings: {
+                                                ...institute.settings,
+                                                attendance: {
+                                                    ...(institute.settings?.attendance || {}),
+                                                    pushNotifications: {
+                                                        ...(institute.settings?.attendance?.pushNotifications || {}),
+                                                        onAbsent: e.target.checked
+                                                    }
+                                                }
+                                            }
+                                        })}
+                                        className="rounded text-premium-blue accent-premium-blue"
+                                    />
+                                    Notify on Absent ⚠️
+                                </label>
+
+                                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-50">
+                                    <input
+                                        type="checkbox"
+                                        checked={institute.settings?.attendance?.pushNotifications?.onLate !== false}
+                                        onChange={e => setInstitute({
+                                            ...institute,
+                                            settings: {
+                                                ...institute.settings,
+                                                attendance: {
+                                                    ...(institute.settings?.attendance || {}),
+                                                    pushNotifications: {
+                                                        ...(institute.settings?.attendance?.pushNotifications || {}),
+                                                        onLate: e.target.checked
+                                                    }
+                                                }
+                                            }
+                                        })}
+                                        className="rounded text-premium-blue accent-premium-blue"
+                                    />
+                                    Notify on Late ⏰
+                                </label>
                             </div>
                         </div>
                     </div>

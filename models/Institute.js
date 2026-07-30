@@ -117,7 +117,20 @@ const InstituteSchema = new Schema({
 
         // Email settings
         emailNotifications: { type: Boolean, default: true },
-        smsNotifications: { type: Boolean, default: false }
+        smsNotifications: { type: Boolean, default: false },
+
+        // Attendance settings
+        attendance: {
+            mode: { type: String, enum: ['checkin_only', 'checkin_checkout'], default: 'checkin_only' },
+            workingHoursStart: { type: String, default: '08:00' },
+            workingHoursEnd: { type: String, default: '17:00' },
+            gracePeriodMinutes: { type: Number, default: 15 },
+            pushNotifications: {
+                onPresent: { type: Boolean, default: true },
+                onAbsent: { type: Boolean, default: true },
+                onLate: { type: Boolean, default: true }
+            }
+        }
     },
 
     // Multi-Tenant Cloudinary Storage Configuration
