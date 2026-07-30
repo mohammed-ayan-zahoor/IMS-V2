@@ -34,13 +34,14 @@ async function handleFeeDuesCron(req) {
         inThreeDays.setDate(inThreeDays.getDate() + 3);
         inThreeDays.setHours(23, 59, 59, 999);
 
-        // Query active fees with unpaid balance (use lean for speed)
+        // Query active fees with unpaid balance (use lean for maximum query performance)
         const activeFees = await Fee.find({
             status: { $in: ["not_started", "partial", "overdue"] },
             balanceAmount: { $gt: 0 }
         })
             .populate("student", "profile.firstName profile.lastName email role institute")
             .populate("institute", "name")
+            .limit(500)
             .lean();
 
         if (!activeFees || activeFees.length === 0) {
@@ -61,7 +62,7 @@ async function handleFeeDuesCron(req) {
             return beamsCache[key];
         };
 
-        const sentResults = [];
+        const notificationTasks = [];
 
         for (const feeDoc of activeFees) {
             const student = feeDoc.student;
@@ -72,7 +73,6 @@ async function handleFeeDuesCron(req) {
             const instName = feeDoc.institute?.name || "the Institute";
             const balance = feeDoc.balanceAmount;
 
-            // Find matching installment (due within 3 days, today, or overdue)
             let matchingInstallment = null;
             let isOverdue = false;
 
@@ -90,7 +90,6 @@ async function handleFeeDuesCron(req) {
                 }
             }
 
-            // Only notify if installment is due within 3 days, today, or overdue
             if (!matchingInstallment && feeDoc.status !== "overdue") continue;
 
             const installmentAmount = matchingInstallment ? matchingInstallment.amount : balance;
@@ -107,48 +106,60 @@ async function handleFeeDuesCron(req) {
             }
 
             const instituteIdParam = feeDoc.institute?._id?.toString() || null;
-            const beamsClient = await getBeams(instituteIdParam);
 
-            if (!beamsClient) continue;
+            notificationTasks.push(async () => {
+                const beamsClient = await getBeams(instituteIdParam);
+                if (!beamsClient) return null;
 
-            const payload = {
-                apns: {
-                    aps: {
-                        alert: { title, body },
-                        sound: "default"
-                    }
-                },
-                fcm: {
-                    data: {
-                        title,
-                        body,
-                        type: "fee_due",
-                        feeId: feeDoc._id.toString(),
-                        studentId
+                const payload = {
+                    apns: {
+                        aps: {
+                            alert: { title, body },
+                            sound: "default"
+                        }
                     },
-                    priority: "high"
-                },
-                web: {
-                    notification: {
-                        title,
-                        body,
-                        deep_link: `${process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in"}/fees`
+                    fcm: {
+                        data: {
+                            title,
+                            body,
+                            type: "fee_due",
+                            feeId: feeDoc._id.toString(),
+                            studentId
+                        },
+                        priority: "high"
+                    },
+                    web: {
+                        notification: {
+                            title,
+                            body,
+                            deep_link: `${process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in"}/fees`
+                        }
                     }
-                }
-            };
+                };
 
-            try {
-                const res = await beamsClient.publishToUsers([studentId], payload);
-                sentResults.push({
-                    studentId,
-                    name: `${firstName} ${student.profile?.lastName || ""}`.trim(),
-                    balance,
-                    isOverdue,
-                    publishId: res.publishId
-                });
-            } catch (beamsErr) {
-                console.error(`[Fee Dues Cron] Failed sending push to student ${studentId}:`, beamsErr);
-            }
+                try {
+                    const res = await beamsClient.publishToUsers([studentId], payload);
+                    return {
+                        studentId,
+                        name: `${firstName} ${student.profile?.lastName || ""}`.trim(),
+                        balance,
+                        isOverdue,
+                        publishId: res.publishId
+                    };
+                } catch (beamsErr) {
+                    console.error(`[Fee Dues Cron] Failed sending push to student ${studentId}:`, beamsErr);
+                    return null;
+                }
+            });
+        }
+
+        // Execute notification tasks in parallel batches of 15 for fast response
+        const sentResults = [];
+        const BATCH_SIZE = 15;
+        for (let i = 0; i < notificationTasks.length; i += BATCH_SIZE) {
+            const batch = notificationTasks.slice(i, i + BATCH_SIZE);
+            const results = await Promise.all(batch.map(fn => fn()));
+            results.forEach(res => { if (res) sentResults.push(res); });
         }
 
         return NextResponse.json({
