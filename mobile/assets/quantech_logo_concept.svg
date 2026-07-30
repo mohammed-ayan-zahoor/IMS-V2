@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="qRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E0E7FF"/>
+    </linearGradient>
+    <linearGradient id="dotGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Dot on top ("search / insight" nod - education coded) -->
+  <circle cx="240" cy="90" r="24" fill="url(#dotGrad)" />
+
+  <!-- Q Monogram Full Ring (no crossing diagonal inside) -->
+  <circle cx="240" cy="270" r="115" fill="none" stroke="url(#qRingGrad)" stroke-width="36" />
+
+  <!-- Short Tail extending outward at bottom right -->
+  <line x1="315" x2="375" y1="345" y2="405" stroke="#3B82F6" stroke-width="36" stroke-linecap="round" />
+</svg>

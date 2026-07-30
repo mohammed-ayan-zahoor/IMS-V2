@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "690215868813",
+    "project_id": "quantech-ims",
+    "storage_bucket": "quantech-ims.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:690215868813:android:04b3b61929bd2924a9c5c4",
+        "android_client_info": {
+          "package_name": "com.quantech.student_app.student_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8zHDnBdfuHBopUo9WyuwmvCqjuZHErv0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
