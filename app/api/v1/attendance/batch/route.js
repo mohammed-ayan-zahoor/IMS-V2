@@ -35,8 +35,7 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
             onLate: false
         };
 
-        const batchDoc = await Batch.findById(batchId).select("name").lean();
-        const batchName = batchDoc?.name ? ` for ${batchDoc.name}` : "";
+
 
         // Group unique student IDs by status
         const statusGroups = {
@@ -61,19 +60,19 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
                 status: "present",
                 enabled: attSettings.onPresent !== false,
                 title: "✅ Attendance Marked",
-                body: `Your attendance${batchName} at ${instName} was marked Present today.`
+                body: `Your attendance at ${instName} was marked Present today.`
             },
             {
                 status: "absent",
                 enabled: attSettings.onAbsent !== false,
                 title: "⚠️ Attendance Alert",
-                body: `Notice: You were marked Absent${batchName} at ${instName} today.`
+                body: `Notice: You were marked Absent at ${instName} today.`
             },
             {
                 status: "late",
                 enabled: attSettings.onLate !== false,
                 title: "⏰ Attendance Alert",
-                body: `Notice: You were marked Late${batchName} at ${instName} today.`
+                body: `Notice: You were marked Late at ${instName} today.`
             }
         ];
 
