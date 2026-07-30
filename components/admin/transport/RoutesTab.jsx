@@ -10,7 +10,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 
-export default function RoutesTab() {
+export default function RoutesTab({ viewMode = "card" }) {
     const toast = useToast();
     const [routes, setRoutes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -113,44 +113,88 @@ export default function RoutesTab() {
             </div>
 
             {routes.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {routes.map(route => (
-                        <Card key={route._id} className="group hover:shadow-md transition-all border-slate-100">
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-premium-blue/5 text-premium-blue flex items-center justify-center border border-premium-blue/10">
-                                        <Route size={18} />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-slate-900 text-[14px]">{route.name}</h4>
-                                        {route.distance && <p className="text-[11px] text-slate-400">{route.distance} km</p>}
-                                    </div>
-                                </div>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => openEdit(route)} className="p-1.5 text-slate-400 hover:text-premium-blue hover:bg-premium-blue/5 rounded-lg"><Edit2 size={14} /></button>
-                                    <button onClick={() => setDeleting(route)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
-                                </div>
-                            </div>
-                            {route.description && <p className="text-xs text-slate-500 mb-3 line-clamp-2">{route.description}</p>}
-                            {route.stops?.length > 0 && (
-                                <div className="space-y-1.5 mt-3 pt-3 border-t border-slate-100">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 mb-2">Stops ({route.stops.length})</p>
-                                    {route.stops.sort((a, b) => a.order - b.order).map((stop, i) => (
-                                        <div key={i} className="flex items-center gap-2 text-xs">
-                                            <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
-                                            <span className="font-medium text-slate-700 flex-1 truncate">{stop.name}</span>
-                                            {stop.pickupTime && <span className="text-[10px] text-emerald-600 font-mono bg-emerald-50 px-1.5 py-0.5 rounded">{stop.pickupTime}</span>}
-                                            {stop.dropTime && <span className="text-[10px] text-blue-600 font-mono bg-blue-50 px-1.5 py-0.5 rounded">{stop.dropTime}</span>}
-                                        </div>
+                viewMode === "table" ? (
+                    <Card className="overflow-hidden border-slate-100 p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-100">
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Route Name</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Distance</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Description</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Stops</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {routes.map(route => (
+                                        <tr key={route._id} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-6 py-4 font-bold text-slate-900">{route.name}</td>
+                                            <td className="px-6 py-4 text-slate-600 font-semibold">{route.distance ? `${route.distance} km` : "—"}</td>
+                                            <td className="px-6 py-4 text-slate-500 text-xs max-w-xs truncate">{route.description || "—"}</td>
+                                            <td className="px-6 py-4">
+                                                {route.stops?.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {route.stops.sort((a,b) => a.order - b.order).map((s, idx) => (
+                                                            <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                                                {s.name}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : <span className="text-slate-300 italic text-xs">No stops</span>}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex justify-end gap-1.5">
+                                                    <button onClick={() => openEdit(route)} className="p-1.5 text-slate-400 hover:text-premium-blue hover:bg-premium-blue/5 rounded-lg"><Edit2 size={14} /></button>
+                                                    <button onClick={() => setDeleting(route)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {routes.map(route => (
+                            <Card key={route._id} className="group hover:shadow-md transition-all border-slate-100">
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-premium-blue/5 text-premium-blue flex items-center justify-center border border-premium-blue/10">
+                                            <Route size={18} />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 text-[14px]">{route.name}</h4>
+                                            {route.distance && <p className="text-[11px] text-slate-400">{route.distance} km</p>}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => openEdit(route)} className="p-1.5 text-slate-400 hover:text-premium-blue hover:bg-premium-blue/5 rounded-lg"><Edit2 size={14} /></button>
+                                        <button onClick={() => setDeleting(route)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                                    </div>
                                 </div>
-                            )}
-                            {(!route.stops || route.stops.length === 0) && (
-                                <p className="text-xs text-slate-300 italic mt-2">No stops defined yet</p>
-                            )}
-                        </Card>
-                    ))}
-                </div>
+                                {route.description && <p className="text-xs text-slate-500 mb-3 line-clamp-2">{route.description}</p>}
+                                {route.stops?.length > 0 && (
+                                    <div className="space-y-1.5 mt-3 pt-3 border-t border-slate-100">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 mb-2">Stops ({route.stops.length})</p>
+                                        {route.stops.sort((a, b) => a.order - b.order).map((stop, i) => (
+                                            <div key={i} className="flex items-center gap-2 text-xs">
+                                                <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
+                                                <span className="font-medium text-slate-700 flex-1 truncate">{stop.name}</span>
+                                                {stop.pickupTime && <span className="text-[10px] text-emerald-600 font-mono bg-emerald-50 px-1.5 py-0.5 rounded">{stop.pickupTime}</span>}
+                                                {stop.dropTime && <span className="text-[10px] text-blue-600 font-mono bg-blue-50 px-1.5 py-0.5 rounded">{stop.dropTime}</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {(!route.stops || route.stops.length === 0) && (
+                                    <p className="text-xs text-slate-300 italic mt-2">No stops defined yet</p>
+                                )}
+                            </Card>
+                        ))}
+                    </div>
+                )
             ) : (
                 <Card className="py-16 flex flex-col items-center text-center border-dashed border-slate-200 bg-slate-50/50">
                     <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-slate-300 mb-4 border border-slate-100"><Route size={32} /></div>

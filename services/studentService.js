@@ -98,7 +98,9 @@ export class StudentService {
                     ...data.transport,
                     route: data.transport?.route || null,
                     vehicle: data.transport?.vehicle || null
-                }
+                },
+                rte: data.rte,
+                scholarship: data.scholarship
             });
 
             // Initialize transport fee if availing

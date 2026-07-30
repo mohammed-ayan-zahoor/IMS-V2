@@ -82,6 +82,14 @@ export async function PATCH(req, { params }) {
             updates.referredBy = body.referredBy;
         }
 
+        if (body.rte) {
+            updates.rte = body.rte;
+        }
+
+        if (body.scholarship) {
+            updates.scholarship = body.scholarship;
+        }
+
         // Add support for advanced metadata fields
         const directFields = [
             'grNumber', 'studentIdUdise', 'aadharNumber', 'apaarId', 'penNumber',

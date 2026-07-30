@@ -108,9 +108,79 @@ export class FeeService {
         await connectDB();
         const { student, batch, totalAmount, installments, discount } = data;
 
+        const User = (await import("@/models/User")).default;
+        const Institute = (await import("@/models/Institute")).default;
+
+        const instDoc = await Institute.findById(data.institute).select("settings.features");
+        const isRteEnabled = !!instDoc?.settings?.features?.rteAndScholarship;
+
+        let finalDiscount = discount || { amount: 0, reason: "" };
+
+        if (isRteEnabled) {
+            const studentDoc = await User.findById(student).select("rte scholarship");
+            if (studentDoc) {
+                if (studentDoc.rte?.isRte) {
+                    finalDiscount = {
+                        amount: totalAmount,
+                        reason: "RTE Quota Waiver (100%)",
+                        appliedBy: actorId,
+                        appliedAt: new Date()
+                    };
+                } else if (studentDoc.scholarship?.hasScholarship) {
+                    let scholarshipDiscount = 0;
+                    if (studentDoc.scholarship.scholarshipType === 'percentage') {
+                        scholarshipDiscount = (totalAmount * studentDoc.scholarship.scholarshipAmount) / 100;
+                    } else {
+                        scholarshipDiscount = studentDoc.scholarship.scholarshipAmount;
+                    }
+                    scholarshipDiscount = Math.min(scholarshipDiscount, totalAmount);
+                    if (scholarshipDiscount > (discount?.amount || 0)) {
+                        finalDiscount = {
+                            amount: scholarshipDiscount,
+                            reason: `Scholarship: ${studentDoc.scholarship.scholarshipName || "Approved Scheme"}`,
+                            appliedBy: actorId,
+                            appliedAt: new Date()
+                        };
+                    }
+                }
+            }
+        }
+
+        const finalExpected = totalAmount - (finalDiscount?.amount || 0);
+
+        // Adjust installments to match the final expected amount
+        let finalInstallments = installments;
+        if (finalExpected <= 0.01) {
+            finalInstallments = installments.map(i => ({
+                ...i,
+                amount: 0,
+                status: 'waived'
+            }));
+        } else {
+            const originalExpected = totalAmount - (discount?.amount || 0);
+            if (originalExpected !== finalExpected && originalExpected > 0) {
+                const ratio = finalExpected / originalExpected;
+                finalInstallments = installments.map(i => ({
+                    ...i,
+                    amount: parseFloat((i.amount * ratio).toFixed(2)),
+                    status: 'pending'
+                }));
+                // Adjust rounding on the last installment
+                const installmentSum = finalInstallments.reduce((sum, i) => sum + i.amount, 0);
+                const roundingDiff = finalExpected - installmentSum;
+                if (roundingDiff !== 0) {
+                    finalInstallments[finalInstallments.length - 1].amount += roundingDiff;
+                }
+            } else {
+                finalInstallments = installments.map(i => ({
+                    ...i,
+                    status: 'pending'
+                }));
+            }
+        }
+
         // Validation: Installments must match total
-        const installmentSum = installments.reduce((sum, i) => sum + i.amount, 0);
-        const finalExpected = totalAmount - (discount?.amount || 0);
+        const installmentSum = finalInstallments.reduce((sum, i) => sum + i.amount, 0);
 
         // Allow 1.0 difference for float logic, though pre-save is stricter
         if (Math.abs(installmentSum - finalExpected) > 1.0) {
@@ -127,12 +197,9 @@ export class FeeService {
             batch,
             session,
             totalAmount,
-            installments: installments.map(i => ({
-                ...i,
-                status: 'pending' // Force initial status
-            })),
-            discount,
-            status: 'not_started',
+            installments: finalInstallments,
+            discount: finalDiscount.amount > 0 ? finalDiscount : undefined,
+            status: finalExpected <= 0.01 ? 'paid' : 'not_started',
             institute: data.institute
         });
 
@@ -160,9 +227,46 @@ export class FeeService {
             throw new Error("Student, batch, and institute are required");
         }
 
-        // Generate installments from preset amount
+        const User = (await import("@/models/User")).default;
+        const Institute = (await import("@/models/Institute")).default;
+
+        // Fetch institute to check if features.rteAndScholarship is enabled
+        const instDoc = await Institute.findById(institute).select("settings.features");
+        const isRteEnabled = !!instDoc?.settings?.features?.rteAndScholarship;
+
         const totalAmount = preset.amount;
-        const installmentAmount = totalAmount / numInstallments;
+        let discount = { amount: 0, reason: "" };
+
+        if (isRteEnabled) {
+            const studentDoc = await User.findById(student).select("rte scholarship");
+            if (studentDoc) {
+                if (studentDoc.rte?.isRte) {
+                    discount = {
+                        amount: totalAmount,
+                        reason: "RTE Quota Waiver (100%)",
+                        appliedBy: actorId,
+                        appliedAt: new Date()
+                    };
+                } else if (studentDoc.scholarship?.hasScholarship) {
+                    let scholarshipDiscount = 0;
+                    if (studentDoc.scholarship.scholarshipType === 'percentage') {
+                        scholarshipDiscount = (totalAmount * studentDoc.scholarship.scholarshipAmount) / 100;
+                    } else {
+                        scholarshipDiscount = studentDoc.scholarship.scholarshipAmount;
+                    }
+                    scholarshipDiscount = Math.min(scholarshipDiscount, totalAmount);
+                    discount = {
+                        amount: scholarshipDiscount,
+                        reason: `Scholarship: ${studentDoc.scholarship.scholarshipName || "Approved Scheme"}`,
+                        appliedBy: actorId,
+                        appliedAt: new Date()
+                    };
+                }
+            }
+        }
+
+        const finalPayable = totalAmount - discount.amount;
+        const installmentAmount = finalPayable / numInstallments;
         const today = new Date();
         const installments = [];
 
@@ -174,15 +278,17 @@ export class FeeService {
             installments.push({
                 amount: parseFloat(installmentAmount.toFixed(2)),
                 dueDate: dueDate,
-                status: 'pending'
+                status: finalPayable <= 0.01 ? 'waived' : 'pending'
             });
         }
 
         // Adjust last installment to account for rounding
-        const totalFromInstallments = installments.reduce((sum, i) => sum + i.amount, 0);
-        const roundingDiff = totalAmount - totalFromInstallments;
-        if (roundingDiff !== 0) {
-            installments[installments.length - 1].amount += roundingDiff;
+        if (finalPayable > 0) {
+            const totalFromInstallments = installments.reduce((sum, i) => sum + i.amount, 0);
+            const roundingDiff = finalPayable - totalFromInstallments;
+            if (roundingDiff !== 0) {
+                installments[installments.length - 1].amount += roundingDiff;
+            }
         }
 
         const fee = await FeeDb.create({
@@ -190,10 +296,11 @@ export class FeeService {
             batch,
             totalAmount,
             installments,
-            status: 'not_started',
+            status: finalPayable <= 0.01 ? 'paid' : 'not_started',
             institute,
             session,
-            feePreset: preset._id
+            feePreset: preset._id,
+            discount: discount.amount > 0 ? discount : undefined
         });
 
         await createAuditLog({

@@ -12,7 +12,7 @@ import { useToast } from "@/contexts/ToastContext";
 import Avatar from "@/components/shared/Avatar";
 import { cn } from "@/lib/utils";
 
-export default function DriversTab() {
+export default function DriversTab({ viewMode = "card" }) {
     const toast = useToast();
     const [drivers, setDrivers] = useState([]);
     const [vehicles, setVehicles] = useState([]);
@@ -174,86 +174,127 @@ export default function DriversTab() {
             </div>
 
             {drivers.length > 0 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {drivers.map(driver => {
-                        const isExpired = driver.licenseExpiry && new Date(driver.licenseExpiry) < new Date();
-                        return (
-                        <Card key={driver._id} padding="p-0" className={cn("group hover:shadow-md transition-all overflow-hidden flex flex-row h-full", isExpired ? "!bg-red-100 !border !border-red-300" : "border border-transparent")}>
-                            {/* Photo Column */}
-                            <div className={cn("w-32 sm:w-40 border-r flex items-center justify-center shrink-0", isExpired ? "!bg-red-200 !border-red-300" : "bg-slate-50 border-slate-100")}>
-                                {driver.photo ? (
-                                    <img src={driver.photo} alt={driver.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="flex flex-col items-center text-slate-300 gap-2">
-                                        <UserCheck size={32} />
-                                        <span className="text-[10px] font-bold uppercase tracking-widest">No Photo</span>
-                                    </div>
-                                )}
-                            </div>
+                viewMode === "table" ? (
+                    <Card className="overflow-hidden border-slate-100 p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-100">
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Driver Name</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Phone</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Alt Phone</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">License Number</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Expiry</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Vehicle</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {drivers.map(driver => {
+                                        const isExpired = driver.licenseExpiry && new Date(driver.licenseExpiry) < new Date();
+                                        return (
+                                            <tr key={driver._id} className={cn("hover:bg-slate-50/50 transition-colors", isExpired && "bg-red-50/30 hover:bg-red-50/50")}>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        {driver.photo ? (
+                                                            <img src={driver.photo} alt={driver.name} className="w-8 h-8 rounded-lg object-cover border border-slate-200" />
+                                                        ) : (
+                                                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400"><UserCheck size={14} /></div>
+                                                        )}
+                                                        <span className="font-bold text-slate-900">{driver.name}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-slate-600 font-semibold">{driver.phone}</td>
+                                                <td className="px-6 py-4 text-slate-500">{driver.altPhone || "—"}</td>
+                                                <td className="px-6 py-4 font-mono text-slate-600 font-medium">{driver.licenseNumber || "—"}</td>
+                                                <td className="px-6 py-4">
+                                                    {driver.licenseExpiry ? (
+                                                        <span className={cn("text-xs font-bold", isExpired ? "text-red-600" : "text-emerald-600")}>
+                                                            {new Date(driver.licenseExpiry).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        </span>
+                                                    ) : <span className="text-slate-300">—</span>}
+                                                </td>
+                                                <td className="px-6 py-4 text-slate-700 font-semibold font-mono">
+                                                    {driver.assignedVehicle ? driver.assignedVehicle.registrationNumber : <span className="text-slate-300 italic">Unassigned</span>}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-1.5">
+                                                        <button onClick={() => openEdit(driver)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={14} /></button>
+                                                        <button onClick={() => setDeleting(driver)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {drivers.map(driver => {
+                            const isExpired = driver.licenseExpiry && new Date(driver.licenseExpiry) < new Date();
+                            return (
+                            <Card key={driver._id} padding="p-0" className={cn("group hover:shadow-md transition-all overflow-hidden flex flex-row h-full", isExpired ? "!bg-red-100 !border !border-red-300" : "border border-transparent")}>
+                                {/* Photo Column */}
+                                <div className={cn("w-32 sm:w-40 border-r flex items-center justify-center shrink-0", isExpired ? "!bg-red-200 !border-red-300" : "bg-slate-50 border-slate-100")}>
+                                    {driver.photo ? (
+                                        <img src={driver.photo} alt={driver.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="flex flex-col items-center text-slate-300 gap-2">
+                                            <UserCheck size={32} />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest">No Photo</span>
+                                        </div>
+                                    )}
+                                </div>
 
-                            {/* Details Column */}
-                            <div className="flex-1 p-5 min-w-0 flex flex-col justify-center">
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <h4 className="font-bold text-slate-900 text-base">{driver.name}</h4>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                                                <Phone size={12} className="text-slate-400" />
-                                                {driver.phone}
-                                            </div>
-                                            {driver.licenseNumber && (
+                                {/* Details Column */}
+                                <div className="flex-1 p-5 min-w-0 flex flex-col justify-center">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 text-base">{driver.name}</h4>
+                                            <div className="flex items-center gap-3 mt-1">
                                                 <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                                                    <CreditCard size={12} className="text-slate-400" />
-                                                    {driver.licenseNumber}
+                                                    <Phone size={12} className="text-slate-400" />
+                                                    {driver.phone}
                                                 </div>
-                                            )}
+                                                {driver.licenseNumber && (
+                                                    <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                                                        <CreditCard size={12} className="text-slate-400" />
+                                                        {driver.licenseNumber}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => openEdit(driver)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={14} /></button>
+                                            <button onClick={() => setDeleting(driver)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
                                         </div>
                                     </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => openEdit(driver)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={14} /></button>
-                                        <button onClick={() => setDeleting(driver)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
-                                    </div>
-                                </div>
 
-                                <div className={cn("mt-4 grid grid-cols-2 gap-3 pt-4 border-t", isExpired ? "border-red-100/50" : "border-slate-50")}>
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Assigned Vehicle</p>
-                                        {driver.assignedVehicle ? (
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
-                                                    <UserCheck size={12} />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-bold text-slate-700 truncate">{driver.assignedVehicle.registrationNumber}</p>
-                                                    <p className="text-[10px] text-slate-400 truncate">{driver.assignedVehicle.type}</p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-slate-300 italic">Not Assigned</p>
-                                        )}
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">License Expiry</p>
-                                        {driver.licenseExpiry ? (
-                                            <p className={`text-xs font-bold ${isExpired ? 'text-red-600' : 'text-slate-700'}`}>
-                                                {new Date(driver.licenseExpiry).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                            </p>
-                                        ) : (
-                                            <p className="text-xs text-slate-300 italic">Not Added</p>
-                                        )}
+                                    <div className={cn("mt-4 grid grid-cols-2 gap-3 pt-4 border-t", isExpired ? "border-red-100/50" : "border-slate-50")}>
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Assigned Vehicle</p>
+                                            {driver.assignedVehicle ? (
+                                                <p className="text-xs font-bold text-slate-700 mt-1 font-mono">{driver.assignedVehicle.registrationNumber}</p>
+                                            ) : (
+                                                <p className="text-xs text-slate-300 italic mt-1">Unassigned</p>
+                                            )}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">License Expiry</p>
+                                            {driver.licenseExpiry ? (
+                                                <span className={cn("text-xs font-bold flex items-center gap-1 mt-1", isExpired ? "text-red-600" : "text-emerald-600")}>
+                                                    {new Date(driver.licenseExpiry).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                </span>
+                                            ) : <span className="text-[10px] text-slate-300 mt-1">—</span>}
+                                        </div>
                                     </div>
                                 </div>
-                                {driver.address && (
-                                    <div className="mt-3 flex items-start gap-1.5">
-                                        <MapPin size={12} className={isExpired ? "text-red-300 mt-0.5 shrink-0" : "text-slate-300 mt-0.5 shrink-0"} />
-                                        <p className="text-[11px] text-slate-400 line-clamp-1">{driver.address}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </Card>
-                    )})}
+                            </Card>
+                        )})}
                 </div>
-            ) : (
+            )) : (
                 <Card className="py-16 flex flex-col items-center text-center">
                     <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 mb-4"><UserCheck size={32} /></div>
                     <h3 className="text-lg font-bold text-slate-900">No drivers yet</h3>

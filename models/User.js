@@ -150,6 +150,19 @@ const UserSchema = new Schema({
         pickupStop: String // Name of assigned pickup/drop stop
     },
 
+    // RTE & Scholarship Details
+    rte: {
+        isRte: { type: Boolean, default: false },
+        rteDocumentUrl: String,
+        rteDetails: String
+    },
+    scholarship: {
+        hasScholarship: { type: Boolean, default: false },
+        scholarshipName: String,
+        scholarshipAmount: { type: Number, default: 0 },
+        scholarshipType: { type: String, enum: ['flat', 'percentage'], default: 'flat' }
+    },
+
 
     // Security
     passwordResetToken: String,

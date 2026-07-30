@@ -111,7 +111,8 @@ const InstituteSchema = new Schema({
             hostel: { type: Boolean, default: false },
             bundleHostelInBaseFee: { type: Boolean, default: false },
             bundleTransportInBaseFee: { type: Boolean, default: false },
-            combinedCourseFees: { type: Boolean, default: false }
+            combinedCourseFees: { type: Boolean, default: false },
+            rteAndScholarship: { type: Boolean, default: false }
         },
 
         // Email settings

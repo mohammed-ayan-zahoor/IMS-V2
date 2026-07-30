@@ -26,7 +26,7 @@ const getVehicleIcon = (type, size = 16) => {
     }
 };
 
-export default function VehiclesTab() {
+export default function VehiclesTab({ viewMode = "card" }) {
     const toast = useToast();
     const [vehicles, setVehicles] = useState([]);
     const [routes, setRoutes] = useState([]);
@@ -142,93 +142,160 @@ export default function VehiclesTab() {
             </div>
 
             {vehicles.length > 0 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {vehicles.map(v => {
-                        const isRowExpired = (v.insuranceExpiry && isExpired(v.insuranceExpiry)) || (v.fitnessExpiry && isExpired(v.fitnessExpiry));
-                        return (
-                        <Card key={v._id} padding="p-0" className={cn("group hover:shadow-md transition-all overflow-hidden flex flex-row h-full", isRowExpired ? "!bg-red-100 !border !border-red-300" : "border border-transparent")}>
-                            {/* Photo Column */}
-                            <div className={cn("w-32 sm:w-40 border-r flex items-center justify-center shrink-0", isRowExpired ? "!bg-red-200 !border-red-300" : "bg-slate-50 border-slate-100")}>
-                                {v.photo ? (
-                                    <img src={v.photo} alt={v.registrationNumber} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="flex flex-col items-center text-slate-300 gap-2">
-                                        <Car size={32} />
-                                        <span className="text-[10px] font-bold uppercase tracking-widest">No Photo</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Details Column */}
-                            <div className="flex-1 p-5 min-w-0 flex flex-col justify-center">
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <h4 className="font-bold text-slate-900 text-base font-mono">{v.registrationNumber}</h4>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                                                {getVehicleIcon(v.type, 12)}
-                                                {v.type}{v.make ? ` · ${v.make}` : ""}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => openEdit(v)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={14} /></button>
-                                        <button onClick={() => setDeleting(v)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
-                                    </div>
-                                </div>
-
-                                <div className={cn("mt-4 grid grid-cols-2 gap-3 pt-4 border-t", isRowExpired ? "border-red-100/50" : "border-slate-50")}>
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Capacity</p>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-100">
-                                                <Users size={12} />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className={cn("text-xs font-bold truncate", v.currentOccupancy >= v.capacity ? "text-red-600" : v.currentOccupancy > v.capacity * 0.8 ? "text-amber-600" : "text-emerald-600")}>
+                viewMode === "table" ? (
+                    <Card className="overflow-hidden border-slate-100 p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-100">
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Reg. Number</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Type</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Capacity</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Route</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Insurance</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Fitness</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {vehicles.map(v => {
+                                        const isRowExpired = (v.insuranceExpiry && isExpired(v.insuranceExpiry)) || (v.fitnessExpiry && isExpired(v.fitnessExpiry));
+                                        return (
+                                            <tr key={v._id} className={cn("hover:bg-slate-50/50 transition-colors", isRowExpired && "bg-red-50/30 hover:bg-red-50/50")}>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        {v.photo && <img src={v.photo} alt={v.registrationNumber} className="w-8 h-8 rounded-lg object-cover border border-slate-200" />}
+                                                        <span className="font-mono font-bold text-slate-900">{v.registrationNumber}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="flex items-center gap-1.5 text-slate-600 font-semibold text-xs">
+                                                        {getVehicleIcon(v.type, 12)} {v.type}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 font-semibold text-slate-700">
                                                     {v.currentOccupancy || 0} / {v.capacity}
-                                                </p>
-                                                <p className="text-[10px] text-slate-400 truncate">Occupied</p>
-                                            </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-slate-600 font-medium">
+                                                    {v.route ? v.route.name : <span className="text-slate-300 italic">Unassigned</span>}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {v.insuranceExpiry ? (
+                                                        <span className={cn("text-xs font-bold", isExpired(v.insuranceExpiry) ? "text-red-600" : isExpiringSoon(v.insuranceExpiry) ? "text-amber-600" : "text-emerald-600")}>
+                                                            {new Date(v.insuranceExpiry).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        </span>
+                                                    ) : <span className="text-slate-300">—</span>}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {v.fitnessExpiry ? (
+                                                        <span className={cn("text-xs font-bold", isExpired(v.fitnessExpiry) ? "text-red-600" : isExpiringSoon(v.fitnessExpiry) ? "text-amber-600" : "text-emerald-600")}>
+                                                            {new Date(v.fitnessExpiry).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        </span>
+                                                    ) : <span className="text-slate-300">—</span>}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-1.5">
+                                                        <button onClick={() => openEdit(v)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={14} /></button>
+                                                        <button onClick={() => setDeleting(v)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {vehicles.map(v => {
+                            const isRowExpired = (v.insuranceExpiry && isExpired(v.insuranceExpiry)) || (v.fitnessExpiry && isExpired(v.fitnessExpiry));
+                            return (
+                            <Card key={v._id} padding="p-0" className={cn("group hover:shadow-md transition-all overflow-hidden flex flex-row h-full", isRowExpired ? "!bg-red-100 !border !border-red-300" : "border border-transparent")}>
+                                {/* Photo Column */}
+                                <div className={cn("w-32 sm:w-40 border-r flex items-center justify-center shrink-0", isRowExpired ? "!bg-red-200 !border-red-300" : "bg-slate-50 border-slate-100")}>
+                                    {v.photo ? (
+                                        <img src={v.photo} alt={v.registrationNumber} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="flex flex-col items-center text-slate-300 gap-2">
+                                            <Car size={32} />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest">No Photo</span>
                                         </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Route</p>
-                                        {v.route ? (
-                                            <div className="flex items-start gap-1.5 mt-1">
-                                                <MapPin size={12} className={isRowExpired ? "text-red-300 mt-0.5 shrink-0" : "text-slate-300 mt-0.5 shrink-0"} />
-                                                <p className="text-[11px] font-bold text-slate-700 line-clamp-1">{v.route.name}</p>
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-slate-300 italic mt-1">Unassigned</p>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
 
-                                <div className="mt-3 flex items-center gap-4 pt-3 border-t border-slate-50/50">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">INS:</span>
-                                        {v.insuranceExpiry ? (
-                                            <span className={cn("text-[10px] font-bold flex items-center gap-1", isExpired(v.insuranceExpiry) ? "text-red-600" : isExpiringSoon(v.insuranceExpiry) ? "text-amber-600" : "text-emerald-600")}>
-                                                {isExpired(v.insuranceExpiry) || isExpiringSoon(v.insuranceExpiry) ? <AlertTriangle size={10} /> : <CheckCircle size={10} />}
-                                                {new Date(v.insuranceExpiry).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
-                                            </span>
-                                        ) : <span className="text-[10px] text-slate-300">—</span>}
+                                {/* Details Column */}
+                                <div className="flex-1 p-5 min-w-0 flex flex-col justify-center">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 text-base font-mono">{v.registrationNumber}</h4>
+                                            <div className="flex items-center gap-3 mt-1">
+                                                <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                                                    {getVehicleIcon(v.type, 12)}
+                                                    {v.type}{v.make ? ` · ${v.make}` : ""}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => openEdit(v)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={14} /></button>
+                                            <button onClick={() => setDeleting(v)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">FIT:</span>
-                                        {v.fitnessExpiry ? (
-                                            <span className={cn("text-[10px] font-bold flex items-center gap-1", isExpired(v.fitnessExpiry) ? "text-red-600" : isExpiringSoon(v.fitnessExpiry) ? "text-amber-600" : "text-emerald-600")}>
-                                                {isExpired(v.fitnessExpiry) || isExpiringSoon(v.fitnessExpiry) ? <AlertTriangle size={10} /> : <CheckCircle size={10} />}
-                                                {new Date(v.fitnessExpiry).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
-                                            </span>
-                                        ) : <span className="text-[10px] text-slate-300">—</span>}
+
+                                    <div className={cn("mt-4 grid grid-cols-2 gap-3 pt-4 border-t", isRowExpired ? "border-red-100/50" : "border-slate-50")}>
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Capacity</p>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-6 h-6 rounded bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-100">
+                                                    <Users size={12} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className={cn("text-xs font-bold truncate", v.currentOccupancy >= v.capacity ? "text-red-600" : v.currentOccupancy > v.capacity * 0.8 ? "text-amber-600" : "text-emerald-600")}>
+                                                        {v.currentOccupancy || 0} / {v.capacity}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-400 truncate">Occupied</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Route</p>
+                                            {v.route ? (
+                                                <div className="flex items-start gap-1.5 mt-1">
+                                                    <MapPin size={12} className={isRowExpired ? "text-red-300 mt-0.5 shrink-0" : "text-slate-300 mt-0.5 shrink-0"} />
+                                                    <p className="text-[11px] font-bold text-slate-700 line-clamp-1">{v.route.name}</p>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-300 italic mt-1">Unassigned</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-3 flex items-center gap-4 pt-3 border-t border-slate-50/50">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">INS:</span>
+                                            {v.insuranceExpiry ? (
+                                                <span className={cn("text-[10px] font-bold flex items-center gap-1", isExpired(v.insuranceExpiry) ? "text-red-600" : isExpiringSoon(v.insuranceExpiry) ? "text-amber-600" : "text-emerald-600")}>
+                                                    {isExpired(v.insuranceExpiry) || isExpiringSoon(v.insuranceExpiry) ? <AlertTriangle size={10} /> : <CheckCircle size={10} />}
+                                                    {new Date(v.insuranceExpiry).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                                </span>
+                                            ) : <span className="text-[10px] text-slate-300">—</span>}
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">FIT:</span>
+                                            {v.fitnessExpiry ? (
+                                                <span className={cn("text-[10px] font-bold flex items-center gap-1", isExpired(v.fitnessExpiry) ? "text-red-600" : isExpiringSoon(v.fitnessExpiry) ? "text-amber-600" : "text-emerald-600")}>
+                                                    {isExpired(v.fitnessExpiry) || isExpiringSoon(v.fitnessExpiry) ? <AlertTriangle size={10} /> : <CheckCircle size={10} />}
+                                                    {new Date(v.fitnessExpiry).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                                </span>
+                                            ) : <span className="text-[10px] text-slate-300">—</span>}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </Card>
-                    )})}
-                </div>
+                            </Card>
+                            );
+                        })}
+                    </div>
+                )
             ) : (
                 <Card className="py-16 flex flex-col items-center text-center">
                     <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 mb-4"><Car size={32} /></div>

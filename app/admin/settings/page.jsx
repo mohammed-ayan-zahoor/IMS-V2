@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2, Hotel, MessageSquare } from "lucide-react";
+import { Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2, Hotel, MessageSquare, Award } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -372,6 +372,41 @@ export default function SettingsPage() {
                                 <span className={cn(
                                     "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200",
                                     institute.settings?.features?.hostel ? "translate-x-6" : "translate-x-0"
+                                )} />
+                            </button>
+                        </div>
+
+                        {/* RTE & Scholarship Toggle */}
+                        <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                                    <Award size={20} />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-700">RTE & Scholarship Concessions</h4>
+                                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">Flag students under RTE quota or configure scholarship concessions</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setInstitute({
+                                    ...institute,
+                                    settings: {
+                                        ...institute.settings,
+                                        features: {
+                                            ...institute.settings?.features,
+                                            rteAndScholarship: !institute.settings?.features?.rteAndScholarship
+                                        }
+                                    }
+                                })}
+                                className={cn(
+                                    "relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0",
+                                    institute.settings?.features?.rteAndScholarship ? "bg-emerald-500" : "bg-slate-200"
+                                )}
+                            >
+                                <span className={cn(
+                                    "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200",
+                                    institute.settings?.features?.rteAndScholarship ? "translate-x-6" : "translate-x-0"
                                 )} />
                             </button>
                         </div>

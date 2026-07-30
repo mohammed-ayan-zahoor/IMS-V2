@@ -78,6 +78,7 @@ export default function StudentDetailsPage({ params }) {
     const [transportPresets, setTransportPresets] = useState([]);
     const isTransportEnabled = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.features?.transport;
     const isHostelEnabled = session?.user?.institute?.features?.hostel;
+    const isRteEnabled = !!session?.user?.institute?.features?.rteAndScholarship;
 
 
     // Enrollment Modal State
@@ -327,6 +328,8 @@ export default function StudentDetailsPage({ params }) {
     const [formData, setFormData] = useState({
         guardianDetails: { name: "", relation: "", phone: "" },
         referredBy: "",
+        rte: { isRte: false, rteDocumentUrl: "", rteDetails: "" },
+        scholarship: { hasScholarship: false, scholarshipName: "", scholarshipAmount: 0, scholarshipType: "flat" },
         
         // Identity fields
         grNumber: "",
@@ -721,6 +724,8 @@ export default function StudentDetailsPage({ params }) {
                     },
                     guardianDetails: data.student.guardianDetails || { name: "", relation: "", phone: "" },
                     referredBy: data.student.referredBy || "",
+                    rte: data.student.rte || { isRte: false, rteDocumentUrl: "", rteDetails: "" },
+                    scholarship: data.student.scholarship || { hasScholarship: false, scholarshipName: "", scholarshipAmount: 0, scholarshipType: "flat" },
                     
                     // Metadata fields
                     grNumber: data.student.grNumber || "",
@@ -1617,6 +1622,34 @@ export default function StudentDetailsPage({ params }) {
                                     </div>
                                 </div>
 
+                                {isRteEnabled && (student.rte?.isRte || student.scholarship?.hasScholarship) && (
+                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
+                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">RTE & Scholarship Info</h3>
+                                        </div>
+                                        <div className="p-5 space-y-1">
+                                            {student.rte?.isRte && (
+                                                <>
+                                                    <InfoRow icon={Shield} label="RTE Status" value="Admitted under RTE Quota" />
+                                                    <InfoRow icon={FileText} label="RTE Details" value={student.rte.rteDetails} />
+                                                    {student.rte.rteDocumentUrl && (
+                                                        <div className="flex items-center justify-between py-2 border-b border-slate-50 text-xs">
+                                                            <span className="text-slate-400 font-medium">RTE Document</span>
+                                                            <a href={student.rte.rteDocumentUrl} target="_blank" rel="noreferrer" className="text-premium-blue hover:underline font-bold">View Document</a>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                            {student.scholarship?.hasScholarship && (
+                                                <>
+                                                    <InfoRow icon={Award} label="Scholarship Name" value={student.scholarship.scholarshipName} />
+                                                    <InfoRow icon={Tag} label="Scholarship Value" value={student.scholarship.scholarshipType === 'percentage' ? `${student.scholarship.scholarshipAmount}% Waiver` : `₹${student.scholarship.scholarshipAmount.toLocaleString('en-IN')} Discount`} />
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {isTransportEnabled && student.transport?.isAvailing && (
                                     <div className="premium-card p-6">
                                         <div className="flex items-center gap-3 mb-6">
@@ -2162,7 +2195,7 @@ export default function StudentDetailsPage({ params }) {
                                                 </Badge>
                                             </div>
                                             <div className="text-slate-600 text-sm italic">
-                                                "{fu.response}"
+                                                &ldquo;{fu.response}&rdquo;
                                             </div>
                                             {fu.nextActionDate && (
                                                 <div className="mt-3 pt-3 border-t border-dashed border-slate-100 flex items-center gap-2 text-[11px] font-bold text-premium-blue">
@@ -2651,6 +2684,7 @@ export default function StudentDetailsPage({ params }) {
                         studentData={studentData}
                         selectedSessionId={selectedSessionId}
                         isSchool={isSchool}
+                        isRteEnabled={isRteEnabled}
                     />
                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
@@ -3407,7 +3441,7 @@ export default function StudentDetailsPage({ params }) {
     );
 }
 
-function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets, studentData, selectedSessionId, isSchool }) {
+function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets, studentData, selectedSessionId, isSchool, isRteEnabled }) {
     const [editTab, setEditTab] = useState("basic");
 
     const tabClasses = (tab) => `
@@ -3422,6 +3456,9 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                 <button type="button" onClick={() => setEditTab("basic")} className={tabClasses("basic")}>Basic Profile</button>
                 <button type="button" onClick={() => setEditTab("parents")} className={tabClasses("parents")}>Parents & Origins</button>
                 <button type="button" onClick={() => setEditTab("school")} className={tabClasses("school")}>School & Certificate</button>
+                {isRteEnabled && (
+                    <button type="button" onClick={() => setEditTab("rte")} className={tabClasses("rte")}>RTE & Scholarship</button>
+                )}
                 {courses.length === 0 && ( // Just a hacky way to check if we have transport context or use a proper prop
                      <button type="button" onClick={() => setEditTab("transport")} className={tabClasses("transport")}>Transport</button>
                 )}
@@ -3548,13 +3585,13 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-4 p-5 bg-blue-50/50 rounded-2xl border border-blue-100/50">
-                                <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2"><User size={12}/> Father's Details</h4>
+                                <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2"><User size={12}/> Father&apos;s Details</h4>
                                 <Input label="Father's Full Name" value={formData.fatherName} onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })} />
                                 <Input label="Father's Phone" value={formData.fatherPhone} onChange={(e) => setFormData({ ...formData, fatherPhone: e.target.value })} />
                                 <Input label="Father's Aadhar" value={formData.fatherAadhar} onChange={(e) => setFormData({ ...formData, fatherAadhar: e.target.value })} />
                             </div>
                             <div className="space-y-4 p-5 bg-pink-50/50 rounded-2xl border border-pink-100/50">
-                                <h4 className="text-[10px] font-black text-pink-400 uppercase tracking-widest flex items-center gap-2"><User size={12}/> Mother's Details</h4>
+                                <h4 className="text-[10px] font-black text-pink-400 uppercase tracking-widest flex items-center gap-2"><User size={12}/> Mother&apos;s Details</h4>
                                 <Input label="Mother's Full Name" value={formData.motherName} onChange={(e) => setFormData({ ...formData, motherName: e.target.value })} />
                                 <Input label="Mother's Phone" value={formData.motherPhone} onChange={(e) => setFormData({ ...formData, motherPhone: e.target.value })} />
                                 <Input label="Mother's Aadhar" value={formData.motherAadhar} onChange={(e) => setFormData({ ...formData, motherAadhar: e.target.value })} />
@@ -3651,6 +3688,156 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                                     ]}
                                 />
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {editTab === "rte" && (
+                    <div className="space-y-6 animate-fade-in">
+                        {/* RTE Settings */}
+                        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-700">RTE (Right to Education) Admission</h4>
+                                    <p className="text-[11px] text-slate-400 font-medium">Flag student as admitted under the 25% RTE quota for free education</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({
+                                        ...formData,
+                                        rte: {
+                                            ...formData.rte,
+                                            isRte: !formData.rte?.isRte
+                                        }
+                                    })}
+                                    className={cn(
+                                        "relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0",
+                                        formData.rte?.isRte ? "bg-emerald-500" : "bg-slate-200"
+                                    )}
+                                >
+                                    <span className={cn(
+                                        "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200",
+                                        formData.rte?.isRte ? "translate-x-6" : "translate-x-0"
+                                    )} />
+                                </button>
+                            </div>
+
+                            {formData.rte?.isRte && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-100 animate-fade-in">
+                                    <Input
+                                        label="RTE Application / Ref ID"
+                                        placeholder="e.g. RTE/2026/8947"
+                                        value={formData.rte?.rteDetails || ""}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            rte: { ...formData.rte, rteDetails: e.target.value }
+                                        })}
+                                    />
+                                    <Input
+                                        label="Verification Document Link / URL"
+                                        placeholder="e.g. https://document-url"
+                                        value={formData.rte?.rteDocumentUrl || ""}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            rte: { ...formData.rte, rteDocumentUrl: e.target.value }
+                                        })}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Scholarship Settings */}
+                        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-700">Scholarship & Fee Concession</h4>
+                                    <p className="text-[11px] text-slate-400 font-medium">Link a scholarship scheme or discount category to this student</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({
+                                        ...formData,
+                                        scholarship: {
+                                            ...formData.scholarship,
+                                            hasScholarship: !formData.scholarship?.hasScholarship
+                                        }
+                                    })}
+                                    className={cn(
+                                        "relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0",
+                                        formData.scholarship?.hasScholarship ? "bg-emerald-500" : "bg-slate-200"
+                                    )}
+                                >
+                                    <span className={cn(
+                                        "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200",
+                                        formData.scholarship?.hasScholarship ? "translate-x-6" : "translate-x-0"
+                                    )} />
+                                </button>
+                            </div>
+
+                            {formData.scholarship?.hasScholarship && (
+                                <div className="space-y-4 pt-3 border-t border-slate-100 animate-fade-in">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <Input
+                                            label="Scholarship Scheme Name"
+                                            placeholder="e.g. Merit-cum-Means, Sports Scholarship"
+                                            value={formData.scholarship?.scholarshipName || ""}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                scholarship: { ...formData.scholarship, scholarshipName: e.target.value }
+                                            })}
+                                            required
+                                        />
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Discount Type</label>
+                                            <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({
+                                                        ...formData,
+                                                        scholarship: { ...formData.scholarship, scholarshipType: "flat" }
+                                                    })}
+                                                    className={cn(
+                                                        "flex-1 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                                        formData.scholarship?.scholarshipType === "flat"
+                                                            ? "bg-white text-slate-800 shadow-sm"
+                                                            : "text-slate-500 hover:text-slate-700"
+                                                    )}
+                                                >
+                                                    Flat Amount (₹)
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({
+                                                        ...formData,
+                                                        scholarship: { ...formData.scholarship, scholarshipType: "percentage" }
+                                                    })}
+                                                    className={cn(
+                                                        "flex-1 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                                        formData.scholarship?.scholarshipType === "percentage"
+                                                            ? "bg-white text-slate-800 shadow-sm"
+                                                            : "text-slate-500 hover:text-slate-700"
+                                                    )}
+                                                >
+                                                    Percentage (%)
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <Input
+                                            label={formData.scholarship?.scholarshipType === "percentage" ? "Discount Percentage (%)" : "Discount Amount (₹)"}
+                                            type="number"
+                                            placeholder="e.g. 50"
+                                            value={formData.scholarship?.scholarshipAmount || ""}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                scholarship: { ...formData.scholarship, scholarshipAmount: parseFloat(e.target.value) || 0 }
+                                            })}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

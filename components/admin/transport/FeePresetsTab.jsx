@@ -17,7 +17,7 @@ const BILLING_CYCLES = [
     { label: "Annual", value: "annual" }
 ];
 
-export default function FeePresetsTab() {
+export default function FeePresetsTab({ viewMode = "card" }) {
     const toast = useToast();
     const [presets, setPresets] = useState([]);
     const [routes, setRoutes] = useState([]);
@@ -146,68 +146,112 @@ export default function FeePresetsTab() {
             </div>
 
             {presets.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {presets.map(preset => (
-                        <Card key={preset._id} className="group hover:shadow-md transition-all border-slate-100">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-premium-blue/5 text-premium-blue flex items-center justify-center border border-premium-blue/10">
-                                        <CreditCard size={18} />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-slate-900 text-[14px]">{preset.name}</h4>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <Badge variant="soft" className="text-[10px] uppercase font-bold">{preset.billingCycle}</Badge>
-                                            {preset.maxCycles && (
-                                                <Badge className="bg-amber-50 text-amber-600 border-amber-100 text-[10px] font-bold">
-                                                    {preset.maxCycles} {preset.billingCycle === 'monthly' ? 'Months' : 'Cycles'}
-                                                </Badge>
-                                            )}
+                viewMode === "table" ? (
+                    <Card className="overflow-hidden border-slate-100 p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-100">
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Preset Name</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Route</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Cycle</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Max Cycles</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Amount</th>
+                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {presets.map(preset => (
+                                        <tr key={preset._id} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-6 py-4 font-bold text-slate-900">{preset.name}</td>
+                                            <td className="px-6 py-4 text-slate-600 font-medium">
+                                                {preset.route ? preset.route.name : <span className="text-slate-300 italic">All Routes</span>}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <Badge variant="soft" className="text-[10px] uppercase font-bold">{preset.billingCycle}</Badge>
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-600 font-semibold">
+                                                {preset.maxCycles ? `${preset.maxCycles} Cycles` : "Full Session"}
+                                            </td>
+                                            <td className="px-6 py-4 font-bold text-slate-900">
+                                                ₹{preset.amount.toLocaleString('en-IN')}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex justify-end gap-1.5">
+                                                    <button onClick={() => openEdit(preset)} className="p-1.5 text-slate-400 hover:text-premium-blue hover:bg-premium-blue/5 rounded-lg"><Edit2 size={14} /></button>
+                                                    <button onClick={() => setDeleting(preset)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {presets.map(preset => (
+                            <Card key={preset._id} className="group hover:shadow-md transition-all border-slate-100">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-premium-blue/5 text-premium-blue flex items-center justify-center border border-premium-blue/10">
+                                            <CreditCard size={18} />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 text-[14px]">{preset.name}</h4>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <Badge variant="soft" className="text-[10px] uppercase font-bold">{preset.billingCycle}</Badge>
+                                                {preset.maxCycles && (
+                                                    <Badge className="bg-amber-50 text-amber-600 border-amber-100 text-[10px] font-bold">
+                                                        {preset.maxCycles} {preset.billingCycle === 'monthly' ? 'Months' : 'Cycles'}
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => openEdit(preset)} className="p-1.5 text-slate-400 hover:text-premium-blue hover:bg-premium-blue/5 rounded-lg"><Edit2 size={14} /></button>
+                                        <button onClick={() => setDeleting(preset)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                                    </div>
                                 </div>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => openEdit(preset)} className="p-1.5 text-slate-400 hover:text-premium-blue hover:bg-premium-blue/5 rounded-lg"><Edit2 size={14} /></button>
-                                    <button onClick={() => setDeleting(preset)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
-                                </div>
-                            </div>
 
-                            <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100/50 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-slate-500">
-                                        <Tag size={14} />
-                                        <span className="text-xs font-bold uppercase tracking-wider text-[10px]">Fee Amount</span>
+                                <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100/50 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-slate-500">
+                                            <Tag size={14} />
+                                            <span className="text-xs font-bold uppercase tracking-wider text-[10px]">Fee Amount</span>
+                                        </div>
+                                        <p className="text-sm font-black text-slate-900">₹{preset.amount.toLocaleString('en-IN')}</p>
                                     </div>
-                                    <p className="text-sm font-black text-slate-900">₹{preset.amount.toLocaleString('en-IN')}</p>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-slate-500">
-                                        <Calendar size={14} />
-                                        <span className="text-xs font-bold uppercase tracking-wider text-[10px]">Duration</span>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-slate-500">
+                                            <Calendar size={14} />
+                                            <span className="text-xs font-bold uppercase tracking-wider text-[10px]">Duration</span>
+                                        </div>
+                                        <p className="text-xs font-bold text-slate-700">
+                                            {preset.maxCycles ? `${preset.maxCycles} ${preset.billingCycle === 'monthly' ? 'Months' : 'Cycles'}` : "Full Session"}
+                                        </p>
                                     </div>
-                                    <p className="text-xs font-bold text-slate-700">
-                                        {preset.maxCycles ? `${preset.maxCycles} ${preset.billingCycle === 'monthly' ? 'Months' : 'Cycles'}` : "Full Session"}
-                                    </p>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-slate-500">
-                                        <Route size={14} />
-                                        <span className="text-xs font-bold uppercase tracking-wider text-[10px]">Linked Route</span>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-slate-500">
+                                            <Route size={14} />
+                                            <span className="text-xs font-bold uppercase tracking-wider text-[10px]">Linked Route</span>
+                                        </div>
+                                        <p className="text-xs font-bold text-slate-700 truncate max-w-[120px]">
+                                            {preset.route?.name || "All Routes"}
+                                        </p>
                                     </div>
-                                    <p className="text-xs font-bold text-slate-700 truncate max-w-[120px]">
-                                        {preset.route?.name || "All Routes"}
-                                    </p>
                                 </div>
-                            </div>
 
-                            {preset.description && (
-                                <p className="text-[11px] text-slate-400 font-medium mt-4 line-clamp-2 italic px-1">
-                                    "{preset.description}"
-                                </p>
-                            )}
-                        </Card>
-                    ))}
-                </div>
+                                {preset.description && (
+                                    <p className="text-[11px] text-slate-400 font-medium mt-4 line-clamp-2 italic px-1">
+                                        &quot;{preset.description}&quot;
+                                    </p>
+                                )}
+                            </Card>
+                        ))}
+                    </div>
+                )
             ) : (
                 <Card className="py-16 flex flex-col items-center text-center border-dashed border-slate-200 bg-slate-50/50">
                     <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-slate-300 mb-4 border border-slate-100"><CreditCard size={32} /></div>
@@ -254,7 +298,7 @@ export default function FeePresetsTab() {
                         <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={18} />
                         <div className="text-[11px] text-amber-700 leading-relaxed">
                             <p className="font-bold uppercase tracking-wider mb-1">Billing Tip:</p>
-                            If you set the duration to 10 months, students will only be charged for the first 10 months of the academic session. This is useful for institutes that don't charge during summer vacations.
+                            If you set the duration to 10 months, students will only be charged for the first 10 months of the academic session. This is useful for institutes that don&apos;t charge during summer vacations.
                         </div>
                     </div>
                     
