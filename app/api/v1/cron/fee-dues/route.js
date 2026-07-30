@@ -5,7 +5,7 @@ import User from "@/models/User";
 import { getBeamsInstance } from "@/lib/pusher";
 
 const CRON_SECRET = process.env.CRON_SECRET || "ims_cron_secret_2026";
-const BEAMS_BATCH_LIMIT = 1000;
+const BEAMS_BATCH_LIMIT = 1000; // Pusher Beams supports up to 1,000 unique user IDs per single publish call
 
 export async function GET(req) {
     return handleFeeDuesCron(req);
@@ -15,6 +15,7 @@ export async function POST(req) {
     return handleFeeDuesCron(req);
 }
 
+// Helper to split array into chunks of 1,000
 function chunkArray(array, chunkSize) {
     const chunks = [];
     for (let i = 0; i < array.length; i += chunkSize) {
@@ -28,7 +29,6 @@ async function handleFeeDuesCron(req) {
         const { searchParams } = new URL(req.url);
         const secretParam = searchParams.get("secret");
         const secretHeader = req.headers.get("x-cron-secret");
-        const testStudentId = searchParams.get("studentId"); // Optional parameter for testing specific student
 
         // Security check
         if (secretParam !== CRON_SECRET && secretHeader !== CRON_SECRET) {
@@ -44,12 +44,11 @@ async function handleFeeDuesCron(req) {
         inThreeDays.setDate(inThreeDays.getDate() + 3);
         inThreeDays.setHours(23, 59, 59, 999);
 
-        // If testing a specific student ID, query by student ID directly
-        const feeQuery = testStudentId
-            ? { student: testStudentId }
-            : { status: { $in: ["not_started", "partial", "overdue"] }, balanceAmount: { $gt: 0 } };
-
-        const activeFees = await Fee.find(feeQuery)
+        // Fetch unpaid fees using lean query selecting ONLY required fields
+        const activeFees = await Fee.find({
+            status: { $in: ["not_started", "partial", "overdue"] },
+            balanceAmount: { $gt: 0 }
+        })
             .select("student institute balanceAmount installments status")
             .populate("student", "profile.firstName email role")
             .populate("institute", "name")
@@ -58,11 +57,13 @@ async function handleFeeDuesCron(req) {
         if (!activeFees || activeFees.length === 0) {
             return NextResponse.json({
                 success: true,
-                message: testStudentId ? `No fee records found for student ${testStudentId}` : "No pending or overdue fee dues found",
-                count: 0
+                message: "No pending or overdue fee dues found",
+                count: 0,
+                processed: 0
             });
         }
 
+        // Partition notifications by (instituteId + notificationCategory) using a Set for unique student IDs
         const groupedMap = {};
 
         for (const feeDoc of activeFees) {
@@ -90,8 +91,7 @@ async function handleFeeDuesCron(req) {
                 }
             }
 
-            // If not testing a specific student, skip if not due in 3 days or overdue
-            if (!testStudentId && !matchingInstallment && feeDoc.status !== "overdue") continue;
+            if (!matchingInstallment && feeDoc.status !== "overdue") continue;
 
             const category = isOverdue ? "overdue" : "upcoming";
             const groupKey = `${instId}::${category}`;
@@ -111,6 +111,7 @@ async function handleFeeDuesCron(req) {
         let totalPushedCount = 0;
         const publishLogs = [];
 
+        // Publish using Pusher Beams bulk batching
         for (const [groupKey, group] of Object.entries(groupedMap)) {
             const { instituteId, instituteName, category, studentIdsSet } = group;
             const uniqueStudentIds = Array.from(studentIdsSet);
@@ -152,6 +153,7 @@ async function handleFeeDuesCron(req) {
                 }
             };
 
+            // Chunk unique student IDs into batches of 1,000
             const idChunks = chunkArray(uniqueStudentIds, BEAMS_BATCH_LIMIT);
 
             for (const chunk of idChunks) {
@@ -163,8 +165,7 @@ async function handleFeeDuesCron(req) {
                         category,
                         instituteName,
                         targetCount: chunk.length,
-                        publishId: res.publishId,
-                        students: chunk
+                        publishId: res.publishId
                     });
                 } catch (beamsErr) {
                     console.error(`[Fee Dues Bulk] Error publishing batch of ${chunk.length} students:`, beamsErr);
