@@ -1,6 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingRoot: process.cwd(),
+  productionBrowserSourceMaps: false,
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'framer-motion',
+      'recharts',
+      'date-fns',
+      'intl'
+    ],
+  },
   async rewrites() {
     return [
       {
