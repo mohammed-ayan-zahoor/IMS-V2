@@ -55,7 +55,7 @@ export async function GET(req) {
         };
 
         if (activeSession) {
-            batchQuery.session = activeSession._id;
+            batchQuery.session = { $in: [activeSession._id, null] };
         }
 
         // Get batches first with correct elemMatch query

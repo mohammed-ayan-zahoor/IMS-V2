@@ -47,7 +47,7 @@ export async function GET(req) {
         };
 
         if (activeSession) {
-            query.session = activeSession._id;
+            query.session = { $in: [activeSession._id, null] };
         }
 
         const batches = await Batch.find(query)

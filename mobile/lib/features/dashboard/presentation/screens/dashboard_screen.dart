@@ -171,45 +171,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ],
                           ),
                         ),
-                        // Dropdown Selector
-                        Consumer<AcademicSessionProvider>(
-                          builder: (context, sessionProv, _) {
-                            if (sessionProv.sessions.isEmpty) return const SizedBox.shrink();
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEFF4FF),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: const Color(0xFFC4C6CF)),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: sessionProv.selectedSessionId,
-                                  isDense: true,
-                                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF002045), size: 18),
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF002045),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  dropdownColor: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  items: sessionProv.sessions.map((s) {
-                                    return DropdownMenuItem<String>(
-                                      value: s.id,
-                                      child: Text(s.sessionName),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      sessionProv.selectSession(val);
-                                    }
-                                  },
-                                ),
-                              ),
-                            );
-                          },
-                        ),
                       ],
                     ),
                     const SizedBox(height: 24),

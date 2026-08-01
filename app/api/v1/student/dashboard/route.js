@@ -65,7 +65,7 @@ export async function GET(req) {
             deletedAt: null
         };
         if (activeSession) {
-            activeBatchQuery.session = activeSession._id;
+            activeBatchQuery.session = { $in: [activeSession._id, null] };
         }
 
         const studentBatches = await Batch.find(activeBatchQuery).select("course _id");

@@ -47,6 +47,11 @@ const FeeSchema = new Schema({
         required: true,
         index: true
     },
+    courseBundle: {
+        type: Schema.Types.ObjectId,
+        ref: 'CourseBundle',
+        index: true
+    },
     totalAmount: { type: Number, required: true, min: 0 },
     discount: {
         amount: { type: Number, default: 0, min: 0 },
