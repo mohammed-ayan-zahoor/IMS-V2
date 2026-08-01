@@ -11,6 +11,7 @@ const DriverSchema = new Schema({
     address: { type: String, trim: true },
     photo: { type: String }, // URL
     assignedVehicle: { type: Schema.Types.ObjectId, ref: 'Vehicle' }, // Current assignment
+    pinHash: { type: String, select: false }, // 4-digit PIN hash for driver mobile app
     isActive: { type: Boolean, default: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     deletedAt: { type: Date, index: true }
