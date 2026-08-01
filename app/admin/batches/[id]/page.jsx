@@ -542,7 +542,7 @@ function TimetableTab({ batchId, subjects = [] }) {
 
                 {/* Editing Overrides Modal */}
                 {editingOverridesDay !== null && typeof document !== 'undefined' && createPortal(
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4">
                         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 transform scale-100 transition-all">
                             <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
                                 <h3 className="text-sm font-bold text-slate-900">

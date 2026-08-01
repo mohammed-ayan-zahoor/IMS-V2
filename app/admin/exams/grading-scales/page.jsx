@@ -202,7 +202,7 @@ export default function GradingScalesPage() {
 
             {/* Create/Edit Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
                     <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
                         <div className="p-6 space-y-6">
                             <h2 className="text-xl font-bold text-slate-900">{editingId ? "Edit" : "Create"} Grading Scale</h2>

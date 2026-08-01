@@ -86,7 +86,7 @@ export default function QuickAddModal({ isOpen, onClose }) {
 
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <div onClick={onClose} className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+            <div onClick={onClose} className="absolute inset-0 bg-slate-900/60" />
             <div className="bg-white rounded-[14px] shadow-2xl w-full max-w-lg relative z-10 animate-in fade-in zoom-in duration-200 premium-card overflow-hidden">
                 <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
                     <div>

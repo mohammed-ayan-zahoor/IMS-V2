@@ -677,7 +677,7 @@ export default function MouTrackerPage() {
                 )}
             {/* Collect Payment Modal overlay */}
             {isPaymentModalOpen && selectedSubmission && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
                     <div className="bg-white rounded-[32px] w-full max-w-lg shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-200">
                         {/* Modal Header */}
                         <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 p-6 text-white relative">

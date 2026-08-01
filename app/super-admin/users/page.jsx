@@ -216,7 +216,7 @@ export default function AdminManagementPage() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsModalOpen(false)}
-                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                            className="absolute inset-0 bg-slate-900/60"
                         />
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -302,7 +302,7 @@ export default function AdminManagementPage() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsCreateModalOpen(false)}
-                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                            className="absolute inset-0 bg-slate-900/60"
                         />
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0, y: 20 }}

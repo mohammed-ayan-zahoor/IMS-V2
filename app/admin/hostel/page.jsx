@@ -871,7 +871,7 @@ export default function HostelManagementPage() {
             
             {/* Create Block Modal */}
             {activeModal === "block" && createPortal(
-                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setActiveModal(null); }}>
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/60" onClick={e => { if (e.target === e.currentTarget) setActiveModal(null); }}>
                     <Card className="w-full max-w-md shadow-2xl border border-slate-100 relative" title="Create New Hostel Block">
                         <form onSubmit={handleCreateBlock} className="space-y-4">
                             <Input
@@ -936,7 +936,7 @@ export default function HostelManagementPage() {
 
             {/* Create Room Modal */}
             {activeModal === "room" && createPortal(
-                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setActiveModal(null); }}>
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/60" onClick={e => { if (e.target === e.currentTarget) setActiveModal(null); }}>
                     <Card className="w-full max-w-md shadow-2xl border border-slate-100" title="Create New Hostel Room">
                         <form onSubmit={handleCreateRoom} className="space-y-4">
                             <div className="space-y-1.5">
@@ -1021,7 +1021,7 @@ export default function HostelManagementPage() {
 
             {/* Allot Room Modal */}
             {activeModal === "allot" && createPortal(
-                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setActiveModal(null); }}>
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/60" onClick={e => { if (e.target === e.currentTarget) setActiveModal(null); }}>
                     <Card className="w-full max-w-md shadow-2xl border border-slate-100" title="Allocate Hostel Room">
                         <form onSubmit={handleCreateAllotment} className="space-y-4">
                             <div className="space-y-1.5">
@@ -1129,7 +1129,7 @@ export default function HostelManagementPage() {
 
             {/* Record Payment Modal */}
             {activeModal === "payment" && createPortal(
-                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setActiveModal(null); }}>
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/60" onClick={e => { if (e.target === e.currentTarget) setActiveModal(null); }}>
                     <Card className="w-full max-w-md shadow-2xl border border-slate-100" title="Process Installment Receipt">
                         <form onSubmit={handleRecordPayment} className="space-y-4">
                             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-2">
@@ -1201,7 +1201,7 @@ export default function HostelManagementPage() {
 
             {/* Vacate Room Modal */}
             {activeModal === "vacate" && createPortal(
-                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setActiveModal(null); }}>
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/60" onClick={e => { if (e.target === e.currentTarget) setActiveModal(null); }}>
                     <Card className="w-full max-w-sm shadow-2xl border border-rose-100" title="Vacate Room Allotment">
                         <form onSubmit={handleVacateRoom} className="space-y-4">
                             <div className="flex items-start gap-3 p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-800 text-xs">

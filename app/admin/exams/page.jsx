@@ -348,7 +348,7 @@ export default function ExamListPage() {
 
             {/* Help Modal */}
             {showHelpModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
                     <Card className="w-full max-w-2xl max-h-[85vh] overflow-y-auto flex flex-col">
                         <div className="flex justify-between items-center p-6 border-b border-slate-100 sticky top-0 bg-white z-10">
                             <div>

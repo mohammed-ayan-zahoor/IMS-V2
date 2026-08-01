@@ -618,7 +618,7 @@ export default function StudentFeesPage() {
                             onClick={() => {
                                 if (setupStep !== 2) setActiveFeeForAutopay(null);
                             }}
-                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                            className="absolute inset-0 bg-slate-900/60"
                         />
 
                         {/* Modal Container */}

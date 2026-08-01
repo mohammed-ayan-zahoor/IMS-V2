@@ -385,7 +385,7 @@ export default function MaterialsPage() {
 
             {isModalOpen && mounted && createPortal(
                 <div
-                    className="fixed inset-0 z-[100] flex items-start md:items-center justify-center bg-black/60 backdrop-blur-md p-4 py-10 animate-in fade-in"
+                    className="fixed inset-0 z-[100] flex items-start md:items-center justify-center bg-black/60 p-4 py-10 animate-in fade-in"
                     onClick={() => setIsModalOpen(false)}
                 >
                     <form 
