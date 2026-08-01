@@ -142,7 +142,8 @@ export default function FeesPage() {
         try {
             setLoading(true);
             const url = new URL('/api/v1/fees', window.location.origin);
-            if (selectedSessionId) url.searchParams.append('session', selectedSessionId);
+            // ponytail: only send session for schools — non-school batches have no session field
+            if (isSchool && selectedSessionId) url.searchParams.append('session', selectedSessionId);
             if (selectedCourse) url.searchParams.append('course', selectedCourse);
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
             if (percentageFilter) url.searchParams.append('percentage', percentageFilter);
@@ -187,7 +188,8 @@ export default function FeesPage() {
     const fetchStats = async () => {
         try {
             const url = new URL('/api/v1/fees/stats', window.location.origin);
-            if (selectedSessionId) url.searchParams.append('session', selectedSessionId);
+            // ponytail: only send session for schools
+            if (isSchool && selectedSessionId) url.searchParams.append('session', selectedSessionId);
             if (selectedCourse) url.searchParams.append('course', selectedCourse);
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
             if (showDiscountedOnly) url.searchParams.append('discountOnly', 'true');
