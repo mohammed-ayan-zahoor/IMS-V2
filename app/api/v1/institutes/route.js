@@ -181,18 +181,29 @@ export async function POST(req) {
             institute = await createInstituteLogic(dbSession, false); // No manual rollback in transaction
             await dbSession.commitTransaction();
         } catch (error) {
-            await dbSession.abortTransaction();
-            // Check for Standalone MongoDB error (Code 20: IllegalOperation)
-            // or if the error message explicitly mentions transaction numbers support
-            if (error.code === 20 || error.message?.includes("Transaction numbers")) {
+            try {
+                await dbSession.abortTransaction();
+            } catch (abortErr) {
+                // Ignore abort error on standalone MongoDB
+            }
+
+            const errorStr = `${error.message || ''} ${error.errmsg || ''} ${error.originalError || ''}`;
+            const isStandalone = 
+                error.code === 20 ||
+                error.codeName === 'IllegalOperation' ||
+                errorStr.includes("Transaction numbers");
+
+            if (isStandalone) {
                 console.warn("MongoDB Transactions not supported (Standalone mode). Falling back to sequential execution.");
                 // Retry without a session (non-transactional) but WITH manual rollback
                 try {
                     institute = await createInstituteLogic(null, true);
                 } catch (retryError) {
-                    // Handle duplicate key error manually during retry if needed, or just let it bubble
                     if (retryError.code === 11000) {
                         return NextResponse.json({ error: "Institute Code or User Email already exists" }, { status: 400 });
+                    }
+                    if (retryError.message === "Admin email already exists") {
+                        return NextResponse.json({ error: "Admin email already exists" }, { status: 400 });
                     }
                     console.error("Final Create Error (Sequential):", retryError);
                     throw retryError;
@@ -202,10 +213,15 @@ export async function POST(req) {
                 if (error.code === 11000) {
                     return NextResponse.json({ error: "Institute Code or User Email already exists" }, { status: 400 });
                 }
+                if (error.message === "Admin email already exists") {
+                    return NextResponse.json({ error: "Admin email already exists" }, { status: 400 });
+                }
                 throw error;
             }
         } finally {
-            dbSession.endSession();
+            try {
+                dbSession.endSession();
+            } catch (e) {}
         }
 
         return NextResponse.json({ success: true, institute });

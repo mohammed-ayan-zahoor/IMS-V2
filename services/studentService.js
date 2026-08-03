@@ -205,9 +205,10 @@ export class StudentService {
 
             return true;
         } catch (error) {
-            await session.abortTransaction();
+            try { await session.abortTransaction(); } catch (e) {}
             // Fallback for standalone mongo (which doesn't support transactions)
-            if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
+            const errorStr = `${error.message || ''} ${error.errmsg || ''} ${error.originalError || ''}`;
+            if (error.code === 20 || error.codeName === 'IllegalOperation' || errorStr.includes('Transaction numbers')) {
                 // Manual Cleanup without transaction (Fallback)
                 const student = await User.findById(studentId);
                 if (!student) return false;
@@ -718,14 +719,15 @@ export class StudentService {
 
             return { student, batch, fee: fee[0] };
         } catch (error) {
-            await session.abortTransaction();
+            try { await session.abortTransaction(); } catch (e) {}
             // Fallback for standalone mongo (Replica Set required for transactions)
-            if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set')) {
+            const errorStr = `${error.message || ''} ${error.errmsg || ''} ${error.originalError || ''}`;
+            if (error.code === 20 || error.codeName === 'IllegalOperation' || errorStr.includes('Transaction numbers')) {
                 return this.enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount, presetId, installments);
             }
             throw error;
         } finally {
-            session.endSession();
+            try { session.endSession(); } catch (e) {}
         }
     }
 

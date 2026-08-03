@@ -205,12 +205,13 @@ export async function POST(req) {
 
                     await session.commitTransaction();
                 } catch (err) {
-                    await session.abortTransaction();
+                    try { await session.abortTransaction(); } catch (e) {}
                     throw err;
                 }
             } catch (err) {
                 // FALLBACK for Standalone MongoDB (e.g. Local Dev without Replica Set)
-                if (err.message?.includes('Transaction numbers are only allowed on a replica set')) {
+                const errStr = `${err.message || ''} ${err.errmsg || ''} ${err.originalError || ''}`;
+                if (err.code === 20 || err.codeName === 'IllegalOperation' || errStr.includes('Transaction numbers')) {
                     console.warn("Retrying User Creation without transaction (Standalone MongoDB detected)");
                     user = await User.create(userPayload);
                     await Membership.create({
@@ -223,7 +224,7 @@ export async function POST(req) {
                     throw err;
                 }
             } finally {
-                session.endSession();
+                try { session.endSession(); } catch (e) {}
             }
         }
 
