@@ -39,6 +39,30 @@ export async function POST(req) {
         const ip = req.headers.get("x-forwarded-for") || req.ip || "127.0.0.1";
         const userAgent = req.headers.get("user-agent") || "";
 
+        const duration = Math.max(1, Number(mouDuration) || 1);
+        const count = Math.max(0, Number(studentCount) || 0);
+
+        let upfrontPercent = 0.5;
+        if (count <= 500) {
+            upfrontPercent = 1;
+        } else if (count <= 1000) {
+            upfrontPercent = 0.75;
+        }
+
+        const calculatedTotal = count * 59 * duration;
+        const calculatedUpfront = calculatedTotal * upfrontPercent;
+
+        // If client-provided price is missing duration multiplier or invalid, use calculated
+        let finalTotalPrice = Number(totalPrice);
+        if (!finalTotalPrice || (duration > 1 && finalTotalPrice === count * 59)) {
+            finalTotalPrice = calculatedTotal;
+        }
+
+        let finalUpfrontPrice = Number(upfrontPrice);
+        if (!finalUpfrontPrice || (duration > 1 && Math.abs(finalUpfrontPrice - (count * 59 * 0.7)) < 1)) {
+            finalUpfrontPrice = calculatedUpfront;
+        }
+
         const submission = await MouSubmission.create({
             refId,
             schoolName,
@@ -47,12 +71,12 @@ export async function POST(req) {
             designation,
             contactEmail,
             contactPhone,
-            studentCount: Number(studentCount),
+            studentCount: count,
             udiseCode,
             address,
-            totalPrice: Number(totalPrice),
-            upfrontPrice: Number(upfrontPrice),
-            mouDuration: Number(mouDuration) || 1,
+            totalPrice: finalTotalPrice,
+            upfrontPrice: finalUpfrontPrice,
+            mouDuration: duration,
             action,
             signatureDataUrl,
             metadata: {
@@ -108,6 +132,21 @@ export async function GET(req) {
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit);
+
+        // Auto-heal legacy records where mouDuration > 1 but totalPrice was not multiplied by duration
+        for (const sub of submissions) {
+            const count = sub.studentCount || 0;
+            const duration = sub.mouDuration || 1;
+            if (count > 0 && duration > 1 && sub.totalPrice === count * 59) {
+                let upfrontPercent = 0.5;
+                if (count <= 500) upfrontPercent = 1;
+                else if (count <= 1000) upfrontPercent = 0.75;
+
+                sub.totalPrice = count * 59 * duration;
+                sub.upfrontPrice = sub.totalPrice * upfrontPercent;
+                await sub.save().catch(e => console.error("Auto-heal MouSubmission error:", e));
+            }
+        }
 
         return NextResponse.json({
             submissions,

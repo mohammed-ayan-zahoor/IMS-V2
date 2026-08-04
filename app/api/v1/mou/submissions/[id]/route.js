@@ -20,6 +20,19 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "MOU submission not found" }, { status: 404 });
         }
 
+        // Auto-heal legacy record if needed
+        const count = submission.studentCount || 0;
+        const duration = submission.mouDuration || 1;
+        if (count > 0 && duration > 1 && submission.totalPrice === count * 59) {
+            let upfrontPercent = 0.5;
+            if (count <= 500) upfrontPercent = 1;
+            else if (count <= 1000) upfrontPercent = 0.75;
+
+            submission.totalPrice = count * 59 * duration;
+            submission.upfrontPrice = submission.totalPrice * upfrontPercent;
+            await submission.save().catch(e => console.error("Auto-heal MouSubmission error:", e));
+        }
+
         return NextResponse.json({ success: true, submission });
     } catch (error) {
         console.error("Failed to fetch MOU submission:", error);

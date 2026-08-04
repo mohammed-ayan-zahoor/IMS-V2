@@ -1016,8 +1016,16 @@ async function trackMouAction(actionType) {
     }
 
     const studentCount = parseInt(students) || 0;
-    const totalPrice = studentCount * 59;
-    const upfrontPrice = totalPrice * 0.7;
+    const duration = parseInt(document.getElementById('f-duration')?.value || '1');
+    const totalPrice = studentCount * 59 * duration;
+
+    let upfrontPercent = 0.5;
+    if (studentCount <= 500) {
+      upfrontPercent = 1;
+    } else if (studentCount <= 1000) {
+      upfrontPercent = 0.75;
+    }
+    const upfrontPrice = totalPrice * upfrontPercent;
 
     const sigImg = hasSig ? canvas.toDataURL('image/png') : '';
 
