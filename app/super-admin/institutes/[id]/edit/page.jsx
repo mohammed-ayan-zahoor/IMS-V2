@@ -2,39 +2,37 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { motion } from "framer-motion";
-import {
-    Building2,
-    ArrowLeft,
-    Shield,
-    Phone,
-    MapPin,
-    Zap,
-    Save,
-    Activity,
-    Users
-} from "lucide-react";
-import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
-import Button from "@/components/ui/Button";
+import { 
+    Card, 
+    Typography, 
+    Button, 
+    Form, 
+    Input, 
+    InputNumber, 
+    Select, 
+    DatePicker,
+    Space, 
+    Row, 
+    Col,
+    Spin
+} from "antd";
+import { 
+    ArrowLeftOutlined,
+    BankOutlined,
+    SafetyCertificateOutlined,
+    PhoneOutlined,
+    UserOutlined,
+    EnvironmentOutlined,
+    ThunderboltOutlined,
+    SaveOutlined
+} from "@ant-design/icons";
+import { useToast } from "@/contexts/ToastContext";
+import dayjs from "dayjs";
 
-const container = {
-    hidden: { opacity: 0, y: 20 },
-    show: {
-        opacity: 1,
-        y: 0,
-        transition: {
-            staggerChildren: 0.1,
-            duration: 0.4,
-            ease: [0.23, 1, 0.32, 1]
-        }
-    }
-};
-
-const item = {
-    hidden: { opacity: 0, x: -10 },
-    show: { opacity: 1, x: 0 }
-};
+const { Title, Text } = Typography;
+const { TextArea } = Input;
+const { Option } = Select;
 
 export default function EditInstitutePage() {
     const toast = useToast();
@@ -42,16 +40,8 @@ export default function EditInstitutePage() {
     const params = useParams();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [formData, setFormData] = useState({
-        name: "",
-        code: "",
-        contactPhone: "",
-        addressStr: "",
-        status: "active",
-        maxStudents: 500,
-        plan: "free",
-        endDate: ""
-    });
+    const [form] = Form.useForm();
+    const [instituteName, setInstituteName] = useState("");
 
     useEffect(() => {
         const controller = new AbortController();
@@ -65,7 +55,10 @@ export default function EditInstitutePage() {
                 const data = await res.json();
                 const inst = data.institute;
                 if (!inst) throw new Error("Institute data not found.");
-                setFormData({
+                
+                setInstituteName(inst.name || "");
+                
+                form.setFieldsValue({
                     name: inst.name || "",
                     code: inst.code || "",
                     contactPhone: inst.contactPhone || "",
@@ -73,7 +66,7 @@ export default function EditInstitutePage() {
                     status: inst.status || "active",
                     maxStudents: inst.limits?.maxStudents || 500,
                     plan: inst.subscription?.plan || "free",
-                    endDate: inst.subscription?.endDate ? new Date(inst.subscription.endDate).toISOString().split('T')[0] : ""
+                    endDate: inst.subscription?.endDate ? dayjs(inst.subscription.endDate) : null
                 });
             } catch (error) {
                 if (error.name === "AbortError") return;
@@ -87,24 +80,21 @@ export default function EditInstitutePage() {
         if (params.id) fetchInstitute();
 
         return () => controller.abort();
-    }, [params.id]);
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData({
-            ...formData,
-            [name]: name === "code" ? value.toUpperCase() : value
-        });
-    };
+    }, [params.id, form, router, toast]);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = async (values) => {
         setSaving(true);
+        
+        const payload = {
+            ...values,
+            endDate: values.endDate ? values.endDate.format('YYYY-MM-DD') : ""
+        };
 
         try {
             const res = await fetch(`/api/v1/institutes/${params.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
@@ -123,172 +113,128 @@ export default function EditInstitutePage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+                <Spin size="large" />
             </div>
         );
     }
 
     return (
-        <motion.div
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className="max-w-3xl mx-auto"
-        >
-            <div className="mb-10 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Link href="/super-admin/institutes">
-                        <motion.span
-                            whileHover={{ x: -4 }}
-                            className="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-blue-600 shadow-sm transition-colors inline-flex cursor-pointer"
-                        >
-                            <ArrowLeft size={20} />
-                        </motion.span>
-                    </Link>
-                    <div>
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Modify Instance</h1>
-                        <p className="text-slate-500 font-medium">Update institutional parameters for {formData.name}</p>
-                    </div>
+        <Space orientation="vertical" size="large" style={{ display: 'flex', maxWidth: 800, margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <Link href="/super-admin/institutes">
+                    <Button icon={<ArrowLeftOutlined />} />
+                </Link>
+                <div>
+                    <Title level={2} style={{ marginBottom: 0 }}>Modify Instance</Title>
+                    <Text type="secondary">Update institutional parameters for {instituteName}</Text>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Organization Details */}
-                <motion.div variants={item} className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">                    <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                        <Building2 size={20} />
-                    </div>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Core Repository</h3>
-                </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField
-                            label="Legal Entity Name"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            icon={Building2}
-                            required
-                        />
-                        <FormField
-                            label="Auth Code (Immutable)"
-                            name="code"
-                            value={formData.code}
-                            onChange={handleChange}
-                            icon={Shield}
-                            required
-                            disabled
-                            className="bg-slate-100 cursor-not-allowed opacity-60"
-                        />
-                        <FormField
-                            label="Contact Matrix"
-                            name="contactPhone"
-                            value={formData.contactPhone}
-                            onChange={handleChange}
-                            icon={Phone}
-                        />
-                        <FormField
-                            label="Max Students Allowed"
-                            name="maxStudents"
-                            type="number"
-                            min="1"
-                            value={formData.maxStudents}
-                            onChange={handleChange}
-                            icon={Users}
-                            required
-                        />
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                <Activity size={12} /> Operational Status
-                            </label>
-                            <select
-                                name="status"
-                                value={formData.status}
-                                onChange={handleChange}
-                                className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 focus:bg-white transition-all appearance-none"
+            <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleSubmit}
+            >
+                <Card title={<><BankOutlined style={{ color: '#1677ff', marginRight: 8 }} />Core Repository</>} style={{ marginBottom: 24 }}>
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item 
+                                label="Legal Entity Name" 
+                                name="name" 
+                                rules={[{ required: true, message: 'Please enter the organization name' }]}
                             >
-                                <option value="active">Active High-Trust</option>
-                                <option value="suspended">Suspended / Restricted</option>
-                            </select>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                <Zap size={12} /> Service Plan
-                            </label>
-                            <select
-                                name="plan"
-                                value={formData.plan}
-                                onChange={handleChange}
-                                className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 focus:bg-white transition-all appearance-none"
+                                <Input prefix={<BankOutlined style={{ color: '#bfbfbf' }} />} />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item 
+                                label="Auth Code (Immutable)" 
+                                name="code" 
                             >
-                                <option value="free">Free Trial / Standard</option>
-                                <option value="basic">Basic Plan</option>
-                                <option value="professional">Professional Plan</option>
-                                <option value="enterprise">Enterprise Plan</option>
-                            </select>
-                        </div>
-                        <FormField
-                            label="Subscription Expiry Date (Optional)"
-                            name="endDate"
-                            type="date"
-                            value={formData.endDate}
-                            onChange={handleChange}
-                            icon={Zap}
-                        />
-                        <div className="md:col-span-2 space-y-2">
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                <MapPin size={12} /> Registered Address
-                            </label>
-                            <textarea
-                                name="addressStr"
-                                value={formData.addressStr}
-                                onChange={handleChange}
-                                className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold placeholder:text-slate-300 outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 focus:bg-white transition-all min-h-[100px]"
-                                rows="3"
-                            />
-                        </div>
-                    </div>
-                </motion.div>
+                                <Input 
+                                    prefix={<SafetyCertificateOutlined style={{ color: '#bfbfbf' }} />} 
+                                    disabled
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
-                <motion.div variants={item} className="pt-6">
-                    <Button
-                        type="submit"
-                        disabled={saving}
-                        className="w-full h-16 rounded-[24px] font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20"
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item label="Contact Matrix" name="contactPhone">
+                                <Input prefix={<PhoneOutlined style={{ color: '#bfbfbf' }} />} />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item 
+                                label="Max Students Allowed" 
+                                name="maxStudents" 
+                                rules={[{ required: true, message: 'Please specify max students' }]}
+                            >
+                                <InputNumber 
+                                    prefix={<UserOutlined style={{ color: '#bfbfbf' }} />} 
+                                    style={{ width: '100%' }} 
+                                    min={1} 
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item label="Operational Status" name="status">
+                                <Select>
+                                    <Option value="active">Active High-Trust</Option>
+                                    <Option value="suspended">Suspended / Restricted</Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item label="Service Plan" name="plan">
+                                <Select>
+                                    <Option value="free">Free Trial / Standard</Option>
+                                    <Option value="basic">Basic Plan</Option>
+                                    <Option value="professional">Professional Plan</Option>
+                                    <Option value="enterprise">Enterprise Plan</Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item label="Subscription Expiry Date (Optional)" name="endDate">
+                                <DatePicker style={{ width: '100%' }} />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                        <Col xs={24}>
+                            <Form.Item label="Registered Address" name="addressStr">
+                                <TextArea 
+                                    rows={3} 
+                                    prefix={<EnvironmentOutlined style={{ color: '#bfbfbf' }} />} 
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </Card>
+
+                <div style={{ marginTop: 24, textAlign: 'right' }}>
+                    <Button 
+                        type="primary" 
+                        htmlType="submit" 
+                        size="large" 
+                        icon={<SaveOutlined />} 
+                        loading={saving}
+                        style={{ width: '100%' }}
                     >
-                        {saving ? (
-                            <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <>
-                                <Save size={20} strokeWidth={3} />
-                                Synchronize Updates
-                            </>
-                        )}
+                        Synchronize Updates
                     </Button>
-                </motion.div>
-            </form>
-        </motion.div>
+                </div>
+            </Form>
+        </Space>
     );
-}
-
-function FormField({ label, icon: Icon, className, ...props }) {
-    return (
-        <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Icon size={12} /> {label}
-            </label>
-            <input
-                {...props}
-                className={cn(
-                    "w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold placeholder:text-slate-300 outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 focus:bg-white transition-all font-mono tracking-tight",
-                    className
-                )}
-            />
-        </div>
-    );
-}
-
-function cn(...inputs) {
-    return inputs.filter(Boolean).join(" ");
 }

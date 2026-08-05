@@ -2,74 +2,57 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import {
-    Building2,
-    ArrowLeft,
-    Shield,
-    KeyRound,
-    User,
-    Phone,
-    MapPin,
-    Mail,
-    CheckCircle2,
-    Zap
-} from "lucide-react";
-import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
-import Button from "@/components/ui/Button";
+import { 
+    Card, 
+    Typography, 
+    Button, 
+    Form, 
+    Input, 
+    InputNumber, 
+    Radio, 
+    Space, 
+    Row, 
+    Col,
+    Divider,
+    Alert
+} from "antd";
+import { 
+    ArrowLeftOutlined,
+    BankOutlined,
+    SafetyCertificateOutlined,
+    PhoneOutlined,
+    UserOutlined,
+    EnvironmentOutlined,
+    MailOutlined,
+    LockOutlined,
+    SaveOutlined
+} from "@ant-design/icons";
+import { useToast } from "@/contexts/ToastContext";
 
-const container = {
-    hidden: { opacity: 0, y: 20 },
-    show: {
-        opacity: 1,
-        y: 0,
-        transition: {
-            staggerChildren: 0.1,
-            duration: 0.4,
-            ease: [0.23, 1, 0.32, 1]
-        }
-    }
-};
-
-const item = {
-    hidden: { opacity: 0, x: -10 },
-    show: { opacity: 1, x: 0 }
-};
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 export default function CreateInstitutePage() {
     const toast = useToast();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({
-         name: "",
-         code: "",
-         adminEmail: "",
-         adminPassword: "",
-         adminName: "",
-         contactPhone: "",
-         addressStr: "",
-         type: "VOCATIONAL",  // Default to VOCATIONAL for backwards compatibility
-         maxStudents: 500
-     });
+    const [form] = Form.useForm();
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData({
-            ...formData,
-            [name]: name === "code" ? value.toUpperCase() : value
-        });
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = async (values) => {
         setLoading(true);
+        
+        // Ensure code is uppercase
+        const payload = {
+            ...values,
+            code: values.code?.toUpperCase()
+        };
 
         try {
             const res = await fetch("/api/v1/institutes", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
@@ -94,231 +77,154 @@ export default function CreateInstitutePage() {
     };
 
     return (
-        <motion.div
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className="max-w-3xl mx-auto"
-        >
-            <div className="mb-10 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Link href="/super-admin/institutes">
-                        <motion.span
-                            whileHover={{ x: -4 }}
-                            className="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-blue-600 shadow-sm transition-colors inline-flex cursor-pointer"
-                            role="link"
-                            tabIndex={0}
-                            aria-label="Go back to institutes"
-                        >
-                            <ArrowLeft size={20} />
-                        </motion.span>
-                    </Link>
-                    <div>
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Register Organization</h1>
-                        <p className="text-slate-500 font-medium">Provision new institutional nodes on the network.</p>
-                    </div>
+        <Space orientation="vertical" size="large" style={{ display: 'flex', maxWidth: 800, margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <Link href="/super-admin/institutes">
+                    <Button icon={<ArrowLeftOutlined />} />
+                </Link>
+                <div>
+                    <Title level={2} style={{ marginBottom: 0 }}>Register Organization</Title>
+                    <Text type="secondary">Provision new institutional nodes on the network.</Text>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Organization Details */}
-                <motion.div variants={item} className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                            <Building2 size={20} />
-                        </div>
-                        <h3 className="text-xl font-black text-slate-900 tracking-tight">Organization Profile</h3>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <FormField
-                             label="Organization Legal Name"
-                             name="name"
-                             value={formData.name}
-                             onChange={handleChange}
-                             icon={Building2}
-                             required
-                         />
-                         <FormField
-                             label="Institutional ID (Unique Code)"
-                             name="code"
-                             value={formData.code}
-                             onChange={handleChange}
-                             icon={Shield}
-                             required
-                             placeholder="e.g. ACME_UNI"
-                             className="uppercase"
-                         />
-                         <FormField
-                             label="Direct Support Line"
-                             name="contactPhone"
-                             value={formData.contactPhone}
-                             onChange={handleChange}
-                             icon={Phone}
-                         />
-                         <FormField
-                             label="Max Students Allowed"
-                             type="number"
-                             name="maxStudents"
-                             value={formData.maxStudents}
-                             onChange={handleChange}
-                             icon={User}
-                             required
-                         />
-                         <div className="space-y-2">
-                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                 <Shield size={12} /> Organization Type
-                             </label>
-                             <div className="grid grid-cols-2 gap-3">
-                                 <button
-                                     type="button"
-                                     onClick={() => setFormData({ ...formData, type: 'VOCATIONAL' })}
-                                     className={cn(
-                                         "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
-                                         (formData.type === 'VOCATIONAL' || !formData.type)
-                                             ? "border-blue-500 bg-blue-50 text-blue-600"
-                                             : "border-slate-100 hover:border-slate-200 text-slate-500"
-                                     )}
-                                 >
-                                     <span className="text-xs font-bold uppercase tracking-wider text-center">Vocational</span>
-                                 </button>
-                                 <button
-                                     type="button"
-                                     onClick={() => setFormData({ ...formData, type: 'SCHOOL' })}
-                                     className={cn(
-                                         "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
-                                         formData.type === 'SCHOOL'
-                                             ? "border-blue-500 bg-blue-50 text-blue-600"
-                                             : "border-slate-100 hover:border-slate-200 text-slate-500"
-                                     )}
-                                 >
-                                     <span className="text-xs font-bold uppercase tracking-wider text-center">School</span>
-                                 </button>
-                             </div>
-                             <p className="text-[10px] text-slate-400 font-medium italic">Type is immutable after creation</p>
-                         </div>
-                         <div className="md:col-span-2 space-y-2">
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                <MapPin size={12} /> Registered Address
-                            </label>
-                            <textarea
-                                name="addressStr"
-                                value={formData.addressStr}
-                                onChange={handleChange}
-                                className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold placeholder:text-slate-300 outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 focus:bg-white transition-all min-h-[100px]"
-                                rows="3"
-                            />
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Root Admin Account */}
-                <motion.div variants={item} className="bg-slate-900 p-8 rounded-[32px] relative overflow-hidden">
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-8">
-                            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-blue-400">
-                                <KeyRound size={20} />
-                            </div>
-                            <h3 className="text-xl font-black text-white tracking-tight">Root Auditor Credential</h3>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="md:col-span-2 p-4 bg-white/5 rounded-2xl border border-white/10 flex items-center gap-4">
-                                <CheckCircle2 className="text-emerald-400" size={20} />
-                                <p className="text-sm font-bold text-white/70">
-                                    Initializing first-tier administrator for the organization.
-                                </p>
-                            </div>
-
-                            <DarkFormField
-                                label="Full Legal Name"
-                                name="adminName"
-                                value={formData.adminName}
-                                onChange={handleChange}
-                                icon={User}
-                            />
-                            <DarkFormField
-                                label="Official Email Access"
-                                type="email"
-                                name="adminEmail"
-                                value={formData.adminEmail}
-                                onChange={handleChange}
-                                icon={Mail}
-                                required
-                            />
-                            <div className="md:col-span-2">
-                                <DarkFormField
-                                    label="Secure Access Key"
-                                    type="password"
-                                    name="adminPassword"
-                                    value={formData.adminPassword}
-                                    onChange={handleChange}
-                                    icon={KeyRound}
-                                    required
-                                    minLength={12}
+            <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleSubmit}
+                initialValues={{
+                    type: "VOCATIONAL",
+                    maxStudents: 500
+                }}
+            >
+                <Card title={<><BankOutlined style={{ color: '#1677ff', marginRight: 8 }} />Organization Profile</>} style={{ marginBottom: 24 }}>
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item 
+                                label="Organization Legal Name" 
+                                name="name" 
+                                rules={[{ required: true, message: 'Please enter the organization name' }]}
+                            >
+                                <Input prefix={<BankOutlined style={{ color: '#bfbfbf' }} />} placeholder="e.g. Acme University" />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item 
+                                label="Institutional ID (Unique Code)" 
+                                name="code" 
+                                rules={[{ required: true, message: 'Please enter a unique code' }]}
+                            >
+                                <Input 
+                                    prefix={<SafetyCertificateOutlined style={{ color: '#bfbfbf' }} />} 
+                                    placeholder="e.g. ACME_UNI" 
+                                    style={{ textTransform: 'uppercase' }}
                                 />
-                            </div>
-                        </div>
-                    </div>
-                    {/* Background Detail */}
-                    <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-blue-600/20 blur-[100px]" />
-                </motion.div>
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
-                <motion.div variants={item} className="pt-6">
-                    <Button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full h-16 rounded-[24px] font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20"
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item label="Direct Support Line" name="contactPhone">
+                                <Input prefix={<PhoneOutlined style={{ color: '#bfbfbf' }} />} placeholder="Contact number" />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item 
+                                label="Max Students Allowed" 
+                                name="maxStudents" 
+                                rules={[{ required: true, message: 'Please specify max students' }]}
+                            >
+                                <InputNumber 
+                                    prefix={<UserOutlined style={{ color: '#bfbfbf' }} />} 
+                                    style={{ width: '100%' }} 
+                                    min={1} 
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                        <Col xs={24}>
+                            <Form.Item label="Organization Type" name="type" extra="Type is immutable after creation.">
+                                <Radio.Group optionType="button" buttonStyle="solid">
+                                    <Radio value="VOCATIONAL">Vocational</Radio>
+                                    <Radio value="SCHOOL">School</Radio>
+                                </Radio.Group>
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                        <Col xs={24}>
+                            <Form.Item label="Registered Address" name="addressStr">
+                                <TextArea 
+                                    rows={3} 
+                                    placeholder="Full address of the organization" 
+                                    prefix={<EnvironmentOutlined style={{ color: '#bfbfbf' }} />} 
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </Card>
+
+                <Card title={<><LockOutlined style={{ color: '#faad14', marginRight: 8 }} />Root Auditor Credential</>} style={{ background: '#fafafa' }}>
+                    <Alert 
+                        title="Initializing first-tier administrator for the organization." 
+                        type="info" 
+                        showIcon 
+                        style={{ marginBottom: 24 }} 
+                    />
+                    
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item label="Full Legal Name" name="adminName">
+                                <Input prefix={<UserOutlined style={{ color: '#bfbfbf' }} />} placeholder="Admin name" />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item 
+                                label="Official Email Access" 
+                                name="adminEmail" 
+                                rules={[
+                                    { required: true, message: 'Please enter admin email' },
+                                    { type: 'email', message: 'Please enter a valid email' }
+                                ]}
+                            >
+                                <Input prefix={<MailOutlined style={{ color: '#bfbfbf' }} />} placeholder="admin@acme.edu" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                        <Col xs={24}>
+                            <Form.Item 
+                                label="Secure Access Key" 
+                                name="adminPassword" 
+                                rules={[
+                                    { required: true, message: 'Please enter a password' },
+                                    { min: 12, message: 'Password must be at least 12 characters' }
+                                ]}
+                            >
+                                <Input.Password prefix={<LockOutlined style={{ color: '#bfbfbf' }} />} placeholder="Minimum 12 characters" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </Card>
+
+                <div style={{ marginTop: 24, textAlign: 'right' }}>
+                    <Button 
+                        type="primary" 
+                        htmlType="submit" 
+                        size="large" 
+                        icon={<SaveOutlined />} 
+                        loading={loading}
+                        style={{ width: '100%' }}
                     >
-                        {loading ? (
-                            <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <>
-                                <Zap size={20} strokeWidth={3} />
-                                Provision High-Level Access
-                            </>
-                        )}
+                        Provision High-Level Access
                     </Button>
-                </motion.div>
-            </form>
-        </motion.div>
+                </div>
+            </Form>
+        </Space>
     );
-}
-
-function FormField({ label, icon: Icon, className, ...props }) {
-    return (
-        <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Icon size={12} /> {label}
-            </label>
-            <input
-                {...props}
-                className={cn(
-                    "w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold placeholder:text-slate-300 outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 focus:bg-white transition-all font-mono tracking-tight",
-                    className
-                )}
-            />
-        </div>
-    );
-}
-
-function DarkFormField({ label, icon: Icon, className, ...props }) {
-    return (
-        <div className="space-y-2">
-            <label className="text-xs font-black text-white/40 uppercase tracking-widest flex items-center gap-2">
-                <Icon size={12} /> {label}
-            </label>
-            <input
-                {...props}
-                className={cn(
-                    "w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold text-white placeholder:text-white/20 outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500/50 focus:bg-white/10 transition-all font-mono tracking-tight",
-                    className
-                )}
-            />
-        </div>
-    );
-}
-
-function cn(...inputs) {
-    return inputs.filter(Boolean).join(" ");
 }

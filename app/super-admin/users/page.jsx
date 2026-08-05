@@ -1,38 +1,61 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, UserPlus, Shield, Building2, MoreVertical, X, Check, Trash2, Edit2 } from "lucide-react";
+import { 
+    Typography, 
+    Button, 
+    Input, 
+    Table, 
+    Badge, 
+    Modal, 
+    Form, 
+    Select, 
+    Space, 
+    Avatar,
+    Card,
+    List,
+    Row,
+    Col,
+    Tooltip
+} from "antd";
+import { 
+    SearchOutlined, 
+    UserAddOutlined,
+    SafetyOutlined,
+    BankOutlined,
+    DeleteOutlined,
+    SettingOutlined,
+    PlusCircleOutlined
+} from "@ant-design/icons";
 import { useToast } from "@/contexts/ToastContext";
-import Button from "@/components/ui/Button";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+
+const { Title, Text } = Typography;
+const { Option } = Select;
 
 export default function AdminManagementPage() {
+    const toast = useToast();
     const [users, setUsers] = useState([]);
     const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
+    const [searchText, setSearchText] = useState("");
+    
+    // Modal states
     const [selectedUser, setSelectedUser] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [memberships, setMemberships] = useState([]);
-    const [createFormData, setCreateFormData] = useState({
-        firstName: "",
-        lastName: "",
-        email: "",
-        password: "",
-        role: "admin",
-        instituteId: ""
-    }); const toast = useToast();
+    const [creating, setCreating] = useState(false);
+    const [form] = Form.useForm();
 
     useEffect(() => {
         fetchData();
     }, []);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
             const [uRes, iRes] = await Promise.all([
-                fetch("/api/v1/users?role=admin"), // Start with admins, we can expand
+                fetch("/api/v1/users?role=admin"),
                 fetch("/api/v1/institutes")
             ]);
 
@@ -62,10 +85,11 @@ export default function AdminManagementPage() {
             toast.error("Failed to load memberships");
         }
     };
+
     const handleManageAccess = (user) => {
         setSelectedUser(user);
         fetchMemberships(user._id);
-        setIsModalOpen(true);
+        setIsManageModalOpen(true);
     };
 
     const handleAddMembership = async (instituteId) => {
@@ -96,22 +120,24 @@ export default function AdminManagementPage() {
         }
     };
 
-    const handleCreateUser = async (e) => {
-        e.preventDefault();
+    const handleCreateUser = async (values) => {
+        setCreating(true);
         try {
+            const payload = {
+                ...values,
+                role: "admin"
+            };
+            
             const res = await fetch("/api/v1/users", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(createFormData)
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
                 toast.success("Administrator registered successfully");
                 setIsCreateModalOpen(false);
-                setCreateFormData({
-                    firstName: "", lastName: "", email: "", phone: "",
-                    password: "", role: "admin", instituteId: ""
-                });
+                form.resetFields();
                 fetchData();
             } else {
                 const data = await res.json();
@@ -119,293 +145,223 @@ export default function AdminManagementPage() {
             }
         } catch (error) {
             toast.error(error.message);
+        } finally {
+            setCreating(false);
         }
     };
 
     const filteredUsers = users.filter(u =>
-        u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        `${u.profile?.firstName} ${u.profile?.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+        u.email.toLowerCase().includes(searchText.toLowerCase()) ||
+        `${u.profile?.firstName} ${u.profile?.lastName}`.toLowerCase().includes(searchText.toLowerCase())
     );
 
-    return (
-        <div className="space-y-8 p-6">
-            <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Admin Management</h1>
-                    <p className="text-slate-500 font-medium">Manage global administrators and their institute access.</p>
-                </div>
-                <div className="flex items-center gap-4">
-                    <Button
-                        onClick={() => setIsCreateModalOpen(true)}
-                        className="h-12 px-6 rounded-2xl bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                    >
-                        <UserPlus size={18} className="mr-2" /> Register Admin
-                    </Button>
-                    <div className="relative group min-w-[300px]">
-                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600" />
-                        <input
-                            type="text"
-                            placeholder="Search admins..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all shadow-sm"
-                        />
-                    </div>
-                </div>
-            </header>
+    const columns = [
+        {
+            title: 'Administrator',
+            key: 'admin',
+            sorter: (a, b) => (a.profile?.firstName || '').localeCompare(b.profile?.firstName || ''),
+            render: (_, record) => (
+                <Space>
+                    <Avatar style={{ backgroundColor: '#1677ff' }}>
+                        {record.profile?.firstName?.[0]}{record.profile?.lastName?.[0]}
+                    </Avatar>
+                    <Space orientation="vertical" size={0}>
+                        <Text strong>{record.profile?.firstName} {record.profile?.lastName}</Text>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>{record.email}</Text>
+                    </Space>
+                </Space>
+            )
+        },
+        {
+            title: 'Primary Role',
+            dataIndex: 'role',
+            key: 'role',
+            render: (role) => (
+                <Badge 
+                    count={<Space size={4} style={{ color: '#595959', fontSize: '12px' }}><SafetyOutlined /> {role}</Space>}
+                    style={{ backgroundColor: '#f5f5f5', border: '1px solid #d9d9d9', color: '#595959', padding: '0 8px', textTransform: 'capitalize' }} 
+                />
+            )
+        },
+        {
+            title: 'Account Status',
+            dataIndex: 'isActive',
+            key: 'isActive',
+            filters: [
+                { text: 'Active', value: true },
+                { text: 'Inactive', value: false },
+            ],
+            onFilter: (value, record) => record.isActive === value,
+            render: (isActive) => (
+                <Badge 
+                    status={isActive ? 'success' : 'default'} 
+                    text={isActive ? 'Active' : 'Inactive'} 
+                />
+            )
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            align: 'right',
+            render: (_, record) => (
+                <Button 
+                    type="default" 
+                    icon={<SettingOutlined />} 
+                    onClick={() => handleManageAccess(record)}
+                >
+                    Manage Access
+                </Button>
+            )
+        }
+    ];
 
-            <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-slate-50/50 border-b border-slate-100">
-                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Administrator</th>
-                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Primary Role</th>
-                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Account Status</th>
-                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {filteredUsers.map(user => (
-                            <tr key={user._id} className="hover:bg-slate-50/50 group transition-colors">
-                                <td className="px-8 py-5">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                                            {user.profile?.firstName?.[0]}{user.profile?.lastName?.[0]}
-                                        </div>
-                                        <div>
-                                            <p className="font-black text-slate-900 leading-none mb-1">
-                                                {user.profile?.firstName} {user.profile?.lastName}
-                                            </p>
-                                            <p className="text-xs text-slate-400 font-medium">{user.email}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-8 py-5">
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-200">
-                                        <Shield size={12} strokeWidth={3} />
-                                        {user.role}
-                                    </span>
-                                </td>
-                                <td className="px-8 py-5">
-                                    <div className="flex items-center gap-2">
-                                        <div className={cn("w-2 h-2 rounded-full", user.isActive ? "bg-emerald-500" : "bg-slate-300")} />
-                                        <span className="text-sm font-bold text-slate-600">{user.isActive ? "Active" : "Inactive"}</span>
-                                    </div>
-                                </td>
-                                <td className="px-8 py-5 text-right">
-                                    <Button
-                                        onClick={() => handleManageAccess(user)}
-                                        variant="outline"
-                                        className="h-9 px-4 rounded-xl text-xs font-black uppercase tracking-widest border-slate-200 hover:border-blue-600 hover:text-blue-600"
-                                    >
-                                        Manage Access
-                                    </Button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+    return (
+        <Space orientation="vertical" size="large" style={{ display: 'flex' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
+                <div>
+                    <Title level={2} style={{ marginBottom: 4 }}>Admin Management</Title>
+                    <Text type="secondary">Manage global administrators and their institute access.</Text>
+                </div>
+                <Space size="middle">
+                    <Input 
+                        placeholder="Search admins..." 
+                        prefix={<SearchOutlined />} 
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        style={{ width: 300 }}
+                        allowClear
+                    />
+                    <Button type="primary" icon={<UserAddOutlined />} size="large" onClick={() => setIsCreateModalOpen(true)}>
+                        Register Admin
+                    </Button>
+                </Space>
             </div>
 
-            {/* Access Management Modal */}
-            <AnimatePresence>
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsModalOpen(false)}
-                            className="absolute inset-0 bg-slate-900/60"
-                        />
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className="relative w-full max-w-2xl bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white max-h-[85vh] flex flex-col"
-                        >
-                            <div className="p-10 flex flex-col overflow-hidden">
-                                <header className="flex items-center justify-between mb-8 shrink-0">
-                                    <div>
-                                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Manage Access</h2>
-                                        <p className="text-slate-500 font-medium">{selectedUser?.email}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setIsModalOpen(false)}
-                                        className="p-3 hover:bg-slate-100 rounded-2xl text-slate-400 transition-colors"
-                                    >
-                                        <X size={24} />
-                                    </button>
-                                </header>
+            <Card styles={{ body: { padding: 0 } }}>
+                <Table 
+                    columns={columns} 
+                    dataSource={filteredUsers} 
+                    rowKey="_id"
+                    loading={loading}
+                    pagination={{ pageSize: 10 }}
+                />
+            </Card>
 
-                                <div className="space-y-6 overflow-y-auto pr-2 -mr-2">
-                                    <div>
-                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Authorized Institutes</h3>
-                                        <div className="space-y-3">
-                                            {memberships.filter(m => m.institute).map(m => (
-                                                <div key={m._id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
-                                                            <Building2 size={18} />
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-bold text-slate-900">{m.institute.name}</p>
-                                                            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{m.institute.code}</p>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleRemoveMembership(m.institute._id)}
-                                                        className="p-2 hover:bg-red-50 text-slate-300 hover:text-red-600 transition-all"
-                                                        title="Revoke Access"
-                                                    >
-                                                        <Trash2 size={18} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            {memberships.length === 0 && (
-                                                <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-[32px]">
-                                                    <p className="text-slate-400 font-bold text-sm">No specific institute access granted.</p>
-                                                </div>
-                                            )}
+            {/* Manage Access Modal */}
+            <Modal
+                title={`Manage Access - ${selectedUser?.email}`}
+                open={isManageModalOpen}
+                onCancel={() => setIsManageModalOpen(false)}
+                footer={null}
+                width={800}
+            >
+                <Row gutter={24} style={{ marginTop: 16 }}>
+                    <Col xs={24} md={12}>
+                        <Title level={5}>Authorized Institutes</Title>
+                        <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 16, border: '1px solid #f0f0f0', borderRadius: 8 }}>
+                            {memberships.filter(m => m.institute).length === 0 ? (
+                                <div style={{ padding: 16, textAlign: 'center', color: '#00000040' }}>No specific institute access granted.</div>
+                            ) : memberships.filter(m => m.institute).map((m, index) => (
+                                <div key={m.institute._id || index} className="hover-list-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+                                    <Space>
+                                        <Avatar icon={<BankOutlined />} />
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <Text>{m.institute.name}</Text>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>{m.institute.code}</Text>
                                         </div>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Grant New Access</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[200px] overflow-y-auto pr-2 no-scrollbar">
-                                            {institutes.filter(inst => !memberships.some(m => m.institute?._id === inst._id)).map(inst => (
-                                                <button
-                                                    key={inst._id}
-                                                    onClick={() => handleAddMembership(inst._id)}
-                                                    className="flex flex-col items-start p-4 border border-slate-200 rounded-2xl hover:border-blue-600 hover:bg-blue-50/50 transition-all text-left group"
-                                                >
-                                                    <p className="font-bold text-slate-800 group-hover:text-blue-600 whitespace-nowrap overflow-hidden text-ellipsis w-full">
-                                                        {inst.name}
-                                                    </p>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{inst.code}</p>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
+                                    </Space>
+                                    <Tooltip title="Revoke Access">
+                                        <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleRemoveMembership(m.institute._id)} />
+                                    </Tooltip>
                                 </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                            ))}
+                        </div>
+                    </Col>
+                    
+                    <Col xs={24} md={12}>
+                        <Title level={5}>Grant New Access</Title>
+                        <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: 8 }}>
+                            {institutes.filter(inst => !memberships.some(m => m.institute?._id === inst._id)).length === 0 ? (
+                                <div style={{ padding: 16, textAlign: 'center', color: '#00000040' }}>No available institutes to grant.</div>
+                            ) : institutes.filter(inst => !memberships.some(m => m.institute?._id === inst._id)).map((inst, index) => (
+                                <div key={inst._id || index} className="hover-list-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <Text>{inst.name}</Text>
+                                        <Text type="secondary" style={{ fontSize: '12px' }}>{inst.code}</Text>
+                                    </div>
+                                    <Button type="primary" size="small" icon={<PlusCircleOutlined />} onClick={() => handleAddMembership(inst._id)}>
+                                        Add
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    </Col>
+                </Row>
+            </Modal>
+
             {/* Create Admin Modal */}
-            <AnimatePresence>
-                {isCreateModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsCreateModalOpen(false)}
-                            className="absolute inset-0 bg-slate-900/60"
-                        />
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className="relative w-full max-w-xl bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white"
-                        >
-                            <form onSubmit={handleCreateUser} className="p-10 space-y-6">
-                                <header className="flex items-center justify-between mb-2">
-                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Register New Admin</h2>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsCreateModalOpen(false)}
-                                        className="p-3 hover:bg-slate-100 rounded-2xl text-slate-400"
-                                    >
-                                        <X size={24} />
-                                    </button>
-                                </header>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">First Name</label>
-                                        <input
-                                            required
-                                            value={createFormData.firstName}
-                                            onChange={e => setCreateFormData({ ...createFormData, firstName: e.target.value })}
-                                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:border-blue-600 transition-all"
-                                            placeholder="John"
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Last Name</label>
-                                        <input
-                                            required
-                                            value={createFormData.lastName}
-                                            onChange={e => setCreateFormData({ ...createFormData, lastName: e.target.value })}
-                                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:border-blue-600 transition-all"
-                                            placeholder="Doe"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
-                                    <input
-                                        type="email"
-                                        required
-                                        value={createFormData.email}
-                                        onChange={e => setCreateFormData({ ...createFormData, email: e.target.value })}
-                                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:border-blue-600 transition-all"
-                                        placeholder="admin@example.com"
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assign Primary Institute</label>
-                                    <select
-                                        required
-                                        value={createFormData.instituteId}
-                                        onChange={e => setCreateFormData({ ...createFormData, instituteId: e.target.value })}
-                                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:border-blue-600 transition-all appearance-none cursor-pointer"
-                                    >
-                                        <option value="">Select an institute...</option>
-                                        {institutes.map(inst => (
-                                            <option key={inst._id} value={inst._id}>
-                                                {inst.name} ({inst.code})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
-                                    <input
-                                        type="password"
-                                        required
-                                        value={createFormData.password}
-                                        onChange={e => setCreateFormData({ ...createFormData, password: e.target.value })}
-                                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:border-blue-600 transition-all"
-                                        placeholder="••••••••"
-                                        minLength={8}
-                                    />
-                                </div>
-
-                                <div className="flex gap-4 pt-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsCreateModalOpen(false)}
-                                        className="flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="flex-1 py-4 rounded-2xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                    >
-                                        Register Now
-                                    </button>
-                                </div>
-                            </form>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-        </div>
+            <Modal
+                title="Register New Admin"
+                open={isCreateModalOpen}
+                onCancel={() => {
+                    setIsCreateModalOpen(false);
+                    form.resetFields();
+                }}
+                footer={null}
+                width={600}
+            >
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleCreateUser}
+                    style={{ marginTop: 16 }}
+                >
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item label="First Name" name="firstName" rules={[{ required: true }]}>
+                                <Input placeholder="John" />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item label="Last Name" name="lastName" rules={[{ required: true }]}>
+                                <Input placeholder="Doe" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    
+                    <Form.Item label="Email Address" name="email" rules={[{ required: true, type: 'email' }]}>
+                        <Input placeholder="admin@example.com" />
+                    </Form.Item>
+                    
+                    <Form.Item label="Assign Primary Institute" name="instituteId" rules={[{ required: true }]}>
+                        <Select placeholder="Select an institute...">
+                            {institutes.map(inst => (
+                                <Option key={inst._id} value={inst._id}>
+                                    {inst.name} ({inst.code})
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                    
+                    <Form.Item label="Password" name="password" rules={[{ required: true, min: 8 }]}>
+                        <Input.Password placeholder="••••••••" />
+                    </Form.Item>
+                    
+                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                        <Space>
+                            <Button onClick={() => {
+                                setIsCreateModalOpen(false);
+                                form.resetFields();
+                            }}>
+                                Cancel
+                            </Button>
+                            <Button type="primary" htmlType="submit" loading={creating}>
+                                Register Now
+                            </Button>
+                        </Space>
+                    </Form.Item>
+                </Form>
+            </Modal>
+        </Space>
     );
 }

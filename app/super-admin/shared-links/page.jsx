@@ -1,49 +1,38 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-    Share2,
-    Plus,
-    Copy,
-    Trash2,
-    ExternalLink,
-    Check,
-    X,
-    Building2,
-    Users,
-    MessageSquare,
-    Power
-} from "lucide-react";
+import { 
+    Card, 
+    Typography, 
+    Button, 
+    Input, 
+    Space, 
+    Table,
+    Badge, 
+    Modal, 
+    Select,
+    Tooltip,
+    Row,
+    Col,
+    Tag,
+    Statistic
+} from "antd";
+import { 
+    CopyOutlined,
+    DeleteOutlined,
+    GlobalOutlined,
+    PoweroffOutlined,
+    BankOutlined,
+    TeamOutlined,
+    MessageOutlined,
+    LinkOutlined,
+    PlusOutlined
+} from "@ant-design/icons";
 import { useToast } from "@/contexts/ToastContext";
-import { motion, AnimatePresence } from "framer-motion";
-import Button from "@/components/ui/Button";
 
-// Swiss Minimalist Sharp Components
-const SharpCard = ({ children, className = "" }) => (
-    <div className={`bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${className}`}>
-        {children}
-    </div>
-);
-
-const SharpButton = ({ children, onClick, variant = "primary", className = "", disabled = false }) => {
-    const variants = {
-        primary: "bg-emerald-600 text-white hover:bg-emerald-700",
-        secondary: "bg-white text-black border-2 border-black hover:bg-gray-50",
-        danger: "bg-red-600 text-white hover:bg-red-700",
-        ghost: "bg-transparent text-black hover:bg-gray-100"
-    };
-
-    return (
-        <button
-            onClick={onClick}
-            disabled={disabled}
-            className={`px-4 py-2 font-black uppercase tracking-widest text-xs transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${className}`}
-            style={{ boxShadow: !disabled ? '2px 2px 0px 0px rgba(0,0,0,1)' : 'none' }}
-        >
-            {children}
-        </button>
-    );
-};
+const { Title, Text, Paragraph } = Typography;
+const { confirm } = Modal;
+const { Option } = Select;
 
 export default function SharedLinksPage() {
     const toast = useToast();
@@ -81,7 +70,7 @@ export default function SharedLinksPage() {
             }
         };
         fetchData();
-    }, []);
+    }, [toast]);
 
     const handleCreateLink = async () => {
         if (!newLinkName || selectedInstitutes.length === 0) {
@@ -131,17 +120,24 @@ export default function SharedLinksPage() {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!confirm("Are you sure you want to delete this link?")) return;
-
-        try {
-            const res = await fetch(`/api/v1/shared-links/${id}`, { method: "DELETE" });
-            if (!res.ok) throw new Error("Delete failed");
-            setLinks(links.filter(l => l._id !== id));
-            toast.success("Link deleted");
-        } catch (error) {
-            toast.error(error.message);
-        }
+    const handleDelete = (id) => {
+        confirm({
+            title: 'Delete Shared Link',
+            content: 'Are you sure you want to delete this shared dashboard link?',
+            okText: 'Delete',
+            okType: 'danger',
+            cancelText: 'Cancel',
+            onOk: async () => {
+                try {
+                    const res = await fetch(`/api/v1/shared-links/${id}`, { method: "DELETE" });
+                    if (!res.ok) throw new Error("Delete failed");
+                    setLinks(links.filter(l => l._id !== id));
+                    toast.success("Link deleted");
+                } catch (error) {
+                    toast.error(error.message);
+                }
+            }
+        });
     };
 
     const copyToClipboard = async (slug) => {
@@ -161,196 +157,177 @@ export default function SharedLinksPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center font-black animate-pulse">LOADING_SYSTEM_RESOURCES...</div>;
+    const columns = [
+        {
+            title: 'Dashboard Details',
+            dataIndex: 'name',
+            key: 'name',
+            sorter: (a, b) => a.name.localeCompare(b.name),
+            render: (text, record) => (
+                <Space orientation="vertical" size={0}>
+                    <Text strong>{text}</Text>
+                    <Paragraph copyable={{ text: `${window.location.origin}/public/dashboard/${record.slug}` }} style={{ marginBottom: 0, fontSize: '12px' }} type="secondary">
+                        /public/dashboard/{record.slug}
+                    </Paragraph>
+                </Space>
+            )
+        },
+        {
+            title: 'Status',
+            dataIndex: 'isActive',
+            key: 'isActive',
+            filters: [
+                { text: 'Active', value: true },
+                { text: 'Terminated', value: false },
+            ],
+            onFilter: (value, record) => record.isActive === value,
+            render: (isActive) => (
+                <Badge 
+                    status={isActive ? 'success' : 'error'} 
+                    text={isActive ? 'Active' : 'Terminated'} 
+                />
+            )
+        },
+        {
+            title: 'Statistics',
+            key: 'stats',
+            render: (_, record) => (
+                <Space size="middle">
+                    <Tooltip title="Institutes">
+                        <Space size={4}><BankOutlined style={{ color: '#888' }} /> {record.institutes?.length || 0}</Space>
+                    </Tooltip>
+                    <Tooltip title="Visits">
+                        <Space size={4}><TeamOutlined style={{ color: '#888' }} /> {record.visitors?.length || 0}</Space>
+                    </Tooltip>
+                    <Tooltip title="Comments">
+                        <Space size={4}><MessageOutlined style={{ color: '#888' }} /> {record.comments?.length || 0}</Space>
+                    </Tooltip>
+                </Space>
+            )
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            align: 'right',
+            render: (_, record) => (
+                <Space size="small">
+                    <Tooltip title="Copy Link">
+                        <Button 
+                            type="text" 
+                            icon={<CopyOutlined />} 
+                            onClick={() => copyToClipboard(record.slug)} 
+                        />
+                    </Tooltip>
+                    <Tooltip title="Visit Link">
+                        <a href={`/public/dashboard/${record.slug}`} target="_blank" rel="noopener noreferrer">
+                            <Button type="text" icon={<GlobalOutlined />} />
+                        </a>
+                    </Tooltip>
+                    <Tooltip title={record.isActive ? "Disable" : "Activate"}>
+                        <Button 
+                            type="text" 
+                            danger={record.isActive}
+                            style={{ color: !record.isActive ? '#52c41a' : undefined }}
+                            icon={<PoweroffOutlined />} 
+                            onClick={() => toggleStatus(record)} 
+                        />
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                        <Button 
+                            type="text" 
+                            danger 
+                            icon={<DeleteOutlined />} 
+                            onClick={() => handleDelete(record._id)} 
+                        />
+                    </Tooltip>
+                </Space>
+            )
+        }
+    ];
 
     return (
-        <div className="max-w-6xl mx-auto space-y-12 pb-20">
-            <header className="space-y-2">
-                <h1 className="text-6xl font-black uppercase tracking-tighter leading-none">
-                    Shared <span className="text-emerald-600">Access</span>
-                </h1>
-                <p className="font-bold text-gray-400 uppercase tracking-widest text-xs">
-                    Generate unique endpoints for multi-institutional fee auditing.
-                </p>
-            </header>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
-                {/* Generation Panel */}
-                <SharpCard className="p-8 space-y-8 lg:sticky lg:top-24">
-                    <div className="space-y-1">
-                        <h2 className="font-black uppercase text-xl">New Generator</h2>
-                        <div className="h-1 w-12 bg-black" />
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Dashboard Name</label>
-                            <input
-                                type="text"
-                                placeholder="E.G. Q1 RECOVERY DRIVE"
-                                value={newLinkName}
-                                onChange={(e) => setNewLinkName(e.target.value)}
-                                className="w-full border-2 border-black p-3 font-bold uppercase text-sm focus:outline-none focus:bg-gray-50"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Select Institutes</label>
-                            <div className="max-h-60 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-                                {institutes.map(inst => (
-                                    <div 
-                                        key={inst._id}
-                                        role="checkbox"
-                                        aria-checked={selectedInstitutes.includes(inst._id)}
-                                        tabIndex={0}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === ' ') {
-                                                e.preventDefault();
-                                                if (selectedInstitutes.includes(inst._id)) {
-                                                    setSelectedInstitutes(selectedInstitutes.filter(id => id !== inst._id));
-                                                } else {
-                                                    setSelectedInstitutes([...selectedInstitutes, inst._id]);
-                                                }
-                                            }
-                                        }}
-                                        onClick={() => {
-                                            if (selectedInstitutes.includes(inst._id)) {
-                                                setSelectedInstitutes(selectedInstitutes.filter(id => id !== inst._id));
-                                            } else {
-                                                setSelectedInstitutes([...selectedInstitutes, inst._id]);
-                                            }
-                                        }}
-                                        className={`p-3 border-2 cursor-pointer transition-all flex items-center justify-between ${
-                                            selectedInstitutes.includes(inst._id) 
-                                            ? 'border-emerald-600 bg-emerald-50' 
-                                            : 'border-gray-100 hover:border-black'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Building2 size={16} className={selectedInstitutes.includes(inst._id) ? 'text-emerald-600' : 'text-gray-300'} />
-                                            <span className="font-black text-[10px] uppercase truncate max-w-[150px]">{inst.name}</span>
-                                        </div>
-                                        {selectedInstitutes.includes(inst._id) && <Check size={14} className="text-emerald-600" />}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <SharpButton
-                            className="w-full py-4 text-sm"
-                            onClick={handleCreateLink}
-                            disabled={creating || !newLinkName || selectedInstitutes.length === 0}
-                        >
-                            {creating ? "GENERATING..." : "GENERATE LINK"}
-                        </SharpButton>
-                    </div>
-                </SharpCard>
-
-                {/* Listing Panel */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="flex items-center justify-between border-b-2 border-black pb-2">
-                        <h2 className="font-black uppercase text-xl">Active Endpoints</h2>
-                        <span className="bg-black text-white px-3 py-1 text-[10px] font-black tracking-widest uppercase">
-                            {links.length} TOTAL
-                        </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-6">
-                        <AnimatePresence mode="popLayout">
-                            {links.length === 0 ? (
-                                <div className="py-20 text-center border-2 border-dashed border-gray-200">
-                                    <p className="font-black text-gray-300 uppercase tracking-widest text-xs">No active links generated yet.</p>
-                                </div>
-                            ) : (
-                                links.map(link => (
-                                    <motion.div
-                                        key={link._id}
-                                        layout
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95 }}
-                                    >
-                                        <SharpCard className={`p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all ${!link.isActive ? 'opacity-50 grayscale' : ''}`}>
-                                            <div className="space-y-4">
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <h3 className="font-black uppercase text-lg">{link.name}</h3>
-                                                        {!link.isActive && <span className="bg-red-600 text-white px-2 py-0.5 text-[8px] font-black uppercase">Terminated</span>}
-                                                    </div>
-                                                    <p className="text-[10px] font-bold text-gray-400 font-mono tracking-tight">{link.slug}</p>
-                                                </div>
-
-                                                <div className="flex flex-wrap gap-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <Building2 size={12} className="text-gray-400" />
-                                                        <span className="text-[10px] font-black uppercase tracking-wider">{link.institutes?.length || 0} Institutes</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Users size={12} className="text-gray-400" />
-                                                        <span className="text-[10px] font-black uppercase tracking-wider">{link.visitors?.length || 0} Visits</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <MessageSquare size={12} className="text-gray-400" />
-                                                        <span className="text-[10px] font-black uppercase tracking-wider">{link.comments?.length || 0} Comments</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                <SharpButton
-                                                    variant="secondary"
-                                                    onClick={() => copyToClipboard(link.slug)}
-                                                    className="p-3"
-                                                >
-                                                    <Copy size={16} />
-                                                </SharpButton>
-
-                                                <a
-                                                    href={`/public/dashboard/${link.slug}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                >
-                                                    <SharpButton variant="secondary" className="p-3">
-                                                        <ExternalLink size={16} />
-                                                    </SharpButton>
-                                                </a>
-
-                                                <SharpButton
-                                                    variant={link.isActive ? "secondary" : "primary"}
-                                                    onClick={() => toggleStatus(link)}
-                                                    className="p-3"
-                                                >
-                                                    <Power size={16} />
-                                                </SharpButton>
-
-                                                <SharpButton
-                                                    variant="danger"
-                                                    onClick={() => handleDelete(link._id)}
-                                                    className="p-3 shadow-none"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </SharpButton>
-                                            </div>
-                                        </SharpCard>
-                                    </motion.div>
-                                ))
-                            )}
-                        </AnimatePresence>
-                    </div>
-                </div>
+        <Space orientation="vertical" size="large" style={{ display: 'flex' }}>
+            <div>
+                <Title level={2} style={{ marginBottom: 4 }}>Shared Access</Title>
+                <Text type="secondary">Generate unique endpoints for multi-institutional fee auditing.</Text>
             </div>
 
+            <Row gutter={[24, 24]}>
+                <Col xs={24} lg={8}>
+                    <Card title={<><LinkOutlined style={{ color: '#1677ff', marginRight: 8 }} />New Generator</>}>
+                        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+                            <div>
+                                <Text strong style={{ display: 'block', marginBottom: 8 }}>Dashboard Name</Text>
+                                <Input 
+                                    placeholder="e.g. Q1 RECOVERY DRIVE" 
+                                    value={newLinkName}
+                                    onChange={(e) => setNewLinkName(e.target.value)}
+                                    size="large"
+                                />
+                            </div>
+                            
+                            <div>
+                                <Text strong style={{ display: 'block', marginBottom: 8 }}>Select Institutes</Text>
+                                <Select
+                                    mode="multiple"
+                                    allowClear
+                                    style={{ width: '100%' }}
+                                    placeholder="Please select institutes"
+                                    value={selectedInstitutes}
+                                    onChange={setSelectedInstitutes}
+                                    size="large"
+                                    optionLabelProp="label"
+                                >
+                                    {institutes.map(inst => (
+                                        <Option key={inst._id} value={inst._id} label={inst.name}>
+                                            <Space>
+                                                <BankOutlined />
+                                                {inst.name}
+                                            </Space>
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </div>
+
+                            <Button 
+                                type="primary" 
+                                size="large" 
+                                block 
+                                icon={<PlusOutlined />}
+                                loading={creating}
+                                onClick={handleCreateLink}
+                                disabled={!newLinkName || selectedInstitutes.length === 0}
+                                style={{ marginTop: 8 }}
+                            >
+                                Generate Link
+                            </Button>
+                        </Space>
+                    </Card>
+                </Col>
+                
+                <Col xs={24} lg={16}>
+                    <Card 
+                        title="Active Endpoints" 
+                        extra={<Tag color="blue">{links.length} TOTAL</Tag>}
+                        styles={{ body: { padding: 0 } }}
+                    >
+                        <Table 
+                            columns={columns} 
+                            dataSource={links} 
+                            rowKey="_id"
+                            loading={loading}
+                            pagination={{ pageSize: 10 }}
+                            rowClassName={(record) => !record.isActive ? 'disabled-row' : ''}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+
             <style jsx global>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                    width: 4px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                    background: #f1f1f1;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: #000;
+                .disabled-row {
+                    opacity: 0.5;
                 }
             `}</style>
-        </div>
+        </Space>
     );
 }

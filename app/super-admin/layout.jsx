@@ -4,32 +4,28 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { Layout, Menu, ConfigProvider, theme, Avatar, Dropdown, Space, Spin, Switch } from "antd";
+import { AntdRegistry } from "@ant-design/nextjs-registry";
 import {
-    LayoutDashboard,
-    Building2,
-    Settings,
-    LogOut,
-    ChevronLeft,
-    ChevronRight,
-    ExternalLink,
-    Shield,
-    Users,
-    Share2
-} from "lucide-react";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
+    DashboardOutlined,
+    BankOutlined,
+    TeamOutlined,
+    SettingOutlined,
+    LinkOutlined,
+    LogoutOutlined,
+    GlobalOutlined,
+    UserOutlined,
+    BulbOutlined
+} from "@ant-design/icons";
 
-function cn(...inputs) {
-    return twMerge(clsx(inputs));
-}
+const { Header, Sider, Content } = Layout;
 
 export default function SuperAdminLayout({ children }) {
     const { data: session, status } = useSession();
     const router = useRouter();
     const pathname = usePathname();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [collapsed, setCollapsed] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(false);
 
     useEffect(() => {
         if (status === "unauthenticated") {
@@ -41,216 +37,139 @@ export default function SuperAdminLayout({ children }) {
 
     if (status === "loading") {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-50">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex flex-col items-center gap-4"
-                >
-                    <div className="w-12 h-12 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
-                    <p className="text-slate-500 font-medium">Authenticating...</p>
-                </motion.div>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f5f5f5' }}>
+                <Spin size="large" description="Authenticating..." />
             </div>
         );
     }
 
-    if (session?.user?.role !== "super_admin") return null;
+    if (status === "unauthenticated" || (status === "authenticated" && session?.user?.role !== "super_admin")) {
+        return null;
+    }
+
+    const menuItems = [
+        {
+            key: "/super-admin",
+            icon: <DashboardOutlined />,
+            label: <Link href="/super-admin">Dashboard</Link>,
+        },
+        {
+            key: "/super-admin/institutes",
+            icon: <BankOutlined />,
+            label: <Link href="/super-admin/institutes">Institutes</Link>,
+        },
+        {
+            key: "/super-admin/users",
+            icon: <TeamOutlined />,
+            label: <Link href="/super-admin/users">Admin Management</Link>,
+        },
+        {
+            key: "/super-admin/shared-links",
+            icon: <LinkOutlined />,
+            label: <Link href="/super-admin/shared-links">Shared Dashboards</Link>,
+        },
+        {
+            key: "/super-admin/settings",
+            icon: <SettingOutlined />,
+            label: <Link href="/super-admin/settings">Global Settings</Link>,
+        }
+    ];
+
+    const getSelectedKey = () => {
+        if (pathname.startsWith("/super-admin/institutes")) return "/super-admin/institutes";
+        if (pathname.startsWith("/super-admin/users")) return "/super-admin/users";
+        if (pathname.startsWith("/super-admin/shared-links")) return "/super-admin/shared-links";
+        if (pathname.startsWith("/super-admin/settings")) return "/super-admin/settings";
+        return "/super-admin";
+    };
+
+    const userMenu = {
+        items: [
+            {
+                key: '1',
+                label: (
+                    <div style={{ padding: '4px 0' }}>
+                        <div style={{ fontWeight: 'bold' }}>{session?.user?.name || 'System Admin'}</div>
+                        <div style={{ fontSize: '12px', color: '#888' }}>Super Admin</div>
+                    </div>
+                ),
+                disabled: true,
+            },
+            {
+                type: 'divider',
+            },
+            {
+                key: '2',
+                icon: <LogoutOutlined />,
+                label: 'Sign Out',
+                onClick: async () => {
+                    await signOut({ redirect: false });
+                    window.location.href = "/login";
+                }
+            }
+        ]
+    };
 
     return (
-        <div className="flex h-screen bg-[#F8FAFC]">
-            {/* Sidebar */}
-            <motion.aside
-                initial={false}
-                animate={{ width: isSidebarOpen ? 280 : 88 }}
-                className="bg-gradient-to-b from-slate-200 to-slate-100 border-r border-slate-200 flex flex-col relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
-            >
-                {/* Branding */}
-                <div className="h-40 flex flex-col border-b border-slate-100">
-                    <div className="h-20 flex items-center px-6">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="min-w-[40px] h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
-                                <Shield size={22} strokeWidth={2.5} />
-                            </div>
-                            <AnimatePresence mode="wait">
-                                {isSidebarOpen && (
-                                    <motion.span
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -10 }}
-                                        className="font-black text-slate-800 tracking-tight text-lg whitespace-nowrap"
-                                    >
-                                        Quantech <span className="text-blue-600">Admin</span>
-                                    </motion.span>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </div>
-                    {isSidebarOpen && (
-                        <div className="px-4 pb-4">
-                            <InstituteSwitcher />
-                        </div>
-                    )}
-                </div>
-
-                {/* Navigation */}
-                <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto no-scrollbar">
-                    <NavLink
-                        href="/super-admin"
-                        icon={LayoutDashboard}
-                        label="Dashboard"
-                        isOpen={isSidebarOpen}
-                        active={pathname === "/super-admin"}
-                        colorClass="text-blue-600"
-                    />
-                    <NavLink
-                        href="/super-admin/institutes"
-                        icon={Building2}
-                        label="Institutes"
-                        isOpen={isSidebarOpen}
-                        active={pathname.startsWith("/super-admin/institutes")}
-                        colorClass="text-teal-600"
-                    />
-                    <NavLink
-                        href="/super-admin/users"
-                        icon={Users}
-                        label="Admin Management"
-                        isOpen={isSidebarOpen}
-                        active={pathname.startsWith("/super-admin/users")}
-                        colorClass="text-orange-600"
-                    />
-                    <NavLink
-                        href="/super-admin/settings"
-                        icon={Settings}
-                        label="Global Settings"
-                        isOpen={isSidebarOpen}
-                        active={pathname === "/super-admin/settings"}
-                        colorClass="text-cyan-600"
-                    />
-                    <NavLink
-                        href="/super-admin/shared-links"
-                        icon={Share2}
-                        label="Shared Dashboards"
-                        isOpen={isSidebarOpen}
-                        active={pathname.startsWith("/super-admin/shared-links")}
-                        colorClass="text-red-600"
-                    />
-                </nav>
-
-                {/* Sidebar Footer */}
-                <div className="p-4 border-t border-slate-100 space-y-4">
-                    <div className={cn(
-                        "flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 transition-all",
-                        !isSidebarOpen && "justify-center px-0 bg-transparent border-transparent"
-                    )}>
-                        <div className="min-w-[40px] h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm border-2 border-white shadow-sm ring-1 ring-slate-100">
-                            {session.user.name?.[0] || 'A'}
-                        </div>
-                        {isSidebarOpen && (
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-bold text-slate-800 truncate leading-none mb-1">
-                                    {session.user.name || 'System Admin'}
-                                </p>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 truncate">
-                                    Super Admin
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    <button
-                        onClick={async () => {
-                            await signOut({ redirect: false });
-                            window.location.href = "/login";
-                        }}
-                        className={cn(
-                            "group flex items-center gap-3 w-full p-3 rounded-xl transition-all",
-                            "hover:bg-red-50 text-slate-400 hover:text-red-600",
-                            !isSidebarOpen && "justify-center"
-                        )}
-                        title="Sign Out"
+        <ConfigProvider theme={{ algorithm: isDarkMode ? theme.darkAlgorithm : theme.defaultAlgorithm }}>
+            <AntdRegistry>
+                <Layout style={{ minHeight: '100vh' }}>
+                    <Sider 
+                        collapsible 
+                        collapsed={collapsed} 
+                        onCollapse={(value) => setCollapsed(value)}
+                        theme={isDarkMode ? "dark" : "light"}
+                        style={{ borderRight: isDarkMode ? 'none' : '1px solid #f0f0f0' }}
                     >
-                        <LogOut size={20} className="transition-transform group-hover:-translate-x-0.5" />
-                        {isSidebarOpen && <span className="font-bold text-sm uppercase tracking-wide">Sign Out</span>}
-                    </button>
-                </div>
+                        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: isDarkMode ? '1px solid #303030' : '1px solid #f0f0f0', overflow: 'hidden' }}>
+                            {collapsed ? (
+                                <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#1677ff' }}>QA</div>
+                            ) : (
+                                <div style={{ fontWeight: 'bold', fontSize: '18px', whiteSpace: 'nowrap', color: isDarkMode ? '#fff' : '#000' }}>
+                                    Quantech <span style={{ color: '#1677ff' }}>Admin</span>
+                                </div>
+                            )}
+                        </div>
+                        <Menu 
+                            theme={isDarkMode ? "dark" : "light"} 
+                            mode="inline" 
+                            selectedKeys={[getSelectedKey()]} 
+                            items={menuItems} 
+                            style={{ borderRight: 0, marginTop: '16px' }}
+                        />
+                    </Sider>
+                    <Layout>
+                        <Header style={{ padding: '0 24px', background: isDarkMode ? '#141414' : '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isDarkMode ? '1px solid #303030' : '1px solid #f0f0f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                                <div style={{ fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: isDarkMode ? '#fff' : '#000' }}>
+                                    <div style={{ width: '4px', height: '16px', backgroundColor: '#1677ff', borderRadius: '4px' }}></div>
+                                    PLATFORM MANAGER
+                                </div>
 
-                {/* Toggle Button */}
-                <button
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="absolute -right-3 top-24 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 shadow-sm z-50 transition-colors"
-                    aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-                    aria-expanded={isSidebarOpen}
-                >
-                    {isSidebarOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-                </button>            </motion.aside>
-
-            {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 flex justify-between items-center sticky top-0 z-20">
-                    <div className="flex items-center gap-2">
-                        <div className="w-1 h-6 bg-blue-600 rounded-full" />
-                        <h2 className="text-slate-800 font-black tracking-tight text-xl uppercase">
-                            Platform <span className="text-slate-400">Manager</span>
-                        </h2>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        <Link
-                            href="/"
-                            className="flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-bold text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all border border-transparent hover:border-blue-100"
-                        >
-                            <ExternalLink size={16} />
-                            <span>Preview Site</span>
-                        </Link>
-                    </div>
-                </header>
-
-                <main className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
-                    <div className="p-8 max-w-[1600px] mx-auto min-h-full">
-                        <motion.div
-                            key={pathname}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-                        >
+                            </div>
+                            <Space size="large">
+                                <Switch 
+                                    checkedChildren="Dark" 
+                                    unCheckedChildren="Light" 
+                                    checked={isDarkMode} 
+                                    onChange={(checked) => setIsDarkMode(checked)} 
+                                />
+                                <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isDarkMode ? 'rgba(255,255,255,0.65)' : '#595959', textDecoration: 'none' }}>
+                                    <GlobalOutlined /> Preview Site
+                                </Link>
+                                <Dropdown menu={userMenu} placement="bottomRight" arrow>
+                                    <Avatar style={{ backgroundColor: '#1677ff', cursor: 'pointer' }}>
+                                        {session?.user?.name?.[0] || <UserOutlined />}
+                                    </Avatar>
+                                </Dropdown>
+                            </Space>
+                        </Header>
+                        <Content style={{ margin: '24px', minHeight: 280 }}>
                             {children}
-                        </motion.div>
-                    </div>
-                </main>
-            </div>
-        </div>
+                        </Content>
+                    </Layout>
+                </Layout>
+            </AntdRegistry>
+        </ConfigProvider>
     );
-}
-
-function NavLink({ href, icon: Icon, label, isOpen, active, colorClass }) {
-    return (
-        <Link
-            href={href}
-            className={cn(
-                "relative group flex items-center gap-3 p-3 rounded-xl transition-all duration-300",
-                active
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 active:scale-95"
-                    : `text-slate-500 hover:bg-slate-50 hover:text-slate-900 ${colorClass}`,
-                !isOpen && "justify-center"
-            )}
-        >
-            <Icon
-                size={22}
-                strokeWidth={active ? 2.5 : 2}
-                className={cn("shrink-0", active ? "text-white" : "group-hover:scale-110 transition-transform")}
-            />
-            {isOpen && (
-                <span className={cn(
-                    "font-bold text-sm tracking-wide transition-opacity duration-300",
-                    active ? "opacity-100" : "opacity-80 group-hover:opacity-100"
-                )}>
-                    {label}
-                </span>
-            )}
-
-            {!active && isOpen && (
-                <div className={cn("absolute left-0 w-1 h-0 rounded-full group-hover:h-3 transition-all duration-300", colorClass.replace('text-', 'bg-'))} />
-            )}
-        </Link>
-    )
 }
