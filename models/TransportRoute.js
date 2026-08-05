@@ -11,7 +11,9 @@ const StopSchema = new Schema({
         type: String, 
         match: [/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)']
     },
-    order: { type: Number, default: 0 }
+    order: { type: Number, default: 0 },
+    lat: { type: Number },
+    lng: { type: Number }
 }, { _id: true });
 
 const TransportRouteSchema = new Schema({

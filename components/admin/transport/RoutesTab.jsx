@@ -18,7 +18,7 @@ export default function RoutesTab({ viewMode = "card" }) {
     const [editing, setEditing] = useState(null);
     const [deleting, setDeleting] = useState(null);
     const [form, setForm] = useState({ name: "", description: "", distance: "", stops: [] });
-    const [newStop, setNewStop] = useState({ name: "", pickupTime: "", dropTime: "" });
+    const [newStop, setNewStop] = useState({ name: "", pickupTime: "", dropTime: "", lat: "", lng: "" });
 
     useEffect(() => { fetchRoutes(); }, []);
 
@@ -34,21 +34,27 @@ export default function RoutesTab({ viewMode = "card" }) {
     const openCreate = () => {
         setEditing(null);
         setForm({ name: "", description: "", distance: "", stops: [] });
-        setNewStop({ name: "", pickupTime: "", dropTime: "" });
+        setNewStop({ name: "", pickupTime: "", dropTime: "", lat: "", lng: "" });
         setIsModalOpen(true);
     };
 
     const openEdit = (route) => {
         setEditing(route);
         setForm({ name: route.name, description: route.description || "", distance: route.distance || "", stops: route.stops || [] });
-        setNewStop({ name: "", pickupTime: "", dropTime: "" });
+        setNewStop({ name: "", pickupTime: "", dropTime: "", lat: "", lng: "" });
         setIsModalOpen(true);
     };
 
     const addStop = () => {
         if (!newStop.name.trim()) return toast.error("Stop name is required");
-        setForm(prev => ({ ...prev, stops: [...prev.stops, { ...newStop, order: prev.stops.length }] }));
-        setNewStop({ name: "", pickupTime: "", dropTime: "" });
+        const parsedStop = {
+            ...newStop,
+            lat: newStop.lat ? parseFloat(newStop.lat) : undefined,
+            lng: newStop.lng ? parseFloat(newStop.lng) : undefined,
+            order: form.stops.length
+        };
+        setForm(prev => ({ ...prev, stops: [...prev.stops, parsedStop] }));
+        setNewStop({ name: "", pickupTime: "", dropTime: "", lat: "", lng: "" });
     };
 
     const removeStop = (idx) => {
@@ -62,7 +68,12 @@ export default function RoutesTab({ viewMode = "card" }) {
         
         // AUTO-CAPTURE PENDING STOP: If user filled name but didn't click +
         if (newStop.name.trim()) {
-            finalStops.push({ ...newStop, order: finalStops.length });
+            finalStops.push({
+                ...newStop,
+                lat: newStop.lat ? parseFloat(newStop.lat) : undefined,
+                lng: newStop.lng ? parseFloat(newStop.lng) : undefined,
+                order: finalStops.length
+            });
         }
 
         if (finalStops.length === 0) {
@@ -74,7 +85,12 @@ export default function RoutesTab({ viewMode = "card" }) {
             const method = editing ? "PATCH" : "POST";
             const body = { 
                 ...form, 
-                stops: finalStops,
+                stops: finalStops.map((s, idx) => ({
+                    ...s,
+                    order: s.order ?? idx,
+                    lat: s.lat ? parseFloat(s.lat) : undefined,
+                    lng: s.lng ? parseFloat(s.lng) : undefined
+                })),
                 distance: form.distance ? parseFloat(form.distance) : undefined 
             };
             
@@ -107,7 +123,7 @@ export default function RoutesTab({ viewMode = "card" }) {
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-bold text-slate-900">Transport Routes</h3>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">Define routes with pickup & drop stops</p>
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">Define routes with pickup, drop & GPS coordinates</p>
                 </div>
                 <Button onClick={openCreate} className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white border-none"><Plus size={18} /> Add Route</Button>
             </div>
@@ -136,8 +152,9 @@ export default function RoutesTab({ viewMode = "card" }) {
                                                 {route.stops?.length > 0 ? (
                                                     <div className="flex flex-wrap gap-1">
                                                         {route.stops.sort((a,b) => a.order - b.order).map((s, idx) => (
-                                                            <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                                            <span key={idx} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                                                                 {s.name}
+                                                                {s.lat && s.lng && <span className="text-[9px] text-blue-600 font-mono">({s.lat.toFixed(2)}, {s.lng.toFixed(2)})</span>}
                                                             </span>
                                                         ))}
                                                     </div>
@@ -182,6 +199,11 @@ export default function RoutesTab({ viewMode = "card" }) {
                                             <div key={i} className="flex items-center gap-2 text-xs">
                                                 <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
                                                 <span className="font-medium text-slate-700 flex-1 truncate">{stop.name}</span>
+                                                {stop.lat && stop.lng && (
+                                                    <span className="text-[9px] text-indigo-600 font-mono bg-indigo-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                        <MapPin size={9} /> {stop.lat.toFixed(3)}, {stop.lng.toFixed(3)}
+                                                    </span>
+                                                )}
                                                 {stop.pickupTime && <span className="text-[10px] text-emerald-600 font-mono bg-emerald-50 px-1.5 py-0.5 rounded">{stop.pickupTime}</span>}
                                                 {stop.dropTime && <span className="text-[10px] text-blue-600 font-mono bg-blue-50 px-1.5 py-0.5 rounded">{stop.dropTime}</span>}
                                             </div>
@@ -222,22 +244,29 @@ export default function RoutesTab({ viewMode = "card" }) {
 
                         <div className="space-y-2">
                             {form.stops.map((stop, i) => (
-                                <div key={i} className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-100 shadow-sm animate-fade-in">
-                                    <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[11px] font-bold shrink-0">{i + 1}</span>
-                                    <span className="text-sm font-bold text-slate-700 flex-1 truncate">{stop.name}</span>
-                                    <div className="flex gap-2">
-                                        {stop.pickupTime && (
-                                            <Badge variant="code" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-100 font-mono flex items-center gap-1">
-                                                <ArrowUp size={10} /> {stop.pickupTime}
-                                            </Badge>
-                                        )}
-                                        {stop.dropTime && (
-                                            <Badge variant="code" className="text-[10px] bg-blue-50 text-blue-700 border-blue-100 font-mono flex items-center gap-1">
-                                                <ArrowDown size={10} /> {stop.dropTime}
-                                            </Badge>
-                                        )}
+                                <div key={i} className="flex flex-col gap-1 p-3 bg-white rounded-xl border border-slate-100 shadow-sm animate-fade-in">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[11px] font-bold shrink-0">{i + 1}</span>
+                                        <span className="text-sm font-bold text-slate-700 flex-1 truncate">{stop.name}</span>
+                                        <div className="flex gap-2">
+                                            {stop.pickupTime && (
+                                                <Badge variant="code" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-100 font-mono flex items-center gap-1">
+                                                    <ArrowUp size={10} /> {stop.pickupTime}
+                                                </Badge>
+                                            )}
+                                            {stop.dropTime && (
+                                                <Badge variant="code" className="text-[10px] bg-blue-50 text-blue-700 border-blue-100 font-mono flex items-center gap-1">
+                                                    <ArrowDown size={10} /> {stop.dropTime}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <button type="button" onClick={() => removeStop(i)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14} /></button>
                                     </div>
-                                    <button type="button" onClick={() => removeStop(i)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                                    {stop.lat && stop.lng && (
+                                        <div className="pl-8 text-[11px] text-slate-400 font-mono flex items-center gap-1">
+                                            <MapPin size={10} className="text-indigo-500" /> Lat: {stop.lat}, Lng: {stop.lng}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -248,6 +277,10 @@ export default function RoutesTab({ viewMode = "card" }) {
                                 <Input label="Stop Name" placeholder="e.g. Main Road" value={newStop.name} onChange={(e) => setNewStop({ ...newStop, name: e.target.value })} />
                                 <Input label="Pickup" type="time" value={newStop.pickupTime} onChange={(e) => setNewStop({ ...newStop, pickupTime: e.target.value })} />
                                 <Input label="Drop" type="time" value={newStop.dropTime} onChange={(e) => setNewStop({ ...newStop, dropTime: e.target.value })} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Input label="Latitude (GPS Lat)" type="number" step="any" placeholder="e.g. 18.5204" value={newStop.lat} onChange={(e) => setNewStop({ ...newStop, lat: e.target.value })} />
+                                <Input label="Longitude (GPS Lng)" type="number" step="any" placeholder="e.g. 73.8567" value={newStop.lng} onChange={(e) => setNewStop({ ...newStop, lng: e.target.value })} />
                             </div>
                             <Button type="button" variant="outline" size="sm" onClick={addStop} className="w-full flex items-center justify-center gap-2 border-dashed border-slate-300 hover:bg-slate-100 text-slate-600">
                                 <Plus size={16} /> Add Stop to List
