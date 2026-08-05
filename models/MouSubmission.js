@@ -58,7 +58,7 @@ const MouSubmissionSchema = new mongoose.Schema({
     },
     action: {
         type: String,
-        enum: ['print', 'download_pdf'],
+        enum: ['print', 'download_pdf', 'manual_entry'],
         required: true,
         index: true
     },

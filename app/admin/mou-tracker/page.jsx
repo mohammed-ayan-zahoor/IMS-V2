@@ -61,6 +61,105 @@ export default function MouTrackerPage() {
     const [isRecordingPayment, setIsRecordingPayment] = useState(false);
     const [paymentError, setPaymentError] = useState(null);
 
+    // Manual MOU Entry Modal states (for technical issues / offline process)
+    const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+    const [isSavingManual, setIsSavingManual] = useState(false);
+    const [manualError, setManualError] = useState(null);
+    const [manualForm, setManualForm] = useState({
+        schoolName: "",
+        city: "",
+        principalName: "",
+        designation: "Principal",
+        contactEmail: "",
+        contactPhone: "",
+        studentCount: "",
+        mouDuration: "1",
+        udiseCode: "",
+        address: "",
+        action: "manual_entry",
+        status: "new",
+        notes: ""
+    });
+
+    const handleCreateManualEntry = async (e) => {
+        e.preventDefault();
+        if (!manualForm.schoolName || !manualForm.city || !manualForm.principalName || !manualForm.contactEmail || !manualForm.studentCount) {
+            setManualError("Please fill out all required fields (School Name, City, Principal Name, Email, Student Count).");
+            return;
+        }
+
+        const count = parseInt(manualForm.studentCount) || 0;
+        const duration = parseInt(manualForm.mouDuration) || 1;
+        if (count <= 0) {
+            setManualError("Please enter a valid student count (> 0).");
+            return;
+        }
+
+        let upfrontPercent = 0.5;
+        if (count <= 500) upfrontPercent = 1;
+        else if (count <= 1000) upfrontPercent = 0.75;
+
+        const totalPrice = count * 59 * duration;
+        const upfrontPrice = totalPrice * upfrontPercent;
+        const refId = `QP/MOU/MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        setIsSavingManual(true);
+        setManualError(null);
+
+        try {
+            const res = await fetch("/api/v1/mou/submissions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    refId,
+                    schoolName: manualForm.schoolName.trim(),
+                    city: manualForm.city.trim(),
+                    principalName: manualForm.principalName.trim(),
+                    designation: manualForm.designation.trim() || "Principal",
+                    contactEmail: manualForm.contactEmail.trim(),
+                    contactPhone: manualForm.contactPhone.trim(),
+                    studentCount: count,
+                    mouDuration: duration,
+                    udiseCode: manualForm.udiseCode.trim(),
+                    address: manualForm.address.trim(),
+                    totalPrice,
+                    upfrontPrice,
+                    action: manualForm.action || "manual_entry",
+                    status: manualForm.status || "new",
+                    notes: manualForm.notes.trim() ? manualForm.notes.trim() : "Manually entered due to technical problem / offline MOU processing."
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to create manual MOU entry.");
+            }
+
+            setIsManualModalOpen(false);
+            setManualForm({
+                schoolName: "",
+                city: "",
+                principalName: "",
+                designation: "Principal",
+                contactEmail: "",
+                contactPhone: "",
+                studentCount: "",
+                mouDuration: "1",
+                udiseCode: "",
+                address: "",
+                action: "manual_entry",
+                status: "new",
+                notes: ""
+            });
+            fetchSubmissions();
+        } catch (err) {
+            console.error("handleCreateManualEntry error:", err);
+            setManualError(err.message || "Failed to create manual entry.");
+        } finally {
+            setIsSavingManual(false);
+        }
+    };
+
     // Helpers
     const getMethodLabel = (method) => {
         const labels = {
@@ -359,6 +458,12 @@ export default function MouTrackerPage() {
                         >
                             Reset
                         </Button>
+                        <Button 
+                            onClick={() => { setManualError(null); setIsManualModalOpen(true); }}
+                            className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center gap-2 px-4 py-3 text-xs shadow-sm shadow-indigo-500/20"
+                        >
+                            <Plus size={16} /> Add Manual MOU
+                        </Button>
                     </div>
                 </div>
 
@@ -426,7 +531,7 @@ export default function MouTrackerPage() {
                                                         ₹{sub.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </p>
                                                     <p className="text-[10px] text-emerald-600 font-bold mt-0.5">
-                                                        70% Upfront: ₹{sub.upfrontPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        Upfront: ₹{sub.upfrontPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </p>
                                                     {sub.mouDuration && (
                                                         <p className="text-[10px] text-indigo-500 font-bold mt-1">
@@ -439,9 +544,13 @@ export default function MouTrackerPage() {
                                                         <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-full px-3 py-1 text-xs font-bold">
                                                             <Printer size={12} /> Printed
                                                         </span>
-                                                    ) : (
+                                                    ) : sub.action === 'download_pdf' ? (
                                                         <span className="inline-flex items-center gap-1 bg-teal-50 text-teal-600 border border-teal-100 rounded-full px-3 py-1 text-xs font-bold">
                                                             <Download size={12} /> PDF Saved
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-100 rounded-full px-3 py-1 text-xs font-bold">
+                                                            <FileSignature size={12} /> Manual Entry
                                                         </span>
                                                     )}
                                                 </td>
@@ -790,6 +899,215 @@ export default function MouTrackerPage() {
                                     className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 text-xs font-bold"
                                 >
                                     {isRecordingPayment ? "Recording..." : "Record & View Receipt"}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MANUAL MOU ENTRY MODAL (For technical issues / missing online logs) */}
+            {isManualModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-6">
+                        <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-800">Add Manual MOU Record</h3>
+                                <p className="text-xs text-slate-400 mt-1">Record a submission manually if the client experienced a technical issue or offline process.</p>
+                            </div>
+                            <button
+                                onClick={() => setIsManualModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                            >
+                                <XCircle size={20} />
+                            </button>
+                        </div>
+
+                        {manualError && (
+                            <div className="bg-rose-50 text-rose-600 p-4 rounded-2xl text-xs font-bold border border-rose-100 flex items-center gap-2">
+                                <AlertCircle size={16} className="shrink-0" />
+                                <span>{manualError}</span>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleCreateManualEntry} className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">School / Institute Name *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={manualForm.schoolName}
+                                        onChange={(e) => setManualForm({ ...manualForm, schoolName: e.target.value })}
+                                        placeholder="e.g. St. Mary's High School"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">City *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={manualForm.city}
+                                        onChange={(e) => setManualForm({ ...manualForm, city: e.target.value })}
+                                        placeholder="e.g. Pune / Mumbai"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Principal / Signatory Name *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={manualForm.principalName}
+                                        onChange={(e) => setManualForm({ ...manualForm, principalName: e.target.value })}
+                                        placeholder="e.g. Dr. Rajesh Sharma"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Designation</label>
+                                    <input
+                                        type="text"
+                                        value={manualForm.designation}
+                                        onChange={(e) => setManualForm({ ...manualForm, designation: e.target.value })}
+                                        placeholder="e.g. Principal / Director"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Contact Email *</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={manualForm.contactEmail}
+                                        onChange={(e) => setManualForm({ ...manualForm, contactEmail: e.target.value })}
+                                        placeholder="e.g. principal@stmarys.edu"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Contact Phone</label>
+                                    <input
+                                        type="tel"
+                                        value={manualForm.contactPhone}
+                                        onChange={(e) => setManualForm({ ...manualForm, contactPhone: e.target.value })}
+                                        placeholder="e.g. 9876543210"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-mono"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Student Strength *</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        required
+                                        value={manualForm.studentCount}
+                                        onChange={(e) => setManualForm({ ...manualForm, studentCount: e.target.value })}
+                                        placeholder="e.g. 500"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Agreement Duration</label>
+                                    <select
+                                        value={manualForm.mouDuration}
+                                        onChange={(e) => setManualForm({ ...manualForm, mouDuration: e.target.value })}
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                    >
+                                        <option value="1">1 Year Agreement</option>
+                                        <option value="2">2 Years Agreement</option>
+                                        <option value="3">3 Years Agreement</option>
+                                        <option value="4">4 Years Agreement</option>
+                                        <option value="5">5 Years Agreement</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Initial Status</label>
+                                    <select
+                                        value={manualForm.status}
+                                        onChange={(e) => setManualForm({ ...manualForm, status: e.target.value })}
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                    >
+                                        <option value="new">New Lead</option>
+                                        <option value="contacted">Contacted</option>
+                                        <option value="converted">Converted (Agreed)</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">UDISE Code (Optional)</label>
+                                    <input
+                                        type="text"
+                                        value={manualForm.udiseCode}
+                                        onChange={(e) => setManualForm({ ...manualForm, udiseCode: e.target.value })}
+                                        placeholder="e.g. 27240100101"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-mono"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Action Type</label>
+                                    <select
+                                        value={manualForm.action}
+                                        onChange={(e) => setManualForm({ ...manualForm, action: e.target.value })}
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                    >
+                                        <option value="manual_entry">Manual Record (Technical Glitch / Offline)</option>
+                                        <option value="print">Printed MOU</option>
+                                        <option value="download_pdf">PDF Downloaded</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-wider">School Address (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={manualForm.address}
+                                    onChange={(e) => setManualForm({ ...manualForm, address: e.target.value })}
+                                    placeholder="Full street address..."
+                                    className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Notes & Reason for Manual Entry</label>
+                                <textarea
+                                    value={manualForm.notes}
+                                    onChange={(e) => setManualForm({ ...manualForm, notes: e.target.value })}
+                                    placeholder="Explain why this entry was added manually (e.g. Browser crash during PDF generation, offline agreement signed)..."
+                                    rows="2"
+                                    className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-700 resize-none"
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-3">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setIsManualModalOpen(false)}
+                                    className="w-1/2 rounded-xl py-3 text-xs font-bold"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={isSavingManual}
+                                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 text-xs font-bold"
+                                >
+                                    {isSavingManual ? "Saving..." : "Create Manual MOU"}
                                 </Button>
                             </div>
                         </form>
