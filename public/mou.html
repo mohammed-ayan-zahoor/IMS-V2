@@ -1029,8 +1029,6 @@ async function trackMouAction(actionType) {
 
     const sigImg = hasSig ? canvas.toDataURL('image/png') : '';
 
-    const duration = parseInt(document.getElementById('f-duration')?.value || '1');
-
     const payload = {
       refId: refId || '',
       schoolName,
