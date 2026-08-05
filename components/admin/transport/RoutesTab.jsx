@@ -272,9 +272,60 @@ export default function RoutesTab({ viewMode = "card" }) {
                         </div>
 
                         <div className="space-y-3 pt-3 border-t border-slate-100">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Add New Stop</p>
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Add New Stop</p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            if (!newStop.name.trim()) return toast.error("Enter a stop name or address first");
+                                            try {
+                                                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(newStop.name)}`);
+                                                const data = await res.json();
+                                                if (data && data.length > 0) {
+                                                    const top = data[0];
+                                                    setNewStop(prev => ({
+                                                        ...prev,
+                                                        lat: parseFloat(top.lat).toFixed(6),
+                                                        lng: parseFloat(top.lon).toFixed(6)
+                                                    }));
+                                                    toast.success(`Found coordinates for "${top.display_name.slice(0, 30)}..."`);
+                                                } else {
+                                                    toast.error("Location not found. Try including city name (e.g. 'MG Road, Pune')");
+                                                }
+                                            } catch (e) {
+                                                toast.error("Failed to search location coordinates");
+                                            }
+                                        }}
+                                        className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                                    >
+                                        🔍 Auto-Find GPS
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!navigator.geolocation) return toast.error("Geolocation is not supported by your browser");
+                                            navigator.geolocation.getCurrentPosition(
+                                                (pos) => {
+                                                    setNewStop(prev => ({
+                                                        ...prev,
+                                                        lat: pos.coords.latitude.toFixed(6),
+                                                        lng: pos.coords.longitude.toFixed(6)
+                                                    }));
+                                                    toast.success("Location set to your current GPS position!");
+                                                },
+                                                (err) => toast.error("Unable to retrieve current location")
+                                            );
+                                        }}
+                                        className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                                    >
+                                        📍 Use My Location
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-end">
-                                <Input label="Stop Name" placeholder="e.g. Main Road" value={newStop.name} onChange={(e) => setNewStop({ ...newStop, name: e.target.value })} />
+                                <Input label="Stop Name / Address" placeholder="e.g. MG Road, Pune" value={newStop.name} onChange={(e) => setNewStop({ ...newStop, name: e.target.value })} />
                                 <Input label="Pickup" type="time" value={newStop.pickupTime} onChange={(e) => setNewStop({ ...newStop, pickupTime: e.target.value })} />
                                 <Input label="Drop" type="time" value={newStop.dropTime} onChange={(e) => setNewStop({ ...newStop, dropTime: e.target.value })} />
                             </div>
