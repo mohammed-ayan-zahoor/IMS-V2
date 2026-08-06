@@ -1049,8 +1049,9 @@ async function trackMouAction(actionType) {
       screenHeight: window.innerHeight
     };
 
-    fetch('/api/v1/mou/submissions', {
+    return await fetch('/api/v1/mou/submissions', {
       method: 'POST',
+      keepalive: true,
       headers: {
         'Content-Type': 'application/json'
       },
@@ -1061,10 +1062,11 @@ async function trackMouAction(actionType) {
   }
 }
 
-function triggerPrint() {
+async function triggerPrint() {
   if (!validateForm()) return;
 
-  trackMouAction('print');
+  // Await tracking log transmission BEFORE window.print pauses browser event loop
+  await trackMouAction('print');
   
   // Inject signature as an image for print reliability (canvases often drop in print dialogs)
   const sigPlaceholder = document.createElement('img');
@@ -1075,13 +1077,13 @@ function triggerPrint() {
     canvas.style.display = 'none';
   }
 
-  window.print();
-
-  // Restore the canvas immediately after the print dialog closes
-  if (hasSig) {
-    wrap.removeChild(sigPlaceholder);
-    canvas.style.display = 'block';
-  }
+  setTimeout(() => {
+    window.print();
+    if (hasSig) {
+      try { wrap.removeChild(sigPlaceholder); } catch(e){}
+      canvas.style.display = 'block';
+    }
+  }, 100);
 }
 </script>
 </body>
