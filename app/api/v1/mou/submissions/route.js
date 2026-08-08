@@ -94,6 +94,8 @@ export async function POST(req) {
     }
 }
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/v1/mou/submissions (Admin-only list submissions)
 export async function GET(req) {
     try {
@@ -148,15 +150,22 @@ export async function GET(req) {
             }
         }
 
-        return NextResponse.json({
-            submissions,
-            pagination: {
-                total,
-                page,
-                limit,
-                pages: Math.ceil(total / limit)
+        return NextResponse.json(
+            {
+                submissions,
+                pagination: {
+                    total,
+                    page,
+                    limit,
+                    pages: Math.ceil(total / limit)
+                }
+            },
+            {
+                headers: {
+                    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate"
+                }
             }
-        });
+        );
     } catch (error) {
         console.error("Failed to fetch MOU submissions:", error);
         return NextResponse.json({ error: "Failed to fetch MOU submissions" }, { status: 500 });

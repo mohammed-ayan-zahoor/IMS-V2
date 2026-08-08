@@ -197,6 +197,17 @@ const InstituteSchema = new Schema({
     },
 
     // Audit
+    // Onboarding & Pricing Metadata (for self-onboarded institutes & top-ups)
+    onboardingMeta: {
+        pricePerSeat: Number,
+        gstType: { type: String, enum: ['inclusive', 'exclusive'] },
+        couponCode: String,
+        topUpsAtCouponPrice: { type: Boolean, default: false },
+        paidAt: Date,
+        razorpayOrderId: String,
+        razorpayPaymentId: String
+    },
+
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' }, // Super Admin who created it
     isActive: { type: Boolean, default: true },
     deletedAt: Date

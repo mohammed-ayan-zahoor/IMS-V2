@@ -32,6 +32,8 @@ import {
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import OnboardingForm from "@/components/website/OnboardingForm";
+
 
 export default function QuantechPage() {
   const [activeGroup, setActiveGroup] = useState(0);
@@ -502,6 +504,11 @@ export default function QuantechPage() {
           </div>
         </div>
       </motion.section>
+
+      {/* Onboarding Section */}
+      <section id="onboard" className="py-12 md:py-16 px-4 md:px-6 max-w-7xl mx-auto">
+        <OnboardingForm />
+      </section>
 
       {/* Contact CTA: Emotional Buildup & Premium Finish */}
       <motion.section 

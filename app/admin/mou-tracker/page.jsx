@@ -26,7 +26,8 @@ import {
     FileText,
     Plus,
     Landmark,
-    Trash2
+    Trash2,
+    RefreshCw
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -241,8 +242,10 @@ export default function MouTrackerPage() {
         }
     }, [session, sessionStatus, router]);
 
-    const fetchSubmissions = async () => {
-        setLoading(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const fetchSubmissions = async (showLoading = true) => {
+        if (showLoading) setLoading(true);
         try {
             const query = new URLSearchParams({
                 search,
@@ -250,7 +253,7 @@ export default function MouTrackerPage() {
                 page: String(page),
                 limit: "10"
             });
-            const res = await fetch(`/api/v1/mou/submissions?${query}`);
+            const res = await fetch(`/api/v1/mou/submissions?${query}`, { cache: "no-store" });
             const data = await res.json();
             if (data.submissions) {
                 setSubmissions(data.submissions);
@@ -259,12 +262,20 @@ export default function MouTrackerPage() {
         } catch (error) {
             console.error("Failed to fetch MOU submissions", error);
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
+            setIsRefreshing(false);
         }
     };
 
     useEffect(() => {
-        fetchSubmissions();
+        fetchSubmissions(true);
+
+        // Auto-poll every 10 seconds for real-time live sync
+        const interval = setInterval(() => {
+            fetchSubmissions(false);
+        }, 10000);
+
+        return () => clearInterval(interval);
     }, [search, statusFilter, page]);
 
     const handleUpdateStatus = async (id, newStatus) => {
@@ -457,6 +468,14 @@ export default function MouTrackerPage() {
                             className="rounded-2xl"
                         >
                             Reset
+                        </Button>
+                        <Button 
+                            variant="secondary"
+                            onClick={() => { setIsRefreshing(true); fetchSubmissions(false); }}
+                            disabled={isRefreshing}
+                            className="rounded-2xl flex items-center gap-2"
+                        >
+                            <RefreshCw size={14} className={isRefreshing ? "animate-spin text-indigo-600" : "text-slate-500"} /> Refresh
                         </Button>
                         <Button 
                             onClick={() => { setManualError(null); setIsManualModalOpen(true); }}

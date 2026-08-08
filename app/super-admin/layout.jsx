@@ -15,7 +15,8 @@ import {
     LogoutOutlined,
     GlobalOutlined,
     UserOutlined,
-    BulbOutlined
+    BulbOutlined,
+    TagOutlined
 } from "@ant-design/icons";
 
 const { Header, Sider, Content } = Layout;
@@ -59,6 +60,11 @@ export default function SuperAdminLayout({ children }) {
             label: <Link href="/super-admin/institutes">Institutes</Link>,
         },
         {
+            key: "/super-admin/coupons",
+            icon: <TagOutlined />,
+            label: <Link href="/super-admin/coupons">MOU Coupons</Link>,
+        },
+        {
             key: "/super-admin/users",
             icon: <TeamOutlined />,
             label: <Link href="/super-admin/users">Admin Management</Link>,
@@ -77,6 +83,7 @@ export default function SuperAdminLayout({ children }) {
 
     const getSelectedKey = () => {
         if (pathname.startsWith("/super-admin/institutes")) return "/super-admin/institutes";
+        if (pathname.startsWith("/super-admin/coupons")) return "/super-admin/coupons";
         if (pathname.startsWith("/super-admin/users")) return "/super-admin/users";
         if (pathname.startsWith("/super-admin/shared-links")) return "/super-admin/shared-links";
         if (pathname.startsWith("/super-admin/settings")) return "/super-admin/settings";

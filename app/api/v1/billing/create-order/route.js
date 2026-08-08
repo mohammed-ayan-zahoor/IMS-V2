@@ -35,10 +35,31 @@ export async function POST(req) {
             return NextResponse.json({ error: "Razorpay credentials are not configured on the server" }, { status: 500 });
         }
 
-        const baseAmount = slots * 590;
-        const gstAmount = Math.round(baseAmount * 0.18 * 100) / 100;
-        const amountInRupees = baseAmount + gstAmount;
-        const amountInPaise = Math.round(amountInRupees * 100);
+        await connectDB();
+        const Institute = (await import("@/models/Institute")).default;
+        const institute = await Institute.findById(targetInstituteId).select('onboardingMeta');
+        const meta = institute?.onboardingMeta;
+
+        let pricePerSeat = 100; // default public price
+        let gstType = 'exclusive';
+
+        if (meta?.topUpsAtCouponPrice && meta?.pricePerSeat) {
+            pricePerSeat = meta.pricePerSeat;
+            gstType = meta.gstType || 'inclusive';
+        }
+
+        // Each slot represents 10 students/seats
+        const totalSeats = slots * 10;
+        const baseAmount = totalSeats * pricePerSeat; // in rupees
+
+        let totalAmountRupees;
+        if (gstType === 'exclusive') {
+            totalAmountRupees = baseAmount + (baseAmount * 0.18);
+        } else {
+            totalAmountRupees = baseAmount; // GST inclusive
+        }
+        const amountInPaise = Math.round(totalAmountRupees * 100);
+        const amountInRupees = totalAmountRupees;
 
         const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
         const rzpResponse = await fetch("https://api.razorpay.com/v1/orders", {
@@ -61,7 +82,6 @@ export async function POST(req) {
 
         const rzpOrder = await rzpResponse.json();
 
-        await connectDB();
         const PlatformTransaction = (await import("@/models/PlatformTransaction")).default;
         await PlatformTransaction.create({
             institute: targetInstituteId,
