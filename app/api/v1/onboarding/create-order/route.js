@@ -13,16 +13,23 @@ export async function POST(req) {
         const body = await req.json();
 
         // ── Validate required fields ───────────────────────────────────────────
-        const required = ['instituteName', 'city', 'contactName', 'email', 'phone', 'seats'];
+        const required = ['instituteName', 'city', 'contactName', 'email', 'phone'];
         for (const field of required) {
             if (!body[field]) {
                 return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 });
             }
         }
 
-        const seats = parseInt(body.seats);
-        if (isNaN(seats) || seats < 1) {
-            return NextResponse.json({ error: 'seats must be a positive integer' }, { status: 400 });
+        let slots = parseInt(body.slots);
+        let seats = parseInt(body.seats);
+
+        if (slots && slots >= 1) {
+            seats = slots * 10;
+        } else if (seats && seats >= 1) {
+            slots = Math.ceil(seats / 10);
+            seats = slots * 10;
+        } else {
+            return NextResponse.json({ error: 'slots must be a positive integer' }, { status: 400 });
         }
 
         const email = body.email.toLowerCase().trim();
@@ -109,6 +116,7 @@ export async function POST(req) {
             designation: body.designation?.trim() || 'Principal',
             email,
             phone: body.phone?.trim() || '',
+            slots,
             seats,
             udiseCode: body.udiseCode?.trim() || '',
             instituteType: body.instituteType || 'VOCATIONAL',

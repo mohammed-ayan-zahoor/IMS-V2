@@ -15,7 +15,7 @@ const OnboardingOrderSchema = new mongoose.Schema({
     contactName: { type: String, required: true, trim: true },
     designation: { type: String, trim: true, default: 'Principal' },
     email: { type: String, required: true, lowercase: true, trim: true },
-    phone: { type: String, trim: true },
+    slots: { type: Number, required: true, min: 1, default: 1 },
     seats: { type: Number, required: true, min: 1 },
     udiseCode: { type: String, trim: true },
     instituteType: {

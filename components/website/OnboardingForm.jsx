@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, Loader2, Tag, ShieldCheck, ArrowRight, Building2, Sparkles } from "lucide-react";
+import { CheckCircle2, Loader2, Tag, ShieldCheck, ArrowRight, Building2, Sparkles, Layers } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-const PUBLIC_PRICE_PER_SEAT = 100;
+const PUBLIC_PRICE_PER_SEAT = 100; // ₹100/seat => ₹1,000/slot (1 slot = 10 seats)
 const GST_RATE = 0.18;
 
 const STATES_LIST = [
@@ -24,7 +24,7 @@ export default function OnboardingForm() {
     designation: "Principal",
     email: "",
     phone: "",
-    seats: "100",
+    slots: "10",
     udiseCode: "",
     couponCode: ""
   });
@@ -86,7 +86,7 @@ export default function OnboardingForm() {
           gstType: data.gstType,
           error: ""
         });
-        toast.success(`Coupon applied! Rate: ₹${data.discountedPricePerSeat}/seat`);
+        toast.success(`Coupon applied! Rate: ₹${data.discountedPricePerSeat * 10}/slot (₹${data.discountedPricePerSeat}/seat)`);
       } else {
         setCouponState({
           isValidating: false,
@@ -103,10 +103,12 @@ export default function OnboardingForm() {
     }
   };
 
-  // Pricing math
-  const seatsNum = Math.max(1, parseInt(form.seats) || 0);
+  // Pricing math: 1 slot = 10 student capacity
+  const slotsNum = Math.max(1, parseInt(form.slots) || 1);
+  const seatsNum = slotsNum * 10;
   const activePricePerSeat = couponState.applied && couponState.discountedPricePerSeat ? couponState.discountedPricePerSeat : PUBLIC_PRICE_PER_SEAT;
-  const baseTotal = seatsNum * activePricePerSeat;
+  const pricePerSlot = activePricePerSeat * 10;
+  const baseTotal = slotsNum * pricePerSlot;
   
   let gstAmount = 0;
   let finalTotal = baseTotal;
@@ -121,13 +123,13 @@ export default function OnboardingForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.instituteName || !form.city || !form.contactName || !form.email || !form.phone || !form.seats) {
+    if (!form.instituteName || !form.city || !form.contactName || !form.email || !form.phone || !form.slots) {
       toast.error("Please fill in all required fields.");
       return;
     }
 
-    if (seatsNum < 1) {
-      toast.error("Seats count must be at least 1.");
+    if (slotsNum < 1) {
+      toast.error("Slot quantity must be at least 1.");
       return;
     }
 
@@ -139,6 +141,7 @@ export default function OnboardingForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          slots: slotsNum,
           seats: seatsNum,
           couponCode: couponState.applied ? form.couponCode.trim() : undefined
         })
@@ -160,7 +163,7 @@ export default function OnboardingForm() {
         amount: data.amount,
         currency: data.currency || "INR",
         name: "Quantech IMS",
-        description: `Self-Onboarding: ${seatsNum} Student Seats`,
+        description: `Self-Onboarding: ${slotsNum} Slot(s) (${seatsNum} Student Quota)`,
         order_id: data.orderId,
         prefill: {
           name: form.contactName,
@@ -232,7 +235,7 @@ export default function OnboardingForm() {
         </div>
         <h3 className="text-3xl md:text-4xl font-black text-slate-900">Get Your School Started in 2 Minutes</h3>
         <p className="text-slate-500 text-sm max-w-lg mx-auto">
-          Fill details, select your student capacity, and pay securely online to activate your portal instantly.
+          Fill details, select your student slots, and pay securely online to activate your portal instantly.
         </p>
       </div>
 
@@ -361,22 +364,27 @@ export default function OnboardingForm() {
         {/* Section 3: Capacity & Pricing */}
         <div className="space-y-4 pt-2 border-t border-slate-100">
           <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider flex items-center gap-2">
-            <Tag size={14} /> 3. Seat Capacity & Coupon
+            <Layers size={14} /> 3. Student Slots & Coupon
           </h4>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Number of Student Seats *</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Number of Slots * <span className="text-indigo-600 font-medium">(1 Slot = 10 Students)</span>
+              </label>
               <input
                 type="number"
-                name="seats"
+                name="slots"
                 min="1"
                 step="1"
-                value={form.seats}
+                value={form.slots}
                 onChange={handleInputChange}
                 required
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-medium text-slate-900"
               />
+              <p className="text-xs text-slate-500 mt-1 font-medium">
+                Total Capacity: <strong className="text-indigo-600 font-extrabold">{seatsNum} Student Seats</strong>
+              </p>
             </div>
 
             <div>
@@ -401,7 +409,7 @@ export default function OnboardingForm() {
               </div>
               {couponState.applied && (
                 <p className="text-xs font-semibold text-emerald-600 mt-1 flex items-center gap-1">
-                  ✓ MOU Coupon Applied (₹{couponState.discountedPricePerSeat}/seat {couponState.gstType === 'inclusive' ? 'GST incl.' : '+ GST'})
+                  ✓ MOU Coupon Applied (₹{couponState.discountedPricePerSeat * 10}/slot {couponState.gstType === 'inclusive' ? 'GST incl.' : '+ GST'})
                 </p>
               )}
               {couponState.error && (
@@ -414,7 +422,7 @@ export default function OnboardingForm() {
         {/* Live Calculation Box */}
         <div className="bg-slate-900 text-white rounded-2xl p-6 space-y-3">
           <div className="flex justify-between items-center text-sm text-slate-300">
-            <span>{seatsNum} seats × ₹{activePricePerSeat}/seat</span>
+            <span>{slotsNum} Slots ({seatsNum} Students) × ₹{pricePerSlot.toLocaleString("en-IN")}/slot</span>
             <span className="font-mono">₹{baseTotal.toLocaleString("en-IN")}</span>
           </div>
 
@@ -452,3 +460,4 @@ export default function OnboardingForm() {
     </div>
   );
 }
+
