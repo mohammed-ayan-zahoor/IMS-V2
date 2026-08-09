@@ -27,7 +27,8 @@ import {
     Plus,
     Landmark,
     Trash2,
-    RefreshCw
+    RefreshCw,
+    Tag
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -482,6 +483,12 @@ export default function MouTrackerPage() {
                             className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center gap-2 px-4 py-3 text-xs shadow-sm shadow-indigo-500/20"
                         >
                             <Plus size={16} /> Add Manual MOU
+                        </Button>
+                        <Button 
+                            onClick={() => router.push('/super-admin/coupons')}
+                            className="rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center gap-2 px-4 py-3 text-xs shadow-sm shadow-amber-500/20"
+                        >
+                            <Tag size={16} /> MOU Coupons
                         </Button>
                     </div>
                 </div>
