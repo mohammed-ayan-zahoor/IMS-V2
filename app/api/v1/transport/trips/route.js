@@ -35,26 +35,45 @@ export async function POST(req) {
         });
 
         if (activeTrip) {
-            // Return existing active trip
+            // Return existing active trip with populated route, vehicle & student details
             const populatedTrip = await BusTripSession.findById(activeTrip._id)
+                .populate("route", "name stops distance")
+                .populate("vehicle", "registrationNumber type capacity")
                 .populate({
                     path: "studentsOnBoard.student",
                     select: "profile enrollmentNumber transport"
-                });
+                })
+                .lean();
+
+            const stopsList = populatedTrip.route?.stops || [];
+            const mappedStudents = (populatedTrip.studentsOnBoard || []).map(item => {
+                const stopName = item.stop || item.student?.transport?.pickupStop || "Assigned Stop";
+                const seatNo = item.student?.transport?.seatNumber || item.student?.enrollmentNumber || "";
+                const fullName = `${item.student?.profile?.firstName || ''} ${item.student?.profile?.lastName || ''}`.trim() || "Student";
+                return {
+                    _id: item.student?._id || item.student,
+                    name: fullName,
+                    photo: item.student?.profile?.avatar || null,
+                    pickupStop: stopName,
+                    stop: stopName,
+                    stopName: stopName,
+                    seat: seatNo,
+                    seatNumber: seatNo,
+                    status: item.status,
+                    boardedAt: item.boardedAt,
+                    alightedAt: item.alightedAt
+                };
+            });
 
             return NextResponse.json({
                 tripId: populatedTrip._id,
                 status: populatedTrip.status,
                 tripType: populatedTrip.tripType,
-                students: (populatedTrip.studentsOnBoard || []).map(item => ({
-                    _id: item.student?._id || item.student,
-                    name: `${item.student?.profile?.firstName || ''} ${item.student?.profile?.lastName || ''}`.trim() || "Student",
-                    photo: item.student?.profile?.avatar || null,
-                    pickupStop: item.stop || item.student?.transport?.pickupStop || "",
-                    status: item.status,
-                    boardedAt: item.boardedAt,
-                    alightedAt: item.alightedAt
-                }))
+                route: populatedTrip.route || null,
+                stops: stopsList,
+                vehicle: populatedTrip.vehicle || null,
+                registrationNumber: populatedTrip.vehicle?.registrationNumber || "Bus",
+                students: mappedStudents
             });
         }
 
@@ -86,17 +105,38 @@ export async function POST(req) {
             studentsOnBoard
         });
 
-        return NextResponse.json({
-            tripId: newTrip._id,
-            status: newTrip.status,
-            tripType: newTrip.tripType,
-            students: students.map((s, index) => ({
+        const createdTrip = await BusTripSession.findById(newTrip._id)
+            .populate("route", "name stops distance")
+            .populate("vehicle", "registrationNumber type capacity")
+            .lean();
+
+        const stopsList = createdTrip?.route?.stops || [];
+        const mappedStudents = students.map(s => {
+            const stopName = s.transport?.pickupStop || "Assigned Stop";
+            const seatNo = s.transport?.seatNumber || s.enrollmentNumber || "";
+            const fullName = `${s.profile?.firstName || ''} ${s.profile?.lastName || ''}`.trim() || "Student";
+            return {
                 _id: s._id,
-                name: `${s.profile?.firstName || ''} ${s.profile?.lastName || ''}`.trim() || "Student",
+                name: fullName,
                 photo: s.profile?.avatar || null,
-                pickupStop: s.transport?.pickupStop || "Assigned Stop",
+                pickupStop: stopName,
+                stop: stopName,
+                stopName: stopName,
+                seat: seatNo,
+                seatNumber: seatNo,
                 status: "not_boarded"
-            }))
+            };
+        });
+
+        return NextResponse.json({
+            tripId: createdTrip._id,
+            status: createdTrip.status,
+            tripType: createdTrip.tripType,
+            route: createdTrip.route || null,
+            stops: stopsList,
+            vehicle: createdTrip.vehicle || null,
+            registrationNumber: createdTrip.vehicle?.registrationNumber || "Bus",
+            students: mappedStudents
         }, { status: 201 });
 
     } catch (error) {
