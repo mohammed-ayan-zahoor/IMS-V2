@@ -216,6 +216,22 @@ async function main() {
   console.log(`Total students processed : ${students.length}`);
   console.log(`Successfully mapped      : ${mapped}`);
   console.log(`Flagged for review       : ${unmatched.length}`);
+
+  if (unmatched.length > 0) {
+    console.log('\n--- Flagged Students Details ---');
+    unmatched.forEach((u, i) => {
+      console.log(`${i + 1}. Student: ${u.name} (${u.email || u._id})`);
+      console.log(`   Reason: ${u.reason}`);
+      if (u.route) console.log(`   Route: ${u.route}`);
+      if (u.pickupStop) console.log(`   Current pickupStop text: "${u.pickupStop}"`);
+      const r = [...routesById.values()].find(rt => rt.name === u.route);
+      if (r && r.stops) {
+        console.log(`   Available stops on this route: [ ${r.stops.map(s => `"${s.name}"`).join(', ')} ]`);
+      }
+      console.log('');
+    });
+  }
+
   console.log(`Full report written to   : ${reportPath}`);
   if (DRY_RUN) console.log('\nDRY RUN — no data was changed. Re-run without --dry-run to apply.');
 
