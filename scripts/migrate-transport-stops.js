@@ -15,6 +15,10 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 
+// Auto-load environment variables from .env.local / .env
+require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
 const MONGODB_URI = process.env.MONGODB_URI;
 const DRY_RUN = process.argv.includes('--dry-run');
 const ROLLBACK_ARG = process.argv.find((a) => a.startsWith('--rollback='));
