@@ -74,8 +74,23 @@ export async function POST(req) {
                 );
             }
 
-            const vehicle = driver.assignedVehicle;
-            const route = vehicle?.route;
+            // Check VehicleSchedule for driver (supports pickup & drop shifts)
+            const VehicleSchedule = (await import("@/models/VehicleSchedule")).default;
+            const schedules = await VehicleSchedule.find({ driver: driver._id, isActive: true })
+                .populate("vehicle", "registrationNumber type capacity")
+                .populate("route", "name stops distance")
+                .lean();
+
+            let vehicle = null;
+            let route = null;
+
+            if (schedules && schedules.length > 0) {
+                vehicle = schedules[0].vehicle;
+                route = schedules[0].route;
+            } else {
+                vehicle = driver.assignedVehicle;
+                route = vehicle?.route;
+            }
 
             const tokenPayload = {
                 id: driver._id.toString(),
@@ -105,7 +120,14 @@ export async function POST(req) {
                         _id: route._id,
                         name: route.name,
                         stops: route.stops || []
-                    } : null
+                    } : null,
+                    schedules: (schedules || []).map(s => ({
+                        _id: s._id,
+                        shift: s.shift,
+                        weekdays: s.weekdays,
+                        vehicle: s.vehicle,
+                        route: s.route
+                    }))
                 }
             });
         }
