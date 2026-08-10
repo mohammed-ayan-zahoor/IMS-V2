@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import connectDB from '@/lib/db';
+import { connectDB } from '@/lib/mongodb';
 import CourseBundle from '@/models/CourseBundle';
 import Course from '@/models/Course';
 import Institute from '@/models/Institute';
