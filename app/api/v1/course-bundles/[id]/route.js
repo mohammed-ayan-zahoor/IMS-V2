@@ -53,7 +53,19 @@ export async function PATCH(req, { params }) {
 
         const updates = {};
         if (body.title !== undefined) updates.title = body.title.trim();
-        if (body.code !== undefined) updates.code = body.code.trim().toUpperCase();
+        if (body.code !== undefined) {
+            const newCode = body.code.trim().toUpperCase();
+            const existing = await CourseBundle.findOne({
+                _id: { $ne: id },
+                institute: bundle.institute,
+                code: newCode,
+                deletedAt: null
+            });
+            if (existing) {
+                return NextResponse.json({ error: 'Another bundle with this code already exists' }, { status: 400 });
+            }
+            updates.code = newCode;
+        }
         if (body.description !== undefined) updates.description = body.description.trim();
         if (body.isActive !== undefined) updates.isActive = Boolean(body.isActive);
         if (body.bundlePrice !== undefined) updates.bundlePrice = Number(body.bundlePrice);

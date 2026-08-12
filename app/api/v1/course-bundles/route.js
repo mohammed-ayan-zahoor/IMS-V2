@@ -21,9 +21,9 @@ export async function GET(req) {
 
         await connectDB();
 
-        // Check if institute is VOCATIONAL
+        // Check if institute is VOCATIONAL (default to VOCATIONAL if type is unassigned)
         const inst = await Institute.findById(instituteId).select('type').lean();
-        if (inst?.type !== 'VOCATIONAL') {
+        if (inst?.type && inst.type === 'SCHOOL') {
             return NextResponse.json({ error: 'Course Bundles are only available for Vocational Institutes' }, { status: 403 });
         }
 
@@ -60,7 +60,7 @@ export async function POST(req) {
         await connectDB();
 
         const inst = await Institute.findById(instituteId).select('type').lean();
-        if (inst?.type !== 'VOCATIONAL') {
+        if (inst?.type && inst.type === 'SCHOOL') {
             return NextResponse.json({ error: 'Course Bundles are only available for Vocational Institutes' }, { status: 403 });
         }
 

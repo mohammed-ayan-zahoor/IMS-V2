@@ -58,7 +58,7 @@ const CourseBundleSchema = new Schema({
 // Compound index: unique code per institute (excluding soft-deleted)
 CourseBundleSchema.index(
     { institute: 1, code: 1 },
-    { unique: true, partialFilterExpression: { deletedAt: { $exists: false } } }
+    { unique: true, partialFilterExpression: { deletedAt: null } }
 );
 
 delete mongoose.models.CourseBundle;
