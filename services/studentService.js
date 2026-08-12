@@ -581,7 +581,7 @@ export class StudentService {
     /**
      * Enroll student in a batch and initialize fees
      */
-    static async enrollInBatch(studentId, batchId, actorId, instituteId, customAmount = null, presetId = null, installments = null) {
+    static async enrollInBatch(studentId, batchId, actorId, instituteId, customAmount = null, presetId = null, installments = null, courseBundleId = null) {
         const session = await mongoose.startSession();
         try {
             session.startTransaction();
@@ -691,7 +691,8 @@ export class StudentService {
                     status: 'pending'
                 })) : [],
                 status: 'not_started',
-                feePreset: presetId || null
+                feePreset: presetId || null,
+                courseBundle: courseBundleId || null
             }], { session });
 
             await session.commitTransaction();
@@ -732,7 +733,7 @@ export class StudentService {
     }
 
     // Fallback for standalone DB without transactions
-    static async enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount = null, presetId = null, installments = null) {
+    static async enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount = null, presetId = null, installments = null, courseBundleId = null) {
         const student = await User.findById(studentId);
         if (!student || student.role !== 'student' || student.deletedAt) throw new Error('Invalid or inactive student');
 
@@ -796,7 +797,8 @@ export class StudentService {
                 status: 'pending'
             })) : [],
             status: 'not_started',
-            feePreset: presetId || null
+            feePreset: presetId || null,
+            courseBundle: courseBundleId || null
         });
 
         await createAuditLog({

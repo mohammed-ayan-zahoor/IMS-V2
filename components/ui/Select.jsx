@@ -154,16 +154,19 @@ export default function Select({
                                     <li key={`${option.value}-${index}`}>
                                         <button
                                             type="button"
-                                            onClick={() => handleSelect(option.value)}
+                                            disabled={option.disabled}
+                                            onClick={() => !option.disabled && handleSelect(option.value)}
                                             className={cn(
                                                 "w-full px-3 py-2 text-sm font-medium rounded-lg text-left flex items-center justify-between transition-colors",
-                                                option.value === value
-                                                    ? "bg-premium-blue/5 text-premium-blue"
-                                                    : "text-slate-600 hover:bg-slate-50"
+                                                option.disabled
+                                                    ? "bg-slate-100/70 text-slate-400 font-bold text-[10px] uppercase tracking-widest cursor-default py-1.5"
+                                                    : option.value === value
+                                                        ? "bg-premium-blue/5 text-premium-blue font-bold"
+                                                        : "text-slate-600 hover:bg-slate-50"
                                             )}
                                         >
                                             {option.label}
-                                            {option.value === value && <Check size={14} />}
+                                            {option.value === value && !option.disabled && <Check size={14} />}
                                         </button>
                                     </li>
                                 )) : (

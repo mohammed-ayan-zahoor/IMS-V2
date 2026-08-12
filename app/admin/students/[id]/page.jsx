@@ -84,7 +84,9 @@ export default function StudentDetailsPage({ params }) {
     // Enrollment Modal State
     const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [selectedCourse, setSelectedCourse] = useState("");
+    const [selectedBundle, setSelectedBundle] = useState("");
     const [courseBatches, setCourseBatches] = useState([]);
     const [selectedBatch, setSelectedBatch] = useState("");
     const [feePresets, setFeePresets] = useState([]);
@@ -826,8 +828,16 @@ export default function StudentDetailsPage({ params }) {
             const res = await fetch("/api/v1/courses");
             const data = await res.json();
             setCourses(data.courses || []);
+
+            if (!isSchool) {
+                const bRes = await fetch("/api/v1/course-bundles");
+                if (bRes.ok) {
+                    const bData = await bRes.json();
+                    setCourseBundles(bData.bundles || []);
+                }
+            }
         } catch (error) {
-            console.error("Failed to fetch courses", error);
+            console.error("Failed to fetch courses or bundles", error);
         }
     };
 
@@ -859,7 +869,15 @@ export default function StudentDetailsPage({ params }) {
         try {
             setIsEnrolling(true);
             const preset = feePresets.find(p => p._id === selectedPreset);
-            const totalAmount = preset ? preset.amount : (courses.find(c => c._id === selectedCourse)?.fees?.amount || 0);
+            const bundle = courseBundles.find(b => b._id === selectedBundle);
+            let totalAmount = 0;
+            if (preset) {
+                totalAmount = preset.amount;
+            } else if (bundle) {
+                totalAmount = bundle.bundlePrice;
+            } else {
+                totalAmount = courses.find(c => c._id === selectedCourse)?.fees?.amount || 0;
+            }
 
             if (configureInstallments) {
                 const sum = enrollmentInstallments.reduce((acc, inst) => acc + (parseFloat(inst.amount) || 0), 0);
@@ -875,8 +893,9 @@ export default function StudentDetailsPage({ params }) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     batchId: selectedBatch,
-                    customAmount: preset ? preset.amount : null,
+                    customAmount: preset ? preset.amount : (bundle ? bundle.bundlePrice : null),
                     presetId: selectedPreset || null,
+                    courseBundleId: selectedBundle || null,
                     installments: configureInstallments ? enrollmentInstallments.map(i => ({
                         amount: parseFloat(i.amount),
                         dueDate: i.dueDate
@@ -888,6 +907,7 @@ export default function StudentDetailsPage({ params }) {
                 setIsEnrollModalOpen(false);
                 setSelectedBatch("");
                 setSelectedCourse("");
+                setSelectedBundle("");
                 setConfigureInstallments(false);
                 setEnrollmentInstallments([]);
                 fetchStudentDetails();
@@ -2776,18 +2796,58 @@ export default function StudentDetailsPage({ params }) {
                     <div className="space-y-4">
                         <div className="space-y-1">
                             <Select
-                                label={`Select ${isSchool ? "Class" : "Course"}`}
-                                value={selectedCourse}
-                                onChange={(val) => setSelectedCourse(val)}
+                                label={`Select ${isSchool ? "Class" : "Course or Package"}`}
+                                value={selectedBundle ? `bundle_${selectedBundle}` : selectedCourse}
+                                onChange={(val) => {
+                                    if (val.startsWith("bundle_")) {
+                                        const bId = val.replace("bundle_", "");
+                                        const bObj = courseBundles.find(b => b._id === bId);
+                                        setSelectedBundle(bId);
+                                        const firstCourseId = bObj?.courses?.[0]?._id || bObj?.courses?.[0];
+                                        if (firstCourseId) {
+                                            setSelectedCourse(firstCourseId);
+                                            fetchBatchesForCourse(firstCourseId);
+                                        }
+                                    } else {
+                                        setSelectedBundle("");
+                                        setSelectedCourse(val);
+                                        if (val) fetchBatchesForCourse(val);
+                                    }
+                                }}
                                 options={[
-                                    { label: `-- Choose a ${isSchool ? "Class" : "Course"} --`, value: "" },
+                                    { label: `-- Choose a ${isSchool ? "Class" : "Course or Package"} --`, value: "" },
+                                    ...(courseBundles.length > 0 ? [
+                                        { label: "── 🎁 COURSE PACKAGES / SPECIAL OFFERS ──", value: "header_bundles", disabled: true },
+                                        ...courseBundles.map(b => ({
+                                            label: `🎁 ${b.title} (${b.code}) — ₹${b.bundlePrice?.toLocaleString()} [Includes ${b.courses?.length || 0} Courses]`,
+                                            value: `bundle_${b._id}`
+                                        })),
+                                        { label: "── INDIVIDUAL COURSES ──", value: "header_courses", disabled: true }
+                                    ] : []),
                                     ...courses.map(course => ({
-                                        label: `${course.name} (${course.code})`,
+                                        label: `${course.name} (${course.code}) — ₹${(course.fees?.amount || 0).toLocaleString()}`,
                                         value: course._id
                                     }))
                                 ]}
                             />
                         </div>
+
+                        {selectedBundle && (() => {
+                            const bObj = courseBundles.find(b => b._id === selectedBundle);
+                            if (!bObj) return null;
+                            const courseNames = (bObj.courses || []).map(c => c.name || c.code || 'Course').join(', ');
+                            return (
+                                <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl space-y-1 animate-fade-in">
+                                    <div className="flex items-center justify-between text-xs font-bold text-blue-900">
+                                        <span>🎁 Course Package Offer Applied</span>
+                                        <span className="text-emerald-600 font-extrabold">Package Price: ₹{bObj.bundlePrice?.toLocaleString()}</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-600">
+                                        Included Courses: <span className="font-semibold text-slate-800">{courseNames}</span>
+                                    </p>
+                                </div>
+                            );
+                        })()}
 
                         {selectedCourse && (
                             <div className="space-y-1 animate-fade-in">
