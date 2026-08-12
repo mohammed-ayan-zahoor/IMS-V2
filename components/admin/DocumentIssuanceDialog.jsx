@@ -156,7 +156,7 @@ const DocumentIssuanceDialog = ({
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-slate-900/60" onClick={onClose} />
             
             <div className="relative w-full max-w-6xl h-[90vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-300">
                 {/* Header */}

@@ -105,7 +105,7 @@ export default function CertificateVisibilityModal({ isOpen, onClose, student })
 
     return createPortal(
         <div 
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 animate-in fade-in duration-300"
             onClick={onClose}
         >
             <div 

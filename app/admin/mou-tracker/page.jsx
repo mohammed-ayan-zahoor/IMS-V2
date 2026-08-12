@@ -934,7 +934,7 @@ export default function MouTrackerPage() {
 
             {/* MANUAL MOU ENTRY MODAL (For technical issues / missing online logs) */}
             {isManualModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-fade-in">
                     <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-6">
                         <div className="flex justify-between items-start border-b border-slate-100 pb-4">
                             <div>
