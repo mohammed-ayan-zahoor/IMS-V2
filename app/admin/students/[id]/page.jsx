@@ -168,6 +168,10 @@ export default function StudentDetailsPage({ params }) {
             const preset = feePresets.find(p => p._id === selectedPreset);
             if (preset) return preset.amount;
         }
+        if (selectedBundle) {
+            const bundle = courseBundles.find(b => b._id === selectedBundle);
+            if (bundle) return bundle.bundlePrice || 0;
+        }
         if (selectedCourse) {
             const course = courses.find(c => c._id === selectedCourse);
             if (course) return course.fees?.amount || 0;
@@ -859,6 +863,16 @@ export default function StudentDetailsPage({ params }) {
             setCourseBatches(fetchedBatches);
         } catch (error) {
             console.error("Failed to fetch batches", error);
+        }
+    };
+
+    const fetchBatchesForBundle = async (bundleId) => {
+        try {
+            const res = await fetch(`/api/v1/batches?courseBundleId=${bundleId}`);
+            const data = await res.json();
+            setCourseBatches(data.batches || []);
+        } catch (error) {
+            console.error("Failed to fetch bundle batches", error);
         }
     };
 
@@ -2801,16 +2815,16 @@ export default function StudentDetailsPage({ params }) {
                                 onChange={(val) => {
                                     if (val.startsWith("bundle_")) {
                                         const bId = val.replace("bundle_", "");
-                                        const bObj = courseBundles.find(b => b._id === bId);
                                         setSelectedBundle(bId);
-                                        const firstCourseId = bObj?.courses?.[0]?._id || bObj?.courses?.[0];
-                                        if (firstCourseId) {
-                                            setSelectedCourse(firstCourseId);
-                                            fetchBatchesForCourse(firstCourseId);
-                                        }
+                                        setSelectedCourse("");
+                                        setSelectedBatch("");
+                                        setCourseBatches([]);
+                                        fetchBatchesForBundle(bId);
                                     } else {
                                         setSelectedBundle("");
                                         setSelectedCourse(val);
+                                        setSelectedBatch("");
+                                        setCourseBatches([]);
                                         if (val) fetchBatchesForCourse(val);
                                     }
                                 }}
@@ -2868,7 +2882,19 @@ export default function StudentDetailsPage({ params }) {
                                     ]}
                                 />
                                 {courseBatches.length === 0 && (
-                                    <p className="text-xs text-amber-500 font-medium px-1">No active batches for this course.</p>
+                                    <div className="px-1">
+                                        {selectedBundle ? (
+                                            <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+                                                <span className="text-amber-500 mt-0.5">⚠</span>
+                                                <div className="text-xs text-amber-700">
+                                                    <span className="font-bold">No batch exists for this bundle offer yet.</span>
+                                                    {" "}<a href="/admin/batches" target="_blank" rel="noreferrer" className="underline font-bold">Create a Bundle Batch first →</a>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-amber-500 font-medium">No active batches for this course.</p>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         )}

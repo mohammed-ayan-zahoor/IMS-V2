@@ -9,12 +9,14 @@ export async function GET(req) {
     try {
         const { searchParams } = new URL(req.url);
         const courseId = searchParams.get('courseId');
+        const courseBundleId = searchParams.get('courseBundleId');
         const sessionId = searchParams.get('sessionId');
         const targetInstParam = searchParams.get('instituteId');
         const enrolledStudents = searchParams.get('enrolledStudents');
 
         const filters = {};
         if (courseId) filters.course = courseId;
+        if (courseBundleId) filters.courseBundle = courseBundleId;
         if (sessionId) filters.session = sessionId;
         if (enrolledStudents) filters.enrolledStudents = enrolledStudents;
 
@@ -62,8 +64,8 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        if (!body.name || !body.course) {
-            return NextResponse.json({ error: "Name and course reference are required" }, { status: 400 });
+        if (!body.name || (!body.course && !body.courseBundle)) {
+            return NextResponse.json({ error: "Name and either a course or course bundle reference are required" }, { status: 400 });
         }
 
         // Determine target institute

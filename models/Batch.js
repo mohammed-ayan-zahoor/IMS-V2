@@ -10,11 +10,19 @@ const BatchSchema = new Schema({
         description: 'Academic session this batch belongs to'
     },
     name: { type: String, required: true, trim: true },
+    // ponytail: course is optional now — a batch belongs to EITHER a course OR a courseBundle.
+    // The pre-validate hook below enforces that exactly one is set.
     course: {
         type: Schema.Types.ObjectId,
         ref: 'Course',
-        required: true,
-        index: true
+        index: true,
+        default: null
+    },
+    courseBundle: {
+        type: Schema.Types.ObjectId,
+        ref: 'CourseBundle',
+        index: true,
+        default: null
     },
     schedule: {
         startDate: { type: Date, required: true },
@@ -61,8 +69,23 @@ const BatchSchema = new Schema({
     toObject: { virtuals: true }
 });
 
+// Enforce: a batch must belong to either a Course or a CourseBundle — not both, not neither.
+BatchSchema.pre('validate', function (next) {
+    const hasCourse = !!this.course;
+    const hasBundle = !!this.courseBundle;
+    if (!hasCourse && !hasBundle) {
+        return next(new Error('A batch must be linked to either a Course or a Course Bundle.'));
+    }
+    if (hasCourse && hasBundle) {
+        return next(new Error('A batch cannot be linked to both a Course and a Course Bundle.'));
+    }
+    next();
+});
+
 BatchSchema.index({ course: 1, deletedAt: 1 });
+BatchSchema.index({ courseBundle: 1, deletedAt: 1 });
 BatchSchema.index({ institute: 1, course: 1, deletedAt: 1 });
+BatchSchema.index({ institute: 1, courseBundle: 1, deletedAt: 1 });
 BatchSchema.index({ institute: 1, session: 1, deletedAt: 1 });
 BatchSchema.index({ 'schedule.startDate': 1 });
 BatchSchema.index({ 'enrolledStudents.student': 1 }); // Optimized for student batch lookup

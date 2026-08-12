@@ -9,17 +9,19 @@ import {
     Calendar,
     Plus,
     Search,
-    MoreVertical,
     Users,
     BookOpen,
     Clock,
-    Filter,
     Edit2,
     Trash2,
     MessageSquare,
     ExternalLink,
     Copy,
-    AlertCircle
+    AlertCircle,
+    HelpCircle,
+    Layers,
+    Package,
+    ChevronRight
 } from "lucide-react";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
@@ -41,13 +43,17 @@ export default function BatchesPage() {
     const router = useRouter();
     const [batches, setBatches] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [bundles, setBundles] = useState([]);
     const [loading, setLoading] = useState(true);
     const { data: session } = useSession();
     const { selectedSessionId, sessions } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
     const [search, setSearch] = useState("");
+    const [listFilter, setListFilter] = useState("all"); // "all" | "course" | "bundle"
     const [institutes, setInstitutes] = useState([]);
     const [selectedInstitute, setSelectedInstitute] = useState("");
+    const [isHowToOpen, setIsHowToOpen] = useState(false);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingBatch, setEditingBatch] = useState(null);
@@ -55,10 +61,12 @@ export default function BatchesPage() {
     const [cloneSourceSessionId, setCloneSourceSessionId] = useState("");
     const [isCloning, setIsCloning] = useState(false);
 
-    // Form State
+    // Form State — batchType is "course" or "bundle"
+    const [batchType, setBatchType] = useState("course");
     const [formData, setFormData] = useState({
         name: "",
-        course: "", // Course ID
+        course: "",
+        courseBundle: "",
         schedule: "",
         startDate: "",
         capacity: ""
@@ -88,25 +96,32 @@ export default function BatchesPage() {
             setLoading(true);
             const instQuery = selectedInstitute ? `&instituteId=${selectedInstitute}` : "";
             const sessQuery = (isSchool && selectedSessionId) ? `&sessionId=${selectedSessionId}` : "";
-            const [bRes, cRes] = await Promise.all([
+            const fetches = [
                 fetch(`/api/v1/batches?_t=${Date.now()}${instQuery}${sessQuery}`),
                 fetch(`/api/v1/courses?_t=${Date.now()}${instQuery}${sessQuery}`)
-            ]);
-            const [bData, cData] = await Promise.all([bRes.json(), cRes.json()]);
-            // Ensure strictly array
+            ];
+            if (isVocational) fetches.push(fetch("/api/v1/course-bundles"));
+
+            const results = await Promise.all(fetches);
+            const [bData, cData] = await Promise.all([results[0].json(), results[1].json()]);
+
             let batchList = Array.isArray(bData) ? bData : (Array.isArray(bData?.batches) ? bData.batches : []);
             
             // Grouped Sort: Course Name then Batch Name (Natural Sort)
             batchList.sort((a, b) => {
-                const courseA = a.course?.name || "";
-                const courseB = b.course?.name || "";
+                const courseA = a.course?.name || a.courseBundle?.title || "";
+                const courseB = b.course?.name || b.courseBundle?.title || "";
                 if (courseA !== courseB) return courseA.localeCompare(courseB);
                 return (a.name || "").localeCompare((b.name || ""), undefined, { numeric: true, sensitivity: 'base' });
             });
 
             setBatches(batchList);
-            const courseList = Array.isArray(cData) ? cData : (Array.isArray(cData?.courses) ? cData.courses : []);
-            setCourses(courseList);
+            setCourses(Array.isArray(cData) ? cData : (Array.isArray(cData?.courses) ? cData.courses : []));
+
+            if (isVocational && results[2]) {
+                const bndData = await results[2].json();
+                setBundles(bndData.bundles || []);
+            }
         } catch (error) {
             console.error("Failed to fetch data", error);
         } finally {
@@ -134,9 +149,12 @@ export default function BatchesPage() {
 
     const handleEditBatch = (batch) => {
         setEditingBatch(batch);
+        const type = batch.courseBundle ? "bundle" : "course";
+        setBatchType(type);
         setFormData({
             name: batch.name,
-            course: batch.course?._id,
+            course: type === "course" ? (batch.course?._id || "") : "",
+            courseBundle: type === "bundle" ? (batch.courseBundle?._id || "") : "",
             capacity: batch.capacity,
             schedule: batch.schedule?.description || "",
             startDate: batch.schedule?.startDate ? new Date(batch.schedule.startDate).toISOString().split('T')[0] : ""
@@ -149,27 +167,33 @@ export default function BatchesPage() {
         const url = editingBatch ? `/api/v1/batches/${editingBatch._id}` : "/api/v1/batches";
         const method = editingBatch ? "PATCH" : "POST";
 
+        const payload = {
+            name: formData.name,
+            capacity: parseInt(formData.capacity, 10) || 0,
+            session: editingBatch ? editingBatch.session?._id || editingBatch.session : (selectedSessionId || undefined),
+            schedule: { startDate: formData.startDate, description: formData.schedule }
+        };
+
+        if (batchType === "bundle" && formData.courseBundle) {
+            payload.courseBundle = formData.courseBundle;
+            payload.course = null;
+        } else {
+            payload.course = formData.course;
+            payload.courseBundle = null;
+        }
+
         try {
             const res = await fetch(url, {
                 method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: formData.name,
-                    course: formData.course,
-                    capacity: parseInt(formData.capacity, 10) || 0,
-                    // Preserve existing session on edit, or use current on create
-                    session: editingBatch ? editingBatch.session?._id || editingBatch.session : (selectedSessionId || undefined),
-                    schedule: {
-                        startDate: formData.startDate,
-                        description: formData.schedule
-                    }
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (res.ok) {
                 setIsAddModalOpen(false);
                 setEditingBatch(null);
-                setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
+                setBatchType("course");
+                setFormData({ name: "", course: "", courseBundle: "", schedule: "", startDate: "", capacity: "" });
                 fetchInitialData();
                 toast.success(editingBatch ? `${isSchool ? "Section" : "Batch"} updated successfully` : `${isSchool ? "Section" : "Batch"} created successfully`);
             } else {
@@ -217,13 +241,18 @@ export default function BatchesPage() {
 
     const filteredBatches = batches.filter(batch => {
         const matchesSearch = batch.name?.toLowerCase().includes(search.toLowerCase()) ||
-                              batch.course?.name?.toLowerCase().includes(search.toLowerCase());
+                              batch.course?.name?.toLowerCase().includes(search.toLowerCase()) ||
+                              batch.courseBundle?.title?.toLowerCase().includes(search.toLowerCase());
         // Session Isolation (Strictly for Schools)
-        const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
-        const matchesSession = isSchool && selectedSessionId && !isVocational
+        const isVocType = session?.user?.institute?.type === 'VOCATIONAL';
+        const matchesSession = isSchool && selectedSessionId && !isVocType
             ? (batch.session === selectedSessionId || batch.session?._id === selectedSessionId || !batch.session)
             : true;
-        return matchesSearch && matchesSession;
+        // Type filter
+        const matchesType = listFilter === "all" ? true
+            : listFilter === "bundle" ? !!batch.courseBundle
+            : !batch.courseBundle;
+        return matchesSearch && matchesSession && matchesType;
     });
 
     return (
@@ -232,6 +261,17 @@ export default function BatchesPage() {
                 <div />
                 {session?.user?.role !== 'instructor' && (
                     <div className="flex items-center gap-2">
+                        {/* How to Use Bundle Batches — only for Vocational */}
+                        {isVocational && (
+                            <button
+                                onClick={() => setIsHowToOpen(true)}
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all"
+                                title="How to use Bundle Batches"
+                            >
+                                <HelpCircle size={14} />
+                                How to use Bundle Batches
+                            </button>
+                        )}
                         {isSchool && (
                             <Button 
                                 onClick={() => setIsCloneModalOpen(true)}
@@ -246,7 +286,8 @@ export default function BatchesPage() {
                         <Button 
                             onClick={() => {
                                 setEditingBatch(null);
-                                setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: 30 });
+                                setBatchType("course");
+                                setFormData({ name: "", course: "", courseBundle: "", schedule: "", startDate: "", capacity: 30 });
                                 setIsAddModalOpen(true);
                             }} 
                             size="md" 
@@ -285,6 +326,21 @@ export default function BatchesPage() {
                                 className="bg-white border-slate-200"
                             />
                         </div>
+                        {/* Type Filter — Vocational only */}
+                        {isVocational && (
+                            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1">
+                                {[{v: "all", label: "All"}, {v: "course", label: "Courses"}, {v: "bundle", label: "🎁 Bundles"}].map(({v, label}) => (
+                                    <button
+                                        key={v}
+                                        onClick={() => setListFilter(v)}
+                                        className={cn(
+                                            "px-3 py-1.5 text-xs font-bold rounded-md transition-all",
+                                            listFilter === v ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
+                                        )}
+                                    >{label}</button>
+                                ))}
+                            </div>
+                        )}
                         <div className="flex-1" />
                         <Badge variant="hot" className="bg-orange-50 text-orange-600 font-mono text-[10px]">
                             {filteredBatches.length} Active {isSchool ? "Sections" : "Batches"}
@@ -324,8 +380,23 @@ export default function BatchesPage() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <Badge variant="code">{batch.course?.code || "N/A"}</Badge>
-                                                <p className="text-[11px] text-slate-500 font-bold mt-1.5 truncate max-w-[150px]">{batch.course?.name}</p>
+                                                {batch.courseBundle ? (
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-xs font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                                <Package size={11} /> Bundle
+                                                            </span>
+                                                            <Badge variant="code">{batch.courseBundle?.code || "PKG"}</Badge>
+                                                        </div>
+                                                        <p className="text-[11px] text-slate-500 font-bold mt-0.5 truncate max-w-[160px]">{batch.courseBundle?.title}</p>
+                                                        <p className="text-[10px] text-emerald-600 font-bold">₹{batch.courseBundle?.bundlePrice?.toLocaleString()}</p>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <Badge variant="code">{batch.course?.code || "N/A"}</Badge>
+                                                        <p className="text-[11px] text-slate-500 font-bold mt-1.5 truncate max-w-[150px]">{batch.course?.name}</p>
+                                                    </>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1.5">
@@ -436,23 +507,106 @@ export default function BatchesPage() {
                 onClose={() => {
                     setIsAddModalOpen(false);
                     setEditingBatch(null);
-                    setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
+                    setBatchType("course");
+                    setFormData({ name: "", course: "", courseBundle: "", schedule: "", startDate: "", capacity: "" });
                 }}
                 title={editingBatch ? `Edit ${isSchool ? "Section" : "Batch"}` : `Schedule New ${isSchool ? "Section" : "Batch"}`}
             >
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">{isSchool ? "Section" : "Batch"} Configuration</div>
                 <form onSubmit={handleFormSubmit} className="space-y-5">
+
+                    {/* Batch Type Toggle — Vocational only, hide on edit since type cannot change */}
+                    {isVocational && !editingBatch && (
+                        <div className="space-y-2">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Batch Type</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setBatchType("course")}
+                                    className={cn(
+                                        "flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-semibold transition-all",
+                                        batchType === "course"
+                                            ? "border-blue-500 bg-blue-50 text-blue-700"
+                                            : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                                    )}
+                                >
+                                    <BookOpen size={16} />
+                                    Individual Course
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setBatchType("bundle")}
+                                    className={cn(
+                                        "flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-semibold transition-all",
+                                        batchType === "bundle"
+                                            ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                                            : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                                    )}
+                                >
+                                    <Package size={16} />
+                                    🎁 Bundle Offer
+                                </button>
+                            </div>
+                            {batchType === "bundle" && (
+                                <p className="text-[11px] text-indigo-500 font-medium px-1">
+                                    This batch will be linked to a Course Bundle Offer. Students enrolled here will be charged the bundle price.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
                     <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Select {isSchool ? "Class" : "Course"}</label>
-                        <Select
-                            value={formData.course}
-                            onChange={(val) => setFormData(prev => ({ ...prev, course: val }))}
-                            options={[
-                                ...courses.map(course => ({ label: `${course.name} (${course.code})`, value: course._id }))
-                            ]}
-                            placeholder={`-- Select a ${isSchool ? "Class" : "Course"} --`}
-                            required
-                        />
+                        <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">
+                            {batchType === "bundle" ? "Select Bundle Offer" : `Select ${isSchool ? "Class" : "Course"}`}
+                        </label>
+                        {batchType === "bundle" ? (
+                            <>
+                                <Select
+                                    value={formData.courseBundle}
+                                    onChange={(val) => setFormData(prev => ({ ...prev, courseBundle: val }))}
+                                    options={[
+                                        { label: "-- Select a Bundle Offer --", value: "" },
+                                        ...bundles.filter(b => b.isActive).map(b => ({
+                                            label: `🎁 ${b.title} (${b.code}) — ₹${b.bundlePrice?.toLocaleString()} · ${b.courses?.length || 0} courses`,
+                                            value: b._id
+                                        }))
+                                    ]}
+                                    placeholder="-- Select a Bundle Offer --"
+                                    required
+                                />
+                                {/* Bundle preview card */}
+                                {(() => {
+                                    const sel = bundles.find(b => b._id === formData.courseBundle);
+                                    if (!sel) return null;
+                                    const courseNames = (sel.courses || []).map(c => c.name || c.code || 'Course').join(', ');
+                                    return (
+                                        <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl space-y-1 text-sm">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-bold text-indigo-800">🎁 {sel.title}</span>
+                                                <span className="text-emerald-700 font-extrabold text-xs bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">₹{sel.bundlePrice?.toLocaleString()}</span>
+                                            </div>
+                                            <p className="text-[11px] text-slate-600">Includes: <span className="font-semibold">{courseNames}</span></p>
+                                        </div>
+                                    );
+                                })()}
+                                {bundles.filter(b => b.isActive).length === 0 && (
+                                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 font-medium flex items-center gap-2">
+                                        <AlertCircle size={14} />
+                                        No active bundle offers found. <button type="button" className="underline font-bold" onClick={() => router.push('/admin/courses?tab=bundles')}>Create one first →</button>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <Select
+                                value={formData.course}
+                                onChange={(val) => setFormData(prev => ({ ...prev, course: val }))}
+                                options={[
+                                    ...courses.map(course => ({ label: `${course.name} (${course.code})`, value: course._id }))
+                                ]}
+                                placeholder={`-- Select a ${isSchool ? "Class" : "Course"} --`}
+                                required
+                            />
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -498,7 +652,8 @@ export default function BatchesPage() {
                         <Button type="button" variant="outline" className="flex-1" onClick={() => {
                             setIsAddModalOpen(false);
                             setEditingBatch(null);
-                            setFormData({ name: "", course: "", schedule: "", startDate: "", capacity: "" });
+                            setBatchType("course");
+                            setFormData({ name: "", course: "", courseBundle: "", schedule: "", startDate: "", capacity: "" });
                         }}>Cancel</Button>
                         <Button type="submit" className="flex-1">{editingBatch ? `Update ${isSchool ? "Section" : "Batch"}` : `Create ${isSchool ? "Section" : "Batch"}`}</Button>
                     </div>
@@ -542,6 +697,76 @@ export default function BatchesPage() {
                         </Button>
                     </div>
                 </form>
+            </Modal>
+
+            {/* How to Use Bundle Batches — Guide Modal */}
+            <Modal
+                isOpen={isHowToOpen}
+                onClose={() => setIsHowToOpen(false)}
+                title="How to Enroll Students in Bundle Offers"
+            >
+                <div className="space-y-5 py-2">
+                    <p className="text-sm text-slate-500">
+                        Bundle Offers let you enroll a student in multiple courses under a single discounted price. Follow these 3 steps:
+                    </p>
+
+                    {/* Step 1 */}
+                    <div className="flex gap-4 p-4 rounded-2xl border border-indigo-100 bg-indigo-50/60">
+                        <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-sm shrink-0">1</div>
+                        <div className="flex-1 space-y-1">
+                            <h4 className="font-bold text-slate-800 text-sm">Create a Bundle Offer</h4>
+                            <p className="text-xs text-slate-500">Go to Courses → <span className="font-semibold">Bundle Offers</span> tab and create a bundle combining 2 or more courses with a special price.</p>
+                            <button
+                                type="button"
+                                onClick={() => { setIsHowToOpen(false); router.push('/admin/courses'); }}
+                                className="mt-2 flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                                Go to Courses <ChevronRight size={13} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="flex gap-4 p-4 rounded-2xl border border-blue-100 bg-blue-50/60">
+                        <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-sm shrink-0">2</div>
+                        <div className="flex-1 space-y-1">
+                            <h4 className="font-bold text-slate-800 text-sm">Create a Bundle Batch</h4>
+                            <p className="text-xs text-slate-500">On this page, click <span className="font-semibold">Create Batch</span> and select <span className="font-semibold">🎁 Bundle Offer</span> as the batch type. Choose the bundle offer from the dropdown.</p>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsHowToOpen(false);
+                                    setBatchType("bundle");
+                                    setFormData({ name: "", course: "", courseBundle: "", schedule: "", startDate: "", capacity: 30 });
+                                    setIsAddModalOpen(true);
+                                }}
+                                className="mt-2 flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                                Create Bundle Batch now <ChevronRight size={13} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="flex gap-4 p-4 rounded-2xl border border-emerald-100 bg-emerald-50/60">
+                        <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-sm shrink-0">3</div>
+                        <div className="flex-1 space-y-1">
+                            <h4 className="font-bold text-slate-800 text-sm">Enroll a Student</h4>
+                            <p className="text-xs text-slate-500">Open the student&apos;s profile → click <span className="font-semibold">Enroll New Course</span> → select the <span className="font-semibold">🎁 Course Package</span> from the dropdown. The batch list will now show only batches created for that bundle.</p>
+                            <button
+                                type="button"
+                                onClick={() => { setIsHowToOpen(false); router.push('/admin/students'); }}
+                                className="mt-2 flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-800 transition-colors"
+                            >
+                                Go to Students <ChevronRight size={13} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="pt-2 bg-slate-50 border border-slate-100 rounded-xl p-3 text-[11px] text-slate-500">
+                        <span className="font-bold text-slate-700">Tip:</span> The bundle price is automatically applied as the fee during enrollment. You can still override it with a custom amount or a Fee Preset.
+                    </div>
+                </div>
             </Modal>
         </div>
     );

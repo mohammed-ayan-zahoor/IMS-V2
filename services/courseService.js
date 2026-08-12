@@ -177,11 +177,17 @@ export class CourseService {
 
 export class BatchService {
     static async createBatch(data, actorId) {
-        // Lock on the course ID to prevent concurrent deletion
-        const courseId = data.course; // Ensure 'course' field is present in data
-        if (!courseId) throw new Error("Course ID is required");
+        const courseId = data.course || null;
+        const courseBundleId = data.courseBundle || null;
 
-        return runSynchronized(courseId, async () => {
+        // Validate: exactly one of course or courseBundle must be provided
+        if (!courseId && !courseBundleId) throw new Error("Either a Course or a Course Bundle is required.");
+        if (courseId && courseBundleId) throw new Error("A batch cannot be linked to both a Course and a Course Bundle.");
+
+        // Lock key: use whichever ID we have to prevent race conditions
+        const lockKey = courseId || courseBundleId;
+
+        return runSynchronized(lockKey, async () => {
             await connectDB();
             const { institute: instituteId } = data;
             if (!instituteId) throw new Error("Institute context missing");
@@ -192,31 +198,34 @@ export class BatchService {
             const isVocational = instDoc?.type === 'VOCATIONAL';
 
             // 2. Uniqueness Validation
-            const nameQuery = { 
-                institute: instituteId, 
-                name: data.name,
-                deletedAt: null 
-            };
+            const nameQuery = { institute: instituteId, name: data.name, deletedAt: null };
 
-            if (!isVocational) {
-                // Schools are scoped to Course + Session
-                nameQuery.course = data.course;
+            if (courseBundleId) {
+                // Bundle batches: unique per bundle
+                nameQuery.courseBundle = courseBundleId;
+            } else if (!isVocational) {
+                // Schools: scoped to Course + Session
+                nameQuery.course = courseId;
                 nameQuery.session = data.session;
             }
 
             const existing = await Batch.findOne(nameQuery);
             if (existing) {
-                const scope = isVocational ? "this institute" : "this course and session";
+                const scope = courseBundleId ? "this bundle" : (isVocational ? "this institute" : "this course and session");
                 throw new Error(`${isVocational ? 'Batch' : 'Section'} with name "${data.name}" already exists in ${scope}`);
             }
 
-            // 3. Re-validate course existence/active status INSIDE the lock
-            const course = await Course.findOne({
-                _id: courseId,
-                institute: instituteId,
-                deletedAt: null
-            });
-            if (!course) throw new Error("Course not found or inactive");
+            if (courseBundleId) {
+                // 3a. Validate courseBundle exists and belongs to this institute
+                const CourseBundle = (await import('@/models/CourseBundle')).default;
+                const bundle = await CourseBundle.findOne({ _id: courseBundleId, institute: instituteId, deletedAt: null });
+                if (!bundle) throw new Error("Course Bundle not found or inactive");
+            } else {
+                // 3b. Re-validate course existence/active status INSIDE the lock
+                const course = await Course.findOne({ _id: courseId, institute: instituteId, deletedAt: null });
+                if (!course) throw new Error("Course not found or inactive");
+            }
+
             const batch = await Batch.create({ ...data, createdBy: actorId });
 
             await createAuditLog({
@@ -224,7 +233,7 @@ export class BatchService {
                 action: 'batch.create',
                 resource: { type: 'Batch', id: batch._id },
                 institute: instituteId,
-                details: { name: batch.name }
+                details: { name: batch.name, type: courseBundleId ? 'bundle_batch' : 'course_batch' }
             });
 
             return batch;
@@ -292,7 +301,7 @@ export class BatchService {
     static async getBatches(filters = {}, instituteId) {
         // if (!instituteId) throw new Error("Institute context missing"); // Allow global view
         await connectDB();
-        const allowedFilters = ['course', 'instructor', 'enrolledStudents', 'session'];
+        const allowedFilters = ['course', 'courseBundle', 'instructor', 'enrolledStudents', 'session'];
         const safeFilters = {};
         Object.keys(filters).forEach(key => {
             if (allowedFilters.includes(key)) safeFilters[key] = filters[key];
@@ -313,8 +322,7 @@ export class BatchService {
             }
         });
 
-        // 3. RBAC: Restricted view for instructors
-        // If an instructor is querying, only show batches where they are assigned (batches, courses or direct instructor field)
+        // RBAC: Restricted view for instructors
         if (filters.instructorRoleContext) {
             const instructorId = filters.instructorRoleContext;
             const User = mongoose.models.User || mongoose.model('User');
@@ -331,6 +339,7 @@ export class BatchService {
 
         const batches = await Batch.find(query)
             .populate({ path: 'course', populate: { path: 'subjects' } })
+            .populate('courseBundle', 'title code bundlePrice courses')
             .populate('enrolledStudents.student', 'profile.firstName profile.lastName enrollmentNumber')
             .populate('instructor', 'profile.firstName profile.lastName')
             .sort({ 'schedule.startDate': -1 });

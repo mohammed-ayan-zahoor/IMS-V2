@@ -602,12 +602,14 @@ export class StudentService {
                 }
             }
 
-            const batch = await Batch.findById(batchId).populate('course').session(session);
+            const batch = await Batch.findById(batchId).populate('course').populate('courseBundle').session(session);
             if (!batch || batch.deletedAt) {
                 throw new Error('Batch not found or inactive');
             }
 
-            if (!batch.course?.fees?.amount) {
+            // For course batches: course fee must exist. Bundle batches use bundlePrice.
+            const isBundleBatch = !!batch.courseBundle;
+            if (!isBundleBatch && !batch.course?.fees?.amount) {
                 throw new Error('Course fee information is missing');
             }
 
@@ -684,7 +686,7 @@ export class StudentService {
                 batch: batchId,
                 session: batch.session,
                 institute: targetInstitute,
-                totalAmount: customAmount !== null ? parseFloat(customAmount) : batch.course.fees.amount,
+                totalAmount: customAmount !== null ? parseFloat(customAmount) : (isBundleBatch ? batch.courseBundle.bundlePrice : batch.course.fees.amount),
                 installments: (installments && installments.length > 0) ? installments.map(i => ({
                     amount: parseFloat(i.amount),
                     dueDate: new Date(i.dueDate),
@@ -741,10 +743,11 @@ export class StudentService {
             throw new Error("Student does not belong to this institute");
         }
 
-        const batch = await Batch.findById(batchId).populate('course');
+        const batch = await Batch.findById(batchId).populate('course').populate('courseBundle');
         if (!batch || batch.deletedAt) throw new Error('Batch not found or inactive');
-        if (!batch.institute) throw new Error('Batch configuration error: Institute is missing'); // Validation
-        if (!batch.course?.fees?.amount) throw new Error('Course fee information is missing');
+        if (!batch.institute) throw new Error('Batch configuration error: Institute is missing');
+        const isBundleBatch = !!batch.courseBundle;
+        if (!isBundleBatch && !batch.course?.fees?.amount) throw new Error('Course fee information is missing');
 
         const existingEnrollment = batch.enrolledStudents.find(
             e => e.student.toString() === studentId && e.status === 'active'
@@ -790,7 +793,7 @@ export class StudentService {
             batch: batchId,
             session: batch.session,
             institute: batch.institute,
-            totalAmount: customAmount !== null ? parseFloat(customAmount) : batch.course.fees.amount,
+            totalAmount: customAmount !== null ? parseFloat(customAmount) : (isBundleBatch ? batch.courseBundle.bundlePrice : batch.course.fees.amount),
             installments: (installments && installments.length > 0) ? installments.map(i => ({
                 amount: parseFloat(i.amount),
                 dueDate: new Date(i.dueDate),
