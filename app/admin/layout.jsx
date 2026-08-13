@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import MobileInstructorNav from "@/components/mobile/MobileInstructorNav";
+import NotificationBellDropdown from "@/components/notifications/NotificationBellDropdown";
 import { 
     LayoutDashboard, 
     Users, 
@@ -440,7 +441,7 @@ export default function AdminLayout({ children }) {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
                         <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-white transition-all shadow-sm shrink-0">
                             <Calendar size={12} className="text-blue-500" />
                             {sessionsLoading ? (
@@ -458,6 +459,17 @@ export default function AdminLayout({ children }) {
                                     ))}
                                 </select>
                             )}
+                        </div>
+
+                        {/* Real-time Notification Bell */}
+                        <NotificationBellDropdown />
+
+                        <div className="w-8 h-8 rounded-md bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                            <img 
+                                src={`https://ui-avatars.com/api/?name=${session?.user?.name || 'Admin'}&background=0f172a&color=fff&bold=true`} 
+                                alt="Profile" 
+                                className="w-full h-full object-cover"
+                            />
                         </div>
                     </div>
                 </header>

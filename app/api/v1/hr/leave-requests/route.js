@@ -100,6 +100,22 @@ export async function POST(req) {
             status: 'PENDING'
         });
 
+        // Trigger Notification for Admin
+        try {
+            const Notification = (await import("@/models/Notification")).default;
+            const applicantName = session.user.name || "Staff member";
+            await Notification.create({
+                institute: instituteId,
+                recipientRole: "admin",
+                title: "New Leave Application",
+                message: `${applicantName} submitted a ${lType.name} application`,
+                type: "LEAVE_REQUEST",
+                link: "/admin/hr/leave-requests"
+            });
+        } catch (nErr) {
+            console.error("Failed to create leave notification", nErr);
+        }
+
         return NextResponse.json({ success: true, leaveRequest: request }, { status: 201 });
     } catch (error) {
         console.error("POST /api/v1/hr/leave-requests error:", error);
