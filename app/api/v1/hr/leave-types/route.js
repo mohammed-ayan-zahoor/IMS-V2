@@ -18,8 +18,18 @@ export async function GET(req) {
         }
 
         await connectDB();
-        const leaveTypes = await LeaveType.find({ institute: instituteId, deletedAt: null })
+        let leaveTypes = await LeaveType.find({ institute: instituteId, deletedAt: null })
             .sort({ name: 1 });
+
+        if (leaveTypes.length === 0) {
+            const defaultTypes = [
+                { name: "Casual Leave", code: "CL", description: "Casual personal leave", maxDaysPerYear: 12, institute: instituteId },
+                { name: "Sick Leave", code: "SL", description: "Medical and health leave", maxDaysPerYear: 10, institute: instituteId },
+                { name: "Earned Leave", code: "EL", description: "Earned privilege leave", maxDaysPerYear: 15, institute: instituteId },
+                { name: "Unpaid Leave (LWP)", code: "LWP", description: "Leave without pay", maxDaysPerYear: 30, institute: instituteId }
+            ];
+            leaveTypes = await LeaveType.insertMany(defaultTypes);
+        }
 
         return NextResponse.json({ leaveTypes });
     } catch (error) {
