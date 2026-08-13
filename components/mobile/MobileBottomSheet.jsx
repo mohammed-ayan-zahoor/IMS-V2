@@ -34,7 +34,7 @@ export default function MobileBottomSheet({
     if (!isOpen || !mounted) return null;
 
     const content = (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 no-print">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 animate-in fade-in duration-200 no-print">
             {/* Backdrop click area */}
             <div 
                 className="fixed inset-0"
