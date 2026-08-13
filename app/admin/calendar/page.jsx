@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { format, isSameDay, isToday } from "date-fns";
 
+import { useSession } from "next-auth/react";
+import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -32,6 +34,7 @@ import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import MobileInstructorCalendar from "@/components/instructor/MobileInstructorCalendar";
 
 export default function AdminCalendarPage() {
     const toast = useToast();
@@ -283,10 +286,20 @@ export default function AdminCalendarPage() {
         setIsModalOpen(true);
     };
 
+    const { data: session } = useSession();
+    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
+
     if (loading) return <LoadingSpinner fullPage />;
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
+        <>
+            {isInstructorOrStaff && (
+                <div className="md:hidden">
+                    <MobileInstructorCalendar />
+                </div>
+            )}
+
+            <div className={cn("space-y-6 max-w-7xl mx-auto p-4 md:p-6", isInstructorOrStaff ? "hidden md:block" : "")}>
             {/* Header Block */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
                 <div>
@@ -744,5 +757,6 @@ export default function AdminCalendarPage() {
                 </div>
             )}
         </div>
+        </>
     );
 }

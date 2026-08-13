@@ -25,6 +25,7 @@ import EmptyState from "@/components/shared/EmptyState";
 import { format } from "date-fns";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import MobileInstructorLeaves from "@/components/instructor/MobileInstructorLeaves";
 
 export default function LeaveRequestsPage() {
     const toast = useToast();
@@ -221,8 +222,17 @@ export default function LeaveRequestsPage() {
         }
     };
 
+    const isInstructorOrStaff = ['instructor', 'staff'].includes(role);
+
     return (
-        <div className="space-y-6">
+        <>
+            {isInstructorOrStaff && (
+                <div className="md:hidden">
+                    <MobileInstructorLeaves />
+                </div>
+            )}
+
+            <div className={cn("space-y-6", isInstructorOrStaff ? "hidden md:block" : "")}>
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -552,5 +562,6 @@ export default function LeaveRequestsPage() {
                 )}
             </Modal>
         </div>
+        </>
     );
 }

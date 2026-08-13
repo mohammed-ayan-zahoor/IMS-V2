@@ -14,6 +14,8 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { cn } from "@/lib/utils";
+import MobileInstructorMaterials from "@/components/instructor/MobileInstructorMaterials";
 
 export default function MaterialsPage() {
     const toast = useToast();
@@ -238,8 +240,17 @@ export default function MaterialsPage() {
         });
     });
 
+    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
+
     return (
-        <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
+        <>
+            {isInstructorOrStaff && (
+                <div className="md:hidden">
+                    <MobileInstructorMaterials />
+                </div>
+            )}
+
+            <div className={cn("space-y-6 max-w-7xl mx-auto p-4 md:p-6", isInstructorOrStaff ? "hidden md:block" : "")}>
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900">Materials Library</h1>
@@ -647,5 +658,6 @@ export default function MaterialsPage() {
                 document.body
             )}
         </div>
+        </>
     );
 }
