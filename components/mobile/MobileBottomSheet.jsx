@@ -36,7 +36,7 @@ export default function MobileBottomSheet({
 
             {/* Bottom Sheet Drawer */}
             <div className={cn(
-                "relative bg-white rounded-t-[28px] p-6 space-y-4 animate-in slide-in-from-bottom duration-250 shadow-2xl overflow-y-auto w-full border-t border-slate-100",
+                "relative bg-white rounded-t-xl p-5 space-y-3 animate-in slide-in-from-bottom duration-200 shadow-md overflow-y-auto w-full border-t border-slate-200",
                 maxHeight,
                 className
             )}>
