@@ -8,7 +8,7 @@ import { createAuditLog } from "@/services/auditService";
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !['admin', 'super_admin'].includes(session.user.role)) {
+        if (!session || !['admin', 'super_admin', 'instructor', 'staff'].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
