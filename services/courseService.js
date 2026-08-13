@@ -317,7 +317,7 @@ export class BatchService {
 
         // Add other safe filters
         Object.keys(safeFilters).forEach(key => {
-            if (key !== 'enrolledStudents') {
+            if (key !== 'enrolledStudents' && key !== 'instructorRoleContext') {
                 query[key] = safeFilters[key];
             }
         });
