@@ -24,6 +24,8 @@ export async function POST(req) {
             totalPrice,
             upfrontPrice,
             mouDuration,
+            perStudentRate,
+            planType,
             action,
             signatureDataUrl,
             screenWidth,
@@ -41,6 +43,8 @@ export async function POST(req) {
 
         const duration = Math.max(1, Number(mouDuration) || 1);
         const count = Math.max(0, Number(studentCount) || 0);
+        const rate = Math.max(1, Number(perStudentRate) || 59);
+        const plan = ['standard', 'plus', 'custom'].includes(planType) ? planType : (rate === 69 ? 'plus' : (rate === 59 ? 'standard' : 'custom'));
 
         let upfrontPercent = 0.5;
         if (count <= 500) {
@@ -49,17 +53,17 @@ export async function POST(req) {
             upfrontPercent = 0.75;
         }
 
-        const calculatedTotal = count * 59 * duration;
+        const calculatedTotal = count * rate * duration;
         const calculatedUpfront = calculatedTotal * upfrontPercent;
 
         // If client-provided price is missing duration multiplier or invalid, use calculated
         let finalTotalPrice = Number(totalPrice);
-        if (!finalTotalPrice || (duration > 1 && finalTotalPrice === count * 59)) {
+        if (!finalTotalPrice || (duration > 1 && finalTotalPrice === count * rate)) {
             finalTotalPrice = calculatedTotal;
         }
 
         let finalUpfrontPrice = Number(upfrontPrice);
-        if (!finalUpfrontPrice || (duration > 1 && Math.abs(finalUpfrontPrice - (count * 59 * 0.7)) < 1)) {
+        if (!finalUpfrontPrice) {
             finalUpfrontPrice = calculatedUpfront;
         }
 
@@ -77,6 +81,8 @@ export async function POST(req) {
             totalPrice: finalTotalPrice,
             upfrontPrice: finalUpfrontPrice,
             mouDuration: duration,
+            perStudentRate: rate,
+            planType: plan,
             action,
             signatureDataUrl,
             metadata: {

@@ -530,6 +530,15 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
           <option value="5">5 Years</option>
         </select>
       </div>
+      <div class="field" style="border-radius:10px;">
+        <label style="color:#1e3a8a;font-weight:700;">Platform Package / Plan *</label>
+        <select id="f-plan" onchange="updateDoc()" style="font-size:16px;font-weight:700;border-color:#1e3a8a;background:#f8fafc;padding:10px 14px;border-radius:10px;border:1.5px solid #1e3a8a;color:#1e3a8a;cursor:pointer;">
+          <option value="standard">Standard Plan (Students Only) — ₹59 / Student / Year</option>
+          <option value="plus">Plus Plan (Student + Teacher Access) — ₹69 / Student / Year</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:16px" class="form-grid full">
       <div class="field">
         <label>School Address (optional)</label>
         <textarea id="f-address" rows="2" placeholder="Street, Area, City – PIN" oninput="updateDoc()"></textarea>
@@ -773,6 +782,10 @@ if (acadYearEl) {
   acadYearEl.textContent = acadYear.replace('-', '–');
 }
 
+// ── URL Query Rate Override Check ────────────────────────────
+const urlParams = new URLSearchParams(window.location.search);
+const urlRate = parseFloat(urlParams.get('rate'));
+
 // ── Live doc update ─────────────────────────────────────────
 // Duration word map for Clause 6
 const durationWords = {
@@ -792,6 +805,30 @@ function updateDoc() {
   const addr = document.getElementById('f-address').value.trim();
   const duration = document.getElementById('f-duration').value;
 
+  let perStudentRate = 59;
+  let planType = 'standard';
+
+  if (urlRate && !isNaN(urlRate) && urlRate > 0) {
+    perStudentRate = urlRate;
+    planType = 'custom';
+    const planSelect = document.getElementById('f-plan');
+    if (planSelect) {
+      planSelect.disabled = true;
+      planSelect.innerHTML = `<option value="custom">Custom Admin Rate — ₹${perStudentRate} / Student / Year</option>`;
+    }
+  } else {
+    const planSelect = document.getElementById('f-plan');
+    if (planSelect) {
+      if (planSelect.value === 'plus') {
+        perStudentRate = 69;
+        planType = 'plus';
+      } else {
+        perStudentRate = 59;
+        planType = 'standard';
+      }
+    }
+  }
+
   const udise = document.getElementById('f-udise').value.trim() || '—';
   document.getElementById('d-school').textContent = school;
   document.getElementById('d-school2').textContent = school;
@@ -807,12 +844,12 @@ function updateDoc() {
   document.getElementById('d-duration').textContent = durationWords[duration] || 'one (1) academic year';
 
   const durationInt = parseInt(duration) || 1;
-  document.getElementById('d-total-label').textContent = `Total Price (for ${durationInt} Year${durationInt > 1 ? 's' : ''} at ₹59 / Student / Year)`;
+  document.getElementById('d-total-label').textContent = `Total Price (for ${durationInt} Year${durationInt > 1 ? 's' : ''} at ₹${perStudentRate} / Student / Year)`;
   document.getElementById('d-comm-footer').textContent = `* Calculated on agreed student strength for ${durationInt} year${durationInt > 1 ? 's' : ''}. Taxes extra.`;
 
   if (students) {
     const studentCount = parseInt(students);
-    const totalPrice = studentCount * 59 * durationInt;
+    const totalPrice = studentCount * perStudentRate * durationInt;
     
     let upfrontPercent = 0.5;
     if (studentCount <= 500) {
@@ -1017,7 +1054,21 @@ async function trackMouAction(actionType) {
 
     const studentCount = parseInt(students) || 0;
     const duration = parseInt(document.getElementById('f-duration')?.value || '1');
-    const totalPrice = studentCount * 59 * duration;
+    
+    let perStudentRate = 59;
+    let planType = 'standard';
+    if (urlRate && !isNaN(urlRate) && urlRate > 0) {
+      perStudentRate = urlRate;
+      planType = 'custom';
+    } else {
+      const planVal = document.getElementById('f-plan')?.value;
+      if (planVal === 'plus') {
+        perStudentRate = 69;
+        planType = 'plus';
+      }
+    }
+
+    const totalPrice = studentCount * perStudentRate * duration;
 
     let upfrontPercent = 0.5;
     if (studentCount <= 500) {
@@ -1040,6 +1091,8 @@ async function trackMouAction(actionType) {
       studentCount,
       udiseCode: udise,
       address,
+      perStudentRate,
+      planType,
       totalPrice,
       upfrontPrice,
       mouDuration: duration,

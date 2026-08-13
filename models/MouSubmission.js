@@ -68,6 +68,16 @@ const MouSubmissionSchema = new mongoose.Schema({
         min: 1,
         max: 5
     },
+    perStudentRate: {
+        type: Number,
+        default: 59,
+        min: 1
+    },
+    planType: {
+        type: String,
+        enum: ['standard', 'plus', 'custom'],
+        default: 'standard'
+    },
     signatureDataUrl: {
         type: String // Optional Base64 signature image
     },

@@ -76,6 +76,8 @@ export default function MouTrackerPage() {
         contactPhone: "",
         studentCount: "",
         mouDuration: "1",
+        planType: "standard",
+        customRate: "",
         udiseCode: "",
         address: "",
         action: "manual_entry",
@@ -97,11 +99,22 @@ export default function MouTrackerPage() {
             return;
         }
 
+        let rate = 59;
+        if (manualForm.planType === 'plus') {
+            rate = 69;
+        } else if (manualForm.planType === 'custom') {
+            rate = parseFloat(manualForm.customRate);
+            if (!rate || rate <= 0) {
+                setManualError("Please enter a valid positive custom per-student rate.");
+                return;
+            }
+        }
+
         let upfrontPercent = 0.5;
         if (count <= 500) upfrontPercent = 1;
         else if (count <= 1000) upfrontPercent = 0.75;
 
-        const totalPrice = count * 59 * duration;
+        const totalPrice = count * rate * duration;
         const upfrontPrice = totalPrice * upfrontPercent;
         const refId = `QP/MOU/MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -122,6 +135,8 @@ export default function MouTrackerPage() {
                     contactPhone: manualForm.contactPhone.trim(),
                     studentCount: count,
                     mouDuration: duration,
+                    perStudentRate: rate,
+                    planType: manualForm.planType,
                     udiseCode: manualForm.udiseCode.trim(),
                     address: manualForm.address.trim(),
                     totalPrice,
@@ -147,6 +162,8 @@ export default function MouTrackerPage() {
                 contactPhone: "",
                 studentCount: "",
                 mouDuration: "1",
+                planType: "standard",
+                customRate: "",
                 udiseCode: "",
                 address: "",
                 action: "manual_entry",
@@ -159,6 +176,27 @@ export default function MouTrackerPage() {
             setManualError(err.message || "Failed to create manual entry.");
         } finally {
             setIsSavingManual(false);
+        }
+    };
+
+    const handleDeletePayment = async (submissionId, paymentId, paymentAmount) => {
+        if (!confirm(`Are you sure you want to revoke/delete this payment entry of ₹${paymentAmount.toLocaleString('en-IN')}? This will update the total paid amount.`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/v1/mou/submissions/${submissionId}/payments?paymentId=${paymentId}`, {
+                method: "DELETE"
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to delete payment.");
+            }
+
+            fetchSubmissions(false);
+        } catch (error) {
+            console.error("Failed to delete payment:", error);
+            alert(error.message || "Failed to delete payment.");
         }
     };
 
@@ -559,11 +597,16 @@ export default function MouTrackerPage() {
                                                     <p className="text-[10px] text-emerald-600 font-bold mt-0.5">
                                                         Upfront: ₹{sub.upfrontPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </p>
-                                                    {sub.mouDuration && (
-                                                        <p className="text-[10px] text-indigo-500 font-bold mt-1">
-                                                            📅 {sub.mouDuration} Yr Agreement
-                                                        </p>
-                                                    )}
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                        <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
+                                                            ₹{sub.perStudentRate || 59}/student ({sub.planType === 'plus' ? 'Plus Plan' : sub.planType === 'custom' ? 'Custom' : 'Standard'})
+                                                        </span>
+                                                        {sub.mouDuration && (
+                                                            <span className="text-[10px] text-slate-500 font-bold">
+                                                                📅 {sub.mouDuration} Yr
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="p-4 text-center">
                                                     {sub.action === 'print' ? (
@@ -727,6 +770,7 @@ export default function MouTrackerPage() {
                                                                                         <th className="pb-2">Method</th>
                                                                                         <th className="pb-2">Reference ID</th>
                                                                                         <th className="pb-2 text-right">Amount</th>
+                                                                                        <th className="pb-2 text-center">Action</th>
                                                                                     </tr>
                                                                                 </thead>
                                                                                 <tbody className="divide-y divide-slate-50 font-medium text-slate-700">
@@ -736,6 +780,15 @@ export default function MouTrackerPage() {
                                                                                             <td className="py-2 font-bold">{getMethodLabel(p.paymentMethod)}</td>
                                                                                             <td className="py-2 font-mono text-[10px] text-slate-500">{p.referenceId || "—"}</td>
                                                                                             <td className="py-2 text-right font-black text-slate-800">₹{p.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                                                                            <td className="py-2 text-center">
+                                                                                                <button
+                                                                                                    onClick={() => handleDeletePayment(sub._id, p._id, p.amount)}
+                                                                                                    title="Revoke / Delete Payment"
+                                                                                                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
+                                                                                                >
+                                                                                                    <Trash2 size={13} />
+                                                                                                </button>
+                                                                                            </td>
                                                                                         </tr>
                                                                                     ))}
                                                                                 </tbody>
@@ -1070,6 +1123,35 @@ export default function MouTrackerPage() {
                                         <option value="rejected">Rejected</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Pricing Plan / Rate *</label>
+                                    <select
+                                        value={manualForm.planType}
+                                        onChange={(e) => setManualForm({ ...manualForm, planType: e.target.value })}
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                    >
+                                        <option value="standard">Standard Plan (Students Only) — ₹59 / Student / Yr</option>
+                                        <option value="plus">Plus Plan (Student + Teacher Access) — ₹69 / Student / Yr</option>
+                                        <option value="custom">Custom Admin Rate (Specify below)</option>
+                                    </select>
+                                </div>
+                                {manualForm.planType === 'custom' && (
+                                    <div>
+                                        <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Custom Rate (₹ / Student) *</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            required
+                                            value={manualForm.customRate}
+                                            onChange={(e) => setManualForm({ ...manualForm, customRate: e.target.value })}
+                                            placeholder="e.g. 75"
+                                            className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
