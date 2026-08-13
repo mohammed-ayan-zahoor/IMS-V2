@@ -15,7 +15,7 @@ export default function MobileInstructorCalendar() {
     const fetchCalendarEvents = async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/v1/calendar');
+            const res = await fetch('/api/v1/events');
             if (res.ok) {
                 const data = await res.json();
                 setEvents(data.events || []);
