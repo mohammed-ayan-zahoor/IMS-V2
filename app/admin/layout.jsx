@@ -179,7 +179,7 @@ export default function AdminLayout({ children }) {
         }] : []),
         {
             label: "Front Office",
-            role: ["admin", "super_admin", "instructor"],
+            role: ["admin", "super_admin", "instructor", "staff"],
             permission: "view_front_office",
             items: [
                 { label: "Visitor Book", icon: ClipboardList, href: "/admin/front-office/visitor-book" },
@@ -190,7 +190,7 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Human Resources",
-            role: ["admin", "super_admin", "instructor"],
+            role: ["admin", "super_admin", "instructor", "staff"],
             items: [
                 { label: "Designations", icon: Briefcase, href: "/admin/hr/designations", role: ["admin", "super_admin"] },
                 { label: "Earnings & Deductions", icon: Coins, href: "/admin/hr/salary-components", role: ["admin", "super_admin"] },
@@ -228,7 +228,7 @@ export default function AdminLayout({ children }) {
     ].filter(group => {
         const hasRole = !group.role || group.role.includes(session?.user?.role);
         if (!hasRole) return false;
-        if (group.permission && session?.user?.role === 'instructor') {
+        if (group.permission && ['instructor', 'staff'].includes(session?.user?.role)) {
             return !!session?.user?.permissions?.includes(group.permission);
         }
         return true;

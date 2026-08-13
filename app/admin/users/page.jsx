@@ -571,8 +571,8 @@ export default function UserManagementPage() {
                         </div>
                     )}
 
-                    {/* Instructor Access Assignments */}
-                    {formData.role === 'instructor' && (
+                    {/* Staff / Instructor Access Assignments */}
+                    {['instructor', 'staff'].includes(formData.role) && (
                         <div className="mb-4 p-5 bg-blue-50/40 rounded-2xl border border-blue-100 ring-1 ring-blue-100/50">
                             <div className="flex items-center gap-2 mb-3">
                                 <Shield className="text-premium-blue" size={16} />

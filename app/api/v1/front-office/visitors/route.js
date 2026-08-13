@@ -10,7 +10,7 @@ export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
         const hasAccess = session && (['admin', 'super_admin'].includes(session.user.role) || 
-            (session.user.role === 'instructor' && session.user.permissions?.includes('view_front_office')));
+            (['instructor', 'staff'].includes(session.user.role) && session.user.permissions?.includes('view_front_office')));
         if (!hasAccess) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const scope = await getInstituteScope(req);
@@ -64,7 +64,9 @@ export async function GET(req) {
 export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !['admin', 'super_admin'].includes(session.user.role)) {
+        const hasAccess = session && (['admin', 'super_admin'].includes(session.user.role) || 
+            (['instructor', 'staff'].includes(session.user.role) && session.user.permissions?.includes('view_front_office')));
+        if (!hasAccess) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
