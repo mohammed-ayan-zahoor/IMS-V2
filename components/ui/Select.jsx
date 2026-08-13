@@ -99,18 +99,18 @@ export default function Select({
                     type="button"
                     onClick={handleToggle}
                     className={cn(
-                        "w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none transition-all duration-200 text-left flex items-center justify-between gap-2",
-                        "focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10",
-                        error && "border-red-500",
+                        "w-full bg-white border border-slate-200 rounded-md px-3 py-2 outline-none transition-colors text-left flex items-center justify-between gap-2 text-xs font-bold text-slate-800",
+                        "focus:border-slate-400",
+                        error && "border-rose-300",
                         disabled && "opacity-50 cursor-not-allowed",
-                        !selectedOption && "text-slate-400",
+                        !selectedOption && "text-slate-400 font-medium",
                         buttonClassName
                     )}
                 >
-                    <span className="truncate block text-sm font-medium text-slate-700">
+                    <span className="truncate block text-xs font-bold text-slate-800">
                         {selectedOption ? selectedOption.label : placeholder}
                     </span>
-                    <ChevronDown size={16} className={cn("text-slate-400 transition-transform", isOpen && "rotate-180")} />
+                    <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-200 shrink-0", isOpen && "rotate-180")} />
                 </button>
 
                 {isOpen && typeof document !== "undefined" && createPortal(
