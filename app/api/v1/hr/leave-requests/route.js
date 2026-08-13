@@ -64,7 +64,7 @@ export async function POST(req) {
             return NextResponse.json({ error: "No institute context found" }, { status: 400 });
         }
 
-        if (!['instructor', 'admin', 'super_admin'].includes(role)) {
+        if (!['instructor', 'staff', 'admin', 'super_admin'].includes(role)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
