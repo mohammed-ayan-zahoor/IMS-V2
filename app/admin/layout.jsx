@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import MobileInstructorNav from "@/components/mobile/MobileInstructorNav";
 import { 
     LayoutDashboard, 
     Users, 
@@ -304,8 +305,13 @@ export default function AdminLayout({ children }) {
     };
     const { title, subtitle } = getPageTitle();
 
+    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] bg-[#f9fafb] text-[#111827] h-screen w-screen overflow-hidden">
+            {/* Mobile Native Shell Nav Bar for Instructors/Staff */}
+            {isInstructorOrStaff && <MobileInstructorNav />}
+
             {/* Sidebar Overlay */}
             {isSidebarOpen && (
                 <div onClick={() => setIsSidebarOpen(false)} className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] no-print" />
@@ -348,101 +354,86 @@ export default function AdminLayout({ children }) {
                          return (
                          <div key={group.label} className="space-y-1">
                              <button 
-                                onClick={() => toggleGroup(group.label)}
-                                className={cn(
-                                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all group border border-transparent shadow-sm hover:shadow-md",
-                                    isExpanded ? "bg-white border-slate-200/50 shadow-blue-500/5" : "bg-slate-50/50 hover:bg-white"
-                                )}
+                                 onClick={() => toggleGroup(group.label)}
+                                 className="w-full flex items-center justify-between px-4 py-2 text-[#9ca3af] hover:text-[#374151] transition-colors font-bold text-[11px] uppercase tracking-wider group"
                              >
-                                <div className="flex items-center gap-3">
-                                    <div className={cn("w-1.5 h-1.5 rounded-full", isExpanded ? "bg-blue-500 animate-pulse" : "bg-slate-300")} />
-                                    <h4 className={cn("text-[11px] font-black uppercase tracking-[0.1em]", groupColor)}>
-                                        {group.label}
-                                    </h4>
-                                </div>
-                                <ChevronRight size={14} className={cn("transition-transform duration-300 opacity-40", isExpanded && "rotate-90 opacity-100", groupColor)} />
+                                 <span className={groupColor}>{group.label}</span>
+                                 <ChevronRight size={14} className={cn("transition-transform duration-200 text-[#9ca3af]", isExpanded && "rotate-90")} />
                              </button>
-                             
-                             <div className={cn(
-                                 "space-y-1 overflow-hidden transition-all duration-300",
-                                 isExpanded ? "max-h-[500px] opacity-100 mt-2 pb-2" : "max-h-0 opacity-0"
-                             )}>
-                                 {group.items.map((item) => {
-                                     const isActive = pathname.startsWith(item.href);
-                                     return (
-                                         <Link
-                                             key={item.href}
-                                             href={item.href}
-                                             target={item.target}
-                                             onClick={() => setIsSidebarOpen(false)}
-                                             className={cn(
-                                                 "flex items-center gap-3 px-4 py-2 rounded-full transition-all group text-[13px] font-semibold relative ml-2",
-                                                 isActive ? "soft-active" : "text-[#6b7280] hover:bg-[#f9fafb]"
-                                             )}
-                                         >
-                                             <span className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-r transition-all", isActive ? itemColor : "")} />
-                                             <item.icon size={16} className={cn("transition-colors", !isActive && itemColor)} />
-                                             <span>{item.label}</span>
-                                         </Link>
-                                     );
-                                 })}
-                             </div>
+
+                             {isExpanded && (
+                                 <div className="space-y-1 pl-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                     {group.items.map((item) => {
+                                         const Icon = item.icon;
+                                         const actualHref = item.href.startsWith("/admin") && pathname.startsWith("/instructor") 
+                                             ? item.href.replace("/admin", "/instructor") 
+                                             : item.href;
+                                         const isActive = pathname === actualHref || pathname.startsWith(actualHref + "/");
+                                         return (
+                                             <Link
+                                                 key={item.label}
+                                                 href={actualHref}
+                                                 target={item.target}
+                                                 onClick={() => setIsSidebarOpen(false)}
+                                                 className={cn(
+                                                     "flex items-center gap-3 px-4 py-2 rounded-full transition-all group text-[13px] font-semibold relative",
+                                                     isActive 
+                                                         ? "soft-active" 
+                                                         : "text-[#6b7280] hover:bg-[#f9fafb]"
+                                                 )}
+                                             >
+                                                 <span className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-r transition-all", isActive ? "bg-blue-500" : "")} />
+                                                 <Icon size={18} className={isActive ? "" : itemColor} />
+                                                 <span>{item.label}</span>
+                                             </Link>
+                                         );
+                                     })}
+                                 </div>
+                             )}
                          </div>
                      );
                      })}
                 </nav>
 
-                {/* Sidebar Footer - User Profile */}
-                <div className="p-4 mt-auto border-t border-[#f1f5f9] shrink-0">
-                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#f9fafb] mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-premium-blue/10 flex items-center justify-center text-premium-blue font-bold text-sm">
-                            {session?.user?.name?.[0]?.toUpperCase()}
+                {/* Footer User Info */}
+                <div className="p-4 border-t border-[#f1f5f9] bg-[#f9fafb] shrink-0">
+                    <div className="flex items-center gap-3 mb-3 px-2">
+                        <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">
+                            {session?.user?.name?.[0] || "A"}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-bold text-[#111827] truncate">{session?.user?.name || "Admin"}</p>
-                            <p className="text-[10px] text-[#9ca3af] font-black uppercase tracking-wider">{session?.user?.role}</p>
+                            <p className="text-xs font-bold text-[#111827] truncate">{session?.user?.name || "User"}</p>
+                            <p className="text-[10px] text-[#6b7280] uppercase tracking-wider font-bold">{session?.user?.role || "Admin"}</p>
                         </div>
                     </div>
                     <button
-                        onClick={async () => {
-                            await signOut({ redirect: false });
-                            window.location.href = "/login";
-                        }}
-                        className="flex items-center gap-3 px-4 py-2 text-[#6b7280] hover:text-red-600 transition-colors text-[13px] font-semibold w-full"
+                        onClick={() => signOut({ callbackUrl: "/login" })}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all"
                     >
-                        <LogOut size={16} />
+                        <LogOut size={14} />
                         <span>Sign Out</span>
                     </button>
-                    <div className="mt-4 pb-2">
-                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-[#e5e7eb] text-center italic">
-                            Quantech Premium
-                        </p>
-                    </div>
                 </div>
             </aside>
 
-            {/* Main Wrapper */}
-            <div className="flex flex-col min-w-0 h-full overflow-hidden max-w-full">
-                {/* Global Header */}
-                <header className="h-20 bg-white border-b border-[#f1f5f9] flex items-center justify-between px-4 sm:px-8 shrink-0 no-print min-w-0">
-                    <div className="flex items-center gap-4 min-w-0">
-                        <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-[#6b7280] hover:text-[#111827] mr-2">
+            {/* Main Area */}
+            <div className={cn(
+                "flex flex-col min-w-0 h-screen overflow-hidden",
+                isInstructorOrStaff ? "pt-14 pb-16 md:pt-0 md:pb-0" : ""
+            )}>
+                {/* Header (Desktop View & General Header) */}
+                <header className={cn(
+                    "h-16 bg-white border-b border-[#f1f5f9] px-6 flex items-center justify-between shrink-0 no-print",
+                    isInstructorOrStaff ? "hidden md:flex" : ""
+                )}>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="lg:hidden p-2 text-[#6b7280] hover:bg-[#f9fafb] rounded-lg transition-colors"
+                            aria-label="Toggle menu"
+                        >
                             <Menu size={20} />
                         </button>
-                        <div className="hidden sm:block truncate">
-                            <h2 className="text-[18px] sm:text-[20px] font-bold text-[#111827] tracking-tight truncate">{title}</h2>
-                            <p className="text-[11px] sm:text-[13px] text-[#6b7280] font-medium leading-none mt-0.5 truncate">{subtitle}</p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 sm:gap-6 min-w-0">
-                        {/* Search Pill */}
-                        <div className="hidden xl:block min-w-0 max-w-md flex-1">
-                            <StudentSearch />
-                        </div>
-
-                        {/* Session Selector (School Only) */}
-                        {isSchool && (
                             <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-white transition-all shadow-sm shrink-0">
                                 <Calendar size={12} className="text-blue-500" />
                                 {sessionsLoading ? (

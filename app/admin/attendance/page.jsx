@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useAcademicSession } from "@/contexts/AcademicSessionContext";
+import MobileAttendanceCardStack from "@/components/instructor/MobileAttendanceCardStack";
 
 export default function AttendanceMarkingPage() {
     const router = useRouter();
@@ -296,6 +297,20 @@ export default function AttendanceMarkingPage() {
                     <LoadingSpinner />
                 ) : filteredStudents.length > 0 ? (
                     <Card className="border-transparent shadow-sm">
+                        {/* Mobile Native Card Stack View (< md) */}
+                        <div className="block md:hidden">
+                            <MobileAttendanceCardStack
+                                students={students.map(e => e.student || e)}
+                                attendanceData={attendanceData}
+                                onStatusChange={handleStatusChange}
+                                onSave={handleSave}
+                                saving={saving}
+                                batchName={batches.find(b => b._id === selectedBatch)?.name || ""}
+                            />
+                        </div>
+
+                        {/* Desktop Table View (>= md) */}
+                        <div className="hidden md:block">
                         <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-50 pb-4">
                             <div className="relative group max-w-sm w-full">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-premium-blue transition-colors" size={18} />
@@ -399,6 +414,7 @@ export default function AttendanceMarkingPage() {
                                 </table>
                             </div>
                         </CardContent>
+                        </div>
                     </Card>
                 ) : (
                     <EmptyState

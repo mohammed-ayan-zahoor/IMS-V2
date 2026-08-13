@@ -30,6 +30,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import StudentSearch from "@/components/admin/StudentSearch";
+import InstructorMobileDashboard from "@/components/instructor/InstructorMobileDashboard";
 
 const StatCard = ({ title, value, icon: Icon, trend, trendType = "up", colorClass }) => (
     <Card padding="p-6" className={cn("premium-card-hover group", colorClass)}>
@@ -272,8 +273,17 @@ export default function AdminDashboard() {
 
 
 
+    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
+
     return (
-        <div className="space-y-10">
+        <>
+            {isInstructorOrStaff && (
+                <div className="md:hidden">
+                    <InstructorMobileDashboard />
+                </div>
+            )}
+
+            <div className={cn("space-y-10", isInstructorOrStaff ? "hidden md:block" : "")}>
             {/* Subscription & Student Quota Status */}
             {isSchool && dashboardData?.subscription && (
                 <motion.div
@@ -674,6 +684,7 @@ export default function AdminDashboard() {
                 </div>
             </Card>
         </div>
+        </>
     );
 }
 
