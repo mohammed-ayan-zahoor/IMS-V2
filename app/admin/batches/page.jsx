@@ -36,6 +36,7 @@ import { format } from "date-fns";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useAcademicSession } from "@/contexts/AcademicSessionContext";
+import MobileInstructorBatches from "@/components/instructor/MobileInstructorBatches";
 
 export default function BatchesPage() {
     const toast = useToast();
@@ -255,8 +256,17 @@ export default function BatchesPage() {
         return matchesSearch && matchesSession && matchesType;
     });
 
+    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
+
     return (
-        <div className="space-y-6">
+        <>
+            {isInstructorOrStaff && (
+                <div className="md:hidden">
+                    <MobileInstructorBatches />
+                </div>
+            )}
+
+            <div className={cn("space-y-6", isInstructorOrStaff ? "hidden md:block" : "")}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div />
                 {session?.user?.role !== 'instructor' && (
@@ -769,5 +779,6 @@ export default function BatchesPage() {
                 </div>
             </Modal>
         </div>
+        </>
     );
 }

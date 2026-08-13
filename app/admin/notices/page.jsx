@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+import { useSession } from "next-auth/react";
+import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -26,6 +28,7 @@ import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import MobileInstructorNotices from "@/components/instructor/MobileInstructorNotices";
 
 export default function AdminNoticesPage() {
     const toast = useToast();
@@ -105,10 +108,20 @@ export default function AdminNoticesPage() {
         }
     };
 
+    const { data: session } = useSession();
+    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
+
     if (loading) return <LoadingSpinner fullPage />;
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
+        <>
+            {isInstructorOrStaff && (
+                <div className="md:hidden">
+                    <MobileInstructorNotices />
+                </div>
+            )}
+
+            <div className={cn("space-y-6 max-w-7xl mx-auto p-4 md:p-6", isInstructorOrStaff ? "hidden md:block" : "")}>
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2 italic">
@@ -277,5 +290,6 @@ export default function AdminNoticesPage() {
                 </div>
             )}
         </div>
+        </>
     );
 }

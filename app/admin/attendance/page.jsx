@@ -25,6 +25,7 @@ import {
 import { useToast } from "@/contexts/ToastContext";
 import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 import MobileAttendanceCardStack from "@/components/instructor/MobileAttendanceCardStack";
+import MobileInstructorAttendance from "@/components/instructor/MobileInstructorAttendance";
 
 export default function AttendanceMarkingPage() {
     const router = useRouter();
@@ -206,8 +207,17 @@ export default function AttendanceMarkingPage() {
         return name.toLowerCase().includes(search.toLowerCase());
     });
 
+    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
+
     return (
-        <div className="space-y-6">
+        <>
+            {isInstructorOrStaff && (
+                <div className="md:hidden">
+                    <MobileInstructorAttendance />
+                </div>
+            )}
+
+            <div className={cn("space-y-6", isInstructorOrStaff ? "hidden md:block" : "")}>
             {/* Page Action Bar */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                 <div>
@@ -432,5 +442,6 @@ export default function AttendanceMarkingPage() {
             )}
 
         </div>
+        </>
     );
 }
