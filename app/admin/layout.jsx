@@ -434,39 +434,30 @@ export default function AdminLayout({ children }) {
                         >
                             <Menu size={20} />
                         </button>
-                            <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-white transition-all shadow-sm shrink-0">
-                                <Calendar size={12} className="text-blue-500" />
-                                {sessionsLoading ? (
-                                    <Loader2 size={12} className="animate-spin text-slate-400" />
-                                ) : (
-                                    <select 
-                                        value={selectedSessionId || ""} 
-                                        onChange={(e) => changeSession(e.target.value)}
-                                        className="bg-transparent border-none text-[11px] font-bold text-slate-700 outline-none cursor-pointer min-w-[80px]"
-                                    >
-                                        {sessions.map(s => (
-                                            <option key={s._id} value={s._id}>
-                                                {s.sessionName}
-                                            </option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
-                        )}
+                        <div>
+                            <h1 className="text-lg font-bold text-[#111827] tracking-tight">{title}</h1>
+                            <p className="text-[11px] text-[#6b7280] font-medium hidden sm:block">{subtitle}</p>
+                        </div>
+                    </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-3 sm:gap-4 border-l border-[#f1f5f9] pl-3 sm:pl-6 shrink-0">
-                            <button className="text-[#9ca3af] hover:text-[#111827] transition-colors relative hidden sm:block">
-                                <Bell size={20} />
-                                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white" />
-                            </button>
-                            <div className="w-8 h-8 rounded-full bg-slate-100 border border-border overflow-hidden shrink-0">
-                                <img 
-                                    src={`https://ui-avatars.com/api/?name=${session?.user?.name || 'Admin'}&background=eff6ff&color=3b82f6&bold=true`} 
-                                    alt="Profile" 
-                                    className="w-full h-full object-cover"
-                                />
-                            </div>
+                    <div className="flex items-center gap-4">
+                        <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-white transition-all shadow-sm shrink-0">
+                            <Calendar size={12} className="text-blue-500" />
+                            {sessionsLoading ? (
+                                <Loader2 size={12} className="animate-spin text-slate-400" />
+                            ) : (
+                                <select 
+                                    value={selectedSessionId || ""} 
+                                    onChange={(e) => changeSession(e.target.value)}
+                                    className="bg-transparent border-none text-[11px] font-bold text-slate-700 outline-none cursor-pointer min-w-[80px]"
+                                >
+                                    {sessions.map(s => (
+                                        <option key={s._id} value={s._id}>
+                                            {s.sessionName}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
                     </div>
                 </header>
