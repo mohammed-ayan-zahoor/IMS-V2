@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { cn } from "@/lib/utils";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
 import Button from "@/components/ui/Button";
