@@ -469,7 +469,7 @@ export default function AdminLayout({ children }) {
                 )}>
                     <div className={cn(
                         "flex-1 overflow-y-auto bg-[#f9fafb] scrollbar-hide print-reset min-w-0",
-                        (pathname === "/admin/chat" || pathname.startsWith("/admin/website")) ? "p-0" : "p-4 sm:p-8"
+                        (pathname === "/admin/chat" || pathname.startsWith("/admin/website")) ? "p-0" : isInstructorOrStaff ? "p-3 md:p-8" : "p-4 sm:p-8"
                     )}>
                         <div className={cn(
                             "animate-fade-in h-full w-full",
