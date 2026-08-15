@@ -972,7 +972,16 @@ async function downloadPDF() {
 
   const btn = document.getElementById('btn-download');
   btn.disabled = true;
-  btn.textContent = 'Generating...';
+  btn.textContent = 'Saving MOU...';
+
+  // 1. GUARANTEE DB RECORD SAVED FIRST BEFORE PDF GENERATION & SAVE
+  try {
+    await trackMouAction('download_pdf');
+  } catch (err) {
+    console.error('Pre-download MOU database recording error:', err);
+  }
+
+  btn.textContent = 'Generating PDF...';
 
   // Paste sig into doc
   const sigImg = canvas.toDataURL('image/png');
@@ -1014,9 +1023,6 @@ async function downloadPDF() {
     const school = (document.getElementById('f-school').value.trim() || 'School').replace(/\s+/g,'_');
     pdf.save(`MOU_Quantech_${school}_${acadYear}.pdf`);
     showToast();
-    
-    // Log download action to DB in the background
-    trackMouAction('download_pdf');
   } catch(e) {
     document.body.classList.remove('is-exporting');
     console.error(e);
@@ -1043,16 +1049,17 @@ async function trackMouAction(actionType) {
     const designation = document.getElementById('f-designation').value.trim();
     const contactEmail = document.getElementById('f-email').value.trim();
     const contactPhone = document.getElementById('f-phone').value.trim();
-    const students = document.getElementById('f-students').value.trim();
+    const studentsRaw = document.getElementById('f-students').value.trim();
     const udise = document.getElementById('f-udise').value.trim();
     const address = document.getElementById('f-address').value.trim();
 
-    if (!schoolName || !principalName || !contactEmail || !students) {
+    if (!schoolName || !principalName || !contactEmail || !studentsRaw) {
       // Don't log incomplete forms to the database
       return;
     }
 
-    const studentCount = parseInt(students) || 0;
+    // Strip non-digit characters (e.g. "12,000" or "12,000 students" -> 12000)
+    const studentCount = parseInt(studentsRaw.replace(/[^0-9]/g, '')) || 0;
     const duration = parseInt(document.getElementById('f-duration')?.value || '1');
     
     let perStudentRate = 59;
@@ -1102,14 +1109,19 @@ async function trackMouAction(actionType) {
       screenHeight: window.innerHeight
     };
 
-    return await fetch('/api/v1/mou/submissions', {
+    const res = await fetch('/api/v1/mou/submissions', {
       method: 'POST',
       keepalive: true,
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
-    }).catch(err => console.error('Tracking log transmission error:', err));
+    });
+    
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('MOU tracking endpoint rejected submission:', res.status, errData);
+    }
   } catch (e) {
     console.error('MOU tracking mechanism error:', e);
   }

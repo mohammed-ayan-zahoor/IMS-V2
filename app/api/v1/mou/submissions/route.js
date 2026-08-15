@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import MouSubmission from "@/models/MouSubmission";
+import Notification from "@/models/Notification";
 
 // POST /api/v1/mou/submissions (Public endpoint for logging MOU clicks)
 export async function POST(req) {
@@ -32,8 +33,8 @@ export async function POST(req) {
             screenHeight
         } = body;
 
-        // Strict validation — city is optional; not all schools fill it in
-        if (!refId || !schoolName || !principalName || !contactEmail || !studentCount || !action) {
+        // Validation — city is optional; studentCount must be a number
+        if (!refId || !schoolName || !principalName || !contactEmail || studentCount === undefined || !action) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
@@ -56,7 +57,6 @@ export async function POST(req) {
         const calculatedTotal = count * rate * duration;
         const calculatedUpfront = calculatedTotal * upfrontPercent;
 
-        // If client-provided price is missing duration multiplier or invalid, use calculated
         let finalTotalPrice = Number(totalPrice);
         if (!finalTotalPrice || (duration > 1 && finalTotalPrice === count * rate)) {
             finalTotalPrice = calculatedTotal;
@@ -67,31 +67,55 @@ export async function POST(req) {
             finalUpfrontPrice = calculatedUpfront;
         }
 
-        const submission = await MouSubmission.create({
+        const submissionData = {
             refId,
-            schoolName,
-            city,
-            principalName,
-            designation,
-            contactEmail,
-            contactPhone,
+            schoolName: schoolName.trim(),
+            city: (city || "").trim(),
+            principalName: principalName.trim(),
+            designation: (designation || "Principal").trim(),
+            contactEmail: contactEmail.trim(),
+            contactPhone: (contactPhone || "").trim(),
             studentCount: count,
-            udiseCode,
-            address,
+            udiseCode: (udiseCode || "").trim(),
+            address: (address || "").trim(),
             totalPrice: finalTotalPrice,
             upfrontPrice: finalUpfrontPrice,
             mouDuration: duration,
             perStudentRate: rate,
             planType: plan,
             action,
-            signatureDataUrl,
             metadata: {
                 ip,
                 userAgent,
                 screenWidth: Number(screenWidth) || undefined,
                 screenHeight: Number(screenHeight) || undefined
             }
-        });
+        };
+
+        if (signatureDataUrl) {
+            submissionData.signatureDataUrl = signatureDataUrl;
+        }
+
+        // Upsert by refId so re-submitting / re-downloading updates the existing MOU tracker record
+        const submission = await MouSubmission.findOneAndUpdate(
+            { refId },
+            { $set: submissionData },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+        );
+
+        // Notify Super Admins of new MOU submission
+        try {
+            await Notification.create({
+                institute: submission._id, // placeholder for system notifications
+                recipientRole: "super_admin",
+                title: "New MOU Submission",
+                message: `${schoolName.trim()} submitted MOU for ${count} students (₹${finalTotalPrice.toLocaleString('en-IN')})`,
+                type: "SYSTEM",
+                link: "/admin/mou-tracker"
+            });
+        } catch (nErr) {
+            // Non-blocking notification creation error
+        }
 
         return NextResponse.json({ success: true, submission });
     } catch (error) {
@@ -112,68 +136,50 @@ export async function GET(req) {
 
         await connectDB();
 
-        // Extract query parameters
         const { searchParams } = new URL(req.url);
-        const search = searchParams.get("search") || "";
-        const status = searchParams.get("status") || "";
-        const page = parseInt(searchParams.get("page") || "1", 10);
-        const limit = parseInt(searchParams.get("limit") || "10", 10);
-        const skip = (page - 1) * limit;
+        const search = searchParams.get('search') || '';
+        const status = searchParams.get('status') || '';
+        const page = parseInt(searchParams.get('page') || '1');
+        const limit = parseInt(searchParams.get('limit') || '10');
 
         const query = {};
+        if (search) {
+            query.$or = [
+                { schoolName: { $regex: search, $options: 'i' } },
+                { principalName: { $regex: search, $options: 'i' } },
+                { contactEmail: { $regex: search, $options: 'i' } },
+                { city: { $regex: search, $options: 'i' } },
+                { refId: { $regex: search, $options: 'i' } }
+            ];
+        }
 
         if (status) {
             query.status = status;
         }
 
-        if (search) {
-            query.$or = [
-                { schoolName: { $regex: search, $options: "i" } },
-                { principalName: { $regex: search, $options: "i" } },
-                { refId: { $regex: search, $options: "i" } },
-                { contactEmail: { $regex: search, $options: "i" } }
-            ];
-        }
+        const skip = (page - 1) * limit;
 
-        const total = await MouSubmission.countDocuments(query);
-        const submissions = await MouSubmission.find(query)
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit);
+        const [submissions, total] = await Promise.all([
+            MouSubmission.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            MouSubmission.countDocuments(query)
+        ]);
 
-        // Auto-heal legacy records where mouDuration > 1 but totalPrice was not multiplied by duration
-        for (const sub of submissions) {
-            const count = sub.studentCount || 0;
-            const duration = sub.mouDuration || 1;
-            if (count > 0 && duration > 1 && sub.totalPrice === count * 59) {
-                let upfrontPercent = 0.5;
-                if (count <= 500) upfrontPercent = 1;
-                else if (count <= 1000) upfrontPercent = 0.75;
-
-                sub.totalPrice = count * 59 * duration;
-                sub.upfrontPrice = sub.totalPrice * upfrontPercent;
-                await sub.save().catch(e => console.error("Auto-heal MouSubmission error:", e));
+        return NextResponse.json({
+            success: true,
+            submissions,
+            pagination: {
+                total,
+                page,
+                limit,
+                pages: Math.ceil(total / limit)
             }
-        }
-
-        return NextResponse.json(
-            {
-                submissions,
-                pagination: {
-                    total,
-                    page,
-                    limit,
-                    pages: Math.ceil(total / limit)
-                }
-            },
-            {
-                headers: {
-                    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate"
-                }
-            }
-        );
+        });
     } catch (error) {
-        console.error("Failed to fetch MOU submissions:", error);
-        return NextResponse.json({ error: "Failed to fetch MOU submissions" }, { status: 500 });
+        console.error("GET /api/v1/mou/submissions error:", error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
