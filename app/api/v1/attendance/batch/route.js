@@ -154,16 +154,23 @@ export async function GET(req) {
         const attendanceDocs = await Attendance.find(query)
             .populate("records.student", "profile.firstName profile.lastName profile.avatar enrollmentNumber email role");
 
+        const periodIdFilter = searchParams.get("periodId");
+
         const records = [];
         attendanceDocs.forEach(doc => {
             (doc.records || []).forEach(r => {
                 if (r.student) {
+                    if (periodIdFilter && r.periodId?.toString() !== periodIdFilter) {
+                        return;
+                    }
                     records.push({
                         student: r.student,
                         status: r.status,
                         slot: r.slot || "checkin",
                         markedAt: r.markedAt || doc.updatedAt || doc.createdAt,
                         method: r.method || "manual",
+                        periodId: r.periodId ? r.periodId.toString() : null,
+                        periodName: r.periodName || null,
                         remarks: r.remarks,
                         batchId: doc.batch ? doc.batch.toString() : null
                     });
@@ -207,6 +214,8 @@ export async function POST(req) {
             slot: r.slot || "checkin",
             markedAt: r.markedAt ? new Date(r.markedAt) : new Date(),
             method: r.method || "manual",
+            periodId: r.periodId || null,
+            periodName: r.periodName || "",
             remarks: r.remarks || ""
         }));
 

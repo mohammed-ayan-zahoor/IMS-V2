@@ -26,6 +26,7 @@ export async function GET(req) {
         const sessionId = searchParams.get("sessionId");
         const startDateString = searchParams.get("startDate");
         const endDateString = searchParams.get("endDate");
+        const periodId = searchParams.get("periodId");
 
         if (!instituteId) {
             return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
@@ -84,6 +85,11 @@ export async function GET(req) {
 
             // 2. Unwind records to process individual student statuses
             { $unwind: "$records" },
+
+            ...(periodId && mongoose.Types.ObjectId.isValid(periodId)
+                ? [{ $match: { "records.periodId": new mongoose.Types.ObjectId(periodId) } }]
+                : []
+            ),
 
             // 3. Group by Student to calculate stats
             {

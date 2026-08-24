@@ -122,6 +122,7 @@ const InstituteSchema = new Schema({
         // Attendance settings
         attendance: {
             mode: { type: String, enum: ['checkin_only', 'checkin_checkout'], default: 'checkin_only' },
+            periodMode: { type: String, enum: ['daily', 'per_period'], default: 'daily' },
             workingHoursStart: { type: String, default: '08:00' },
             workingHoursEnd: { type: String, default: '17:00' },
             gracePeriodMinutes: { type: Number, default: 15 },

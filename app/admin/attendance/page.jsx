@@ -48,8 +48,11 @@ export default function AttendanceMarkingPage() {
 
     // Slot & Mode State
     const [attMode, setAttMode] = useState("checkin_only");
+    const [periodMode, setPeriodMode] = useState("daily");
     const [selectedSlot, setSelectedSlot] = useState("checkin");
-    const [fullAttendanceRecords, setFullAttendanceRecords] = useState({}); // { [sId]: { checkin: {}, checkout: {} } }
+    const [timetableSlots, setTimetableSlots] = useState([]);
+    const [selectedPeriodId, setSelectedPeriodId] = useState("");
+    const [fullAttendanceRecords, setFullAttendanceRecords] = useState({}); // { [sId]: { [`${slot}_${periodId||'all'}`]: {} } }
 
     // Attendance State: { studentId: { status: 'present', remarks: '' } }
     const [attendanceData, setAttendanceData] = useState({});
@@ -69,14 +72,35 @@ export default function AttendanceMarkingPage() {
             const res = await fetch("/api/v1/institute");
             if (res.ok) {
                 const data = await res.json();
-                if (data.institute?.settings?.attendance?.mode) {
-                    setAttMode(data.institute.settings.attendance.mode);
+                if (data.institute?.settings?.attendance) {
+                    const att = data.institute.settings.attendance;
+                    if (att.mode) setAttMode(att.mode);
+                    if (att.periodMode) setPeriodMode(att.periodMode);
                 }
             }
         } catch (e) {
             console.error("Failed to fetch institute settings", e);
         }
     };
+
+    // Fetch timetable when batch changes in per_period mode
+    useEffect(() => {
+        if (periodMode === "per_period" && selectedBatch) {
+            fetch(`/api/v1/attendance/timetable?batchId=${selectedBatch}`)
+                .then(res => res.json())
+                .then(data => {
+                    const slots = data.slots || [];
+                    setTimetableSlots(slots);
+                    const curr = slots.find(s => s.isCurrent) || slots[0];
+                    if (curr) setSelectedPeriodId(curr._id);
+                    else setSelectedPeriodId("");
+                })
+                .catch(err => console.warn("Failed to fetch timetable slots:", err));
+        } else {
+            setTimetableSlots([]);
+            setSelectedPeriodId("");
+        }
+    }, [periodMode, selectedBatch]);
 
     // When Batch, Date, or selectedSlot changes - update displayed attendance
     useEffect(() => {
@@ -92,9 +116,10 @@ export default function AttendanceMarkingPage() {
     useEffect(() => {
         if (students.length > 0) {
             const updatedState = {};
+            const recordKey = `${selectedSlot}_${selectedPeriodId || 'all'}`;
             students.forEach(enrollment => {
                 const sId = enrollment.student._id || enrollment.student;
-                const slotRecord = fullAttendanceRecords[sId]?.[selectedSlot];
+                const slotRecord = fullAttendanceRecords[sId]?.[recordKey];
                 if (slotRecord) {
                     updatedState[sId] = { status: slotRecord.status, remarks: slotRecord.remarks || "" };
                 } else {
@@ -103,7 +128,7 @@ export default function AttendanceMarkingPage() {
             });
             setAttendanceData(updatedState);
         }
-    }, [selectedSlot, fullAttendanceRecords]);
+    }, [selectedSlot, selectedPeriodId, fullAttendanceRecords]);
 
     const fetchBatches = async () => {
         try {
@@ -140,7 +165,7 @@ export default function AttendanceMarkingPage() {
             // 3. Merge Data
             const enrolled = batchData.enrolledStudents || [];
 
-            // Create map of existing records per slot
+            // Create map of existing records per slot + periodId
             const existingMap = {};
             if (attData.records) {
                 attData.records.forEach(r => {
@@ -148,20 +173,24 @@ export default function AttendanceMarkingPage() {
                     const sId = typeof r.student === 'object' ? r.student._id : r.student;
                     if (!existingMap[sId]) existingMap[sId] = {};
                     const slot = r.slot || 'checkin';
-                    existingMap[sId][slot] = { 
+                    const pKey = `${slot}_${r.periodId || 'all'}`;
+                    existingMap[sId][pKey] = { 
                         status: r.status, 
                         remarks: r.remarks || "",
                         markedAt: r.markedAt,
-                        method: r.method || "manual"
+                        method: r.method || "manual",
+                        periodId: r.periodId,
+                        periodName: r.periodName
                     };
                 });
             }
 
-            // Initialize local state for current slot
+            // Initialize local state for current slot + period
+            const currentRecordKey = `${selectedSlot}_${selectedPeriodId || 'all'}`;
             const initialState = {};
             enrolled.forEach(enrollment => {
                 const sId = enrollment.student._id || enrollment.student;
-                const slotRecord = existingMap[sId]?.[selectedSlot];
+                const slotRecord = existingMap[sId]?.[currentRecordKey];
                 if (slotRecord) {
                     initialState[sId] = { status: slotRecord.status, remarks: slotRecord.remarks || "" };
                 } else {
@@ -197,10 +226,14 @@ export default function AttendanceMarkingPage() {
     const handleSave = async () => {
         try {
             setSaving(true);
+            const activePeriod = timetableSlots.find(s => s._id === selectedPeriodId);
+
             const records = Object.keys(attendanceData).map(studentId => ({
                 studentId,
                 status: attendanceData[studentId].status,
                 slot: selectedSlot,
+                periodId: activePeriod ? activePeriod._id : null,
+                periodName: activePeriod ? activePeriod.name : "",
                 remarks: attendanceData[studentId].remarks
             }));
 
@@ -215,7 +248,8 @@ export default function AttendanceMarkingPage() {
             });
 
             if (res.ok) {
-                toast.success(`Attendance (${selectedSlot === 'checkout' ? 'Check-Out' : 'Check-In'}) saved successfully!`);
+                const periodLabel = activePeriod ? ` - ${activePeriod.name}` : "";
+                toast.success(`Attendance (${selectedSlot === 'checkout' ? 'Check-Out' : 'Check-In'}${periodLabel}) saved successfully!`);
                 fetchBatchData();
             } else {
                 throw new Error("Failed to save");
@@ -368,6 +402,35 @@ export default function AttendanceMarkingPage() {
                                     🌙 Check-Out (Evening)
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {periodMode === 'per_period' && (
+                        <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-slate-100">
+                            <span className="text-xs font-bold text-slate-500 mr-1">Period Slot:</span>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedPeriodId('')}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
+                                    !selectedPeriodId ? "bg-slate-900 text-white border-slate-900" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                )}
+                            >
+                                All / Whole Day
+                            </button>
+                            {timetableSlots.map(s => (
+                                <button
+                                    key={s._id}
+                                    type="button"
+                                    onClick={() => setSelectedPeriodId(s._id)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
+                                        selectedPeriodId === s._id ? "bg-indigo-600 text-white border-indigo-600 shadow-xs" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                    )}
+                                >
+                                    {s.name} ({s.startTime}-{s.endTime})
+                                </button>
+                            ))}
                         </div>
                     )}
                 </CardContent>

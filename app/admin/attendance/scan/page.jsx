@@ -42,13 +42,17 @@ function ScannerPage() {
         enrolledUsersRef.current = enrolledUsers;
     }, [enrolledUsers]);
 
-    // Institute attendance settings (mode, working hours, grace period)
+    // Institute attendance settings (mode, periodMode, working hours, grace period)
     const [attSettings, setAttSettings] = useState({
         mode: "checkin_only",
+        periodMode: "daily",
         workingHoursStart: "08:00",
         workingHoursEnd: "17:00",
         gracePeriodMinutes: 15
     });
+
+    const [timetableSlots, setTimetableSlots] = useState([]);
+    const [selectedPeriodId, setSelectedPeriodId] = useState("");
 
     useEffect(() => {
         async function fetchSettings() {
@@ -69,6 +73,20 @@ function ScannerPage() {
         }
         fetchSettings();
     }, []);
+
+    useEffect(() => {
+        if (attSettings.periodMode === "per_period" && batchId && batchId !== "all") {
+            fetch(`/api/v1/attendance/timetable?batchId=${batchId}`)
+                .then(res => res.json())
+                .then(data => {
+                    const slots = data.slots || [];
+                    setTimetableSlots(slots);
+                    const currentSlot = slots.find(s => s.isCurrent) || slots[0];
+                    if (currentSlot) setSelectedPeriodId(currentSlot._id);
+                })
+                .catch(err => console.warn("Failed to fetch timetable slots:", err));
+        }
+    }, [attSettings.periodMode, batchId]);
 
     // Calculate current slot ('checkin' vs 'checkout')
     const getCurrentSlot = useCallback(() => {
@@ -363,6 +381,9 @@ function ScannerPage() {
                     }
                 }
 
+                // Active period details
+                const activePeriod = timetableSlots.find(s => s._id === selectedPeriodId);
+
                 const postRes = await fetch("/api/v1/attendance/batch/single", {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -373,7 +394,9 @@ function ScannerPage() {
                         status,
                         slot,
                         method: method === "QR Code" ? "qr" : "face",
-                        remarks: `Auto via ${method}`
+                        periodId: activePeriod ? activePeriod._id : null,
+                        periodName: activePeriod ? activePeriod.name : "",
+                        remarks: `Auto via ${method}${activePeriod ? ` (${activePeriod.name})` : ""}`
                     })
                 });
 
@@ -392,23 +415,26 @@ function ScannerPage() {
             });
             setMarkedIds(prev => new Set([...prev, user.id]));
 
+            const activePeriod = timetableSlots.find(s => s._id === selectedPeriodId);
+            const periodTag = activePeriod ? ` - ${activePeriod.name}` : "";
+
             const newRecord = {
                 id: user.id,
                 name: user.name,
-                method: `${method} (${slot === "checkout" ? "Check-Out" : "Check-In"})`,
+                method: `${method} (${slot === "checkout" ? "Check-Out" : "Check-In"}${periodTag})`,
                 time: format(new Date(), "hh:mm a"),
                 avatar: user.avatar,
                 enrollmentNumber: user.enrollmentNumber || ""
             };
             setMarkedUsersList(prev => [newRecord, ...prev]);
             setLastMarked(newRecord);
-            toast.success(`✓ ${user.name} marked ${slot === "checkout" ? "Check-Out" : "Check-In"}`);
+            toast.success(`✓ ${user.name} marked ${slot === "checkout" ? "Check-Out" : "Check-In"}${periodTag}`);
         } catch (err) {
             toast.error("Mark failed: " + err.message);
         } finally {
             setTimeout(() => { isProcessingRef.current = false; }, 1500);
         }
-    }, [markedSlotsMap, batchId, date, isStaff, getCurrentSlot, attSettings]);
+    }, [markedSlotsMap, batchId, date, isStaff, getCurrentSlot, attSettings, timetableSlots, selectedPeriodId]);
     handleRecognizedRef.current = handleRecognized;
 
     const ready = cameraReady && modelsReady && profilesReady;
@@ -424,7 +450,7 @@ function ScannerPage() {
                 >
                     <ArrowLeft size={16} /> Back
                 </button>
-                <div className="text-center flex items-center gap-3">
+                <div className="text-center flex flex-wrap items-center gap-3">
                     <div>
                         <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
                             <ScanLine size={16} className="text-indigo-600" />
@@ -432,6 +458,7 @@ function ScannerPage() {
                         </div>
                         <p className="text-xs text-slate-500">{date}</p>
                     </div>
+
                     <span className={`text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full border ${
                         getCurrentSlot() === "checkout"
                             ? "bg-indigo-50 text-indigo-700 border-indigo-200"
@@ -439,6 +466,20 @@ function ScannerPage() {
                     }`}>
                         ● {getCurrentSlot() === "checkout" ? "Check-Out Mode" : "Check-In Mode"}
                     </span>
+
+                    {attSettings.periodMode === "per_period" && timetableSlots.length > 0 && (
+                        <select
+                            value={selectedPeriodId}
+                            onChange={(e) => setSelectedPeriodId(e.target.value)}
+                            className="text-xs font-bold bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        >
+                            {timetableSlots.map(s => (
+                                <option key={s._id} value={s._id}>
+                                    {s.name} ({s.startTime}-{s.endTime}){s.isCurrent ? " - Current" : ""}
+                                </option>
+                            ))}
+                        </select>
+                    )}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
                     <UserCheck size={14} />

@@ -628,6 +628,70 @@ export default function SettingsPage() {
                             </div>
                         </div>
 
+                        {/* Period-wise Tracking Setting */}
+                        <div className="space-y-2 pt-4 border-t border-slate-100">
+                            <label className="text-sm font-bold text-slate-700">Period Attendance Tracking</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <label className={cn(
+                                    "p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3",
+                                    (institute.settings?.attendance?.periodMode || 'daily') === 'daily'
+                                        ? "border-premium-blue bg-blue-50/50 text-slate-900"
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                )}>
+                                    <input
+                                        type="radio"
+                                        name="attPeriodMode"
+                                        value="daily"
+                                        checked={(institute.settings?.attendance?.periodMode || 'daily') === 'daily'}
+                                        onChange={() => setInstitute({
+                                            ...institute,
+                                            settings: {
+                                                ...institute.settings,
+                                                attendance: {
+                                                    ...(institute.settings?.attendance || {}),
+                                                    periodMode: 'daily'
+                                                }
+                                            }
+                                        })}
+                                        className="mt-1 accent-premium-blue"
+                                    />
+                                    <div>
+                                        <p className="text-sm font-bold">Whole Day Attendance</p>
+                                        <p className="text-xs text-slate-500 mt-0.5">Marks attendance once per student for the entire day.</p>
+                                    </div>
+                                </label>
+
+                                <label className={cn(
+                                    "p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3",
+                                    institute.settings?.attendance?.periodMode === 'per_period'
+                                        ? "border-premium-blue bg-blue-50/50 text-slate-900"
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                )}>
+                                    <input
+                                        type="radio"
+                                        name="attPeriodMode"
+                                        value="per_period"
+                                        checked={institute.settings?.attendance?.periodMode === 'per_period'}
+                                        onChange={() => setInstitute({
+                                            ...institute,
+                                            settings: {
+                                                ...institute.settings,
+                                                attendance: {
+                                                    ...(institute.settings?.attendance || {}),
+                                                    periodMode: 'per_period'
+                                                }
+                                            }
+                                        })}
+                                        className="mt-1 accent-premium-blue"
+                                    />
+                                    <div>
+                                        <p className="text-sm font-bold">Per-Period Attendance (Timetable Linked)</p>
+                                        <p className="text-xs text-slate-500 mt-0.5">Allows marking attendance period-by-period based on class timetable slots.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
                         {/* Working Hours & Grace Period */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
                             <div className="space-y-1.5">

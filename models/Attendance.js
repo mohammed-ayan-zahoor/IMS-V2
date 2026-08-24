@@ -11,6 +11,8 @@ const AttendanceRecordSchema = new Schema({
     slot: { type: String, enum: ['checkin', 'checkout'], default: 'checkin' },
     markedAt: { type: Date },
     method: { type: String, enum: ['manual', 'face', 'qr'], default: 'manual' },
+    periodId: { type: Schema.Types.ObjectId },
+    periodName: { type: String, trim: true },
     remarks: { type: String, maxlength: 500 }
 });
 

@@ -15,7 +15,7 @@ export async function PATCH(req) {
 
         await connectDB();
         const body = await req.json();
-        const { batchId, date, studentId, status = "present", slot = "checkin", method = "face", remarks = "" } = body;
+        const { batchId, date, studentId, status = "present", slot = "checkin", method = "face", periodId = null, periodName = "", remarks = "" } = body;
 
         if (!batchId || !date || !studentId) {
             return NextResponse.json({ error: "batchId, date, and studentId are required" }, { status: 400 });
@@ -36,57 +36,56 @@ export async function PATCH(req) {
             date: { $gte: dayStart, $lte: dayEnd }
         });
 
+        const newRecord = {
+            student: studentId,
+            status,
+            slot,
+            markedAt: new Date(),
+            method,
+            remarks
+        };
+        if (periodId) newRecord.periodId = periodId;
+        if (periodName) newRecord.periodName = periodName;
+
         if (!attendanceDoc) {
             attendanceDoc = await Attendance.create({
                 institute: batchDoc.institute,
                 batch: batchId,
                 date: targetDate,
-                records: [{
-                    student: studentId,
-                    status,
-                    slot,
-                    markedAt: new Date(),
-                    method,
-                    remarks
-                }],
+                records: [newRecord],
                 markedBy: session.user.id
             });
         } else {
-            // Check if record exists for this student & slot
+            // Check if record exists for this student, slot, and periodId
             const existingRecordIndex = (attendanceDoc.records || []).findIndex(
-                r => r.student?.toString() === studentId.toString() && (r.slot || "checkin") === slot
+                r => r.student?.toString() === studentId.toString() &&
+                    (r.slot || "checkin") === slot &&
+                    ((!r.periodId && !periodId) || (r.periodId?.toString() === periodId?.toString()))
             );
 
             if (existingRecordIndex > -1) {
+                const setPayload = {
+                    "records.$.status": status,
+                    "records.$.markedAt": new Date(),
+                    "records.$.method": method,
+                    "records.$.remarks": remarks || attendanceDoc.records[existingRecordIndex].remarks || "",
+                    markedBy: session.user.id,
+                    updatedAt: new Date()
+                };
+                if (periodId) setPayload["records.$.periodId"] = periodId;
+                if (periodName) setPayload["records.$.periodName"] = periodName;
+
                 // Update existing record atomically
                 await Attendance.updateOne(
                     { _id: attendanceDoc._id, "records._id": attendanceDoc.records[existingRecordIndex]._id },
-                    {
-                        $set: {
-                            "records.$.status": status,
-                            "records.$.markedAt": new Date(),
-                            "records.$.method": method,
-                            "records.$.remarks": remarks || attendanceDoc.records[existingRecordIndex].remarks || "",
-                            markedBy: session.user.id,
-                            updatedAt: new Date()
-                        }
-                    }
+                    { $set: setPayload }
                 );
             } else {
-                // Push new record for student and slot
+                // Push new record for student, slot, and periodId
                 await Attendance.updateOne(
                     { _id: attendanceDoc._id },
                     {
-                        $push: {
-                            records: {
-                                student: studentId,
-                                status,
-                                slot,
-                                markedAt: new Date(),
-                                method,
-                                remarks
-                            }
-                        },
+                        $push: { records: newRecord },
                         $set: {
                             markedBy: session.user.id,
                             updatedAt: new Date()
@@ -96,7 +95,7 @@ export async function PATCH(req) {
             }
         }
 
-        return NextResponse.json({ success: true, studentId, slot, status });
+        return NextResponse.json({ success: true, studentId, slot, periodId, status });
     } catch (error) {
         console.error("Single Attendance Patch Error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
