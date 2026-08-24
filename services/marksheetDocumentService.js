@@ -557,7 +557,7 @@ export async function generateMarksheetPdfKit(context) {
                 }
             } else {
                 doc.save();
-                doc.opacity(0.04);
+                doc.opacity(0.025);
                 doc.fontSize(36).font('Helvetica-Bold').fillColor('#0f172a');
                 doc.rotate(-32, { origin: [297.64, 450] });
                 doc.text((context.institute.name || 'OFFICIAL TRANSCRIPT').toUpperCase(), 45, 430, { width: 505, align: 'center' });

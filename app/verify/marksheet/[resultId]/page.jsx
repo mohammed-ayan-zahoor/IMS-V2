@@ -174,15 +174,31 @@ export default async function MarksheetVerificationPage({ params }) {
                     {/* Single Sheet Official Marksheet Frame */}
                     <div className="marksheet-sheet relative overflow-hidden bg-white p-8 sm:p-12 border border-[#cbd5e1] rounded-[5px] shadow-sm space-y-8">
                         {/* Centered Watermark (Screen & Print) */}
-                        <div className="watermark-layer absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden select-none">
+                        <div
+                            aria-hidden="true"
+                            className="watermark-layer absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden select-none"
+                        >
                             {institute.branding?.logo ? (
                                 <img
                                     src={institute.branding.logo}
                                     alt=""
-                                    className="w-72 h-72 sm:w-96 sm:h-96 object-contain opacity-[0.05] filter grayscale"
+                                    style={{
+                                        opacity: 0.045,
+                                        filter: 'grayscale(100%)',
+                                        maxWidth: '360px',
+                                        maxHeight: '360px',
+                                        objectFit: 'contain'
+                                    }}
                                 />
                             ) : (
-                                <div className="text-center select-none -rotate-30 opacity-[0.04]">
+                                <div
+                                    style={{
+                                        opacity: 0.03,
+                                        transform: 'rotate(-25deg)',
+                                        userSelect: 'none',
+                                        textAlign: 'center'
+                                    }}
+                                >
                                     <div className="font-serif text-5xl sm:text-7xl font-black uppercase tracking-wider text-[#0f172a]">
                                         {institute.name || 'INSTITUTION'}
                                     </div>
