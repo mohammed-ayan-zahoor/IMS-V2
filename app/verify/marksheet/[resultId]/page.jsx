@@ -165,12 +165,9 @@ export default async function MarksheetVerificationPage({ params }) {
                             >
                                 Download Official PDF (A4)
                             </a>
-                            <button
-                                onClick={() => {}}
-                                className="no-print inline-flex items-center px-4 py-2 border border-[#cbd5e1] bg-white text-[#0f172a] text-xs sm:text-sm font-medium hover:bg-[#f1f5f9] transition cursor-pointer rounded-[5px]"
-                            >
+                            <span className="no-print inline-flex items-center px-3 py-1.5 border border-[#cbd5e1] bg-white text-[#0f172a] text-xs sm:text-sm font-medium rounded-[5px]">
                                 Certified Record
-                            </button>
+                            </span>
                         </div>
                     </div>
 
