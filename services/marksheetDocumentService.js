@@ -647,9 +647,13 @@ export async function generateMarksheetPdfKit(context) {
 
             // QR Code (Bottom Left)
             doc.image(qrBuffer, 40, footerY + 12, { width: 56, height: 56 });
-            doc.font('Courier-Bold').fontSize(7.5).fillColor('#0f172a').text(`DOC-REF: ${context.documentId}`, 105, footerY + 18);
-            doc.font('Helvetica').fontSize(7).fillColor('#64748b').text('Scan to verify authentic record', 105, footerY + 30);
-            doc.font('Helvetica-Bold').fontSize(7).fillColor('#0f766e').text(context.verificationUrl, 105, footerY + 42, { width: 200, ellipsis: true });
+            doc.font('Courier-Bold').fontSize(7.5).fillColor('#0f172a').text(`DOC-REF: ${context.documentId}`, 105, footerY + 16);
+            doc.font('Helvetica').fontSize(7).fillColor('#64748b').text('Scan to verify authentic record', 105, footerY + 28);
+            doc.font('Helvetica-Bold').fontSize(7).fillColor('#0f766e').text(context.verificationUrl, 105, footerY + 40, {
+                width: 230,
+                link: context.verificationUrl,
+                underline: true
+            });
 
             // Signatures (Right Side)
             const sigY = footerY + 50;
