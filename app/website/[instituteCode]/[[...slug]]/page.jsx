@@ -16,7 +16,12 @@ import GallerySection from "@/components/website/public/GallerySection";
 import FooterSection from "@/components/website/public/FooterSection";
 import HeroUIComponentSection from "@/components/website/public/HeroUIComponentSection";
 import { SECTION_TYPES } from "@/services/pageBuilderService";
+import Session from "@/models/Session";
+import ResultLookupWidget from "@/components/website/public/ResultLookupWidget";
+import Link from 'next/link';
+import { ArrowLeft, GraduationCap } from 'lucide-react';
 import { notFound } from 'next/navigation';
+
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000';
 
@@ -51,9 +56,19 @@ export async function generateMetadata({ params }) {
         }
     }
 
-    if (!institute || !config) return {};
+    if (!institute) return {};
+
+    if (pageSlug === 'results' || pageSlug === 'result') {
+        return {
+            title: `${institute.name} — Student Examination Results`,
+            description: 'Check official student examination results and statements of marks.',
+        };
+    }
+
+    if (!config) return {};
 
     const page = await WebsitePage.findOne({ websiteConfigId: config._id, slug: pageSlug });
+
 
     // Priority: Page-specific SEO Title -> Custom page fallback -> Global SEO title -> School fallback
     const defaultTitle = config?.settings?.seoTitle || `${institute.name} | Official Website`;
@@ -82,21 +97,19 @@ export async function generateMetadata({ params }) {
         title,
         description,
         keywords,
-        robots: {
-            index: true,
-            follow: true,
-            googleBot: { index: true, follow: true, 'max-image-preview': 'large' }
+        metadataBase: new URL(isLocal ? `http://${ROOT_DOMAIN}` : `https://${subdomain}.${ROOT_DOMAIN}`),
+        alternates: {
+            canonical: siteUrl,
         },
-        alternates: { canonical: siteUrl },
         openGraph: {
-            type: 'website',
-            url: siteUrl,
             title,
             description,
+            url: siteUrl,
             siteName: institute.name,
             locale: 'en_IN',
+            type: 'website',
             images: logo
-                ? [{ url: logo, width: 1200, height: 630, alt: `${institute.name} logo` }]
+                ? [{ url: logo, width: 800, height: 600, alt: `${institute.name} Logo` }]
                 : [],
         },
         twitter: {
@@ -136,7 +149,7 @@ async function PublicWebsitePage({ params }) {
 
     let institute = await Institute.findOne({
         code: { $regex: new RegExp(`^${instituteCode}$`, 'i') }
-    }).select('name type branding address contactPhone contactEmail');
+    }).select('name type branding address contactPhone contactEmail code');
 
     let config = null;
     if (institute) {
@@ -144,14 +157,81 @@ async function PublicWebsitePage({ params }) {
     } else {
         config = await WebsiteConfig.findOne({ subdomain: { $regex: new RegExp(`^${instituteCode}$`, 'i') } });
         if (config) {
-            institute = await Institute.findById(config.instituteId).select('name type branding address contactPhone contactEmail');
+            institute = await Institute.findById(config.instituteId).select('name type branding address contactPhone contactEmail code');
         }
     }
 
-    if (!institute || !config || !config.isActive || config.status !== 'published') notFound();
+    if (!institute) notFound();
+
+    // ── Dedicated Results Route Always Available ──
+    if (pageSlug === 'results' || pageSlug === 'result') {
+        let activeSession = await Session.findOne({
+
+            instituteId: institute._id,
+            isActive: true,
+            deletedAt: null
+        });
+
+        if (!activeSession) {
+            activeSession = await Session.findOne({
+                instituteId: institute._id,
+                deletedAt: null
+            }).sort({ createdAt: -1 });
+        }
+
+        const homeUrl = `/website/${institute.code || instituteCode}`;
+
+        return (
+            <main className="min-h-screen bg-[#f8fafc] flex flex-col justify-between font-sans text-[#0f172a]">
+                {/* Top Navigation Bar */}
+                <header className="no-print bg-[#f8fafc] border-b border-[#e2e8f0] sticky top-0 z-50">
+                    <div className="max-w-6xl mx-auto px-6 sm:px-12 h-14 flex items-center justify-between">
+                        <Link
+                            href={homeUrl}
+                            className="inline-flex items-center gap-2 text-sm text-[#64748b] hover:text-[#0f172a] transition font-medium"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to website
+                        </Link>
+
+                        <div className="text-xs sm:text-sm text-[#64748b] font-medium">
+                            Results Portal
+                        </div>
+                    </div>
+                </header>
+
+                {/* Main Interactive Results Component */}
+                <div className="flex-1 w-full">
+                    <ResultLookupWidget
+                        instituteCode={institute.code || instituteCode}
+                        instituteName={institute.name}
+                        instituteLogo={institute.branding?.logo}
+                        customTitle={config?.resultsPage?.customTitle}
+                        customSubtitle={config?.resultsPage?.customSubtitle}
+                        activeSessionName={activeSession?.sessionName}
+                    />
+                </div>
+
+                {/* Simple Calm Footer */}
+                <footer className="no-print border-t border-[#e2e8f0] bg-[#f8fafc] text-[#64748b] py-8 text-center text-xs sm:text-sm">
+                    <div className="max-w-6xl mx-auto px-6 sm:px-12 space-y-1">
+                        <p>© {new Date().getFullYear()} {institute.name}. All rights reserved.</p>
+                    </div>
+                </footer>
+
+            </main>
+        );
+    }
+
+
+
+
+
+    if (!config || !config.isActive || config.status !== 'published') notFound();
 
     let page = await WebsitePage.findOne({ websiteConfigId: config._id, slug: pageSlug });
     if (!page) notFound();
+
 
     page = JSON.parse(JSON.stringify(page));
 
@@ -201,8 +281,9 @@ async function PublicWebsitePage({ params }) {
     };
 
     // ── Layout Helpers ───────────────────────────────────────────────────────
-    // Public site strictly reads from liveContent.
-    const liveContent = page.liveContent;
+    // Public site reads from liveContent (or draftContent if freshly saved)
+    const liveContent = page.liveContent || page.draftContent;
+
 
     // ── GrapesJS page path ───────────────────────────────────────────────────
     // If this page was built with GrapesJS, liveContent is an object with
@@ -227,10 +308,10 @@ async function PublicWebsitePage({ params }) {
                 )}
                 <div
                     dangerouslySetInnerHTML={{ __html: safeHtml }}
-                    style={{ fontFamily: `'${fontFamily}', sans-serif` }}
                 />
             </>
         );
+
     }
 
     // ── Legacy V1 section path ───────────────────────────────────────────────

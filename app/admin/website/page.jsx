@@ -64,7 +64,12 @@ export default function WebsiteAdminPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ...activePage,
+                    title: activePage?.title || 'Home',
+                    slug: activePage?.slug || 'index',
+                    websiteConfigId: activePage?.websiteConfigId,
+                    seoTitle: activePage?.seoTitle,
+                    seoDescription: activePage?.seoDescription,
+                    keywords: activePage?.keywords,
                     ...pageDetails,
                     sections: gjsContent, // store GrapesJS data in sections field
                 })
@@ -83,6 +88,7 @@ export default function WebsiteAdminPage() {
             toast.error("Error saving website");
         }
     };
+
 
     const handleCreatePage = async (title, slug) => {
         try {

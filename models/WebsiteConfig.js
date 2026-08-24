@@ -65,8 +65,19 @@ const WebsiteConfigSchema = new Schema({
             enum: ['modern', 'classic', 'bold', 'minimal', 'dark'],
             default: 'modern'
         }
+    },
+
+    // Results portal configuration
+    resultsPage: {
+        hiddenExams: [{
+            type: Schema.Types.ObjectId,
+            ref: 'OfflineExam'
+        }],
+        customTitle: { type: String, default: 'Student Examination Results' },
+        customSubtitle: { type: String, default: 'Enter your Enrollment Number and Date of Birth to view your statement of marks.' }
     }
 }, { 
+
     timestamps: true 
 });
 

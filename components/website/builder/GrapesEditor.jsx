@@ -5,8 +5,9 @@ import { useToast } from '@/contexts/ToastContext';
 import {
     Save, Globe, Undo2, Redo2, Monitor, Tablet, Smartphone,
     Layers, Puzzle, Paintbrush, Settings2, Plus, Trash2, FileText,
-    ChevronDown, Eye, Code2, X
+    ChevronDown, Eye, Code2, X, LayoutTemplate
 } from 'lucide-react';
+import TemplateStarter from './TemplateStarter';
 
 // ─── School Block Templates ────────────────────────────────────────────────
 const SCHOOL_BLOCKS = [
@@ -408,8 +409,26 @@ const SCHOOL_BLOCKS = [
         label: 'Button',
         category: 'Basic',
         content: `<a href="#" style="display:inline-block;background:#2563eb;color:#ffffff;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;font-family:Inter,sans-serif;text-align:center;">Click Here</a>`
+    },
+    {
+        id: 'results-portal-banner',
+        label: 'Results Banner',
+        category: 'Sections',
+        content: `<section style="background:linear-gradient(135deg,#1e3a8a,#3b82f6);padding:60px 40px;text-align:center;font-family:Inter,sans-serif;border-radius:16px;margin:20px auto;max-width:1100px;">
+  <div style="font-size:36px;margin-bottom:12px;">🎓</div>
+  <h2 style="color:#ffffff;font-size:32px;font-weight:800;margin:0 0 12px;letter-spacing:-0.5px;">Student Examination Results</h2>
+  <p style="color:rgba(255,255,255,0.85);font-size:15px;max-width:560px;margin:0 auto 28px;line-height:1.6;">Check official statement of marks and examination results by entering your Enrollment ID and Date of Birth.</p>
+  <a href="./results" style="display:inline-flex;align-items:center;gap:8px;background:#ffffff;color:#1e3a8a;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:800;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,0.15);">Check Your Result →</a>
+</section>`
+    },
+    {
+        id: 'results-portal-btn',
+        label: 'Results Button',
+        category: 'Basic',
+        content: `<a href="./results" style="display:inline-flex;align-items:center;gap:6px;background:#1e3a8a;color:#ffffff;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;font-family:Inter,sans-serif;text-align:center;">🎓 Check Results</a>`
     }
 ];
+
 
 // ─── Custom GrapesJS Panel UI ─────────────────────────────────────────────
 const GRAPES_STYLES = `
@@ -520,6 +539,137 @@ export default function GrapesEditor({
     const [domainError, setDomainError] = useState('');
     const [domainSuccess, setDomainSuccess] = useState('');
     const [savingSettings, setSavingSettings] = useState(false);
+
+    // ── Template Starter ──────────────────────────────────────────────────
+    // Show when the active page has no saved gjsData yet (fresh/blank page)
+    const [showTemplateStarter, setShowTemplateStarter] = useState(false);
+    const [isChangeTemplate, setIsChangeTemplate] = useState(false);
+
+    const handleTemplateSelect = useCallback(async (payload) => {
+        setShowTemplateStarter(false);
+        setIsChangeTemplate(false);
+        const editor = gjsInstance.current;
+        if (!editor || !payload) return;
+
+        // Support either raw string or multi-page payload object
+        let rawHtml = typeof payload === 'string' ? payload : (payload.activePageHtml || payload.html || '');
+        const pagesToImport = (payload && payload.pages) || [];
+
+        // 1. Extract external stylesheets (<link rel="stylesheet" href="...">) + FontAwesome
+        const linkMatches = rawHtml.match(/<link[^>]*rel=["']?stylesheet["']?[^>]*href=["']?([^"'>\s]+)["']?[^>]*>|<link[^>]*href=["']?([^"'>\s]+)["']?[^>]*rel=["']?stylesheet["']?[^>]*>/gi) || [];
+        const externalStylesheets = [
+            'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
+        ];
+        linkMatches.forEach(tag => {
+            const hrefMatch = tag.match(/href=["']?([^"'>\s]+)["']?/i);
+            if (hrefMatch && hrefMatch[1] && !externalStylesheets.includes(hrefMatch[1])) {
+                externalStylesheets.push(hrefMatch[1]);
+            }
+        });
+
+        // 2. Extract <style> block contents
+        const styleMatches = rawHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+        let extractedCss = '';
+        styleMatches.forEach(tag => {
+            const cssMatch = tag.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+            if (cssMatch && cssMatch[1]) {
+                extractedCss += '\n' + cssMatch[1];
+            }
+        });
+
+        // 3. Extract <body> content or clean HTML
+        let bodyHtml = rawHtml;
+        const bodyMatch = rawHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        if (bodyMatch) {
+            bodyHtml = bodyMatch[1];
+        } else {
+            bodyHtml = bodyHtml.replace(/<head[\s\S]*?<\/head>/gi, '');
+            bodyHtml = bodyHtml.replace(/<!DOCTYPE[^>]*>/gi, '').replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '');
+        }
+
+        // Clean out <style> tags that we already extracted into CSS
+        bodyHtml = bodyHtml.replace(/<style[\s\S]*?<\/style>/gi, '');
+        bodyHtml = bodyHtml.replace(/<link[^>]*>/gi, '');
+
+        // 4. Inject external stylesheets into canvas iframe head
+        try {
+            const doc = editor.Canvas?.getDocument();
+            if (doc && doc.head) {
+                externalStylesheets.forEach(href => {
+                    if (!doc.querySelector(`link[href="${href}"]`)) {
+                        const link = doc.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.href = href;
+                        doc.head.appendChild(link);
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('Could not inject stylesheet into canvas iframe:', e);
+        }
+
+        // 5. Load components into GrapesJS (GrapesJS will parse HTML, inline styles, and <style> blocks)
+        editor.setComponents(bodyHtml);
+        
+        // 6. Append any extracted custom CSS rules to the existing style manager (DO NOT overwrite with setStyle)
+        if (extractedCss.trim()) {
+            if (typeof editor.addStyle === 'function') {
+                editor.addStyle(extractedCss);
+            } else if (editor.Css && typeof editor.Css.addRules === 'function') {
+                editor.Css.addRules(extractedCss);
+            }
+        }
+
+        // 7. Auto-save active (Home) page
+        setTimeout(async () => {
+            const gjsData = editor.getProjectData();
+            const gjsHtml = editor.getHtml();
+            let gjsCss = editor.getCss({ avoidProtected: true }) || '';
+            const importMatches = extractedCss.match(/@import\s+url\([^)]+\);/gi) || [];
+            if (importMatches.length > 0) {
+                const existingImports = gjsCss.match(/@import\s+url\([^)]+\);/gi) || [];
+                const missing = importMatches.filter(imp => !existingImports.includes(imp));
+                if (missing.length > 0) {
+                    gjsCss = missing.join('\n') + '\n' + gjsCss;
+                }
+            }
+            await onSave({ gjsData, gjsHtml, gjsCss }, {});
+        }, 300);
+
+
+        // 8. Auto-create any additional subpages in DB so navigation links work across pages!
+        if (pagesToImport.length > 0) {
+            let createdCount = 0;
+            for (const subpage of pagesToImport) {
+                if (subpage.slug === 'index' || subpage.slug === activePage?.slug) continue;
+                try {
+                    await fetch('/api/v1/website/pages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: subpage.title || subpage.slug,
+                            slug: subpage.slug,
+                            sections: {
+                                gjsHtml: subpage.html,
+                                gjsCss: (subpage.css || extractedCss || '').trim(),
+                                gjsData: null
+                            }
+                        })
+                    });
+                    createdCount++;
+                } catch (subErr) {
+                    console.error('Failed to import subpage:', subpage.slug, subErr);
+                }
+            }
+            if (createdCount > 0) {
+                toast?.success?.(`Template loaded! Home page + ${createdCount} sub-pages imported.`);
+            }
+        }
+    }, [onSave, activePage, toast]);
+
+
+
+
 
     useEffect(() => {
         if (initialConfig) {
@@ -657,6 +807,43 @@ export default function GrapesEditor({
                 storageManager: false,
                 noticeOnUnload: false,
                 fromElement: false,
+
+                assetManager: {
+                    upload: '/api/upload',
+                    params: { fileType: 'website-media' },
+                    uploadName: 'file',
+                    multiUpload: false,
+                    autoAdd: true,
+                    embedAsBase64: false,
+                    uploadFile: async (e) => {
+                        const files = e.dataTransfer ? e.dataTransfer.files : e.target.files;
+                        if (!files || !files.length) return;
+                        
+                        const formData = new FormData();
+                        formData.append('file', files[0]);
+                        formData.append('fileType', 'website-media');
+
+                        try {
+                            const res = await fetch('/api/upload', {
+                                method: 'POST',
+                                body: formData,
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.url) {
+                                gjs.AssetManager.add(data.url);
+                                const selected = gjs.getSelected();
+                                if (selected && selected.is('image')) {
+                                    selected.set('src', data.url);
+                                }
+                            } else {
+                                toast?.error?.(data.error || 'Upload failed');
+                            }
+                        } catch (err) {
+                            console.error('Asset upload error:', err);
+                            toast?.error?.('Failed to upload image');
+                        }
+                    }
+                },
 
                 panels: { defaults: [] }, // we use custom panels
 
@@ -1020,21 +1207,20 @@ export default function GrapesEditor({
             });
 
             // ── Load existing content ────────────────────────────────────
-            // ── Style resets and helper styling inside canvas are loaded via canvas.styles configuration using '/assets/css/editor-reset.css'
             const gjsData = activePage?.draftContent?.gjsData || activePage?.liveContent?.gjsData;
+            const gjsHtml = activePage?.draftContent?.gjsHtml || activePage?.liveContent?.gjsHtml;
+            const gjsCss = activePage?.draftContent?.gjsCss || activePage?.liveContent?.gjsCss;
+
             if (gjsData) {
                 gjs.loadProjectData(gjsData);
-            } else if (initialSections && initialSections.length > 0) {
-                // Legacy sections — render a notice
-                gjs.setComponents(`
-                    <div style="padding:40px;text-align:center;font-family:Inter,sans-serif;color:#64748b;">
-                        <p style="font-size:18px;font-weight:600;color:#0f172a;margin-bottom:8px;">Canvas is empty</p>
-                        <p style="font-size:14px;">Drag blocks from the left panel to start building your page.</p>
-                    </div>
-                `);
+                setShowTemplateStarter(false);
+            } else if (gjsHtml) {
+                gjs.setComponents(gjsHtml);
+                if (gjsCss) gjs.addStyle(gjsCss);
+                setShowTemplateStarter(false);
+            } else {
+                setShowTemplateStarter(true);
             }
-
-
 
             if (!active) {
                 gjs.destroy();
@@ -1059,13 +1245,26 @@ export default function GrapesEditor({
     useEffect(() => {
         if (!gjsInstance.current) return;
         const gjsData = activePage?.draftContent?.gjsData || activePage?.liveContent?.gjsData;
+        const gjsHtml = activePage?.draftContent?.gjsHtml || activePage?.liveContent?.gjsHtml;
+        const gjsCss = activePage?.draftContent?.gjsCss || activePage?.liveContent?.gjsCss;
+
         if (gjsData) {
             gjsInstance.current.loadProjectData(gjsData);
+            setShowTemplateStarter(false);
+        } else if (gjsHtml) {
+            gjsInstance.current.setComponents(gjsHtml);
+            if (gjsCss) gjsInstance.current.addStyle(gjsCss);
+            setShowTemplateStarter(false);
         } else {
-            gjsInstance.current.setComponents('');
-            gjsInstance.current.setStyle('');
+            // Only show starter if canvas is currently empty
+            const comps = gjsInstance.current.getComponents();
+            if (!comps || comps.length === 0) {
+                setShowTemplateStarter(true);
+            }
         }
     }, [activePage?._id]);
+
+
 
     // ── Device switch ─────────────────────────────────────────────────
     useEffect(() => {
@@ -1434,6 +1633,35 @@ export default function GrapesEditor({
                         style={toolbarBtnStyle}
                     ><Eye size={14} /></button>
 
+                    {/* Change / Choose Template */}
+                    <button
+                        onClick={() => {
+                            const components = gjsInstance.current?.getComponents();
+                            const hasContent = components && components.length > 0;
+                            setIsChangeTemplate(hasContent);
+                            setShowTemplateStarter(true);
+                        }}
+                        title="Choose or Import Template"
+
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(124, 58, 237, 0.15)',
+                            border: '1px solid rgba(124, 58, 237, 0.4)',
+                            borderRadius: '6px',
+                            padding: '5px 10px',
+                            color: '#c4b5fd',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s'
+                        }}
+                    >
+                        <LayoutTemplate size={14} color="#a78bfa" />
+                        <span>Templates</span>
+                    </button>
+
                     {/* Spacer */}
                     <div style={{ flex: 1 }} />
 
@@ -1458,7 +1686,19 @@ export default function GrapesEditor({
                 </div>
 
                 {/* GrapesJS Canvas */}
-                <div ref={editorRef} style={{ flex: 1, overflow: 'hidden' }} />
+                <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+                    <div ref={editorRef} style={{ width: '100%', height: '100%' }} />
+                    {showTemplateStarter && (
+                        <TemplateStarter
+                            onSelect={handleTemplateSelect}
+                            onSkip={() => setShowTemplateStarter(false)}
+                            isChangeMode={isChangeTemplate}
+                            instituteCode={instituteCode}
+                        />
+                    )}
+
+                </div>
+
             </div>
 
             {/* ── Right Sidebar ── */}
@@ -2054,4 +2294,7 @@ const BLOCK_ICONS = {
     'text-block': '📝',
     'image-block': '🖼️',
     'button-block': '🔘',
+    'results-portal-banner': '🎓',
+    'results-portal-btn': '📄',
 };
+

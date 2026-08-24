@@ -33,6 +33,12 @@ export async function POST(req) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
+        const allowedTypes = [
+            "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml", "application/pdf",
+            "font/woff", "font/woff2", "font/ttf", "font/otf", "application/font-woff", "application/font-woff2",
+            "application/x-font-ttf", "application/x-font-truetype", "application/x-font-opentype", "application/vnd.ms-fontobject"
+        ];
+
         const getMimeType = (buf, browserType) => {
             if (buf.length >= 4) {
                 // JPEG: FF D8 FF
@@ -45,22 +51,28 @@ export async function POST(req) {
                 if (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46) return "application/pdf";
                 // WEBP: 52 49 46 46 (RIFF) ... 57 45 42 50 (WEBP)
                 if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 && buf.slice(8, 12).toString() === "WEBP") return "image/webp";
+                // WOFF: 77 4F 46 46 (wOFF)
+                if (buf[0] === 0x77 && buf[1] === 0x4F && buf[2] === 0x46 && buf[3] === 0x46) return "font/woff";
+                // WOFF2: 77 4F 46 32 (wOF2)
+                if (buf[0] === 0x77 && buf[1] === 0x4F && buf[2] === 0x46 && buf[3] === 0x32) return "font/woff2";
+                // TTF/OTF: 00 01 00 00 or 4F 54 54 4F
+                if ((buf[0] === 0x00 && buf[1] === 0x01 && buf[2] === 0x00 && buf[3] === 0x00) ||
+                    (buf[0] === 0x4F && buf[1] === 0x54 && buf[2] === 0x54 && buf[3] === 0x4F)) return "font/ttf";
             }
             
             // Fallback to browser-provided type if it's one of the allowed ones
-            const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
-            if (browserType && allowed.includes(browserType)) return browserType;
+            if (browserType && allowedTypes.includes(browserType)) return browserType;
             
             return null;
         };
 
         const detectedType = getMimeType(buffer, file.type);
-        const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
 
         if (!detectedType || !allowedTypes.includes(detectedType)) {
             console.error("Invalid file type detected:", { detectedType, browserType: file.type });
             return NextResponse.json({ error: "File type not allowed or unrecognizable" }, { status: 400 });
         }
+
 
         // Special Case: Certificate Templates or Website Media go to Cloudinary
         if (fileType === "certificate-template" || fileType === "website-media") {
@@ -132,13 +144,11 @@ export async function POST(req) {
                     institute: instituteId
                 });
             } catch (cloudErr) {
-                console.error("[Upload] Cloudinary error:", cloudErr.message);
-                return NextResponse.json({ 
-                    error: "Cloudinary upload failed", 
-                    details: cloudErr.message || String(cloudErr)
-                }, { status: 500 });
+                console.warn("[Upload] Cloudinary upload unavailable, falling back to local storage:", cloudErr.message);
+                // Graceful fallback to local storage below
             }
         }
+
 
         // Default: Local Storage (for other types if needed, though Cloudinary is preferred)
         // Sanitize filename: remove path separators and dangerous characters

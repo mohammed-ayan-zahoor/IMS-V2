@@ -38,8 +38,16 @@ export async function GET(req, { params }) {
             ".jpg": "image/jpeg",
             ".jpeg": "image/jpeg",
             ".gif": "image/gif",
-            ".pdf": "application/pdf"
+            ".webp": "image/webp",
+            ".svg": "image/svg+xml",
+            ".pdf": "application/pdf",
+            ".woff": "font/woff",
+            ".woff2": "font/woff2",
+            ".ttf": "font/ttf",
+            ".otf": "font/otf",
+            ".eot": "application/vnd.ms-fontobject",
         };
+
 
         const contentType = mimeTypes[ext] || "application/octet-stream";
 

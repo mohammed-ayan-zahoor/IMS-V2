@@ -27,3 +27,12 @@ section:empty::after {
     font-size: 13px !important;
     font-family: Inter, sans-serif !important;
 }
+
+/* Disable full-screen loading animations/spinners inside editor canvas */
+#preloader, .preloader, #loader, .loader-wrapper, #page-loader, .s-loader {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+

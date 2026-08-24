@@ -135,7 +135,10 @@ class _VaultScreenState extends State<VaultScreen> {
     final String rawId = user?['studentId'] ?? user?['id'] ?? user?['_id'];
     final String enrollmentNo = (rawId != null && rawId.length >= 8) ? rawId.substring(0, 8).toUpperCase() : 'N/A';
     final String instituteName = user?['institute']?['name'] ?? 'Quantech Learning Institute';
-    final String avatarUrl = user?['avatar'] ?? user?['image'] ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
+    final String avatarUrl = (user?['avatar'] ?? user?['image'] ?? (user?['profile'] as Map?)?['avatar'] ?? '').toString();
+    final String initials = fullName.trim().isNotEmpty
+        ? fullName.trim().split(' ').map((e) => e[0]).take(2).join('').toUpperCase()
+        : 'ST';
 
     return Container(
       decoration: BoxDecoration(
@@ -200,12 +203,19 @@ class _VaultScreenState extends State<VaultScreen> {
                 width: 54,
                 height: 54,
                 decoration: BoxDecoration(
+                  color: const Color(0xFF1E3A8A),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.5),
-                  image: DecorationImage(
-                    image: NetworkImage(avatarUrl),
-                    fit: BoxFit.cover,
-                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.5),
+                  child: avatarUrl.isNotEmpty
+                      ? Image.network(
+                          avatarUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _buildInitialsPlaceholder(initials),
+                        )
+                      : _buildInitialsPlaceholder(initials),
                 ),
               ),
               const SizedBox(width: 12),
@@ -686,6 +696,19 @@ class _VaultScreenState extends State<VaultScreen> {
           style: GoogleFonts.inter(color: const Color(0xFF545F72), fontSize: 12),
         ),
       ],
+    );
+  }
+
+  Widget _buildInitialsPlaceholder(String initials) {
+    return Center(
+      child: Text(
+        initials,
+        style: GoogleFonts.hankenGrotesk(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }
