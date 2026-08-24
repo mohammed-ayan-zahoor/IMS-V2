@@ -592,7 +592,7 @@ export default function SettingsPage() {
                                         className="mt-1 accent-premium-blue"
                                     />
                                     <div>
-                                        <p className="text-sm font-bold">Check-In Only (Single Scan)</p>
+                                        <p className="text-sm font-bold">Single Daily Mark (Check-In Only)</p>
                                         <p className="text-xs text-slate-500 mt-0.5">Records entry/present status once per session/day. Ideal for coaching & quick marking.</p>
                                     </div>
                                 </label>
@@ -621,7 +621,7 @@ export default function SettingsPage() {
                                         className="mt-1 accent-premium-blue"
                                     />
                                     <div>
-                                        <p className="text-sm font-bold">Check-In & Check-Out (In / Out Time)</p>
+                                        <p className="text-sm font-bold">Morning + Afternoon (2 Scans / Check-In & Check-Out)</p>
                                         <p className="text-xs text-slate-500 mt-0.5">Tracks both morning entry time and evening exit time for full day duration.</p>
                                     </div>
                                 </label>

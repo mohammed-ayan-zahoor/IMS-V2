@@ -30,6 +30,7 @@ function ScannerPage() {
     const [profilesReady, setProfilesReady] = useState(false);
     const [enrolledUsers, setEnrolledUsers] = useState([]);
     const [markedIds, setMarkedIds] = useState(new Set());
+    const [markedSlotsMap, setMarkedSlotsMap] = useState({}); // { [userId]: Set(['checkin', 'checkout']) }
     const [markedUsersList, setMarkedUsersList] = useState([]);
     const [lastMarked, setLastMarked] = useState(null);
     const [statusMsg, setStatusMsg] = useState("");
@@ -41,26 +42,49 @@ function ScannerPage() {
         enrolledUsersRef.current = enrolledUsers;
     }, [enrolledUsers]);
 
-    const [useTimeRange, setUseTimeRange] = useState(true);
-    const [checkInStart, setCheckInStart] = useState("08:00");
-    const [checkInEnd, setCheckInEnd] = useState("11:00");
-    const [checkOutStart, setCheckOutStart] = useState("15:00");
-    const [checkOutEnd, setCheckOutEnd] = useState("18:00");
+    // Institute attendance settings (mode, working hours, grace period)
+    const [attSettings, setAttSettings] = useState({
+        mode: "checkin_only",
+        workingHoursStart: "08:00",
+        workingHoursEnd: "17:00",
+        gracePeriodMinutes: 15
+    });
 
     useEffect(() => {
-        if (typeof window !== "undefined") {
-            const savedRange = localStorage.getItem("useTimeRange");
-            if (savedRange !== null) setUseTimeRange(savedRange === "true");
-            const cis = localStorage.getItem("checkInStart");
-            if (cis) setCheckInStart(cis);
-            const cie = localStorage.getItem("checkInEnd");
-            if (cie) setCheckInEnd(cie);
-            const cos = localStorage.getItem("checkOutStart");
-            if (cos) setCheckOutStart(cos);
-            const coe = localStorage.getItem("checkOutEnd");
-            if (coe) setCheckOutEnd(coe);
+        async function fetchSettings() {
+            try {
+                const res = await fetch("/api/v1/institute");
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.institute?.settings?.attendance) {
+                        setAttSettings(prev => ({
+                            ...prev,
+                            ...data.institute.settings.attendance
+                        }));
+                    }
+                }
+            } catch (err) {
+                console.warn("Failed to fetch institute attendance settings:", err);
+            }
         }
+        fetchSettings();
     }, []);
+
+    // Calculate current slot ('checkin' vs 'checkout')
+    const getCurrentSlot = useCallback(() => {
+        if (attSettings.mode === "checkin_only") return "checkin";
+        const now = new Date();
+        const currentMin = now.getHours() * 60 + now.getMinutes();
+        const parseMin = (tStr) => {
+            if (!tStr) return 0;
+            const [h, m] = tStr.split(":").map(Number);
+            return (h || 0) * 60 + (m || 0);
+        };
+        const startMin = parseMin(attSettings.workingHoursStart || "08:00");
+        const endMin = parseMin(attSettings.workingHoursEnd || "17:00");
+        const midpoint = Math.floor((startMin + endMin) / 2);
+        return currentMin >= midpoint ? "checkout" : "checkin";
+    }, [attSettings]);
 
 
     // ── 1. Start camera immediately ───────────────────────────────────────
@@ -162,16 +186,22 @@ function ScannerPage() {
                     const data = await res.json();
                     const list = [];
                     const ids = new Set();
+                    const slotsMap = {};
                     (data.records || []).forEach(r => {
-                        if (r.status === "present") {
+                        if (r.status === "present" || r.status === "late") {
                             const stu = r.student;
                             if (stu) {
-                                ids.add(stu._id.toString());
+                                const sId = (stu._id || stu).toString();
+                                ids.add(sId);
+                                const slotName = r.slot || "checkin";
+                                if (!slotsMap[sId]) slotsMap[sId] = new Set();
+                                slotsMap[sId].add(slotName);
+
                                 list.push({
-                                    id: stu._id.toString(),
+                                    id: sId,
                                     name: `${stu.profile?.firstName || ""} ${stu.profile?.lastName || ""}`.trim() || stu.email,
-                                    method: r.remarks?.includes("via") ? r.remarks.split("via")[1].trim() : "Saved",
-                                    time: "Already Marked",
+                                    method: `${r.method || "Saved"} (${slotName})`,
+                                    time: r.markedAt ? format(new Date(r.markedAt), "hh:mm a") : "Already Marked",
                                     avatar: stu.profile?.avatar || null,
                                     enrollmentNumber: stu.enrollmentNumber || ""
                                 });
@@ -180,6 +210,7 @@ function ScannerPage() {
                     });
                     if (active) {
                         setMarkedIds(ids);
+                        setMarkedSlotsMap(slotsMap);
                         setMarkedUsersList(list);
                     }
                 }
@@ -288,30 +319,13 @@ function ScannerPage() {
 
     // ── Mark attendance ────────────────────────────────────────────────────
     const handleRecognized = useCallback(async (user, method) => {
-        if (isProcessingRef.current || markedIds.has(user.id)) return;
+        const slot = getCurrentSlot();
+        const userSlots = markedSlotsMap[user.id] || new Set();
+        if (isProcessingRef.current || userSlots.has(slot)) return;
         isProcessingRef.current = true;
-
-        // Apply shift time constraints for staff members
-        if (isStaff && useTimeRange) {
-            const now = new Date();
-            const curMin = now.getHours() * 60 + now.getMinutes();
-            const parseToMin = (t) => {
-                const [h, m] = t.split(":").map(Number);
-                return h * 60 + m;
-            };
-            const inCheckIn = curMin >= parseToMin(checkInStart) && curMin <= parseToMin(checkInEnd);
-            const inCheckOut = curMin >= parseToMin(checkOutStart) && curMin <= parseToMin(checkOutEnd);
-
-            if (!inCheckIn && !inCheckOut) {
-                toast.error(`Scan blocked: Outside shift hours (${checkInStart}-${checkInEnd} / ${checkOutStart}-${checkOutEnd}).`);
-                isProcessingRef.current = false;
-                return;
-            }
-        }
 
         try {
             if (isStaff) {
-                // Post staff attendance record in correct bulk format
                 const postRes = await fetch("/api/v1/hr/attendance", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -336,49 +350,65 @@ function ScannerPage() {
                     return;
                 }
 
-                const fetchRes = await fetch(`/api/v1/attendance/batch?batchId=${targetBatchId}&date=${date}`);
-                const current = await fetchRes.json();
-                const recordsMap = new Map();
-                (current.records || []).forEach(r => {
-                    const sid = r.student?._id || r.student;
-                    if (sid) recordsMap.set(sid.toString(), r);
-                });
-                recordsMap.set(user.id, { student: user.id, status: "present", remarks: `Auto via ${method}` });
-                const payloadRecords = Array.from(recordsMap.values()).map(r => ({
-                    studentId: r.student?._id || r.student,
-                    status: r.status,
-                    remarks: r.remarks || ""
-                }));
-                const postRes = await fetch("/api/v1/attendance/batch", {
-                    method: "POST",
+                // Determine if late check-in based on working hours + grace period
+                let status = "present";
+                if (slot === "checkin" && attSettings.workingHoursStart) {
+                    const now = new Date();
+                    const curMin = now.getHours() * 60 + now.getMinutes();
+                    const [h, m] = attSettings.workingHoursStart.split(":").map(Number);
+                    const startMin = (h || 0) * 60 + (m || 0);
+                    const grace = attSettings.gracePeriodMinutes || 15;
+                    if (curMin > startMin + grace) {
+                        status = "late";
+                    }
+                }
+
+                const postRes = await fetch("/api/v1/attendance/batch/single", {
+                    method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ batchId: targetBatchId, date, records: payloadRecords })
+                    body: JSON.stringify({
+                        batchId: targetBatchId,
+                        date,
+                        studentId: user.id,
+                        status,
+                        slot,
+                        method: method === "QR Code" ? "qr" : "face",
+                        remarks: `Auto via ${method}`
+                    })
                 });
+
                 if (!postRes.ok) {
                     const errData = await postRes.json();
                     throw new Error(errData.error || "Save failed");
                 }
             }
 
+            setMarkedSlotsMap(prev => {
+                const updated = { ...prev };
+                const currentSet = new Set(updated[user.id] || []);
+                currentSet.add(slot);
+                updated[user.id] = currentSet;
+                return updated;
+            });
             setMarkedIds(prev => new Set([...prev, user.id]));
+
             const newRecord = {
                 id: user.id,
                 name: user.name,
-                method,
+                method: `${method} (${slot === "checkout" ? "Check-Out" : "Check-In"})`,
                 time: format(new Date(), "hh:mm a"),
                 avatar: user.avatar,
                 enrollmentNumber: user.enrollmentNumber || ""
             };
             setMarkedUsersList(prev => [newRecord, ...prev]);
             setLastMarked(newRecord);
-            toast.success(`✓ ${user.name} marked present`);
+            toast.success(`✓ ${user.name} marked ${slot === "checkout" ? "Check-Out" : "Check-In"}`);
         } catch (err) {
             toast.error("Mark failed: " + err.message);
         } finally {
             setTimeout(() => { isProcessingRef.current = false; }, 1500);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [markedIds, batchId, date, isStaff, useTimeRange, checkInStart, checkInEnd, checkOutStart, checkOutEnd]);
+    }, [markedSlotsMap, batchId, date, isStaff, getCurrentSlot, attSettings]);
     handleRecognizedRef.current = handleRecognized;
 
     const ready = cameraReady && modelsReady && profilesReady;
@@ -394,12 +424,21 @@ function ScannerPage() {
                 >
                     <ArrowLeft size={16} /> Back
                 </button>
-                <div className="text-center">
-                    <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
-                        <ScanLine size={16} className="text-indigo-600" />
-                        {isStaff ? "Staff Scanner" : `Scanner: ${batchName}`}
+                <div className="text-center flex items-center gap-3">
+                    <div>
+                        <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                            <ScanLine size={16} className="text-indigo-600" />
+                            {isStaff ? "Staff Scanner" : `Scanner: ${batchName}`}
+                        </div>
+                        <p className="text-xs text-slate-500">{date}</p>
                     </div>
-                    <p className="text-xs text-slate-500">{date}</p>
+                    <span className={`text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full border ${
+                        getCurrentSlot() === "checkout"
+                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                            : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    }`}>
+                        ● {getCurrentSlot() === "checkout" ? "Check-Out Mode" : "Check-In Mode"}
+                    </span>
                 </div>
                 <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
                     <UserCheck size={14} />

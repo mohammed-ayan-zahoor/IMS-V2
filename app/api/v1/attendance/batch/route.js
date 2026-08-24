@@ -161,6 +161,9 @@ export async function GET(req) {
                     records.push({
                         student: r.student,
                         status: r.status,
+                        slot: r.slot || "checkin",
+                        markedAt: r.markedAt || doc.updatedAt || doc.createdAt,
+                        method: r.method || "manual",
                         remarks: r.remarks,
                         batchId: doc.batch ? doc.batch.toString() : null
                     });
@@ -201,6 +204,9 @@ export async function POST(req) {
         const recordSchema = records.map(r => ({
             student: r.studentId,
             status: r.status,
+            slot: r.slot || "checkin",
+            markedAt: r.markedAt ? new Date(r.markedAt) : new Date(),
+            method: r.method || "manual",
             remarks: r.remarks || ""
         }));
 

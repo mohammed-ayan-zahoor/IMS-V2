@@ -8,6 +8,9 @@ const AttendanceRecordSchema = new Schema({
         enum: ['present', 'absent', 'late', 'excused', 'holiday'],
         required: true
     },
+    slot: { type: String, enum: ['checkin', 'checkout'], default: 'checkin' },
+    markedAt: { type: Date },
+    method: { type: String, enum: ['manual', 'face', 'qr'], default: 'manual' },
     remarks: { type: String, maxlength: 500 }
 });
 

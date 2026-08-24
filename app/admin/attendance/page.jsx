@@ -46,27 +46,64 @@ export default function AttendanceMarkingPage() {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
+    // Slot & Mode State
+    const [attMode, setAttMode] = useState("checkin_only");
+    const [selectedSlot, setSelectedSlot] = useState("checkin");
+    const [fullAttendanceRecords, setFullAttendanceRecords] = useState({}); // { [sId]: { checkin: {}, checkout: {} } }
+
     // Attendance State: { studentId: { status: 'present', remarks: '' } }
     const [attendanceData, setAttendanceData] = useState({});
 
     // Filter
     const [search, setSearch] = useState("");
 
-    // Initial Load - Get Batches
+    // Initial Load - Get Batches & Institute Settings
     useEffect(() => {
         fetchBatches();
         fetchCourses();
+        fetchInstituteSettings();
     }, []);
 
-    // When Batch or Date selected - fetch students & existing attendance
+    const fetchInstituteSettings = async () => {
+        try {
+            const res = await fetch("/api/v1/institute");
+            if (res.ok) {
+                const data = await res.json();
+                if (data.institute?.settings?.attendance?.mode) {
+                    setAttMode(data.institute.settings.attendance.mode);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to fetch institute settings", e);
+        }
+    };
+
+    // When Batch, Date, or selectedSlot changes - update displayed attendance
     useEffect(() => {
         if (selectedBatch && selectedDate) {
             fetchBatchData();
         } else {
             setStudents([]);
             setAttendanceData({});
+            setFullAttendanceRecords({});
         }
     }, [selectedBatch, selectedDate]);
+
+    useEffect(() => {
+        if (students.length > 0) {
+            const updatedState = {};
+            students.forEach(enrollment => {
+                const sId = enrollment.student._id || enrollment.student;
+                const slotRecord = fullAttendanceRecords[sId]?.[selectedSlot];
+                if (slotRecord) {
+                    updatedState[sId] = { status: slotRecord.status, remarks: slotRecord.remarks || "" };
+                } else {
+                    updatedState[sId] = { status: "present", remarks: "" };
+                }
+            });
+            setAttendanceData(updatedState);
+        }
+    }, [selectedSlot, fullAttendanceRecords]);
 
     const fetchBatches = async () => {
         try {
@@ -103,32 +140,37 @@ export default function AttendanceMarkingPage() {
             // 3. Merge Data
             const enrolled = batchData.enrolledStudents || [];
 
-            // Create map of existing records
+            // Create map of existing records per slot
             const existingMap = {};
             if (attData.records) {
                 attData.records.forEach(r => {
                     if (!r.student) return;
-                    // Handle populate vs ID
                     const sId = typeof r.student === 'object' ? r.student._id : r.student;
-                    existingMap[sId] = { status: r.status, remarks: r.remarks };
+                    if (!existingMap[sId]) existingMap[sId] = {};
+                    const slot = r.slot || 'checkin';
+                    existingMap[sId][slot] = { 
+                        status: r.status, 
+                        remarks: r.remarks || "",
+                        markedAt: r.markedAt,
+                        method: r.method || "manual"
+                    };
                 });
             }
 
-            // Initialize local state
+            // Initialize local state for current slot
             const initialState = {};
             enrolled.forEach(enrollment => {
                 const sId = enrollment.student._id || enrollment.student;
-                if (existingMap[sId]) {
-                    initialState[sId] = existingMap[sId];
+                const slotRecord = existingMap[sId]?.[selectedSlot];
+                if (slotRecord) {
+                    initialState[sId] = { status: slotRecord.status, remarks: slotRecord.remarks || "" };
                 } else {
-                    // Default to undefined (user must select) or could default to Present
-                    // Let's default to 'present' for ease? Or keep neutral 'pending'?
-                    // Usually 'Present' default saves clicks.
                     initialState[sId] = { status: 'present', remarks: '' };
                 }
             });
 
             setStudents(enrolled);
+            setFullAttendanceRecords(existingMap);
             setAttendanceData(initialState);
 
         } catch (error) {
@@ -158,6 +200,7 @@ export default function AttendanceMarkingPage() {
             const records = Object.keys(attendanceData).map(studentId => ({
                 studentId,
                 status: attendanceData[studentId].status,
+                slot: selectedSlot,
                 remarks: attendanceData[studentId].remarks
             }));
 
@@ -172,8 +215,7 @@ export default function AttendanceMarkingPage() {
             });
 
             if (res.ok) {
-                toast.success("Attendance saved successfully!");
-                // Optionally refetch to confirm
+                toast.success(`Attendance (${selectedSlot === 'checkout' ? 'Check-Out' : 'Check-In'}) saved successfully!`);
                 fetchBatchData();
             } else {
                 throw new Error("Failed to save");
@@ -295,10 +337,39 @@ export default function AttendanceMarkingPage() {
                                 className="bg-slate-50"
                             />
                         </div>
-                        <div className="space-y-2 flex items-end">
-                            {/* Stats or other info could go here */}
-                        </div>
                     </div>
+
+                    {attMode === 'checkin_checkout' && (
+                        <div className="flex flex-wrap items-center gap-3 pt-4 mt-4 border-t border-slate-100">
+                            <span className="text-xs font-bold text-slate-500">Marking Slot:</span>
+                            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedSlot('checkin')}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                        selectedSlot === 'checkin'
+                                            ? "bg-emerald-600 text-white shadow-xs"
+                                            : "text-slate-600 hover:text-slate-900"
+                                    )}
+                                >
+                                    ☀️ Check-In (Morning)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedSlot('checkout')}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                        selectedSlot === 'checkout'
+                                            ? "bg-indigo-600 text-white shadow-xs"
+                                            : "text-slate-600 hover:text-slate-900"
+                                    )}
+                                >
+                                    🌙 Check-Out (Evening)
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
