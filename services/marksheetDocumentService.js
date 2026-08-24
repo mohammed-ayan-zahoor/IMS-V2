@@ -571,7 +571,9 @@ export async function generateMarksheetPdfKit(context) {
                 doc.font('Courier').fontSize(9).fillColor('#64748b').text((idx + 1).toString(), 40, currentY + 7, { width: 25, align: 'center' });
                 
                 doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a');
-                const subLabel = sub.code ? `${sub.name} [${sub.code}]` : sub.name;
+                const subName = sub.subjectName || sub.name || 'Subject';
+                const subCode = sub.subjectCode || sub.code || '';
+                const subLabel = subCode ? `${subName} [${subCode}]` : subName;
                 doc.text(subLabel, 75, currentY + 7, { width: 200, ellipsis: true });
 
                 doc.font('Courier').fontSize(9).fillColor('#0f172a').text(sub.maxMarks != null ? String(sub.maxMarks) : '-', 285, currentY + 7, { width: 65, align: 'center' });
@@ -580,8 +582,11 @@ export async function generateMarksheetPdfKit(context) {
                 const obtainedText = sub.isAbsent ? 'ABSENT' : String(sub.obtainedMarks ?? 0);
                 doc.font('Courier-Bold').fontSize(9.5).fillColor(sub.isAbsent ? '#dc2626' : '#0f172a').text(obtainedText, 425, currentY + 7, { width: 65, align: 'center' });
 
-                const statusColor = sub.isAbsent || !sub.isPassed ? '#dc2626' : '#0f766e';
-                const statusText = sub.isAbsent ? 'AB' : sub.isPassed ? 'PASS' : 'FAIL';
+                const isPassed = sub.passingMarks != null && sub.obtainedMarks != null
+                    ? (sub.obtainedMarks + (sub.graceMarks || 0)) >= sub.passingMarks
+                    : true;
+                const statusColor = sub.isAbsent || !isPassed ? '#dc2626' : '#0f766e';
+                const statusText = sub.isAbsent ? 'AB' : isPassed ? 'PASS' : 'FAIL';
                 doc.font('Courier-Bold').fontSize(8.5).fillColor(statusColor).text(statusText, 495, currentY + 7, { width: 60, align: 'center' });
 
                 currentY += rowH;
