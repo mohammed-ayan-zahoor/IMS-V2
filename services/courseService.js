@@ -197,6 +197,15 @@ export class BatchService {
             const instDoc = await Institute.findById(instituteId).select('type').lean();
             const isVocational = instDoc?.type === 'VOCATIONAL';
 
+            // Auto-resolve active session for schools if not explicitly passed
+            if (!isVocational && !data.session) {
+                const Session = (await import('@/models/Session')).default;
+                const activeSession = await Session.findOne({ institute: instituteId, isActive: true }).select('_id').lean();
+                if (activeSession) {
+                    data.session = activeSession._id;
+                }
+            }
+
             // 2. Uniqueness Validation
             const nameQuery = { institute: instituteId, name: data.name, deletedAt: null };
 
@@ -206,7 +215,11 @@ export class BatchService {
             } else if (!isVocational) {
                 // Schools: scoped to Course + Session
                 nameQuery.course = courseId;
-                nameQuery.session = data.session;
+                if (data.session) {
+                    nameQuery.session = data.session;
+                } else {
+                    nameQuery.$or = [{ session: null }, { session: { $exists: false } }];
+                }
             }
 
             const existing = await Batch.findOne(nameQuery);
@@ -370,7 +383,7 @@ export class BatchService {
             instituteId = user.institute;
         }
 
-        const allowedFields = ['name', 'course', 'schedule', 'capacity', 'instructor', 'description', 'startDate', 'endDate'];
+        const allowedFields = ['name', 'course', 'schedule', 'capacity', 'instructor', 'description', 'startDate', 'endDate', 'session'];
         const sanitizedData = {};
         const updatesLog = [];
 

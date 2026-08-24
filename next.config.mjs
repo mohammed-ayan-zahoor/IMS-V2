@@ -1,11 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ['pdfkit', 'canvas', 'puppeteer'],
   outputFileTracingRoot: process.cwd(),
   productionBrowserSourceMaps: false,
   typescript: {
     ignoreBuildErrors: true,
   },
+
   experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
     optimizePackageImports: [
       'lucide-react',
       'framer-motion',
@@ -13,6 +18,16 @@ const nextConfig = {
       'date-fns',
       'intl'
     ],
+  },
+
+  async redirects() {
+    return [
+      {
+        source: '/admin/logs',
+        destination: '/admin/audit-logs',
+        permanent: true,
+      },
+    ];
   },
   async rewrites() {
     return [

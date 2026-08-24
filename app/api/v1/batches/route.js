@@ -82,9 +82,6 @@ export async function POST(req) {
         return NextResponse.json(batch, { status: 201 });
     } catch (error) {
         console.error("POST /api/v1/batches error:", error);
-        const clientMessage = error.name === 'ValidationError'
-            ? error.message
-            : "Failed to create batch";
-        return NextResponse.json({ error: clientMessage }, { status: 400 });
+        return NextResponse.json({ error: error.message || "Failed to create batch" }, { status: 400 });
     }
 }

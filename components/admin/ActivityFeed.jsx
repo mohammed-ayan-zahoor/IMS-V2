@@ -159,7 +159,7 @@ export default function ActivityFeed() {
             {/* Header */}
             <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10 shrink-0">
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Recent Activity</h3>
-                <Link href="/admin/logs" className="text-[11px] font-bold text-premium-blue hover:underline">View All</Link>
+                <Link href="/admin/audit-logs" className="text-[11px] font-bold text-premium-blue hover:underline">View All</Link>
             </div>
 
             {/* Logs List */}

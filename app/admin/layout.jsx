@@ -208,7 +208,6 @@ export default function AdminLayout({ children }) {
                 { label: "Follow-up Queue", icon: History, href: "/admin/reports/follow-ups" },
                 { label: "Attendance", icon: Calendar, href: "/admin/reports/attendance" },
                 { label: "Admissions", icon: TrendingUp, href: "/admin/reports/admissions", instituteType: ["VOCATIONAL"] },
-                { label: "Audit Logs", icon: History, href: "/admin/audit-logs", role: ["admin", "super_admin"] },
             ]
         },
         {
@@ -217,13 +216,15 @@ export default function AdminLayout({ children }) {
             items: [
                 { label: "Accounts Master", icon: Building2, href: "/admin/accounts" },
                 { label: "User Management", icon: UserCog, href: "/admin/users" },
+                { label: "Audit Logs", icon: History, href: "/admin/audit-logs" },
                 { label: "Completion Tracking", icon: CheckCircle2, href: "/admin/completion-tracking", instituteType: ["VOCATIONAL"] },
                 { label: "Certificate Management", icon: Award, href: "/admin/certificate-management" },
                 { label: "ID Card Management", icon: Contact, href: "/admin/id-cards" },
                 { label: "ID Card (PDFMe) [Test]", icon: Contact, href: "/admin/id-cards-pdfme" },
-                { label: "Completion Analytics", icon: TrendingUp, href: "/admin/completion-analytics", instituteType: ["VOCATIONAL"] },
-                { label: "Website Builder", icon: Globe, href: "/admin/website", target: "_blank" },
+                { label: "Website Builder", icon: Globe, href: "/admin/website" },
+                { label: "Website Results", icon: Award, href: "/admin/website/results" },
                 { label: "MOU Tracker", icon: FileSignature, href: "/admin/mou-tracker", role: ["super_admin"] },
+
                 { label: "Settings", icon: Settings, href: "/admin/settings" },
             ]
         }
@@ -442,6 +443,11 @@ export default function AdminLayout({ children }) {
                     </div>
 
                     <div className="flex items-center gap-3 sm:gap-4">
+                        {/* Search Pill */}
+                        <div className="hidden md:block w-64 lg:w-80">
+                            <StudentSearch />
+                        </div>
+
                         <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-white transition-all shadow-sm shrink-0">
                             <Calendar size={12} className="text-blue-500" />
                             {sessionsLoading ? (
