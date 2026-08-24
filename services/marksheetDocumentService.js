@@ -129,16 +129,29 @@ export function buildMarksheetHtml(data) {
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) rotate(-35deg);
-            font-size: 52px;
-            font-weight: 900;
-            color: rgba(15, 23, 42, 0.035);
-            text-transform: uppercase;
-            letter-spacing: 6px;
+            transform: translate(-50%, -50%) rotate(-30deg);
             pointer-events: none;
-            white-space: nowrap;
             z-index: 1;
             text-align: center;
+            opacity: 0.045;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .watermark-img {
+            transform: rotate(30deg);
+            width: 320px;
+            height: 320px;
+            object-fit: contain;
+            filter: grayscale(100%);
+        }
+        .watermark-text {
+            font-size: 52px;
+            font-weight: 900;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            white-space: nowrap;
             line-height: 1.3;
         }
         .content-layer {
@@ -159,7 +172,13 @@ export function buildMarksheetHtml(data) {
     <div class="page-container">
         <div class="outer-border">
             <div class="watermark">
-                ${institute.name}<br>OFFICIAL TRANSCRIPT
+                ${institute.logo ? `
+                    <img src="${institute.logo}" alt="" class="watermark-img">
+                ` : `
+                    <div class="watermark-text">
+                        ${institute.name}<br>OFFICIAL TRANSCRIPT
+                    </div>
+                `}
             </div>
 
             <div class="content-layer">
@@ -479,6 +498,21 @@ export async function generateMarksheetPdfKit(context) {
                 }
             });
 
+            // Fetch school logo buffer for centered watermark if available
+            let logoBuffer = null;
+            const logoUrl = context.institute.logo || context.institute.branding?.logo;
+            if (logoUrl) {
+                try {
+                    const res = await fetch(logoUrl);
+                    if (res.ok) {
+                        const arrayBuffer = await res.arrayBuffer();
+                        logoBuffer = Buffer.from(arrayBuffer);
+                    }
+                } catch (err) {
+                    console.warn("[PDF Generator] Could not fetch institute logo for watermark:", err.message);
+                }
+            }
+
             const doc = new PDFDocument({
                 size: 'A4', // 595.28 x 841.89 pt
                 margin: 0,
@@ -507,6 +541,28 @@ export async function generateMarksheetPdfKit(context) {
             // ── 1. Official Double Border Frame ──
             doc.rect(20, 20, 555.28, 801.89).lineWidth(1.5).stroke('#0f172a');
             doc.rect(23.5, 23.5, 548.28, 794.89).lineWidth(0.5).stroke('#0f172a');
+
+            // ── 1.5. Centered School Logo Watermark ──
+            if (logoBuffer) {
+                try {
+                    doc.save();
+                    doc.opacity(0.06);
+                    const size = 260;
+                    const centerX = (595.28 - size) / 2;
+                    const centerY = (841.89 - size) / 2 + 30;
+                    doc.image(logoBuffer, centerX, centerY, { width: size, height: size, fit: [size, size], align: 'center', valign: 'center' });
+                    doc.restore();
+                } catch (e) {
+                    console.warn("[PDF Generator] Error rendering logo watermark:", e.message);
+                }
+            } else {
+                doc.save();
+                doc.opacity(0.04);
+                doc.fontSize(36).font('Helvetica-Bold').fillColor('#0f172a');
+                doc.rotate(-32, { origin: [297.64, 450] });
+                doc.text((context.institute.name || 'OFFICIAL TRANSCRIPT').toUpperCase(), 45, 430, { width: 505, align: 'center' });
+                doc.restore();
+            }
 
             // ── 2. Official Header ──
             doc.font('Helvetica-Bold').fontSize(8).fillColor('#0f766e').text('OFFICIAL ACADEMIC TRANSCRIPT // EXAMINATION REGISTRY', 40, 42, { align: 'center', characterSpacing: 1.5 });

@@ -404,33 +404,56 @@ export default function ResultLookupWidget({
                             /* Statement of Marks Document (Single Sheet Clean Frame) */
                             data.results.map((result, idx) => {
                                 const isPass = result.overallResult === 'pass';
+                                const activeLogo = data.institute?.logo || instituteLogo;
+                                const activeInstName = data.institute?.name || instituteName;
                                 return (
                                     <div
                                         key={result.id || idx}
-                                        className="marksheet-sheet bg-white p-8 sm:p-12 border border-[#cbd5e1] rounded-[5px] shadow-sm space-y-8"
+                                        className="marksheet-sheet relative overflow-hidden bg-white p-8 sm:p-12 border border-[#cbd5e1] rounded-[5px] shadow-sm space-y-8"
                                     >
-                                        {/* 1. Official Document Header (The ONE authoritative place the Institute Identity appears) */}
-                                        <div className="border-b-2 border-[#0f172a] pb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-                                            <div className="space-y-1">
-                                                <div className="font-mono text-xs uppercase tracking-widest text-[#0f766e] font-bold">
-                                                    OFFICIAL ACADEMIC TRANSCRIPT
+                                        {/* Centered Watermark (Screen & Print) */}
+                                        <div className="watermark-layer absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden select-none">
+                                            {activeLogo ? (
+                                                <img
+                                                    src={activeLogo}
+                                                    alt=""
+                                                    className="w-72 h-72 sm:w-96 sm:h-96 object-contain opacity-[0.05] filter grayscale"
+                                                />
+                                            ) : (
+                                                <div className="text-center select-none -rotate-30 opacity-[0.04]">
+                                                    <div className="font-serif text-5xl sm:text-7xl font-black uppercase tracking-wider text-[#0f172a]">
+                                                        {activeInstName}
+                                                    </div>
+                                                    <div className="font-mono text-sm sm:text-base font-bold tracking-widest text-[#0f172a] mt-2">
+                                                        OFFICIAL TRANSCRIPT
+                                                    </div>
                                                 </div>
-                                                <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#0f172a] tracking-tight">
-                                                    {data.institute?.name}
-                                                </h1>
-                                                <div className="text-sm text-[#64748b] font-serif italic pt-0.5">
-                                                    Statement of Marks • {result.examTitle}
-                                                </div>
-                                            </div>
-
-                                            <div className="sm:text-right font-mono text-xs space-y-1 text-[#475569]">
-                                                <div className="text-xs uppercase tracking-wider text-[#94a3b8]">Academic Session</div>
-                                                <div className="font-bold text-[#0f172a] text-base">{result.sessionName}</div>
-                                                <div className="text-[11px] text-[#0f766e] font-semibold">● Verified Entry</div>
-                                            </div>
+                                            )}
                                         </div>
 
-                                        {/* 2. Unified Candidate Bio-Data Strip (Ruled hairline structure, matching table language) */}
+                                        <div className="relative z-10 space-y-8">
+                                            {/* 1. Official Document Header (The ONE authoritative place the Institute Identity appears) */}
+                                            <div className="border-b-2 border-[#0f172a] pb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+                                                <div className="space-y-1">
+                                                    <div className="font-mono text-xs uppercase tracking-widest text-[#0f766e] font-bold">
+                                                        OFFICIAL ACADEMIC TRANSCRIPT
+                                                    </div>
+                                                    <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#0f172a] tracking-tight">
+                                                        {data.institute?.name}
+                                                    </h1>
+                                                    <div className="text-sm text-[#64748b] font-serif italic pt-0.5">
+                                                        Statement of Marks • {result.examTitle}
+                                                    </div>
+                                                </div>
+
+                                                <div className="sm:text-right font-mono text-xs space-y-1 text-[#475569]">
+                                                    <div className="text-xs uppercase tracking-wider text-[#94a3b8]">Academic Session</div>
+                                                    <div className="font-bold text-[#0f172a] text-base">{result.sessionName}</div>
+                                                    <div className="text-[11px] text-[#0f766e] font-semibold">● Verified Entry</div>
+                                                </div>
+                                            </div>
+
+                                            {/* 2. Unified Candidate Bio-Data Strip (Ruled hairline structure, matching table language) */}
                                         <div className="border-y border-[#0f172a] py-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                                             <div className="border-r border-[#e2e8f0] pr-2">
                                                 <span className="font-mono uppercase text-[10px] text-[#64748b] block tracking-wider">Candidate Name</span>
@@ -605,19 +628,20 @@ export default function ResultLookupWidget({
                                             </div>
                                         </div>
 
-                                        {/* 7. Bottom Verification Line */}
-                                        <div className="no-print pt-4 border-t border-[#e2e8f0] flex items-center justify-between text-xs text-[#64748b]">
-                                            <span className="font-mono">
-                                                Document Reference: <strong>DOC-MS-{result.id?.slice(-8).toUpperCase()}</strong>
-                                            </span>
-                                            <a
-                                                href={`/verify/marksheet/${result.id}`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="font-medium text-[#0f172a] hover:text-[#0f766e] underline"
-                                            >
-                                                Live QR Verification Registry →
-                                            </a>
+                                            {/* 7. Bottom Verification Line */}
+                                            <div className="no-print pt-4 border-t border-[#e2e8f0] flex items-center justify-between text-xs text-[#64748b]">
+                                                <span className="font-mono">
+                                                    Document Reference: <strong>DOC-MS-{result.id?.slice(-8).toUpperCase()}</strong>
+                                                </span>
+                                                <a
+                                                    href={`/verify/marksheet/${result.id}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="font-medium text-[#0f172a] hover:text-[#0f766e] underline"
+                                                >
+                                                    Live QR Verification Registry →
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
                                 );

@@ -172,27 +172,48 @@ export default async function MarksheetVerificationPage({ params }) {
                     </div>
 
                     {/* Single Sheet Official Marksheet Frame */}
-                    <div className="marksheet-sheet bg-white p-8 sm:p-12 border border-[#cbd5e1] rounded-[5px] shadow-sm space-y-8">
-                        {/* 1. Official Document Header */}
-                        <div className="border-b-2 border-[#0f172a] pb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-                            <div className="space-y-1">
-                                <div className="font-mono text-xs uppercase tracking-widest text-[#0f766e] font-bold">
-                                    OFFICIAL ACADEMIC TRANSCRIPT // REGISTRY RECORD
+                    <div className="marksheet-sheet relative overflow-hidden bg-white p-8 sm:p-12 border border-[#cbd5e1] rounded-[5px] shadow-sm space-y-8">
+                        {/* Centered Watermark (Screen & Print) */}
+                        <div className="watermark-layer absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden select-none">
+                            {institute.branding?.logo ? (
+                                <img
+                                    src={institute.branding.logo}
+                                    alt=""
+                                    className="w-72 h-72 sm:w-96 sm:h-96 object-contain opacity-[0.05] filter grayscale"
+                                />
+                            ) : (
+                                <div className="text-center select-none -rotate-30 opacity-[0.04]">
+                                    <div className="font-serif text-5xl sm:text-7xl font-black uppercase tracking-wider text-[#0f172a]">
+                                        {institute.name || 'INSTITUTION'}
+                                    </div>
+                                    <div className="font-mono text-sm sm:text-base font-bold tracking-widest text-[#0f172a] mt-2">
+                                        OFFICIAL TRANSCRIPT
+                                    </div>
                                 </div>
-                                <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#0f172a] tracking-tight">
-                                    {institute.name}
-                                </h1>
-                                <div className="text-sm text-[#64748b] font-serif italic pt-0.5">
-                                    Statement of Marks • {exam.title}
-                                </div>
-                            </div>
-
-                            <div className="sm:text-right font-mono text-xs space-y-1 text-[#475569]">
-                                <div className="text-xs uppercase tracking-wider text-[#94a3b8]">Academic Session</div>
-                                <div className="font-bold text-[#0f172a] text-base">{session.sessionName || 'Current Session'}</div>
-                                <div className="text-[11px] text-[#0f766e] font-semibold">● Authentic Entry Verified</div>
-                            </div>
+                            )}
                         </div>
+
+                        <div className="relative z-10 space-y-8">
+                            {/* 1. Official Document Header */}
+                            <div className="border-b-2 border-[#0f172a] pb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+                                <div className="space-y-1">
+                                    <div className="font-mono text-xs uppercase tracking-widest text-[#0f766e] font-bold">
+                                        OFFICIAL ACADEMIC TRANSCRIPT // REGISTRY RECORD
+                                    </div>
+                                    <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#0f172a] tracking-tight">
+                                        {institute.name}
+                                    </h1>
+                                    <div className="text-sm text-[#64748b] font-serif italic pt-0.5">
+                                        Statement of Marks • {exam.title}
+                                    </div>
+                                </div>
+
+                                <div className="sm:text-right font-mono text-xs space-y-1 text-[#475569]">
+                                    <div className="text-xs uppercase tracking-wider text-[#94a3b8]">Academic Session</div>
+                                    <div className="font-bold text-[#0f172a] text-base">{session.sessionName || 'Current Session'}</div>
+                                    <div className="text-[11px] text-[#0f766e] font-semibold">● Authentic Entry Verified</div>
+                                </div>
+                            </div>
 
                         {/* 2. Candidate Bio-Data Strip */}
                         <div className="border-y border-[#0f172a] py-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
@@ -367,14 +388,15 @@ export default async function MarksheetVerificationPage({ params }) {
                             </div>
                         </div>
 
-                        {/* 6. Document Reference Footer */}
-                        <div className="no-print pt-4 border-t border-[#e2e8f0] flex items-center justify-between text-xs text-[#64748b]">
-                            <span className="font-mono">
-                                Document Reference: <strong>{documentId}</strong>
-                            </span>
-                            <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                                ● Official Database Certified
-                            </span>
+                            {/* 6. Document Reference Footer */}
+                            <div className="no-print pt-4 border-t border-[#e2e8f0] flex items-center justify-between text-xs text-[#64748b]">
+                                <span className="font-mono">
+                                    Document Reference: <strong>{documentId}</strong>
+                                </span>
+                                <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                                    ● Official Database Certified
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
