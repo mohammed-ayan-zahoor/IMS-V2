@@ -7,16 +7,15 @@ import "@/models/Session";
 import "@/models/Course";
 import "@/models/Batch";
 import "@/models/Subject";
-import { CheckCircle2, XCircle, ShieldCheck, Download, Award, Building, Calendar, User, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }) {
     const { resultId } = await params;
     return {
-        title: `Document Verification — Marksheet ${resultId.slice(-8).toUpperCase()}`,
+        title: `Official Verification — Marksheet ${resultId?.slice(-8).toUpperCase()}`,
         description: "Official academic document verification registry."
     };
 }
@@ -46,20 +45,38 @@ export default async function MarksheetVerificationPage({ params }) {
 
     if (!result) {
         return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-                <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-red-200 p-8 text-center">
-                    <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-200">
-                        <XCircle className="w-9 h-9" />
+            <main className="min-h-screen bg-[#f8fafc] flex flex-col justify-between font-sans text-[#0f172a]">
+                <header className="border-b border-[#e2e8f0] py-4 px-6 sm:px-12 bg-[#f8fafc]">
+                    <div className="max-w-5xl mx-auto flex items-center justify-between">
+                        <Link
+                            href="/"
+                            className="inline-flex items-center gap-2 text-sm text-[#64748b] hover:text-[#0f172a] transition font-medium"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Return to Portal
+                        </Link>
+                        <div className="text-xs font-mono uppercase tracking-wider text-[#64748b]">
+                            Registry Verification
+                        </div>
                     </div>
-                    <h1 className="text-xl font-bold text-slate-900">Verification Failed</h1>
-                    <p className="text-sm text-slate-600 mt-2">
-                        No authentic academic statement of marks was found matching Document ID <code className="font-mono font-bold text-red-600">MS-{resultId?.slice(-8).toUpperCase()}</code>.
-                    </p>
-                    <p className="text-xs text-slate-400 mt-4">
-                        This QR code or verification link may be expired, invalid, or forged.
+                </header>
+
+                <div className="py-20 px-6 text-center max-w-lg mx-auto space-y-4">
+                    <div className="font-mono text-xs uppercase tracking-widest text-[#dc2626] font-bold">
+                        VERIFICATION FAILED
+                    </div>
+                    <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#0f172a]">
+                        Record Not Found
+                    </h1>
+                    <p className="text-sm text-[#64748b] leading-relaxed">
+                        No authentic statement of marks matches Document Reference <code className="font-mono font-bold text-[#0f172a]">DOC-MS-{resultId?.slice(-8).toUpperCase()}</code>. This link may be invalid, expired, or tampered with.
                     </p>
                 </div>
-            </div>
+
+                <footer className="border-t border-[#e2e8f0] bg-[#f8fafc] text-[#64748b] py-6 text-center text-xs">
+                    <p>© {new Date().getFullYear()} Official Document Verification & Registry System.</p>
+                </footer>
+            </main>
         );
     }
 
@@ -68,126 +85,220 @@ export default async function MarksheetVerificationPage({ params }) {
     const student = result.student || {};
     const batch = result.batch || {};
     const session = exam.session || {};
-    const documentId = `MS-${result._id.toString().slice(-8).toUpperCase()}`;
+    const documentId = `DOC-MS-${result._id.toString().slice(-8).toUpperCase()}`;
 
     const pdfUrl = `/api/v1/public/results/marksheet/${result._id}/pdf`;
-    const htmlUrl = `/api/v1/public/results/marksheet/${result._id}/html`;
-
     const isPass = result.overallResult === 'pass';
+    const homeUrl = institute.code ? `/website/${institute.code}/results` : `/website`;
+
+    // Map subject metadata for maxMarks / passingMarks
+    const subjectMap = new Map();
+    if (Array.isArray(exam.subjects)) {
+        exam.subjects.forEach(s => {
+            const subId = String(s.subject?._id || s.subject);
+            subjectMap.set(subId, {
+                maxMarks: s.maxMarks,
+                passingMarks: s.passingMarks
+            });
+        });
+    }
 
     return (
-        <div className="min-h-screen bg-slate-100 flex flex-col justify-between py-8 px-4 sm:px-6">
-            <div className="max-w-3xl w-full mx-auto space-y-6">
-                {/* Official Verification Header Badge */}
-                <div className="bg-emerald-600 text-white rounded-2xl p-6 sm:p-8 shadow-lg text-center relative overflow-hidden">
-                    <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 backdrop-blur-sm border border-white/30">
-                        <ShieldCheck className="w-8 h-8 text-white" />
-                    </div>
-                    <span className="inline-block px-3 py-1 bg-white/20 text-white text-xs font-extrabold uppercase tracking-wider rounded-full mb-2">
-                        Authentic Document Verified ✓
-                    </span>
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-                        Statement of Marks Verification
-                    </h1>
-                    <p className="text-emerald-100 text-xs sm:text-sm mt-1 max-w-md mx-auto">
-                        This digital record is certified by {institute.name || 'the institution'} and matches the official examination registry.
-                    </p>
-                </div>
+        <main className="min-h-screen bg-[#f8fafc] flex flex-col justify-between font-sans text-[#0f172a]">
+            <style>{`
+                @keyframes stampSettle {
+                    0% {
+                        transform: scale(1.15) rotate(-14deg);
+                        opacity: 0;
+                    }
+                    100% {
+                        transform: scale(1) rotate(-8deg);
+                        opacity: 1;
+                    }
+                }
+                .animate-seal-stamp {
+                    animation: stampSettle 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                @media print {
+                    .no-print { display: none !important; }
+                    body, main { background: #ffffff !important; }
+                    .marksheet-sheet {
+                        border: 1.5px solid #0f172a !important;
+                        box-shadow: none !important;
+                    }
+                }
+            `}</style>
 
-                {/* Verified Metadata Card */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden">
-                    <div className="p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+            {/* Top Navigation Bar */}
+            <header className="no-print bg-[#f8fafc] border-b border-[#e2e8f0] sticky top-0 z-50">
+                <div className="max-w-5xl mx-auto px-4 sm:px-8 h-14 flex items-center justify-between">
+                    <Link
+                        href={homeUrl}
+                        className="inline-flex items-center gap-2 text-sm text-[#64748b] hover:text-[#0f172a] transition font-medium"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Results
+                    </Link>
+
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-[#0f766e] font-semibold">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Live Registry Verified
+                    </div>
+                </div>
+            </header>
+
+            {/* Document Body */}
+            <div className="flex-1 py-8 sm:py-12 px-4 sm:px-8">
+                <div className="max-w-5xl mx-auto space-y-6">
+                    {/* Action Bar */}
+                    <div className="no-print pb-4 flex flex-wrap items-center justify-between gap-4 border-b border-[#e2e8f0]">
+                        <div className="text-xs sm:text-sm text-[#475569]">
+                            Verified record for: <strong className="text-[#0f172a]">{student.profile?.firstName} {student.profile?.lastName}</strong> (<span className="font-mono font-bold">{student.enrollmentNumber}</span>)
+                        </div>
+
                         <div className="flex items-center gap-3">
-                            {institute.branding?.logo ? (
-                                <img src={institute.branding.logo} alt={institute.name} className="w-12 h-12 object-contain rounded-xl border border-slate-200 p-1" />
-                            ) : (
-                                <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold">
-                                    <Building className="w-5 h-5" />
+                            <a
+                                href={pdfUrl}
+                                download={`Marksheet_${(student.profile?.firstName || 'Student')}_${(exam.title || 'Exam').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`}
+                                style={{ backgroundColor: '#0f766e', color: '#ffffff' }}
+                                className="inline-flex items-center px-4 py-2 bg-[#0f766e] text-white text-xs sm:text-sm font-semibold hover:bg-[#0d5b4d] transition rounded-[5px] shadow-xs"
+                            >
+                                Download Official PDF (A4)
+                            </a>
+                            <button
+                                onClick={() => {}}
+                                className="no-print inline-flex items-center px-4 py-2 border border-[#cbd5e1] bg-white text-[#0f172a] text-xs sm:text-sm font-medium hover:bg-[#f1f5f9] transition cursor-pointer rounded-[5px]"
+                            >
+                                Certified Record
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Single Sheet Official Marksheet Frame */}
+                    <div className="marksheet-sheet bg-white p-8 sm:p-12 border border-[#cbd5e1] rounded-[5px] shadow-sm space-y-8">
+                        {/* 1. Official Document Header */}
+                        <div className="border-b-2 border-[#0f172a] pb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+                            <div className="space-y-1">
+                                <div className="font-mono text-xs uppercase tracking-widest text-[#0f766e] font-bold">
+                                    OFFICIAL ACADEMIC TRANSCRIPT // REGISTRY RECORD
                                 </div>
-                            )}
-                            <div>
-                                <h2 className="text-sm font-bold text-slate-900 uppercase">{institute.name}</h2>
-                                <p className="text-xs text-slate-500">Institution Code: {institute.code || 'INST'}</p>
+                                <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#0f172a] tracking-tight">
+                                    {institute.name}
+                                </h1>
+                                <div className="text-sm text-[#64748b] font-serif italic pt-0.5">
+                                    Statement of Marks • {exam.title}
+                                </div>
+                            </div>
+
+                            <div className="sm:text-right font-mono text-xs space-y-1 text-[#475569]">
+                                <div className="text-xs uppercase tracking-wider text-[#94a3b8]">Academic Session</div>
+                                <div className="font-bold text-[#0f172a] text-base">{session.sessionName || 'Current Session'}</div>
+                                <div className="text-[11px] text-[#0f766e] font-semibold">● Authentic Entry Verified</div>
                             </div>
                         </div>
 
-                        <div className="text-right text-xs">
-                            <span className="text-slate-400 block">Document ID</span>
-                            <span className="font-mono font-bold text-slate-900 text-sm">{documentId}</span>
+                        {/* 2. Candidate Bio-Data Strip */}
+                        <div className="border-y border-[#0f172a] py-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                            <div className="border-r border-[#e2e8f0] pr-2">
+                                <span className="font-mono uppercase text-[10px] text-[#64748b] block tracking-wider">Candidate Name</span>
+                                <span className="font-bold text-sm text-[#0f172a] block mt-0.5">{student.profile?.firstName} {student.profile?.lastName}</span>
+                            </div>
+                            <div className="sm:border-r sm:border-[#e2e8f0] sm:pr-2">
+                                <span className="font-mono uppercase text-[10px] text-[#64748b] block tracking-wider">Enrollment No.</span>
+                                <span className="font-mono font-bold text-sm text-[#0f172a] block mt-0.5">{student.enrollmentNumber}</span>
+                            </div>
+                            <div className="border-r border-[#e2e8f0] pr-2">
+                                <span className="font-mono uppercase text-[10px] text-[#64748b] block tracking-wider">Course / Class</span>
+                                <span className="font-bold text-sm text-[#0f172a] block mt-0.5">{exam.course?.name || 'General'}</span>
+                            </div>
+                            <div>
+                                <span className="font-mono uppercase text-[10px] text-[#64748b] block tracking-wider">Batch / Section</span>
+                                <span className="font-bold text-sm text-[#0f172a] block mt-0.5">{batch.name || 'Standard'}</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="p-6 bg-slate-50/70 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs border-b border-slate-200">
-                        <div>
-                            <span className="text-slate-500 font-medium block">Candidate Name</span>
-                            <span className="text-slate-900 font-bold text-sm block mt-0.5">
-                                {student.profile?.firstName} {student.profile?.lastName}
-                            </span>
-                        </div>
-                        <div>
-                            <span className="text-slate-500 font-medium block">Enrollment Number</span>
-                            <span className="text-slate-900 font-bold text-sm block mt-0.5 font-mono">
-                                {student.enrollmentNumber}
-                            </span>
-                        </div>
-                        <div>
-                            <span className="text-slate-500 font-medium block">Course / Class</span>
-                            <span className="text-slate-900 font-bold text-sm block mt-0.5">
-                                {exam.course?.name || 'General'}
-                            </span>
-                        </div>
-                        <div>
-                            <span className="text-slate-500 font-medium block">Examination</span>
-                            <span className="text-slate-900 font-bold text-sm block mt-0.5">
-                                {exam.title} ({session.sessionName})
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Marks Overview Table */}
-                    <div className="p-6">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">
-                            Verified Subject Marks
-                        </h3>
-                        <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-                            <table className="w-full text-left">
-                                <thead className="bg-slate-100 text-slate-800 font-bold uppercase tracking-wider border-b border-slate-200">
-                                    <tr>
-                                        <th className="py-2.5 px-3.5">#</th>
-                                        <th className="py-2.5 px-3.5">Subject</th>
-                                        <th className="py-2.5 px-3.5 text-center">Marks Obtained</th>
-                                        <th className="py-2.5 px-3.5 text-center">Status</th>
+                        {/* 3. Subject Marks Table */}
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm border-collapse">
+                                <thead>
+                                    <tr className="border-b-2 border-[#0f172a] font-mono text-xs uppercase tracking-wider text-[#0f172a]">
+                                        <th className="py-3 px-2 w-10 text-center text-[#64748b]">#</th>
+                                        <th className="py-3 px-4 font-bold">Subject Details</th>
+                                        <th className="py-3 px-3 text-center w-28 font-bold">Max Marks</th>
+                                        <th className="py-3 px-3 text-center w-28 font-bold">Pass Marks</th>
+                                        <th className="py-3 px-3 text-center w-32 font-bold">Marks Obtained</th>
+                                        <th className="py-3 px-3 text-center w-24 font-bold">Result</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 font-medium">
-                                    {result.marks && result.marks.map((m, idx) => (
-                                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                                            <td className="py-2.5 px-3.5 text-slate-400 font-mono">{idx + 1}</td>
-                                            <td className="py-2.5 px-3.5 font-bold text-slate-900">
-                                                {m.subject?.name || 'Subject'}
-                                            </td>
-                                            <td className="py-2.5 px-3.5 text-center font-bold text-slate-900">
-                                                {m.isAbsent ? 'Absent' : m.obtainedMarks}
-                                            </td>
-                                            <td className="py-2.5 px-3.5 text-center font-bold">
-                                                {m.isAbsent ? (
-                                                    <span className="text-red-600">AB</span>
-                                                ) : (
-                                                    <span className="text-emerald-700">PASS</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                <tbody className="divide-y divide-[#e2e8f0] font-mono text-[#0f172a]">
+                                    {result.marks && result.marks.map((sub, sIdx) => {
+                                        const subId = String(sub.subject?._id || sub.subject);
+                                        const meta = subjectMap.get(subId) || {};
+                                        const isSubPassed = meta.passingMarks != null && sub.obtainedMarks != null
+                                            ? (sub.obtainedMarks + (sub.graceMarks || 0)) >= meta.passingMarks
+                                            : true;
+
+                                        return (
+                                            <tr key={sIdx} className="hover:bg-[#f8fafc] transition-colors">
+                                                <td className="py-3.5 px-2 text-center text-[#94a3b8] text-xs">
+                                                    {sIdx + 1}
+                                                </td>
+                                                <td className="py-3.5 px-4 font-sans font-medium text-[#0f172a]">
+                                                    {sub.subject?.name || 'Subject'}
+                                                    {sub.subject?.code && (
+                                                        <span className="font-mono text-xs text-[#64748b] ml-1.5 font-normal">
+                                                            [{sub.subject.code}]
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="py-3.5 px-3 text-center text-sm tabular-nums">
+                                                    {meta.maxMarks ?? '-'}
+                                                </td>
+                                                <td className="py-3.5 px-3 text-center text-sm text-[#64748b] tabular-nums">
+                                                    {meta.passingMarks ?? '-'}
+                                                </td>
+                                                <td className="py-3.5 px-3 text-center text-base font-bold tabular-nums">
+                                                    {sub.isAbsent ? (
+                                                        <span className="text-[#dc2626] font-normal italic">Absent</span>
+                                                    ) : (
+                                                        <span>
+                                                            {sub.obtainedMarks ?? 0}
+                                                            {sub.graceMarks > 0 && (
+                                                                <span className="text-[#0f766e] text-xs ml-1 font-normal">
+                                                                    (+{sub.graceMarks})
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="py-3.5 px-3 text-center font-bold text-xs">
+                                                    {sub.isAbsent ? (
+                                                        <span className="text-[#dc2626]">AB</span>
+                                                    ) : isSubPassed ? (
+                                                        <span className="text-[#0f766e]">PASS</span>
+                                                    ) : (
+                                                        <span className="text-[#dc2626]">FAIL</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                                 <tfoot>
-                                    <tr className="bg-slate-100 font-bold text-slate-900 border-t border-slate-200">
-                                        <td colSpan={2} className="py-2.5 px-3.5 text-right uppercase">
-                                            Grand Total:
+                                    <tr className="border-t-2 border-[#0f172a] bg-[#f8fafc] font-mono font-bold text-[#0f172a]">
+                                        <td colSpan={2} className="py-3.5 px-4 text-right uppercase tracking-wider font-sans text-xs">
+                                            Aggregate Total:
                                         </td>
-                                        <td className="py-2.5 px-3.5 text-center text-blue-700 font-extrabold text-sm">
-                                            {result.totalObtainedMarks} / {result.totalMaxMarks}
+                                        <td className="py-3.5 px-3 text-center text-sm tabular-nums">
+                                            {result.totalMaxMarks}
                                         </td>
-                                        <td className="py-2.5 px-3.5 text-center font-extrabold text-slate-800">
+                                        <td className="py-3.5 px-3 text-center text-sm text-[#64748b]">
+                                            -
+                                        </td>
+                                        <td className="py-3.5 px-3 text-center text-base font-extrabold tabular-nums">
+                                            {result.totalObtainedMarks}
+                                        </td>
+                                        <td className="py-3.5 px-3 text-center text-sm tabular-nums">
                                             {result.percentage ? `${result.percentage.toFixed(1)}%` : '-'}
                                         </td>
                                     </tr>
@@ -195,67 +306,89 @@ export default async function MarksheetVerificationPage({ params }) {
                             </table>
                         </div>
 
-                        {/* Overall Result Outcome */}
-                        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                            <div>
-                                <span className="text-xs text-slate-500 font-medium block">Overall Grade</span>
-                                <span className="text-base font-extrabold text-slate-900">{result.overallGrade || '-'}</span>
-                            </div>
-                            {result.rank != null && (
+                        {/* 4. Payoff Summary & Seal Stamp */}
+                        <div className="border-t-2 border-[#0f766e] pt-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div className="grid grid-cols-3 gap-6 sm:gap-10 font-mono text-center md:text-left w-full md:w-auto">
                                 <div>
-                                    <span className="text-xs text-slate-500 font-medium block">Rank in Batch</span>
-                                    <span className="text-base font-extrabold text-indigo-700">#{result.rank}</span>
+                                    <span className="text-[10px] text-[#64748b] uppercase tracking-wider block">Percentage</span>
+                                    <strong className="text-xl sm:text-2xl text-[#0f172a] tabular-nums font-bold block mt-0.5">
+                                        {result.percentage ? `${result.percentage.toFixed(2)}%` : '-'}
+                                    </strong>
                                 </div>
-                            )}
-                            <div>
-                                <span className="text-xs text-slate-500 font-medium block">Verification Status</span>
-                                <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                                    <CheckCircle2 className="w-4 h-4" /> Certified Genuine Record
-                                </span>
+                                <div>
+                                    <span className="text-[10px] text-[#64748b] uppercase tracking-wider block">Overall Grade</span>
+                                    <strong className="text-xl sm:text-2xl text-[#0f172a] font-bold block mt-0.5">
+                                        {result.overallGrade || '-'}
+                                    </strong>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-[#64748b] uppercase tracking-wider block">Batch Rank</span>
+                                    <strong className="text-xl sm:text-2xl text-[#0f766e] font-bold block mt-0.5">
+                                        {result.rank != null ? `#${result.rank}` : '-'}
+                                    </strong>
+                                </div>
                             </div>
-                            <div>
-                                <span className={`inline-block px-4 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider ${
-                                    isPass ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'
-                                }`}>
-                                    Result: {result.overallResult.toUpperCase()}
-                                </span>
+
+                            {/* Seal Stamp */}
+                            <div className="animate-seal-stamp select-none flex-shrink-0">
+                                <div 
+                                    className={`p-3 border-2 border-dashed rounded-full ${
+                                        isPass ? 'border-[#0f766e] text-[#0f766e]' : 'border-[#dc2626] text-[#dc2626]'
+                                    }`}
+                                >
+                                    <div 
+                                        className={`w-28 h-28 border-2 rounded-full flex flex-col items-center justify-center text-center p-2 shadow-xs ${
+                                            isPass ? 'border-[#0f766e] bg-[#f0fdfa]' : 'border-[#dc2626] bg-[#fef2f2]'
+                                        }`}
+                                    >
+                                        <span className="text-[8px] font-mono tracking-[0.2em] uppercase font-bold">
+                                            EXAM BOARD
+                                        </span>
+                                        <span className="text-xl font-serif font-black tracking-wider uppercase my-0.5">
+                                            {isPass ? 'PASSED' : 'FAILED'}
+                                        </span>
+                                        <span className="text-[9px] font-mono font-bold opacity-80">
+                                            {session.sessionName || '2025–26'}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Action Bar: Download Official PDF */}
-                    <div className="p-6 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4">
-                        <div>
-                            <p className="text-xs font-semibold text-white">Download Official Transcript</p>
-                            <p className="text-[11px] text-slate-400">Get the exact high-resolution A4 printable PDF certified by the institution.</p>
+                        {/* 5. Formal Signatures */}
+                        <div className="pt-8 flex justify-between items-end text-xs font-mono text-[#475569] border-t border-[#e2e8f0]">
+                            <div className="text-center">
+                                <div className="w-36 border-b border-[#0f172a] mb-1.5"></div>
+                                <span>Class In-charge</span>
+                            </div>
+                            <div className="text-center font-sans text-[11px] text-[#94a3b8] hidden sm:block">
+                                Certified Examination Ledger Record • Issue Date: {new Date().toLocaleDateString('en-GB')}
+                            </div>
+                            <div className="text-center">
+                                <div className="w-36 border-b border-[#0f172a] mb-1.5"></div>
+                                <span>Controller of Examinations</span>
+                            </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            <a
-                                href={htmlUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition"
-                            >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                Preview HTML
-                            </a>
-                            <a
-                                href={pdfUrl}
-                                download={`Marksheet_${(student.profile?.firstName || 'Student')}_${(exam.title || 'Exam').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition"
-                            >
-                                <Download className="w-4 h-4" />
-                                Download PDF (A4)
-                            </a>
+                        {/* 6. Document Reference Footer */}
+                        <div className="no-print pt-4 border-t border-[#e2e8f0] flex items-center justify-between text-xs text-[#64748b]">
+                            <span className="font-mono">
+                                Document Reference: <strong>{documentId}</strong>
+                            </span>
+                            <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                                ● Official Database Certified
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <footer className="text-center text-xs text-slate-400 mt-8">
-                <p>© {new Date().getFullYear()} {institute.name || 'Institution'}. Document Verification & Registry System.</p>
+            {/* Footer */}
+            <footer className="no-print border-t border-[#e2e8f0] bg-[#f8fafc] text-[#64748b] py-8 text-center text-xs sm:text-sm">
+                <div className="max-w-5xl mx-auto px-4 sm:px-8 space-y-1">
+                    <p>© {new Date().getFullYear()} {institute.name || 'Institution'}. Official Registry System.</p>
+                </div>
             </footer>
-        </div>
+        </main>
     );
 }
