@@ -361,7 +361,7 @@ export default function ResultLookupWidget({
                                 {data.results && data.results[0] && (
                                     <a
                                         href={`/api/v1/public/results/marksheet/${data.results[0].id}/pdf`}
-                                        download
+                                        download={`Marksheet_${(data.student?.name || 'Student').replace(/[^a-zA-Z0-9]/g, '_')}_${(data.results[0].examTitle || 'Exam').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`}
                                         style={{ backgroundColor: '#0f766e', color: '#ffffff' }}
                                         className="inline-flex items-center px-4 py-2 bg-[#0f766e] text-white text-xs sm:text-sm font-semibold hover:bg-[#0d5b4d] transition rounded-[5px] shadow-xs"
                                     >

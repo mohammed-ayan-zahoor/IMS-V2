@@ -242,7 +242,7 @@ export default async function MarksheetVerificationPage({ params }) {
                             </a>
                             <a
                                 href={pdfUrl}
-                                download
+                                download={`Marksheet_${(student.profile?.firstName || 'Student')}_${(exam.title || 'Exam').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition"
                             >
                                 <Download className="w-4 h-4" />
