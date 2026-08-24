@@ -194,7 +194,7 @@ export async function DELETE(req, { params }) {
 
         if (studentDoc && studentDoc.institute) {
             try {
-                const { clearDashboardCache } = await import("@/app/api/v1/dashboard/stats/route");
+                const { clearDashboardCache } = await import("@/lib/dashboardCache");
                 clearDashboardCache(studentDoc.institute.toString());
             } catch (e) {
                 console.error("Failed to clear dashboard cache:", e);

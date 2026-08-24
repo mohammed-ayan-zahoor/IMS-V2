@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import AdmissionApplication from "@/models/AdmissionApplication";
 import { StudentService } from "@/services/studentService";
-import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
+import { clearDashboardCache } from "@/lib/dashboardCache";
 
 export async function POST(req) {
     try {
@@ -47,9 +47,9 @@ export async function POST(req) {
                 ...(application.photo && { avatar: application.photo })
             },
             guardianDetails: {
-                name: application.guardian.name,
-                phone: application.guardian.phone,
-                relation: application.guardian.relation.toLowerCase() // Student doc uses lowercase enum
+                name: application.guardian?.name || '',
+                phone: application.guardian?.phone || '',
+                relation: application.guardian?.relation?.toLowerCase() || 'other' // Student doc uses lowercase enum
             },
             referredBy: application.referredBy,
             // Family & Identity Mapping

@@ -207,7 +207,7 @@ export async function POST(req) {
 
         // Clear dashboard cache for this institute
         try {
-            const { clearDashboardCache } = await import("@/app/api/v1/dashboard/stats/route");
+            const { clearDashboardCache } = await import("@/lib/dashboardCache");
             clearDashboardCache(targetInstituteId.toString());
         } catch (e) {
             console.error("Failed to clear dashboard cache:", e);

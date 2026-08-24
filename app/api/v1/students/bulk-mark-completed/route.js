@@ -6,7 +6,7 @@ import { markStudentCompleted, markBatchEnrollmentCompleted } from "@/services/c
 import { createAuditLog } from "@/services/auditService";
 import { getInstituteScope } from "@/middleware/instituteScope";
 import { NextResponse } from "next/server";
-import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
+import { clearDashboardCache } from "@/lib/dashboardCache";
 
 export async function POST(req) {
     try {

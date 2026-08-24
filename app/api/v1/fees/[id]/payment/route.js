@@ -6,7 +6,7 @@ import AuditLog from "@/models/AuditLog";
 import { connectDB } from "@/lib/mongodb";
 import Fee from "@/models/Fee";
 import { getInstituteScope, validateInstituteAccess } from "@/middleware/instituteScope";
-import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
+import { clearDashboardCache } from "@/lib/dashboardCache";
 
 const { z } = require("zod");
 

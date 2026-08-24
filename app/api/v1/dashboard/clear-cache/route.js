@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
+import { clearDashboardCache } from "@/lib/dashboardCache";
 import { getInstituteScope } from "@/middleware/instituteScope";
 
 export async function POST(req) {

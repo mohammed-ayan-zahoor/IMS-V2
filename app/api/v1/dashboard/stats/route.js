@@ -9,24 +9,11 @@ import mongoose from "mongoose";
 import { getInstituteScope } from "@/middleware/instituteScope";
 import { validateAndDeriveSession, logSessionAccess } from "@/middleware/sessionValidation";
 
-// Simple cache: reuse data for 5 minutes
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-export const statsCache = new Map();
+import { statsCache, clearDashboardCache } from "@/lib/dashboardCache";
 
-// Helper function to clear cache for an institute
-export function clearDashboardCache(instituteId = null) {
-    if (instituteId) {
-        const prefix = `stats_${instituteId}`;
-        for (const key of statsCache.keys()) {
-            if (key.startsWith(prefix)) {
-                statsCache.delete(key);
-            }
-        }
-    } else {
-        // Clear all cache
-        statsCache.clear();
-    }
-}
+// Re-export for compatibility
+export { statsCache, clearDashboardCache };
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 
 export async function GET(req) {

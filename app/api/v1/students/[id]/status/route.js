@@ -18,7 +18,7 @@ export async function PATCH(req, { params }) {
 
         if (updatedStudent && updatedStudent.institute) {
             try {
-                const { clearDashboardCache } = await import("@/app/api/v1/dashboard/stats/route");
+                const { clearDashboardCache } = await import("@/lib/dashboardCache");
                 clearDashboardCache(updatedStudent.institute.toString());
             } catch (e) {
                 console.error("Failed to clear dashboard cache:", e);

@@ -62,7 +62,7 @@ export async function POST(req) {
 
         // Clear dashboard stats cache for this institute
         try {
-            const { clearDashboardCache } = await import("@/app/api/v1/dashboard/stats/route");
+            const { clearDashboardCache } = await import("@/lib/dashboardCache");
             clearDashboardCache(tx.institute.toString());
         } catch (cacheError) {
             console.error("Cache eviction error during payment verification:", cacheError);

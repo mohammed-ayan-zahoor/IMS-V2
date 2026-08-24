@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { StudentService } from "@/services/studentService";
 import { getInstituteScope } from "@/middleware/instituteScope";
-import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
+import { clearDashboardCache } from "@/lib/dashboardCache";
 
 export async function POST(req, { params }) {
     try {

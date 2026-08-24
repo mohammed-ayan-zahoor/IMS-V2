@@ -5,7 +5,7 @@ import { connectDB } from '@/lib/mongodb';
 import Enquiry from '@/models/Enquiry';
 import { getInstituteScope } from '@/middleware/instituteScope';
 import { createAuditLog } from '@/services/auditService';
-import { clearDashboardCache } from "@/app/api/v1/dashboard/stats/route";
+import { clearDashboardCache } from "@/lib/dashboardCache";
 
 export async function PATCH(req, { params }) {
     try {

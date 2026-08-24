@@ -96,7 +96,8 @@ export default function AdmissionApplicationsPage() {
         setSelectedApplication(application);
         setIsConvertModalOpen(true);
         try {
-            const res = await fetch(`/api/v1/batches?courseId=${application.course?._id}&instituteId=${instituteId}`);
+            const courseId = application.course?._id || application.course || "";
+            const res = await fetch(`/api/v1/batches?courseId=${courseId}&instituteId=${instituteId}`);
             const data = await res.json();
             if (res.ok) {
                 setBatches(data.batches || []);
