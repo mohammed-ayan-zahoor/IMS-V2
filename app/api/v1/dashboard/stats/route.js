@@ -225,29 +225,44 @@ export async function GET(req) {
                 return offline + online;
             })();
 
-        // 4. Top Courses (Leaderboard)
-        const topCoursesPromise = Batch.aggregate([
-            { $match: batchMatch },
-            { $project: { course: 1, enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } } } },
-            { $group: { _id: "$course", totalStudents: { $sum: "$enrollmentCount" } } },
-            { $sort: { totalStudents: -1 } },
-            { $limit: 5 },
+        // 4. Course / Class Rankings (Leaderboard across all active courses)
+        const topCoursesPromise = Course.aggregate([
+            { $match: { ...instituteQuery, deletedAt: null } },
             {
                 $lookup: {
-                    from: "courses",
-                    localField: "_id",
-                    foreignField: "_id",
-                    as: "courseData"
+                    from: "batches",
+                    let: { courseId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$course", "$$courseId"] },
+                                        ...(sessionParam ? [{ $eq: ["$session", new mongoose.Types.ObjectId(sessionParam)] }] : []),
+                                        ...(isInstructor ? [{ $in: ["$_id", instructorBatchIds] }] : []),
+                                        { $eq: ["$deletedAt", null] }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            $project: {
+                                enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } }
+                            }
+                        }
+                    ],
+                    as: "batchesData"
                 }
             },
-            { $unwind: "$courseData" },
             {
                 $project: {
                     _id: 1,
-                    name: "$courseData.name",
-                    totalStudents: 1
+                    name: 1,
+                    code: 1,
+                    totalStudents: { $sum: "$batchesData.enrollmentCount" }
                 }
-            }
+            },
+            { $sort: { totalStudents: -1, name: 1 } }
         ]);
         
         // 5. Recent Admissions

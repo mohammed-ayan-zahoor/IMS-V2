@@ -12,6 +12,7 @@ import {
     CreditCard,
     ArrowUpRight,
     TrendingUp,
+    TrendingDown,
     Trophy,
     AlertCircle,
     Clock,
@@ -81,6 +82,7 @@ export default function AdminDashboard() {
     const [buySlots, setBuySlots] = useState(1);
     const [purchasing, setPurchasing] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [rankingFilter, setRankingFilter] = useState("top"); // "top" | "least"
 
     useEffect(() => {
         setMounted(true);
@@ -615,20 +617,69 @@ export default function AdminDashboard() {
                         )}
                     </div>
 
-                    {/* Course Rankings */}
+                    {/* Course / Class Rankings with Top/Least Toggle */}
                     <div className="bg-white rounded-lg border border-slate-100 overflow-hidden flex flex-col">
-                        <div className="px-5 py-4 border-b border-slate-100">
-                            <h3 className="text-sm font-bold text-slate-900">{isSchool ? "Top Performing Classes" : "Top Performing Courses"}</h3>
-                            <p className="text-xs text-slate-400 font-medium mt-0.5">Ranked by active seat occupancy</p>
+                        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-4">
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-900">
+                                    {rankingFilter === "top" 
+                                        ? (isSchool ? "Top Performing Classes" : "Top Performing Courses")
+                                        : (isSchool ? "Least Performing Classes" : "Least Performing Courses")
+                                    }
+                                </h3>
+                                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                                    {rankingFilter === "top" ? "Ranked by highest seat occupancy" : "Ranked by lowest seat occupancy"}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-md shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setRankingFilter("top")}
+                                    className={cn(
+                                        "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1",
+                                        rankingFilter === "top"
+                                            ? "bg-white text-slate-900 shadow-xs"
+                                            : "text-slate-500 hover:text-slate-700"
+                                    )}
+                                >
+                                    <TrendingUp size={12} className={rankingFilter === "top" ? "text-emerald-600" : ""} />
+                                    <span>Top</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setRankingFilter("least")}
+                                    className={cn(
+                                        "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1",
+                                        rankingFilter === "least"
+                                            ? "bg-white text-slate-900 shadow-xs"
+                                            : "text-slate-500 hover:text-slate-700"
+                                    )}
+                                >
+                                    <TrendingDown size={12} className={rankingFilter === "least" ? "text-rose-600" : ""} />
+                                    <span>Least</span>
+                                </button>
+                            </div>
                         </div>
                         <div className="p-5 space-y-4 flex-1">
                             {loading ? (
                                  Array(4).fill(0).map((_, i) => (
                                     <div key={i} className="h-10 bg-slate-50 animate-pulse rounded" />
                                 ))
-                            ) : dashboardData?.topCourses?.length > 0 ? (
-                                dashboardData.topCourses.map((course, index) => {
-                                    const maxStudents = dashboardData.topCourses[0].totalStudents || 1;
+                            ) : (() => {
+                                const allCourses = dashboardData?.topCourses || [];
+                                if (allCourses.length === 0) {
+                                    return <div className="py-14 text-center text-xs text-slate-400 italic">No class insights available yet.</div>;
+                                }
+
+                                const maxStudents = Math.max(...allCourses.map(c => c.totalStudents), 1);
+                                const sortedCourses = [...allCourses].sort((a, b) => {
+                                    if (rankingFilter === "least") {
+                                        return a.totalStudents - b.totalStudents || a.name.localeCompare(b.name);
+                                    }
+                                    return b.totalStudents - a.totalStudents || a.name.localeCompare(b.name);
+                                }).slice(0, 5);
+
+                                return sortedCourses.map((course, index) => {
                                     const percentage = Math.round((course.totalStudents / maxStudents) * 100);
                                     
                                     return (
@@ -639,22 +690,28 @@ export default function AdminDashboard() {
                                                         {index + 1}
                                                     </span>
                                                     <span className="font-bold text-slate-800">{course.name}</span>
-                                                    {percentage >= 80 && <span className="text-[9px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Hot</span>}
+                                                    {rankingFilter === "top" && percentage >= 80 && course.totalStudents > 0 && (
+                                                        <span className="text-[9px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Hot</span>
+                                                    )}
+                                                    {rankingFilter === "least" && course.totalStudents === 0 && (
+                                                        <span className="text-[9px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">0 Enrolled</span>
+                                                    )}
                                                 </div>
                                                 <span className="font-mono text-slate-700 font-bold">{course.totalStudents} <span className="text-[10px] text-slate-400 font-normal">students</span></span>
                                             </div>
                                             <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                                                 <div 
-                                                    className="h-full rounded-full bg-slate-800 transition-all duration-700"
-                                                    style={{ width: `${percentage}%` }}
+                                                    className={cn(
+                                                        "h-full rounded-full transition-all duration-700",
+                                                        rankingFilter === "least" ? "bg-rose-500" : "bg-slate-800"
+                                                    )}
+                                                    style={{ width: `${Math.max(percentage, course.totalStudents > 0 ? 4 : 0)}%` }}
                                                 />
                                             </div>
                                         </div>
                                     );
-                                })
-                            ) : (
-                                <div className="py-14 text-center text-xs text-slate-400 italic">No course insights available yet.</div>
-                            )}
+                                });
+                            })()}
                         </div>
                     </div>
                 </div>
