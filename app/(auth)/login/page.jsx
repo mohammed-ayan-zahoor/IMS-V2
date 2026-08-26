@@ -125,8 +125,7 @@ function LoginForm() {
                                 exit={{ opacity: 0, y: -4 }}
                                 className="text-slate-500 font-medium text-sm md:text-base"
                             >
-                                Sign in to access your <span className="font-bold text-slate-800">{institute.name}</span>
-                                {institute.totalInstitutes > 1 ? " & affiliated institutions." : " portal."}
+                                Please enter your credentials to access your portal.
                             </motion.p>
                         ) : (
                             <motion.p 

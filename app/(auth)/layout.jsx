@@ -43,7 +43,7 @@ function AuthBrandingHeader() {
     const { institute, clearInstitute } = useAuthBranding();
 
     return (
-        <div className="mb-10 flex flex-col items-center min-h-[70px] justify-center">
+        <div className="mb-8 flex flex-col items-center justify-center">
             <AnimatePresence mode="wait">
                 {institute ? (
                     <motion.div
@@ -52,58 +52,56 @@ function AuthBrandingHeader() {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 6 }}
                         transition={{ duration: 0.3 }}
-                        className="flex flex-col items-center"
+                        className="flex flex-col items-center text-center gap-3 w-full"
                     >
-                        <div className="flex items-center justify-center gap-3 md:gap-4">
-                            {/* Platform Logo */}
+                        {/* Open, Big Logos */}
+                        <div className="flex items-center justify-center gap-4 md:gap-5">
                             <Image
                                 src="/quantech/Quantech-Logo.png"
                                 alt="Quantech Logo"
-                                width={130}
-                                height={35}
+                                width={180}
+                                height={50}
                                 priority
-                                className="h-8 md:h-9 w-auto object-contain"
+                                className="h-10 md:h-12 w-auto object-contain"
                             />
 
-                            {/* Divider */}
-                            <div className="h-6 md:h-7 w-[1.5px] bg-slate-200" />
+                            <div className="h-8 md:h-10 w-[1.5px] bg-slate-200/80 shrink-0" />
 
-                            {/* School Logo & Name */}
-                            <div className="flex items-center gap-2.5 max-w-[220px]">
-                                {institute.logo ? (
-                                    <img
-                                        src={institute.logo}
-                                        alt={institute.name}
-                                        className="h-8 w-8 md:h-9 md:w-9 rounded-lg object-contain border border-slate-100 shadow-sm shrink-0 bg-white p-0.5"
-                                    />
-                                ) : (
-                                    <div className="h-8 w-8 md:h-9 md:w-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm md:text-base shrink-0 shadow-sm">
-                                        {institute.name.charAt(0)}
-                                    </div>
-                                )}
-                                <div className="flex flex-col text-left overflow-hidden">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-xs md:text-sm font-black text-slate-900 leading-tight truncate">
-                                            {institute.name}
-                                        </span>
-                                        {institute.totalInstitutes > 1 && (
-                                            <span className="text-[9px] font-extrabold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md border border-blue-100/80 shrink-0">
-                                                +{institute.totalInstitutes - 1}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                        {institute.type === 'SCHOOL' ? 'School Portal' : 'Academy Portal'}
-                                    </span>
+                            {institute.logo ? (
+                                <img
+                                    src={institute.logo}
+                                    alt={institute.name}
+                                    className="h-11 md:h-13 w-auto max-w-[120px] object-contain shrink-0"
+                                />
+                            ) : (
+                                <div className="h-11 w-11 md:h-12 md:w-12 rounded-xl bg-blue-50 text-blue-600 font-black text-xl flex items-center justify-center shrink-0 border border-blue-100">
+                                    {institute.name.charAt(0)}
                                 </div>
+                            )}
+                        </div>
+
+                        {/* Full School Name Displayed Below */}
+                        <div className="flex flex-col items-center max-w-sm px-2">
+                            <div className="flex items-center justify-center flex-wrap gap-1.5">
+                                <h3 className="text-sm md:text-base font-black text-slate-900 tracking-tight leading-tight">
+                                    {institute.name}
+                                </h3>
+                                {institute.totalInstitutes > 1 && (
+                                    <span className="text-[10px] font-extrabold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100/80 shrink-0">
+                                        +{institute.totalInstitutes - 1} more
+                                    </span>
+                                )}
                             </div>
+                            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">
+                                {institute.type === 'SCHOOL' ? 'Official School Portal' : 'Official Academy Portal'}
+                            </span>
                         </div>
 
                         {/* Reset / Switch button */}
                         <button
                             type="button"
                             onClick={clearInstitute}
-                            className="text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors mt-2 tracking-wide"
+                            className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors tracking-wide mt-0.5"
                         >
                             Not your institution? <span className="underline text-blue-600 font-bold">Switch</span>
                         </button>
