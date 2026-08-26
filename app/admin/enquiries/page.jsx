@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Users, Search, Phone, Calendar, ArrowRight, Plus, CheckCircle2, Clock, X } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Card, { CardContent } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -162,21 +161,21 @@ export default function EnquiriesPage() {
                 </div>
             )}
 
-            <Card className="transition-all border border-slate-200 shadow-sm overflow-hidden flex flex-col max-h-[80vh]">
-                <div className="p-4 border-b border-slate-200 bg-slate-50/50 shrink-0">
+            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden flex flex-col max-h-[80vh]">
+                <div className="p-4 border-b border-slate-100 bg-[#F9FAFB] shrink-0">
                     <div className="relative max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                             type="text"
                             placeholder="Search by name or contact..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 transition-all text-sm font-medium shadow-sm"
+                            className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-4 py-2 outline-none focus:border-slate-400 transition-colors text-xs font-medium"
                         />
                     </div>
                 </div>
 
-                <CardContent className="p-0 overflow-y-auto min-h-[300px]">
+                <div className="p-0 overflow-y-auto min-h-[300px]">
                     {loading ? (
                         <div className="mt-10"><LoadingSpinner /></div>
                     ) : sortedEnquiries.length > 0 ? (
@@ -284,8 +283,8 @@ export default function EnquiriesPage() {
                             />
                         </div>
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             {/* Quick Action Modals */}
             <Modal

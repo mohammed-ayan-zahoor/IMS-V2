@@ -20,7 +20,6 @@ import Link from "next/link";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
 import Button from "@/components/ui/Button";
-import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
@@ -433,73 +432,73 @@ export default function FeesPage() {
 
             {/* Report Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <Card className="p-4 border-l-4 border-l-slate-400">
+                <div className="bg-slate-50/70 border border-slate-200/70 rounded-lg p-4 transition-colors">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Gross</p>
-                            <h3 className="text-2xl font-black text-slate-700 mt-1">₹{(summary.totalGross || 0).toLocaleString()}</h3>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Gross</p>
+                            <h3 className="text-2xl font-bold text-slate-900 mt-1">₹{(summary.totalGross || 0).toLocaleString()}</h3>
                         </div>
-                        <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
-                            <DollarSign size={20} />
+                        <div className="p-2 bg-slate-200/60 rounded-md text-slate-700">
+                            <DollarSign size={18} />
                         </div>
                     </div>
-                </Card>
-                <Card className="p-4 border-l-4 border-l-rose-500">
+                </div>
+                <div className="bg-rose-50/70 border border-rose-100/70 rounded-lg p-4 transition-colors">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-xs font-bold text-rose-600/70 uppercase tracking-wider">Total Discount</p>
-                            <h3 className="text-2xl font-black text-rose-600 mt-1">₹{(summary.totalDiscount || 0).toLocaleString()}</h3>
+                            <p className="text-xs font-bold text-rose-600/80 uppercase tracking-wider">Total Discount</p>
+                            <h3 className="text-2xl font-bold text-rose-600 mt-1">₹{(summary.totalDiscount || 0).toLocaleString()}</h3>
                         </div>
-                        <div className="p-2 bg-rose-100 rounded-lg text-rose-600">
-                            <XCircle size={20} />
+                        <div className="p-2 bg-rose-100/80 rounded-md text-rose-600">
+                            <XCircle size={18} />
                         </div>
                     </div>
-                </Card>
-                <Card className="p-4 border-l-4 border-l-orange-500">
+                </div>
+                <div className="bg-orange-50/70 border border-orange-100/70 rounded-lg p-4 transition-colors">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-xs font-bold text-orange-600/70 uppercase tracking-wider">Extra Charges</p>
-                            <h3 className="text-2xl font-black text-orange-600 mt-1">₹{(summary.extraCharges || 0).toLocaleString()}</h3>
+                            <p className="text-xs font-bold text-orange-600/80 uppercase tracking-wider">Extra Charges</p>
+                            <h3 className="text-2xl font-bold text-orange-600 mt-1">₹{(summary.extraCharges || 0).toLocaleString()}</h3>
                         </div>
-                        <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
-                            <AlertCircle size={20} />
+                        <div className="p-2 bg-orange-100/80 rounded-md text-orange-600">
+                            <AlertCircle size={18} />
                         </div>
                     </div>
-                </Card>
-                <Card className="p-4 border-l-4 border-l-emerald-500">
+                </div>
+                <div className="bg-emerald-50/70 border border-emerald-100/70 rounded-lg p-4 transition-colors">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-xs font-bold text-emerald-600/70 uppercase tracking-wider">Total Collected</p>
-                            <h3 className="text-2xl font-black text-emerald-600 mt-1">₹{(summary.totalCollected || 0).toLocaleString()}</h3>
+                            <p className="text-xs font-bold text-emerald-600/80 uppercase tracking-wider">Total Collected</p>
+                            <h3 className="text-2xl font-bold text-emerald-600 mt-1">₹{(summary.totalCollected || 0).toLocaleString()}</h3>
                         </div>
-                        <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
-                            <CheckCircle size={20} />
+                        <div className="p-2 bg-emerald-100/80 rounded-md text-emerald-600">
+                            <CheckCircle size={18} />
                         </div>
                     </div>
-                </Card>
-                <Card className="p-4 border-l-4 border-l-amber-500">
+                </div>
+                <div className="bg-amber-50/70 border border-amber-100/70 rounded-lg p-4 transition-colors">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-xs font-bold text-amber-600/70 uppercase tracking-wider">Total Pending</p>
-                            <h3 className="text-2xl font-black text-amber-600 mt-1">₹{(summary.totalPending || 0).toLocaleString()}</h3>
+                            <p className="text-xs font-bold text-amber-600/80 uppercase tracking-wider">Total Pending</p>
+                            <h3 className="text-2xl font-bold text-amber-600 mt-1">₹{(summary.totalPending || 0).toLocaleString()}</h3>
                         </div>
-                        <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
-                            <AlertCircle size={20} />
+                        <div className="p-2 bg-amber-100/80 rounded-md text-amber-600">
+                            <AlertCircle size={18} />
                         </div>
                     </div>
-                </Card>
-            </div >
+                </div>
+            </div>
 
-            <Card className="transition-all border-transparent shadow-sm">
-                <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 space-y-0">
+            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
                     <div className="flex-1 max-w-sm relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/50 transition-colors group-focus-within:text-premium-blue" size={18} />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                             type="text"
                             placeholder="Search student..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
+                            className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-4 py-2 outline-none focus:border-slate-400 transition-colors text-xs font-medium"
                         />
                     </div>
 
@@ -538,8 +537,8 @@ export default function FeesPage() {
                             placeholder="Payment %"
                         />
                     </div>
-                </CardHeader>
-                <div className="px-6 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                </div>
+                <div className="px-5 py-2.5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <label className="flex items-center gap-2 text-sm font-medium text-slate-600 cursor-pointer select-none">
                             <input
@@ -573,7 +572,7 @@ export default function FeesPage() {
                         {filteredFees.length} records
                     </Badge>
                 </div>
-                <CardContent className="p-0">
+                <div>
                     {(() => {
                         const startIndex = (currentPage - 1) * rowsPerPage;
                         const paginatedFees = fees;
@@ -791,8 +790,8 @@ export default function FeesPage() {
                             </>
                         );
                     })()}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             <Modal
                 isOpen={isPaymentModalOpen}
@@ -803,7 +802,7 @@ export default function FeesPage() {
                     const selectedInst = selectedFee.installments?.find(i => i._id === paymentData.installmentId);
                     return (
                         <div className="space-y-6">
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between items-center">
+                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex justify-between items-center">
                             <div>
                                 <p className="text-[10px] uppercase font-bold text-slate-400">Student</p>
                                 <p className="font-bold text-slate-700">{selectedFee.student?.profile?.firstName} {selectedFee.student?.profile?.lastName}</p>

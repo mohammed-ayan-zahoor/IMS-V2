@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
-import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
@@ -396,8 +395,8 @@ export default function CoursesPage() {
 
             {activeTab === "courses" ? (
                 /* Individual Courses View */
-                <Card className="overflow-hidden border-none shadow-premium">
-                    <CardHeader className="flex-col md:flex-row items-stretch md:items-center gap-4 space-y-0 bg-[#F9FAFB]/50 border-b border-slate-100">
+                <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
                         <div className="flex flex-wrap items-center gap-3 w-full">
                             {institutes.length > 0 && (
                                 <div className="min-w-[200px]">
@@ -427,9 +426,9 @@ export default function CoursesPage() {
                                 {filteredCourses.length} {isSchool ? "Classes" : "Courses"} Total
                             </Badge>
                         </div>
-                    </CardHeader>
+                    </div>
 
-                    <CardContent className="p-0">
+                    <div>
                         {loading ? (
                             <div className="p-12 flex justify-center"><LoadingSpinner /></div>
                         ) : filteredCourses.length > 0 ? (
@@ -508,12 +507,12 @@ export default function CoursesPage() {
                                 description={`Get started by creating your first ${isSchool ? "class" : "course"}.`}
                             />
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             ) : (
                 /* Course Bundles & Special Offers View (Vocational) */
-                <Card className="overflow-hidden border-none shadow-premium">
-                    <CardHeader className="flex-col md:flex-row items-stretch md:items-center gap-4 space-y-0 bg-[#F9FAFB]/50 border-b border-slate-100">
+                <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
                         <div className="flex flex-wrap items-center gap-3 w-full">
                             <div className="flex-1 max-w-md">
                                 <Input
@@ -529,9 +528,9 @@ export default function CoursesPage() {
                                 {filteredBundles.length} Bundle Offers Total
                             </Badge>
                         </div>
-                    </CardHeader>
+                    </div>
 
-                    <CardContent className="p-6">
+                    <div className="p-5">
                         {loadingBundles ? (
                             <div className="p-12 flex justify-center"><LoadingSpinner /></div>
                         ) : filteredBundles.length > 0 ? (
@@ -545,15 +544,15 @@ export default function CoursesPage() {
                                     return (
                                         <div
                                             key={bundle._id}
-                                            className={`relative rounded-2xl border bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md flex flex-col justify-between ${
-                                                !bundle.isActive ? 'opacity-65 border-slate-200' : 'border-blue-100 hover:border-blue-300'
+                                            className={`relative rounded-lg border bg-white p-5 transition-colors hover:border-slate-300 flex flex-col justify-between ${
+                                                !bundle.isActive ? 'opacity-65 border-slate-200' : 'border-slate-200'
                                             }`}
                                         >
                                             <div>
                                                 {/* Header Badge */}
                                                 <div className="flex items-start justify-between gap-2 mb-3">
                                                     <div>
-                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
                                                             {bundle.code}
                                                         </span>
                                                         <h3 className="font-bold text-slate-900 text-base mt-1 line-clamp-1">
@@ -563,7 +562,7 @@ export default function CoursesPage() {
                                                     <button
                                                         onClick={() => handleToggleBundleActive(bundle)}
                                                         title={bundle.isActive ? "Deactivate Offer" : "Activate Offer"}
-                                                        className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
+                                                        className={`p-1.5 rounded text-xs font-semibold flex items-center gap-1 transition-colors ${
                                                             bundle.isActive
                                                                 ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                                                                 : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -589,7 +588,7 @@ export default function CoursesPage() {
                                                         {(bundle.courses || []).map((c) => (
                                                             <span
                                                                 key={c._id || c}
-                                                                className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg"
+                                                                className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded"
                                                             >
                                                                 <BookOpen size={12} className="text-blue-500" />
                                                                 <span>{c.name || 'Course'}</span>
@@ -619,7 +618,7 @@ export default function CoursesPage() {
                                                     </div>
 
                                                     {discountPercent > 0 && (
-                                                        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-xs px-2.5 py-1 rounded-xl shadow-sm flex items-center gap-1">
+                                                        <div className="bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs px-2.5 py-1 rounded flex items-center gap-1">
                                                             <Tag size={12} />
                                                             <span>SAVE {discountPercent}%</span>
                                                         </div>
@@ -630,14 +629,14 @@ export default function CoursesPage() {
                                                 <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-50">
                                                     <button
                                                         onClick={() => handleEditBundleClick(bundle)}
-                                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1"
+                                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors flex items-center gap-1"
                                                     >
                                                         <Edit2 size={13} />
                                                         <span>Edit</span>
                                                     </button>
                                                     <button
                                                         onClick={() => setDeletingBundle(bundle)}
-                                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
+                                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors flex items-center gap-1"
                                                     >
                                                         <Trash2 size={13} />
                                                         <span>Delete</span>
@@ -655,8 +654,8 @@ export default function CoursesPage() {
                                 description="Bundle 2 or more courses together into an attractive discount offer pack for students."
                             />
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             )}
 
             {/* Modal: Add/Edit Course */}

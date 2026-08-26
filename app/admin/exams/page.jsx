@@ -5,7 +5,6 @@ import Link from "next/link";
 import { format, isPast } from "date-fns";
 import { Plus, Search, Filter, Trash2, Edit, FileText, Clock, CheckCircle, Settings, Layers, Archive, Monitor, FileSpreadsheet, Info, X } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
@@ -146,27 +145,27 @@ export default function ExamListPage() {
             </div>
 
             {/* Tabs & Search */}
-            <div className="flex flex-col md:flex-row gap-4 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-                <div className="flex bg-slate-100/50 p-1 rounded-xl">
+            <div className="flex flex-col md:flex-row gap-4 bg-white p-2 rounded-lg border border-slate-100">
+                <div className="flex bg-slate-100 p-1 rounded-md">
                     <button
                         onClick={() => setActiveTab("upcoming")}
-                        className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "upcoming" ? "bg-white text-slate-800 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"}`}
+                        className={`px-4 py-1.5 rounded text-xs font-bold transition-all ${activeTab === "upcoming" ? "bg-white text-slate-800 shadow-xs" : "text-slate-500 hover:text-slate-800"}`}
                     >
                         Active / Upcoming
                     </button>
                     <button
                         onClick={() => setActiveTab("closed")}
-                        className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "closed" ? "bg-white text-slate-800 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"}`}
+                        className={`px-4 py-1.5 rounded text-xs font-bold transition-all ${activeTab === "closed" ? "bg-white text-slate-800 shadow-xs" : "text-slate-500 hover:text-slate-800"}`}
                     >
                         {examMode === "online" ? "Closed Exams" : "Results Published"}
                     </button>
                 </div>
                 <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                         type="text"
                         placeholder={`Search ${examMode} exams...`}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-premium-blue/20 outline-none text-slate-700 font-medium h-full"
+                        className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-md outline-none text-slate-700 text-xs font-medium h-full focus:border-slate-400"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
@@ -176,12 +175,12 @@ export default function ExamListPage() {
             {/* Exams Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {examMode === "online" && filteredOnline.map(exam => (
-                    <Card key={exam._id} className="group hover:border-premium-blue/30 transition-all hover:shadow-md flex flex-col h-full">
+                    <div key={exam._id} className="bg-white rounded-lg border border-slate-100 p-5 hover:border-slate-300 transition-colors flex flex-col h-full">
                         <div className="flex justify-between items-start mb-4">
-                            <div className={`p-3 rounded-xl transition-colors ${exam.status === 'published' ? 'bg-green-50 text-green-600' :
+                            <div className={`p-2.5 rounded-lg transition-colors ${exam.status === 'published' ? 'bg-green-50 text-green-600' :
                                 exam.status === 'draft' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-600'
                                 }`}>
-                                <Monitor size={24} />
+                                <Monitor size={20} />
                             </div>
                             <div className="flex gap-2">
                                 <Badge variant={
@@ -193,70 +192,70 @@ export default function ExamListPage() {
                             </div>
                         </div>
 
-                        <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-1 group-hover:text-premium-blue transition-colors">
+                        <h3 className="text-base font-bold text-slate-900 mb-1 line-clamp-1">
                             {exam.title}
                         </h3>
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{exam.course?.name || "Unknown Course"}</p>
 
-                        <div className="space-y-3 mb-6 flex-1">
-                            <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
-                                <Clock size={16} className="text-slate-400" />
+                        <div className="space-y-2.5 mb-5 flex-1">
+                            <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                                <Clock size={14} className="text-slate-400" />
                                 <span>{exam.duration} mins</span>
                                 <span className="text-slate-300 mx-1">•</span>
                                 <span>{exam.totalMarks || 0} Marks</span>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
-                                <CheckCircle size={16} className="text-slate-400" />
+                            <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                                <CheckCircle size={14} className="text-slate-400" />
                                 <span>{exam.scheduledAt ? format(new Date(exam.scheduledAt), "MMM d, yyyy @ h:mm a") : "Unscheduled"}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
-                                <Layers size={16} className="text-slate-400" />
+                            <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                                <Layers size={14} className="text-slate-400" />
                                 <span>{exam.batches?.length || 0} Batches Assigned</span>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-50 mt-auto">
+                        <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-100 mt-auto">
                             <Link href={`/admin/exams/${exam._id}/manage`} className="col-span-2">
-                                <Button className="w-full font-bold bg-slate-800 hover:bg-slate-900 text-white">
-                                    <Settings size={16} className="mr-2" />
+                                <Button className="w-full font-bold bg-slate-900 hover:bg-slate-800 text-white text-xs">
+                                    <Settings size={14} className="mr-1.5" />
                                     Manage Questions
                                 </Button>
                             </Link>
 
                             {(exam.status === 'published' || exam.status === 'completed') && (
                                 <Link href={`/admin/exams/${exam._id}/results`} className="col-span-2">
-                                    <Button variant="outline" className="w-full font-bold text-premium-blue border-premium-blue/20 hover:bg-premium-blue/5">
-                                        <Layers size={16} className="mr-2" />
+                                    <Button variant="outline" className="w-full font-bold text-blue-600 border-blue-200 hover:bg-blue-50 text-xs">
+                                        <Layers size={14} className="mr-1.5" />
                                         View Results
                                     </Button>
                                 </Link>
                             )}
 
                             <Link href={`/admin/exams/${exam._id}`}>
-                                <Button variant="outline" size="sm" className="w-full">
-                                    <Edit size={16} className="mr-2" />
+                                <Button variant="outline" size="sm" className="w-full text-xs">
+                                    <Edit size={14} className="mr-1.5" />
                                     Edit
                                 </Button>
                             </Link>
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-red-400 hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100"
+                                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
                                 onClick={() => handleDeleteOnline(exam._id)}
                             >
-                                <Trash2 size={16} />
+                                <Trash2 size={14} />
                             </Button>
                         </div>
-                    </Card>
+                    </div>
                 ))}
 
                 {examMode === "offline" && filteredOffline.map(exam => (
-                    <Card key={exam._id} className="group hover:border-emerald-600/30 transition-all hover:shadow-md flex flex-col h-full">
+                    <div key={exam._id} className="bg-white rounded-lg border border-slate-100 p-5 hover:border-slate-300 transition-colors flex flex-col h-full">
                         <div className="flex justify-between items-start mb-4">
-                            <div className={`p-3 rounded-xl transition-colors ${exam.status === 'published' ? 'bg-indigo-50 text-indigo-600' :
+                            <div className={`p-2.5 rounded-lg transition-colors ${exam.status === 'published' ? 'bg-indigo-50 text-indigo-600' :
                                 exam.status === 'marks_entry_open' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-600'
                                 }`}>
-                                <FileSpreadsheet size={24} />
+                                <FileSpreadsheet size={20} />
                             </div>
                             <div className="flex gap-2">
                                 <Badge variant={
@@ -268,76 +267,76 @@ export default function ExamListPage() {
                             </div>
                         </div>
 
-                        <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-1 group-hover:text-emerald-600 transition-colors">
+                        <h3 className="text-base font-bold text-slate-900 mb-1 line-clamp-1">
                             {exam.title}
                         </h3>
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{exam.course?.name || "Unknown Course"}</p>
 
-                        <div className="space-y-3 mb-6 flex-1">
-                            <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
-                                <FileText size={16} className="text-slate-400" />
+                        <div className="space-y-2.5 mb-5 flex-1">
+                            <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                                <FileText size={14} className="text-slate-400" />
                                 <span>{exam.subjects?.length || 0} Subjects</span>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
-                                <Layers size={16} className="text-slate-400" />
+                            <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                                <Layers size={14} className="text-slate-400" />
                                 <span>{exam.batches?.length || 0} Batches Assigned</span>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
-                                <CheckCircle size={16} className="text-slate-400" />
+                            <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                                <CheckCircle size={14} className="text-slate-400" />
                                 <span>{exam.gradingScale ? exam.gradingScale.name : "Numeric Scoring Only"}</span>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-50 mt-auto">
+                        <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-100 mt-auto">
                             <Link href={`/admin/exams/offline/${exam._id}/marks`} className="col-span-2">
-                                <Button className="w-full font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
-                                    <FileSpreadsheet size={16} className="mr-2" />
+                                <Button className="w-full font-bold bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+                                    <FileSpreadsheet size={14} className="mr-1.5" />
                                     Manage Marks
                                 </Button>
                             </Link>
 
                             {exam.status === 'published' && (
                                 <Link href={`/admin/exams/offline/${exam._id}/reports`} className="col-span-2">
-                                    <Button variant="outline" className="w-full font-bold text-indigo-600 border-indigo-600/20 hover:bg-indigo-50">
-                                        <FileText size={16} className="mr-2" />
+                                    <Button variant="outline" className="w-full font-bold text-indigo-600 border-indigo-200 hover:bg-indigo-50 text-xs">
+                                        <FileText size={14} className="mr-1.5" />
                                         Report Cards
                                     </Button>
                                 </Link>
                             )}
 
                             <Link href={`/admin/exams/offline/${exam._id}`}>
-                                <Button variant="outline" size="sm" className="w-full">
-                                    <Edit size={16} className="mr-2" />
+                                <Button variant="outline" size="sm" className="w-full text-xs">
+                                    <Edit size={14} className="mr-1.5" />
                                     Edit
                                 </Button>
                             </Link>
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-red-400 hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100"
+                                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
                                 onClick={() => handleDeleteOffline(exam._id)}
                             >
-                                <Trash2 size={16} />
+                                <Trash2 size={14} />
                             </Button>
                         </div>
-                    </Card>
+                    </div>
                 ))}
 
                 {((examMode === "online" && filteredOnline.length === 0) || (examMode === "offline" && filteredOffline.length === 0)) && (
-                    <div className="col-span-full py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                        <div className="w-20 h-20 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mx-auto mb-6 text-slate-300">
-                            <Archive size={40} />
+                    <div className="col-span-full py-16 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                        <div className="w-14 h-14 bg-white rounded-lg border border-slate-200 flex items-center justify-center mx-auto mb-4 text-slate-400">
+                            <Archive size={28} />
                         </div>
-                        <h3 className="text-xl font-bold text-slate-800 mb-2">No {activeTab} {examMode} exams found</h3>
-                        <p className="text-slate-500 mb-8 max-w-sm mx-auto">
+                        <h3 className="text-base font-bold text-slate-900 mb-1">No {activeTab} {examMode} exams found</h3>
+                        <p className="text-xs text-slate-500 mb-6 max-w-sm mx-auto">
                             {activeTab === 'upcoming'
                                 ? `Get started by creating a new ${examMode} exam assessment.`
                                 : "Closed exams will appear here once archived or published."}
                         </p>
                         {activeTab === 'upcoming' && (
                             <Link href={examMode === "online" ? "/admin/exams/create" : "/admin/exams/offline/create"}>
-                                <Button size="lg" className="shadow-lg shadow-premium-blue/20">
-                                    <Plus size={20} className="mr-2" />
+                                <Button size="md" className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs">
+                                    <Plus size={16} className="mr-1.5" />
                                     Create New Exam
                                 </Button>
                             </Link>
@@ -349,7 +348,7 @@ export default function ExamListPage() {
             {/* Help Modal */}
             {showHelpModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
-                    <Card className="w-full max-w-2xl max-h-[85vh] overflow-y-auto flex flex-col">
+                    <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto flex flex-col bg-white rounded-xl shadow-2xl border border-slate-100">
                         <div className="flex justify-between items-center p-6 border-b border-slate-100 sticky top-0 bg-white z-10">
                             <div>
                                 <h2 className="text-xl font-bold text-slate-900">How to use Offline Exams</h2>
@@ -380,7 +379,7 @@ export default function ExamListPage() {
                         <div className="p-6 border-t border-slate-100 bg-slate-50 sticky bottom-0 flex justify-end">
                             <Button onClick={() => setShowHelpModal(false)}>Got it, thanks!</Button>
                         </div>
-                    </Card>
+                    </div>
                 </div>
             )}
         </div>

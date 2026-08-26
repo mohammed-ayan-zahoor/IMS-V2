@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Badge from "@/components/ui/Badge";
@@ -972,8 +971,8 @@ export default function StudentsPage() {
                 </div>
             </div>
 
-            <Card className="overflow-hidden border-none shadow-premium">
-                <CardHeader className="flex-col md:flex-row items-stretch md:items-center gap-4 space-y-0 bg-[#F9FAFB]/50 border-b border-slate-100">
+            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
                     <div className="flex flex-wrap items-center gap-3 w-full">
                         <div className="min-w-[160px] max-w-xs">
                             <Select
@@ -1062,8 +1061,8 @@ export default function StudentsPage() {
                             </Button>
                         </div>
                     </div>
-                </CardHeader>
-                <CardContent className="p-0">
+                </div>
+                <div>
                     {loading ? (
                         <LoadingSpinner />
                     ) : students.length > 0 ? (
@@ -1259,8 +1258,8 @@ export default function StudentsPage() {
                             onAction={() => setIsAddModalOpen(true)}
                         />
                     )}
-                </CardContent>
-            </Card >
+                </div>
+            </div>
 
             {/* Add Student Modal ... */}
             <Modal

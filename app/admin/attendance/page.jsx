@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
 import Button from "@/components/ui/Button";
-import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
@@ -319,129 +318,127 @@ export default function AttendanceMarkingPage() {
             </div>
 
             {/* Selection Area */}
-            <Card className="border-transparent shadow-sm bg-white overflow-visible">
-                <CardContent className="p-6 overflow-visible">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select {isSchool ? "Class" : "Course"}</label>
-                            <Select
-                                value={selectedCourse}
-                                onChange={(val) => {
-                                    setSelectedCourse(val);
-                                    setSelectedBatch(""); // Reset batch when course changes
-                                }}
-                                placeholder={`-- Choose ${isSchool ? "Class" : "Course"} --`}
-                                options={[
-                                    { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
-                                    ...courses.map(c => ({ label: c.name, value: c._id }))
-                                ]}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select {isSchool ? "Section" : "Batch"}</label>
-                            <Select
-                                value={selectedBatch}
-                                onChange={(val) => setSelectedBatch(val)}
-                                placeholder={!selectedCourse && isSchool ? `Select a ${isSchool ? "Class" : "Course"} first` : `-- Choose ${isSchool ? "Section" : "Batch"} --`}
-                                options={[
-                                    ...batches
-                                        .filter(b => {
-                                            // 1. Session Isolation (for Schools only)
-                                            const matchesSession = !isSchool || !selectedSessionId || 
-                                                (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
-                                            
-                                            // 2. Course/Class Cascading
-                                            const batchCourseId = b.course?._id || b.course;
-                                            const matchesCourse = !selectedCourse || batchCourseId === selectedCourse;
-                                            
-                                            return matchesSession && matchesCourse;
-                                        })
-                                        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
-                                        .map(b => ({ label: b.name, value: b._id }))
-                                ]}
-                                disabled={!selectedCourse && isSchool}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Date</label>
-                            <Input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-slate-50"
-                            />
-                        </div>
+            <div className="bg-white rounded-lg border border-slate-100 p-5 overflow-visible">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select {isSchool ? "Class" : "Course"}</label>
+                        <Select
+                            value={selectedCourse}
+                            onChange={(val) => {
+                                setSelectedCourse(val);
+                                setSelectedBatch(""); // Reset batch when course changes
+                            }}
+                            placeholder={`-- Choose ${isSchool ? "Class" : "Course"} --`}
+                            options={[
+                                { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
+                                ...courses.map(c => ({ label: c.name, value: c._id }))
+                            ]}
+                        />
                     </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select {isSchool ? "Section" : "Batch"}</label>
+                        <Select
+                            value={selectedBatch}
+                            onChange={(val) => setSelectedBatch(val)}
+                            placeholder={!selectedCourse && isSchool ? `Select a ${isSchool ? "Class" : "Course"} first` : `-- Choose ${isSchool ? "Section" : "Batch"} --`}
+                            options={[
+                                ...batches
+                                    .filter(b => {
+                                        // 1. Session Isolation (for Schools only)
+                                        const matchesSession = !isSchool || !selectedSessionId || 
+                                            (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
+                                        
+                                        // 2. Course/Class Cascading
+                                        const batchCourseId = b.course?._id || b.course;
+                                        const matchesCourse = !selectedCourse || batchCourseId === selectedCourse;
+                                        
+                                        return matchesSession && matchesCourse;
+                                    })
+                                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+                                    .map(b => ({ label: b.name, value: b._id }))
+                            ]}
+                            disabled={!selectedCourse && isSchool}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Date</label>
+                        <Input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="bg-slate-50"
+                        />
+                    </div>
+                </div>
 
-                    {attMode === 'checkin_checkout' && (
-                        <div className="flex flex-wrap items-center gap-3 pt-4 mt-4 border-t border-slate-100">
-                            <span className="text-xs font-bold text-slate-500">Marking Slot:</span>
-                            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedSlot('checkin')}
-                                    className={cn(
-                                        "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-                                        selectedSlot === 'checkin'
-                                            ? "bg-emerald-600 text-white shadow-xs"
-                                            : "text-slate-600 hover:text-slate-900"
-                                    )}
-                                >
-                                    ☀️ Check-In (Morning)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedSlot('checkout')}
-                                    className={cn(
-                                        "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-                                        selectedSlot === 'checkout'
-                                            ? "bg-indigo-600 text-white shadow-xs"
-                                            : "text-slate-600 hover:text-slate-900"
-                                    )}
-                                >
-                                    🌙 Check-Out (Evening)
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {periodMode === 'per_period' && (
-                        <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-slate-100">
-                            <span className="text-xs font-bold text-slate-500 mr-1">Period Slot:</span>
+                {attMode === 'checkin_checkout' && (
+                    <div className="flex flex-wrap items-center gap-3 pt-4 mt-4 border-t border-slate-100">
+                        <span className="text-xs font-bold text-slate-500">Marking Slot:</span>
+                        <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-md border border-slate-200">
                             <button
                                 type="button"
-                                onClick={() => setSelectedPeriodId('')}
+                                onClick={() => setSelectedSlot('checkin')}
                                 className={cn(
-                                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
-                                    !selectedPeriodId ? "bg-slate-900 text-white border-slate-900" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                    "px-3 py-1 rounded text-xs font-bold transition-all",
+                                    selectedSlot === 'checkin'
+                                        ? "bg-emerald-600 text-white shadow-xs"
+                                        : "text-slate-600 hover:text-slate-900"
                                 )}
                             >
-                                All / Whole Day
+                                ☀️ Check-In (Morning)
                             </button>
-                            {timetableSlots.map(s => (
-                                <button
-                                    key={s._id}
-                                    type="button"
-                                    onClick={() => setSelectedPeriodId(s._id)}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
-                                        selectedPeriodId === s._id ? "bg-indigo-600 text-white border-indigo-600 shadow-xs" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                                    )}
-                                >
-                                    {s.name} ({s.startTime}-{s.endTime})
-                                </button>
-                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setSelectedSlot('checkout')}
+                                className={cn(
+                                    "px-3 py-1 rounded text-xs font-bold transition-all",
+                                    selectedSlot === 'checkout'
+                                        ? "bg-indigo-600 text-white shadow-xs"
+                                        : "text-slate-600 hover:text-slate-900"
+                                )}
+                            >
+                                🌙 Check-Out (Evening)
+                            </button>
                         </div>
-                    )}
-                </CardContent>
-            </Card>
+                    </div>
+                )}
+
+                {periodMode === 'per_period' && (
+                    <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 mr-1">Period Slot:</span>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedPeriodId('')}
+                            className={cn(
+                                "px-3 py-1 rounded text-xs font-bold transition-all border",
+                                !selectedPeriodId ? "bg-slate-900 text-white border-slate-900" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                            )}
+                        >
+                            All / Whole Day
+                        </button>
+                        {timetableSlots.map(s => (
+                            <button
+                                key={s._id}
+                                type="button"
+                                onClick={() => setSelectedPeriodId(s._id)}
+                                className={cn(
+                                    "px-3 py-1 rounded text-xs font-bold transition-all border",
+                                    selectedPeriodId === s._id ? "bg-indigo-600 text-white border-indigo-600 shadow-xs" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                )}
+                            >
+                                {s.name} ({s.startTime}-{s.endTime})
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {/* Main Content */}
             {selectedBatch ? (
                 loading ? (
                     <LoadingSpinner />
                 ) : filteredStudents.length > 0 ? (
-                    <Card className="border-transparent shadow-sm">
+                    <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
                         {/* Mobile Native Card Stack View (< md) */}
                         <div className="block md:hidden">
                             <MobileAttendanceCardStack
@@ -456,34 +453,34 @@ export default function AttendanceMarkingPage() {
 
                         {/* Desktop Table View (>= md) */}
                         <div className="hidden md:block">
-                        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-50 pb-4">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
                             <div className="relative group max-w-sm w-full">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-premium-blue transition-colors" size={18} />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-premium-blue transition-colors" size={16} />
                                 <input
                                     type="text"
                                     placeholder="Search student..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-2 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
+                                    className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-4 py-2 outline-none focus:border-slate-400 transition-colors text-xs font-medium"
                                 />
                             </div>
                             <div className="flex items-center gap-2">
-                                <Button variant="outline" size="sm" onClick={() => markAll('present')} className="text-emerald-600 border-emerald-100 hover:bg-emerald-50">
-                                    <CheckCircle2 size={16} className="mr-2" /> Mark All Present
+                                <Button variant="outline" size="sm" onClick={() => markAll('present')} className="text-emerald-600 border-emerald-200 hover:bg-emerald-50">
+                                    <CheckCircle2 size={15} className="mr-1.5" /> Mark All Present
                                 </Button>
-                                <Button variant="outline" size="sm" onClick={() => markAll('absent')} className="text-red-600 border-red-100 hover:bg-red-50">
-                                    <XCircle size={16} className="mr-2" /> Mark All Absent
+                                <Button variant="outline" size="sm" onClick={() => markAll('absent')} className="text-red-600 border-red-200 hover:bg-red-50">
+                                    <XCircle size={15} className="mr-1.5" /> Mark All Absent
                                 </Button>
-                                <Button variant="outline" size="sm" onClick={() => markAll('holiday')} className="text-indigo-600 border-indigo-100 hover:bg-indigo-50">
-                                    <Calendar size={16} className="mr-2" /> Mark All Holiday
+                                <Button variant="outline" size="sm" onClick={() => markAll('holiday')} className="text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+                                    <Calendar size={15} className="mr-1.5" /> Mark All Holiday
                                 </Button>
-                                <Button onClick={handleSave} disabled={saving} className="bg-premium-blue hover:bg-premium-blue/90 shadow-lg shadow-blue-500/20">
-                                    {saving ? "Saving..." : <><Save size={18} className="mr-2" /> Save Attendance</>}
+                                <Button onClick={handleSave} disabled={saving} className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs">
+                                    {saving ? "Saving..." : <><Save size={15} className="mr-1.5" /> Save Attendance</>}
                                 </Button>
                             </div>
-                        </CardHeader>
+                        </div>
 
-                        <CardContent className="p-0">
+                        <div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
@@ -558,9 +555,9 @@ export default function AttendanceMarkingPage() {
                                     </tbody>
                                 </table>
                             </div>
-                        </CardContent>
                         </div>
-                    </Card>
+                        </div>
+                    </div>
                 ) : (
                     <EmptyState
                         icon={Users}
