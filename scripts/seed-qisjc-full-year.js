@@ -220,12 +220,15 @@ async function seedFullYear() {
         }
         console.log(`✓ Fee Invoicing complete (Created: ${feesCreated}, Updated: ${feesUpdated}).`);
 
-        // 7. Generate Exams & Marksheets (Quarterly, Mid-Term, Annual Final)
-        console.log(`\nCreating 3 Full-Year Exam Milestones & Scoring All Students...`);
+        // 7. Generate Exams & Marksheets (FA1, FA2, SA1, FA3, FA4, SA2)
+        console.log(`\nCreating 6 Complete Exam Milestones (FA1, FA2, SA1, FA3, FA4, SA2) & Scoring All Students...`);
         const examDefinitions = [
-            { title: 'Term 1 Quarterly Exam (2025)', examType: 'quarterly', date: new Date('2025-09-20'), maxMarks: 50, passMarks: 18 },
-            { title: 'Half-Yearly Mid-Term Exam (2025)', examType: 'half_yearly', date: new Date('2025-12-18'), maxMarks: 100, passMarks: 35 },
-            { title: 'Annual Final Exam (2026)', examType: 'annual', date: new Date('2026-03-24'), maxMarks: 100, passMarks: 35 }
+            { key: 'FA1', title: 'FA-1 (Formative Assessment 1)', examType: 'unit_test', date: new Date('2025-07-22'), maxMarks: 25, passMarks: 9 },
+            { key: 'FA2', title: 'FA-2 (Formative Assessment 2)', examType: 'unit_test', date: new Date('2025-08-28'), maxMarks: 25, passMarks: 9 },
+            { key: 'SA1', title: 'SA-1 (Summative Assessment 1 / Term 1)', examType: 'half_yearly', date: new Date('2025-10-14'), maxMarks: 80, passMarks: 28 },
+            { key: 'FA3', title: 'FA-3 (Formative Assessment 3)', examType: 'unit_test', date: new Date('2025-12-16'), maxMarks: 25, passMarks: 9 },
+            { key: 'FA4', title: 'FA-4 (Formative Assessment 4)', examType: 'unit_test', date: new Date('2026-02-10'), maxMarks: 25, passMarks: 9 },
+            { key: 'SA2', title: 'SA-2 (Summative Assessment 2 / Annual Final)', examType: 'annual', date: new Date('2026-03-24'), maxMarks: 80, passMarks: 28 }
         ];
 
         let resultsCreated = 0;
@@ -238,11 +241,12 @@ async function seedFullYear() {
             const batchIds = courseBatches.map(b => b._id);
 
             for (const def of examDefinitions) {
+                const examTitle = `${def.title} - ${course.name}`;
                 let offlineExam = await OfflineExam.findOne({
                     institute: instId,
                     course: course._id,
                     session: sessionCurrent._id,
-                    examType: def.examType,
+                    title: examTitle,
                     deletedAt: null
                 });
 
@@ -255,7 +259,7 @@ async function seedFullYear() {
 
                 if (!offlineExam) {
                     offlineExam = await OfflineExam.create({
-                        title: `${def.title} - ${course.name}`,
+                        title: examTitle,
                         institute: instId,
                         course: course._id,
                         session: sessionCurrent._id,
