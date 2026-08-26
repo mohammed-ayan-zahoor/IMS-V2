@@ -17,7 +17,6 @@ import {
     Info
 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
@@ -201,23 +200,23 @@ export default function CourseSubjectsPage({ params: paramsPromise }) {
                 </div>
             </div>
 
-            <Card className="overflow-hidden border-none shadow-premium">
-                <CardHeader className="flex flex-row items-center justify-between bg-[#F9FAFB]/50 border-b border-slate-100">
+            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                <div className="flex flex-row items-center justify-between p-4 bg-[#F9FAFB] border-b border-slate-100">
                     <div className="relative w-full max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                             type="text"
                             placeholder="Search assigned subjects..."
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-premium-blue/40 focus:ring-4 focus:ring-premium-blue/5 transition-all"
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-md text-xs outline-none focus:border-slate-400 transition-colors"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <Badge variant="secondary" className="px-3 py-1">
+                    <Badge variant="secondary" className="px-2.5 py-0.5 text-xs font-bold bg-slate-100 text-slate-600">
                         {subjects.length} Subjects Linked
                     </Badge>
-                </CardHeader>
-                <CardContent className="p-0">
+                </div>
+                <div>
                     {loading ? (
                         <div className="p-12 flex justify-center"><LoadingSpinner /></div>
                     ) : filteredSubjects.length > 0 ? (
@@ -300,8 +299,8 @@ export default function CourseSubjectsPage({ params: paramsPromise }) {
                             }}
                         />
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             <Modal
                 isOpen={isAssignModalOpen}

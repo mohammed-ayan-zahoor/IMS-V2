@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Card from "@/components/ui/Card";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { History, User, Activity, Clock } from "lucide-react";
 import { format } from "date-fns";
@@ -34,16 +33,16 @@ export default function AuditLogsPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                <div className="bg-premium-blue/10 p-3 rounded-xl text-premium-blue">
-                    <History size={24} />
+                <div className="bg-blue-50/70 p-2.5 rounded-lg text-blue-600 border border-blue-100/70">
+                    <History size={20} />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-black text-slate-900">Audit Logs</h1>
-                    <p className="text-slate-500">System activity and security trail.</p>
+                    <h1 className="text-2xl font-bold text-slate-900">Audit Logs</h1>
+                    <p className="text-xs text-slate-500 font-medium">System activity and security trail.</p>
                 </div>
             </div>
 
-            <Card className="border-transparent shadow-sm">
+            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead className="bg-slate-50/50 border-b border-slate-100">
@@ -107,7 +106,7 @@ export default function AuditLogsPage() {
                         </tbody>
                     </table>
                 </div>
-            </Card>
+            </div>
         </div>
     );
 }

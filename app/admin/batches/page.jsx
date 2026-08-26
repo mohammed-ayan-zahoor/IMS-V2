@@ -26,7 +26,6 @@ import {
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
 import Button from "@/components/ui/Button";
-import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
@@ -310,8 +309,8 @@ export default function BatchesPage() {
                 )}
             </div>
 
-            <Card className="overflow-hidden border-none shadow-premium">
-                <CardHeader className="flex-col md:flex-row items-stretch md:items-center gap-4 space-y-0 bg-[#F9FAFB]/50 border-b border-slate-100">
+            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
                     <div className="flex flex-wrap items-center gap-3 w-full">
                         {institutes.length > 0 && (
                             <div className="min-w-[200px]">
@@ -338,14 +337,14 @@ export default function BatchesPage() {
                         </div>
                         {/* Type Filter — Vocational only */}
                         {isVocational && (
-                            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1">
+                            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-md p-0.5">
                                 {[{v: "all", label: "All"}, {v: "course", label: "Courses"}, {v: "bundle", label: "🎁 Bundles"}].map(({v, label}) => (
                                     <button
                                         key={v}
                                         onClick={() => setListFilter(v)}
                                         className={cn(
-                                            "px-3 py-1.5 text-xs font-bold rounded-md transition-all",
-                                            listFilter === v ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
+                                            "px-2.5 py-1 text-xs font-bold rounded transition-all",
+                                            listFilter === v ? "bg-slate-900 text-white shadow-xs" : "text-slate-500 hover:bg-slate-50"
                                         )}
                                     >{label}</button>
                                 ))}
@@ -356,9 +355,9 @@ export default function BatchesPage() {
                             {filteredBatches.length} Active {isSchool ? "Sections" : "Batches"}
                         </Badge>
                     </div>
-                </CardHeader>
+                </div>
 
-                <CardContent className="p-0">
+                <div>
                     {loading ? (
                         <div className="p-12 flex justify-center"><LoadingSpinner /></div>
                     ) : filteredBatches.length > 0 ? (
@@ -509,8 +508,8 @@ export default function BatchesPage() {
                             onAction={() => setIsAddModalOpen(true)}
                         />
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             <Modal
                 isOpen={isAddModalOpen}

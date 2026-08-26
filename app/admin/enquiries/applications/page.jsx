@@ -8,7 +8,6 @@ import {
     ChevronDown, Eye, GraduationCap, MapPin, Users
 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
@@ -209,73 +208,73 @@ export default function AdmissionApplicationsPage() {
                 </div>
             </div>
 
-            {/* Public Link Card */}
-            <Card className="bg-gradient-to-r from-premium-blue/5 to-indigo-500/5 border-premium-blue/10">
-                <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row items-center gap-6">
-                        <div className="p-4 bg-white rounded-2xl shadow-sm border border-premium-blue/10 shrink-0">
-                            <LinkIcon className="text-premium-blue" size={32} />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                            <h3 className="text-lg font-bold text-slate-800">Your Shareable Admission Link</h3>
-                            <p className="text-sm text-slate-500 font-medium">Copy this link and send it to potential students to collect their admission details.</p>
-                            <div className="mt-3 flex items-center gap-2">
-                                <div className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-400 text-sm font-mono truncate shadow-inner min-h-[40px] flex items-center">
-                                    {publicFormUrl || <span className="animate-pulse">Generating Link...</span>}
-                                </div>
-                                <Button 
-                                    onClick={copyToClipboard}
-                                    variant="outline"
-                                    disabled={!publicFormUrl}
-                                    className={isLinkCopied ? "border-emerald-500 text-emerald-600 bg-emerald-50" : ""}
-                                >
-                                    {isLinkCopied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
-                                    {isLinkCopied ? "Copied" : "Copy Link"}
-                                </Button>
-                                <Button 
-                                    variant="ghost" 
-                                    onClick={handleOpenLink}
-                                    disabled={!publicFormUrl}
-                                    className="text-slate-400 hover:text-premium-blue"
-                                >
-                                    <ExternalLink size={18} />
-                                </Button>
+            {/* Public Link Panel */}
+            <div className="bg-blue-50/60 border border-blue-100/70 rounded-lg p-5">
+                <div className="flex flex-col md:flex-row items-center gap-5">
+                    <div className="p-3 bg-white rounded-lg border border-blue-100 shrink-0 text-blue-600">
+                        <LinkIcon size={24} />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                        <h3 className="text-base font-bold text-slate-900">Your Shareable Admission Link</h3>
+                        <p className="text-xs text-slate-500 font-medium">Copy this link and send it to potential students to collect their admission details.</p>
+                        <div className="mt-2.5 flex items-center gap-2">
+                            <div className="flex-1 bg-white border border-slate-200 rounded-md px-3.5 py-1.5 text-slate-600 text-xs font-mono truncate min-h-[36px] flex items-center">
+                                {publicFormUrl || <span className="animate-pulse text-slate-400">Generating Link...</span>}
                             </div>
+                            <Button 
+                                onClick={copyToClipboard}
+                                variant="outline"
+                                size="sm"
+                                disabled={!publicFormUrl}
+                                className={isLinkCopied ? "border-emerald-500 text-emerald-600 bg-emerald-50 text-xs" : "text-xs"}
+                            >
+                                {isLinkCopied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
+                                {isLinkCopied ? "Copied" : "Copy Link"}
+                            </Button>
+                            <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={handleOpenLink}
+                                disabled={!publicFormUrl}
+                                className="text-slate-400 hover:text-blue-600"
+                            >
+                                <ExternalLink size={16} />
+                            </Button>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             {/* Submissions Table */}
-            <Card className="border-transparent shadow-sm">
-                <CardHeader className="flex-col md:flex-row items-stretch md:items-center gap-4">
+            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
                     <div className="flex-1 relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/50 group-focus-within:text-premium-blue transition-colors" size={18} />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                             type="text"
                             placeholder="Search by name, email or course..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
+                            className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-4 py-2 outline-none focus:border-slate-400 transition-colors text-xs font-medium"
                         />
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                         {['pending', 'converted', 'cancelled'].map(status => (
                             <button
                                 key={status}
                                 onClick={() => setStatusFilter(status)}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all ${
+                                className={`px-3 py-1.5 rounded text-xs font-bold capitalize transition-all ${
                                     statusFilter === status 
-                                    ? "bg-premium-blue text-white shadow-md shadow-blue-500/20" 
-                                    : "bg-slate-50 text-slate-400 border border-slate-100 hover:bg-slate-100"
+                                    ? "bg-slate-900 text-white shadow-xs" 
+                                    : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
                                 }`}
                             >
                                 {status}
                             </button>
                         ))}
                     </div>
-                </CardHeader>
-                <CardContent className="p-0">
+                </div>
+                <div>
                     {loading ? (
                         <div className="p-20 flex justify-center"><LoadingSpinner /></div>
                     ) : filteredApplications.length > 0 ? (
@@ -372,8 +371,8 @@ export default function AdmissionApplicationsPage() {
                             <p className="text-slate-400 max-w-xs mx-auto mt-2">Share your admission link to start receiving applications.</p>
                         </div>
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             {/* Application Detail Modal */}
             <Modal

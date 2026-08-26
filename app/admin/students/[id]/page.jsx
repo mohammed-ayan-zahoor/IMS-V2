@@ -1504,10 +1504,10 @@ export default function StudentDetailsPage({ params }) {
                 </div>
             </div>
 
-            {/* Profile Header Card */}
-            <Card className="border-transparent shadow-sm bg-gradient-to-r from-white to-slate-50">
-                <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8 items-start">
-                    <div className="w-24 h-24 rounded-2xl bg-premium-blue/10 flex items-center justify-center text-premium-blue text-4xl font-bold border border-premium-blue/20 shadow-blue-500/10 shadow-lg overflow-hidden shrink-0 relative group">
+            {/* Profile Header */}
+            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                <div className="p-6 flex flex-col md:flex-row gap-6 items-start">
+                    <div className="w-20 h-20 rounded-lg bg-blue-50/70 text-blue-600 font-bold border border-blue-100/70 flex items-center justify-center text-3xl shrink-0 relative group overflow-hidden">
                         {student.profile?.avatar ? (
                             <img src={student.profile.avatar} alt={student.fullName} className="w-full h-full object-cover" />
                         ) : (
@@ -1518,27 +1518,27 @@ export default function StudentDetailsPage({ params }) {
                             className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                             title="Change Photo"
                         >
-                            <Edit size={24} className="text-white" />
+                            <Edit size={20} className="text-white" />
                         </button>
                     </div>
-                    <div className="flex-1 space-y-2">
+                    <div className="flex-1 space-y-1.5">
                         <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-black text-slate-900 tracking-tight">{student.fullName}</h1>
-                            <Badge variant={student.isActive ? "success" : "danger"} className="text-xs px-2.5 py-0.5">
+                            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{student.fullName}</h1>
+                            <Badge variant={student.isActive ? "success" : "danger"} className="text-[10px] px-2 py-0.5 font-bold">
                                 {student.isActive ? "Active Student" : "Inactive"}
                             </Badge>
                         </div>
-                        <div className="flex flex-wrap gap-4 text-sm text-slate-500 font-medium mt-2">
-                            <div className="flex items-center gap-2">
-                                <Mail size={14} />
+                        <div className="flex flex-wrap gap-4 text-xs text-slate-500 font-medium mt-1">
+                            <div className="flex items-center gap-1.5">
+                                <Mail size={13} className="text-slate-400" />
                                 <span>{student.email}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Shield size={14} />
+                            <div className="flex items-center gap-1.5">
+                                <Shield size={13} className="text-slate-400" />
                                 <span className="font-mono">{student.enrollmentNumber || "PENDING"}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Calendar size={14} />
+                            <div className="flex items-center gap-1.5">
+                                <Calendar size={13} className="text-slate-400" />
                                 <span>Joined {student.createdAt ? format(new Date(student.createdAt), "MMM yyyy") : "N/A"}</span>
                             </div>
                         </div>
@@ -1546,8 +1546,7 @@ export default function StudentDetailsPage({ params }) {
                 </div>
 
                 {/* Tabs */}
-                {/* ... existing tabs code ... */}
-                <div className="flex border-t border-slate-100 px-6">
+                <div className="flex border-t border-slate-100 px-4 overflow-x-auto">
                     {["profile", "academic", "financial", "attendance", "follow-ups", "documents", "timeline"]
                         .filter(tab => {
                             if (tab === 'financial' && session?.user?.role === 'instructor') return false;
@@ -1558,25 +1557,25 @@ export default function StudentDetailsPage({ params }) {
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`px-6 py-4 text-sm font-bold uppercase tracking-wide border-b-2 transition-all ${activeTab === tab
-                                    ? "border-premium-blue text-premium-blue"
-                                    : "border-transparent text-slate-400 hover:text-slate-600"
+                                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all whitespace-nowrap ${activeTab === tab
+                                    ? "border-slate-900 text-slate-900"
+                                    : "border-transparent text-slate-400 hover:text-slate-700"
                                     }`}
                             >
                                 {tab}
                             </button>
                         ))}
                 </div>
-            </Card>
+            </div>
 
             {/* Tab Content */}
             <div className="animate-fade-in">
                 {activeTab === "profile" && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
-                                <div className="space-y-6">
-                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
-                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Contact & Address</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
+                        <div className="space-y-6">
+                                    <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100">
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Contact & Address</h3>
                                         </div>
                                         <div className="p-5 space-y-1">
                                             <InfoRow icon={Mail} label="Email Address" value={student.email} />
@@ -1587,9 +1586,9 @@ export default function StudentDetailsPage({ params }) {
                                         </div>
                                     </div>
 
-                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
-                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Identity & Academic IDs</h3>
+                                    <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100">
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Identity & Academic IDs</h3>
                                         </div>
                                         <div className="p-5 space-y-1">
                                             <InfoRow icon={Shield} label="G.R. Number" value={student.grNumber} />
@@ -1600,9 +1599,9 @@ export default function StudentDetailsPage({ params }) {
                                         </div>
                                     </div>
 
-                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
-                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Birth & Origin</h3>
+                                    <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100">
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Birth & Origin</h3>
                                         </div>
                                         <div className="p-5 space-y-1">
                                             <InfoRow icon={Calendar} label="Date of Birth" value={student.profile?.dateOfBirth ? format(new Date(student.profile.dateOfBirth), "dd MMM yyyy") : null} />
@@ -1616,9 +1615,9 @@ export default function StudentDetailsPage({ params }) {
                                 </div>
 
                                 <div className="space-y-6">
-                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
-                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Parents Info</h3>
+                                    <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100">
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Parents Info</h3>
                                         </div>
                                         <div className="p-5 space-y-1">
                                             <InfoRow icon={User} label="Father's Name" value={student.fatherName} />
@@ -1632,9 +1631,9 @@ export default function StudentDetailsPage({ params }) {
                                         </div>
                                     </div>
 
-                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
-                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Cultural Profile</h3>
+                                    <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100">
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Cultural Profile</h3>
                                         </div>
                                         <div className="p-5 space-y-1">
                                             <InfoRow icon={MessageSquare} label="Mother Tongue" value={student.motherTongue} />
@@ -1644,24 +1643,24 @@ export default function StudentDetailsPage({ params }) {
                                         </div>
                                     </div>
 
-                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
-                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Entrance & Admission</h3>
+                                    <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                                        <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100">
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Entrance & Admission</h3>
                                         </div>
                                         <div className="p-5 space-y-1">
                                             <InfoRow icon={Calendar} label="Admission Date" value={student.admissionDate ? format(new Date(student.admissionDate), "dd MMM yyyy") : null} />
                                             <InfoRow icon={BookOpen} label="Admission Std" value={student.admissionStd} />
                                             <InfoRow icon={History} label="Last School" value={student.lastSchoolAttended} />
                                             <InfoRow icon={UserPlus} label="Referred By" value={student.referredBy} />
-                                    </div>
-                                </div>
-
-                                {isRteEnabled && (student.rte?.isRte || student.scholarship?.hasScholarship) && (
-                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                                        <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
-                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">RTE & Scholarship Info</h3>
                                         </div>
-                                        <div className="p-5 space-y-1">
+                                    </div>
+
+                                    {isRteEnabled && (student.rte?.isRte || student.scholarship?.hasScholarship) && (
+                                        <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                                            <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100">
+                                                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">RTE & Scholarship Info</h3>
+                                            </div>
+                                            <div className="p-5 space-y-1">
                                             {student.rte?.isRte && (
                                                 <>
                                                     <InfoRow icon={Shield} label="RTE Status" value="Admitted under RTE Quota" />
@@ -1685,21 +1684,21 @@ export default function StudentDetailsPage({ params }) {
                                 )}
 
                                 {isTransportEnabled && student.transport?.isAvailing && (
-                                    <div className="premium-card p-6">
+                                    <div className="bg-white rounded-lg border border-slate-100 p-6 col-span-full">
                                         <div className="flex items-center gap-3 mb-6">
-                                            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
-                                                <Car size={20} />
+                                            <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                                                <Car size={18} />
                                             </div>
                                             <div>
                                                 <h3 className="font-bold text-slate-900 flex items-center gap-2">
                                                     Transport Details
                                                     {(session?.user?.institute?.settings?.features?.bundleTransportInBaseFee || session?.user?.institute?.settings?.features?.combinedCourseFees) && (
-                                                        <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5 font-black uppercase tracking-wider">
+                                                        <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-2 py-0.5 font-bold uppercase tracking-wider">
                                                             Bundled in Base Fee
                                                         </span>
                                                     )}
                                                 </h3>
-                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">Active Assignment</p>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Active Assignment</p>
                                             </div>
                                         </div>
 
