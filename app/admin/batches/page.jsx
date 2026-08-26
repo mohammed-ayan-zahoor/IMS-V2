@@ -240,14 +240,18 @@ export default function BatchesPage() {
     };
 
     const filteredBatches = batches.filter(batch => {
-        const matchesSearch = batch.name?.toLowerCase().includes(search.toLowerCase()) ||
-                              batch.course?.name?.toLowerCase().includes(search.toLowerCase()) ||
-                              batch.courseBundle?.title?.toLowerCase().includes(search.toLowerCase());
+        const query = search.trim().toLowerCase();
+        const matchesSearch = !query ||
+                              batch.name?.toLowerCase().includes(query) ||
+                              batch.course?.name?.toLowerCase().includes(query) ||
+                              batch.courseBundle?.title?.toLowerCase().includes(query);
         // Session Isolation (Strictly for Schools)
         const isVocType = session?.user?.institute?.type === 'VOCATIONAL';
-        const matchesSession = isSchool && selectedSessionId && !isVocType
-            ? (batch.session === selectedSessionId || batch.session?._id === selectedSessionId || !batch.session)
-            : true;
+        const batchSessionStr = String(batch.session?._id || batch.session || '');
+        const currentSessionStr = String(selectedSessionId || '');
+        const matchesSession = (!isSchool || !selectedSessionId || isVocType)
+            ? true
+            : (!batchSessionStr || batchSessionStr === currentSessionStr);
         // Type filter
         const matchesType = listFilter === "all" ? true
             : listFilter === "bundle" ? !!batch.courseBundle

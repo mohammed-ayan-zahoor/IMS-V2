@@ -355,6 +355,7 @@ export class BatchService {
             .populate('courseBundle', 'title code bundlePrice courses')
             .populate('enrolledStudents.student', 'profile.firstName profile.lastName enrollmentNumber')
             .populate('instructor', 'profile.firstName profile.lastName')
+            .populate('session', 'sessionName')
             .sort({ 'schedule.startDate': -1 });
 
         return batches.map(b => b.toObject({ virtuals: true }));

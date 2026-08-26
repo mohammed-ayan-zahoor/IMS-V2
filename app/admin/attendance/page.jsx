@@ -345,12 +345,13 @@ export default function AttendanceMarkingPage() {
                                 ...batches
                                     .filter(b => {
                                         // 1. Session Isolation (for Schools only)
-                                        const matchesSession = !isSchool || !selectedSessionId || 
-                                            (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
+                                        const batchSessionStr = String(b.session?._id || b.session || '');
+                                        const currentSessionStr = String(selectedSessionId || '');
+                                        const matchesSession = !isSchool || !selectedSessionId || !batchSessionStr || batchSessionStr === currentSessionStr;
                                         
                                         // 2. Course/Class Cascading
-                                        const batchCourseId = b.course?._id || b.course;
-                                        const matchesCourse = !selectedCourse || batchCourseId === selectedCourse;
+                                        const batchCourseId = String(b.course?._id || b.course || '');
+                                        const matchesCourse = !selectedCourse || batchCourseId === String(selectedCourse);
                                         
                                         return matchesSession && matchesCourse;
                                     })
