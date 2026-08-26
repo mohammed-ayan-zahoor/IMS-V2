@@ -31,12 +31,12 @@ import { cn } from "@/lib/utils";
 import StudentSearch from "@/components/admin/StudentSearch";
 import InstructorMobileDashboard from "@/components/instructor/InstructorMobileDashboard";
 
-const StatCard = ({ title, value, icon: Icon, trend, trendType = "up" }) => (
-    <div className="bg-white rounded-lg border border-slate-100 p-5 transition-colors hover:border-slate-200">
+const StatCard = ({ title, value, icon: Icon, trend, trendType = "up", colorClass, iconColorClass }) => (
+    <div className={cn("rounded-lg border p-5 transition-colors", colorClass)}>
         <div className="flex justify-between items-start mb-3">
             <span className="section-label">{title}</span>
-            <div className="text-slate-400">
-                <Icon size={18} />
+            <div className={iconColorClass}>
+                <Icon size={20} />
             </div>
         </div>
         <div className="flex flex-col gap-1">
@@ -221,7 +221,9 @@ export default function AdminDashboard() {
             value: loading ? "0" : (dashboardData?.counts?.activeStudents || 0).toLocaleString(), 
             icon: Users, 
             trend: `${dashboardData?.trends?.student >= 0 ? '+' : ''}${dashboardData?.trends?.student || 0}%`, 
-            trendType: (dashboardData?.trends?.student || 0) >= 0 ? "up" : "down"
+            trendType: (dashboardData?.trends?.student || 0) >= 0 ? "up" : "down",
+            colorClass: "bg-blue-50/70 border-blue-100/70",
+            iconColorClass: "text-blue-600"
         },
         { 
             title: "COMPLETED", 
@@ -230,7 +232,9 @@ export default function AdminDashboard() {
             trend: dashboardData?.counts?.totalStudents > 0 
                 ? `${Math.round((dashboardData.counts.completedStudents / dashboardData.counts.totalStudents) * 100)}%`
                 : "0%",
-            trendType: "neutral"
+            trendType: "neutral",
+            colorClass: "bg-teal-50/70 border-teal-100/70",
+            iconColorClass: "text-teal-600"
         },
         { 
             title: "DROPPED", 
@@ -239,28 +243,36 @@ export default function AdminDashboard() {
             trend: dashboardData?.counts?.totalStudents > 0 
                 ? `${Math.round((dashboardData.counts.droppedStudents / dashboardData.counts.totalStudents) * 100)}%`
                 : "0%",
-            trendType: "neutral"
+            trendType: "neutral",
+            colorClass: "bg-rose-50/70 border-rose-100/70",
+            iconColorClass: "text-rose-600"
         },
         { 
             title: isSchool ? "CLASSES ENROLLED" : "ENROLLMENTS", 
             value: loading ? "0" : (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(), 
             icon: BookOpen, 
             trend: `${dashboardData?.trends?.enrollment >= 0 ? '+' : ''}${dashboardData?.trends?.enrollment || 0}%`, 
-            trendType: (dashboardData?.trends?.enrollment || 0) >= 0 ? "up" : "down"
+            trendType: (dashboardData?.trends?.enrollment || 0) >= 0 ? "up" : "down",
+            colorClass: "bg-orange-50/70 border-orange-100/70",
+            iconColorClass: "text-orange-600"
         },
         { 
             title: "ENQUIRIES", 
             value: loading ? "0" : (dashboardData?.counts?.enquiries || 0).toLocaleString(), 
             icon: MessageSquare, 
             trend: `${dashboardData?.trends?.enquiry >= 0 ? '+' : ''}${dashboardData?.trends?.enquiry || 0}%`, 
-            trendType: (dashboardData?.trends?.enquiry || 0) >= 0 ? "up" : "down"
+            trendType: (dashboardData?.trends?.enquiry || 0) >= 0 ? "up" : "down",
+            colorClass: "bg-cyan-50/70 border-cyan-100/70",
+            iconColorClass: "text-cyan-600"
         },
         { 
             title: "STAFF", 
             value: loading ? "0" : (dashboardData?.counts?.staff || 0).toLocaleString(), 
             icon: Layers3, 
             trend: "+0%", 
-            trendType: "up"
+            trendType: "up",
+            colorClass: "bg-amber-50/70 border-amber-100/70",
+            iconColorClass: "text-amber-600"
         }
     ];
 
