@@ -70,16 +70,15 @@ const BatchSchema = new Schema({
 });
 
 // Enforce: a batch must belong to either a Course or a CourseBundle — not both, not neither.
-BatchSchema.pre('validate', function (next) {
+BatchSchema.pre('validate', function () {
     const hasCourse = !!this.course;
     const hasBundle = !!this.courseBundle;
     if (!hasCourse && !hasBundle) {
-        return next(new Error('A batch must be linked to either a Course or a Course Bundle.'));
+        throw new Error('A batch must be linked to either a Course or a Course Bundle.');
     }
     if (hasCourse && hasBundle) {
-        return next(new Error('A batch cannot be linked to both a Course and a Course Bundle.'));
+        throw new Error('A batch cannot be linked to both a Course and a Course Bundle.');
     }
-    next();
 });
 
 BatchSchema.index({ course: 1, deletedAt: 1 });

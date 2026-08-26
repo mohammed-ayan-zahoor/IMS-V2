@@ -146,8 +146,8 @@ async function seedFullYear() {
         const currentBatches = await Batch.find({ institute: instId, deletedAt: null });
         for (const b of currentBatches) {
             if (!b.session) {
+                await Batch.updateOne({ _id: b._id }, { $set: { session: sessionCurrent._id } });
                 b.session = sessionCurrent._id;
-                await b.save();
             }
         }
 
