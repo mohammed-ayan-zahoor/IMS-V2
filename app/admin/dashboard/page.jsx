@@ -215,7 +215,44 @@ export default function AdminDashboard() {
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [selectedSessionId]);
 
-    const stats = [
+    const stats = isSchool ? [
+        { 
+            title: "ACTIVE STUDENTS", 
+            value: loading ? "0" : (dashboardData?.counts?.activeStudents || 0).toLocaleString(), 
+            icon: Users, 
+            trend: `${dashboardData?.trends?.student >= 0 ? '+' : ''}${dashboardData?.trends?.student || 0}%`, 
+            trendType: (dashboardData?.trends?.student || 0) >= 0 ? "up" : "down",
+            colorClass: "bg-blue-50/70 border-blue-100/70",
+            iconColorClass: "text-blue-600"
+        },
+        { 
+            title: "CLASSES ENROLLED", 
+            value: loading ? "0" : (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(), 
+            icon: BookOpen, 
+            trend: `${dashboardData?.trends?.enrollment >= 0 ? '+' : ''}${dashboardData?.trends?.enrollment || 0}%`, 
+            trendType: (dashboardData?.trends?.enrollment || 0) >= 0 ? "up" : "down",
+            colorClass: "bg-orange-50/70 border-orange-100/70",
+            iconColorClass: "text-orange-600"
+        },
+        { 
+            title: "ENQUIRIES", 
+            value: loading ? "0" : (dashboardData?.counts?.enquiries || 0).toLocaleString(), 
+            icon: MessageSquare, 
+            trend: `${dashboardData?.trends?.enquiry >= 0 ? '+' : ''}${dashboardData?.trends?.enquiry || 0}%`, 
+            trendType: (dashboardData?.trends?.enquiry || 0) >= 0 ? "up" : "down",
+            colorClass: "bg-cyan-50/70 border-cyan-100/70",
+            iconColorClass: "text-cyan-600"
+        },
+        { 
+            title: "STAFF", 
+            value: loading ? "0" : (dashboardData?.counts?.staff || 0).toLocaleString(), 
+            icon: Layers3, 
+            trend: "+0%", 
+            trendType: "up",
+            colorClass: "bg-amber-50/70 border-amber-100/70",
+            iconColorClass: "text-amber-600"
+        }
+    ] : [
         { 
             title: "ACTIVE STUDENTS", 
             value: loading ? "0" : (dashboardData?.counts?.activeStudents || 0).toLocaleString(), 
@@ -248,7 +285,7 @@ export default function AdminDashboard() {
             iconColorClass: "text-rose-600"
         },
         { 
-            title: isSchool ? "CLASSES ENROLLED" : "ENROLLMENTS", 
+            title: "ENROLLMENTS", 
             value: loading ? "0" : (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(), 
             icon: BookOpen, 
             trend: `${dashboardData?.trends?.enrollment >= 0 ? '+' : ''}${dashboardData?.trends?.enrollment || 0}%`, 
@@ -484,7 +521,10 @@ export default function AdminDashboard() {
                 )}
 
                 {/* Metric Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className={cn(
+                    "grid gap-4",
+                    isSchool ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                )}>
                     {stats.map((stat) => (
                         <StatCard key={stat.title} {...stat} />
                     ))}
@@ -619,39 +659,41 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* Student Lifecycle Overview */}
-                <div className="bg-white rounded-lg border border-slate-100 p-5">
-                    <div className="mb-4">
-                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Student Lifecycle Distribution</h3>
-                        <p className="text-xs text-slate-400 font-medium mt-0.5">Current status breakdown across entire institution</p>
+                {/* Student Lifecycle Overview - Vocational Only */}
+                {!isSchool && (
+                    <div className="bg-white rounded-lg border border-slate-100 p-5">
+                        <div className="mb-4">
+                            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Student Lifecycle Distribution</h3>
+                            <p className="text-xs text-slate-400 font-medium mt-0.5">Current status breakdown across entire institution</p>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-100 pt-2">
+                            <div className="text-center py-3 px-4">
+                                <div className="text-2xl font-bold text-slate-900 leading-tight">
+                                    {dashboardData?.counts?.activeRate?.toFixed(1) || 0}%
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Active Engagement</p>
+                            </div>
+                            <div className="text-center py-3 px-4">
+                                <div className="text-2xl font-bold text-emerald-600 leading-tight">
+                                    {dashboardData?.counts?.completionRate?.toFixed(1) || 0}%
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Completion Success</p>
+                            </div>
+                            <div className="text-center py-3 px-4">
+                                <div className="text-2xl font-bold text-rose-600 leading-tight">
+                                    {dashboardData?.counts?.droppedRate?.toFixed(1) || 0}%
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Discontinuation</p>
+                            </div>
+                            <div className="text-center py-3 px-4">
+                                <div className="text-2xl font-bold text-slate-900 leading-tight">
+                                    {dashboardData?.counts?.totalStudents || 0}
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Total Managed</p>
+                            </div>
+                        </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-100 pt-2">
-                        <div className="text-center py-3 px-4">
-                            <div className="text-2xl font-bold text-slate-900 leading-tight">
-                                {dashboardData?.counts?.activeRate?.toFixed(1) || 0}%
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Active Engagement</p>
-                        </div>
-                        <div className="text-center py-3 px-4">
-                            <div className="text-2xl font-bold text-emerald-600 leading-tight">
-                                {dashboardData?.counts?.completionRate?.toFixed(1) || 0}%
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Completion Success</p>
-                        </div>
-                        <div className="text-center py-3 px-4">
-                            <div className="text-2xl font-bold text-rose-600 leading-tight">
-                                {dashboardData?.counts?.droppedRate?.toFixed(1) || 0}%
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Discontinuation</p>
-                        </div>
-                        <div className="text-center py-3 px-4">
-                            <div className="text-2xl font-bold text-slate-900 leading-tight">
-                                {dashboardData?.counts?.totalStudents || 0}
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Total Managed</p>
-                        </div>
-                    </div>
-                </div>
+                )}
             </div>
         </>
     );
