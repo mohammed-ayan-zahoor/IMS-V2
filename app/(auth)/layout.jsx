@@ -43,32 +43,32 @@ function AuthBrandingHeader() {
     const { institute, clearInstitute } = useAuthBranding();
 
     return (
-        <div className="mb-8 flex flex-col items-center justify-center w-full">
-            {/* Top: Quantech Platform Logo (Big & Open) */}
-            <div className="flex flex-col items-center mb-6 group relative">
+        <div className="mb-6 flex flex-col items-center justify-center w-full">
+            {/* Top: Quantech Platform Logo (Large & Clear) */}
+            <div className="flex flex-col items-center mb-5 group relative">
                 <Image
                     src="/quantech/Quantech-Logo.png"
                     alt="Quantech Logo"
-                    width={220}
-                    height={60}
+                    width={280}
+                    height={80}
                     priority
-                    className="h-11 md:h-13 w-auto object-contain"
+                    className="w-56 md:w-64 h-auto object-contain"
                 />
-                <div className="flex items-center gap-1.5 mt-1.5 opacity-30">
+                <div className="flex items-center gap-1.5 mt-2 opacity-30">
                     <Image 
                         src="/quantech/ims_legacy_logo.png"
                         alt="IMS Logo"
-                        width={11}
-                        height={11}
+                        width={13}
+                        height={13}
                         className="grayscale"
                     />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                         Previously IMS
                     </span>
                 </div>
             </div>
 
-            {/* Bottom: Dynamic Institution Branding (Big Crest & Name Below) */}
+            {/* Bottom: Dynamic Institution Branding (Large Crest & Title) */}
             <AnimatePresence mode="wait">
                 {institute && (
                     <motion.div
@@ -77,34 +77,34 @@ function AuthBrandingHeader() {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 8 }}
                         transition={{ duration: 0.35, ease: "easeOut" }}
-                        className="flex flex-col items-center text-center w-full pt-1"
+                        className="flex flex-col items-center text-center w-full pt-3 pb-1 border-t border-slate-100 mt-2"
                     >
-                        {/* School Crest / Logo (Big & Open) */}
+                        {/* School Crest / Logo (Large & Prominent) */}
                         {institute.logo ? (
                             <img
                                 src={institute.logo}
                                 alt={institute.name}
-                                className="h-16 md:h-20 w-auto max-w-[170px] object-contain mb-3 drop-shadow-sm"
+                                className="h-24 md:h-28 w-auto max-w-[220px] object-contain mb-3 drop-shadow-sm"
                             />
                         ) : (
-                            <div className="h-16 w-16 md:h-18 md:w-18 rounded-2xl bg-blue-50 text-blue-600 font-black text-2xl md:text-3xl flex items-center justify-center mb-3 border border-blue-100/80 shadow-sm">
+                            <div className="h-20 w-20 md:h-24 md:w-24 rounded-3xl bg-blue-50 text-blue-600 font-black text-3xl md:text-4xl flex items-center justify-center mb-3 border border-blue-100/80 shadow-sm">
                                 {institute.name.charAt(0)}
                             </div>
                         )}
 
-                        {/* School Name (Prominent & Clear) */}
-                        <div className="flex flex-col items-center max-w-sm px-2">
+                        {/* School Name (Same scale & prominence as Welcome Back heading) */}
+                        <div className="flex flex-col items-center max-w-md px-2">
                             <div className="flex items-center justify-center flex-wrap gap-2">
-                                <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight leading-snug">
+                                <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-snug">
                                     {institute.name}
                                 </h2>
                                 {institute.totalInstitutes > 1 && (
-                                    <span className="text-[10px] font-extrabold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100/80 shrink-0">
+                                    <span className="text-[11px] font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100/80 shrink-0">
                                         +{institute.totalInstitutes - 1} more
                                     </span>
                                 )}
                             </div>
-                            <span className="text-[10px] md:text-[11px] font-extrabold text-blue-600 uppercase tracking-widest mt-1">
+                            <span className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mt-1">
                                 {institute.type === 'SCHOOL' ? 'Official School Portal' : 'Official Academy Portal'}
                             </span>
                         </div>
@@ -113,7 +113,7 @@ function AuthBrandingHeader() {
                         <button
                             type="button"
                             onClick={clearInstitute}
-                            className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors tracking-wide mt-2"
+                            className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors tracking-wide mt-2"
                         >
                             Not your institution? <span className="underline text-blue-600 font-bold">Switch</span>
                         </button>
@@ -143,15 +143,15 @@ export default function AuthLayout({ children }) {
             <div className="min-h-screen w-full flex bg-white font-sans overflow-hidden">
                 
                 {/* Left Column: The Login Terminal */}
-                <div className="w-full lg:w-[45%] flex flex-col items-center justify-center p-8 md:p-16 relative z-10">
-                    <div className="w-full max-w-sm flex flex-col items-center">
+                <div className="w-full lg:w-[45%] flex flex-col items-center justify-center p-8 md:p-14 relative z-10 overflow-y-auto max-h-screen">
+                    <div className="w-full max-w-md flex flex-col items-center">
                         <AuthBrandingHeader />
 
                         <div className="w-full">
                             {children}
                         </div>
 
-                        <div className="mt-12 text-slate-300 text-[10px] font-black uppercase tracking-[0.4em] pointer-events-none text-center">
+                        <div className="mt-8 text-slate-300 text-[10px] font-black uppercase tracking-[0.4em] pointer-events-none text-center">
                             Enterprise Gateway • v3.0 • Secure
                         </div>
                     </div>
