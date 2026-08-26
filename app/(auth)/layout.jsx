@@ -43,99 +43,80 @@ function AuthBrandingHeader() {
     const { institute, clearInstitute } = useAuthBranding();
 
     return (
-        <div className="mb-8 flex flex-col items-center justify-center">
+        <div className="mb-8 flex flex-col items-center justify-center w-full">
+            {/* Top: Quantech Platform Logo (Big & Open) */}
+            <div className="flex flex-col items-center mb-6 group relative">
+                <Image
+                    src="/quantech/Quantech-Logo.png"
+                    alt="Quantech Logo"
+                    width={220}
+                    height={60}
+                    priority
+                    className="h-11 md:h-13 w-auto object-contain"
+                />
+                <div className="flex items-center gap-1.5 mt-1.5 opacity-30">
+                    <Image 
+                        src="/quantech/ims_legacy_logo.png"
+                        alt="IMS Logo"
+                        width={11}
+                        height={11}
+                        className="grayscale"
+                    />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        Previously IMS
+                    </span>
+                </div>
+            </div>
+
+            {/* Bottom: Dynamic Institution Branding (Big Crest & Name Below) */}
             <AnimatePresence mode="wait">
-                {institute ? (
+                {institute && (
                     <motion.div
                         key={institute.code || institute.name}
-                        initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                        initial={{ opacity: 0, scale: 0.95, y: -8 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 6 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex flex-col items-center text-center gap-3 w-full"
+                        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                        transition={{ duration: 0.35, ease: "easeOut" }}
+                        className="flex flex-col items-center text-center w-full pt-1"
                     >
-                        {/* Open, Big Logos */}
-                        <div className="flex items-center justify-center gap-4 md:gap-5">
-                            <Image
-                                src="/quantech/Quantech-Logo.png"
-                                alt="Quantech Logo"
-                                width={180}
-                                height={50}
-                                priority
-                                className="h-10 md:h-12 w-auto object-contain"
+                        {/* School Crest / Logo (Big & Open) */}
+                        {institute.logo ? (
+                            <img
+                                src={institute.logo}
+                                alt={institute.name}
+                                className="h-16 md:h-20 w-auto max-w-[170px] object-contain mb-3 drop-shadow-sm"
                             />
+                        ) : (
+                            <div className="h-16 w-16 md:h-18 md:w-18 rounded-2xl bg-blue-50 text-blue-600 font-black text-2xl md:text-3xl flex items-center justify-center mb-3 border border-blue-100/80 shadow-sm">
+                                {institute.name.charAt(0)}
+                            </div>
+                        )}
 
-                            <div className="h-8 md:h-10 w-[1.5px] bg-slate-200/80 shrink-0" />
-
-                            {institute.logo ? (
-                                <img
-                                    src={institute.logo}
-                                    alt={institute.name}
-                                    className="h-11 md:h-13 w-auto max-w-[120px] object-contain shrink-0"
-                                />
-                            ) : (
-                                <div className="h-11 w-11 md:h-12 md:w-12 rounded-xl bg-blue-50 text-blue-600 font-black text-xl flex items-center justify-center shrink-0 border border-blue-100">
-                                    {institute.name.charAt(0)}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Full School Name Displayed Below */}
+                        {/* School Name (Prominent & Clear) */}
                         <div className="flex flex-col items-center max-w-sm px-2">
-                            <div className="flex items-center justify-center flex-wrap gap-1.5">
-                                <h3 className="text-sm md:text-base font-black text-slate-900 tracking-tight leading-tight">
+                            <div className="flex items-center justify-center flex-wrap gap-2">
+                                <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight leading-snug">
                                     {institute.name}
-                                </h3>
+                                </h2>
                                 {institute.totalInstitutes > 1 && (
                                     <span className="text-[10px] font-extrabold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100/80 shrink-0">
                                         +{institute.totalInstitutes - 1} more
                                     </span>
                                 )}
                             </div>
-                            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">
+                            <span className="text-[10px] md:text-[11px] font-extrabold text-blue-600 uppercase tracking-widest mt-1">
                                 {institute.type === 'SCHOOL' ? 'Official School Portal' : 'Official Academy Portal'}
                             </span>
                         </div>
 
-                        {/* Reset / Switch button */}
+                        {/* Switch button */}
                         <button
                             type="button"
                             onClick={clearInstitute}
-                            className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors tracking-wide mt-0.5"
+                            className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors tracking-wide mt-2"
                         >
                             Not your institution? <span className="underline text-blue-600 font-bold">Switch</span>
                         </button>
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key="default-logo"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex flex-col items-center group relative"
-                    >
-                        <Image
-                            src="/quantech/Quantech-Logo.png"
-                            alt="Quantech Logo"
-                            width={220}
-                            height={60}
-                            priority
-                            className="scale-[1.3] md:scale-[1.5] h-auto w-auto object-contain"
-                        />
-                        {/* Heritage Label: Previously IMS */}
-                        <div className="flex items-center gap-2 mt-2 opacity-30">
-                            <Image 
-                                src="/quantech/ims_legacy_logo.png"
-                                alt="IMS Logo"
-                                width={12}
-                                height={12}
-                                className="grayscale"
-                            />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                Previously IMS
-                            </span>
-                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
