@@ -4,7 +4,7 @@ export default function Card({ className, children, padding = "p-6", ...props })
     return (
         <div
             className={cn(
-                "premium-card relative",
+                "bg-white rounded-lg border border-slate-100 relative",
                 padding,
                 className
             )}

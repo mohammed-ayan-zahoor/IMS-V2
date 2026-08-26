@@ -25,8 +25,8 @@
   --color-soft-status-blue: #e3f2fd;
   --color-soft-status-amber: #fff8e1;
 
-  --radius-premium: 14px;
-  --shadow-premium: 0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 12px rgba(0, 0, 0, 0.06);
+  --radius-premium: 8px;
+  --shadow-premium: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 8px rgba(0, 0, 0, 0.03);
 }
 
 :root {
@@ -67,15 +67,35 @@ body {
 /* Card Style Overhaul */
 .premium-card {
   background-color: var(--card);
-  border: none;
+  border: 1px solid #f1f5f9;
   box-shadow: var(--shadow-premium);
   border-radius: var(--radius-premium);
 }
 
 .premium-card-hover:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* De-containerized utilities */
+.section-divider {
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.panel {
+  background-color: var(--card);
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+}
+
+.inset-surface {
+  background-color: #f9fafb;
+  border: 1px solid #f1f5f9;
+  border-radius: 6px;
 }
 
 .soft-active {

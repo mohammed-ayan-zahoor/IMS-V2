@@ -54,7 +54,7 @@ export default function Modal({ isOpen, onClose, title, children, className = ""
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="modal-title"
-                        className={`bg-white w-full rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.2)] overflow-hidden relative flex flex-col ${className || 'max-w-lg'}`}
+                        className={`bg-white w-full rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-slate-100 overflow-hidden relative flex flex-col ${className || 'max-w-lg'}`}
                         style={{ maxHeight: '90vh' }}
                     >
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
