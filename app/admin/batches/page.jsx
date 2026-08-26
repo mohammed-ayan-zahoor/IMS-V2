@@ -132,7 +132,7 @@ export default function BatchesPage() {
 
 
     const handleDeleteBatch = async (id) => {
-        if (!await confirm({ title: "Delete Batch?", message: "Are you sure you want to delete this batch?", type: "danger" })) return;
+        if (!await confirm({ title: `Delete ${isSchool ? "Section" : "Batch"}?`, message: `Are you sure you want to delete this ${isSchool ? "section" : "batch"}?`, type: "danger" })) return;
         try {
             const res = await fetch(`/api/v1/batches/${id}`, { method: "DELETE" });
             if (res.ok) {
@@ -143,7 +143,7 @@ export default function BatchesPage() {
             }
         } catch (error) {
             console.error(error);
-            toast.error("Error deleting batch");
+            toast.error(`Error deleting ${isSchool ? "section" : "batch"}`);
         }
     };
 
@@ -502,9 +502,9 @@ export default function BatchesPage() {
                     ) : (
                         <EmptyState
                             icon={Calendar}
-                            title="No batches found"
-                            description="Schedule your first batch to start enrollments."
-                            actionLabel="Create Batch"
+                            title={isSchool ? "No sections found" : "No batches found"}
+                            description={isSchool ? "Create your first section for this session to start enrollments." : "Schedule your first batch to start enrollments."}
+                            actionLabel={isSchool ? "Create Section" : "Create Batch"}
                             onAction={() => setIsAddModalOpen(true)}
                         />
                     )}
