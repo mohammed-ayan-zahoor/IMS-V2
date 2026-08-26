@@ -265,19 +265,19 @@ async function seedFullYear() {
         const Expense = require('../models/Expense').default || require('../models/Expense');
 
         let incHead1 = await IncomeHead.findOne({ institute: instId, name: 'Prospectus & Admission Application Fee' });
-        if (!incHead1) incHead1 = await IncomeHead.create({ institute: instId, name: 'Prospectus & Admission Application Fee', description: 'Sale of prospectus and application forms' });
+        if (!incHead1) incHead1 = await IncomeHead.create({ institute: instId, name: 'Prospectus & Admission Application Fee', description: 'Sale of prospectus and application forms', createdBy: adminId });
 
         let incHead2 = await IncomeHead.findOne({ institute: instId, name: 'Uniform & Stationery Store' });
-        if (!incHead2) incHead2 = await IncomeHead.create({ institute: instId, name: 'Uniform & Stationery Store', description: 'School uniform, tie, belt and textbook store sales' });
+        if (!incHead2) incHead2 = await IncomeHead.create({ institute: instId, name: 'Uniform & Stationery Store', description: 'School uniform, tie, belt and textbook store sales', createdBy: adminId });
 
         let expHead1 = await ExpenseHead.findOne({ institute: instId, name: 'Faculty & Staff Payroll' });
-        if (!expHead1) expHead1 = await ExpenseHead.create({ institute: instId, name: 'Faculty & Staff Payroll', description: 'Monthly salaries and staff allowances' });
+        if (!expHead1) expHead1 = await ExpenseHead.create({ institute: instId, name: 'Faculty & Staff Payroll', description: 'Monthly salaries and staff allowances', createdBy: adminId });
 
         let expHead2 = await ExpenseHead.findOne({ institute: instId, name: 'Campus Utilities (Electricity & Water)' });
-        if (!expHead2) expHead2 = await ExpenseHead.create({ institute: instId, name: 'Campus Utilities (Electricity & Water)', description: 'Power grid bills and water supply maintenance' });
+        if (!expHead2) expHead2 = await ExpenseHead.create({ institute: instId, name: 'Campus Utilities (Electricity & Water)', description: 'Power grid bills and water supply maintenance', createdBy: adminId });
 
         let expHead3 = await ExpenseHead.findOne({ institute: instId, name: 'Science Labs & Sports Equipment' });
-        if (!expHead3) expHead3 = await ExpenseHead.create({ institute: instId, name: 'Science Labs & Sports Equipment', description: 'Lab chemicals, apparatus, and athletics gear' });
+        if (!expHead3) expHead3 = await ExpenseHead.create({ institute: instId, name: 'Science Labs & Sports Equipment', description: 'Lab chemicals, apparatus, and athletics gear', createdBy: adminId });
 
         // Generate monthly income/expense entries across the year
         const months = [
