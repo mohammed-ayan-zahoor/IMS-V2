@@ -1,23 +1,70 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Card, { CardHeader, CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
-import { LogIn, ShieldCheck, GraduationCap, Loader2, Eye, EyeOff } from "lucide-react";
-import { motion } from "framer-motion";
+import { LogIn, Loader2, Eye, EyeOff } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuthBranding } from "@/components/auth/AuthBrandingContext";
 
 function LoginForm() {
     const searchParams = useSearchParams();
     const instituteCode = searchParams.get("code");
+    const { institute, setInstitute } = useAuthBranding();
+    
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const router = useRouter();
+
+    // 1. If URL has ?code=..., lookup that institute immediately
+    useEffect(() => {
+        if (!instituteCode) return;
+        let isMounted = true;
+        async function fetchByCode() {
+            try {
+                const res = await fetch(`/api/v1/auth/lookup-institute?code=${encodeURIComponent(instituteCode)}`);
+                const data = await res.json();
+                if (isMounted && data.success && data.institute) {
+                    setInstitute(data.institute);
+                }
+            } catch (err) {
+                console.error("Code lookup error:", err);
+            }
+        }
+        fetchByCode();
+        return () => { isMounted = false; };
+    }, [instituteCode, setInstitute]);
+
+    // 2. Debounced email lookup as user types
+    useEffect(() => {
+        const trimmed = email.trim().toLowerCase();
+        if (!trimmed || !/^\S+@\S+\.\S+$/.test(trimmed)) return;
+
+        let isMounted = true;
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/v1/auth/lookup-institute?email=${encodeURIComponent(trimmed)}`);
+                const data = await res.json();
+                if (isMounted && data.success) {
+                    if (data.institute) {
+                        setInstitute(data.institute);
+                    }
+                }
+            } catch (err) {
+                console.error("Email lookup error:", err);
+            }
+        }, 400);
+
+        return () => {
+            isMounted = false;
+            clearTimeout(timer);
+        };
+    }, [email, setInstitute]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -28,7 +75,7 @@ function LoginForm() {
             const res = await signIn("credentials", {
                 email,
                 password,
-                instituteCode: instituteCode || "",
+                instituteCode: instituteCode || institute?.code || "",
                 redirect: false,
             });
 
@@ -69,9 +116,30 @@ function LoginForm() {
                     <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
                         Welcome Back !
                     </h1>
-                    <p className="text-slate-500 font-medium">
-                        Please enter your details to continue.
-                    </p>
+                    <AnimatePresence mode="wait">
+                        {institute ? (
+                            <motion.p 
+                                key={institute.code || institute.name}
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                className="text-slate-500 font-medium text-sm md:text-base"
+                            >
+                                Sign in to access your <span className="font-bold text-slate-800">{institute.name}</span>
+                                {institute.totalInstitutes > 1 ? " & affiliated institutions." : " portal."}
+                            </motion.p>
+                        ) : (
+                            <motion.p 
+                                key="default-welcome"
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                className="text-slate-500 font-medium text-sm md:text-base"
+                            >
+                                Please enter your details to continue.
+                            </motion.p>
+                        )}
+                    </AnimatePresence>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -158,3 +226,4 @@ export default function LoginPage() {
         </Suspense>
     );
 }
+
