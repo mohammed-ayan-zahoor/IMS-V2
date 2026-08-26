@@ -151,8 +151,8 @@ async function seedFullYear() {
             }
         }
 
-        // 6. Generate Full Student Fee Invoices with Paid/Partial/Overdue Distribution
-        console.log(`\nGenerating Full-Year Fee Invoices & Receipts for 183 students...`);
+        // 6. Generate Full Student Fee Invoices covering ALL Real-world Permutations
+        console.log(`\nGenerating Full-Year Fee Invoices & Receipts for 183 students covering all scenarios...`);
         const allStudents = await User.find({ institute: instId, role: 'student', deletedAt: null });
         let feesCreated = 0;
         let feesUpdated = 0;
@@ -169,33 +169,66 @@ async function seedFullYear() {
 
             const courseId = studentBatch.course.toString();
             const preset = feePresetMap[courseId];
-            const totalFee = preset?.amount || 36000;
-            const instAmount = Math.round(totalFee / 3);
+            const baseFee = preset?.amount || 36000;
+            const instAmount = Math.round(baseFee / 3);
 
-            // Distribution: 65% Paid in full, 25% Partial (2 paid, 1 pending), 10% Overdue (1 paid, 2 overdue)
-            const typeMod = i % 10;
+            let totalAmount = baseFee;
+            let discount = { amount: 0 };
+            let extraCharges = { amount: 0 };
             let installments = [];
 
-            if (typeMod < 6) {
-                // Fully Paid
+            // 7 Diverse Financial Scenarios across the 183 students
+            const scenario = i % 10;
+
+            if (scenario === 0 || scenario === 1) {
+                // SCENARIO 1: Single Lump-sum Upfront Payment in June (Early Bird) (20% of students)
                 installments = [
-                    { amount: instAmount, dueDate: new Date('2025-06-15'), paidDate: new Date('2025-06-10'), status: 'paid', paymentMethod: 'upi', transactionId: `UPI-2025-${1000 + i}-1`, collectedBy: 'Office Admin' },
-                    { amount: instAmount, dueDate: new Date('2025-10-15'), paidDate: new Date('2025-10-08'), status: 'paid', paymentMethod: 'bank_transfer', transactionId: `NEFT-2025-${1000 + i}-2`, collectedBy: 'Office Admin' },
-                    { amount: totalFee - (instAmount * 2), dueDate: new Date('2026-01-15'), paidDate: new Date('2026-01-12'), status: 'paid', paymentMethod: 'cash', transactionId: `CASH-2026-${1000 + i}-3`, collectedBy: 'Accounts Desk' }
+                    { amount: totalAmount, dueDate: new Date('2025-06-15'), paidDate: new Date('2025-06-05'), status: 'paid', paymentMethod: 'upi', transactionId: `UPI-LUMP-2025-${1000 + i}`, collectedBy: 'Accounts Office', notes: 'Full annual tuition paid upfront' }
                 ];
-            } else if (typeMod < 9) {
-                // Partial (2 paid, 1 pending/overdue)
+            } else if (scenario >= 2 && scenario <= 4) {
+                // SCENARIO 2: Regular 3-Installment On-Time Payer (30% of students)
                 installments = [
-                    { amount: instAmount, dueDate: new Date('2025-06-15'), paidDate: new Date('2025-06-12'), status: 'paid', paymentMethod: 'upi', transactionId: `UPI-2025-${1000 + i}-1`, collectedBy: 'Office Admin' },
-                    { amount: instAmount, dueDate: new Date('2025-10-15'), paidDate: new Date('2025-10-14'), status: 'paid', paymentMethod: 'cash', transactionId: `CASH-2025-${1000 + i}-2`, collectedBy: 'Office Admin' },
-                    { amount: totalFee - (instAmount * 2), dueDate: new Date('2026-01-15'), status: 'overdue' }
+                    { amount: instAmount, dueDate: new Date('2025-06-15'), paidDate: new Date('2025-06-12'), status: 'paid', paymentMethod: 'upi', transactionId: `UPI-2025-${1000 + i}-T1`, collectedBy: 'Accounts Office' },
+                    { amount: instAmount, dueDate: new Date('2025-10-15'), paidDate: new Date('2025-10-10'), status: 'paid', paymentMethod: 'bank_transfer', transactionId: `NEFT-2025-${1000 + i}-T2`, collectedBy: 'Accounts Office' },
+                    { amount: totalAmount - (instAmount * 2), dueDate: new Date('2026-01-15'), paidDate: new Date('2026-01-08'), status: 'paid', paymentMethod: 'cash', transactionId: `CASH-2026-${1000 + i}-T3`, collectedBy: 'Accounts Desk' }
+                ];
+            } else if (scenario === 5) {
+                // SCENARIO 3: Sibling / Merit Scholarship Discount Applied (10% of students)
+                const discountAmt = 6000;
+                discount = { amount: discountAmt, reason: 'Merit Scholarship / Sibling Discount', appliedBy: adminId, appliedAt: new Date('2025-06-01') };
+                const discountedTotal = totalAmount - discountAmt;
+                const dInst = Math.round(discountedTotal / 3);
+
+                installments = [
+                    { amount: dInst, dueDate: new Date('2025-06-15'), paidDate: new Date('2025-06-14'), status: 'paid', paymentMethod: 'upi', transactionId: `UPI-SCHOLAR-${1000 + i}-1`, collectedBy: 'Accounts Office' },
+                    { amount: dInst, dueDate: new Date('2025-10-15'), paidDate: new Date('2025-10-12'), status: 'paid', paymentMethod: 'upi', transactionId: `UPI-SCHOLAR-${1000 + i}-2`, collectedBy: 'Accounts Office' },
+                    { amount: discountedTotal - (dInst * 2), dueDate: new Date('2026-01-15'), paidDate: new Date('2026-01-10'), status: 'paid', paymentMethod: 'bank_transfer', transactionId: `NEFT-SCHOLAR-${1000 + i}-3`, collectedBy: 'Accounts Desk' }
+                ];
+            } else if (scenario === 6 || scenario === 7) {
+                // SCENARIO 4: Partial Payment - Term 3 Pending/Overdue (20% of students)
+                installments = [
+                    { amount: instAmount, dueDate: new Date('2025-06-15'), paidDate: new Date('2025-06-15'), status: 'paid', paymentMethod: 'upi', transactionId: `UPI-2025-${1000 + i}-T1`, collectedBy: 'Accounts Office' },
+                    { amount: instAmount, dueDate: new Date('2025-10-15'), paidDate: new Date('2025-10-14'), status: 'paid', paymentMethod: 'cash', transactionId: `CASH-2025-${1000 + i}-T2`, collectedBy: 'Accounts Office' },
+                    { amount: totalAmount - (instAmount * 2), dueDate: new Date('2026-01-15'), status: 'overdue', penaltyAmount: 500, penaltyStatus: 'pending', notes: 'Reminder sent on 25 Jan 2026' }
+                ];
+            } else if (scenario === 8) {
+                // SCENARIO 5: Heavy Arrears / Only 1 Term Paid (10% of students - Great for carryforward test)
+                installments = [
+                    { amount: instAmount, dueDate: new Date('2025-06-15'), paidDate: new Date('2025-06-15'), status: 'paid', paymentMethod: 'cash', transactionId: `CASH-2025-${1000 + i}-T1`, collectedBy: 'Accounts Office' },
+                    { amount: instAmount, dueDate: new Date('2025-10-15'), status: 'overdue', penaltyAmount: 500, penaltyStatus: 'pending' },
+                    { amount: totalAmount - (instAmount * 2), dueDate: new Date('2026-01-15'), status: 'overdue', penaltyAmount: 500, penaltyStatus: 'pending' }
                 ];
             } else {
-                // Overdue Arrears (only 1st paid, remaining unpaid)
+                // SCENARIO 6: Late Fee Fine / Extra Activity Charges Added (10% of students)
+                const extraAmt = 1500;
+                extraCharges = { amount: extraAmt, reason: 'Annual Lab & Cultural Event Kit Fee', appliedBy: adminId, appliedAt: new Date('2025-09-01') };
+                const updatedTotal = totalAmount + extraAmt;
+                const eInst = Math.round(updatedTotal / 3);
+
                 installments = [
-                    { amount: instAmount, dueDate: new Date('2025-06-15'), paidDate: new Date('2025-06-15'), status: 'paid', paymentMethod: 'cash', transactionId: `CASH-2025-${1000 + i}-1`, collectedBy: 'Office Admin' },
-                    { amount: instAmount, dueDate: new Date('2025-10-15'), status: 'overdue' },
-                    { amount: totalFee - (instAmount * 2), dueDate: new Date('2026-01-15'), status: 'overdue' }
+                    { amount: eInst, dueDate: new Date('2025-06-15'), paidDate: new Date('2025-06-10'), status: 'paid', paymentMethod: 'upi', transactionId: `UPI-2025-${1000 + i}-T1`, collectedBy: 'Accounts Office' },
+                    { amount: eInst, dueDate: new Date('2025-10-15'), paidDate: new Date('2025-10-12'), status: 'paid', paymentMethod: 'bank_transfer', transactionId: `NEFT-2025-${1000 + i}-T2`, collectedBy: 'Accounts Office' },
+                    { amount: updatedTotal - (eInst * 2), dueDate: new Date('2026-01-15'), paidDate: new Date('2026-01-14'), status: 'paid', paymentMethod: 'cash', transactionId: `CASH-2026-${1000 + i}-T3`, collectedBy: 'Accounts Desk' }
                 ];
             }
 
@@ -206,19 +239,88 @@ async function seedFullYear() {
                     student: student._id,
                     batch: studentBatch._id,
                     session: sessionCurrent._id,
-                    totalAmount: totalFee,
+                    totalAmount: totalAmount,
+                    discount: discount,
+                    extraCharges: extraCharges,
                     feePreset: preset?._id,
                     installments: installments
                 });
                 feesCreated++;
             } else {
+                feeDoc.totalAmount = totalAmount;
+                feeDoc.discount = discount;
+                feeDoc.extraCharges = extraCharges;
                 feeDoc.installments = installments;
-                feeDoc.totalAmount = totalFee;
                 await feeDoc.save();
                 feesUpdated++;
             }
         }
-        console.log(`✓ Fee Invoicing complete (Created: ${feesCreated}, Updated: ${feesUpdated}).`);
+        console.log(`✓ Diverse Fee Ledgers complete (Created: ${feesCreated}, Updated: ${feesUpdated}).`);
+
+        // 6b. Seed School Incomes & Expenses (Income & Expense Models)
+        console.log(`\nSeeding General School Operational Incomes & Expenses...`);
+        const IncomeHead = require('../models/IncomeHead').default || require('../models/IncomeHead');
+        const ExpenseHead = require('../models/ExpenseHead').default || require('../models/ExpenseHead');
+        const Income = require('../models/Income').default || require('../models/Income');
+        const Expense = require('../models/Expense').default || require('../models/Expense');
+
+        let incHead1 = await IncomeHead.findOne({ institute: instId, name: 'Prospectus & Admission Application Fee' });
+        if (!incHead1) incHead1 = await IncomeHead.create({ institute: instId, name: 'Prospectus & Admission Application Fee', description: 'Sale of prospectus and application forms' });
+
+        let incHead2 = await IncomeHead.findOne({ institute: instId, name: 'Uniform & Stationery Store' });
+        if (!incHead2) incHead2 = await IncomeHead.create({ institute: instId, name: 'Uniform & Stationery Store', description: 'School uniform, tie, belt and textbook store sales' });
+
+        let expHead1 = await ExpenseHead.findOne({ institute: instId, name: 'Faculty & Staff Payroll' });
+        if (!expHead1) expHead1 = await ExpenseHead.create({ institute: instId, name: 'Faculty & Staff Payroll', description: 'Monthly salaries and staff allowances' });
+
+        let expHead2 = await ExpenseHead.findOne({ institute: instId, name: 'Campus Utilities (Electricity & Water)' });
+        if (!expHead2) expHead2 = await ExpenseHead.create({ institute: instId, name: 'Campus Utilities (Electricity & Water)', description: 'Power grid bills and water supply maintenance' });
+
+        let expHead3 = await ExpenseHead.findOne({ institute: instId, name: 'Science Labs & Sports Equipment' });
+        if (!expHead3) expHead3 = await ExpenseHead.create({ institute: instId, name: 'Science Labs & Sports Equipment', description: 'Lab chemicals, apparatus, and athletics gear' });
+
+        // Generate monthly income/expense entries across the year
+        const months = [
+            { month: 5, year: 2025 }, { month: 6, year: 2025 }, { month: 7, year: 2025 }, { month: 8, year: 2025 },
+            { month: 9, year: 2025 }, { month: 10, year: 2025 }, { month: 11, year: 2025 }, { month: 0, year: 2026 },
+            { month: 1, year: 2026 }, { month: 2, year: 2026 }, { month: 3, year: 2026 }
+        ];
+
+        for (const mObj of months) {
+            const billDate = new Date(mObj.year, mObj.month, 10);
+            
+            // Monthly Electricity
+            const existingExp = await Expense.findOne({ institute: instId, expenseHead: expHead2._id, date: billDate });
+            if (!existingExp) {
+                await Expense.create({
+                    institute: instId,
+                    expenseHead: expHead2._id,
+                    date: billDate,
+                    amount: 28500 + ((mObj.month * 1230) % 6500),
+                    description: `Electricity & Water bill for ${billDate.toLocaleString('default', { month: 'long', year: 'numeric' })}`,
+                    paidTo: 'State Electricity Board',
+                    paymentMode: 'Bank Transfer',
+                    entryBy: adminId
+                });
+            }
+
+            // Monthly Staff Payroll
+            const salaryDate = new Date(mObj.year, mObj.month, 5);
+            const existingSalary = await Expense.findOne({ institute: instId, expenseHead: expHead1._id, date: salaryDate });
+            if (!existingSalary) {
+                await Expense.create({
+                    institute: instId,
+                    expenseHead: expHead1._id,
+                    date: salaryDate,
+                    amount: 145000,
+                    description: `Staff salaries for ${salaryDate.toLocaleString('default', { month: 'long', year: 'numeric' })}`,
+                    paidTo: 'Faculty & Support Staff',
+                    paymentMode: 'Bank Transfer',
+                    entryBy: adminId
+                });
+            }
+        }
+        console.log(`✓ Monthly Incomes & Operational Expenses seeded.`);
 
         // 7. Generate Exams & Marksheets (FA1, FA2, SA1, FA3, FA4, SA2)
         console.log(`\nCreating 6 Complete Exam Milestones (FA1, FA2, SA1, FA3, FA4, SA2) & Scoring All Students...`);
