@@ -9,7 +9,7 @@ import Batch from '@/models/Batch';
 import User from '@/models/User';
 import Attendance from '@/models/Attendance';
 import Exam from '@/models/Exam';
-import ExamResult from '@/models/ExamResult';
+import OfflineExamResult from '@/models/OfflineExamResult';
 import FeePreset from '@/models/FeePreset';
 import Fee from '@/models/Fee';
 import Enquiry from '@/models/Enquiry';
@@ -68,8 +68,7 @@ export async function GET(request) {
             Enquiry.countDocuments({ institute: instId })
         ]);
 
-        const examIds = exams.map(e => e._id);
-        const examResultsCount = await ExamResult.countDocuments({ exam: { $in: examIds } });
+        const examResultsCount = await OfflineExamResult.countDocuments({ institute: instId });
 
         // Calculate financials
         const totalInvoiced = fees.reduce((sum, f) => sum + (f.totalAmount || 0), 0);
