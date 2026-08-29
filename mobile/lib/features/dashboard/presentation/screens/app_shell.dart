@@ -11,6 +11,8 @@ import 'package:student_app/features/practice/presentation/screens/practice_scre
 import 'package:student_app/features/exams/presentation/screens/exams_screen.dart';
 import 'package:student_app/features/vault/presentation/screens/vault_screen.dart';
 import 'package:student_app/features/chat/presentation/screens/chat_screen.dart';
+import 'package:student_app/features/timeline/presentation/screens/timeline_screen.dart';
+import 'package:student_app/features/notifications/presentation/screens/notifications_screen.dart';
 
 import 'package:provider/provider.dart';
 import 'package:student_app/core/providers/academic_session_provider.dart';
@@ -119,11 +121,13 @@ class _AppShellState extends State<AppShell> {
                   children: [
                     _buildMoreItem(context, 'Fees &\nPayments', Icons.receipt_long_outlined, const Color(0xFF059669), const FeesScreen()),
                     _buildMoreItem(context, 'Notices', Icons.campaign_outlined, const Color(0xFF2563EB), const NoticesScreen()),
+                    _buildMoreItem(context, 'Timeline', Icons.auto_awesome_outlined, const Color(0xFF7C3AED), const TimelineScreen()),
                     _buildMoreItem(context, 'Materials', Icons.menu_book_outlined, const Color(0xFFD97706), const LearningMaterialsScreen()),
-                    _buildMoreItem(context, 'Practice', Icons.quiz_outlined, const Color(0xFF7C3AED), const PracticeScreen()),
+                    _buildMoreItem(context, 'Practice', Icons.quiz_outlined, const Color(0xFF6366F1), const PracticeScreen()),
                     _buildMoreItem(context, 'Exams', Icons.assignment_outlined, const Color(0xFFDC2626), const ExamsScreen()),
                     _buildMoreItem(context, 'Document\nVault', Icons.folder_shared_outlined, const Color(0xFF0284C7), const VaultScreen()),
                     _buildMoreItem(context, 'Messages', Icons.chat_bubble_outline, const Color(0xFF0F766E), const ChatScreen()),
+                    _buildMoreItem(context, 'Notifications', Icons.notifications_outlined, const Color(0xFF002045), const NotificationsScreen()),
                   ],
                 ),
                 const SizedBox(height: 12),

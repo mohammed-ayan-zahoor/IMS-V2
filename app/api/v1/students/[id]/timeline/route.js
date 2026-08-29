@@ -113,6 +113,55 @@ export async function POST(req, { params }) {
             details: { studentId, title, category: eventCategory, status: eventStatus }
         });
 
+        // Trigger push notification if event is approved (e.g. added by faculty/admin)
+        if (eventStatus === 'approved') {
+            (async () => {
+                try {
+                    const { getBeamsInstance } = await import('@/lib/pusher');
+                    const beamsClient = await getBeamsInstance(scope.instituteId);
+                    if (beamsClient) {
+                        const notifTitle = `⭐ New Timeline Event: ${title}`;
+                        const notifBody = description.slice(0, 140);
+                        const payload = {
+                            apns: {
+                                aps: {
+                                    alert: { title: notifTitle, body: notifBody },
+                                    sound: "default"
+                                }
+                            },
+                            fcm: {
+                                notification: {
+                                    title: notifTitle,
+                                    body: notifBody,
+                                    channel_id: "high_importance_channel",
+                                    sound: "default"
+                                },
+                                data: {
+                                    title: notifTitle,
+                                    body: notifBody,
+                                    type: "timeline",
+                                    eventId: event._id.toString(),
+                                    instituteId: scope.instituteId.toString()
+                                },
+                                priority: "high"
+                            },
+                            web: {
+                                notification: {
+                                    title: notifTitle,
+                                    body: notifBody,
+                                    deep_link: `${process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in"}/student/timeline`
+                                }
+                            }
+                        };
+                        await beamsClient.publishToUsers([studentId.toString()], payload);
+                        console.log(`[Timeline Push] Sent timeline notification to student ${studentId}`);
+                    }
+                } catch (pushErr) {
+                    console.error('[Timeline Push] Error sending push notification:', pushErr);
+                }
+            })().catch(() => {});
+        }
+
         return NextResponse.json({ event });
     } catch (error) {
         console.error('API Error [StudentTimeline POST]:', error);

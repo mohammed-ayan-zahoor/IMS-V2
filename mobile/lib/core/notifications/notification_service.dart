@@ -1,12 +1,19 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:pusher_beams/pusher_beams.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:student_app/core/network/api_client.dart';
 import 'package:student_app/core/constants/api_endpoints.dart';
 import 'package:student_app/features/chat/presentation/screens/chat_screen.dart';
+import 'package:student_app/features/attendance/presentation/screens/attendance_screen.dart';
+import 'package:student_app/features/fees/presentation/screens/fees_screen.dart';
+import 'package:student_app/features/notices/presentation/screens/notices_screen.dart';
+import 'package:student_app/features/timeline/presentation/screens/timeline_screen.dart';
+import 'package:student_app/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:student_app/features/dashboard/presentation/screens/app_shell.dart';
 import 'package:student_app/main.dart';
 
@@ -107,19 +114,7 @@ class NotificationService {
           if (response.actionId == 'reply_action') {
             notificationTapBackground(response);
           } else {
-            final conversationId = response.payload;
-            if (conversationId != null && conversationId.isNotEmpty) {
-              navigatorKey.currentState?.push(
-                MaterialPageRoute(
-                  builder: (_) => ChatScreen(initialConversationId: conversationId),
-                ),
-              );
-            } else {
-              navigatorKey.currentState?.pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const AppShell()),
-                (route) => false,
-              );
-            }
+            _handleNotificationResponse(response.payload);
           }
         },
         onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
@@ -130,29 +125,18 @@ class NotificationService {
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(_channel);
 
-      // Listen to FCM foreground messages (data-only — notification block is null)
+      // Listen to FCM foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        final title = message.data['title'] ?? message.notification?.title ?? 'New Message';
+        final title = message.data['title'] ?? message.notification?.title ?? 'New Notification';
         print('[NotificationService] Foreground notification received: $title');
         _showLocalNotification(message);
       });
 
       // Listen to notification tap events (app in background, tapped notification)
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        final conversationId = message.data['conversationId'];
-        print('[NotificationService] Notification tapped! conversationId=$conversationId');
-        if (conversationId != null && conversationId.isNotEmpty) {
-          navigatorKey.currentState?.push(
-            MaterialPageRoute(
-              builder: (_) => ChatScreen(initialConversationId: conversationId),
-            ),
-          );
-        } else {
-          navigatorKey.currentState?.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const AppShell()),
-            (route) => false,
-          );
-        }
+        final type = message.data['type']?.toString().toLowerCase() ?? 'general';
+        print('[NotificationService] Notification tapped! type=$type, data=${message.data}');
+        _navigateToScreen(type, message.data);
       });
 
       // Fetch dynamic Pusher configuration from backend
@@ -176,12 +160,99 @@ class NotificationService {
     }
   }
 
+  void _handleNotificationResponse(String? rawPayload) {
+    if (rawPayload == null || rawPayload.isEmpty) {
+      navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+      return;
+    }
+
+    try {
+      final decoded = json.decode(rawPayload);
+      if (decoded is Map<String, dynamic>) {
+        final type = decoded['type']?.toString().toLowerCase() ?? 'general';
+        final data = decoded['data'] is Map ? Map<String, dynamic>.from(decoded['data']) : <String, dynamic>{};
+        _navigateToScreen(type, data);
+        return;
+      }
+    } catch (_) {
+      // Fallback for legacy plain conversationId payload
+      if (rawPayload.length > 5) {
+        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => ChatScreen(initialConversationId: rawPayload)));
+        return;
+      }
+    }
+
+    navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+  }
+
+  void _navigateToScreen(String type, Map<String, dynamic> data) {
+    switch (type.toLowerCase()) {
+      case 'chat':
+        final conversationId = data['conversationId']?.toString();
+        if (conversationId != null && conversationId.isNotEmpty) {
+          navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => ChatScreen(initialConversationId: conversationId)));
+        } else {
+          navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const ChatScreen()));
+        }
+        break;
+      case 'attendance':
+        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const AttendanceScreen()));
+        break;
+      case 'fee_due':
+      case 'fee':
+        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const FeesScreen()));
+        break;
+      case 'notice':
+        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NoticesScreen()));
+        break;
+      case 'timeline':
+        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const TimelineScreen()));
+        break;
+      case 'birthday':
+      default:
+        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+        break;
+    }
+  }
+
+  Future<void> _recordNotificationLocally(String title, String body, String type, Map<String, dynamic> data) async {
+    try {
+      const boxName = 'app_notifications_box';
+      const notificationsKey = 'notifications_list';
+
+      if (!Hive.isBoxOpen(boxName)) {
+        await Hive.openBox(boxName);
+      }
+      final box = Hive.box(boxName);
+      final rawList = box.get(notificationsKey) ?? [];
+      final list = List<dynamic>.from(rawList is List ? rawList : []);
+
+      final newNotif = {
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'title': title,
+        'body': body,
+        'type': type,
+        'timestamp': DateTime.now().toIso8601String(),
+        'isRead': false,
+        'data': data,
+      };
+
+      list.insert(0, newNotif);
+      await box.put(notificationsKey, list);
+    } catch (e) {
+      print('[NotificationService] Error recording notification to Hive: $e');
+    }
+  }
+
   void _showLocalNotification(RemoteMessage message) {
     try {
       final title = message.notification?.title ?? message.data['title'] ?? 'New Notification';
       final body = message.notification?.body ?? message.data['body'] ?? '';
       final conversationId = message.data['conversationId'] ?? '';
-      final type = message.data['type'] ?? 'chat';
+      final type = message.data['type'] ?? 'general';
+
+      // Save notification to history
+      _recordNotificationLocally(title, body, type.toString(), message.data);
 
       List<AndroidNotificationAction>? actions;
       if (type == 'chat' && conversationId.isNotEmpty) {
@@ -217,12 +288,18 @@ class NotificationService {
         actions: actions,
       );
 
+      final payloadJson = json.encode({
+        'type': type,
+        'conversationId': conversationId,
+        'data': message.data,
+      });
+
       _localNotifications.show(
         message.hashCode,
         title,
         body,
         NotificationDetails(android: androidDetails),
-        payload: conversationId,
+        payload: payloadJson,
       );
     } catch (e) {
       print('[NotificationService] Error showing local notification: $e');

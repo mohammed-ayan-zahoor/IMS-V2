@@ -16,6 +16,8 @@ import 'package:student_app/features/timeline/presentation/screens/timeline_scre
 import 'package:student_app/features/exams/presentation/screens/exams_screen.dart';
 import 'package:student_app/features/chat/presentation/screens/chat_screen.dart';
 import 'package:student_app/features/assignments/presentation/screens/assignments_screen.dart';
+import 'package:student_app/features/notifications/presentation/screens/notifications_screen.dart';
+import 'package:student_app/features/notifications/presentation/providers/notifications_provider.dart';
 
 import 'package:student_app/core/providers/academic_session_provider.dart';
 
@@ -92,33 +94,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             actions: [
-              Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.notifications_none,
-                      color: Color(0xFF545F72),
-                    ),
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesScreen()));
-                    },
-                  ),
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFBA1A1A),
-                        shape: BoxShape.circle,
+              Consumer<NotificationsProvider>(
+                builder: (context, notifProv, _) {
+                  final unread = notifProv.unreadCount;
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.notifications_none_rounded,
+                          color: Color(0xFF545F72),
+                          size: 24,
+                        ),
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+                        },
                       ),
-                    ),
-                  )
-                ],
+                      if (unread > 0)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFBA1A1A),
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              unread > 9 ? '9+' : unread.toString(),
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
               Padding(
-                padding: const EdgeInsets.only(right: 16.0, left: 8.0),
+                padding: const EdgeInsets.only(right: 16.0, left: 4.0),
                 child: CircleAvatar(
                   radius: 18,
                   backgroundColor: const Color(0xFF002045),
