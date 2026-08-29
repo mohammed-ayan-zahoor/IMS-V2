@@ -9,6 +9,7 @@ import 'package:student_app/features/fees/presentation/screens/fees_screen.dart'
 import 'package:student_app/features/notices/presentation/screens/notices_screen.dart';
 import 'package:student_app/features/timeline/presentation/screens/timeline_screen.dart';
 import 'package:student_app/features/chat/presentation/screens/chat_screen.dart';
+import 'package:student_app/features/notifications/presentation/widgets/empty_notifications_view.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -206,41 +207,8 @@ class NotificationsScreen extends StatelessWidget {
               // Notification List
               Expanded(
                 child: provider.filteredNotifications.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEFF6FF),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.notifications_none_rounded,
-                                size: 48,
-                                color: Color(0xFF3B82F6),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No notifications yet',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF0D1C2E),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Push updates, alerts & reminders will show up here.',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: const Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
+                    ? EmptyNotificationsView(
+                        onCheckAgain: () => provider.loadNotifications(),
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
