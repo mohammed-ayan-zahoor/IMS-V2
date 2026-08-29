@@ -5,14 +5,32 @@ import Fee from "@/models/Fee";
 import { getBeamsInstance } from "@/lib/pusher";
 import mongoose from "mongoose";
 
+export async function GET(req) {
+    return handleSendReminders(req);
+}
+
 export async function POST(req) {
+    return handleSendReminders(req);
+}
+
+async function handleSendReminders(req) {
     try {
         // 1. Validate Cron Secret Token
+        const { searchParams } = new URL(req.url);
+        const secretParam = searchParams.get("secret");
+        const secretHeader = req.headers.get("x-cron-secret");
         const authHeader = req.headers.get("authorization");
         const token = authHeader ? authHeader.replace("Bearer ", "") : null;
-        const cronSecret = process.env.CRON_SECRET_KEY || "super-secret-cron-key";
+        const validSecrets = [
+            process.env.CRON_SECRET || "ims_cron_secret_2026",
+            process.env.CRON_SECRET_KEY || "super-secret-cron-key"
+        ];
         
-        if (token !== cronSecret) {
+        const isAuthorized = validSecrets.includes(secretParam) || 
+                             validSecrets.includes(secretHeader) || 
+                             validSecrets.includes(token);
+
+        if (!isAuthorized) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

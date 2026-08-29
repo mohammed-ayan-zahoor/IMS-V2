@@ -27,15 +27,12 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
         if (!instituteDoc) return;
 
         const instName = instituteDoc.name || "the Institute";
-        // ponytail: fallback to all OFF so existing institutes are not surprised after deploy.
-        // Admins explicitly opt-in from Settings → Attendance tab.
-        const attSettings = instituteDoc.settings?.attendance?.pushNotifications || {
-            onPresent: false,
-            onAbsent: false,
-            onLate: false
+        const pushConfig = instituteDoc.settings?.attendance?.pushNotifications;
+        const attSettings = {
+            onPresent: pushConfig?.onPresent ?? true,
+            onAbsent: pushConfig?.onAbsent ?? true,
+            onLate: pushConfig?.onLate ?? true
         };
-
-
 
         // Group unique student IDs by status
         const statusGroups = {
@@ -45,10 +42,11 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
         };
 
         for (const r of records) {
-            if (!r.studentId || !r.status) continue;
+            const studentId = r.studentId || r.student;
+            if (!studentId || !r.status) continue;
             const s = r.status.toLowerCase();
             if (s in statusGroups) {
-                statusGroups[s].add(r.studentId.toString());
+                statusGroups[s].add(studentId.toString());
             }
         }
 
@@ -58,19 +56,19 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
         const notificationsConfig = [
             {
                 status: "present",
-                enabled: attSettings.onPresent !== false,
+                enabled: attSettings.onPresent === true,
                 title: "✅ Attendance Marked",
                 body: `Your attendance at ${instName} was marked Present today.`
             },
             {
                 status: "absent",
-                enabled: attSettings.onAbsent !== false,
+                enabled: attSettings.onAbsent === true,
                 title: "⚠️ Attendance Alert",
                 body: `Notice: You were marked Absent at ${instName} today.`
             },
             {
                 status: "late",
-                enabled: attSettings.onLate !== false,
+                enabled: attSettings.onLate === true,
                 title: "⏰ Attendance Alert",
                 body: `Notice: You were marked Late at ${instName} today.`
             }
@@ -89,10 +87,18 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
                     }
                 },
                 fcm: {
+                    notification: {
+                        title: config.title,
+                        body: config.body,
+                        channel_id: "high_importance_channel",
+                        sound: "default"
+                    },
                     data: {
                         title: config.title,
                         body: config.body,
-                        type: "attendance"
+                        type: "attendance",
+                        status: config.status,
+                        instituteId: instituteId.toString()
                     },
                     priority: "high"
                 },
