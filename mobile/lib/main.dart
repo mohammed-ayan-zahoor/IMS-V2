@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/core/theme/app_theme.dart';
 import 'package:student_app/features/auth/presentation/screens/login_screen.dart';
+import 'package:student_app/features/auth/presentation/screens/welcome_screen.dart';
 import 'package:student_app/features/dashboard/presentation/screens/app_shell.dart';
 
 import 'package:student_app/features/dashboard/presentation/providers/dashboard_provider.dart';
@@ -72,14 +73,7 @@ class MainApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             home: auth.isLoading
-                ? const Scaffold(
-                    backgroundColor: Color(0xFF002045),
-                    body: Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                  )
+                ? const WelcomeScreen()
                 : auth.isAuthenticated
                     ? const AppShell()
                     : const LoginScreen(),
