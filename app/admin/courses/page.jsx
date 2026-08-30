@@ -477,7 +477,15 @@ export default function CoursesPage() {
                                                 )}
                                                 {session?.user?.role !== 'instructor' && (
                                                     <td className="px-6 py-4 text-right">
-                                                        <div className="flex items-center justify-end gap-1">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <Link
+                                                                href={`/admin/courses/${course._id}/subjects`}
+                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs rounded-lg transition-colors"
+                                                                title="Manage & Assign Subjects"
+                                                            >
+                                                                <BookOpen size={14} />
+                                                                <span>Subjects</span>
+                                                            </Link>
                                                             <button
                                                                 onClick={() => handleEditClick(course)}
                                                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

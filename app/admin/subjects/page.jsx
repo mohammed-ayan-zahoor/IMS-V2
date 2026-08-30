@@ -221,6 +221,14 @@ export default function SubjectsPage() {
                 <div className="flex items-center gap-3">
                     <Button 
                         variant="outline"
+                        onClick={() => router.push('/admin/courses')}
+                        className="flex items-center gap-2 text-blue-700 bg-blue-50/60 border-blue-200 hover:bg-blue-100/80"
+                    >
+                        <BookOpen size={18} />
+                        <span>Assign to Classes</span>
+                    </Button>
+                    <Button 
+                        variant="outline"
                         onClick={() => setIsImportModalOpen(true)}
                         className="flex items-center gap-2"
                     >
