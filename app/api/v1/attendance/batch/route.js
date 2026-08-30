@@ -20,7 +20,7 @@ function chunkArray(array, chunkSize) {
 }
 
 // Fire-and-forget helper function for sending instant attendance push notifications
-async function sendAttendancePushNotifications(instituteId, batchId, records) {
+export async function sendAttendancePushNotifications(instituteId, batchId, records) {
     try {
         if (!instituteId || !Array.isArray(records) || records.length === 0) return;
 
@@ -51,9 +51,6 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
             }
         }
 
-        const beamsClient = await getBeamsInstance(instituteId);
-        if (!beamsClient) return;
-
         const notificationsConfig = [
             {
                 status: "present",
@@ -76,9 +73,30 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
         ];
 
         for (const config of notificationsConfig) {
-            if (!config.enabled) continue;
             const studentIds = Array.from(statusGroups[config.status]);
             if (studentIds.length === 0) continue;
+
+            // Always save to MongoDB database for student app notification history
+            try {
+                const dbNotifs = studentIds.map(stId => ({
+                    institute: instituteId,
+                    recipient: stId,
+                    recipientRole: "student",
+                    title: config.title,
+                    message: config.body,
+                    type: "ATTENDANCE",
+                    metadata: { status: config.status, batchId: batchId.toString() }
+                }));
+                await Notification.insertMany(dbNotifs);
+                console.log(`[Attendance DB] Saved ${dbNotifs.length} notification record(s) for ${config.status}`);
+            } catch (dbErr) {
+                console.error("[Attendance DB] Save error:", dbErr);
+            }
+
+            if (!config.enabled) continue;
+
+            const beamsClient = await getBeamsInstance(instituteId);
+            if (!beamsClient) continue;
 
             const payload = {
                 apns: {
@@ -111,23 +129,6 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
                     }
                 }
             };
-
-            // Save to MongoDB database for student app history
-            try {
-                const dbNotifs = studentIds.map(stId => ({
-                    institute: instituteId,
-                    recipient: stId,
-                    recipientRole: "student",
-                    title: config.title,
-                    message: config.body,
-                    type: "ATTENDANCE",
-                    metadata: { status: config.status, batchId: batchId.toString() }
-                }));
-                await Notification.insertMany(dbNotifs);
-                console.log(`[Attendance Push] Saved ${dbNotifs.length} database notification record(s) for ${config.status}`);
-            } catch (dbErr) {
-                console.error("[Attendance Push] DB Save error:", dbErr);
-            }
 
             const chunks = chunkArray(studentIds, BEAMS_BATCH_LIMIT);
             for (const chunk of chunks) {

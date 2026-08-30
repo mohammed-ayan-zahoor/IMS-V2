@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Attendance from "@/models/Attendance";
 import Batch from "@/models/Batch";
+import { sendAttendancePushNotifications } from "../route";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
 
 export async function PATCH(req) {
@@ -94,6 +95,11 @@ export async function PATCH(req) {
                 );
             }
         }
+
+        // Trigger push notification and MongoDB notification record creation
+        sendAttendancePushNotifications(batchDoc.institute, batchId, [{ studentId, status }]).catch(err => {
+            console.error("Single attendance notification push error:", err);
+        });
 
         return NextResponse.json({ success: true, studentId, slot, periodId, status });
     } catch (error) {
