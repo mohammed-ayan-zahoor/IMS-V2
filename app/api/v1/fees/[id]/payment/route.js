@@ -154,6 +154,27 @@ export async function POST(req, { params }) {
 
                     await beamsClient.publishToUsers([studentId], payload);
                     console.log(`[Fee Payment Push] Sent payment receipt push notification to student ${studentId} for ₹${collectedAmount}`);
+
+                    // Save Fee Payment Notification to MongoDB
+                    try {
+                        const { default: Notification } = await import("@/models/Notification");
+                        await Notification.create({
+                            institute: feeRecord.institute,
+                            recipient: feeRecord.student,
+                            recipientRole: "student",
+                            title,
+                            message: body,
+                            type: "FEE_PAYMENT",
+                            metadata: {
+                                feeId: fee._id.toString(),
+                                amount: collectedAmount,
+                                balanceAmount: remainingBalance
+                            }
+                        });
+                        console.log(`[Fee Payment DB] Saved fee payment notification to MongoDB for student ${studentId}`);
+                    } catch (dbErr) {
+                        console.error("[Fee Payment DB] Failed to save notification document:", dbErr);
+                    }
                 }
             } catch (pushErr) {
                 console.error("[Fee Payment Push] Error dispatching push notification:", pushErr);

@@ -211,6 +211,24 @@ export async function POST(req) {
                     console.log(`[Beams Push] Publishing to studentIds:`, studentIds, JSON.stringify(payload));
                     const res = await beamsClient.publishToUsers(studentIds, payload);
                     console.log(`[Beams Push] Student publish response:`, res);
+
+                    // Save Chat Notification to MongoDB
+                    try {
+                        const { default: Notification } = await import("@/models/Notification");
+                        const dbNotifs = studentIds.map(stId => ({
+                            institute: scope.instituteId,
+                            recipient: stId,
+                            recipientRole: "student",
+                            title: chatTitle,
+                            message: `${senderName}: ${text}`,
+                            type: "CHAT",
+                            metadata: { conversationId: conversationId.toString() }
+                        }));
+                        await Notification.insertMany(dbNotifs);
+                        console.log(`[Chat DB] Saved ${dbNotifs.length} chat notification record(s)`);
+                    } catch (dbErr) {
+                        console.error("[Chat DB] Failed to save chat notification documents:", dbErr);
+                    }
                 }
             } catch (beamsErr) {
                 console.error('[Beams Push] Beams push failed:', beamsErr);

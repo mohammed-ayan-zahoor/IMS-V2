@@ -52,16 +52,24 @@ class AppNotificationModel {
   }
 
   factory AppNotificationModel.fromMap(Map<String, dynamic> map) {
+    final rawType = (map['type'] ?? map['category'] ?? 'general').toString().toLowerCase();
+
     return AppNotificationModel(
-      id: map['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id: map['_id']?.toString() ?? map['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
       title: map['title']?.toString() ?? 'Notification',
-      body: map['body']?.toString() ?? '',
-      type: map['type']?.toString() ?? 'general',
+      body: map['body']?.toString() ?? map['message']?.toString() ?? '',
+      type: rawType,
       timestamp: map['timestamp'] != null
           ? DateTime.tryParse(map['timestamp'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-      isRead: map['isRead'] == true,
-      data: map['data'] is Map ? Map<String, dynamic>.from(map['data']) : {},
+          : map['createdAt'] != null
+              ? DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now()
+              : DateTime.now(),
+      isRead: map['isRead'] == true || map['read'] == true,
+      data: map['data'] is Map
+          ? Map<String, dynamic>.from(map['data'])
+          : map['metadata'] is Map
+              ? Map<String, dynamic>.from(map['metadata'])
+              : {},
     );
   }
 
