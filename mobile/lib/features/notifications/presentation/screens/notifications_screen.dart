@@ -143,36 +143,45 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Consumer<NotificationsProvider>(
             builder: (context, provider, _) {
               if (provider.notifications.isEmpty) return const SizedBox.shrink();
-              return PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF002045)),
-                onSelected: (value) {
-                  if (value == 'read_all') {
-                    provider.markAllAsRead();
-                  } else if (value == 'clear_all') {
-                    provider.clearAll();
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'read_all',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.done_all_rounded, size: 18, color: Color(0xFF002045)),
-                        const SizedBox(width: 10),
-                        Text('Mark all as read', style: GoogleFonts.inter(fontSize: 13)),
-                      ],
+              return Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          title: Text('Clear All Notifications?', style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold)),
+                          content: Text('This will remove all notifications from your device history.', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF64748B))),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: Text('Cancel', style: GoogleFonts.inter(color: const Color(0xFF64748B))),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFDC2626),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              onPressed: () {
+                                provider.clearAll();
+                                Navigator.pop(ctx);
+                              },
+                              child: Text('Clear All', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.delete_sweep_rounded, size: 18, color: Color(0xFFDC2626)),
+                    label: Text(
+                      'Clear All',
+                      style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFDC2626), fontWeight: FontWeight.bold),
                     ),
                   ),
-                  PopupMenuItem(
-                    value: 'clear_all',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
-                        const SizedBox(width: 10),
-                        Text('Clear all history', style: GoogleFonts.inter(fontSize: 13, color: Colors.red)),
-                      ],
-                    ),
-                  ),
+                  const SizedBox(width: 4),
                 ],
               );
             },
@@ -350,19 +359,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                             ),
                                           ),
 
-                                          // Unread Indicator Dot
-                                          if (!notif.isRead) ...[
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              width: 8,
-                                              height: 8,
-                                              margin: const EdgeInsets.only(top: 6),
-                                              decoration: BoxDecoration(
-                                                color: color,
-                                                shape: BoxShape.circle,
+                                          // Dismiss X Button & Unread Indicator
+                                          Column(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              GestureDetector(
+                                                onTap: () => provider.deleteNotification(notif.id),
+                                                behavior: HitTestBehavior.opaque,
+                                                child: Padding(
+                                                  padding: const EdgeInsets.only(left: 6, bottom: 6),
+                                                  child: Icon(
+                                                    Icons.close_rounded,
+                                                    size: 16,
+                                                    color: const Color(0xFF94A3B8).withValues(alpha: 0.8),
+                                                  ),
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                              if (!notif.isRead) ...[
+                                                const SizedBox(height: 8),
+                                                Container(
+                                                  width: 8,
+                                                  height: 8,
+                                                  decoration: BoxDecoration(
+                                                    color: color,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
                                         ],
                                       ),
                                     ),
