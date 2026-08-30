@@ -7,5 +7,6 @@ cd ~/apps/ims-v2 || cd /root/apps/ims-v2 || true
 
 git pull
 npm i --legacy-peer-deps
+export NODE_OPTIONS="--max-old-space-size=2048"
 npm run build
 pm2 restart ims-v2
