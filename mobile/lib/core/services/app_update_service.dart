@@ -10,7 +10,8 @@ class AppUpdateService {
   AppUpdateService._internal();
 
   static const String _lastSeenBuildKey = 'last_seen_app_build_mtime';
-  static const int currentVersionCode = 1; // Current installed app build version code
+  static const String _lastSeenVersionCodeKey = 'last_seen_app_version_code';
+  static const int currentVersionCode = 2;
   static bool _hasCheckedThisSession = false;
 
   Future<void> checkForUpdates(BuildContext context, {bool forceCheck = false}) async {
@@ -29,11 +30,19 @@ class AppUpdateService {
       final bool forceUpdate = data['forceUpdate'] ?? false;
 
       const storage = FlutterSecureStorage();
-      final storedVal = await storage.read(key: _lastSeenBuildKey);
-      final int localLastModified = storedVal != null ? (int.tryParse(storedVal) ?? 0) : 0;
+      final storedTimeVal = await storage.read(key: _lastSeenBuildKey);
+      final storedVersionVal = await storage.read(key: _lastSeenVersionCodeKey);
 
-      // Trigger update modal if server versionCode > installed versionCode OR server file is newer
-      final bool isNewerVersion = serverVersionCode > currentVersionCode;
+      final int localLastModified = storedTimeVal != null ? (int.tryParse(storedTimeVal) ?? 0) : 0;
+      final int localVersionCode = storedVersionVal != null ? (int.tryParse(storedVersionVal) ?? 0) : currentVersionCode;
+
+      // If user has already acknowledged this server build, do not prompt again!
+      if (localVersionCode >= serverVersionCode && localLastModified > 0 && localLastModified >= serverLastModified) {
+        return;
+      }
+
+      // Check if server version is higher than installed version code AND higher than previously acknowledged code
+      final bool isNewerVersion = serverVersionCode > currentVersionCode && serverVersionCode > localVersionCode;
       final bool isNewerFile = localLastModified > 0 && serverLastModified > localLastModified;
 
       if (isNewerVersion || isNewerFile) {
@@ -42,6 +51,7 @@ class AppUpdateService {
           context: context,
           releaseNotes: releaseNotes,
           downloadUrl: downloadUrl,
+          serverVersionCode: serverVersionCode,
           serverMtime: serverLastModified,
           forceUpdate: forceUpdate,
         );
@@ -55,6 +65,7 @@ class AppUpdateService {
     required BuildContext context,
     required String releaseNotes,
     required String downloadUrl,
+    required int serverVersionCode,
     required int serverMtime,
     required bool forceUpdate,
   }) {
@@ -131,6 +142,7 @@ class AppUpdateService {
                         onPressed: () async {
                           const storage = FlutterSecureStorage();
                           await storage.write(key: _lastSeenBuildKey, value: serverMtime.toString());
+                          await storage.write(key: _lastSeenVersionCodeKey, value: serverVersionCode.toString());
                           
                           final uri = Uri.parse(fullDownloadUrl);
                           if (await canLaunchUrl(uri)) {
@@ -154,8 +166,10 @@ class AppUpdateService {
                       const SizedBox(height: 8),
                       TextButton(
                         onPressed: () async {
+                          // Remember this acknowledged version so user isn't spammed
                           const storage = FlutterSecureStorage();
                           await storage.write(key: _lastSeenBuildKey, value: serverMtime.toString());
+                          await storage.write(key: _lastSeenVersionCodeKey, value: serverVersionCode.toString());
                           if (ctx.mounted) Navigator.of(ctx).pop();
                         },
                         child: Text(
