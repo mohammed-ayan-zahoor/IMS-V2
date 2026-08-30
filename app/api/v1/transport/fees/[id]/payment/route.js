@@ -47,6 +47,62 @@ export async function POST(req, { params }) {
 
         const updatedFee = await TransportService.recordPayment(id, validation.data, session.user.id);
 
+        // Fire-and-forget push notification for transport fee payment receipt
+        (async () => {
+            try {
+                const { getBeamsInstance } = await import("@/lib/pusher");
+                const beamsClient = await getBeamsInstance(fee.institute);
+                if (beamsClient && fee.student) {
+                    const studentId = fee.student.toString();
+                    const collectedAmount = validation.data.amount;
+                    const remainingBalance = updatedFee?.balanceAmount ?? 0;
+                    const payMethod = (validation.data.method || "payment").toUpperCase();
+                    
+                    const title = `🚌 Transport Fee Payment Received: ₹${collectedAmount}`;
+                    const body = `Transport fee payment of ₹${collectedAmount} received via ${payMethod}. Remaining balance: ₹${remainingBalance}.`;
+
+                    const payload = {
+                        apns: {
+                            aps: {
+                                alert: { title, body },
+                                sound: "default"
+                            }
+                        },
+                        fcm: {
+                            notification: {
+                                title,
+                                body,
+                                channel_id: "high_importance_channel",
+                                sound: "default"
+                            },
+                            data: {
+                                title,
+                                body,
+                                type: "fee_payment",
+                                feeId: fee._id.toString(),
+                                amount: collectedAmount.toString(),
+                                balanceAmount: remainingBalance.toString(),
+                                instituteId: fee.institute.toString()
+                            },
+                            priority: "high"
+                        },
+                        web: {
+                            notification: {
+                                title,
+                                body,
+                                deep_link: `${process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in"}/transport`
+                            }
+                        }
+                    };
+
+                    await beamsClient.publishToUsers([studentId], payload);
+                    console.log(`[Transport Fee Push] Sent payment push notification to student ${studentId} for ₹${collectedAmount}`);
+                }
+            } catch (pushErr) {
+                console.error("[Transport Fee Push] Error dispatching push notification:", pushErr);
+            }
+        })().catch(() => {});
+
         return NextResponse.json(updatedFee);
     } catch (error) {
         console.error("[TRANSPORT_PAYMENT_ERROR]", error);

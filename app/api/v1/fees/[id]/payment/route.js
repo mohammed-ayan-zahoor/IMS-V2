@@ -104,6 +104,62 @@ export async function POST(req, { params }) {
         // Clear dashboard cache for this institute so stats update immediately
         clearDashboardCache(feeRecord.institute);
 
+        // Fire-and-forget push notification for fee payment receipt
+        (async () => {
+            try {
+                const { getBeamsInstance } = await import("@/lib/pusher");
+                const beamsClient = await getBeamsInstance(feeRecord.institute);
+                if (beamsClient && feeRecord.student) {
+                    const studentId = feeRecord.student.toString();
+                    const collectedAmount = paymentDetails.amount;
+                    const remainingBalance = fee.balanceAmount ?? 0;
+                    const payMethod = (paymentDetails.method || "payment").toUpperCase();
+                    
+                    const title = `🧾 Fee Payment Received: ₹${collectedAmount}`;
+                    const body = `Payment of ₹${collectedAmount} received via ${payMethod}. Remaining balance: ₹${remainingBalance}.`;
+
+                    const payload = {
+                        apns: {
+                            aps: {
+                                alert: { title, body },
+                                sound: "default"
+                            }
+                        },
+                        fcm: {
+                            notification: {
+                                title,
+                                body,
+                                channel_id: "high_importance_channel",
+                                sound: "default"
+                            },
+                            data: {
+                                title,
+                                body,
+                                type: "fee_payment",
+                                feeId: fee._id.toString(),
+                                amount: collectedAmount.toString(),
+                                balanceAmount: remainingBalance.toString(),
+                                instituteId: feeRecord.institute.toString()
+                            },
+                            priority: "high"
+                        },
+                        web: {
+                            notification: {
+                                title,
+                                body,
+                                deep_link: `${process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in"}/fees`
+                            }
+                        }
+                    };
+
+                    await beamsClient.publishToUsers([studentId], payload);
+                    console.log(`[Fee Payment Push] Sent payment receipt push notification to student ${studentId} for ₹${collectedAmount}`);
+                }
+            } catch (pushErr) {
+                console.error("[Fee Payment Push] Error dispatching push notification:", pushErr);
+            }
+        })().catch(() => {});
+
         return NextResponse.json(fee);
 
     } catch (error) {

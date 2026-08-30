@@ -18,6 +18,8 @@ class NotificationsScreen extends StatelessWidget {
     switch (type.toLowerCase()) {
       case 'attendance':
         return const Color(0xFF059669); // Emerald
+      case 'fee_payment':
+        return const Color(0xFF059669); // Emerald for receipt
       case 'fee_due':
       case 'fee':
         return const Color(0xFFDC2626); // Crimson/Red
@@ -38,6 +40,8 @@ class NotificationsScreen extends StatelessWidget {
     switch (type.toLowerCase()) {
       case 'attendance':
         return Icons.calendar_today_rounded;
+      case 'fee_payment':
+        return Icons.receipt_long_rounded;
       case 'fee_due':
       case 'fee':
         return Icons.receipt_long_rounded;
@@ -83,6 +87,7 @@ class NotificationsScreen extends StatelessWidget {
         break;
       case 'fee_due':
       case 'fee':
+      case 'fee_payment':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const FeesScreen()));
         break;
       case 'notice':

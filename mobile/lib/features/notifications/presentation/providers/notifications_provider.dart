@@ -19,6 +19,12 @@ class NotificationsProvider extends ChangeNotifier {
 
   List<AppNotificationModel> get filteredNotifications {
     if (_selectedCategory == 'all') return _notifications;
+    if (_selectedCategory == 'fees' || _selectedCategory == 'fee_due') {
+      return _notifications.where((n) {
+        final t = n.type.toLowerCase();
+        return t == 'fee' || t == 'fee_due' || t == 'fee_payment';
+      }).toList();
+    }
     return _notifications.where((n) => n.type.toLowerCase() == _selectedCategory.toLowerCase()).toList();
   }
 

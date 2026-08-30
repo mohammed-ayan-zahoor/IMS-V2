@@ -200,6 +200,7 @@ class NotificationService {
         break;
       case 'fee_due':
       case 'fee':
+      case 'fee_payment':
         navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const FeesScreen()));
         break;
       case 'notice':
