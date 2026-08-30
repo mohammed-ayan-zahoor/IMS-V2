@@ -16,6 +16,7 @@ import 'package:student_app/features/notifications/presentation/screens/notifica
 
 import 'package:provider/provider.dart';
 import 'package:student_app/core/providers/academic_session_provider.dart';
+import 'package:student_app/core/services/app_update_service.dart';
 
 class AppShell extends StatefulWidget {
   final int initialIndex;
@@ -43,6 +44,7 @@ class _AppShellState extends State<AppShell> {
     _pageController = PageController(initialPage: _currentIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AcademicSessionProvider>().loadSessions();
+      AppUpdateService.instance.checkForUpdates(context);
     });
   }
 

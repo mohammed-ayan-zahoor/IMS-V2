@@ -37,4 +37,8 @@ class ApiEndpoints {
   static const String pusherAuth = '/chat/pusher-auth';
   static const String conversations = '/chat/conversations';
   static const String messages = '/chat/messages';
+
+  // App Auto-Update
+  static const String appVersion = '/app/version';
+  static const String appDownload = '$host/api/v1/app/download';
 }
