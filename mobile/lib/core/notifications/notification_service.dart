@@ -14,6 +14,8 @@ import 'package:student_app/features/fees/presentation/screens/fees_screen.dart'
 import 'package:student_app/features/notices/presentation/screens/notices_screen.dart';
 import 'package:student_app/features/timeline/presentation/screens/timeline_screen.dart';
 import 'package:student_app/features/notifications/presentation/screens/notifications_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:student_app/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:student_app/features/dashboard/presentation/screens/app_shell.dart';
 import 'package:student_app/main.dart';
 
@@ -240,6 +242,14 @@ class NotificationService {
 
       list.insert(0, newNotif);
       await box.put(notificationsKey, list);
+
+      // Trigger provider reload if context is mounted
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        try {
+          Provider.of<NotificationsProvider>(context, listen: false).loadNotifications();
+        } catch (_) {}
+      }
     } catch (e) {
       print('[NotificationService] Error recording notification to Hive: $e');
     }

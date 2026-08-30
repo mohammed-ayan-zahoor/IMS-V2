@@ -23,6 +23,8 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    final stopwatch = Stopwatch()..start();
+
     try {
       final sessionData = await _apiClient.checkSession();
       if (sessionData != null && sessionData['user'] != null) {
@@ -41,6 +43,12 @@ class AuthProvider extends ChangeNotifier {
       _isAuthenticated = false;
       _user = null;
     } finally {
+      // Ensure splash screen remains visible for at least 5 seconds (5000ms)
+      final elapsedMs = stopwatch.elapsedMilliseconds;
+      const minSplashDurationMs = 5000;
+      if (elapsedMs < minSplashDurationMs) {
+        await Future.delayed(Duration(milliseconds: minSplashDurationMs - elapsedMs));
+      }
       _isLoading = false;
       notifyListeners();
     }

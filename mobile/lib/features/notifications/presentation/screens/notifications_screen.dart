@@ -11,8 +11,23 @@ import 'package:student_app/features/timeline/presentation/screens/timeline_scre
 import 'package:student_app/features/chat/presentation/screens/chat_screen.dart';
 import 'package:student_app/features/notifications/presentation/widgets/empty_notifications_view.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<NotificationsProvider>(context, listen: false).loadNotifications();
+      }
+    });
+  }
 
   Color _getTypeColor(String type) {
     switch (type.toLowerCase()) {
@@ -211,142 +226,153 @@ class NotificationsScreen extends StatelessWidget {
 
               // Notification List
               Expanded(
-                child: provider.filteredNotifications.isEmpty
-                    ? EmptyNotificationsView(
-                        onCheckAgain: () => provider.loadNotifications(),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        itemCount: provider.filteredNotifications.length,
-                        itemBuilder: (context, index) {
-                          final notif = provider.filteredNotifications[index];
-                          final color = _getTypeColor(notif.type);
-                          final icon = _getTypeIcon(notif.type);
-
-                          return Dismissible(
-                            key: Key(notif.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade400,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+                child: RefreshIndicator(
+                  color: const Color(0xFF002045),
+                  onRefresh: () => provider.loadNotifications(),
+                  child: provider.filteredNotifications.isEmpty
+                      ? SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.6,
+                            child: EmptyNotificationsView(
+                              onCheckAgain: () => provider.loadNotifications(),
                             ),
-                            onDismissed: (_) => provider.deleteNotification(notif.id),
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: notif.isRead ? Colors.white : const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: notif.isRead
-                                      ? const Color(0xFFE2E8F0)
-                                      : color.withValues(alpha: 0.35),
-                                  width: notif.isRead ? 1 : 1.5,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.02),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
+                          ),
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          itemCount: provider.filteredNotifications.length,
+                          itemBuilder: (context, index) {
+                            final notif = provider.filteredNotifications[index];
+                            final color = _getTypeColor(notif.type);
+                            final icon = _getTypeIcon(notif.type);
+
+                            return Dismissible(
+                              key: Key(notif.id),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 20),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade400,
                                   borderRadius: BorderRadius.circular(16),
-                                  onTap: () => _handleNotificationTap(context, notif),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(14.0),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        // Icon Avatar
-                                        Container(
-                                          width: 42,
-                                          height: 42,
-                                          decoration: BoxDecoration(
-                                            color: color.withValues(alpha: 0.1),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(icon, color: color, size: 20),
-                                        ),
-                                        const SizedBox(width: 12),
-
-                                        // Text Details
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      notif.title,
-                                                      style: GoogleFonts.hankenGrotesk(
-                                                        fontSize: 14,
-                                                        fontWeight: notif.isRead
-                                                            ? FontWeight.bold
-                                                            : FontWeight.w900,
-                                                        color: const Color(0xFF0F172A),
-                                                      ),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    _formatTime(notif.timestamp),
-                                                    style: GoogleFonts.inter(
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.w500,
-                                                      color: const Color(0xFF94A3B8),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                notif.body,
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 12.5,
-                                                  color: const Color(0xFF475569),
-                                                  height: 1.35,
-                                                ),
-                                                maxLines: 3,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-
-                                        // Unread Indicator Dot
-                                        if (!notif.isRead) ...[
-                                          const SizedBox(width: 8),
+                                ),
+                                child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+                              ),
+                              onDismissed: (_) => provider.deleteNotification(notif.id),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: notif.isRead ? Colors.white : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: notif.isRead
+                                        ? const Color(0xFFE2E8F0)
+                                        : color.withValues(alpha: 0.35),
+                                    width: notif.isRead ? 1 : 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.02),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(16),
+                                    onTap: () => _handleNotificationTap(context, notif),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(14.0),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Icon Avatar
                                           Container(
-                                            width: 8,
-                                            height: 8,
-                                            margin: const EdgeInsets.only(top: 6),
+                                            width: 42,
+                                            height: 42,
                                             decoration: BoxDecoration(
-                                              color: color,
+                                              color: color.withValues(alpha: 0.1),
                                               shape: BoxShape.circle,
                                             ),
+                                            child: Icon(icon, color: color, size: 20),
                                           ),
+                                          const SizedBox(width: 12),
+
+                                          // Text Details
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        notif.title,
+                                                        style: GoogleFonts.hankenGrotesk(
+                                                          fontSize: 14,
+                                                          fontWeight: notif.isRead
+                                                              ? FontWeight.bold
+                                                              : FontWeight.w900,
+                                                          color: const Color(0xFF0F172A),
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      _formatTime(notif.timestamp),
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w500,
+                                                        color: const Color(0xFF94A3B8),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  notif.body,
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 12.5,
+                                                    color: const Color(0xFF475569),
+                                                    height: 1.35,
+                                                  ),
+                                                  maxLines: 3,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+
+                                          // Unread Indicator Dot
+                                          if (!notif.isRead) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              width: 8,
+                                              height: 8,
+                                              margin: const EdgeInsets.only(top: 6),
+                                              decoration: BoxDecoration(
+                                                color: color,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                          ],
                                         ],
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                        ),
+                ),
               ),
             ],
           );
