@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import Attendance from "@/models/Attendance";
 import Batch from "@/models/Batch";
 import Institute from "@/models/Institute";
+import Notification from "@/models/Notification";
 import { getBeamsInstance } from "@/lib/pusher";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
 
@@ -110,6 +111,23 @@ async function sendAttendancePushNotifications(instituteId, batchId, records) {
                     }
                 }
             };
+
+            // Save to MongoDB database for student app history
+            try {
+                const dbNotifs = studentIds.map(stId => ({
+                    institute: instituteId,
+                    recipient: stId,
+                    recipientRole: "student",
+                    title: config.title,
+                    message: config.body,
+                    type: "ATTENDANCE",
+                    metadata: { status: config.status, batchId: batchId.toString() }
+                }));
+                await Notification.insertMany(dbNotifs);
+                console.log(`[Attendance Push] Saved ${dbNotifs.length} database notification record(s) for ${config.status}`);
+            } catch (dbErr) {
+                console.error("[Attendance Push] DB Save error:", dbErr);
+            }
 
             const chunks = chunkArray(studentIds, BEAMS_BATCH_LIMIT);
             for (const chunk of chunks) {

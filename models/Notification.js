@@ -30,7 +30,7 @@ const NotificationSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ["LEAVE_REQUEST", "ADMISSION", "ENQUIRY", "COMPLAINT", "SYSTEM", "NOTICE"],
+            enum: ["LEAVE_REQUEST", "ADMISSION", "ENQUIRY", "COMPLAINT", "SYSTEM", "NOTICE", "ATTENDANCE", "FEE_DUE", "FEE_PAYMENT", "TIMELINE", "CHAT"],
             default: "SYSTEM"
         },
         link: {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:student_app/core/network/api_client.dart';
 import 'package:student_app/features/notifications/data/models/app_notification_model.dart';
 
 class NotificationsProvider extends ChangeNotifier {
@@ -41,6 +42,7 @@ class NotificationsProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    // 1. Load cached local notifications from Hive storage immediately
     try {
       if (!Hive.isBoxOpen(_boxName)) {
         await Hive.openBox(_boxName);
@@ -52,14 +54,40 @@ class NotificationsProvider extends ChangeNotifier {
         _notifications = rawList
             .map((item) => AppNotificationModel.fromMap(Map<String, dynamic>.from(item is String ? json.decode(item) : item)))
             .toList();
-        // Sort newest first
         _notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       }
     } catch (e) {
-      debugPrint('[NotificationsProvider] Error loading notifications: $e');
+      debugPrint('[NotificationsProvider] Error loading local notifications: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+
+    // 2. Non-blocking background sync with MongoDB backend API (/notifications)
+    try {
+      final response = await ApiClient().dio.get('/notifications');
+      if (response.statusCode == 200 && response.data != null && response.data['notifications'] is List) {
+        final serverList = (response.data['notifications'] as List)
+            .map((item) => AppNotificationModel.fromMap(Map<String, dynamic>.from(item)))
+            .toList();
+
+        final existingIds = _notifications.map((n) => n.id).toSet();
+        bool hasNew = false;
+        for (final serverNotif in serverList) {
+          if (!existingIds.contains(serverNotif.id)) {
+            _notifications.add(serverNotif);
+            existingIds.add(serverNotif.id);
+            hasNew = true;
+          }
+        }
+        if (hasNew) {
+          _notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          await _saveToStorage();
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('[NotificationsProvider] API notification sync error: $e');
     }
   }
 

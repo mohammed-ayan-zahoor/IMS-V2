@@ -6,6 +6,7 @@ import Notice from "@/models/Notice";
 import User from "@/models/User";
 import Batch from "@/models/Batch";
 import Institute from "@/models/Institute";
+import Notification from "@/models/Notification";
 import { getBeamsInstance } from "@/lib/pusher";
 import { createAuditLog } from "@/services/auditService";
 
@@ -103,6 +104,23 @@ async function sendNoticePushNotifications(notice, instituteId) {
                 }
             }
         };
+
+        // Save to MongoDB database for student app history
+        try {
+            const dbNotifs = targetStudentIds.map(stId => ({
+                institute: instituteId,
+                recipient: stId,
+                recipientRole: "student",
+                title,
+                message: body,
+                type: "NOTICE",
+                metadata: { noticeId: notice._id.toString() }
+            }));
+            await Notification.insertMany(dbNotifs);
+            console.log(`[Notice Push] Saved ${dbNotifs.length} database notification record(s) for notice: ${notice.title}`);
+        } catch (dbErr) {
+            console.error("[Notice Push] DB Save error:", dbErr);
+        }
 
         const chunks = chunkArray(targetStudentIds, BEAMS_BATCH_LIMIT);
         for (const chunk of chunks) {

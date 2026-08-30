@@ -138,7 +138,19 @@ class NotificationService {
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         final type = message.data['type']?.toString().toLowerCase() ?? 'general';
         print('[NotificationService] Notification tapped! type=$type, data=${message.data}');
+        _showLocalNotification(message);
         _navigateToScreen(type, message.data);
+      });
+
+      // Check if app was launched from a terminated state via a notification click
+      messaging.getInitialMessage().then((RemoteMessage? message) {
+        if (message != null) {
+          final title = message.data['title'] ?? message.notification?.title ?? 'New Notification';
+          print('[NotificationService] App launched from terminated state via notification: $title');
+          _showLocalNotification(message);
+          final type = message.data['type']?.toString().toLowerCase() ?? 'general';
+          _navigateToScreen(type, message.data);
+        }
       });
 
       // Fetch dynamic Pusher configuration from backend
