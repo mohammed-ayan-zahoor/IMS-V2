@@ -24,13 +24,13 @@ export async function GET() {
         }
 
         return NextResponse.json({
-            version: "0.1.0+1",
-            versionCode: 1,
+            version: "0.1.0+2",
+            versionCode: 2,
             minVersionCode: 1,
             lastModified: mtimeMs,
             fileSize: fileSize,
             downloadUrl: "/api/v1/app/download",
-            releaseNotes: "Performance improvements, instant notification sync, and bug fixes.",
+            releaseNotes: "A new version of the Quantech Student App is available with live notification sync and bug fixes.",
             forceUpdate: false,
         });
     } catch (error) {

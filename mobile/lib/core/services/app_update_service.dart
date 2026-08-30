@@ -10,6 +10,7 @@ class AppUpdateService {
   AppUpdateService._internal();
 
   static const String _lastSeenBuildKey = 'last_seen_app_build_mtime';
+  static const int currentVersionCode = 1; // Current installed app build version code
   static bool _hasCheckedThisSession = false;
 
   Future<void> checkForUpdates(BuildContext context, {bool forceCheck = false}) async {
@@ -21,25 +22,21 @@ class AppUpdateService {
       if (response.statusCode != 200 || response.data == null) return;
 
       final data = Map<String, dynamic>.from(response.data);
+      final int serverVersionCode = data['versionCode'] ?? 1;
       final int serverLastModified = data['lastModified'] ?? 0;
       final String releaseNotes = data['releaseNotes'] ?? 'A new version of the app is available.';
       final String downloadUrl = data['downloadUrl'] ?? ApiEndpoints.appDownload;
       final bool forceUpdate = data['forceUpdate'] ?? false;
 
-      if (serverLastModified <= 0) return;
-
       const storage = FlutterSecureStorage();
       final storedVal = await storage.read(key: _lastSeenBuildKey);
       final int localLastModified = storedVal != null ? (int.tryParse(storedVal) ?? 0) : 0;
 
-      // If app is newly installed (local == 0), store current server timestamp and return
-      if (localLastModified == 0) {
-        await storage.write(key: _lastSeenBuildKey, value: serverLastModified.toString());
-        return;
-      }
+      // Trigger update modal if server versionCode > installed versionCode OR server file is newer
+      final bool isNewerVersion = serverVersionCode > currentVersionCode;
+      final bool isNewerFile = localLastModified > 0 && serverLastModified > localLastModified;
 
-      // If server file timestamp is newer than stored timestamp, prompt for update!
-      if (serverLastModified > localLastModified) {
+      if (isNewerVersion || isNewerFile) {
         if (!context.mounted) return;
         _showUpdateModal(
           context: context,
@@ -157,7 +154,6 @@ class AppUpdateService {
                       const SizedBox(height: 8),
                       TextButton(
                         onPressed: () async {
-                          // Remember this version so user isn't spammed
                           const storage = FlutterSecureStorage();
                           await storage.write(key: _lastSeenBuildKey, value: serverMtime.toString());
                           if (ctx.mounted) Navigator.of(ctx).pop();
