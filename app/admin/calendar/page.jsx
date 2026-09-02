@@ -6,21 +6,18 @@ import {
     Search, 
     Trash2, 
     Edit, 
-    Calendar, 
+    Calendar as CalendarIcon, 
     Clock, 
-    X, 
-    Save, 
     AlertTriangle,
-    Filter,
     CalendarDays,
-    BookOpen,
     Smile,
-    Briefcase,
     List,
     ChevronLeft,
     ChevronRight,
     MapPin,
-    Users
+    Users,
+    CheckCircle2,
+    Info
 } from "lucide-react";
 import { format, isSameDay, isToday } from "date-fns";
 
@@ -31,7 +28,9 @@ import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Badge from "@/components/ui/Badge";
+import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import EmptyState from "@/components/shared/EmptyState";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import MobileInstructorCalendar from "@/components/instructor/MobileInstructorCalendar";
@@ -119,16 +118,13 @@ export default function AdminCalendarPage() {
         const confirmed = await confirm({
             title: "Delete Event?",
             message: "Are you sure you want to remove this event from the school calendar? This cannot be undone.",
-            confirmText: "Delete",
-            cancelText: "Cancel"
+            type: "danger"
         });
 
         if (!confirmed) return;
 
         try {
-            const res = await fetch(`/api/v1/events/${id}`, {
-                method: "DELETE"
-            });
+            const res = await fetch(`/api/v1/events/${id}`, { method: "DELETE" });
             if (res.ok) {
                 toast.success("Event deleted successfully");
                 fetchInitialData();
@@ -190,7 +186,7 @@ export default function AdminCalendarPage() {
         const startOfCurrentMonth = new Date(year, month, 1);
         const endOfCurrentMonth = new Date(year, month + 1, 0);
 
-        const startDayOfWeek = startOfCurrentMonth.getDay(); // 0 is Sunday
+        const startDayOfWeek = startOfCurrentMonth.getDay();
         const daysInMonth = endOfCurrentMonth.getDate();
 
         const days = [];
@@ -244,7 +240,6 @@ export default function AdminCalendarPage() {
             const start = new Date(event.startDate);
             const end = new Date(event.endDate);
             
-            // Normalize to midnight for accurate check
             const targetTime = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
             const startTime = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
             const endTime = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
@@ -274,7 +269,6 @@ export default function AdminCalendarPage() {
 
     const handleQuickAddEvent = (date) => {
         setSelectedDate(date);
-        // Format date to local datetime format yyyy-MM-ddThh:mm
         const formattedDate = format(date, "yyyy-MM-dd") + "T09:00";
         const formattedEndDate = format(date, "yyyy-MM-dd") + "T17:00";
         setEditingId(null);
@@ -299,124 +293,129 @@ export default function AdminCalendarPage() {
                 </div>
             )}
 
-            <div className={cn("space-y-6 max-w-7xl mx-auto p-4 md:p-6", isInstructorOrStaff ? "hidden md:block" : "")}>
-            {/* Header Block */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2 italic uppercase">
-                        <CalendarDays className="text-blue-600" />
-                        School Calendar Manager
-                    </h1>
-                    <p className="text-slate-500 font-medium mt-1">Manage holidays, exam dates, fixtures, and events.</p>
-                </div>
-                
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                    {/* View Switcher */}
-                    <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/50">
-                        <button
-                            onClick={() => setViewMode("calendar")}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${viewMode === "calendar" ? "bg-white shadow-sm text-blue-600" : "text-slate-500 hover:text-slate-800"}`}
-                        >
-                            <CalendarDays size={14} />
-                            Calendar
-                        </button>
-                        <button
-                            onClick={() => setViewMode("list")}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${viewMode === "list" ? "bg-white shadow-sm text-blue-600" : "text-slate-500 hover:text-slate-800"}`}
-                        >
-                            <List size={14} />
-                            List View
-                        </button>
+            <div className={cn("space-y-6 max-w-7xl mx-auto", isInstructorOrStaff ? "hidden md:block" : "")}>
+                {/* Compact Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                            School Calendar
+                        </h1>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">Manage holidays, exam schedules, fixtures, and academic events.</p>
                     </div>
-
-                    <Button onClick={() => { setEditingId(null); setFormData(initialFormState()); setIsModalOpen(true); }} className="shadow-lg shadow-blue-500/20 w-full sm:w-auto">
-                        <Plus size={18} className="mr-2" /> Add Event
-                    </Button>
-                </div>
-            </div>
-
-            {/* Filter Bar */}
-            <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
-                <div className="relative w-full md:flex-1">
-                    <Search className="absolute left-4 top-3.5 text-slate-400 w-4 h-4" />
-                    <input
-                        type="text"
-                        placeholder="Search events by title, description..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all font-medium text-sm text-slate-700"
-                    />
-                </div>
-                
-                <div className="flex gap-4 w-full md:w-auto">
-                    <div className="w-full md:w-48">
-                        <Select
-                            value={categoryFilter}
-                            onChange={setCategoryFilter}
-                            options={[
-                                { label: "All Categories", value: "all" },
-                                { label: "Holidays", value: "holiday" },
-                                { label: "Exams", value: "exam" },
-                                { label: "Cultural", value: "cultural" },
-                                { label: "Sports", value: "sports" },
-                                { label: "Assembly", value: "academic_assembly" },
-                                { label: "General", value: "general" }
-                            ]}
-                        />
-                    </div>
-
-                    <div className="w-full md:w-48">
-                        <Select
-                            value={targetFilter}
-                            onChange={setTargetFilter}
-                            options={[
-                                { label: "All Audiences", value: "all" },
-                                { label: "Entire School", value: "all" },
-                                { label: "Specific Batches", value: "batches" },
-                                { label: "Specific Courses", value: "courses" }
-                            ]}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Area */}
-            {viewMode === "calendar" ? (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                     
-                    {/* Monthly Grid Column (8 cols) */}
-                    <div className="lg:col-span-8 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-                        {/* Calendar Header Controls */}
-                        <div className="flex justify-between items-center pb-2">
-                            <h2 className="text-xl font-black text-slate-900 tracking-tight italic uppercase">
-                                {format(currentMonth, "MMMM yyyy")}
-                            </h2>
-                            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200/50">
-                                <button onClick={handlePrevMonth} className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-500">
-                                    <ChevronLeft size={16} />
-                                </button>
-                                <button onClick={handleGoToToday} className="px-4 py-1.5 bg-white shadow-sm border border-slate-200 text-blue-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all">
-                                    TODAY
-                                </button>
-                                <button onClick={handleNextMonth} className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-500">
-                                    <ChevronRight size={16} />
-                                </button>
-                            </div>
+                    <div className="flex items-center gap-3">
+                        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode("calendar")}
+                                className={cn(
+                                    "px-3 py-1 rounded text-xs font-semibold transition-colors flex items-center gap-1.5",
+                                    viewMode === "calendar" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
+                                )}
+                            >
+                                <CalendarDays size={14} />
+                                Calendar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode("list")}
+                                className={cn(
+                                    "px-3 py-1 rounded text-xs font-semibold transition-colors flex items-center gap-1.5",
+                                    viewMode === "list" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
+                                )}
+                            >
+                                <List size={14} />
+                                List View
+                            </button>
                         </div>
 
-                        {/* Calendar Grid */}
-                        <div className="overflow-hidden">
+                        <Button onClick={() => { setEditingId(null); setFormData(initialFormState()); setIsModalOpen(true); }}>
+                            <Plus size={16} className="mr-2" /> Add Event
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Consolidated Toolbar */}
+                <div className="bg-white rounded-xl border border-slate-200/80 p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                    {/* Month Navigator */}
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-sm font-bold text-slate-900 min-w-[130px]">
+                            {format(currentMonth, "MMMM yyyy")}
+                        </h2>
+                        <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                            <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-white text-slate-500 rounded transition-colors">
+                                <ChevronLeft size={16} />
+                            </button>
+                            <button type="button" onClick={handleGoToToday} className="px-2.5 py-0.5 text-xs font-semibold text-slate-700 hover:bg-white rounded transition-colors">
+                                Today
+                            </button>
+                            <button type="button" onClick={handleNextMonth} className="p-1 hover:bg-white text-slate-500 rounded transition-colors">
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Filters & Search */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
+                        <div className="w-full sm:w-40">
+                            <Select
+                                value={categoryFilter}
+                                onChange={setCategoryFilter}
+                                options={[
+                                    { label: "All Categories", value: "all" },
+                                    { label: "Holidays", value: "holiday" },
+                                    { label: "Exams", value: "exam" },
+                                    { label: "Cultural", value: "cultural" },
+                                    { label: "Sports", value: "sports" },
+                                    { label: "Assembly", value: "academic_assembly" },
+                                    { label: "General", value: "general" }
+                                ]}
+                            />
+                        </div>
+
+                        <div className="w-full sm:w-40">
+                            <Select
+                                value={targetFilter}
+                                onChange={setTargetFilter}
+                                options={[
+                                    { label: "All Audiences", value: "all" },
+                                    { label: "Entire School", value: "all" },
+                                    { label: "Specific Batches", value: "batches" },
+                                    { label: "Specific Courses", value: "courses" }
+                                ]}
+                            />
+                        </div>
+
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                            <input
+                                type="text"
+                                placeholder="Search events..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 outline-none focus:border-slate-400 text-xs font-medium"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Main Content Area */}
+                {viewMode === "calendar" ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        
+                        {/* Calendar Grid Column (8 cols) */}
+                        <div className="lg:col-span-8 bg-white p-5 rounded-xl border border-slate-200/80">
                             {/* Days of week header */}
-                            <div className="grid grid-cols-7 text-center border-b border-slate-100 pb-2">
+                            <div className="grid grid-cols-7 text-center border-b border-slate-100 pb-2 mb-2">
                                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
-                                    <span key={day} className="text-xs font-black uppercase tracking-wider text-slate-400 py-2">
+                                    <span key={day} className="text-xs font-semibold text-slate-400">
                                         {day}
                                     </span>
                                 ))}
                             </div>
 
                             {/* Calendar cells */}
-                            <div className="grid grid-cols-7 border-l border-t border-slate-100">
+                            <div className="grid grid-cols-7 border-l border-t border-slate-200/80">
                                 {calendarDays.map((cell, idx) => {
                                     const dayEvents = getEventsForDate(cell.date);
                                     const isSelected = isSameDay(cell.date, selectedDate);
@@ -427,45 +426,48 @@ export default function AdminCalendarPage() {
                                             key={idx}
                                             onClick={() => setSelectedDate(cell.date)}
                                             onDoubleClick={() => handleQuickAddEvent(cell.date)}
-                                            className={`min-h-[100px] p-2 border-r border-b border-slate-100 cursor-pointer flex flex-col justify-between hover:bg-slate-50/50 transition-all ${
-                                                cell.isCurrentMonth ? "bg-white" : "bg-slate-50/40 text-slate-300"
-                                            } ${isSelected ? "ring-2 ring-blue-500 ring-inset bg-blue-50/10" : ""}`}
+                                            className={cn(
+                                                "min-h-[110px] p-2 border-r border-b border-slate-200/80 cursor-pointer flex flex-col justify-between transition-colors",
+                                                cell.isCurrentMonth ? "bg-white" : "bg-slate-50/40 text-slate-300",
+                                                isSelected && "bg-blue-50/20 ring-2 ring-blue-500 ring-inset"
+                                            )}
                                         >
-                                            {/* Date Number Badge */}
-                                            <div className="flex justify-between items-start">
-                                                <span className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${
+                                            {/* Date Header */}
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className={cn(
+                                                    "text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center",
                                                     isTodayDate 
-                                                        ? "bg-blue-600 text-white shadow-sm font-black" 
+                                                        ? "bg-slate-900 text-white" 
                                                         : isSelected 
                                                             ? "text-blue-600 font-bold" 
                                                             : cell.isCurrentMonth ? "text-slate-800" : "text-slate-300"
-                                                }`}>
+                                                )}>
                                                     {cell.date.getDate()}
                                                 </span>
-                                                
-                                                {/* Mini add event indicator on hover */}
-                                                <span className="opacity-0 group-hover:opacity-100 text-[10px] text-slate-400 font-bold hover:text-blue-500">+</span>
                                             </div>
 
-                                            {/* Mini events list */}
-                                            <div className="space-y-1 mt-2">
-                                                {dayEvents.slice(0, 3).map(event => {
+                                            {/* Event Chips */}
+                                            <div className="space-y-1 mt-1">
+                                                {dayEvents.slice(0, 2).map(event => {
                                                     const style = getCategoryStyles(event.category);
                                                     return (
                                                         <div
                                                             key={event._id}
                                                             onClick={(e) => handleEdit(event, e)}
-                                                            className={`text-[10px] px-2 py-0.5 rounded-md font-bold truncate border flex items-center gap-1 hover:brightness-95 transition-all ${style.bg}`}
+                                                            className={cn(
+                                                                "text-[10px] px-2 py-0.5 rounded font-semibold truncate border flex items-center gap-1.5 transition-colors",
+                                                                style.bg
+                                                            )}
                                                             title={event.title}
                                                         >
-                                                            <span className={`w-1.5 h-1.5 rounded-full ${style.dot} shrink-0`} />
+                                                            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", style.dot)} />
                                                             <span className="truncate">{event.title}</span>
                                                         </div>
                                                     );
                                                 })}
-                                                {dayEvents.length > 3 && (
-                                                    <div className="text-[9px] font-black text-slate-400 text-center uppercase tracking-wide">
-                                                        + {dayEvents.length - 3} more
+                                                {dayEvents.length > 2 && (
+                                                    <div className="text-[10px] font-semibold text-slate-500 text-center">
+                                                        +{dayEvents.length - 2} more
                                                     </div>
                                                 )}
                                             </div>
@@ -474,199 +476,207 @@ export default function AdminCalendarPage() {
                                 })}
                             </div>
                         </div>
-                    </div>
 
-                    {/* Selected Day Panel (4 cols) */}
-                    <div className="lg:col-span-4 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
-                        <div className="border-b border-slate-100 pb-4">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selected Date</span>
-                            <h3 className="text-lg font-black text-slate-900 italic uppercase mt-1">
-                                {format(selectedDate, "eeee, MMMM d")}
-                            </h3>
-                        </div>
+                        {/* Selected Day Panel (4 cols) */}
+                        <div className="lg:col-span-4 bg-white p-5 rounded-xl border border-slate-200/80 space-y-4">
+                            <div className="border-b border-slate-100 pb-3">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Selected Date</span>
+                                <h3 className="text-sm font-bold text-slate-900 mt-0.5">
+                                    {format(selectedDate, "EEEE, MMMM d, yyyy")}
+                                </h3>
+                            </div>
 
-                        {selectedDateEvents.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-8 bg-slate-50/50 rounded-3xl border border-slate-100/50 text-center space-y-3">
-                                <Smile className="text-slate-300 w-8 h-8" />
-                                <div>
-                                    <h4 className="font-bold text-slate-700 text-sm">No Events Scheduled</h4>
-                                    <p className="text-slate-400 text-xs mt-1">A quiet, free day for students and teachers.</p>
+                            {selectedDateEvents.length === 0 ? (
+                                <div className="p-6 text-center space-y-3 bg-slate-50/50 rounded-lg border border-slate-100">
+                                    <Smile className="text-slate-300 mx-auto" size={32} />
+                                    <div>
+                                        <h4 className="font-bold text-slate-700 text-xs">No Events Scheduled</h4>
+                                        <p className="text-slate-400 text-[11px] mt-0.5">A quiet, free day for students and staff.</p>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleQuickAddEvent(selectedDate)}
+                                    >
+                                        <Plus size={14} className="mr-1" /> Add Event
+                                    </Button>
                                 </div>
-                                <button
-                                    onClick={() => handleQuickAddEvent(selectedDate)}
-                                    className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-blue-600 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"
-                                >
-                                    <Plus size={12} /> Add Event
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
-                                {selectedDateEvents.map(event => {
-                                    const style = getCategoryStyles(event.category);
-                                    return (
-                                        <div 
-                                            key={event._id}
-                                            className="p-4 rounded-3xl border border-slate-100 bg-slate-50/30 hover:bg-slate-50 transition-all flex flex-col justify-between"
-                                        >
-                                            <div className="flex justify-between items-start gap-2 mb-2">
-                                                <h4 className="font-black text-slate-800 text-sm leading-snug">{event.title}</h4>
-                                                <Badge variant={style.badge}>
-                                                    {event.category.toUpperCase()}
-                                                </Badge>
-                                            </div>
-
-                                            {event.description && (
-                                                <p className="text-xs font-medium text-slate-500 mb-3 leading-relaxed">{event.description}</p>
-                                            )}
-
-                                            <div className="flex flex-col gap-1 text-[11px] font-bold text-slate-400 mb-3 border-t border-slate-100 pt-3">
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock size={12} />
-                                                    <span>Start: {format(new Date(event.startDate), "MMM d, h:mm a")}</span>
+                            ) : (
+                                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                                    {selectedDateEvents.map(event => {
+                                        const style = getCategoryStyles(event.category);
+                                        return (
+                                            <div 
+                                                key={event._id}
+                                                className="p-3.5 rounded-lg border border-slate-200/80 bg-white space-y-2"
+                                            >
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <h4 className="font-bold text-slate-900 text-xs leading-snug">{event.title}</h4>
+                                                    <Badge variant={style.badge}>
+                                                        {event.category.toUpperCase()}
+                                                    </Badge>
                                                 </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock size={12} />
-                                                    <span>End: {format(new Date(event.endDate), "MMM d, h:mm a")}</span>
+
+                                                {event.description && (
+                                                    <p className="text-xs text-slate-500 font-normal leading-relaxed">{event.description}</p>
+                                                )}
+
+                                                <div className="flex flex-col gap-1 text-[10px] font-medium text-slate-500 pt-2 border-t border-slate-100">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Clock size={12} className="text-slate-400" />
+                                                        <span>{format(new Date(event.startDate), "MMM d, h:mm a")} - {format(new Date(event.endDate), "h:mm a")}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Users size={12} className="text-slate-400" />
+                                                        <span>Target: {event.target}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex justify-end gap-1 pt-2 border-t border-slate-100">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={(e) => handleEdit(event, e)}
+                                                        className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors rounded"
+                                                        title="Edit Event"
+                                                    >
+                                                        <Edit size={14} />
+                                                    </button>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={(e) => handleDelete(event._id, e)}
+                                                        className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors rounded"
+                                                        title="Delete Event"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
                                                 </div>
                                             </div>
-
-                                            <div className="flex justify-end gap-2 border-t border-slate-50 pt-2">
-                                                <button 
-                                                    onClick={(e) => handleEdit(event, e)}
-                                                    className="p-2 bg-white border border-slate-100 hover:border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-blue-600 transition-all rounded-xl shadow-sm"
-                                                >
-                                                    <Edit size={14} />
-                                                </button>
-                                                <button 
-                                                    onClick={(e) => handleDelete(event._id, e)}
-                                                    className="p-2 bg-white border border-slate-100 hover:border-slate-200 hover:bg-red-50 text-slate-500 hover:text-red-600 transition-all rounded-xl shadow-sm"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            ) : (
-                /* List View (Mock Cards) */
-                filteredEvents.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-12 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm text-center">
-                        <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mb-4">
-                            <CalendarDays size={28} />
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
-                        <h3 className="font-bold text-slate-800 text-lg">No events found</h3>
-                        <p className="text-slate-400 text-sm max-w-sm mt-1">Try adjusting your filters or search query.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredEvents.map(event => {
-                            const style = getCategoryStyles(event.category);
-                            return (
-                                <Card key={event._id} className={`relative group hover:shadow-md transition-all border border-slate-100 flex flex-col`}>
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className={`p-3 rounded-xl border ${style.bg}`}>
-                                            <Calendar size={20} />
+                    /* List View */
+                    filteredEvents.length === 0 ? (
+                        <EmptyState
+                            icon={CalendarDays}
+                            title="No events found"
+                            description="Try adjusting your search query or category filters."
+                            actionLabel="Add Event"
+                            onAction={() => { setEditingId(null); setFormData(initialFormState()); setIsModalOpen(true); }}
+                        />
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {filteredEvents.map(event => {
+                                const style = getCategoryStyles(event.category);
+                                return (
+                                    <Card key={event._id} className="p-5 bg-white border border-slate-200/80 rounded-xl flex flex-col justify-between hover:border-slate-300 transition-colors">
+                                        <div>
+                                            <div className="flex justify-between items-start mb-3">
+                                                <Badge variant={style.badge}>
+                                                    {event.category.replace('_', ' ').toUpperCase()}
+                                                </Badge>
+                                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Target: {event.target}</span>
+                                            </div>
+                                            
+                                            <h3 className="font-bold text-slate-900 text-sm mb-1.5 line-clamp-1">{event.title}</h3>
+                                            {event.description && (
+                                                <p className="text-xs text-slate-500 font-normal line-clamp-2 mb-4 leading-relaxed">{event.description}</p>
+                                            )}
                                         </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <Badge variant={style.badge}>
-                                                {event.category.replace('_', ' ').toUpperCase()}
-                                            </Badge>
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Target: {event.target}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <h3 className="font-black text-slate-900 text-lg mb-1 line-clamp-1 italic">{event.title}</h3>
-                                    {event.description && (
-                                        <p className="text-xs font-medium text-slate-500 line-clamp-2 mb-4 leading-relaxed">{event.description}</p>
-                                    )}
-                                    
-                                    <div className="space-y-1.5 mt-auto mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100/50">
-                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                                            <Clock size={14} className="text-slate-400" />
-                                            <span>Start: {format(new Date(event.startDate), "MMM d, yyyy h:mm a")}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                                            <Clock size={14} className="text-slate-400" />
-                                            <span>End: {format(new Date(event.endDate), "MMM d, yyyy h:mm a")}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                                        <span className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">
-                                            Created {format(new Date(event.createdAt), "MMM d")}
-                                        </span>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handleEdit(event)} className="p-2 hover:bg-slate-50 text-slate-400 hover:text-blue-600 transition-colors rounded-lg">
-                                                <Edit size={16} />
-                                            </button>
-                                            <button onClick={() => handleDelete(event._id)} className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors rounded-lg">
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </Card>
-                            );
-                        })}
-                    </div>
-                )
-            )}
 
-            {/* Create / Edit Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 animate-in fade-in">
-                    <form onSubmit={handleSave} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h2 className="text-xl font-black italic text-slate-900 tracking-tight uppercase">
-                                {editingId ? "Edit Event details" : "Add Calendar Event"}
-                            </h2>
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="w-10 h-10 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
-                                <X size={20} />
-                            </button>
+                                        <div className="mt-auto space-y-3">
+                                            <div className="space-y-1 text-[10px] font-medium text-slate-500 bg-slate-50 p-2.5 rounded-md border border-slate-100">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock size={12} className="text-slate-400" />
+                                                    <span>Start: {format(new Date(event.startDate), "MMM d, yyyy h:mm a")}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock size={12} className="text-slate-400" />
+                                                    <span>End: {format(new Date(event.endDate), "MMM d, yyyy h:mm a")}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                                                <span className="text-[10px] text-slate-400 font-medium">
+                                                    Created {format(new Date(event.createdAt), "MMM d")}
+                                                </span>
+                                                <div className="flex gap-1">
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={(e) => handleEdit(event, e)} 
+                                                        className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors rounded"
+                                                        title="Edit Event"
+                                                    >
+                                                        <Edit size={15} />
+                                                    </button>
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={(e) => handleDelete(event._id, e)} 
+                                                        className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors rounded"
+                                                        title="Delete Event"
+                                                    >
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                );
+                            })}
                         </div>
+                    )
+                )}
+
+                {/* Create / Edit Modal */}
+                <Modal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    title={editingId ? "Edit Event Details" : "Add Calendar Event"}
+                    className="max-w-lg"
+                >
+                    <form onSubmit={handleSave} className="space-y-4">
+                        <Input 
+                            label="Event Title *"
+                            placeholder="e.g. School Re-opens, Mid-Term Exams"
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            required
+                        />
                         
-                        <div className="p-8 overflow-y-auto space-y-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Description / Location</label>
+                            <textarea 
+                                className="w-full min-h-[80px] p-3 rounded-lg bg-white border border-slate-200 outline-none focus:border-slate-400 text-xs font-medium text-slate-900 placeholder:text-slate-400 resize-none"
+                                placeholder="Add details or guidelines..."
+                                value={formData.description}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
                             <Input 
-                                label="Event Title"
-                                placeholder="e.g. School Re-opens, Diwali Break, Pre-Board exams"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                type="datetime-local"
+                                label="Start Date & Time *"
+                                value={formData.startDate}
+                                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                                 required
                             />
-                            
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Description / Location</label>
-                                <textarea 
-                                    className="w-full min-h-[80px] p-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all font-medium text-sm resize-none"
-                                    placeholder="Add details or guidelines..."
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                />
-                            </div>
+                            <Input 
+                                type="datetime-local"
+                                label="End Date & Time *"
+                                value={formData.endDate}
+                                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                                required
+                            />
+                        </div>
 
-                            <div className="grid grid-cols-2 gap-6">
-                                <Input 
-                                    type="datetime-local"
-                                    label="Start Date & Time"
-                                    value={formData.startDate}
-                                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                                    required
-                                />
-                                <Input 
-                                    type="datetime-local"
-                                    label="End Date & Time"
-                                    value={formData.endDate}
-                                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                                    required
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Event Category</label>
                                 <Select 
-                                    label="Event Category"
                                     value={formData.category}
                                     onChange={(val) => setFormData({ ...formData, category: val })}
                                     options={[
@@ -678,8 +688,10 @@ export default function AdminCalendarPage() {
                                         { label: "Academic Assembly", value: "academic_assembly" }
                                     ]}
                                 />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Target Audience</label>
                                 <Select 
-                                    label="Target Audience"
                                     value={formData.target}
                                     onChange={(val) => setFormData({ ...formData, target: val, targetIds: [] })}
                                     options={[
@@ -689,74 +701,77 @@ export default function AdminCalendarPage() {
                                     ]}
                                 />
                             </div>
-
-                            {/* Conditional Target IDs selection */}
-                            {formData.target === "courses" && (
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Select Courses</label>
-                                    <div className="flex flex-wrap gap-2 max-h-[120px] overflow-y-auto p-2 bg-slate-50 border border-slate-100 rounded-2xl">
-                                        {courses.map(course => {
-                                            const isSelected = formData.targetIds.includes(course._id);
-                                            return (
-                                                <button
-                                                    key={course._id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const targetIds = isSelected 
-                                                            ? formData.targetIds.filter(id => id !== course._id)
-                                                            : [...formData.targetIds, course._id];
-                                                        setFormData({ ...formData, targetIds });
-                                                    }}
-                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                                                >
-                                                    {course.name}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-
-                            {formData.target === "batches" && (
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Select Batches</label>
-                                    <div className="flex flex-wrap gap-2 max-h-[120px] overflow-y-auto p-2 bg-slate-50 border border-slate-100 rounded-2xl">
-                                        {batches.map(batch => {
-                                            const isSelected = formData.targetIds.includes(batch._id);
-                                            return (
-                                                <button
-                                                    key={batch._id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const targetIds = isSelected 
-                                                            ? formData.targetIds.filter(id => id !== batch._id)
-                                                            : [...formData.targetIds, batch._id];
-                                                        setFormData({ ...formData, targetIds });
-                                                    }}
-                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                                                >
-                                                    {batch.name}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
                         </div>
-                        
-                        <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+
+                        {formData.target === "courses" && (
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Select Courses</label>
+                                <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                                    {courses.map(course => {
+                                        const isSelected = formData.targetIds.includes(course._id);
+                                        return (
+                                            <button
+                                                key={course._id}
+                                                type="button"
+                                                onClick={() => {
+                                                    const targetIds = isSelected 
+                                                        ? formData.targetIds.filter(id => id !== course._id)
+                                                        : [...formData.targetIds, course._id];
+                                                    setFormData({ ...formData, targetIds });
+                                                }}
+                                                className={cn(
+                                                    "px-2.5 py-1 rounded text-xs font-semibold border transition-colors",
+                                                    isSelected ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                                )}
+                                            >
+                                                {course.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {formData.target === "batches" && (
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Select Batches</label>
+                                <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                                    {batches.map(batch => {
+                                        const isSelected = formData.targetIds.includes(batch._id);
+                                        return (
+                                            <button
+                                                key={batch._id}
+                                                type="button"
+                                                onClick={() => {
+                                                    const targetIds = isSelected 
+                                                        ? formData.targetIds.filter(id => id !== batch._id)
+                                                        : [...formData.targetIds, batch._id];
+                                                    setFormData({ ...formData, targetIds });
+                                                }}
+                                                className={cn(
+                                                    "px-2.5 py-1 rounded text-xs font-semibold border transition-colors",
+                                                    isSelected ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                                )}
+                                            >
+                                                {batch.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
                             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={saving}>
-                                <Save size={16} className="mr-2" />
+                            <Button type="submit" disabled={saving} className="min-w-[140px]">
                                 {saving ? "Saving..." : "Save Event"}
                             </Button>
                         </div>
                     </form>
-                </div>
-            )}
-        </div>
+                </Modal>
+            </div>
         </>
     );
 }
