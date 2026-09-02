@@ -185,7 +185,7 @@ export default function DepartmentsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-                        <Building2 className="text-primary-600" size={26} />
+                        <Building2 className="text-blue-600" size={26} />
                         Academic Departments
                     </h1>
                     <p className="text-sm text-slate-500 mt-1">
@@ -194,7 +194,7 @@ export default function DepartmentsPage() {
                 </div>
                 <Button 
                     onClick={openAddModal}
-                    className="flex items-center gap-2 shrink-0 bg-primary-600 hover:bg-primary-700 text-white"
+                    className="flex items-center gap-2 shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                     <Plus size={16} />
                     Add Department
@@ -205,7 +205,7 @@ export default function DepartmentsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="p-4 border-slate-200">
                     <div className="flex items-center gap-3">
-                        <Building2 className="text-primary-600" size={22} />
+                        <Building2 className="text-blue-600" size={22} />
                         <div>
                             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Departments</p>
                             <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.total}</p>
@@ -241,7 +241,7 @@ export default function DepartmentsPage() {
                         placeholder="Search departments by name, code (e.g. CSE), or HOD..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
                 </div>
             </div>
@@ -249,7 +249,7 @@ export default function DepartmentsPage() {
             {/* Department List Grid */}
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="animate-spin text-primary-600 mb-3" size={32} />
+                    <Loader2 className="animate-spin text-blue-600 mb-3" size={32} />
                     <p className="text-sm text-slate-500">Loading departments...</p>
                 </div>
             ) : filteredDepartments.length === 0 ? (
@@ -260,7 +260,10 @@ export default function DepartmentsPage() {
                         {searchQuery ? "No departments match your search query." : "Get started by adding your institution's academic faculties (e.g. Computer Science, Mechanical Engineering, Commerce)."}
                     </p>
                     {!searchQuery && (
-                        <Button onClick={openAddModal} className="mt-4 bg-primary-600 text-white">
+                        <Button 
+                            onClick={openAddModal} 
+                            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
                             <Plus size={16} className="mr-1.5" />
                             Create First Department
                         </Button>
@@ -282,7 +285,7 @@ export default function DepartmentsPage() {
                                     {/* Card Header: Code Badge + Status + Actions */}
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex items-center gap-2">
-                                            <span className="px-2.5 py-1 text-xs font-bold rounded-md bg-primary-50 text-primary-700 border border-primary-200/60">
+                                            <span className="px-2.5 py-1 text-xs font-bold rounded-md bg-blue-50 text-blue-700 border border-blue-200/60">
                                                 {dept.code}
                                             </span>
                                             {dept.establishedYear && (
@@ -295,7 +298,7 @@ export default function DepartmentsPage() {
                                         <div className="flex items-center gap-1">
                                             <button
                                                 onClick={() => openEditModal(dept)}
-                                                className="p-1.5 text-slate-400 hover:text-primary-600 rounded-md hover:bg-slate-100 transition-colors"
+                                                className="p-1.5 text-slate-400 hover:text-blue-600 rounded-md hover:bg-slate-100 transition-colors"
                                                 title="Edit Department"
                                             >
                                                 <Pencil size={15} />
@@ -327,7 +330,7 @@ export default function DepartmentsPage() {
                                         </p>
                                         {hodName ? (
                                             <div className="flex items-center gap-2.5 mt-1.5">
-                                                <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-xs flex items-center justify-center shrink-0">
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
                                                     {dept.hod.profile?.firstName?.[0] || 'H'}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
@@ -404,7 +407,7 @@ export default function DepartmentsPage() {
                         <select
                             value={formData.hod}
                             onChange={(e) => setFormData({ ...formData, hod: e.target.value })}
-                            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="">-- Select Faculty / Instructor --</option>
                             {instructors.map((inst) => {
@@ -432,7 +435,7 @@ export default function DepartmentsPage() {
                             placeholder="Brief overview of the department, focus areas, or laboratory wings..."
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                         />
                     </div>
 
@@ -474,7 +477,7 @@ export default function DepartmentsPage() {
                     <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                         <Button
                             type="button"
-                            variant="secondary"
+                            variant="outline"
                             onClick={() => setIsModalOpen(false)}
                             disabled={saving}
                         >
@@ -482,7 +485,7 @@ export default function DepartmentsPage() {
                         </Button>
                         <Button
                             type="submit"
-                            className="bg-primary-600 text-white"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
                             disabled={saving}
                         >
                             {saving ? (
