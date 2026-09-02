@@ -31,6 +31,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import StudentSearch from "@/components/admin/StudentSearch";
 import InstructorMobileDashboard from "@/components/instructor/InstructorMobileDashboard";
+import ActivityFeed from "@/components/admin/ActivityFeed";
 
 const StatCard = ({ title, value, icon: Icon, trend, trendType = "up", colorClass, iconColorClass }) => (
     <div className={cn("rounded-lg border p-5 transition-colors", colorClass)}>
@@ -532,225 +533,236 @@ export default function AdminDashboard() {
                     ))}
                 </div>
 
-                {/* Gender Demographics Banner (De-containerized) */}
-                {dashboardData?.counts && (
-                    <div className="bg-white rounded-lg border border-slate-100 p-5">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                            <div className="space-y-0.5">
-                                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                                    <Users size={15} className="text-slate-500" />
-                                    Student Demographics
-                                </h3>
-                                <p className="text-xs text-slate-400 font-medium">Gender distribution of active enrollments</p>
-                            </div>
-                            
-                            <div className="flex-1 max-w-xl w-full">
-                                <div className="flex justify-between text-[11px] font-bold mb-2 uppercase tracking-wider">
-                                    <div className="text-blue-600 flex items-center gap-1">
-                                        <User size={12} /> Boys ({(dashboardData.counts.maleStudents || 0).toLocaleString()})
+                {/* Main Dashboard Layout: Analytics (8-cols) + Live Audit Trail & Shortcuts (4-cols) */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+                    {/* Left Analytics & Operations Area */}
+                    <div className="xl:col-span-8 space-y-6">
+                        {/* Gender Demographics Banner */}
+                        {dashboardData?.counts && (
+                            <div className="bg-white rounded-lg border border-slate-100 p-5">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                    <div className="space-y-0.5">
+                                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                            <Users size={15} className="text-slate-500" />
+                                            Student Demographics
+                                        </h3>
+                                        <p className="text-xs text-slate-400 font-medium">Gender distribution of active enrollments</p>
                                     </div>
-                                    <div className="text-pink-600 flex items-center gap-1">
-                                        <User size={12} /> Girls ({(dashboardData.counts.femaleStudents || 0).toLocaleString()})
+                                    
+                                    <div className="flex-1 max-w-xl w-full">
+                                        <div className="flex justify-between text-[11px] font-bold mb-2 uppercase tracking-wider">
+                                            <div className="text-blue-600 flex items-center gap-1">
+                                                <User size={12} /> Boys ({(dashboardData.counts.maleStudents || 0).toLocaleString()})
+                                            </div>
+                                            <div className="text-pink-600 flex items-center gap-1">
+                                                <User size={12} /> Girls ({(dashboardData.counts.femaleStudents || 0).toLocaleString()})
+                                            </div>
+                                        </div>
+                                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                                            {loading ? (
+                                                <div className="w-full h-full bg-slate-200 animate-pulse" />
+                                            ) : (
+                                                <>
+                                                    <div 
+                                                        className="h-full bg-blue-500 transition-all duration-700" 
+                                                        style={{ width: `${dashboardData.counts.totalStudents > 0 ? (dashboardData.counts.maleStudents / dashboardData.counts.totalStudents) * 100 : 50}%` }}
+                                                    />
+                                                    <div 
+                                                        className="h-full bg-pink-500 transition-all duration-700" 
+                                                        style={{ width: `${dashboardData.counts.totalStudents > 0 ? (dashboardData.counts.femaleStudents / dashboardData.counts.totalStudents) * 100 : 50}%` }}
+                                                    />
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Admissions List */}
+                            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden flex flex-col">
+                                <div className="px-5 py-4 border-b border-slate-100">
+                                    <h3 className="text-sm font-bold text-slate-900">Recent Admissions</h3>
+                                    <p className="text-xs text-slate-400 font-medium mt-0.5">Chronological list of newly enrolled students</p>
+                                </div>
+                                <div className="divide-y divide-slate-50 flex-1">
                                     {loading ? (
-                                        <div className="w-full h-full bg-slate-200 animate-pulse" />
+                                        Array(5).fill(0).map((_, i) => (
+                                            <div key={i} className="h-14 bg-slate-50/50 animate-pulse m-3 rounded" />
+                                        ))
+                                    ) : dashboardData?.recentAdmissions?.length > 0 ? (
+                                        dashboardData.recentAdmissions.map((student, idx) => (
+                                            <div 
+                                                key={student._id} 
+                                                className="flex items-center gap-3.5 px-5 py-3 hover:bg-slate-50/60 transition-colors cursor-default"
+                                            >
+                                                <div className="w-8 h-8 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs shrink-0 border border-slate-200/60">
+                                                    {student.profile?.firstName?.[0]}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-bold text-slate-900 truncate">
+                                                        {student.profile?.firstName} {student.profile?.lastName}
+                                                    </p>
+                                                    <p className="text-[11px] text-slate-400 font-mono">#{student.enrollmentNumber}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {getStatusBadge(student.status || 'ACTIVE')}
+                                                </div>
+                                            </div>
+                                        ))
                                     ) : (
-                                        <>
-                                            <div 
-                                                className="h-full bg-blue-500 transition-all duration-700" 
-                                                style={{ width: `${dashboardData.counts.totalStudents > 0 ? (dashboardData.counts.maleStudents / dashboardData.counts.totalStudents) * 100 : 50}%` }}
-                                            />
-                                            <div 
-                                                className="h-full bg-pink-500 transition-all duration-700" 
-                                                style={{ width: `${dashboardData.counts.totalStudents > 0 ? (dashboardData.counts.femaleStudents / dashboardData.counts.totalStudents) * 100 : 50}%` }}
-                                            />
-                                        </>
+                                        <div className="py-14 text-center text-xs text-slate-400">No admissions found.</div>
                                     )}
                                 </div>
+                                {dashboardData?.recentAdmissions?.length > 0 && (
+                                    <div className="px-5 py-3 border-t border-slate-100 bg-[#f9fafb] text-center">
+                                        <button className="text-xs font-bold text-slate-700 hover:text-slate-900 transition-colors">View All Students →</button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Course / Class Rankings with Top/Least Toggle */}
+                            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden flex flex-col">
+                                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-4">
+                                    <div>
+                                        <h3 className="text-sm font-bold text-slate-900">
+                                            {rankingFilter === "top" 
+                                                ? (isSchool ? "Top Performing Classes" : isCollege ? "Top Performing Programs" : "Top Performing Courses")
+                                                : (isSchool ? "Least Performing Classes" : isCollege ? "Least Performing Programs" : "Least Performing Courses")
+                                            }
+                                        </h3>
+                                        <p className="text-xs text-slate-400 font-medium mt-0.5">
+                                            {rankingFilter === "top" ? "Ranked by highest seat occupancy" : "Ranked by lowest seat occupancy"}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-md shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setRankingFilter("top")}
+                                            className={cn(
+                                                "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1",
+                                                rankingFilter === "top"
+                                                    ? "bg-white text-slate-900 shadow-xs"
+                                                    : "text-slate-500 hover:text-slate-700"
+                                            )}
+                                        >
+                                            <TrendingUp size={12} className={rankingFilter === "top" ? "text-emerald-600" : ""} />
+                                            <span>Top</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setRankingFilter("least")}
+                                            className={cn(
+                                                "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1",
+                                                rankingFilter === "least"
+                                                    ? "bg-white text-slate-900 shadow-xs"
+                                                    : "text-slate-500 hover:text-slate-700"
+                                            )}
+                                        >
+                                            <TrendingDown size={12} className={rankingFilter === "least" ? "text-rose-600" : ""} />
+                                            <span>Least</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="p-5 space-y-4 flex-1">
+                                    {loading ? (
+                                         Array(4).fill(0).map((_, i) => (
+                                            <div key={i} className="h-10 bg-slate-50 animate-pulse rounded" />
+                                        ))
+                                    ) : (() => {
+                                        const allCourses = dashboardData?.topCourses || [];
+                                        if (allCourses.length === 0) {
+                                            return <div className="py-14 text-center text-xs text-slate-400 italic">No class insights available yet.</div>;
+                                        }
+
+                                        const maxStudents = Math.max(...allCourses.map(c => c.totalStudents), 1);
+                                        const sortedCourses = [...allCourses].sort((a, b) => {
+                                            if (rankingFilter === "least") {
+                                                return a.totalStudents - b.totalStudents || a.name.localeCompare(b.name);
+                                            }
+                                            return b.totalStudents - a.totalStudents || a.name.localeCompare(b.name);
+                                        }).slice(0, 5);
+
+                                        return sortedCourses.map((course, index) => {
+                                            const percentage = Math.round((course.totalStudents / maxStudents) * 100);
+                                            
+                                            return (
+                                                <div key={course._id} className="space-y-1.5">
+                                                    <div className="flex justify-between items-center text-xs">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-5 h-5 rounded bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-bold font-mono">
+                                                                {index + 1}
+                                                            </span>
+                                                            <span className="font-bold text-slate-800">{course.name}</span>
+                                                            {rankingFilter === "top" && percentage >= 80 && course.totalStudents > 0 && (
+                                                                <span className="text-[9px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Hot</span>
+                                                            )}
+                                                            {rankingFilter === "least" && course.totalStudents === 0 && (
+                                                                <span className="text-[9px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">0 Enrolled</span>
+                                                            )}
+                                                        </div>
+                                                        <span className="font-mono text-slate-700 font-bold">{course.totalStudents} <span className="text-[10px] text-slate-400 font-normal">students</span></span>
+                                                    </div>
+                                                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className={cn(
+                                                                "h-full rounded-full transition-all duration-700",
+                                                                rankingFilter === "least" ? "bg-rose-500" : "bg-slate-800"
+                                                            )}
+                                                            style={{ width: `${Math.max(percentage, course.totalStudents > 0 ? 4 : 0)}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Admissions List */}
-                    <div className="bg-white rounded-lg border border-slate-100 overflow-hidden flex flex-col">
-                        <div className="px-5 py-4 border-b border-slate-100">
-                            <h3 className="text-sm font-bold text-slate-900">Recent Admissions</h3>
-                            <p className="text-xs text-slate-400 font-medium mt-0.5">Chronological list of newly enrolled students</p>
-                        </div>
-                        <div className="divide-y divide-slate-50 flex-1">
-                            {loading ? (
-                                Array(5).fill(0).map((_, i) => (
-                                    <div key={i} className="h-14 bg-slate-50/50 animate-pulse m-3 rounded" />
-                                ))
-                            ) : dashboardData?.recentAdmissions?.length > 0 ? (
-                                dashboardData.recentAdmissions.map((student, idx) => (
-                                    <div 
-                                        key={student._id} 
-                                        className="flex items-center gap-3.5 px-5 py-3 hover:bg-slate-50/60 transition-colors cursor-default"
-                                    >
-                                        <div className="w-8 h-8 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs shrink-0 border border-slate-200/60">
-                                            {student.profile?.firstName?.[0]}
+                        {/* Student Lifecycle Overview - Vocational Only */}
+                        {isVocational && (
+                            <div className="bg-white rounded-lg border border-slate-100 p-5">
+                                <div className="mb-4">
+                                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Student Lifecycle Distribution</h3>
+                                    <p className="text-xs text-slate-400 font-medium mt-0.5">Current status breakdown across entire institution</p>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-100 pt-2">
+                                    <div className="text-center py-3 px-4">
+                                        <div className="text-2xl font-bold text-slate-900 leading-tight">
+                                            {dashboardData?.counts?.activeRate?.toFixed(1) || 0}%
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-bold text-slate-900 truncate">
-                                                {student.profile?.firstName} {student.profile?.lastName}
-                                            </p>
-                                            <p className="text-[11px] text-slate-400 font-mono">#{student.enrollmentNumber}</p>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {getStatusBadge(student.status || 'ACTIVE')}
-                                        </div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Active Engagement</p>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="py-14 text-center text-xs text-slate-400">No admissions found.</div>
-                            )}
-                        </div>
-                        {dashboardData?.recentAdmissions?.length > 0 && (
-                            <div className="px-5 py-3 border-t border-slate-100 bg-[#f9fafb] text-center">
-                                <button className="text-xs font-bold text-slate-700 hover:text-slate-900 transition-colors">View All Students →</button>
+                                    <div className="text-center py-3 px-4">
+                                        <div className="text-2xl font-bold text-emerald-600 leading-tight">
+                                            {dashboardData?.counts?.completionRate?.toFixed(1) || 0}%
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Completion Success</p>
+                                    </div>
+                                    <div className="text-center py-3 px-4">
+                                        <div className="text-2xl font-bold text-rose-600 leading-tight">
+                                            {dashboardData?.counts?.droppedRate?.toFixed(1) || 0}%
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Discontinuation</p>
+                                    </div>
+                                    <div className="text-center py-3 px-4">
+                                        <div className="text-2xl font-bold text-slate-900 leading-tight">
+                                            {dashboardData?.counts?.totalStudents || 0}
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Total Managed</p>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
 
-                    {/* Course / Class Rankings with Top/Least Toggle */}
-                    <div className="bg-white rounded-lg border border-slate-100 overflow-hidden flex flex-col">
-                        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-4">
-                            <div>
-                                <h3 className="text-sm font-bold text-slate-900">
-                                    {rankingFilter === "top" 
-                                        ? (isSchool ? "Top Performing Classes" : isCollege ? "Top Performing Programs" : "Top Performing Courses")
-                                        : (isSchool ? "Least Performing Classes" : isCollege ? "Least Performing Programs" : "Least Performing Courses")
-                                    }
-                                </h3>
-                                <p className="text-xs text-slate-400 font-medium mt-0.5">
-                                    {rankingFilter === "top" ? "Ranked by highest seat occupancy" : "Ranked by lowest seat occupancy"}
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-md shrink-0">
-                                <button
-                                    type="button"
-                                    onClick={() => setRankingFilter("top")}
-                                    className={cn(
-                                        "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1",
-                                        rankingFilter === "top"
-                                            ? "bg-white text-slate-900 shadow-xs"
-                                            : "text-slate-500 hover:text-slate-700"
-                                    )}
-                                >
-                                    <TrendingUp size={12} className={rankingFilter === "top" ? "text-emerald-600" : ""} />
-                                    <span>Top</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setRankingFilter("least")}
-                                    className={cn(
-                                        "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1",
-                                        rankingFilter === "least"
-                                            ? "bg-white text-slate-900 shadow-xs"
-                                            : "text-slate-500 hover:text-slate-700"
-                                    )}
-                                >
-                                    <TrendingDown size={12} className={rankingFilter === "least" ? "text-rose-600" : ""} />
-                                    <span>Least</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div className="p-5 space-y-4 flex-1">
-                            {loading ? (
-                                 Array(4).fill(0).map((_, i) => (
-                                    <div key={i} className="h-10 bg-slate-50 animate-pulse rounded" />
-                                ))
-                            ) : (() => {
-                                const allCourses = dashboardData?.topCourses || [];
-                                if (allCourses.length === 0) {
-                                    return <div className="py-14 text-center text-xs text-slate-400 italic">No class insights available yet.</div>;
-                                }
-
-                                const maxStudents = Math.max(...allCourses.map(c => c.totalStudents), 1);
-                                const sortedCourses = [...allCourses].sort((a, b) => {
-                                    if (rankingFilter === "least") {
-                                        return a.totalStudents - b.totalStudents || a.name.localeCompare(b.name);
-                                    }
-                                    return b.totalStudents - a.totalStudents || a.name.localeCompare(b.name);
-                                }).slice(0, 5);
-
-                                return sortedCourses.map((course, index) => {
-                                    const percentage = Math.round((course.totalStudents / maxStudents) * 100);
-                                    
-                                    return (
-                                        <div key={course._id} className="space-y-1.5">
-                                            <div className="flex justify-between items-center text-xs">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-5 h-5 rounded bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-bold font-mono">
-                                                        {index + 1}
-                                                    </span>
-                                                    <span className="font-bold text-slate-800">{course.name}</span>
-                                                    {rankingFilter === "top" && percentage >= 80 && course.totalStudents > 0 && (
-                                                        <span className="text-[9px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Hot</span>
-                                                    )}
-                                                    {rankingFilter === "least" && course.totalStudents === 0 && (
-                                                        <span className="text-[9px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">0 Enrolled</span>
-                                                    )}
-                                                </div>
-                                                <span className="font-mono text-slate-700 font-bold">{course.totalStudents} <span className="text-[10px] text-slate-400 font-normal">students</span></span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                <div 
-                                                    className={cn(
-                                                        "h-full rounded-full transition-all duration-700",
-                                                        rankingFilter === "least" ? "bg-rose-500" : "bg-slate-800"
-                                                    )}
-                                                    style={{ width: `${Math.max(percentage, course.totalStudents > 0 ? 4 : 0)}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    );
-                                });
-                            })()}
-                        </div>
+                    {/* Right 4-Columns: Live Audit Activity & Quick Executive Shortcuts */}
+                    <div className="xl:col-span-4">
+                        <ActivityFeed />
                     </div>
                 </div>
-
-                {/* Student Lifecycle Overview - Vocational Only */}
-                {isVocational && (
-                    <div className="bg-white rounded-lg border border-slate-100 p-5">
-                        <div className="mb-4">
-                            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Student Lifecycle Distribution</h3>
-                            <p className="text-xs text-slate-400 font-medium mt-0.5">Current status breakdown across entire institution</p>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-100 pt-2">
-                            <div className="text-center py-3 px-4">
-                                <div className="text-2xl font-bold text-slate-900 leading-tight">
-                                    {dashboardData?.counts?.activeRate?.toFixed(1) || 0}%
-                                </div>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Active Engagement</p>
-                            </div>
-                            <div className="text-center py-3 px-4">
-                                <div className="text-2xl font-bold text-emerald-600 leading-tight">
-                                    {dashboardData?.counts?.completionRate?.toFixed(1) || 0}%
-                                </div>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Completion Success</p>
-                            </div>
-                            <div className="text-center py-3 px-4">
-                                <div className="text-2xl font-bold text-rose-600 leading-tight">
-                                    {dashboardData?.counts?.droppedRate?.toFixed(1) || 0}%
-                                </div>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Discontinuation</p>
-                            </div>
-                            <div className="text-center py-3 px-4">
-                                <div className="text-2xl font-bold text-slate-900 leading-tight">
-                                    {dashboardData?.counts?.totalStudents || 0}
-                                </div>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Total Managed</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </>
     );

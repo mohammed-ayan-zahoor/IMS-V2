@@ -161,7 +161,7 @@ function finalizeGroup(group) {
     };
 }
 
-export default function ActivityFeed() {
+export default function ActivityFeed({ className }) {
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
@@ -212,20 +212,23 @@ export default function ActivityFeed() {
     }, []);
 
     return (
-        <div className="flex flex-col h-full bg-white border-l border-slate-100 min-w-0 overflow-hidden">
+        <div className={cn("flex flex-col bg-white rounded-lg border border-slate-100 min-w-0 overflow-hidden", className)}>
             {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10 shrink-0">
-                <h3 className="text-sm font-bold text-slate-900">Recent Activity</h3>
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div>
+                    <h3 className="text-sm font-bold text-slate-900">Recent Activity</h3>
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">Live audit trail & actions</p>
+                </div>
                 <Link href="/admin/audit-logs" className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors">
-                    View All
+                    View All →
                 </Link>
             </div>
 
-            {/* Activity Feed Containerless List */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5 min-w-0">
+            {/* Activity Feed List */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 min-w-0 max-h-[340px]">
                 {loading ? (
-                    <div className="py-16 text-center">
-                        <div className="w-6 h-6 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-2" />
+                    <div className="py-12 text-center">
+                        <div className="w-5 h-5 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-2" />
                         <p className="text-xs font-medium text-slate-400">Loading activity...</p>
                     </div>
                 ) : activities.length > 0 ? (
@@ -233,16 +236,15 @@ export default function ActivityFeed() {
                         const config = ACTIVITY_CONFIG[activity.type] || ACTIVITY_CONFIG.default;
                         const Icon = config.icon;
                         return (
-                            <div key={activity.id} className="flex gap-3.5 items-start min-w-0 pb-4 border-b border-slate-50 last:border-b-0 last:pb-0">
-                                {/* Containerless Unboxed Icon aligned with title line */}
-                                <Icon size={16} className={cn("mt-0.5 shrink-0", config.color)} />
+                            <div key={activity.id} className="flex gap-3 items-start min-w-0 pb-3.5 border-b border-slate-50 last:border-b-0 last:pb-0">
+                                <Icon size={15} className={cn("mt-0.5 shrink-0", config.color)} />
                                 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-0.5">
                                         <h4 className="text-xs font-semibold text-slate-900 truncate">
                                             {activity.title}
                                         </h4>
-                                        <span className="text-[11px] text-slate-400 font-medium shrink-0">
+                                        <span className="text-[10px] text-slate-400 font-medium shrink-0 font-mono">
                                             {formatTime(activity.time)}
                                         </span>
                                     </div>
@@ -254,27 +256,27 @@ export default function ActivityFeed() {
                         );
                     })
                 ) : (
-                    <div className="text-center py-12">
+                    <div className="text-center py-10">
                         <p className="text-xs font-medium text-slate-400">No recent activity recorded</p>
                     </div>
                 )}
             </div>
 
-            {/* Executive Shortcuts (Containerless Cards) */}
-            <div className="p-5 bg-slate-50/60 border-t border-slate-100 shrink-0 min-w-0">
-                <h4 className="text-xs font-semibold text-slate-500 mb-3 text-center">Executive Shortcuts</h4>
-                <div className="grid grid-cols-2 gap-2.5 min-w-0">
+            {/* Executive Shortcuts */}
+            <div className="p-4 bg-slate-50/60 border-t border-slate-100 shrink-0 min-w-0">
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">Executive Shortcuts</h4>
+                <div className="grid grid-cols-2 gap-2 min-w-0">
                     {shortcuts.map((shortcut, index) => (
                         <button 
                             key={index} 
                             onClick={() => handleShortcut(shortcut.label)}
                             className={cn(
-                                "flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/80 bg-white transition-all cursor-pointer hover:border-slate-300 hover:shadow-xs group min-w-0",
+                                "flex items-center gap-2 p-2.5 rounded-lg border border-slate-200/80 bg-white transition-all cursor-pointer hover:border-slate-300 hover:shadow-xs group min-w-0 text-left",
                                 shortcut.bg
                             )}
                         >
-                            <shortcut.icon size={18} className={cn("transition-transform group-hover:scale-110 mb-1.5", shortcut.color)} />
-                            <span className="text-xs font-semibold text-slate-700 truncate w-full text-center group-hover:text-slate-900">
+                            <shortcut.icon size={15} className={cn("transition-transform group-hover:scale-110 shrink-0", shortcut.color)} />
+                            <span className="text-xs font-semibold text-slate-700 truncate group-hover:text-slate-900">
                                 {shortcut.label}
                             </span>
                         </button>
