@@ -286,7 +286,8 @@ export default function AdminLayout({ children }) {
         if (isDashboard) return { title: "Dashboard", subtitle: "Overview and recent activity" };
         
         const allItems = menuGroups.flatMap(g => g.items);
-        const currentItem = allItems.find(i => pathname === i.href || pathname.startsWith(i.href + "/"));
+        const currentItem = allItems.find(i => pathname === i.href) || 
+                            [...allItems].sort((a, b) => b.href.length - a.href.length).find(i => pathname.startsWith(i.href + "/"));
         
         if (currentItem) {
             return {
@@ -487,12 +488,12 @@ export default function AdminLayout({ children }) {
                 )}>
                     <div className={cn(
                         "flex-1 overflow-y-auto bg-[#f9fafb] scrollbar-hide print-reset min-w-0",
-                        (pathname === "/admin/chat" || pathname.startsWith("/admin/website")) ? "p-0" : isInstructorOrStaff ? "p-3 md:p-8" : "p-4 sm:p-8"
+                        (pathname === "/admin/chat" || pathname === "/admin/website") ? "p-0" : isInstructorOrStaff ? "p-3 md:p-8" : "p-4 sm:p-8"
                     )}>
                         <div className={cn(
                             "animate-fade-in h-full w-full",
-                            (pathname === "/admin/chat" || pathname.startsWith("/admin/website")) ? "w-full h-full" : "mx-auto space-y-8",
-                            isDashboard || pathname === "/admin/chat" || pathname.startsWith("/admin/website") ? "w-full" : "w-full max-w-[1600px]"
+                            (pathname === "/admin/chat" || pathname === "/admin/website") ? "w-full h-full" : "mx-auto space-y-8",
+                            isDashboard || pathname === "/admin/chat" || pathname === "/admin/website" ? "w-full" : "w-full max-w-[1600px]"
                         )}>
                             {children}
                         </div>
