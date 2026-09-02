@@ -30,6 +30,7 @@ const CourseSchema = new Schema({
         }
     },
     syllabus: [{ type: String, trim: true }],
+    department: { type: Schema.Types.ObjectId, ref: 'Department', default: null, index: true },
     subjects: [{ type: Schema.Types.ObjectId, ref: 'Subject' }],
     prerequisites: [{ type: Schema.Types.ObjectId, ref: 'Course' }],
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },

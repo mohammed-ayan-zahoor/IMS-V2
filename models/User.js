@@ -32,6 +32,9 @@ const UserSchema = new Schema({
     },
     faceEnrolledAt: Date,
 
+    // Department affiliation (Colleges)
+    department: { type: Schema.Types.ObjectId, ref: 'Department', default: null, index: true },
+
     // RBAC: Assignments for Instructors/Staff
     assignments: {
         batches: [{ type: Schema.Types.ObjectId, ref: 'Batch' }],

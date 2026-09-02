@@ -111,6 +111,7 @@ export default function AdminLayout({ children }) {
         {
             label: "Academic",
             items: [
+                { label: "Departments", icon: Building2, href: "/admin/departments", instituteType: ["COLLEGE"] },
                 { label: "Students", icon: Users, href: "/admin/students" },
                 { label: isSchool ? "Class" : "Courses", icon: BookOpen, href: "/admin/courses" },
                 { label: "Subjects", icon: Layers3, href: "/admin/subjects" }, // Changed icon to Layers3 for subjects to distinguish
