@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { 
     Plus, 
     Search, 
@@ -17,7 +17,10 @@ import {
     MapPin,
     Users,
     CheckCircle2,
-    Info
+    Info,
+    Upload,
+    FileJson,
+    Download
 } from "lucide-react";
 import { format, isSameDay, isToday } from "date-fns";
 
@@ -129,6 +132,13 @@ export default function AdminCalendarPage() {
     const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState(initialFormState());
 
+    // Bulk Import Modal State
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [importJson, setImportJson] = useState("");
+    const [isImporting, setIsImporting] = useState(false);
+    const [clearExistingOnImport, setClearExistingOnImport] = useState(false);
+    const fileInputRef = useRef(null);
+
     function initialFormState() {
         return {
             title: "",
@@ -140,6 +150,73 @@ export default function AdminCalendarPage() {
             targetIds: []
         };
     }
+
+    const handleImportSubmit = async () => {
+        if (!importJson.trim()) {
+            toast.error("Please paste or upload JSON data");
+            return;
+        }
+
+        try {
+            setIsImporting(true);
+            let parsed;
+            try {
+                parsed = JSON.parse(importJson);
+            } catch (err) {
+                toast.error("Invalid JSON format. Please check the syntax.");
+                setIsImporting(false);
+                return;
+            }
+
+            const eventsList = Array.isArray(parsed) ? parsed : (parsed.events || parsed.fixtures || parsed.data || []);
+            if (!Array.isArray(eventsList) || eventsList.length === 0) {
+                toast.error("No events found in JSON. Expected an array of objects.");
+                setIsImporting(false);
+                return;
+            }
+
+            const res = await fetch("/api/v1/events/import", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    events: eventsList,
+                    clearExisting: clearExistingOnImport
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                toast.success(data.message || `Successfully imported ${data.stats?.created || eventsList.length} events!`);
+                setIsImportModalOpen(false);
+                setImportJson("");
+                fetchInitialData();
+            } else {
+                toast.error(data.error || "Failed to import events");
+            }
+        } catch (error) {
+            console.error("Import error:", error);
+            toast.error("Import request failed");
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.name.endsWith('.json')) {
+            toast.error("Please upload a valid .json file");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            setImportJson(event.target.result);
+            toast.success(`${file.name} loaded successfully`);
+        };
+        reader.readAsText(file);
+    };
 
     useEffect(() => {
         fetchInitialData();
@@ -411,6 +488,15 @@ export default function AdminCalendarPage() {
                                 List View
                             </button>
                         </div>
+
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setIsImportModalOpen(true)} 
+                            className="flex items-center gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-50"
+                        >
+                            <Upload size={15} />
+                            <span>Import Fixtures</span>
+                        </Button>
 
                         <Button onClick={() => { setEditingId(null); setFormData(initialFormState()); setIsModalOpen(true); }}>
                             <Plus size={16} className="mr-2" /> Add Event
@@ -867,6 +953,117 @@ export default function AdminCalendarPage() {
                             </Button>
                         </div>
                     </form>
+                </Modal>
+
+                {/* Bulk Import Fixtures Modal */}
+                <Modal
+                    isOpen={isImportModalOpen}
+                    onClose={() => setIsImportModalOpen(false)}
+                    title="Import Annual Fixtures (JSON)"
+                >
+                    <div className="space-y-5 pt-2">
+                        <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3.5 flex gap-3 text-left">
+                            <Info className="text-blue-600 shrink-0 mt-0.5" size={18} />
+                            <div className="space-y-1 text-xs">
+                                <p className="text-blue-900 font-bold">
+                                    Instant Annual Calendar Seeding
+                                </p>
+                                <p className="text-blue-700/80 leading-relaxed">
+                                    Paste your Claude-generated JSON or upload a <code className="bg-blue-100/60 px-1 py-0.5 rounded text-blue-900 font-mono">.json</code> file. 
+                                    Categories (<code className="font-mono">holiday</code>, <code className="font-mono">exam</code>, <code className="font-mono">sports</code>, <code className="font-mono">cultural</code>, <code className="font-mono">academic_assembly</code>) and dates are auto-detected!
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Drag and Drop / File upload */}
+                        <div 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="border-2 border-dashed border-slate-200 rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:bg-blue-50/20 cursor-pointer transition-all group"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                                <FileJson size={20} />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-xs font-bold text-slate-700">Click to upload JSON file</p>
+                                <p className="text-[11px] text-slate-400">or paste the JSON array directly below</p>
+                            </div>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept=".json" 
+                                onChange={handleFileSelect}
+                            />
+                        </div>
+
+                        {/* Paste JSON Area */}
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                    JSON Fixtures Payload
+                                </label>
+                                {importJson && (
+                                    <button 
+                                        type="button"
+                                        onClick={() => setImportJson("")}
+                                        className="text-[10px] font-bold text-rose-500 hover:underline"
+                                    >
+                                        Clear
+                                    </button>
+                                )}
+                            </div>
+                            <textarea
+                                className="w-full h-44 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-xs font-mono transition-all resize-none text-slate-800"
+                                placeholder={`[
+  {
+    "title": "Independence Day Celebration",
+    "startDate": "2026-08-15",
+    "endDate": "2026-08-15",
+    "category": "holiday",
+    "description": "National holiday - Flag hoisting at 8:00 AM"
+  },
+  {
+    "title": "Mid-Term (SA-1) Examinations",
+    "startDate": "2026-09-20",
+    "endDate": "2026-09-28",
+    "category": "exam",
+    "description": "Summative Assessment 1 for all grades"
+  }
+]`}
+                                value={importJson}
+                                onChange={(e) => setImportJson(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Options */}
+                        <div className="flex items-center gap-2.5 pt-1">
+                            <input
+                                type="checkbox"
+                                id="clearExistingCalendar"
+                                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20"
+                                checked={clearExistingOnImport}
+                                onChange={(e) => setClearExistingOnImport(e.target.checked)}
+                            />
+                            <label htmlFor="clearExistingCalendar" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                                Replace existing calendar events (Clean slate import)
+                            </label>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="pt-3 flex gap-3 border-t border-slate-100">
+                            <Button type="button" variant="outline" className="flex-1" onClick={() => setIsImportModalOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button 
+                                type="button"
+                                className="flex-1" 
+                                onClick={handleImportSubmit}
+                                disabled={isImporting || !importJson.trim()}
+                            >
+                                {isImporting ? "Importing Fixtures..." : "Import All Fixtures"}
+                            </Button>
+                        </div>
+                    </div>
                 </Modal>
             </div>
         </>
