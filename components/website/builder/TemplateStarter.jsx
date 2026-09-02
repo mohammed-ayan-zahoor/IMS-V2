@@ -1330,12 +1330,9 @@ export default function TemplateStarter({ onSelect, onSkip, isChangeMode = false
                             ) : (
                                 <div>
                                     <div style={{ fontSize: '44px', marginBottom: '12px' }}>📁</div>
-                                    <h3 style={{ color: '#f8fafc', fontSize: '16px', fontWeight: 700, margin: '0 0 6px' }}>
+                                    <h3 style={{ color: '#f8fafc', fontSize: '16px', fontWeight: 700, margin: '0 0 18px' }}>
                                         Drag & Drop your Template Folder or .ZIP here
                                     </h3>
-                                    <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 20px' }}>
-                                        Both unzipped folders and .zip archives are supported!
-                                    </p>
                                     
                                     <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                                         {/* Select Folder Button */}

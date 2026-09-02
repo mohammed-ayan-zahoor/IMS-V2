@@ -447,27 +447,31 @@ const GRAPES_STYLES = `
   .gjs-blocks-cs, .gjs-block-categories, .gjs-block-category, .gjs-blocks-c { max-height: none !important; height: auto !important; overflow: visible !important; }
   .gjs-block { background: #1e293b; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #cbd5e1; font-size: 11px; padding: 12px 8px; text-align: center; transition: all 0.15s; width: 100% !important; max-width: none !important; min-height: 75px !important; margin: 0 !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; }
   .gjs-block:hover { background: #243448; border-color: #3b82f6; color: #ffffff; }
-  .gjs-block__media { font-size: 24px; margin-bottom: 6px; }
+  .gjs-block__media { color: #94a3b8; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; transition: color 0.15s; }
+  .gjs-block:hover .gjs-block__media { color: #60a5fa; }
   .gjs-layer { background: transparent; border-bottom: 1px solid rgba(255,255,255,0.04); color: #94a3b8; font-size: 12px; }
   .gjs-layer:hover { background: rgba(255,255,255,0.04); }
   .gjs-layer.gjs-selected { background: rgba(59,130,246,0.15); color: #60a5fa; }
   .gjs-layer__name { font-size: 12px; }
   .gjs-clm-tags { background: #1e293b; }
-  .gjs-trt-trait__label { color: #94a3b8; font-size: 12px; }
+  /* Hide duplicate Classes/Selected manager headers */
+  .gjs-clm-tags + .gjs-clm-tags,
+  .gjs-clm-sel:nth-of-type(n+2) { display: none !important; }
+  .gjs-trt-trait__label { color: #cbd5e1; font-size: 12px; font-weight: 500; }
   .gjs-trt-trait .gjs-field { background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #e2e8f0; font-size: 12px; }
   .gjs-field input, .gjs-field select, .gjs-field textarea { background: transparent; color: #e2e8f0; font-size: 12px; }
   .gjs-sm-sector { border-bottom: 1px solid rgba(255,255,255,0.05); }
-  .gjs-sm-sector-title { background: #1e293b; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 10px 14px; }
-  .gjs-sm-property { color: #94a3b8; font-size: 12px; }
-  .gjs-sm-property .gjs-sm-label { color: #64748b; font-size: 11px; }
+  .gjs-sm-sector-title { background: #1e293b; color: #cbd5e1; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 10px 14px; }
+  .gjs-sm-property { color: #e2e8f0; font-size: 12px; }
+  .gjs-sm-property .gjs-sm-label { color: #94a3b8; font-size: 11px; font-weight: 500; }
   .gjs-field-color-picker { border-radius: 4px; }
   .gjs-toolbar { background: #1e40af; border-radius: 6px; }
   .gjs-toolbar-item { color: #ffffff; }
   .gjs-resizer-h { border-color: #3b82f6; }
   .gjs-selected { outline: 2px solid #3b82f6 !important; outline-offset: 1px; }
   .gjs-hovered { outline: 1px dashed rgba(59,130,246,0.5) !important; outline-offset: 1px; }
-  .gjs-frame-wrapper { background: #0f172a; }
-  .gjs-cv-canvas { background: #1a2744; }
+  .gjs-frame-wrapper { background: #090d16; }
+  .gjs-cv-canvas { background: #030712; }
   .gjs-badge { background: #1e40af; border-radius: 4px; color: #fff; font-size: 10px; }
 
   /* CodeMirror Custom Styles */
@@ -1647,18 +1651,18 @@ export default function GrapesEditor({
                             display: 'flex',
                             alignItems: 'center',
                             gap: '6px',
-                            background: 'rgba(124, 58, 237, 0.15)',
-                            border: '1px solid rgba(124, 58, 237, 0.4)',
+                            background: '#1e293b',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
                             borderRadius: '6px',
                             padding: '5px 10px',
-                            color: '#c4b5fd',
+                            color: '#e2e8f0',
                             fontSize: '12px',
                             fontWeight: 600,
                             cursor: 'pointer',
                             transition: 'all 0.15s'
                         }}
                     >
-                        <LayoutTemplate size={14} color="#a78bfa" />
+                        <LayoutTemplate size={14} className="text-slate-400" />
                         <span>Templates</span>
                     </button>
 
@@ -2274,27 +2278,27 @@ const toolbarBtnStyle = {
 
 // ── Block icons map ─────────────────────────────────────────────────────────
 const BLOCK_ICONS = {
-    'navbar-classic': '🔷',
-    'navbar-centered': '🔹',
-    'navbar-transparent': '⬜',
-    'hero-centered': '⭐',
-    'hero-split': '◀▶',
-    'hero-gradient': '🌈',
-    'features-grid': '⊞',
-    'placement-stats': '📊',
-    'faculty-cards': '👥',
-    'testimonials': '💬',
-    'gallery': '🖼️',
-    'contact-form': '📬',
-    'footer': '⬇️',
-    'notices-ticker': '📢',
-    'cta-banner': '🚀',
-    'blank-section': '▭',
-    'two-column': '⊟',
-    'text-block': '📝',
-    'image-block': '🖼️',
-    'button-block': '🔘',
-    'results-portal-banner': '🎓',
-    'results-portal-btn': '📄',
+    'navbar-classic': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/><path d="M7 7h2"/><path d="M15 7h2"/></svg>`,
+    'navbar-centered': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/><path d="M10 7h4"/></svg>`,
+    'navbar-transparent': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" stroke-dasharray="2 2"/><path d="M3 9h18"/><path d="M7 7h3"/></svg>`,
+    'hero-centered': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 9h10"/><path d="M9 13h6"/><rect x="9" y="16" width="6" height="2" rx="1"/></svg>`,
+    'hero-split': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/><path d="M6 8h3"/><path d="M6 12h3"/><rect x="14" y="7" width="5" height="10" rx="1"/></svg>`,
+    'hero-gradient': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8h10"/><path d="M7 12h10"/><path d="m3 16 6-6 4 4 8-8"/></svg>`,
+    'features-grid': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>`,
+    'placement-stats': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+    'faculty-cards': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    'testimonials': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+    'gallery': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+    'contact-form': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L1 7"/></svg>`,
+    'footer': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15h18"/></svg>`,
+    'notices-ticker': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+    'cta-banner': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-3.05 11a22.35 22.35 0 0 1-3.95 2z"/></svg>`,
+    'blank-section': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`,
+    'two-column': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></svg>`,
+    'text-block': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`,
+    'image-block': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+    'button-block': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="8" rx="4"/></svg>`,
+    'results-portal-banner': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`,
+    'results-portal-btn': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
 };
 
