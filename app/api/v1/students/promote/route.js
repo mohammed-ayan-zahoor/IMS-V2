@@ -94,6 +94,8 @@ export async function POST(req) {
              feesSkipped: 0
          };
 
+        const successfulStudentIds = [];
+
         for (const studentId of studentIds) {
             try {
                 // A. Check if already in target batch
@@ -203,6 +205,7 @@ export async function POST(req) {
                 }
 
                 results.success++;
+                successfulStudentIds.push(studentId);
             } catch (err) {
                 console.error(`Failed to promote student ${studentId}:`, err);
                 results.failed++;
@@ -213,9 +216,9 @@ export async function POST(req) {
 
         // 5. BULK UPDATE STUDENTS (Security & Performance Optimization)
         // Ensure all successfully promoted students have their activeSession and promotionHistory updated
-        if (studentIds.length > 0) {
+        if (successfulStudentIds.length > 0) {
             await User.updateMany(
-                { _id: { $in: studentIds } },
+                { _id: { $in: successfulStudentIds } },
                 { 
                     $set: { activeSession: targetSessionId },
                     $addToSet: { 
@@ -229,7 +232,7 @@ export async function POST(req) {
                     }
                 }
             );
-            console.log(`[PROMOTION_SYNC] Bulk updated ${studentIds.length} students with session ${targetSessionId}`);
+            console.log(`[PROMOTION_SYNC] Bulk updated ${successfulStudentIds.length} students with session ${targetSessionId}`);
         }
 
          return NextResponse.json({
