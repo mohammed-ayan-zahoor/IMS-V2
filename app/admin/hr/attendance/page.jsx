@@ -14,6 +14,8 @@ const statusOptions = [
     { value: "half_day", label: "Half Day" },
     { value: "on_leave", label: "On Leave" },
     { value: "holiday", label: "Holiday" }
+];
+
 const SEEDED_ATTENDANCE = [
     {
         staff: { _id: "st-1", profile: { firstName: "Dr. Rajesh", lastName: "Sharma" }, email: "rajesh.sharma@quantech.edu", role: "instructor", hrDetails: { designation: { name: "HOD Physics" } } },
