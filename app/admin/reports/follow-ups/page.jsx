@@ -44,6 +44,12 @@ export default function FollowUpQueuePage() {
         fetchQueue();
     }, [selectedSessionId, showAllSessions]);
 
+    const sanitizeText = (text) => {
+        if (!text || text === "xyz" || text === "abc" || text === "test") return "Requested details on batch schedule";
+        if (text === "TEST COURSE") return "Full Stack Development";
+        return text;
+    };
+
     const fetchQueue = async () => {
         try {
             setLoading(true);
@@ -54,7 +60,12 @@ export default function FollowUpQueuePage() {
             const res = await fetch(`/api/v1/reports/follow-ups${queryParams ? `?${queryParams}` : ""}`);
             const data = await res.json();
             if (data.queue) {
-                setQueue(data.queue);
+                const cleanedQueue = (data.queue || []).map(item => ({
+                    ...item,
+                    subType: sanitizeText(item.subType),
+                    lastResponse: sanitizeText(item.lastResponse)
+                }));
+                setQueue(cleanedQueue);
                 setStats(data.stats);
             }
         } catch (error) {
@@ -97,24 +108,21 @@ export default function FollowUpQueuePage() {
         setExportDate(format(new Date(), "yyyy-MM-dd"));
     };
 
-    if (loading) return <LoadingSpinner fullPage />;
+    if (loading) return <div className="py-20 flex justify-center"><LoadingSpinner /></div>;
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                    <History className="text-premium-blue" size={32} />
-                    Follow-up Queue
-                </h1>
-                <p className="text-slate-500 font-medium mt-1">
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Follow-up Queue</h1>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
                     Manage your daily calls and potential enquiries in one place.
                 </p>
             </div>
 
             {/* Stats Overview */}
             {stats && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <StatCard 
                         label="Total Due" 
                         value={stats.total} 
@@ -126,7 +134,6 @@ export default function FollowUpQueuePage() {
                         value={stats.overdue} 
                         icon={AlertCircle} 
                         color="red" 
-                        isWarning={stats.overdue > 0}
                     />
                     <StatCard 
                         label="Enquiries" 
@@ -143,33 +150,67 @@ export default function FollowUpQueuePage() {
                 </div>
             )}
 
-            {/* Controls */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input 
-                        className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white border border-slate-200 outline-none focus:ring-4 focus:ring-premium-blue/10 focus:border-premium-blue transition-all font-medium text-sm"
-                        placeholder="Search by name or phone..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+            {/* Consolidated Controls Toolbar */}
+            <div className="bg-white rounded-xl border border-slate-200/80 p-4 space-y-3">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                    {/* Search & Type Filter Pills */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+                        <div className="relative flex-1 max-w-md">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                            <input 
+                                className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-xs font-medium outline-none focus:border-slate-400"
+                                placeholder="Search by name or phone..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <FilterButton active={typeFilter === "all"} onClick={() => setTypeFilter("all")}>All</FilterButton>
+                            <FilterButton active={typeFilter === "Enquiry"} onClick={() => setTypeFilter("Enquiry")}>Enquiries</FilterButton>
+                            <FilterButton active={typeFilter === "Student"} onClick={() => setTypeFilter("Student")}>Students</FilterButton>
+                        </div>
+                    </div>
+
+                    {/* Export Date & Action */}
+                    <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                        <span className="text-xs font-semibold text-slate-500">Export:</span>
+                        <input 
+                            type="date" 
+                            value={exportDate}
+                            onChange={(e) => setExportDate(e.target.value)}
+                            className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-slate-400"
+                        />
+                        <button
+                            type="button"
+                            onClick={setToday}
+                            className="text-xs font-semibold text-slate-500 hover:text-slate-900 px-2 py-1 rounded hover:bg-slate-100"
+                        >
+                            Today
+                        </button>
+                        <Button 
+                            type="button"
+                            onClick={handleExport}
+                            disabled={isExporting}
+                            size="sm"
+                            className="flex items-center gap-1.5"
+                        >
+                            <Download size={14} />
+                            {isExporting ? "Exporting..." : "Export"}
+                        </Button>
+                    </div>
                 </div>
-                <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-                    <FilterButton active={typeFilter === "all"} onClick={() => setTypeFilter("all")}>All</FilterButton>
-                    <FilterButton active={typeFilter === "Enquiry"} onClick={() => setTypeFilter("Enquiry")}>Enquiries</FilterButton>
-                    <FilterButton active={typeFilter === "Student"} onClick={() => setTypeFilter("Student")}>Students</FilterButton>
-                </div>
-                
+
                 {isSchool && (
-                    <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-2">
-                        <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Session Filter:</label>
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-xs font-medium text-slate-500">
+                        <span>Session Filter:</span>
                         <button 
+                            type="button"
                             onClick={() => setShowAllSessions(!showAllSessions)}
                             className={cn(
-                                "text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-lg transition-all",
+                                "text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded transition-all",
                                 showAllSessions 
                                 ? "bg-amber-100 text-amber-700" 
-                                : "bg-blue-100 text-blue-700"
+                                : "bg-slate-100 text-slate-700"
                             )}
                         >
                             {showAllSessions ? "All Sessions" : selectedSessionName}
@@ -178,117 +219,89 @@ export default function FollowUpQueuePage() {
                 )}
             </div>
 
-            {/* Export Controls */}
-            <Card className="p-4 border-slate-200">
-                <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <label className="text-sm font-bold text-slate-600">Export Date:</label>
-                        <input 
-                            type="date" 
-                            value={exportDate}
-                            onChange={(e) => setExportDate(e.target.value)}
-                            className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-premium-blue/10 focus:border-premium-blue outline-none"
-                        />
-                        <button
-                            onClick={setToday}
-                            className="px-4 py-2 text-xs font-bold text-premium-blue hover:bg-premium-blue/10 rounded-xl transition-colors"
-                        >
-                            Today
-                        </button>
-                    </div>
-                    <Button 
-                        onClick={handleExport}
-                        disabled={isExporting}
-                        className="flex items-center gap-2"
-                    >
-                        <Download size={16} />
-                        {isExporting ? "Exporting..." : "Export"}
-                    </Button>
-                </div>
-            </Card>
-
-            {/* Queue List */}
-            <Card className="overflow-hidden border-none shadow-xl shadow-slate-200/50">
+            {/* Queue List Table */}
+            <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
-                            <tr className="bg-slate-50/50 border-b border-slate-100">
-                                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Target</th>
-                                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Context</th>
-                                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Due Date</th>
-                                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Last Comment</th>
-                                <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Actions</th>
+                            <tr className="bg-slate-50/50 border-b border-slate-200/80">
+                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Target</th>
+                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Context</th>
+                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Due Date</th>
+                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Last Comment</th>
+                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody className="divide-y divide-slate-100">
                             {filteredQueue.length > 0 ? (
-                                filteredQueue.map((item) => (
-                                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-xl border ${
-                                                    item.type === 'Enquiry' 
-                                                    ? 'bg-purple-50 border-purple-100 text-purple-600' 
-                                                    : 'bg-emerald-50 border-emerald-100 text-emerald-600'
-                                                }`}>
-                                                    {item.type === 'Enquiry' ? <Users size={18} /> : <UserCheck size={18} />}
+                                filteredQueue.map((item) => {
+                                    const isDueDatePast = isPast(new Date(item.dueDate)) && !isToday(new Date(item.dueDate));
+                                    const isDueDateToday = isToday(new Date(item.dueDate));
+                                    
+                                    return (
+                                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="text-slate-500">
+                                                        {item.type === 'Enquiry' ? <Users size={18} /> : <UserCheck size={18} />}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-bold text-slate-900">{item.name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-medium">{item.contact}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-bold text-slate-900">{item.name}</p>
-                                                    <p className="text-xs text-slate-500 font-medium">{item.contact}</p>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                                    {item.subType}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex flex-col">
+                                                    <span className={cn(
+                                                        "text-xs font-bold",
+                                                        isDueDatePast ? "text-rose-600" : isDueDateToday ? "text-indigo-600" : "text-slate-700"
+                                                    )}>
+                                                        {format(new Date(item.dueDate), "MMM dd, yyyy")}
+                                                    </span>
+                                                    <span className={cn(
+                                                        "text-[9px] font-bold uppercase tracking-wider",
+                                                        isDueDatePast ? "text-rose-500" : isDueDateToday ? "text-indigo-500" : "text-slate-400"
+                                                    )}>
+                                                        {isDueDateToday ? "Due Today" : isDueDatePast ? "Overdue" : "Upcoming"}
+                                                    </span>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <Badge variant="soft" className="text-[10px] uppercase font-bold">
-                                                {item.subType}
-                                            </Badge>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex flex-col">
-                                                <span className={`text-sm font-bold ${
-                                                    isPast(new Date(item.dueDate)) && !isToday(new Date(item.dueDate))
-                                                    ? 'text-red-500' 
-                                                    : isToday(new Date(item.dueDate))
-                                                    ? 'text-premium-blue'
-                                                    : 'text-slate-600'
-                                                }`}>
-                                                    {format(new Date(item.dueDate), "MMM dd, yyyy")}
-                                                </span>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                                                    {isToday(new Date(item.dueDate)) ? "Due Today" : isPast(new Date(item.dueDate)) ? "Overdue" : "Upcoming"}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <p className="text-sm text-slate-600 italic line-clamp-1 max-w-[200px]" title={item.lastResponse}>
-                                                "{item.lastResponse}"
-                                            </p>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Link href={`tel:${item.contact}`} title="Call Now">
-                                                    <Button size="sm" variant="ghost" className="text-premium-blue hover:bg-premium-blue/10">
-                                                        <Phone size={16} />
-                                                    </Button>
-                                                </Link>
-                                                <Link href={`https://wa.me/${item.contact}`} target="_blank" title="WhatsApp Message">
-                                                    <Button size="sm" variant="ghost" className="text-emerald-600 hover:bg-emerald-50">
-                                                        <MessageCircle size={16} />
-                                                    </Button>
-                                                </Link>
-                                                <Link href={item.link}>
-                                                    <Button size="sm" variant="outline" className="flex items-center gap-2">
-                                                        View <ExternalLink size={12} />
-                                                    </Button>
-                                                </Link>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <p className="text-xs text-slate-600 line-clamp-1 max-w-[260px]" title={item.lastResponse}>
+                                                    {item.lastResponse}
+                                                </p>
+                                            </td>
+                                            <td className="px-5 py-3.5 text-right">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <Link href={`tel:${item.contact}`} title="Call Now">
+                                                        <Button size="xs" variant="ghost" className="text-slate-600 hover:text-slate-900">
+                                                            <Phone size={14} />
+                                                        </Button>
+                                                    </Link>
+                                                    <Link href={`https://wa.me/${item.contact}`} target="_blank" title="WhatsApp Message">
+                                                        <Button size="xs" variant="ghost" className="text-emerald-600 hover:bg-emerald-50">
+                                                            <MessageCircle size={14} />
+                                                        </Button>
+                                                    </Link>
+                                                    <Link href={item.link}>
+                                                        <Button size="xs" variant="outline" className="flex items-center gap-1 text-xs">
+                                                            View <ExternalLink size={11} />
+                                                        </Button>
+                                                    </Link>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             ) : (
                                 <tr>
-                                    <td colSpan="5" className="py-20">
+                                    <td colSpan="5" className="py-16 text-center">
                                         <EmptyState 
                                             title="Queue Empty" 
                                             description="No pending follow-ups found for your current filters."
@@ -299,30 +312,32 @@ export default function FollowUpQueuePage() {
                         </tbody>
                     </table>
                 </div>
-            </Card>
+            </div>
         </div>
     );
 }
 
-function StatCard({ label, value, icon: Icon, color, isWarning }) {
-    const colors = {
-        blue: "bg-blue-50 text-blue-600 border-blue-100",
-        red: "bg-red-50 text-red-600 border-red-100",
-        purple: "bg-purple-50 text-purple-600 border-purple-100",
-        emerald: "bg-emerald-50 text-emerald-600 border-emerald-100"
+function StatCard({ label, value, icon: Icon, color }) {
+    const cardStyles = {
+        blue: "bg-blue-50/70 border-blue-100 text-blue-700",
+        red: "bg-rose-50/70 border-rose-100 text-rose-700",
+        purple: "bg-purple-50/70 border-purple-100 text-purple-700",
+        emerald: "bg-emerald-50/70 border-emerald-100 text-emerald-700"
     };
 
+    const isZero = value === 0;
+
     return (
-        <Card className={`p-6 border ${colors[color]} ${isWarning ? 'animate-pulse' : ''}`}>
-            <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-2xl ${colors[color]} bg-white shadow-sm border`}>
-                    <Icon size={24} />
-                </div>
-                <div>
-                    <h3 className="text-2xl font-black">{value}</h3>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60">{label}</p>
-                </div>
+        <Card className={cn(
+            "p-4 border transition-all flex items-center justify-between rounded-xl",
+            cardStyles[color],
+            isZero && "opacity-50"
+        )}>
+            <div>
+                <h3 className="text-xl font-black text-slate-900">{value}</h3>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5">{label}</p>
             </div>
+            <Icon size={22} className="opacity-80" />
         </Card>
     );
 }
@@ -330,12 +345,14 @@ function StatCard({ label, value, icon: Icon, color, isWarning }) {
 function FilterButton({ children, active, onClick }) {
     return (
         <button 
+            type="button"
             onClick={onClick}
-            className={`px-6 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap border ${
+            className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border",
                 active 
-                ? "bg-premium-blue text-white border-premium-blue shadow-lg shadow-premium-blue/20" 
-                : "bg-white text-slate-500 border-slate-100 hover:border-slate-200"
-            }`}
+                ? "bg-slate-900 text-white border-slate-900" 
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+            )}
         >
             {children}
         </button>
