@@ -333,20 +333,18 @@ export default function MaterialsPage() {
                                     className="p-5 bg-white border border-slate-200/80 rounded-xl flex flex-col justify-between hover:border-slate-300 transition-colors duration-200 cursor-pointer"
                                 >
                                     <div>
-                                        {/* Header Row: Icon + Badges */}
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className="p-2 rounded-lg bg-slate-100 flex items-center justify-center">
-                                                {getResourceIcon(mat.file?.type, mat.category)}
-                                            </div>
+                                        {/* Header Row: Unboxed Icon + Badges */}
+                                        <div className="flex items-center justify-between gap-2 mb-3">
                                             <div className="flex items-center gap-2">
+                                                {getResourceIcon(mat.file?.type, mat.category)}
                                                 <Badge variant={mat.visibleToStudents ? "success" : "neutral"}>
                                                     {mat.visibleToStudents ? "Published" : "Hidden"}
                                                 </Badge>
-                                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{mat.category}</span>
                                             </div>
+                                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{mat.category}</span>
                                         </div>
 
-                                        <h3 className="font-bold text-slate-900 text-sm mb-1.5 line-clamp-1">{mat.title}</h3>
+                                        <h3 className="font-bold text-slate-900 text-sm mb-1.5 line-clamp-1" title={mat.title}>{mat.title}</h3>
                                         <p className={cn(
                                             "text-xs line-clamp-2 min-h-[32px] mb-4 leading-relaxed",
                                             isPlaceholderDesc ? "text-slate-400 italic font-normal" : "text-slate-500 font-normal"
