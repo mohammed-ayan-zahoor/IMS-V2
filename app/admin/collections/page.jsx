@@ -305,60 +305,58 @@ export default function CollectionsPage() {
                             </div>
                         </Card>
 
-                        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
                             {loading ? (
                                 <div className="py-20 flex flex-col items-center gap-4 text-slate-400 font-medium italic">
-                                    <Loader2 className="animate-spin text-premium-blue" size={40} />
+                                    <Loader2 className="animate-spin text-blue-600" size={32} />
                                     Loading history...
                                 </div>
                             ) : filteredCollections.length > 0 ? (
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
-                                            <tr className="bg-slate-50/50 border-b border-slate-100">
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student & Batch</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Collected By</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Amount</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Method</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Action</th>
+                                            <tr className="bg-white border-b border-slate-200/80 text-xs font-semibold text-slate-400">
+                                                <th className="px-6 py-3.5 uppercase tracking-wider">Date</th>
+                                                <th className="px-6 py-3.5 uppercase tracking-wider">Student & Batch</th>
+                                                <th className="px-6 py-3.5 uppercase tracking-wider">Collected By</th>
+                                                <th className="px-6 py-3.5 uppercase tracking-wider text-right">Amount</th>
+                                                <th className="px-6 py-3.5 uppercase tracking-wider">Method</th>
+                                                <th className="px-6 py-3.5 uppercase tracking-wider text-right">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {filteredCollections.map((item) => (
-                                                <tr key={item._id} className="hover:bg-slate-50/30 transition-colors">
+                                                <tr key={item._id} className="hover:bg-slate-50/50 transition-colors">
                                                     <td className="px-6 py-4">
-                                                        <p className="text-sm font-bold text-slate-900">{format(new Date(item.paidDate), "dd MMM yyyy")}</p>
-                                                        <p className="text-[10px] text-slate-400 uppercase font-bold">{format(new Date(item.paidDate), "hh:mm a")}</p>
+                                                        <p className="text-sm font-semibold text-slate-900">{format(new Date(item.paidDate), "dd MMM yyyy")}</p>
+                                                        <p className="text-xs text-slate-400 font-medium">{format(new Date(item.paidDate), "hh:mm a")}</p>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <p className="text-sm font-bold text-slate-900">{item.student?.fullName}</p>
-                                                        <p className="text-[11px] text-slate-500 font-medium uppercase tracking-tight">{item.batch?.name}</p>
+                                                        <p className="text-sm font-semibold text-slate-900">{item.student?.fullName}</p>
+                                                        <p className="text-xs text-slate-500 font-medium">{item.batch?.name}</p>
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded-full bg-premium-blue/10 flex items-center justify-center text-premium-blue">
-                                                                <User size={12} />
-                                                            </div>
-                                                            <span className="text-sm font-bold text-slate-700">{item.collectedBy}</span>
+                                                            <User size={15} className="text-slate-500 shrink-0" />
+                                                            <span className="text-xs font-semibold text-slate-700">{item.collectedBy}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className="text-lg font-black text-emerald-600">₹{item.amount.toLocaleString()}</span>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <span className="text-base font-bold font-mono text-emerald-600">₹{item.amount.toLocaleString()}</span>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <Badge variant="secondary" className="uppercase text-[9px] font-black tracking-widest bg-slate-100 border-slate-200">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200/80 uppercase">
                                                             {item.method}
-                                                        </Badge>
+                                                        </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-right">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="xs"
+                                                        <button
                                                             onClick={() => window.open(`/admin/receipts/${item.feeId}`, '_blank')}
+                                                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50/80 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-blue-100"
                                                         >
-                                                            <FileText size={14} className="mr-1" /> Receipt
-                                                        </Button>
+                                                            <FileText size={14} />
+                                                            <span>Receipt</span>
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}

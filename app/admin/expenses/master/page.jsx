@@ -113,32 +113,28 @@ export default function ExpenseMasterPage() {
             ) : expenseHeads.length > 0 ? (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 mt-8">
                     {expenseHeads.map((head) => (
-                        <Card key={head._id} className="group relative flex flex-col p-4 bg-white hover:-translate-y-1 hover:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] hover:border-premium-blue/30 transition-all duration-300 cursor-pointer">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-premium-blue group-hover:text-white transition-colors">
-                                    <Tag size={18} />
-                                </div>
+                        <Card key={head._id} className="group relative flex flex-col p-4 bg-white border border-slate-200/80 hover:border-slate-300 hover:shadow-xs rounded-xl transition-all cursor-pointer">
+                            <div className="flex items-center justify-between mb-3">
+                                <Tag size={20} className="text-blue-600 shrink-0" />
                                 <button
                                     onClick={(e) => { e.stopPropagation(); handleDelete(head._id, head.name); }}
-                                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
                                     title="Remove Category"
                                 >
                                     <Trash2 size={16} />
                                 </button>
                             </div>
-                            <span className="font-bold text-slate-800 text-base">{head.name}</span>
-                            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-1">Active</span>
+                            <span className="font-semibold text-slate-800 text-base">{head.name}</span>
+                            <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mt-1">Active</span>
                         </Card>
                     ))}
 
                     <button 
                         onClick={() => setIsModalOpen(true)}
-                        className="group flex flex-col items-center justify-center p-4 bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-2xl hover:border-premium-blue hover:bg-blue-50/30 hover:shadow-sm hover:-translate-y-1 transition-all duration-300 min-h-[140px]"
+                        className="group flex flex-col items-center justify-center p-4 bg-slate-50/60 border-2 border-dashed border-slate-200 rounded-xl hover:border-blue-500 hover:bg-blue-50/20 transition-all cursor-pointer min-h-[120px]"
                     >
-                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-premium-blue group-hover:text-white transition-colors mb-3">
-                            <Plus size={20} />
-                        </div>
-                        <span className="font-bold text-slate-600 text-sm group-hover:text-premium-blue transition-colors">Add Category</span>
+                        <Plus size={22} className="text-slate-400 group-hover:text-blue-600 transition-colors mb-1.5" />
+                        <span className="font-semibold text-slate-600 text-sm group-hover:text-blue-600 transition-colors">Add Category</span>
                     </button>
                 </div>
             ) : (

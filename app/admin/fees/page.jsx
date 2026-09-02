@@ -593,15 +593,15 @@ export default function FeesPage() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
-                                            <tr className="bg-white border-y border-slate-100">
-                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
-                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{isSchool ? "Section" : "Batch"}</th>
-                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Fee</th>
-                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Discount</th>
-                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Extra Charges</th>
-                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Paid</th>
-                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Balance</th>
-                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                            <tr className="bg-white border-y border-slate-200/80 text-xs font-semibold text-slate-400">
+                                                 <th className="px-6 py-3.5 uppercase tracking-wider">Student</th>
+                                                 <th className="px-6 py-3.5 uppercase tracking-wider">{isSchool ? "Section" : "Batch"}</th>
+                                                 <th className="px-6 py-3.5 uppercase tracking-wider text-right">Total Fee</th>
+                                                 <th className="px-6 py-3.5 uppercase tracking-wider text-right">Discount</th>
+                                                 <th className="px-6 py-3.5 uppercase tracking-wider text-right">Extra Charges</th>
+                                                 <th className="px-6 py-3.5 uppercase tracking-wider text-right">Paid</th>
+                                                 <th className="px-6 py-3.5 uppercase tracking-wider text-right">Balance</th>
+                                                 <th className="px-6 py-3.5 uppercase tracking-wider text-right">Actions</th>
                                              </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
@@ -609,42 +609,42 @@ export default function FeesPage() {
                                                 <tr key={fee._id || fee.student?._id} className="group hover:bg-slate-50/50 transition-colors">
                                                     <td className="px-6 py-4">
                                                         <div>
-                                                            <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                                            <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                                                                 {fee.student?.profile?.firstName} {fee.student?.profile?.lastName}
                                                                 {fee.student?.hostelInfo && (
                                                                     <span className={cn(
-                                                                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shrink-0",
+                                                                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border shrink-0",
                                                                         fee.student.hostelInfo.isCombined
                                                                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                                                             : fee.student.hostelInfo.balanceAmount > 0 
                                                                                 ? "bg-rose-50 text-rose-600 border-rose-100" 
                                                                                 : "bg-indigo-50 text-indigo-600 border-indigo-100"
-                                                                    )} title={fee.student.hostelInfo.isCombined ? "Combined Base Fee Mode Active (Course, Transport & Hostel included in base fee)" : `Hostel Balance: ₹${fee.student.hostelInfo.balanceAmount}`}>
-                                                                        🏠 {fee.student.hostelInfo.isCombined ? "Combined Base Fee" : (fee.student.hostelInfo.balanceAmount > 0 ? "Hostel Dues" : "Hostel")}
+                                                                    )} title={fee.student.hostelInfo.isCombined ? "Combined Base Fee Mode Active" : `Hostel Balance: ₹${fee.student.hostelInfo.balanceAmount}`}>
+                                                                        {fee.student.hostelInfo.isCombined ? "Combined Base Fee" : (fee.student.hostelInfo.balanceAmount > 0 ? "Hostel Dues" : "Hostel")}
                                                                     </span>
                                                                 )}
                                                             </p>
-                                                            <p className="text-[11px] font-medium text-slate-400 font-mono tracking-wide">{fee.student?.enrollmentNumber}</p>
+                                                            <p className="text-xs font-mono text-slate-400">{fee.student?.enrollmentNumber}</p>
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <Badge variant="secondary" className="font-mono text-[10px] uppercase bg-slate-100 text-slate-500">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200/80">
                                                             {fee.batch?.name}
-                                                        </Badge>
+                                                        </span>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm font-bold text-slate-600">
+                                                    <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 font-mono">
                                                         ₹{fee.totalAmount?.toLocaleString()}
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm font-bold text-rose-500">
+                                                    <td className="px-6 py-4 text-right text-sm font-semibold text-rose-600 font-mono">
                                                          ₹{fee.discount?.amount?.toLocaleString() || 0}
                                                      </td>
-                                                     <td className="px-6 py-4 text-sm font-bold text-orange-500">
+                                                     <td className="px-6 py-4 text-right text-sm font-semibold text-amber-600 font-mono">
                                                          ₹{fee.extraCharges?.amount?.toLocaleString() || 0}
                                                      </td>
-                                                     <td className="px-6 py-4 text-sm font-bold text-emerald-600">
+                                                     <td className="px-6 py-4 text-right text-sm font-semibold text-emerald-600 font-mono">
                                                          ₹{fee.paidAmount?.toLocaleString()}
                                                      </td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-6 py-4 text-right">
                                                         {!fee.hasFeeRecord ? (
                                                             <Badge className="bg-slate-100 text-slate-500 border-slate-200">
                                                                 No fee profile
