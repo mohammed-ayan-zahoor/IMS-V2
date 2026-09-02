@@ -171,12 +171,12 @@ export default function ResultLookupWidget({
             {!data && (
                 <div className="border-b border-[#e2e8f0] py-10 sm:py-14 px-6 sm:px-12 bg-[#f8fafc]">
                     <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-                        <div className="flex items-start gap-5">
+                        <div className="flex items-center gap-6">
                             {instituteLogo && (
                                 <img
                                     src={instituteLogo}
                                     alt={instituteName}
-                                    className="w-14 h-14 sm:w-16 sm:h-16 object-contain p-1.5 border border-[#e2e8f0] bg-white rounded-[5px] mt-1 shadow-xs"
+                                    className="h-20 sm:h-24 max-w-[200px] object-contain shrink-0"
                                 />
                             )}
                             <div>
