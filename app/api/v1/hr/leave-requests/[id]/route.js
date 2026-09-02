@@ -28,6 +28,10 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
         }
 
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return NextResponse.json({ error: "Leave request not found" }, { status: 404 });
+        }
+
         await connectDB();
 
         const leave = await LeaveRequest.findOne({ _id: id, institute: instituteId });
