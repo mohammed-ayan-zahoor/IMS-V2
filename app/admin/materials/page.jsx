@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { Search, Filter, Plus, FileText, Video, Link as LinkIcon, Download, Trash2, Edit, X, Users, UploadCloud, CheckCircle } from "lucide-react";
 import Select from "@/components/ui/Select";
@@ -10,7 +9,9 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Badge from "@/components/ui/Badge";
+import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import EmptyState from "@/components/shared/EmptyState";
 
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
@@ -23,7 +24,6 @@ export default function MaterialsPage() {
     const { data: session } = useSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
 
-    const [mounted, setMounted] = useState(false);
     const [materials, setMaterials] = useState([]);
     const [loading, setLoading] = useState(true);
     const [courses, setCourses] = useState([]);
@@ -59,7 +59,6 @@ export default function MaterialsPage() {
     }
 
     useEffect(() => {
-        setMounted(true);
         fetchInitialData();
     }, []);
 
@@ -242,6 +241,13 @@ export default function MaterialsPage() {
 
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
 
+    const getResourceIcon = (fileType, category) => {
+        if (fileType === 'pdf') return <FileText size={18} className="text-rose-500" />;
+        if (fileType === 'video') return <Video size={18} className="text-blue-500" />;
+        if (category === 'assignment') return <CheckCircle size={18} className="text-amber-500" />;
+        return <LinkIcon size={18} className="text-emerald-500" />;
+    };
+
     return (
         <>
             {isInstructorOrStaff && (
@@ -250,197 +256,200 @@ export default function MaterialsPage() {
                 </div>
             )}
 
-            <div className={cn("space-y-6 max-w-7xl mx-auto p-4 md:p-6", isInstructorOrStaff ? "hidden md:block" : "")}>
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900">Materials Library</h1>
-                    <p className="text-slate-500">Manage {isSchool ? "class" : "course"} resources and downloads.</p>
-                </div>
-                <Button onClick={() => { setEditingId(null); setFormData(initialFormState()); setIsModalOpen(true); }} className="shadow-lg shadow-premium-blue/20">
-                    <Plus size={18} className="mr-2" /> Add Material
-                </Button>
-            </div>
-
-            <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                    {[
-                        { label: "All Resources", value: "all" },
-                        { label: "PDF Documents", value: "pdf" },
-                        { label: "Videos", value: "video" },
-                        { label: "Assignments", value: "assignment" },
-                        { label: "Reference", value: "reference" }
-                    ].map(chip => (
-                        <button
-                            key={chip.value}
-                            onClick={() => setSelectedType(chip.value)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                                selectedType === chip.value 
-                                ? 'bg-premium-blue text-white border-premium-blue shadow-md shadow-blue-500/20' 
-                                : 'bg-white text-slate-500 border-slate-200 hover:border-premium-blue/30'
-                            }`}
-                        >
-                            {chip.label}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="flex gap-4 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm relative z-20">
-                    <div className="w-48 hidden md:block">
-                        <Select
-                            value={selectedCourse}
-                            onChange={(val) => setSelectedCourse(val)}
-                            placeholder={`All ${isSchool ? "Classes" : "Courses"}`}
-                            options={[
-                                { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
-                                ...courses.map(c => ({ label: c.name, value: c._id }))
-                            ]}
-                        />
+            <div className={cn("space-y-6 max-w-7xl mx-auto", isInstructorOrStaff ? "hidden md:block" : "")}>
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                            Materials
+                        </h1>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">Manage {isSchool ? "class" : "course"} resources and downloads.</p>
                     </div>
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search by title or description..."
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border-none rounded-xl focus:ring-4 focus:ring-premium-blue/5 outline-none font-medium text-sm transition-all"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && fetchMaterials()}
-                        />
-                    </div>
+                    <Button onClick={() => { setEditingId(null); setFormData(initialFormState()); setIsModalOpen(true); }}>
+                        <Plus size={16} className="mr-2" /> Add Material
+                    </Button>
                 </div>
-            </div>
 
-            {loading ? <LoadingSpinner /> : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {materials.map(mat => (
-                        <div 
-                            key={mat._id} 
-                            onClick={() => handleDownloadTracking(mat)}
-                            className="group relative bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-xl hover:-translate-y-1.5 hover:border-premium-blue/40 transition-all duration-300 cursor-pointer flex flex-col"
-                        >
-                            <div className="flex justify-between items-start mb-4">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300 shadow-sm ${
-                                    mat.file?.type === 'pdf' ? 'bg-red-50 text-red-600' :
-                                    mat.file?.type === 'video' ? 'bg-purple-50 text-purple-600' :
-                                    'bg-blue-50 text-blue-600'
-                                }`}>
-                                    {mat.file?.type === 'pdf' ? <FileText size={24} /> :
-                                     mat.file?.type === 'video' ? <Video size={24} /> :
-                                     <LinkIcon size={24} />}
-                                </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    <Badge variant={mat.visibleToStudents ? "success" : "neutral"} className="font-black text-[10px] uppercase tracking-tighter">
-                                        <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${mat.visibleToStudents ? 'bg-white' : 'bg-slate-400'}`}></div>
-                                        {mat.visibleToStudents ? "Published" : "Hidden"}
-                                    </Badge>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{mat.category}</span>
-                                </div>
-                            </div>
-
-                            <div className="mb-4">
-                                <h3 className="font-black text-slate-900 text-lg tracking-tight mb-1 line-clamp-1 group-hover:text-premium-blue transition-colors">{mat.title}</h3>
-                                <p className="text-xs font-medium text-slate-500 line-clamp-2 min-h-[32px]">{mat.description || "No specific instructions provided."}</p>
-                            </div>
-
-                            <div className="mt-auto space-y-4">
-                                <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-2 rounded-lg">
-                                    <span className="flex items-center gap-1"><FileText size={12} /> {mat.file?.type?.toUpperCase() || 'FILE'}</span>
-                                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                    <span>{mat.createdAt ? format(new Date(mat.createdAt), "MMM d, yyyy") : 'Recent'}</span>
-                                    <span className="w-1 h-1 rounded-full bg-slate-300 ml-auto"></span>
-                                    <span className="text-slate-500">{mat.downloadCount || 0} Downloads</span>
-                                </div>
-
-                                <div className="flex items-center justify-between border-t border-slate-50 pt-4">
-                                    <div className="flex items-center gap-2">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); handleEdit(mat); }}
-                                            className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-premium-blue hover:border-premium-blue hover:bg-premium-blue/5 transition-all flex items-center justify-center shadow-sm"
-                                        >
-                                            <Edit size={16} />
-                                        </button>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); handleDelete(mat._id); }}
-                                            className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all flex items-center justify-center shadow-sm"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2">
-                                        {mat.category === 'assignment' && mat.allowSubmissions && (
-                                            <Button
-                                                size="sm"
-                                                variant="secondary"
-                                                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border-emerald-100 font-bold px-3 py-1.5 h-auto text-[10px]"
-                                                onClick={(e) => { e.stopPropagation(); window.location.href = `/admin/materials/${mat._id}/submissions`; }}
-                                            >
-                                                <Users size={12} className="mr-1.5" /> Submissions
-                                            </Button>
-                                        )}
-                                        {mat.file?.url && (
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); handleDownloadTracking(mat); }}
-                                                className="w-9 h-9 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-all flex items-center justify-center shadow-md shadow-slate-900/10"
-                                            >
-                                                <Download size={16} />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {isModalOpen && mounted && createPortal(
-                <div
-                    className="fixed inset-0 z-[100] flex items-start md:items-center justify-center bg-black/60 p-4 py-10 animate-in fade-in"
-                    onClick={() => setIsModalOpen(false)}
-                >
-                    <form 
-                        onSubmit={handleSave} 
-                        onClick={(e) => e.stopPropagation()}
-                        className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] border border-white/20 animate-in zoom-in-95 duration-300"
-                    >
-                        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
-                            <h2 className="text-lg font-bold text-slate-900">{editingId ? "Edit Material" : "Add New Material"}</h2>
+                {/* Filter and Search Bar */}
+                <div className="bg-white rounded-xl border border-slate-200/80 p-4 space-y-3">
+                    <div className="flex items-center gap-1.5 overflow-x-auto">
+                        {[
+                            { label: "All Resources", value: "all" },
+                            { label: "PDF Documents", value: "pdf" },
+                            { label: "Videos", value: "video" },
+                            { label: "Assignments", value: "assignment" },
+                            { label: "Reference", value: "reference" }
+                        ].map(chip => (
                             <button
-                                type="button"
-                                onClick={() => setIsModalOpen(false)}
-                                className="p-2 hover:bg-white rounded-full transition-colors text-slate-400"
+                                key={chip.value}
+                                onClick={() => setSelectedType(chip.value)}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors",
+                                    selectedType === chip.value
+                                        ? "bg-slate-900 text-white"
+                                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                                )}
                             >
-                                <X size={20} />
+                                {chip.label}
                             </button>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+                        <div className="w-full md:w-56">
+                            <Select
+                                value={selectedCourse}
+                                onChange={(val) => setSelectedCourse(val)}
+                                placeholder={`All ${isSchool ? "Classes" : "Courses"}`}
+                                options={[
+                                    { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
+                                    ...courses.map(c => ({ label: c.name, value: c._id }))
+                                ]}
+                            />
+                        </div>
+                        <div className="flex-1 relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                            <input
+                                type="text"
+                                placeholder="Search by title or description..."
+                                className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 outline-none focus:border-slate-400 text-xs font-medium transition-colors"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && fetchMaterials()}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Materials Grid */}
+                {loading ? <LoadingSpinner /> : materials.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {materials.map(mat => {
+                            const isPlaceholderDesc = !mat.description || mat.description.trim() === "No specific instructions provided.";
+                            return (
+                                <Card 
+                                    key={mat._id} 
+                                    onClick={() => handleDownloadTracking(mat)}
+                                    className="p-5 bg-white border border-slate-200/80 rounded-xl flex flex-col justify-between hover:border-slate-300 transition-colors duration-200 cursor-pointer"
+                                >
+                                    <div>
+                                        {/* Header Row: Icon + Badges */}
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="p-2 rounded-lg bg-slate-100 flex items-center justify-center">
+                                                {getResourceIcon(mat.file?.type, mat.category)}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant={mat.visibleToStudents ? "success" : "neutral"}>
+                                                    {mat.visibleToStudents ? "Published" : "Hidden"}
+                                                </Badge>
+                                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{mat.category}</span>
+                                            </div>
+                                        </div>
+
+                                        <h3 className="font-bold text-slate-900 text-sm mb-1.5 line-clamp-1">{mat.title}</h3>
+                                        <p className={cn(
+                                            "text-xs line-clamp-2 min-h-[32px] mb-4 leading-relaxed",
+                                            isPlaceholderDesc ? "text-slate-400 italic font-normal" : "text-slate-500 font-normal"
+                                        )}>
+                                            {isPlaceholderDesc ? "No specific instructions provided." : mat.description}
+                                        </p>
+                                    </div>
+
+                                    <div className="mt-auto space-y-3">
+                                        <div className="flex items-center gap-2 text-[10px] font-medium text-slate-400 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-100">
+                                            <span className="font-semibold text-slate-600">{mat.file?.type?.toUpperCase() || 'FILE'}</span>
+                                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                            <span>{mat.createdAt ? format(new Date(mat.createdAt), "MMM d, yyyy") : 'Recent'}</span>
+                                            <span className="ml-auto text-slate-500">{mat.downloadCount || 0} Downloads</span>
+                                        </div>
+
+                                        <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                                            <div className="flex items-center gap-1">
+                                                <button 
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleEdit(mat); }}
+                                                    className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors rounded"
+                                                    title="Edit Material"
+                                                >
+                                                    <Edit size={15} />
+                                                </button>
+                                                <button 
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleDelete(mat._id); }}
+                                                    className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors rounded"
+                                                    title="Delete Material"
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-2">
+                                                {mat.category === 'assignment' && mat.allowSubmissions && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={(e) => { e.stopPropagation(); window.location.href = `/admin/materials/${mat._id}/submissions`; }}
+                                                    >
+                                                        <Users size={14} className="mr-1" /> Submissions
+                                                    </Button>
+                                                )}
+                                                {mat.file?.url && (
+                                                    <button 
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); handleDownloadTracking(mat); }}
+                                                        className="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold flex items-center gap-1 hover:bg-slate-800 transition-colors"
+                                                        title="Download Resource"
+                                                    >
+                                                        <Download size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Card>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <EmptyState
+                        icon={FileText}
+                        title="No materials found"
+                        description={search || selectedType !== 'all' || selectedCourse ? "Try adjusting your search or filters." : "Upload your first resource or assignment."}
+                        actionLabel="Add Material"
+                        onAction={() => { setEditingId(null); setFormData(initialFormState()); setIsModalOpen(true); }}
+                    />
+                )}
+
+                {/* Edit / Add Modal */}
+                <Modal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    title={editingId ? "Edit Material" : "Add New Material"}
+                    className="max-w-lg"
+                >
+                    <form onSubmit={handleSave} className="space-y-4">
+                        <Input
+                            label="Material Title *"
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            placeholder="e.g. Introduction to Product Design"
+                            required
+                        />
+                        
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Description</label>
+                            <textarea
+                                className="w-full bg-white border border-slate-200 rounded-lg p-3 outline-none focus:border-slate-400 text-xs font-medium text-slate-900 placeholder:text-slate-400 resize-none min-h-[80px]"
+                                placeholder="Add instructions, context, or notes for the students..."
+                                value={formData.description}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            />
                         </div>
 
-                        <div className="p-6 flex-1 min-h-0 overflow-y-auto space-y-6 custom-scrollbar">
-                            
-                            {/* TITLE & DESCRIPTION */}
-                            <div className="space-y-4">
-                                <Input
-                                    label="Material Title"
-                                    value={formData.title}
-                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                    placeholder="e.g. Introduction to Product Design"
-                                    required
-                                />
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Description</label>
-                                    <textarea
-                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-premium-blue focus:border-transparent text-sm min-h-[90px] transition-all font-medium placeholder:text-slate-400 resize-none shadow-sm"
-                                        placeholder="Add instructions, context, or notes for the students..."
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* TYPE & CATEGORY */}
-                            <div className="grid grid-cols-2 gap-5">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Category</label>
                                 <Select
-                                    label="Material Category"
                                     value={formData.category}
                                     onChange={(val) => setFormData({ ...formData, category: val })}
                                     options={[
@@ -449,8 +458,10 @@ export default function MaterialsPage() {
                                         { label: "Reference", value: "reference" }
                                     ]}
                                 />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Format Type</label>
                                 <Select
-                                    label="Format Type"
                                     value={formData.fileType}
                                     onChange={(val) => setFormData({ ...formData, fileType: val })}
                                     options={[
@@ -462,202 +473,108 @@ export default function MaterialsPage() {
                                     ]}
                                 />
                             </div>
+                        </div>
 
-                            {/* ASSIGNMENT SPECIFIC FIELDS */}
-                            {formData.category === 'assignment' && (
-                                <div className="grid grid-cols-2 gap-5 pt-2">
-                                    <Input
-                                        label="Due Date"
-                                        type="date"
-                                        value={formData.dueDate}
-                                        onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                                    />
-                                    <Input
-                                        label="Total Marks"
-                                        type="number"
-                                        value={formData.totalMarks}
-                                        onChange={(e) => setFormData({ ...formData, totalMarks: e.target.value })}
-                                        placeholder="e.g. 100"
-                                    />
-                                </div>
-                            )}
-
-                            {/* FILE UPLOAD ZONE */}
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Attachment File</label>
-                                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-slate-50/50 text-center hover:bg-slate-50 transition-colors relative group">
-                                    {formData.fileUrl ? (
-                                        <div className="flex flex-col items-center gap-2">
-                                            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2">
-                                                <CheckCircle size={24} />
-                                            </div>
-                                            <p className="text-sm font-bold text-slate-800 break-all px-4">{formData.isUpload ? "File Uploaded Successfully" : formData.fileUrl}</p>
-                                            <button 
-                                                type="button" 
-                                                onClick={() => setFormData({ ...formData, fileUrl: "", fileId: "", isUpload: false })}
-                                                className="text-xs font-bold text-red-500 hover:text-red-600 mt-2"
-                                            >
-                                                Remove Attachment
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="w-12 h-12 rounded-full bg-white border border-slate-200 text-slate-400 flex items-center justify-center mx-auto mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                                <UploadCloud size={20} />
-                                            </div>
-                                            <p className="text-sm font-medium text-slate-600 mb-1">
-                                                <span className="font-bold text-premium-blue">Click to upload</span> or drag and drop
-                                            </p>
-                                            <p className="text-xs font-medium text-slate-400 mb-4">PDF, DOCX, JPG, PNG (Max 10MB)</p>
-                                            
-                                            <input
-                                                type="file"
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                onChange={async (e) => {
-                                                    const file = e.target.files[0];
-                                                    if (!file) return;
-                                                    setFormData(prev => ({ ...prev, isUpload: true }));
-                                                    const data = new FormData();
-                                                    data.append("file", file);
-                                                    data.append("fileType", file.type.startsWith('image/') ? 'image' : 'document');
-                                                    try {
-                                                        const res = await fetch("/api/v1/upload", { method: "POST", body: data });
-                                                        if (res.ok) {
-                                                            const json = await res.json();
-                                                            setFormData(prev => ({ ...prev, fileUrl: json.url, fileId: json.public_id, isUpload: true }));
-                                                            toast.success("File uploaded successfully!");
-                                                        }
-                                                    } catch (err) { console.error(err); toast.error("Upload failed"); }
-                                                }}
-                                            />
-                                            
-                                            <div className="flex items-center gap-3 my-4">
-                                                <div className="h-px bg-slate-200 flex-1"></div>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">OR PASTE LINK</span>
-                                                <div className="h-px bg-slate-200 flex-1"></div>
-                                            </div>
-
-                                            <div className="relative z-10">
-                                                <Input
-                                                    placeholder="https://..."
-                                                    value={formData.fileUrl}
-                                                    onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value, isUpload: false })}
-                                                />
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
+                        {formData.category === 'assignment' && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input
+                                    label="Due Date"
+                                    type="date"
+                                    value={formData.dueDate}
+                                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                                />
+                                <Input
+                                    label="Total Marks"
+                                    type="number"
+                                    value={formData.totalMarks}
+                                    onChange={(e) => setFormData({ ...formData, totalMarks: e.target.value })}
+                                    placeholder="e.g. 100"
+                                />
                             </div>
+                        )}
 
-                            {/* TARGET AUDIENCE (CLASSES & SECTIONS) */}
-                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-4">
-                                <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">Target Audience</h3>
-                                
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">{isSchool ? "Classes" : "Courses"}</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {courses.map(course => {
-                                            const isSelected = formData.courses.includes(course._id);
-                                            return (
-                                                <button
-                                                    key={course._id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const newCourses = isSelected
-                                                            ? formData.courses.filter(c => c !== course._id)
-                                                            : [...formData.courses, course._id];
-                                                        setFormData({ ...formData, courses: newCourses, batches: [] });
-                                                    }}
-                                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                                                        isSelected 
-                                                        ? 'bg-premium-blue text-white border-premium-blue shadow-sm' 
-                                                        : 'bg-white text-slate-600 border-slate-200 hover:border-premium-blue/40'
-                                                    }`}
-                                                >
-                                                    {course.name}
-                                                </button>
-                                            );
-                                        })}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Attachment File *</label>
+                            <div className="border-2 border-dashed border-slate-200 rounded-lg p-4 bg-slate-50 text-center relative group">
+                                {formData.fileUrl ? (
+                                    <div className="flex flex-col items-center gap-1.5">
+                                        <CheckCircle size={20} className="text-emerald-600" />
+                                        <p className="text-xs font-semibold text-slate-800 break-all px-2">{formData.isUpload ? "File Uploaded Successfully" : formData.fileUrl}</p>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setFormData({ ...formData, fileUrl: "", fileId: "", isUpload: false })}
+                                            className="text-[10px] font-bold text-rose-500 hover:underline mt-1"
+                                        >
+                                            Remove Attachment
+                                        </button>
                                     </div>
-                                </div>
-
-                                {formData.courses.length > 0 && (
-                                    <div className="space-y-2 pt-2 border-t border-slate-200/60">
-                                        <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">{isSchool ? "Sections" : "Batches"}</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {filteredBatches.map(batch => {
-                                                const isSelected = formData.batches.includes(batch._id);
-                                                return (
-                                                    <button
-                                                        key={batch._id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const newBatches = isSelected
-                                                                ? formData.batches.filter(b => b !== batch._id)
-                                                                : [...formData.batches, batch._id];
-                                                            setFormData({ ...formData, batches: newBatches });
-                                                        }}
-                                                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                                                            isSelected 
-                                                            ? 'bg-slate-800 text-white border-slate-800 shadow-sm' 
-                                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                                                        }`}
-                                                    >
-                                                        {batch.name}
-                                                    </button>
-                                                );
-                                            })}
+                                ) : (
+                                    <>
+                                        <UploadCloud size={24} className="text-slate-400 mx-auto mb-1" />
+                                        <p className="text-xs font-semibold text-slate-700">Click to upload or drag & drop</p>
+                                        <p className="text-[10px] text-slate-400 mb-2">PDF, DOCX, JPG, PNG (Max 10MB)</p>
+                                        
+                                        <input
+                                            type="file"
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            onChange={async (e) => {
+                                                const file = e.target.files[0];
+                                                if (!file) return;
+                                                setFormData(prev => ({ ...prev, isUpload: true }));
+                                                const data = new FormData();
+                                                data.append("file", file);
+                                                data.append("fileType", file.type.startsWith('image/') ? 'image' : 'document');
+                                                try {
+                                                    const res = await fetch("/api/v1/upload", { method: "POST", body: data });
+                                                    if (res.ok) {
+                                                        const json = await res.json();
+                                                        setFormData(prev => ({ ...prev, fileUrl: json.url, fileId: json.public_id, isUpload: true }));
+                                                        toast.success("File uploaded successfully!");
+                                                    }
+                                                } catch (err) { console.error(err); toast.error("Upload failed"); }
+                                            }}
+                                        />
+                                        
+                                        <div className="flex items-center gap-2 my-2">
+                                            <div className="h-px bg-slate-200 flex-1"></div>
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">OR PASTE LINK</span>
+                                            <div className="h-px bg-slate-200 flex-1"></div>
                                         </div>
-                                    </div>
+
+                                        <div className="relative z-10">
+                                            <Input
+                                                placeholder="https://..."
+                                                value={formData.fileUrl}
+                                                onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value, isUpload: false })}
+                                            />
+                                        </div>
+                                    </>
                                 )}
                             </div>
-
-                            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mt-2">
-                                <div>
-                                    <h4 className="text-sm font-bold text-emerald-900">Publish Material</h4>
-                                    <p className="text-xs text-emerald-700/80 mt-0.5">Make this visible to students immediately</p>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        className="sr-only peer"
-                                        checked={formData.visibleToStudents}
-                                        onChange={(e) => setFormData({ ...formData, visibleToStudents: e.target.checked })}
-                                    />
-                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                                </label>
-                            </div>
-
-                            {formData.category === 'assignment' && (
-                                <div className="flex items-center justify-between bg-premium-blue/5 border border-premium-blue/10 rounded-2xl p-4 mt-2">
-                                    <div>
-                                        <h4 className="text-sm font-bold text-premium-blue">Enable Submissions</h4>
-                                        <p className="text-xs text-premium-blue/70 mt-0.5">Allow students to upload their work</p>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            className="sr-only peer"
-                                            checked={formData.allowSubmissions}
-                                            onChange={(e) => setFormData({ ...formData, allowSubmissions: e.target.checked })}
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-premium-blue"></div>
-                                    </label>
-                                </div>
-                            )}
-
                         </div>
-                        <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3 shrink-0">
-                            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={saving} className="px-8 shadow-md rounded-xl">
+
+                        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
+                            <div>
+                                <span className="text-xs font-bold text-slate-800 block">Publish Material</span>
+                                <span className="text-[10px] text-slate-500 font-medium">Visible to students immediately</span>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer"
+                                checked={formData.visibleToStudents}
+                                onChange={(e) => setFormData({ ...formData, visibleToStudents: e.target.checked })}
+                            />
+                        </div>
+
+                        <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={saving} className="min-w-[140px]">
                                 {saving ? "Saving..." : "Save Material"}
                             </Button>
                         </div>
                     </form>
-                </div>,
-                document.body
-            )}
-        </div>
+                </Modal>
+            </div>
         </>
     );
 }
