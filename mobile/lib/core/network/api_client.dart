@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:student_app/core/constants/api_endpoints.dart';
 
@@ -29,12 +30,14 @@ class ApiClient {
         return handler.next(options);
       },
     ));
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      error: true,
-      logPrint: (obj) => print('[DIO] $obj'),
-    ));
+    if (kDebugMode) {
+      _dio.interceptors.add(LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        error: true,
+        logPrint: (obj) => debugPrint('[DIO] $obj'),
+      ));
+    }
   }
 
   Dio get dio => _dio;
@@ -64,10 +67,16 @@ class ApiClient {
     await _storage.deleteAll();
   }
 
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
+
   // Next-Auth 3-Step Login
   Future<bool> login(String email, String password) async {
     try {
-      print('[Auth] Step 1: Fetching CSRF token from ${ApiEndpoints.csrf}');
+      _log('[Auth] Step 1: Fetching CSRF token from ${ApiEndpoints.csrf}');
 
       // Step 1: Get CSRF token
       final csrfRes = await _dio.get(
@@ -78,7 +87,7 @@ class ApiClient {
         ),
       );
 
-      print('[Auth] CSRF status: ${csrfRes.statusCode}, data: ${csrfRes.data}');
+      _log('[Auth] CSRF status: ${csrfRes.statusCode}');
 
       String? csrfToken;
       if (csrfRes.data is Map) {
@@ -91,11 +100,11 @@ class ApiClient {
       }
 
       if (csrfToken == null || csrfToken.isEmpty) {
-        print('[Auth] ERROR: No CSRF token received');
+        _log('[Auth] ERROR: No CSRF token received');
         return false;
       }
 
-      print('[Auth] Step 2: Posting credentials, csrfToken length=${csrfToken.length}');
+      _log('[Auth] Step 2: Posting credentials');
 
       // Step 2: POST credentials
       final loginRes = await _dio.post(
@@ -116,27 +125,25 @@ class ApiClient {
         ),
       );
 
-      print('[Auth] Login response status: ${loginRes.statusCode}');
-      print('[Auth] Login response data: ${loginRes.data}');
-      print('[Auth] Login response headers: ${loginRes.headers}');
+      _log('[Auth] Login response status: ${loginRes.statusCode}');
 
       // NextAuth returns 200 with {url} on success/failure
       // Check if the url is an error url
       if (loginRes.data is Map && loginRes.data['url'] != null) {
         final url = loginRes.data['url'] as String;
         if (url.contains('error=')) {
-          print('[Auth] Login failed: server returned error URL: $url');
+          _log('[Auth] Login failed: server returned error URL');
           return false;
         }
       }
 
       if (loginRes.statusCode != 200 && loginRes.statusCode != 302) {
-        print('[Auth] Login failed with status: ${loginRes.statusCode}');
+        _log('[Auth] Login failed with status: ${loginRes.statusCode}');
         return false;
       }
 
       // Step 3: Verify session was created
-      print('[Auth] Step 3: Verifying session');
+      _log('[Auth] Step 3: Verifying session');
       final sessionRes = await _dio.get(
         ApiEndpoints.session,
         options: Options(
@@ -145,8 +152,7 @@ class ApiClient {
         ),
       );
 
-      print('[Auth] Session status: ${sessionRes.statusCode}');
-      print('[Auth] Session data: ${sessionRes.data}');
+      _log('[Auth] Session status: ${sessionRes.statusCode}');
 
       if (sessionRes.statusCode == 200 && sessionRes.data != null) {
         Map<String, dynamic>? sessionData;
@@ -161,20 +167,19 @@ class ApiClient {
         if (sessionData != null && sessionData['user'] != null) {
           await _storage.write(key: 'userEmail', value: email);
           await _saveSession();
-          print('[Auth] Login SUCCESS — user: ${sessionData['user']['email']}');
+          _log('[Auth] Login SUCCESS');
           return true;
         }
       }
 
-      print('[Auth] Session check failed — no user in session data');
+      _log('[Auth] Session check failed — no user in session data');
       return false;
 
     } on DioException catch (e) {
-      print('[Auth] DioException: ${e.type} — ${e.message}');
-      print('[Auth] DioException response: ${e.response?.statusCode} ${e.response?.data}');
+      _log('[Auth] DioException: ${e.type} — ${e.message}');
       return false;
-    } catch (e, stack) {
-      print('[Auth] Unexpected error: $e\n$stack');
+    } catch (e) {
+      _log('[Auth] Unexpected error: $e');
       return false;
     }
   }
@@ -203,7 +208,7 @@ class ApiClient {
         }
       }
     } catch (e) {
-      print('[Auth] checkSession exception: $e');
+      _log('[Auth] checkSession exception: $e');
     }
     return null;
   }
@@ -231,7 +236,7 @@ class ApiClient {
         final existingCookies = await _cookieJar.loadForRequest(hostUri);
         final hasSession = existingCookies.any((c) => c.name == name);
         if (!hasSession) {
-          print('[Auth] Restoring session token cookie in-memory for ${hostUri.host}');
+          _log('[Auth] Restoring session token cookie in-memory for ${hostUri.host}');
           final sessionCookie = Cookie(name, token)
             ..path = '/'
             ..httpOnly = true;
@@ -239,7 +244,7 @@ class ApiClient {
         }
       }
     } catch (e) {
-      print('[Auth] Error restoring session: $e');
+      _log('[Auth] Error restoring session: $e');
     }
   }
 
@@ -249,7 +254,7 @@ class ApiClient {
       final cookies = await _cookieJar.loadForRequest(hostUri);
       for (final cookie in cookies) {
         if (cookie.name == 'next-auth.session-token' || cookie.name.contains('session-token')) {
-          print('[Auth] Storing session token securely: ${cookie.name}');
+          _log('[Auth] Storing session token securely: ${cookie.name}');
           await _storage.write(key: 'session_token', value: cookie.value);
           await _storage.write(key: 'session_token_name', value: cookie.name);
           // Also save in encryptedSharedPreferences for background isolate compatibility
@@ -264,7 +269,7 @@ class ApiClient {
         }
       }
     } catch (e) {
-      print('[Auth] Error saving session: $e');
+      _log('[Auth] Error saving session: $e');
     }
   }
 }
