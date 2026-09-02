@@ -30,18 +30,17 @@ export async function GET(req) {
             filters.instructorRoleContext = scope.user.id;
         }
 
-        // Global View Logic: 
-        // 1. Super Admin + (instituteId='all' OR no instituteId provided)
-        const isGlobalView = scope.isSuperAdmin && (!targetInstParam || targetInstParam === "all");
+        // Global View Logic: Super Admin with explicit instituteId='all'
+        const isGlobalView = scope.isSuperAdmin && targetInstParam === "all";
 
         let instituteId;
         if (isGlobalView) {
             instituteId = null;
-        } else if (scope.isSuperAdmin && targetInstParam) {
+        } else if (scope.isSuperAdmin && targetInstParam && targetInstParam !== "all") {
             // Super admin filtering by specific institute
             instituteId = targetInstParam;
         } else {
-            // Non-super-admins are restricted to their own institute
+            // Default to current institute in scope
             instituteId = scope.instituteId;
         }
         const batches = await BatchService.getBatches(filters, instituteId);

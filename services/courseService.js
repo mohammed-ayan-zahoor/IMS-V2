@@ -321,7 +321,13 @@ export class BatchService {
         });
 
         const query = { deletedAt: null };
-        if (instituteId) query.institute = instituteId;
+        if (instituteId) {
+            try {
+                query.institute = new mongoose.Types.ObjectId(instituteId);
+            } catch (e) {
+                query.institute = instituteId;
+            }
+        }
 
         // Handle enrolledStudents filter - find batches where a specific student is enrolled
         if (safeFilters.enrolledStudents) {
