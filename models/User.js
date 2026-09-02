@@ -273,8 +273,8 @@ UserSchema.index({ institute: 1, activeSession: 1, role: 1 });
 // Support general student listing and vocational institute patterns
 UserSchema.index({ institute: 1, role: 1, deletedAt: 1, status: 1 });
 
-// Support historical session lookups via multikey index (Only if needed, otherwise rely on Batch enrollment)
-// UserSchema.index({ activeSessions: 1, role: 1, deletedAt: 1 }); 
+// Support historical session lookups via multikey index
+UserSchema.index({ institute: 1, activeSessions: 1, role: 1, deletedAt: 1 }); 
 
 // Support lifecycle management and status-based filtering
 UserSchema.index({ role: 1, status: 1, deletedAt: 1 });
