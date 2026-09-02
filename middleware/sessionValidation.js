@@ -56,8 +56,8 @@ export async function validateAndDeriveSession(req, scope) {
             };
         }
 
-        // STEP 3: For SCHOOL institutes, validate/derive the session
-        if (institute.type === 'SCHOOL') {
+        // STEP 3: For SCHOOL and COLLEGE institutes, validate/derive the session
+        if (institute.type === 'SCHOOL' || institute.type === 'COLLEGE') {
             // VALIDATION A: If client provided a session ID, validate it
             if (clientProvidedSessionId) {
                 try {
@@ -75,7 +75,7 @@ export async function validateAndDeriveSession(req, scope) {
                         return {
                             sessionId: providedSession._id,
                             session: providedSession,
-                            instituteType: 'SCHOOL',
+                            instituteType: institute.type,
                             instituteName: institute.name,
                             source: 'CLIENT_PROVIDED_AND_VALIDATED'
                         };
@@ -100,7 +100,7 @@ export async function validateAndDeriveSession(req, scope) {
                 return {
                     sessionId: currentSession._id,
                     session: currentSession,
-                    instituteType: 'SCHOOL',
+                    instituteType: institute.type,
                     instituteName: institute.name,
                     source: 'SERVER_DERIVED_CURRENT'
                 };
@@ -117,18 +117,18 @@ export async function validateAndDeriveSession(req, scope) {
                 return {
                     sessionId: mostRecentSession._id,
                     session: mostRecentSession,
-                    instituteType: 'SCHOOL',
+                    instituteType: institute.type,
                     instituteName: institute.name,
                     source: 'SERVER_DERIVED_MOSTRECENT'
                 };
             }
 
-            // No session found for SCHOOL institute - return null session (allows viewing all students across sessions)
-            console.warn(`[SESSION_VALIDATION] No active session found for SCHOOL institute ${instituteId}, returning null session`);
+            // No session found for SCHOOL/COLLEGE institute - return null session
+            console.warn(`[SESSION_VALIDATION] No active session found for ${institute.type} institute ${instituteId}, returning null session`);
             return {
                 sessionId: null,
                 session: null,
-                instituteType: 'SCHOOL',
+                instituteType: institute.type,
                 instituteName: institute.name,
                 source: 'NO_SESSION_AVAILABLE'
             };

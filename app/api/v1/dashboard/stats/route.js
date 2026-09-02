@@ -160,15 +160,12 @@ export async function GET(req) {
         const sessionParam = searchParams.get('session');
         const source = sessionValidationResult?.source || 'UNKNOWN';
 
-        // SECURITY FIX: Apply strict session isolation for Schools
-        if (instituteType === 'SCHOOL') {
+        // SECURITY FIX: Apply strict session isolation for Schools and Colleges
+        if (instituteType === 'SCHOOL' || instituteType === 'COLLEGE') {
             if (!sessionId) {
-                // If we reach here, it means validateAndDeriveSession returned source: 'NO_SESSION_AVAILABLE'
-                // For the dashboard, we allow this to show aggregate data, but we log it as a warning
-                console.warn(`[DASHBOARD] Showing aggregate data for SCHOOL institute ${targetInstituteId} because no active session was found.`);
+                console.warn(`[DASHBOARD] Showing aggregate data for ${instituteType} institute ${targetInstituteId} because no active session was found.`);
             } else {
                 try {
-                    // Use $and to ensure we don't accidentally overwrite or conflict with other filters
                     const sessionFilter = {
                         activeSession: new mongoose.Types.ObjectId(sessionId)
                     };
@@ -187,7 +184,6 @@ export async function GET(req) {
                 }
             }
         } else if (sessionId && instituteType !== 'VOCATIONAL') {
-            // Warn if session being applied to unexpected institute type
             console.warn(`[SECURITY] Session filter applied to ${instituteType} institute in dashboard`);
         }
 
@@ -199,12 +195,12 @@ export async function GET(req) {
         const femaleStudentsCountPromise = User.countDocuments({ ...studentBaseQuery, 'profile.gender': 'Female' });
         const staffCountPromise = isInstructor
             ? Promise.resolve(0)
-            : User.countDocuments({ ...hybridBaseQuery, role: { $in: ['admin', 'staff'] } });
+            : User.countDocuments({ ...hybridBaseQuery, role: { $in: ['admin', 'staff', 'instructor'] } });
 
         // 2. Total Enrollments (Sum of student counts across all active batches)
         let batchMatch = {
             ...instituteQuery,
-            ...(sessionId && instituteType === 'SCHOOL' ? { session: new mongoose.Types.ObjectId(sessionId) } : {})
+            ...(sessionId && (instituteType === 'SCHOOL' || instituteType === 'COLLEGE') ? { session: new mongoose.Types.ObjectId(sessionId) } : {})
         };
         if (isInstructor) {
             batchMatch._id = { $in: instructorBatchIds };

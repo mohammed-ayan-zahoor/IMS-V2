@@ -482,11 +482,8 @@ export default function AdminLayout({ children }) {
                     </div>
                 </header>
 
-                {/* Main Content Area - 3 Zone Implementation */}
-                <main className={cn(
-                    "flex-1 overflow-hidden",
-                    isDashboard ? "grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px]" : "flex"
-                )}>
+                {/* Main Content Area */}
+                <main className="flex-1 overflow-hidden flex">
                     <div className={cn(
                         "flex-1 overflow-y-auto bg-[#f9fafb] scrollbar-hide print-reset min-w-0",
                         (pathname === "/admin/chat" || pathname === "/admin/website") ? "p-0" : isInstructorOrStaff ? "p-3 md:p-8" : "p-4 sm:p-8"
@@ -494,18 +491,11 @@ export default function AdminLayout({ children }) {
                         <div className={cn(
                             "animate-fade-in h-full w-full",
                             (pathname === "/admin/chat" || pathname === "/admin/website") ? "w-full h-full" : "mx-auto space-y-8",
-                            isDashboard || pathname === "/admin/chat" || pathname === "/admin/website" ? "w-full" : "w-full max-w-[1600px]"
+                            "w-full max-w-[1600px]"
                         )}>
                             {children}
                         </div>
                     </div>
-                    
-                    {/* Activity Panel (Dashboard Only) */}
-                    {isDashboard && (
-                        <aside className="hidden xl:flex border-l border-[#f1f5f9] bg-white overflow-hidden no-print min-w-0">
-                            <ActivityFeed />
-                        </aside>
-                    )}
                 </main>
             </div>
         </div>

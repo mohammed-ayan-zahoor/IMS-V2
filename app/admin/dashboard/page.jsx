@@ -76,7 +76,12 @@ export default function AdminDashboard() {
     const { sessions, selectedSessionId, changeSession, loading: loadingSessions } = useAcademicSession();
     const { data: session } = useSession();
     const toast = useToast();
-    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    
+    const instituteType = session?.user?.institute?.type || 'VOCATIONAL';
+    const isSchool = instituteType === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const isCollege = instituteType === 'COLLEGE';
+    const hasAcademicStructure = isSchool || isCollege;
+    const isVocational = !hasAcademicStructure;
 
     const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
     const [buySlots, setBuySlots] = useState(1);
@@ -183,13 +188,11 @@ export default function AdminDashboard() {
         }
     };
 
-
-
     // Fetch stats
     const fetchStats = async () => {
         try {
             setLoading(true);
-            const url = (isSchool && selectedSessionId)
+            const url = (hasAcademicStructure && selectedSessionId)
                 ? `/api/v1/dashboard/stats?session=${selectedSessionId}`
                 : '/api/v1/dashboard/stats';
             const res = await fetch(url);
@@ -201,12 +204,9 @@ export default function AdminDashboard() {
         }
     };
 
-
-
     useEffect(() => {
         fetchStats();
         
-        // Refetch stats when page becomes visible (e.g., when returning from completion-tracking page)
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 fetchStats();
@@ -217,7 +217,7 @@ export default function AdminDashboard() {
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [selectedSessionId]);
 
-    const stats = isSchool ? [
+    const stats = hasAcademicStructure ? [
         { 
             title: "ACTIVE STUDENTS", 
             value: loading ? "0" : (dashboardData?.counts?.activeStudents || 0).toLocaleString(), 
@@ -228,7 +228,7 @@ export default function AdminDashboard() {
             iconColorClass: "text-blue-600"
         },
         { 
-            title: "CLASSES ENROLLED", 
+            title: isSchool ? "CLASSES ENROLLED" : isCollege ? "PROGRAMS ENROLLED" : "COURSES ENROLLED", 
             value: loading ? "0" : (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(), 
             icon: BookOpen, 
             trend: `${dashboardData?.trends?.enrollment >= 0 ? '+' : ''}${dashboardData?.trends?.enrollment || 0}%`, 
@@ -246,7 +246,7 @@ export default function AdminDashboard() {
             iconColorClass: "text-cyan-600"
         },
         { 
-            title: "STAFF", 
+            title: isCollege ? "FACULTY & STAFF" : "STAFF", 
             value: loading ? "0" : (dashboardData?.counts?.staff || 0).toLocaleString(), 
             icon: Layers3, 
             trend: "+0%", 
@@ -327,7 +327,7 @@ export default function AdminDashboard() {
 
             <div className={cn("space-y-6", isInstructorOrStaff ? "hidden md:block" : "")}>
                 {/* Subscription & Student Quota Status */}
-                {isSchool && dashboardData?.subscription && (
+                {hasAcademicStructure && dashboardData?.subscription && (
                     <div className="bg-white rounded-lg border border-slate-200 p-5 flex flex-col md:flex-row justify-between items-stretch gap-6">
                         {/* Subscription Info */}
                         <div className="flex-1 flex gap-4 items-start md:border-r md:border-slate-100 md:pr-6">
@@ -525,7 +525,7 @@ export default function AdminDashboard() {
                 {/* Metric Row */}
                 <div className={cn(
                     "grid gap-4",
-                    isSchool ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                    hasAcademicStructure ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
                 )}>
                     {stats.map((stat) => (
                         <StatCard key={stat.title} {...stat} />
@@ -623,8 +623,8 @@ export default function AdminDashboard() {
                             <div>
                                 <h3 className="text-sm font-bold text-slate-900">
                                     {rankingFilter === "top" 
-                                        ? (isSchool ? "Top Performing Classes" : "Top Performing Courses")
-                                        : (isSchool ? "Least Performing Classes" : "Least Performing Courses")
+                                        ? (isSchool ? "Top Performing Classes" : isCollege ? "Top Performing Programs" : "Top Performing Courses")
+                                        : (isSchool ? "Least Performing Classes" : isCollege ? "Least Performing Programs" : "Least Performing Courses")
                                     }
                                 </h3>
                                 <p className="text-xs text-slate-400 font-medium mt-0.5">
@@ -717,7 +717,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Student Lifecycle Overview - Vocational Only */}
-                {!isSchool && (
+                {isVocational && (
                     <div className="bg-white rounded-lg border border-slate-100 p-5">
                         <div className="mb-4">
                             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Student Lifecycle Distribution</h3>
