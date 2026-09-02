@@ -43,7 +43,8 @@ const SEEDED_DEMO_EVENTS = [
         startDate: new Date(2026, 8, 3, 9, 0).toISOString(),
         endDate: new Date(2026, 8, 5, 17, 0).toISOString(),
         category: "exam",
-        target: "Class 10 & 12",
+        target: "all",
+        targetLabel: "Class 10 & 12",
         createdAt: new Date(2026, 8, 1).toISOString()
     },
     {
@@ -53,7 +54,8 @@ const SEEDED_DEMO_EVENTS = [
         startDate: new Date(2026, 8, 5, 10, 30).toISOString(),
         endDate: new Date(2026, 8, 5, 13, 0).toISOString(),
         category: "cultural",
-        target: "Entire School",
+        target: "all",
+        targetLabel: "Entire School",
         createdAt: new Date(2026, 8, 1).toISOString()
     },
     {
@@ -63,7 +65,8 @@ const SEEDED_DEMO_EVENTS = [
         startDate: new Date(2026, 8, 10, 8, 30).toISOString(),
         endDate: new Date(2026, 8, 12, 16, 0).toISOString(),
         category: "sports",
-        target: "All Students",
+        target: "all",
+        targetLabel: "All Students",
         createdAt: new Date(2026, 8, 2).toISOString()
     },
     {
@@ -73,7 +76,8 @@ const SEEDED_DEMO_EVENTS = [
         startDate: new Date(2026, 8, 17, 9, 30).toISOString(),
         endDate: new Date(2026, 8, 17, 15, 30).toISOString(),
         category: "academic_assembly",
-        target: "All Classes",
+        target: "all",
+        targetLabel: "All Classes",
         createdAt: new Date(2026, 8, 2).toISOString()
     },
     {
@@ -83,7 +87,8 @@ const SEEDED_DEMO_EVENTS = [
         startDate: new Date(2026, 8, 22, 14, 0).toISOString(),
         endDate: new Date(2026, 8, 22, 17, 0).toISOString(),
         category: "general",
-        target: "Staff Only",
+        target: "all",
+        targetLabel: "Staff Only",
         createdAt: new Date(2026, 8, 2).toISOString()
     },
     {
@@ -93,7 +98,8 @@ const SEEDED_DEMO_EVENTS = [
         startDate: new Date(2026, 8, 28, 0, 0).toISOString(),
         endDate: new Date(2026, 8, 28, 23, 59).toISOString(),
         category: "holiday",
-        target: "All",
+        target: "all",
+        targetLabel: "All",
         createdAt: new Date(2026, 8, 2).toISOString()
     }
 ];
@@ -165,13 +171,16 @@ export default function AdminCalendarPage() {
     const handleEdit = (event, e) => {
         if (e) e.stopPropagation();
         setEditingId(event._id);
+        const validTargets = ["all", "batches", "courses"];
+        const targetValue = validTargets.includes(event.target) ? event.target : "all";
+        
         setFormData({
             title: event.title,
             description: event.description || "",
             startDate: event.startDate ? format(new Date(event.startDate), "yyyy-MM-dd'T'HH:mm") : "",
             endDate: event.endDate ? format(new Date(event.endDate), "yyyy-MM-dd'T'HH:mm") : "",
             category: event.category || "general",
-            target: event.target || "all",
+            target: targetValue,
             targetIds: event.targetIds || []
         });
         setIsModalOpen(true);
@@ -221,10 +230,11 @@ export default function AdminCalendarPage() {
                 setFormData(initialFormState());
                 fetchInitialData();
             } else {
-                // Fallback local update if offline or demo mode
+                // Fallback local update for demo state
                 const newEv = {
                     _id: editingId || `demo-${Date.now()}`,
                     ...formData,
+                    targetLabel: formData.target === "all" ? "Entire Institute" : formData.target,
                     createdAt: new Date().toISOString()
                 };
                 setEvents(prev => editingId ? prev.map(ev => ev._id === editingId ? newEv : ev) : [newEv, ...prev]);
@@ -408,67 +418,80 @@ export default function AdminCalendarPage() {
                     </div>
                 </div>
 
-                {/* Consolidated Toolbar */}
-                <div className="bg-white rounded-xl border border-slate-200/80 p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-                    {/* Month Navigator */}
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-sm font-bold text-slate-900 min-w-[130px]">
-                            {format(currentMonth, "MMMM yyyy")}
-                        </h2>
-                        <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                            <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-white text-slate-500 rounded transition-colors">
-                                <ChevronLeft size={16} />
-                            </button>
-                            <button type="button" onClick={handleGoToToday} className="px-2.5 py-0.5 text-xs font-semibold text-slate-700 hover:bg-white rounded transition-colors">
-                                Today
-                            </button>
-                            <button type="button" onClick={handleNextMonth} className="p-1 hover:bg-white text-slate-500 rounded transition-colors">
-                                <ChevronRight size={16} />
-                            </button>
+                {/* Consolidated Toolbar with Category Legend */}
+                <div className="bg-white rounded-xl border border-slate-200/80 p-4 space-y-3">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                        {/* Month Navigator */}
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-sm font-bold text-slate-900 min-w-[130px]">
+                                {format(currentMonth, "MMMM yyyy")}
+                            </h2>
+                            <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                                <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-white text-slate-500 rounded transition-colors">
+                                    <ChevronLeft size={16} />
+                                </button>
+                                <button type="button" onClick={handleGoToToday} className="px-2.5 py-0.5 text-xs font-semibold text-slate-700 hover:bg-white rounded transition-colors">
+                                    Today
+                                </button>
+                                <button type="button" onClick={handleNextMonth} className="p-1 hover:bg-white text-slate-500 rounded transition-colors">
+                                    <ChevronRight size={16} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Filters & Search */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
+                            <div className="w-full sm:w-40">
+                                <Select
+                                    value={categoryFilter}
+                                    onChange={setCategoryFilter}
+                                    options={[
+                                        { label: "All Categories", value: "all" },
+                                        { label: "Holidays", value: "holiday" },
+                                        { label: "Exams", value: "exam" },
+                                        { label: "Cultural", value: "cultural" },
+                                        { label: "Sports", value: "sports" },
+                                        { label: "Assembly", value: "academic_assembly" },
+                                        { label: "General", value: "general" }
+                                    ]}
+                                />
+                            </div>
+
+                            <div className="w-full sm:w-40">
+                                <Select
+                                    value={targetFilter}
+                                    onChange={setTargetFilter}
+                                    options={[
+                                        { label: "All Audiences", value: "all" },
+                                        { label: "Entire School", value: "all" },
+                                        { label: "Specific Batches", value: "batches" },
+                                        { label: "Specific Courses", value: "courses" }
+                                    ]}
+                                />
+                            </div>
+
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                                <input
+                                    type="text"
+                                    placeholder="Search events..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 outline-none focus:border-slate-400 text-xs font-medium"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    {/* Filters & Search */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
-                        <div className="w-full sm:w-40">
-                            <Select
-                                value={categoryFilter}
-                                onChange={setCategoryFilter}
-                                options={[
-                                    { label: "All Categories", value: "all" },
-                                    { label: "Holidays", value: "holiday" },
-                                    { label: "Exams", value: "exam" },
-                                    { label: "Cultural", value: "cultural" },
-                                    { label: "Sports", value: "sports" },
-                                    { label: "Assembly", value: "academic_assembly" },
-                                    { label: "General", value: "general" }
-                                ]}
-                            />
-                        </div>
-
-                        <div className="w-full sm:w-40">
-                            <Select
-                                value={targetFilter}
-                                onChange={setTargetFilter}
-                                options={[
-                                    { label: "All Audiences", value: "all" },
-                                    { label: "Entire School", value: "all" },
-                                    { label: "Specific Batches", value: "batches" },
-                                    { label: "Specific Courses", value: "courses" }
-                                ]}
-                            />
-                        </div>
-
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                            <input
-                                type="text"
-                                placeholder="Search events..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 outline-none focus:border-slate-400 text-xs font-medium"
-                            />
-                        </div>
+                    {/* Category Color Legend Bar */}
+                    <div className="flex items-center gap-4 pt-2 border-t border-slate-100 text-[11px] font-semibold text-slate-500 overflow-x-auto">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Legend:</span>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> Exam</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> Holiday</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Sports</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" /> Cultural</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-sky-500" /> Academic</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /> General</div>
                     </div>
                 </div>
 
@@ -519,8 +542,8 @@ export default function AdminCalendarPage() {
                                                 </span>
                                             </div>
 
-                                            {/* Event Density Chips (Matches Reference) */}
-                                            <div className="space-y-1 mt-1 flex-1">
+                                            {/* Event Density Chips (Uncut Full Titles + Hover Tooltip) */}
+                                            <div className="space-y-1.5 mt-1 flex-1">
                                                 {dayEvents.slice(0, 2).map(event => {
                                                     const style = getCategoryStyles(event.category);
                                                     return (
@@ -528,15 +551,12 @@ export default function AdminCalendarPage() {
                                                             key={event._id}
                                                             onClick={(e) => handleEdit(event, e)}
                                                             className={cn(
-                                                                "text-[10px] px-1.5 py-0.5 rounded font-semibold truncate border flex items-center gap-1 transition-colors hover:brightness-95",
+                                                                "text-[10px] px-2 py-0.5 rounded font-semibold truncate border flex items-center gap-1.5 transition-all hover:brightness-95 cursor-pointer",
                                                                 style.bg
                                                             )}
-                                                            title={`${event.title} (${format(new Date(event.startDate), "h:mm a")})`}
+                                                            title={`${event.title} (${format(new Date(event.startDate), "MMM d, h:mm a")} - ${format(new Date(event.endDate), "h:mm a")})`}
                                                         >
                                                             <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", style.dot)} />
-                                                            <span className="text-[9px] font-bold opacity-80 shrink-0">
-                                                                {format(new Date(event.startDate), "h:mm a")}
-                                                            </span>
                                                             <span className="truncate">{event.title}</span>
                                                         </div>
                                                     );
@@ -588,9 +608,27 @@ export default function AdminCalendarPage() {
                                             >
                                                 <div className="flex justify-between items-start gap-2">
                                                     <h4 className="font-bold text-slate-900 text-xs leading-snug">{event.title}</h4>
-                                                    <Badge variant={style.badge}>
-                                                        {event.category.toUpperCase()}
-                                                    </Badge>
+                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                        <Badge variant={style.badge}>
+                                                            {event.category.toUpperCase()}
+                                                        </Badge>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={(e) => handleEdit(event, e)}
+                                                            className="p-1 text-slate-400 hover:text-slate-700 transition-colors rounded"
+                                                            title="Edit Event"
+                                                        >
+                                                            <Edit size={13} />
+                                                        </button>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={(e) => handleDelete(event._id, e)}
+                                                            className="p-1 text-slate-400 hover:text-rose-600 transition-colors rounded"
+                                                            title="Delete Event"
+                                                        >
+                                                            <Trash2 size={13} />
+                                                        </button>
+                                                    </div>
                                                 </div>
 
                                                 {event.description && (
@@ -604,27 +642,8 @@ export default function AdminCalendarPage() {
                                                     </div>
                                                     <div className="flex items-center gap-1.5">
                                                         <Users size={12} className="text-slate-400" />
-                                                        <span>Target: {event.target}</span>
+                                                        <span>Target: {event.targetLabel || (event.target === "all" ? "Entire Institute" : event.target)}</span>
                                                     </div>
-                                                </div>
-
-                                                <div className="flex justify-end gap-1 pt-2 border-t border-slate-100">
-                                                    <button 
-                                                        type="button"
-                                                        onClick={(e) => handleEdit(event, e)}
-                                                        className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors rounded"
-                                                        title="Edit Event"
-                                                    >
-                                                        <Edit size={14} />
-                                                    </button>
-                                                    <button 
-                                                        type="button"
-                                                        onClick={(e) => handleDelete(event._id, e)}
-                                                        className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors rounded"
-                                                        title="Delete Event"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
                                                 </div>
                                             </div>
                                         );
@@ -654,7 +673,9 @@ export default function AdminCalendarPage() {
                                                 <Badge variant={style.badge}>
                                                     {event.category.replace('_', ' ').toUpperCase()}
                                                 </Badge>
-                                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Target: {event.target}</span>
+                                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                                    Target: {event.targetLabel || (event.target === "all" ? "Entire Institute" : event.target)}
+                                                </span>
                                             </div>
                                             
                                             <h3 className="font-bold text-slate-900 text-sm mb-1.5 line-clamp-1">{event.title}</h3>
@@ -710,7 +731,7 @@ export default function AdminCalendarPage() {
                 <Modal
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
-                    title={editingId ? "Edit Event Details" : "Add Calendar Event"}
+                    title={editingId ? `Edit Event: ${formData.title || 'Details'}` : "Add Calendar Event"}
                     className="max-w-lg"
                 >
                     <form onSubmit={handleSave} className="space-y-4">
