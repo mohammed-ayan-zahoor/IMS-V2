@@ -6,8 +6,8 @@ const SessionSchema = new Schema({
         type: String,
         required: true,
         trim: true,
-        // Format: "25-26", "26-27", etc
-        match: [/^\d{2}-\d{2}$/, 'Session name must be in format: 25-26'],
+        minlength: [2, 'Session name must be at least 2 characters'],
+        maxlength: [40, 'Session name must be under 40 characters'],
         index: true
     },
     
@@ -87,5 +87,9 @@ SessionSchema.pre('findOneAndUpdate', function(next) {
     }
     next();
 });
+
+if (process.env.NODE_ENV !== 'production') {
+    delete mongoose.models.Session;
+}
 
 export default mongoose.models.Session || mongoose.model('Session', SessionSchema);

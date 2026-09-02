@@ -57,9 +57,9 @@ export default function SessionManager() {
                 return;
             }
 
-            // Validate session name format
-            if (!/^(\d{2}|\d{4})-(\d{2}|\d{4})$/.test(formData.sessionName.trim())) {
-                toast.error("Format must be YY-YY or YYYY-YYYY (e.g., 25-26 or 2025-2026)");
+            // Validate session name
+            if (!formData.sessionName.trim() || formData.sessionName.trim().length < 2) {
+                toast.error("Please enter a valid session name (e.g. 2025-2026, 2025-26 Odd, or Fall 2025)");
                 setCreating(false);
                 return;
             }
@@ -167,8 +167,8 @@ export default function SessionManager() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-lg font-bold text-slate-900">Academic Sessions</h3>
-                    <p className="text-sm text-slate-500 mt-1">Create and manage institutional academic terms (e.g. 2025-2026, 26-27)</p>
+                    <h3 className="text-lg font-bold text-slate-900">Academic Sessions & Terms</h3>
+                    <p className="text-sm text-slate-500 mt-1">Create and manage institutional academic terms (e.g. 2025-2026, 2025-26 Odd, Fall 2025)</p>
                 </div>
                 <Button
                     onClick={() => setShowCreateForm(!showCreateForm)}
@@ -185,17 +185,17 @@ export default function SessionManager() {
                     <form onSubmit={handleCreateSession} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700">Session Name *</label>
+                                <label className="text-xs font-bold text-slate-700">Session / Term Name *</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. 2025-2026 or 25-26"
+                                    placeholder="e.g. 2025-2026 or 2025-26 (Odd)"
                                     value={formData.sessionName}
-                                    onChange={(e) => setFormData({ ...formData, sessionName: e.target.value.toUpperCase() })}
+                                    onChange={(e) => setFormData({ ...formData, sessionName: e.target.value })}
                                     className="w-full px-4 py-2 text-sm bg-white rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-mono"
-                                    maxLength="10"
+                                    maxLength="40"
                                     required
                                 />
-                                <p className="text-[11px] text-slate-400">Format: YY-YY or YYYY-YYYY</p>
+                                <p className="text-[11px] text-slate-400">Annual year or semester term (e.g. 6-month term)</p>
                             </div>
 
                             <div className="space-y-2">
