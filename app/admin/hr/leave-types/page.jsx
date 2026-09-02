@@ -145,9 +145,7 @@ export default function LeaveTypesPage() {
                     {leaveTypes.map((type) => (
                         <Card key={type._id} className="group relative flex flex-col p-5 bg-white border border-slate-200/80 hover:border-slate-300 transition-colors">
                             <div className="flex items-start justify-between mb-3">
-                                <div className="p-2 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
-                                    <CalendarDays size={18} />
-                                </div>
+                                <CalendarDays className="text-slate-500" size={20} />
                                 <button
                                     type="button"
                                     onClick={() => handleDelete(type._id, type.name)}

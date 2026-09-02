@@ -116,9 +116,7 @@ export default function WebsiteResultsAdminPage() {
                     {/* Active Academic Session Info Card */}
                     <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
-                                <Calendar className="w-4 h-4" />
-                            </div>
+                            <Calendar className="w-5 h-5 text-blue-600 shrink-0" />
                             <div>
                                 <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Active Academic Session</span>
                                 <span className="text-sm font-bold text-slate-900">
