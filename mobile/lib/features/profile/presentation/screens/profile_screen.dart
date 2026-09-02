@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/features/attendance/presentation/providers/attendance_provider.dart';
+import 'package:student_app/features/profile/presentation/screens/academic_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -294,7 +295,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Group 4: System Actions
+                      // Group 4: Academic Journey & Sessions History
+                      _buildSectionHeader('ACADEMIC JOURNEY'),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: const Color(0xFFC4C6CF)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          children: [
+                            _buildActionRow(
+                              Icons.history_edu_outlined,
+                              'Academic Sessions & History',
+                              isLast: true,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AcademicHistoryScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Group 5: System Actions
                       _buildSectionHeader('ACCOUNT'),
                       const SizedBox(height: 8),
                       Container(
