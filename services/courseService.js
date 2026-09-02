@@ -331,7 +331,15 @@ export class BatchService {
         // Add other safe filters
         Object.keys(safeFilters).forEach(key => {
             if (key !== 'enrolledStudents' && key !== 'instructorRoleContext') {
-                query[key] = safeFilters[key];
+                if (key === 'session' && safeFilters.session) {
+                    query.$or = [
+                        { session: safeFilters.session },
+                        { session: null },
+                        { session: { $exists: false } }
+                    ];
+                } else {
+                    query[key] = safeFilters[key];
+                }
             }
         });
 

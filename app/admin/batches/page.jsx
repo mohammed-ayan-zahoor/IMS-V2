@@ -247,11 +247,11 @@ export default function BatchesPage() {
                               batch.courseBundle?.title?.toLowerCase().includes(query);
         // Session Isolation (Strictly for Schools)
         const isVocType = session?.user?.institute?.type === 'VOCATIONAL';
-        const batchSessionStr = String(batch.session?._id || batch.session || '');
+        const batchSessionId = batch.session?._id ? String(batch.session._id) : (typeof batch.session === 'string' ? batch.session : '');
         const currentSessionStr = String(selectedSessionId || '');
         const matchesSession = (!isSchool || !selectedSessionId || isVocType)
             ? true
-            : (!batchSessionStr || batchSessionStr === currentSessionStr);
+            : (!batchSessionId || batchSessionId === currentSessionStr);
         // Type filter
         const matchesType = listFilter === "all" ? true
             : listFilter === "bundle" ? !!batch.courseBundle
