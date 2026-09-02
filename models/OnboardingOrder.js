@@ -20,7 +20,7 @@ const OnboardingOrderSchema = new mongoose.Schema({
     udiseCode: { type: String, trim: true },
     instituteType: {
         type: String,
-        enum: ['VOCATIONAL', 'SCHOOL'],
+        enum: ['VOCATIONAL', 'SCHOOL', 'COLLEGE'],
         default: 'VOCATIONAL'
     },
 

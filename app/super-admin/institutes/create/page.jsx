@@ -150,6 +150,7 @@ export default function CreateInstitutePage() {
                                 <Radio.Group optionType="button" buttonStyle="solid">
                                     <Radio value="VOCATIONAL">Vocational</Radio>
                                     <Radio value="SCHOOL">School</Radio>
+                                    <Radio value="COLLEGE">College / Higher-Ed</Radio>
                                 </Radio.Group>
                             </Form.Item>
                         </Col>

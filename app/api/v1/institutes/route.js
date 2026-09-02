@@ -80,7 +80,7 @@ export async function POST(req) {
          }
 
          // Validate type field
-         const validTypes = ['VOCATIONAL', 'SCHOOL'];
+         const validTypes = ['VOCATIONAL', 'SCHOOL', 'COLLEGE'];
          const instituteType = body.type && validTypes.includes(body.type) ? body.type : 'VOCATIONAL';
 
          // Check duplicates

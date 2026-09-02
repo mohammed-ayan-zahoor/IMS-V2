@@ -13,7 +13,7 @@ const InstituteSchema = new Schema({
     indexNumber: String,
     type: {
         type: String,
-        enum: ['VOCATIONAL', 'SCHOOL'],
+        enum: ['VOCATIONAL', 'SCHOOL', 'COLLEGE'],
         default: 'VOCATIONAL',
         required: true
     },

@@ -34,7 +34,7 @@ const WebsiteConfigSchema = new Schema({
     },
     template: {
         type: String,
-        enum: ['VOCATIONAL', 'SCHOOL', 'CUSTOM'],
+        enum: ['VOCATIONAL', 'SCHOOL', 'COLLEGE', 'CUSTOM'],
         default: 'SCHOOL'
     },
     branding: {

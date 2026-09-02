@@ -299,7 +299,7 @@ export default function SettingsPage() {
                                             <label className="text-xs font-bold text-slate-700">Institute Type</label>
                                             <div className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center">
                                                 <span className="text-xs font-semibold text-slate-800">
-                                                    {institute.type === 'SCHOOL' ? 'School / K-12' : 'Vocational / Coaching'}
+                                                    {institute.type === 'COLLEGE' ? 'College / Higher-Ed' : (institute.type === 'SCHOOL' ? 'School / K-12' : 'Vocational / Coaching')}
                                                 </span>
                                             </div>
                                         </div>
