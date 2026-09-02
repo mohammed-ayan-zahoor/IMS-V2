@@ -17,8 +17,18 @@ export async function GET(req) {
         }
 
         await connectDB();
+        const { searchParams } = new URL(req.url);
+        const reqInstituteId = searchParams.get('instituteId');
+        const instituteId = (session.user.role === 'super_admin' && reqInstituteId) 
+            ? reqInstituteId 
+            : session.user.institute?.id;
+
+        if (!instituteId) {
+            return NextResponse.json({ events: [] });
+        }
+
         const events = await Event.find({ 
-            institute: session.user.institute.id,
+            institute: instituteId,
             deletedAt: null
         }).sort({ startDate: 1 });
 
@@ -43,13 +53,20 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { title, description, startDate, endDate, category, target, targetIds } = body;
+        const { title, description, startDate, endDate, category, target, targetIds, instituteId: reqInstituteId } = body;
 
         if (!title || !startDate || !endDate) {
             return NextResponse.json({ error: "Missing required fields: title, startDate, and endDate are required." }, { status: 400 });
         }
 
         await connectDB();
+        const targetInstitute = (session.user.role === 'super_admin' && reqInstituteId)
+            ? reqInstituteId
+            : session.user.institute?.id;
+
+        if (!targetInstitute) {
+            return NextResponse.json({ error: "Institute ID is required" }, { status: 400 });
+        }
 
         const event = await Event.create({
             title,
@@ -59,7 +76,7 @@ export async function POST(req) {
             category: category || 'general',
             target: target || 'all',
             targetIds: targetIds || [],
-            institute: session.user.institute.id,
+            institute: targetInstitute,
             createdBy: session.user.id
         });
 

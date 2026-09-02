@@ -78,7 +78,13 @@ export async function POST(req) {
         }
 
         await connectDB();
-        const instituteId = session.user.institute.id;
+        const instituteId = (session.user.role === 'super_admin' && body.instituteId)
+            ? body.instituteId
+            : session.user.institute?.id;
+
+        if (!instituteId) {
+            return NextResponse.json({ error: "Institute ID is required" }, { status: 400 });
+        }
 
         // Optionally clear existing calendar events if user explicitly requests clean slate
         if (clearExisting) {

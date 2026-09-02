@@ -132,6 +132,11 @@ export default function AdminCalendarPage() {
     const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState(initialFormState());
 
+    // Super Admin Institute Selection
+    const [institutes, setInstitutes] = useState([]);
+    const [selectedInstitute, setSelectedInstitute] = useState("");
+    const [importTargetInstitute, setImportTargetInstitute] = useState("");
+
     // Bulk Import Modal State
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [importJson, setImportJson] = useState("");
@@ -150,6 +155,22 @@ export default function AdminCalendarPage() {
             targetIds: []
         };
     }
+
+    useEffect(() => {
+        if (session?.user?.role === 'super_admin') {
+            fetchInstitutes();
+        }
+    }, [session]);
+
+    const fetchInstitutes = async () => {
+        try {
+            const res = await fetch("/api/v1/institutes");
+            const data = await res.json();
+            setInstitutes(data.institutes || []);
+        } catch (error) {
+            console.error("Failed to fetch institutes", error);
+        }
+    };
 
     const handleImportSubmit = async () => {
         if (!importJson.trim()) {
@@ -175,12 +196,15 @@ export default function AdminCalendarPage() {
                 return;
             }
 
+            const targetInst = importTargetInstitute || selectedInstitute || undefined;
+
             const res = await fetch("/api/v1/events/import", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     events: eventsList,
-                    clearExisting: clearExistingOnImport
+                    clearExisting: clearExistingOnImport,
+                    instituteId: targetInst
                 })
             });
 
@@ -220,14 +244,18 @@ export default function AdminCalendarPage() {
 
     useEffect(() => {
         fetchInitialData();
-    }, []);
+    }, [selectedInstitute]);
 
     const fetchInitialData = async () => {
         try {
+            const eventUrl = selectedInstitute ? `/api/v1/events?instituteId=${selectedInstitute}` : "/api/v1/events";
+            const coursesUrl = selectedInstitute ? `/api/v1/courses?instituteId=${selectedInstitute}` : "/api/v1/courses";
+            const batchesUrl = selectedInstitute ? `/api/v1/batches?instituteId=${selectedInstitute}` : "/api/v1/batches";
+
             const [eRes, cRes, bRes] = await Promise.all([
-                fetch("/api/v1/events"),
-                fetch("/api/v1/courses"),
-                fetch("/api/v1/batches")
+                fetch(eventUrl),
+                fetch(coursesUrl),
+                fetch(batchesUrl)
             ]);
             const eData = await eRes.json();
             const cData = await cRes.json();
@@ -526,8 +554,25 @@ export default function AdminCalendarPage() {
                         </div>
 
                         {/* Filters & Search */}
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
-                            <div className="w-full sm:w-40">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-3xl">
+                            {session?.user?.role === 'super_admin' && institutes.length > 0 && (
+                                <div className="w-full sm:w-48">
+                                    <Select
+                                        value={selectedInstitute}
+                                        onChange={(val) => {
+                                            setSelectedInstitute(val);
+                                            setImportTargetInstitute(val);
+                                        }}
+                                        placeholder="Active Institute"
+                                        options={[
+                                            { label: "Active Institute", value: "" },
+                                            ...institutes.map(i => ({ label: i.name, value: i._id }))
+                                        ]}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="w-full sm:w-36">
                                 <Select
                                     value={categoryFilter}
                                     onChange={setCategoryFilter}
@@ -974,6 +1019,24 @@ export default function AdminCalendarPage() {
                                 </p>
                             </div>
                         </div>
+
+                        {/* Target School Selector for Super Admins */}
+                        {session?.user?.role === 'super_admin' && institutes.length > 0 && (
+                            <div className="space-y-1 text-left">
+                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                                    Target School / Institute
+                                </label>
+                                <Select
+                                    value={importTargetInstitute || selectedInstitute}
+                                    onChange={(val) => setImportTargetInstitute(val)}
+                                    placeholder="Select Target School"
+                                    options={institutes.map(i => ({ label: `${i.name} (${i.code || i.type})`, value: i._id }))}
+                                />
+                                <p className="text-[10px] text-slate-400">
+                                    Fixtures will be imported specifically for this selected institute.
+                                </p>
+                            </div>
+                        )}
 
                         {/* Drag and Drop / File upload */}
                         <div 
