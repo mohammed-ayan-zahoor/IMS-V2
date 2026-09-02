@@ -275,4 +275,5 @@ InstituteSchema.methods.updateUsage = async function () {
     }
 };
 
+if (process.env.NODE_ENV !== 'production') delete mongoose.models.Institute;
 export default mongoose.models.Institute || mongoose.model('Institute', InstituteSchema);
