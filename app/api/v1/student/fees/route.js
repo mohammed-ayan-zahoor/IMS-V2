@@ -68,15 +68,18 @@ export async function GET(req) {
                     select: "name"
                 }
             })
-            .sort({ updatedAt: -1 });
+            .sort({ updatedAt: -1 })
+            .lean();
 
         const transportFees = await TransportFee.find(transportQuery)
             .populate("route vehicle preset")
-            .sort({ updatedAt: -1 });
+            .sort({ updatedAt: -1 })
+            .lean();
 
         const hostelAllotments = await HostelAllotment.find(hostelQuery)
             .populate("room block")
-            .sort({ updatedAt: -1 });
+            .sort({ updatedAt: -1 })
+            .lean();
 
         return NextResponse.json({ fees, transportFees, hostelAllotments });
 

@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   serverExternalPackages: ['pdfkit', 'canvas', 'puppeteer'],
   outputFileTracingRoot: process.cwd(),
   productionBrowserSourceMaps: false,

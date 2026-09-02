@@ -20,19 +20,29 @@ export async function GET(req) {
         const querySessionId = searchParams.get("sessionId");
 
         let activeSession = null;
-        if (querySessionId) {
-            activeSession = { _id: new mongoose.Types.ObjectId(querySessionId) };
-        } else if (session.user.institute?.id) {
+        if (querySessionId && session.user.institute?.id) {
+            try {
+                activeSession = await Session.findOne({
+                    _id: new mongoose.Types.ObjectId(querySessionId),
+                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                    deletedAt: null
+                }).select("_id").lean();
+            } catch {
+                activeSession = null;
+            }
+        }
+
+        if (!activeSession && session.user.institute?.id) {
             activeSession = await Session.findOne({
                 instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
                 isActive: true,
                 deletedAt: null
-            });
+            }).select("_id").lean();
             if (!activeSession) {
                 activeSession = await Session.findOne({
                     instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
                     deletedAt: null
-                }).sort({ startDate: -1 });
+                }).select("_id").sort({ startDate: -1 }).lean();
             }
         }
 
@@ -50,7 +60,7 @@ export async function GET(req) {
         }
 
         // 1. Find Student's Batches & Courses
-        const studentBatches = await Batch.find(batchQuery).select("course _id");
+        const studentBatches = await Batch.find(batchQuery).select("course _id").lean();
 
         const enrolledCourseIds = studentBatches.map(b => b.course);
         const enrolledBatchIds = studentBatches.map(b => b._id.toString()); // Ensure string comparison
@@ -135,7 +145,8 @@ export async function GET(req) {
                 .populate("course", "name")
                 .sort({ createdAt: -1 })
                 .skip(skip)
-                .limit(limit),
+                .limit(limit)
+                .lean(),
             Material.countDocuments(query)
         ]);
 

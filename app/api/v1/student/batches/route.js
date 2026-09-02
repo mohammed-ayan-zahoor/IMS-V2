@@ -70,7 +70,8 @@ export async function GET(req) {
                     select: "name"
                 }
             })
-            .select("name schedule instructor course"); // Select entire schedule object and course
+            .select("name schedule instructor course")
+            .lean(); // Select entire schedule object and course
 
         return NextResponse.json({ batches });
 

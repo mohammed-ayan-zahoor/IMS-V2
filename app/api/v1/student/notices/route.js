@@ -28,7 +28,7 @@ export async function GET(req) {
                 }
             },
             deletedAt: null
-        }).select("course _id");
+        }).select("course _id").lean();
 
         const enrolledCourseIds = studentBatches.map(b => b.course);
         const enrolledBatchIds = studentBatches.map(b => b._id);
@@ -52,7 +52,8 @@ export async function GET(req) {
 
         const notices = await Notice.find(query)
             .sort({ isPinned: -1, priority: -1, createdAt: -1 })
-            .limit(50);
+            .limit(50)
+            .lean();
 
         return NextResponse.json({ notices });
 

@@ -74,7 +74,7 @@ export async function GET(req) {
         }
 
         // Get batches first with correct elemMatch query
-        const studentBatches = await Batch.find(batchQuery).select("_id");
+        const studentBatches = await Batch.find(batchQuery).select("_id").lean();
         const batchIds = studentBatches.map(b => b._id);
 
         const monthParam = searchParams.get("month");
@@ -101,7 +101,8 @@ export async function GET(req) {
         const [attendance, totalCount] = await Promise.all([
             Attendance.find(query)
                 .populate("batch", "name")
-                .sort({ date: 1 }), // ascending date order for calendar/list
+                .sort({ date: 1 })
+                .lean(), // ascending date order for calendar/list
             Attendance.countDocuments(query)
         ]);
 
