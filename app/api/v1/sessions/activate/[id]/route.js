@@ -42,20 +42,24 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Session not found" }, { status: 404 });
         }
 
-        // Start transaction-like operation
-        // 1. Deactivate all other sessions for this institute
-        await Session.updateMany(
+        // Activate target + deactivate all others in a single bulkWrite round-trip.
+        // This eliminates the race window that existed between the old updateMany + save pair.
+        await Session.bulkWrite([
+            // Deactivate every other session for this institute
             {
-                instituteId: scope.instituteId,
-                _id: { $ne: id },
-                deletedAt: null
+                updateMany: {
+                    filter: { instituteId: scope.instituteId, _id: { $ne: id }, deletedAt: null },
+                    update: { $set: { isActive: false, updatedAt: new Date() } }
+                }
             },
-            { isActive: false }
-        );
-
-        // 2. Activate the target session
-        targetSession.isActive = true;
-        await targetSession.save();
+            // Activate the target session
+            {
+                updateOne: {
+                    filter: { _id: id, instituteId: scope.instituteId, deletedAt: null },
+                    update: { $set: { isActive: true, updatedAt: new Date() } }
+                }
+            }
+        ]);
 
         // Audit log
         await AuditLog.create({
@@ -69,7 +73,7 @@ export async function PATCH(req, { params }) {
         return NextResponse.json({ 
             success: true, 
             message: `Session ${targetSession.sessionName} activated`,
-            session: targetSession 
+            session: { ...targetSession.toObject(), isActive: true }
         });
     } catch (error) {
         console.error("PATCH /api/v1/sessions/activate error:", error);

@@ -63,13 +63,28 @@ const SessionSchema = new Schema({
 // Compound index for unique sessions per institute (non-deleted)
 SessionSchema.index({ instituteId: 1, sessionName: 1, deletedAt: 1 }, { unique: true, sparse: true });
 
-// Partial index for active sessions per institute
-SessionSchema.index({ instituteId: 1, isActive: 1, deletedAt: 1 });
+// Partial index: only ONE active session allowed per institute at the DB level.
+// MongoDB partial indexes only index documents matching the filter expression,
+// so inactive sessions (isActive: false) are excluded and don't conflict.
+SessionSchema.index(
+    { instituteId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { isActive: true, deletedAt: null },
+        name: 'unique_active_session_per_institute'
+    }
+);
 
-// Middleware to prevent updates
-SessionSchema.pre('findByIdAndUpdate', function(next) {
-    // Sessions are immutable - only allow status changes via dedicated endpoint
+// Middleware to enforce immutability on closed sessions.
+// Only isActive and updatedAt are allowed to change after creation.
+SessionSchema.pre('findOneAndUpdate', function(next) {
     this.options.runValidators = true;
+    const update = this.getUpdate();
+    const set = update?.$set || update || {};
+    const forbidden = Object.keys(set).filter(k => !['isActive', 'updatedAt'].includes(k));
+    if (forbidden.length > 0) {
+        return next(new Error(`Session fields are immutable after creation: ${forbidden.join(', ')}`));
+    }
     next();
 });
 
