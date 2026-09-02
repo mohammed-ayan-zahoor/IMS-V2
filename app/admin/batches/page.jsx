@@ -95,10 +95,9 @@ export default function BatchesPage() {
         try {
             setLoading(true);
             const instQuery = selectedInstitute ? `&instituteId=${selectedInstitute}` : "";
-            const sessQuery = (isSchool && selectedSessionId) ? `&sessionId=${selectedSessionId}` : "";
             const fetches = [
-                fetch(`/api/v1/batches?_t=${Date.now()}${instQuery}${sessQuery}`),
-                fetch(`/api/v1/courses?_t=${Date.now()}${instQuery}${sessQuery}`)
+                fetch(`/api/v1/batches?_t=${Date.now()}${instQuery}`),
+                fetch(`/api/v1/courses?_t=${Date.now()}${instQuery}`)
             ];
             if (isVocational) fetches.push(fetch("/api/v1/course-bundles"));
 
@@ -245,18 +244,11 @@ export default function BatchesPage() {
                               batch.name?.toLowerCase().includes(query) ||
                               batch.course?.name?.toLowerCase().includes(query) ||
                               batch.courseBundle?.title?.toLowerCase().includes(query);
-        // Session Isolation (Strictly for Schools)
-        const isVocType = session?.user?.institute?.type === 'VOCATIONAL';
-        const batchSessionId = batch.session?._id ? String(batch.session._id) : (typeof batch.session === 'string' ? batch.session : '');
-        const currentSessionStr = String(selectedSessionId || '');
-        const matchesSession = (!isSchool || !selectedSessionId || isVocType)
-            ? true
-            : (!batchSessionId || batchSessionId === currentSessionStr);
         // Type filter
         const matchesType = listFilter === "all" ? true
             : listFilter === "bundle" ? !!batch.courseBundle
             : !batch.courseBundle;
-        return matchesSearch && matchesSession && matchesType;
+        return matchesSearch && matchesType;
     });
 
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
