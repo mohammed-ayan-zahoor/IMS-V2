@@ -115,6 +115,8 @@ export async function POST(req) {
             const finalEnd = parsedEnd >= parsedStart ? parsedEnd : parsedStart;
 
             let category = (item.category || "").toLowerCase();
+            if (category === "celebration") category = "cultural";
+            if (category === "meeting" || category === "academic") category = "academic_assembly";
             if (!VALID_CATEGORIES.includes(category)) {
                 category = detectCategory(title, item.description || "");
             }
