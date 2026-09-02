@@ -3,6 +3,7 @@ import { FeeService } from "@/services/feeService";
 import { StudentService } from "@/services/studentService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { verifySessionBelongsToInstitute } from "@/middleware/sessionValidation";
 
 export async function GET(req) {
     try {
@@ -57,6 +58,14 @@ export async function GET(req) {
             }
         } else {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        // Validate session belongs to the institute context if provided
+        if (filters.session && filters.institute) {
+            const isValid = await verifySessionBelongsToInstitute(filters.session, filters.institute);
+            if (!isValid) {
+                filters.session = null;
+            }
         }
 
         const useExtendedQuery = filters.includeAll || filters.percentage || filters.course || filters.discountOnly;

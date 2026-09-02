@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { FeeService } from "@/services/feeService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { verifySessionBelongsToInstitute } from "@/middleware/sessionValidation";
 
 export async function GET(req) {
     try {
@@ -22,6 +23,14 @@ export async function GET(req) {
         // Enforce Institute Scope
         if (session.user.role !== 'super_admin' || session.user.institute?.id) {
             filters.institute = session.user.institute?.id;
+        }
+
+        // Validate session belongs to the institute context if provided
+        if (filters.session && filters.institute) {
+            const isValid = await verifySessionBelongsToInstitute(filters.session, filters.institute);
+            if (!isValid) {
+                filters.session = null;
+            }
         }
 
         const stats = await FeeService.getFeeStats(filters);
