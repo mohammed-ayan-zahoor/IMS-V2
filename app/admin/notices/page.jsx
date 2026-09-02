@@ -9,12 +9,10 @@ import {
     Megaphone, 
     Pin, 
     Clock, 
-    X, 
-    Save, 
     AlertTriangle,
-    Eye,
-    EyeOff,
-    Filter
+    Info,
+    Calendar,
+    CheckCircle2
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -25,7 +23,9 @@ import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Badge from "@/components/ui/Badge";
+import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import EmptyState from "@/components/shared/EmptyState";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import MobileInstructorNotices from "@/components/instructor/MobileInstructorNotices";
@@ -38,6 +38,8 @@ export default function AdminNoticesPage() {
     const [loading, setLoading] = useState(true);
     const [courses, setCourses] = useState([]);
     const [batches, setBatches] = useState([]);
+    const [search, setSearch] = useState("");
+    const [typeFilter, setTypeFilter] = useState("all");
     
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -108,10 +110,39 @@ export default function AdminNoticesPage() {
         }
     };
 
+    const handleDelete = async (id) => {
+        if (!await confirm({ title: "Delete Notice?", message: "Are you sure you want to delete this notice?", type: "danger" })) return;
+        try {
+            const res = await fetch(`/api/v1/notices/${id}`, { method: "DELETE" });
+            if (res.ok) {
+                toast.success("Notice deleted successfully");
+                fetchInitialData();
+            } else {
+                toast.error("Failed to delete notice");
+            }
+        } catch (error) {
+            toast.error("Error deleting notice");
+        }
+    };
+
     const { data: session } = useSession();
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
 
-    if (loading) return <LoadingSpinner fullPage />;
+    const filteredNotices = notices.filter(n => {
+        const matchesSearch = !search || n.title?.toLowerCase().includes(search.toLowerCase()) || n.content?.toLowerCase().includes(search.toLowerCase());
+        const matchesType = typeFilter === "all" || n.type === typeFilter;
+        return matchesSearch && matchesType;
+    });
+
+    const getTypeIcon = (type, isPinned) => {
+        if (isPinned) return <Pin size={15} className="rotate-45 text-rose-600" />;
+        switch (type) {
+            case 'urgent': return <AlertTriangle size={15} className="text-amber-600" />;
+            case 'event': return <Calendar size={15} className="text-blue-600" />;
+            case 'success': return <CheckCircle2 size={15} className="text-emerald-600" />;
+            default: return <Info size={15} className="text-slate-500" />;
+        }
+    };
 
     return (
         <>
@@ -121,89 +152,147 @@ export default function AdminNoticesPage() {
                 </div>
             )}
 
-            <div className={cn("space-y-6 max-w-7xl mx-auto p-4 md:p-6", isInstructorOrStaff ? "hidden md:block" : "")}>
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2 italic">
-                        <Megaphone className="text-blue-600" />
-                        Notice Board Manager
-                    </h1>
-                    <p className="text-slate-500 font-medium">Broadcast announcements to students and staff.</p>
+            <div className={cn("space-y-6 max-w-7xl mx-auto", isInstructorOrStaff ? "hidden md:block" : "")}>
+                {/* Clean Unified Page Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                            Notices
+                        </h1>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">Manage and broadcast announcements to students and staff.</p>
+                    </div>
+                    <Button onClick={() => { setFormData(initialFormState()); setIsModalOpen(true); }}>
+                        <Plus size={16} className="mr-2" /> Create Notice
+                    </Button>
                 </div>
-                <Button onClick={() => { setFormData(initialFormState()); setIsModalOpen(true); }} className="shadow-lg shadow-blue-500/20">
-                    <Plus size={18} className="mr-2" /> Create Notice
-                </Button>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {notices.map(notice => (
-                    <Card key={notice._id} className="relative group hover:border-blue-400/50 transition-all">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className={`p-3 rounded-xl ${notice.isPinned ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'}`}>
-                                {notice.isPinned ? <Pin size={20} className="rotate-45" /> : <Megaphone size={20} />}
-                            </div>
-                            <div className="flex flex-col items-end gap-1">
-                                <Badge variant={notice.type === 'urgent' ? 'danger' : notice.type === 'event' ? 'info' : 'neutral'}>
-                                    {notice.type.toUpperCase()}
-                                </Badge>
-                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Target: {notice.target}</span>
-                            </div>
-                        </div>
-                        
-                        <h3 className="font-black text-slate-900 text-lg mb-2 line-clamp-1 italic">{notice.title}</h3>
-                        <p className="text-xs font-medium text-slate-500 line-clamp-3 mb-6 leading-relaxed">{notice.content}</p>
-                        
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-50 mt-auto">
-                            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">
-                                Posted {format(new Date(notice.createdAt), "MMM d")}
-                            </span>
-                            <div className="flex gap-2">
-                                <button className="p-2 hover:bg-slate-50 text-slate-400 hover:text-blue-600 transition-colors rounded-lg">
-                                    <Edit size={16} />
-                                </button>
-                                <button className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors rounded-lg">
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    </Card>
-                ))}
-            </div>
-
-            {/* Create Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 animate-in fade-in">
-                    <form onSubmit={handleSave} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h2 className="text-xl font-black italic text-slate-900 tracking-tight uppercase">Create New Announcement</h2>
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="w-10 h-10 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
-                                <X size={20} />
+                {/* Filter and Search Row */}
+                <div className="bg-white rounded-xl border border-slate-200/80 p-4 flex flex-col md:flex-row items-stretch md:items-center gap-4">
+                    <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                        <input
+                            type="text"
+                            placeholder="Search notices by title or content..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 outline-none focus:border-slate-400 text-xs font-medium"
+                        />
+                    </div>
+                    <div className="flex items-center gap-1.5 overflow-x-auto">
+                        {[
+                            { label: "All", value: "all" },
+                            { label: "Information", value: "info" },
+                            { label: "Urgent", value: "urgent" },
+                            { label: "Event", value: "event" },
+                            { label: "Success", value: "success" }
+                        ].map(t => (
+                            <button
+                                key={t.value}
+                                onClick={() => setTypeFilter(t.value)}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-semibold capitalize whitespace-nowrap transition-colors",
+                                    typeFilter === t.value
+                                        ? "bg-slate-900 text-white"
+                                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                                )}
+                            >
+                                {t.label}
                             </button>
-                        </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Notices List / Grid */}
+                {loading ? (
+                    <div className="p-20 flex justify-center"><LoadingSpinner /></div>
+                ) : filteredNotices.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {filteredNotices.map(notice => (
+                            <Card key={notice._id} className="p-5 bg-white border border-slate-200/80 rounded-xl flex flex-col justify-between hover:border-slate-300 transition-colors">
+                                <div>
+                                    {/* Consolidated Metadata Row */}
+                                    <div className="flex items-center justify-between gap-2 mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className={cn(
+                                                "p-1.5 rounded-md flex items-center justify-center",
+                                                notice.isPinned ? "bg-rose-50" : "bg-slate-100"
+                                            )}>
+                                                {getTypeIcon(notice.type, notice.isPinned)}
+                                            </div>
+                                            <Badge variant={notice.type === 'urgent' ? 'danger' : notice.type === 'event' ? 'info' : 'neutral'}>
+                                                {notice.type.toUpperCase()}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                                Target: {notice.target}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <h3 className="font-bold text-slate-900 text-sm mb-1.5 line-clamp-1">{notice.title}</h3>
+                                    <p className="text-xs text-slate-500 font-normal line-clamp-3 mb-4 leading-relaxed">{notice.content}</p>
+                                </div>
+                                
+                                <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-auto">
+                                    <span className="text-[10px] font-medium text-slate-400">
+                                        Posted {format(new Date(notice.createdAt), "MMM d, yyyy")}
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleDelete(notice._id)}
+                                            className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors rounded"
+                                            title="Delete Notice"
+                                        >
+                                            <Trash2 size={15} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                ) : (
+                    <EmptyState
+                        icon={Megaphone}
+                        title="No notices found"
+                        description={search || typeFilter !== 'all' ? "Try adjusting your search or type filter." : "Create your first notice to broadcast announcements."}
+                        actionLabel="Create Notice"
+                        onAction={() => { setFormData(initialFormState()); setIsModalOpen(true); }}
+                    />
+                )}
+
+                {/* Create Modal - Portal-backed Edge-to-Edge Backdrop */}
+                <Modal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    title="Create New Announcement"
+                    className="max-w-lg"
+                >
+                    <form onSubmit={handleSave} className="space-y-4">
+                        <Input 
+                            label="Title *"
+                            placeholder="e.g. Holiday Notice, Exam Schedule"
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            required
+                        />
                         
-                        <div className="p-8 overflow-y-auto space-y-6">
-                            <Input 
-                                label="Title"
-                                placeholder="e.g. Holiday Notice, Event Reminder"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Content *</label>
+                            <textarea 
+                                className="w-full min-h-[110px] p-3 rounded-lg bg-white border border-slate-200 outline-none focus:border-slate-400 transition-colors text-xs font-medium text-slate-900 placeholder:text-slate-400 resize-none"
+                                placeholder="Write your announcement here..."
+                                value={formData.content}
+                                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                                 required
                             />
-                            
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Content</label>
-                                <textarea 
-                                    className="w-full min-h-[120px] p-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all font-medium text-sm resize-none"
-                                    placeholder="Write your announcement here..."
-                                    value={formData.content}
-                                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                                    required
-                                />
-                            </div>
+                        </div>
 
-                            <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Notice Type</label>
                                 <Select 
-                                    label="Notice Type"
                                     value={formData.type}
                                     onChange={(val) => setFormData({ ...formData, type: val })}
                                     options={[
@@ -213,8 +302,10 @@ export default function AdminNoticesPage() {
                                         { label: "Success / Result", value: "success" },
                                     ]}
                                 />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Audience Target</label>
                                 <Select 
-                                    label="Audience Target"
                                     value={formData.target}
                                     onChange={(val) => setFormData({ ...formData, target: val, targetIds: [] })}
                                     options={[
@@ -224,72 +315,73 @@ export default function AdminNoticesPage() {
                                     ]}
                                 />
                             </div>
-
-                            {formData.target !== 'all' && (
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">
-                                        Select {formData.target.charAt(0).toUpperCase() + formData.target.slice(1)}
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl max-h-[150px] overflow-y-auto">
-                                        {(formData.target === 'courses' ? courses : batches).map(item => (
-                                            <label key={item._id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white transition-colors cursor-pointer group">
-                                                <input 
-                                                    type="checkbox"
-                                                    checked={formData.targetIds.includes(item._id)}
-                                                    onChange={(e) => {
-                                                        const newIds = e.target.checked 
-                                                            ? [...formData.targetIds, item._id]
-                                                            : formData.targetIds.filter(id => id !== item._id);
-                                                        setFormData({ ...formData, targetIds: newIds });
-                                                    }}
-                                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20"
-                                                />
-                                                <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900">{item.name}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex gap-8 p-4 bg-blue-50/50 border border-blue-100 rounded-2xl">
-                                <label className="flex items-center gap-3 cursor-pointer group">
-                                    <input 
-                                        type="checkbox"
-                                        checked={formData.isPinned}
-                                        onChange={(e) => setFormData({ ...formData, isPinned: e.target.checked })}
-                                        className="w-5 h-5 rounded border-slate-300 text-rose-600 focus:ring-rose-500/20"
-                                    />
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-black uppercase tracking-widest text-slate-700">Pin Notice</span>
-                                        <span className="text-[9px] font-bold text-slate-400">Keep this at the top of the board.</span>
-                                    </div>
-                                </label>
-                                
-                                <label className="flex items-center gap-3 cursor-pointer group">
-                                    <input 
-                                        type="checkbox"
-                                        checked={formData.isActive}
-                                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20"
-                                    />
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-black uppercase tracking-widest text-slate-700">Set Active</span>
-                                        <span className="text-[9px] font-bold text-slate-400">Immediately visible to students.</span>
-                                    </div>
-                                </label>
-                            </div>
                         </div>
-                        
-                        <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
-                            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="font-bold text-slate-500">Cancel</Button>
-                            <Button type="submit" disabled={saving} className="px-10 shadow-lg shadow-blue-500/20 font-black uppercase tracking-widest text-[10px]">
+
+                        {formData.target !== 'all' && (
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                                    Select {formData.target.charAt(0).toUpperCase() + formData.target.slice(1)}
+                                </label>
+                                <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg max-h-[140px] overflow-y-auto">
+                                    {(formData.target === 'courses' ? courses : batches).map(item => (
+                                        <label key={item._id} className="flex items-center gap-2 p-1.5 rounded hover:bg-white transition-colors cursor-pointer">
+                                            <input 
+                                                type="checkbox"
+                                                checked={formData.targetIds.includes(item._id)}
+                                                onChange={(e) => {
+                                                    const newIds = e.target.checked 
+                                                        ? [...formData.targetIds, item._id]
+                                                        : formData.targetIds.filter(id => id !== item._id);
+                                                    setFormData({ ...formData, targetIds: newIds });
+                                                }}
+                                                className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0"
+                                            />
+                                            <span className="text-xs font-medium text-slate-700 truncate">{item.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex gap-6 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="checkbox"
+                                    checked={formData.isPinned}
+                                    onChange={(e) => setFormData({ ...formData, isPinned: e.target.checked })}
+                                    className="w-4 h-4 rounded border-slate-300 text-rose-600 focus:ring-0"
+                                />
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-800">Pin Notice</span>
+                                    <span className="text-[10px] text-slate-500 font-medium">Keep at top of board.</span>
+                                </div>
+                            </label>
+                            
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="checkbox"
+                                    checked={formData.isActive}
+                                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                                    className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-0"
+                                />
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-800">Set Active</span>
+                                    <span className="text-[10px] text-slate-500 font-medium">Visible to students immediately.</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={saving} className="min-w-[140px]">
                                 {saving ? "Publishing..." : "Publish Announcement"}
                             </Button>
                         </div>
                     </form>
-                </div>
-            )}
-        </div>
+                </Modal>
+            </div>
         </>
     );
 }
