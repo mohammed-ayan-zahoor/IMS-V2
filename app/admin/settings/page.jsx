@@ -51,7 +51,12 @@ export default function SettingsPage() {
                 setInstitute(prev => ({
                     ...prev,
                     ...data.institute,
-                    address: { ...prev.address, ...(data.institute?.address || {}) },
+                    address: {
+                        street: data.institute?.address?.street || "Poonam Tower, Tiranga Chowk",
+                        city: data.institute?.address?.city || "Dhule",
+                        state: data.institute?.address?.state || "Maharashtra",
+                        pincode: data.institute?.address?.pincode || "424001",
+                    },
                     branding: { ...prev.branding, ...(data.institute?.branding || {}) },
                     settings: { ...prev.settings, ...(data.institute?.settings || {}) }
                 }));
@@ -160,31 +165,39 @@ export default function SettingsPage() {
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 pb-12">
-            {/* Header & Sticky Action Bar */}
-            <div className="sticky top-0 z-20 bg-slate-50/90 backdrop-blur-md py-4 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Sticky Action Bar */}
+            <div className="flex items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-                        <Building className="text-premium-blue" size={24} />
+                    <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        <Building className="text-slate-800" size={22} />
                         Institute Settings
                     </h1>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">
                         Configure institutional profile, feature toggles, automation rules, and integrations.
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={fetchSettings}
+                        disabled={isSaving || uploading}
+                    >
+                        Reset
+                    </Button>
                     <Button
                         type="button"
                         onClick={handleSubmit}
                         disabled={isSaving || uploading}
-                        className="px-6 py-2.5 shadow-lg shadow-blue-500/15"
+                        className="flex items-center gap-1.5"
                     >
                         {isSaving ? (
                             <>
-                                <Loader2 className="animate-spin mr-2" size={16} /> Saving…
+                                <Loader2 className="animate-spin" size={16} /> Saving…
                             </>
                         ) : (
                             <>
-                                <Save className="mr-2" size={16} /> Save Changes
+                                <Save size={16} /> Save Changes
                             </>
                         )}
                     </Button>
@@ -237,20 +250,20 @@ export default function SettingsPage() {
                             {/* Logo & Identity Row */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 rounded-2xl bg-slate-50/70 border border-slate-100">
                                 <div className="flex flex-col items-center justify-center text-center">
-                                    <span className="text-xs font-bold text-slate-700 mb-3">Institute Logo</span>
-                                    <div className="relative group w-28 h-28 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center bg-white overflow-hidden hover:border-premium-blue transition-colors shadow-xs">
+                                    <span className="text-xs font-bold text-slate-700 mb-2">Institute Logo</span>
+                                    <div className="relative group w-32 h-24 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center bg-white overflow-hidden hover:border-blue-500 transition-colors">
                                         {isValidImageUrl(institute.branding?.logo) ? (
                                             <img src={institute.branding.logo} alt="Logo" className="w-full h-full object-contain p-2" />
                                         ) : (
-                                            <Building className="text-slate-300" size={32} />
+                                            <Building className="text-slate-300" size={28} />
                                         )}
-                                        <div className="absolute inset-0 bg-slate-900/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                        <div className="absolute inset-0 bg-slate-900/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                                             {uploading ? (
-                                                <Loader2 className="animate-spin text-white mb-1" size={20} />
+                                                <Loader2 className="animate-spin text-white mb-1" size={18} />
                                             ) : (
                                                 <>
-                                                    <Upload className="text-white mb-1" size={20} />
-                                                    <span className="text-[9px] font-bold text-white uppercase tracking-wider">Change Logo</span>
+                                                    <Upload className="text-white mb-1" size={18} />
+                                                    <span className="text-[9px] font-bold text-white uppercase tracking-wider">Upload Logo</span>
                                                 </>
                                             )}
                                         </div>
@@ -262,7 +275,7 @@ export default function SettingsPage() {
                                             disabled={uploading}
                                         />
                                     </div>
-                                    <p className="text-[10px] text-slate-400 mt-2 font-medium">Printed on official receipts & ID cards</p>
+                                    <p className="text-[10px] text-slate-400 mt-1.5 font-medium">Printed on official receipts & ID cards</p>
                                 </div>
 
                                 <div className="md:col-span-2 space-y-4">
@@ -284,12 +297,9 @@ export default function SettingsPage() {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-bold text-slate-700">Institute Type</label>
-                                            <div className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white flex items-center justify-between">
-                                                <span className="text-xs font-bold text-slate-800">
+                                            <div className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center">
+                                                <span className="text-xs font-semibold text-slate-800">
                                                     {institute.type === 'SCHOOL' ? 'School / K-12' : 'Vocational / Coaching'}
-                                                </span>
-                                                <span className="px-2 py-0.5 bg-slate-100 text-[10px] font-bold uppercase text-slate-500 rounded-md">
-                                                    {institute.type || 'VOCATIONAL'}
                                                 </span>
                                             </div>
                                         </div>
