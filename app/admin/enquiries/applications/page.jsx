@@ -209,53 +209,60 @@ export default function AdmissionApplicationsPage() {
             </div>
 
             {/* Public Link Panel */}
-            <div className="bg-blue-50/60 border border-blue-100/70 rounded-lg p-5">
-                <div className="flex flex-col md:flex-row items-center gap-5">
-                    <div className="p-3 bg-white rounded-lg border border-blue-100 shrink-0 text-blue-600">
-                        <LinkIcon size={24} />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                        <h3 className="text-base font-bold text-slate-900">Your Shareable Admission Link</h3>
-                        <p className="text-xs text-slate-500 font-medium">Copy this link and send it to potential students to collect their admission details.</p>
-                        <div className="mt-2.5 flex items-center gap-2">
-                            <div className="flex-1 bg-white border border-slate-200 rounded-md px-3.5 py-1.5 text-slate-600 text-xs font-mono truncate min-h-[36px] flex items-center">
-                                {publicFormUrl || <span className="animate-pulse text-slate-400">Generating Link...</span>}
-                            </div>
-                            <Button 
-                                onClick={copyToClipboard}
-                                variant="outline"
-                                size="sm"
-                                disabled={!publicFormUrl}
-                                className={isLinkCopied ? "border-emerald-500 text-emerald-600 bg-emerald-50 text-xs" : "text-xs"}
-                            >
-                                {isLinkCopied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
-                                {isLinkCopied ? "Copied" : "Copy Link"}
-                            </Button>
-                            <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={handleOpenLink}
-                                disabled={!publicFormUrl}
-                                className="text-slate-400 hover:text-blue-600"
-                            >
-                                <ExternalLink size={16} />
-                            </Button>
-                        </div>
+            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-1">
+                    <LinkIcon size={16} className="text-slate-500" />
+                    <h2 className="text-sm font-bold text-slate-900">Your Shareable Admission Link</h2>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mb-3">Copy this link and send it to potential students to collect their admission details.</p>
+                
+                <div className="relative flex items-center max-w-2xl">
+                    <input
+                        type="text"
+                        readOnly
+                        value={publicFormUrl}
+                        placeholder="Generating link..."
+                        className="w-full bg-white border border-slate-200 rounded-lg pl-3 pr-28 py-2 text-xs font-mono text-slate-600 outline-none select-all focus:border-slate-400"
+                    />
+                    <div className="absolute right-1.5 flex items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={copyToClipboard}
+                            disabled={!publicFormUrl}
+                            className={cn(
+                                "px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50",
+                                isLinkCopied 
+                                    ? "bg-emerald-50 text-emerald-600 border border-emerald-200" 
+                                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                            )}
+                        >
+                            {isLinkCopied ? <Check size={13} /> : <Copy size={13} />}
+                            <span>{isLinkCopied ? "Copied" : "Copy Link"}</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleOpenLink}
+                            disabled={!publicFormUrl}
+                            title="Open link in new tab"
+                            className="p-1 text-slate-400 hover:text-slate-700 transition-colors disabled:opacity-50"
+                        >
+                            <ExternalLink size={14} />
+                        </button>
                     </div>
                 </div>
             </div>
 
             {/* Submissions Table */}
-            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
-                    <div className="flex-1 relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-slate-50/50 border-b border-slate-200/80">
+                    <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                         <input
                             type="text"
                             placeholder="Search by name, email or course..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-4 py-2 outline-none focus:border-slate-400 transition-colors text-xs font-medium"
+                            className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 outline-none focus:border-slate-400 transition-colors text-xs font-medium"
                         />
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -263,10 +270,10 @@ export default function AdmissionApplicationsPage() {
                             <button
                                 key={status}
                                 onClick={() => setStatusFilter(status)}
-                                className={`px-3 py-1.5 rounded text-xs font-bold capitalize transition-all ${
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
                                     statusFilter === status 
-                                    ? "bg-slate-900 text-white shadow-xs" 
-                                    : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+                                    ? "bg-slate-900 text-white" 
+                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
                                 }`}
                             >
                                 {status}
