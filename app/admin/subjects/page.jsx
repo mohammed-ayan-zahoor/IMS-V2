@@ -10,22 +10,16 @@ import {
     Search,
     Edit2,
     Trash2,
-    List,
-    Library,
-    ArrowRight,
     Download,
     Upload,
     FileJson,
-    Check,
     AlertCircle
 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Card, { CardHeader, CardContent } from "@/components/ui/Card";
+import Card, { CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
-import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import EmptyState from "@/components/shared/EmptyState";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -217,14 +211,22 @@ export default function SubjectsPage() {
         <div className="space-y-6">
             {/* Page Action Bar */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                <div /> {/* Spacer for Title in Global Header */}
+                <div className="flex-1 max-w-md">
+                    <Input
+                        placeholder="Search subjects..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        icon={Search}
+                        className="bg-white border-slate-200 shadow-xs"
+                    />
+                </div>
                 <div className="flex items-center gap-3">
                     <Button 
                         variant="outline"
                         onClick={() => router.push('/admin/courses')}
                         className="flex items-center gap-2 text-blue-700 bg-blue-50/60 border-blue-200 hover:bg-blue-100/80"
                     >
-                        <BookOpen size={18} />
+                        <BookOpen size={16} />
                         <span>Assign to Classes</span>
                     </Button>
                     <Button 
@@ -232,7 +234,7 @@ export default function SubjectsPage() {
                         onClick={() => setIsImportModalOpen(true)}
                         className="flex items-center gap-2"
                     >
-                        <Upload size={18} />
+                        <Upload size={16} />
                         <span className="hidden md:inline">Import / Merge</span>
                     </Button>
                     <Button 
@@ -240,7 +242,7 @@ export default function SubjectsPage() {
                         onClick={handleExport}
                         className="flex items-center gap-2"
                     >
-                        <Download size={18} />
+                        <Download size={16} />
                         <span className="hidden md:inline">Export JSON</span>
                     </Button>
                     <Button 
@@ -250,7 +252,7 @@ export default function SubjectsPage() {
                             setIsAddModalOpen(true);
                         }} 
                         size="md" 
-                        className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
+                        className="flex items-center gap-2 px-6 shadow-xs"
                     >
                         <Plus size={18} strokeWidth={2.5} />
                         <span>Add Library Subject</span>
@@ -258,7 +260,7 @@ export default function SubjectsPage() {
                 </div>
             </div>
 
-            <Card className="overflow-hidden border-none shadow-premium">
+            <Card className="overflow-hidden border border-slate-200/80 shadow-none rounded-xl">
                 <CardContent className="p-0">
                     {loading ? (
                         <div className="p-12 flex justify-center"><LoadingSpinner /></div>
@@ -266,45 +268,46 @@ export default function SubjectsPage() {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-100 bg-white">
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Subject Name</th>
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Library Code</th>
-                                        {session?.user?.role !== 'instructor' && <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>}
+                                    <tr className="border-b border-slate-200/80 bg-white text-xs font-semibold text-slate-400">
+                                        <th className="px-6 py-3.5 uppercase tracking-wider">Subject Name</th>
+                                        <th className="px-6 py-3.5 uppercase tracking-wider">Library Code</th>
+                                        {session?.user?.role !== 'instructor' && <th className="px-6 py-3.5 uppercase tracking-wider text-right">Actions</th>}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50">
+                                <tbody className="divide-y divide-slate-100">
                                     {filteredSubjects.map(subject => (
-                                        <tr key={subject._id} className="group hover:bg-[#F9FAFB] transition-all duration-200">
+                                        <tr key={subject._id} className="group hover:bg-slate-50/50 transition-colors">
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-lg bg-blue-50/80 text-blue-600 flex items-center justify-center border border-blue-100/50 shrink-0">
-                                                        <Library size={18} />
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-bold text-slate-900 text-[14px] leading-tight">{subject.name}</h3>
-                                                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">Master Library Subject</p>
-                                                    </div>
+                                                <div>
+                                                    <h3 className="font-semibold text-slate-900 text-sm leading-snug">{subject.name}</h3>
+                                                    {subject.description ? (
+                                                        <p className="text-xs text-slate-500 font-medium mt-0.5">{subject.description}</p>
+                                                    ) : (
+                                                        <p className="text-xs text-slate-400 font-medium mt-0.5">Master Library Subject</p>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <Badge variant="code">{subject.code}</Badge>
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200/80">
+                                                    {subject.code}
+                                                </span>
                                             </td>
                                             {session?.user?.role !== 'instructor' && (
                                                 <td className="px-6 py-4 text-right">
-                                                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
+                                                    <div className="flex items-center justify-end gap-1.5">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); openEditModal(subject); }}
-                                                            className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
+                                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50/80 rounded-lg transition-colors cursor-pointer"
                                                             title="Edit Library Subject"
                                                         >
-                                                            <Edit2 size={16} />
+                                                            <Edit2 size={15} />
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); setDeletingSubject(subject); }}
-                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50/80 rounded-lg transition-colors cursor-pointer"
                                                             title="Delete from Library"
                                                         >
-                                                            <Trash2 size={16} />
+                                                            <Trash2 size={15} />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -316,11 +319,11 @@ export default function SubjectsPage() {
                         </div>
                     ) : (
                         <div className="py-20 flex flex-col items-center text-center">
-                            <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 mb-4">
-                                <BookOpen size={32} />
+                            <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                                <BookOpen size={24} />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">No subjects yet</h3>
-                            <p className="text-sm text-slate-500 font-medium max-w-[240px] mt-1">
+                            <h3 className="text-base font-bold text-slate-900 tracking-tight">No subjects yet</h3>
+                            <p className="text-xs text-slate-500 font-medium max-w-[240px] mt-1">
                                 Create your first academic subject to start building curriculum.
                             </p>
                             {session?.user?.role !== 'instructor' && (

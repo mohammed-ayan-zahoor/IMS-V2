@@ -380,16 +380,11 @@ export default function BatchesPage() {
                                     {filteredBatches.map((batch) => (
                                         <tr key={batch._id} className="group hover:bg-[#F9FAFB] transition-all duration-200">
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-lg bg-blue-50/80 text-blue-600 flex items-center justify-center border border-blue-100/50 shrink-0">
-                                                        <Calendar size={18} />
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-bold text-slate-900 text-[14px] leading-tight">{batch.name}</h3>
-                                                        <p className="text-[12px] text-slate-400 font-medium mt-0.5">
-                                                            Starts {batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), "MMM d, yyyy") : "TBD"}
-                                                        </p>
-                                                    </div>
+                                                <div>
+                                                    <h3 className="font-bold text-slate-900 text-[14px] leading-tight">{batch.name}</h3>
+                                                    <p className="text-[12px] text-slate-400 font-medium mt-0.5">
+                                                        Starts {batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), "MMM d, yyyy") : "TBD"}
+                                                    </p>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
