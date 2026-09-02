@@ -58,8 +58,8 @@ export default function SessionManager() {
             }
 
             // Validate session name format
-            if (!/^\d{2}-\d{2}$/.test(formData.sessionName)) {
-                toast.error("Session name must be in format: 25-26");
+            if (!/^(\d{2}|\d{4})-(\d{2}|\d{4})$/.test(formData.sessionName.trim())) {
+                toast.error("Format must be YY-YY or YYYY-YYYY (e.g., 25-26 or 2025-2026)");
                 setCreating(false);
                 return;
             }
@@ -68,7 +68,7 @@ export default function SessionManager() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    sessionName: formData.sessionName,
+                    sessionName: formData.sessionName.trim(),
                     startDate: new Date(formData.startDate),
                     endDate: new Date(formData.endDate)
                 })
@@ -157,7 +157,7 @@ export default function SessionManager() {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-32">
-                <Loader2 className="animate-spin text-premium-blue" size={24} />
+                <Loader2 className="animate-spin text-blue-600" size={24} />
             </div>
         );
     }
@@ -168,11 +168,11 @@ export default function SessionManager() {
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-bold text-slate-900">Academic Sessions</h3>
-                    <p className="text-sm text-slate-500 mt-1">Create and manage academic sessions (25-26, 26-27, etc)</p>
+                    <p className="text-sm text-slate-500 mt-1">Create and manage institutional academic terms (e.g. 2025-2026, 26-27)</p>
                 </div>
                 <Button
                     onClick={() => setShowCreateForm(!showCreateForm)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                     <Plus size={18} />
                     New Session
@@ -181,63 +181,67 @@ export default function SessionManager() {
 
             {/* Create Form */}
             {showCreateForm && (
-                <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-xl border border-slate-200 space-y-4">
+                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
                     <form onSubmit={handleCreateSession} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700">Session Name</label>
+                                <label className="text-xs font-bold text-slate-700">Session Name *</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g., 25-26"
+                                    placeholder="e.g. 2025-2026 or 25-26"
                                     value={formData.sessionName}
                                     onChange={(e) => setFormData({ ...formData, sessionName: e.target.value.toUpperCase() })}
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-mono"
-                                    maxLength="5"
+                                    className="w-full px-4 py-2 text-sm bg-white rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-mono"
+                                    maxLength="10"
+                                    required
                                 />
-                                <p className="text-xs text-slate-500">Format: YY-YY (e.g., 25-26)</p>
+                                <p className="text-[11px] text-slate-400">Format: YY-YY or YYYY-YYYY</p>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700">Start Date</label>
+                                <label className="text-xs font-bold text-slate-700">Start Date *</label>
                                 <input
                                     type="date"
                                     value={formData.startDate}
                                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all"
+                                    className="w-full px-4 py-2 text-sm bg-white rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                    required
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700">End Date</label>
+                                <label className="text-xs font-bold text-slate-700">End Date *</label>
                                 <input
                                     type="date"
                                     value={formData.endDate}
                                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all"
+                                    className="w-full px-4 py-2 text-sm bg-white rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                    required
                                 />
                             </div>
                         </div>
 
-                        <div className="flex gap-2 justify-end">
-                            <button
+                        <div className="flex gap-2 justify-end pt-2">
+                            <Button
                                 type="button"
+                                variant="outline"
                                 onClick={() => setShowCreateForm(false)}
-                                className="px-6 py-2 rounded-lg border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition-colors"
                             >
                                 Cancel
-                            </button>
+                            </Button>
                             <Button
                                 type="submit"
                                 disabled={creating}
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
                             >
                                 {creating ? (
                                     <>
-                                        <Loader2 className="animate-spin" size={18} />
+                                        <Loader2 className="animate-spin" size={16} />
                                         Creating...
                                     </>
                                 ) : (
                                     <>
-                                        <Plus size={18} />
+                                        <Plus size={16} />
                                         Create Session
                                     </>
                                 )}

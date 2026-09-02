@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
     Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2, Hotel,
     Award, Clock, Bell, Smartphone, Download, Copy, Sliders, FileText,
-    KeyRound, CheckCircle2, ShieldCheck, Check, Sparkles, Layers
+    KeyRound, CheckCircle2, ShieldCheck, Check, Sparkles, Layers, Calendar
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -154,11 +154,16 @@ export default function SettingsPage() {
         );
     }
 
+    const hasAcademicStructure = institute.type === 'SCHOOL' || institute.type === 'COLLEGE';
+
     const NAV_TABS = [
         { id: 'general', label: 'General & Profile', icon: Building, desc: 'Name, logo, contact & address' },
+        ...(hasAcademicStructure ? [
+            { id: 'sessions', label: 'Academic Sessions', icon: Calendar, desc: 'Terms, years & active session' }
+        ] : []),
         { id: 'modules', label: 'Modules & Features', icon: Sliders, desc: 'Transport, hostel & fee options' },
         { id: 'attendance', label: 'Attendance & Hours', icon: Clock, desc: 'Tracking mode, rules & alerts' },
-        { id: 'receipts', label: 'Receipts & Templates', icon: FileText, desc: 'Slips, certificates & sessions' },
+        { id: 'receipts', label: 'Receipts & Templates', icon: FileText, desc: 'Slips & certificate templates' },
         { id: 'tools', label: 'Downloads & Tools', icon: Smartphone, desc: 'Flutter APK & import template' },
         { id: 'apis', label: 'Integrations & BY-API', icon: KeyRound, desc: 'Cloudinary, MSG91 & Pusher' },
     ];
@@ -368,6 +373,18 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* TAB: Academic Sessions (Schools & Colleges) */}
+                    {activeTab === 'sessions' && (
+                        <div className="space-y-8 animate-in fade-in duration-200">
+                            <div>
+                                <h3 className="text-lg font-extrabold text-slate-900">Academic Sessions</h3>
+                                <p className="text-xs text-slate-500 font-medium">Create and manage institutional academic terms, active session selection, and term dates.</p>
+                            </div>
+
+                            <SessionManager />
                         </div>
                     )}
 
@@ -807,13 +824,6 @@ export default function SettingsPage() {
                                     </button>
                                 </div>
                             </div>
-
-                            {/* Sessions - Schools only */}
-                            {institute.type === 'SCHOOL' && (
-                                <div className="pt-4 border-t border-slate-100">
-                                    <SessionManager />
-                                </div>
-                            )}
 
                             {/* Certificate Templates */}
                             <div className="space-y-6 pt-4 border-t border-slate-100">

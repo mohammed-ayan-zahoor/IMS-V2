@@ -71,10 +71,10 @@ export async function POST(req) {
             }, { status: 400 });
         }
 
-        // Validate session name format (e.g., "25-26")
-        if (!/^\d{2}-\d{2}$/.test(body.sessionName)) {
+        // Validate session name format (e.g., "25-26", "2025-2026", "2025-26")
+        if (!/^(\d{2}|\d{4})-(\d{2}|\d{4})$/.test(body.sessionName.trim())) {
             return NextResponse.json({ 
-                error: "Invalid session name format. Use format like: 25-26" 
+                error: "Invalid session name format. Use format like: 25-26 or 2025-2026" 
             }, { status: 400 });
         }
 
