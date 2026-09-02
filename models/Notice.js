@@ -51,8 +51,7 @@ const NoticeSchema = new Schema({
         required: true
     },
     expiresAt: {
-        type: Date,
-        index: true
+        type: Date
     },
     attachments: [{
         name: String,

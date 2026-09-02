@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 const TimetableSchema = new Schema({
-    batch: { type: Schema.Types.ObjectId, ref: 'Batch', required: true, index: true },
+    batch: { type: Schema.Types.ObjectId, ref: 'Batch', required: true },
     institute: { type: Schema.Types.ObjectId, ref: 'Institute', required: true, index: true },
     session: { type: Schema.Types.ObjectId, ref: 'Session', index: true },
     
