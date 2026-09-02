@@ -68,55 +68,29 @@ function AuthBrandingHeader() {
                 </div>
             </div>
 
-            {/* Bottom: Dynamic Institution Branding (Large Crest & Title) */}
+            {/* Bottom: Dynamic Institution Branding (Logo Only) */}
             <AnimatePresence mode="wait">
                 {institute && (
                     <motion.div
                         key={institute.code || institute.name}
-                        initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 4 }}
                         transition={{ duration: 0.35, ease: "easeOut" }}
-                        className="flex flex-col items-center text-center w-full pt-3 pb-1 border-t border-slate-100 mt-2"
+                        className="flex flex-col items-center text-center w-full pt-3 mt-2 border-t border-slate-100"
                     >
-                        {/* School Crest / Logo (Large & Prominent) */}
+                        {/* School Crest / Logo Only */}
                         {institute.logo ? (
                             <img
                                 src={institute.logo}
                                 alt={institute.name}
-                                className="h-24 md:h-28 w-auto max-w-[220px] object-contain mb-3 drop-shadow-sm"
+                                className="h-24 md:h-28 w-auto max-w-[240px] object-contain drop-shadow-sm"
                             />
                         ) : (
-                            <div className="h-20 w-20 md:h-24 md:w-24 rounded-3xl bg-blue-50 text-blue-600 font-black text-3xl md:text-4xl flex items-center justify-center mb-3 border border-blue-100/80 shadow-sm">
+                            <div className="h-20 w-20 md:h-24 md:w-24 rounded-3xl bg-blue-50 text-blue-600 font-black text-3xl md:text-4xl flex items-center justify-center border border-blue-100/80 shadow-sm">
                                 {institute.name.charAt(0)}
                             </div>
                         )}
-
-                        {/* School Name (Same scale & prominence as Welcome Back heading) */}
-                        <div className="flex flex-col items-center max-w-md px-2">
-                            <div className="flex items-center justify-center flex-wrap gap-2">
-                                <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-snug">
-                                    {institute.name}
-                                </h2>
-                                {institute.totalInstitutes > 1 && (
-                                    <span className="text-[11px] font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100/80 shrink-0">
-                                        +{institute.totalInstitutes - 1} more
-                                    </span>
-                                )}
-                            </div>
-                            <span className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mt-1">
-                                {institute.type === 'SCHOOL' ? 'Official School Portal' : 'Official Academy Portal'}
-                            </span>
-                        </div>
-
-                        {/* Switch button */}
-                        <button
-                            type="button"
-                            onClick={clearInstitute}
-                            className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors tracking-wide mt-2"
-                        >
-                            Not your institution? <span className="underline text-blue-600 font-bold">Switch</span>
-                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>
