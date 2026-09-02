@@ -28,19 +28,34 @@ export async function GET(req) {
         const querySessionId = searchParams.get("sessionId");
 
         let activeSession = null;
-        if (querySessionId) {
-            activeSession = { _id: new mongoose.Types.ObjectId(querySessionId) };
-        } else if (session.user.institute?.id) {
+        if (querySessionId && session.user.institute?.id) {
+            // Verify the requested session belongs to this student's institute.
+            // Never trust a client-provided session ID without ownership check.
+            try {
+                activeSession = await Session.findOne({
+                    _id: new mongoose.Types.ObjectId(querySessionId),
+                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
+                    deletedAt: null
+                }).select("_id");
+                // If null: session doesn't exist or belongs to another institute → fall through below
+            } catch {
+                // Invalid ObjectId format — ignore and fall through
+                activeSession = null;
+            }
+        }
+
+        if (!activeSession && session.user.institute?.id) {
+            // Server-derived fallback: prefer currently active session, else most recent
             activeSession = await Session.findOne({
                 instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
                 isActive: true,
                 deletedAt: null
-            });
+            }).select("_id");
             if (!activeSession) {
                 activeSession = await Session.findOne({
                     instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
                     deletedAt: null
-                }).sort({ startDate: -1 });
+                }).select("_id").sort({ startDate: -1 });
             }
         }
 
