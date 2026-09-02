@@ -69,8 +69,19 @@ export async function POST(req) {
             return NextResponse.json({ error: "Title, course, and session are required" }, { status: 400 });
         }
 
+        const Session = (await import("@/models/Session")).default;
+        const validSession = await Session.findOne({
+            _id: body.session,
+            instituteId: scope.instituteId,
+            deletedAt: null
+        });
+        if (!validSession) {
+            return NextResponse.json({ error: "The selected academic session is invalid for this institute" }, { status: 400 });
+        }
+
         const exam = await OfflineExam.create({
             ...body,
+            session: validSession._id,
             institute: scope.instituteId,
             createdBy: session.user.id
         });
