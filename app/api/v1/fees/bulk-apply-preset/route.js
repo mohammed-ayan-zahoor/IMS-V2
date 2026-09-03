@@ -36,11 +36,11 @@ export async function POST(req) {
 
         await connectDB();
 
-        // Validate batch belongs to this institute
+        // Validate batch belongs to this institute and fetch course + enrolledStudents
         const batch = await Batch.findOne({
             _id: batchId,
             institute: scope.instituteId
-        }).populate("course", "name fees").select("session course name");
+        }).populate("course", "name fees");
         if (!batch) {
             return NextResponse.json({ error: "Batch not found" }, { status: 404 });
         }
@@ -73,17 +73,29 @@ export async function POST(req) {
             feeTitle = `${batch.course?.name || "Class"} Base Fee`;
         }
 
-        // Get all active students in this batch
+        // Extract student IDs enrolled in this batch
+        const enrolledStudentIds = (batch.enrolledStudents || [])
+            .filter(e => e.status === "active" && e.student)
+            .map(e => (e.student?._id || e.student).toString());
+
+        if (enrolledStudentIds.length === 0) {
+            return NextResponse.json({ 
+                error: `No active students are currently enrolled in "${batch.name}". Please ensure students are enrolled in this section.` 
+            }, { status: 404 });
+        }
+
+        // Get active student records
         const students = await User.find({
+            _id: { $in: enrolledStudentIds },
             institute: scope.instituteId,
             role: "student",
-            isActive: true,
-            deletedAt: null,
-            batches: batchId
-        }).select("_id fullName");
+            deletedAt: null
+        }).select("_id profile email enrollmentNumber");
 
         if (students.length === 0) {
-            return NextResponse.json({ error: "No active students found in this batch" }, { status: 404 });
+            return NextResponse.json({ 
+                error: `No active student profiles found for "${batch.name}".` 
+            }, { status: 404 });
         }
 
         // Find existing fees for this batch
