@@ -30,29 +30,47 @@ export async function POST(req) {
 
         const { batchId, presetId, numInstallments = 1 } = await req.json();
 
-        if (!batchId || !presetId) {
-            return NextResponse.json({ error: "batchId and presetId are required" }, { status: 400 });
+        if (!batchId) {
+            return NextResponse.json({ error: "batchId is required" }, { status: 400 });
         }
 
         await connectDB();
-
-        // Validate preset belongs to this institute
-        const preset = await FeePreset.findOne({
-            _id: presetId,
-            institute: scope.instituteId,
-            deletedAt: null
-        });
-        if (!preset) {
-            return NextResponse.json({ error: "Fee preset not found" }, { status: 404 });
-        }
 
         // Validate batch belongs to this institute
         const batch = await Batch.findOne({
             _id: batchId,
             institute: scope.instituteId
-        }).select("session course");
+        }).populate("course", "name fees").select("session course name");
         if (!batch) {
             return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+        }
+
+        let totalAmount = 0;
+        let selectedPresetId = null;
+        let feeTitle = "";
+
+        if (presetId && presetId !== "base_class_fee") {
+            const preset = await FeePreset.findOne({
+                _id: presetId,
+                institute: scope.instituteId,
+                deletedAt: null
+            });
+            if (!preset) {
+                return NextResponse.json({ error: "Fee preset not found" }, { status: 404 });
+            }
+            totalAmount = preset.amount;
+            selectedPresetId = preset._id;
+            feeTitle = preset.name;
+        } else {
+            // Use Class/Course Base Fee
+            const baseFee = batch.course?.fees?.amount;
+            if (!baseFee || baseFee <= 0) {
+                return NextResponse.json({ 
+                    error: `No base fee configured for "${batch.course?.name || batch.name}". Please set a fee in the Class page or select a Fee Preset.` 
+                }, { status: 400 });
+            }
+            totalAmount = baseFee;
+            feeTitle = `${batch.course?.name || "Class"} Base Fee`;
         }
 
         // Get all active students in this batch
@@ -68,27 +86,15 @@ export async function POST(req) {
             return NextResponse.json({ error: "No active students found in this batch" }, { status: 404 });
         }
 
-        // Find which students already have a fee record for this batch (skip them)
+        // Find existing fees for this batch
         const existingFees = await Fee.find({
             batch: batchId,
             institute: scope.instituteId,
             deletedAt: null
-        }).select("student");
-        const existingStudentIds = new Set(existingFees.map(f => f.student.toString()));
+        });
+        const existingFeeMap = new Map(existingFees.map(f => [f.student.toString(), f]));
 
-        const toCreate = students.filter(s => !existingStudentIds.has(s._id.toString()));
-        const skippedCount = students.length - toCreate.length;
-
-        if (toCreate.length === 0) {
-            return NextResponse.json({
-                message: "All students in this batch already have a fee record. No new records created.",
-                skippedCount,
-                createdCount: 0
-            });
-        }
-
-        // Build installments from preset amount
-        const totalAmount = preset.amount;
+        // Build installments from total amount
         const n = Math.max(1, parseInt(numInstallments, 10));
         const baseInstallmentAmount = parseFloat((totalAmount / n).toFixed(2));
         const today = new Date();
@@ -111,31 +117,64 @@ export async function POST(req) {
             return installments;
         };
 
-        // Bulk insert fee records
-        const feeDocs = toCreate.map(student => ({
-            student: student._id,
-            batch: batchId,
-            session: batch.session || null,
-            institute: scope.instituteId,
-            totalAmount,
-            installments: buildInstallments(),
-            feePreset: preset._id,
-            status: "not_started"
-        }));
+        const toInsert = [];
+        let updatedCount = 0;
+        let skippedCount = 0;
 
-        const inserted = await Fee.insertMany(feeDocs, { ordered: false });
+        for (const student of students) {
+            const sId = student._id.toString();
+            const existingFee = existingFeeMap.get(sId);
+
+            if (existingFee) {
+                // If student has already made a payment, do not overwrite their fee ledger
+                if (existingFee.paidAmount > 0) {
+                    skippedCount++;
+                    continue;
+                }
+                // If fee exists with 0 paid (e.g. initial placeholder created on bulk import), update it with the new installment schedule
+                await Fee.findByIdAndUpdate(existingFee._id, {
+                    $set: {
+                        totalAmount,
+                        installments: buildInstallments(),
+                        feePreset: selectedPresetId,
+                        session: batch.session || existingFee.session || null,
+                        status: "not_started"
+                    }
+                });
+                updatedCount++;
+            } else {
+                toInsert.push({
+                    student: student._id,
+                    batch: batchId,
+                    session: batch.session || null,
+                    institute: scope.instituteId,
+                    totalAmount,
+                    installments: buildInstallments(),
+                    feePreset: selectedPresetId,
+                    status: "not_started"
+                });
+            }
+        }
+
+        let insertedCount = 0;
+        if (toInsert.length > 0) {
+            const inserted = await Fee.insertMany(toInsert, { ordered: false });
+            insertedCount = inserted.length;
+        }
+
+        const totalConfigured = insertedCount + updatedCount;
 
         await createAuditLog({
             actor: session.user.id,
             action: "fee.bulk_apply_preset",
-            resource: { type: "FeePreset", id: preset._id },
+            resource: { type: selectedPresetId ? "FeePreset" : "Course", id: selectedPresetId || batch.course?._id },
             institute: scope.instituteId,
-            details: { batchId, presetId, createdCount: inserted.length, skippedCount }
+            details: { batchId, presetId: selectedPresetId, feeTitle, totalAmount, installments: n, configuredCount: totalConfigured, skippedCount }
         });
 
         return NextResponse.json({
-            message: `Fee preset applied to ${inserted.length} students.`,
-            createdCount: inserted.length,
+            message: `Applied ${feeTitle} (₹${totalAmount.toLocaleString()}) in ${n} installment${n > 1 ? 's' : ''} to ${totalConfigured} students.`,
+            createdCount: totalConfigured,
             skippedCount
         });
 

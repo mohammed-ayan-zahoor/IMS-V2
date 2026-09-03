@@ -758,16 +758,22 @@ export default function StudentsPage() {
     };
 
     const handleOpenFeePresetModal = () => {
-        // Pre-fill batchId from active filter if set
-        setFeePresetApply(prev => ({ ...prev, batchId: filters.batchId || "", presetId: "" }));
-        // Fetch presets for active course filter
-        fetchFeePresets(filters.courseId || "");
+        const initialBatchId = filters.batchId || "";
+        const selectedBatch = batches.find(b => b._id === initialBatchId);
+        const courseId = selectedBatch?.course?._id || selectedBatch?.course || filters.courseId || "";
+        
+        fetchFeePresets(courseId);
+        setFeePresetApply({
+            batchId: initialBatchId,
+            presetId: "base_class_fee",
+            numInstallments: 1
+        });
         setIsFeePresetModalOpen(true);
     };
 
     const handleApplyFeePreset = async () => {
-        if (!feePresetApply.batchId || !feePresetApply.presetId) {
-            toast.error("Please select a batch and a fee preset");
+        if (!feePresetApply.batchId) {
+            toast.error(isSchool ? "Please select a section" : "Please select a batch");
             return;
         }
         try {
@@ -779,13 +785,13 @@ export default function StudentsPage() {
             });
             const data = await res.json();
             if (res.ok) {
-                toast.success(`✅ ${data.createdCount} fee records created. ${data.skippedCount > 0 ? `${data.skippedCount} already had fees (skipped).` : ""}`);
+                toast.success(`✅ ${data.message || `${data.createdCount} fee records updated/created.`}`);
                 setIsFeePresetModalOpen(false);
             } else {
-                toast.error(data.error || "Failed to apply preset");
+                toast.error(data.error || "Failed to apply fees");
             }
         } catch (e) {
-            toast.error("Failed to apply preset");
+            toast.error("Failed to apply fees");
         } finally {
             setIsApplyingPreset(false);
         }
@@ -848,92 +854,151 @@ export default function StudentsPage() {
                  </div>
              </Modal>
 
-             {/* Apply Fee Preset Modal */}
+             {/* Apply Fees & Installments Modal */}
              <Modal
                  isOpen={isFeePresetModalOpen}
                  onClose={() => !isApplyingPreset && setIsFeePresetModalOpen(false)}
-                 title="Apply Fee Preset to Batch"
+                 title={isSchool ? "Configure Class Fees & Installments" : "Apply Fees & Installments"}
              >
-                 <div className="space-y-5">
-                     <p className="text-sm text-slate-500">
-                         Select a batch and a fee preset. A fee record will be created for every active student in that batch who doesn&apos;t already have one.
-                     </p>
+                 {(() => {
+                     const selectedBatch = batches.find(b => b._id === feePresetApply.batchId);
+                     const courseId = selectedBatch?.course?._id || selectedBatch?.course || "";
+                     const courseObj = typeof selectedBatch?.course === 'object' && selectedBatch?.course?._id
+                         ? selectedBatch.course
+                         : courses.find(c => c._id === courseId);
+                     const baseCourseFee = courseObj?.fees?.amount || 0;
 
-                     {/* Batch selector */}
-                     <div>
-                         <label className="block text-xs font-bold text-slate-600 mb-1">{isSchool ? "Section / Batch" : "Batch"}</label>
-                         <Select
-                             value={feePresetApply.batchId}
-                             onChange={(val) => {
-                                 // When batch changes, load presets for its course
-                                 const selectedBatch = batches.find(b => b._id === val);
-                                 const courseId = selectedBatch?.course?._id || selectedBatch?.course || "";
-                                 fetchFeePresets(courseId);
-                                 setFeePresetApply(prev => ({ ...prev, batchId: val, presetId: "" }));
-                             }}
-                             placeholder="Select batch…"
-                             options={batches.map(b => ({ label: b.name, value: b._id }))}
-                         />
-                     </div>
+                     const feeOptions = [];
+                     if (baseCourseFee > 0) {
+                         feeOptions.push({
+                             label: `★ ${courseObj?.name || (isSchool ? "Class" : "Course")} Base Fee — ₹${baseCourseFee.toLocaleString()}`,
+                             value: "base_class_fee"
+                         });
+                     }
+                     feePresets.forEach(p => {
+                         feeOptions.push({
+                             label: `${p.name} — ₹${p.amount.toLocaleString()}`,
+                             value: p._id
+                         });
+                     });
 
-                     {/* Preset selector */}
-                     <div>
-                         <label className="block text-xs font-bold text-slate-600 mb-1">Fee Preset</label>
-                         <Select
-                             value={feePresetApply.presetId}
-                             onChange={(val) => setFeePresetApply(prev => ({ ...prev, presetId: val }))}
-                             placeholder={feePresets.length === 0 ? "No presets for this batch's course" : "Select preset…"}
-                             options={feePresets.map(p => ({ label: `${p.name} — ₹${p.amount.toLocaleString()}`, value: p._id }))}
-                         />
-                     </div>
+                     const activeFeeAmount = feePresetApply.presetId === "base_class_fee"
+                         ? baseCourseFee
+                         : (feePresets.find(p => p._id === feePresetApply.presetId)?.amount || (baseCourseFee > 0 ? baseCourseFee : 0));
 
-                     {/* Number of installments */}
-                     <div>
-                         <label className="block text-xs font-bold text-slate-600 mb-1">Number of Installments</label>
-                         <select
-                             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                             value={feePresetApply.numInstallments}
-                             onChange={e => setFeePresetApply(prev => ({ ...prev, numInstallments: parseInt(e.target.value, 10) }))}
-                         >
-                             {[1, 2, 3, 4, 6, 12].map(n => (
-                                 <option key={n} value={n}>{n} {n === 1 ? "(Full payment)" : `installments`}</option>
-                             ))}
-                         </select>
-                         {feePresetApply.presetId && feePresets.find(p => p._id === feePresetApply.presetId) && (
-                             <p className="text-xs text-slate-500 mt-1">
-                                 ₹{(feePresets.find(p => p._id === feePresetApply.presetId)?.amount / feePresetApply.numInstallments).toFixed(2)} per installment
+                     return (
+                         <div className="space-y-5">
+                             <p className="text-sm text-slate-500">
+                                 {isSchool 
+                                     ? "Select a class section and choose how to schedule the annual fee into installments for all students in that classroom." 
+                                     : "Select a batch and apply the course fee or a custom fee preset across all enrolled students."
+                                 }
                              </p>
-                         )}
-                     </div>
 
-                     <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
-                         <Button variant="outline" onClick={() => setIsFeePresetModalOpen(false)} disabled={isApplyingPreset}>Cancel</Button>
-                         <Button
-                             onClick={handleApplyFeePreset}
-                             disabled={isApplyingPreset || !feePresetApply.batchId || !feePresetApply.presetId}
-                             className="flex items-center gap-2"
-                         >
-                             <CreditCard size={16} />
-                             {isApplyingPreset ? "Applying…" : "Apply to Batch"}
-                         </Button>
-                     </div>
-                 </div>
+                             {/* Batch selector */}
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-600 mb-1">{isSchool ? "Section / Class" : "Batch"}</label>
+                                 <Select
+                                     value={feePresetApply.batchId}
+                                     onChange={(val) => {
+                                         const b = batches.find(item => item._id === val);
+                                         const cId = b?.course?._id || b?.course || "";
+                                         fetchFeePresets(cId);
+                                         setFeePresetApply(prev => ({ 
+                                             ...prev, 
+                                             batchId: val, 
+                                             presetId: "base_class_fee" 
+                                         }));
+                                     }}
+                                     placeholder={isSchool ? "Select section…" : "Select batch…"}
+                                     options={batches.map(b => ({ label: b.name, value: b._id }))}
+                                 />
+                             </div>
+
+                             {/* Fee Structure selector */}
+                             <div>
+                                 <div className="flex justify-between items-center mb-1">
+                                     <label className="block text-xs font-bold text-slate-600">Fee Structure / Preset</label>
+                                     {baseCourseFee > 0 && (
+                                         <span className="text-[11px] text-blue-600 font-bold">Base Fee: ₹{baseCourseFee.toLocaleString()}</span>
+                                     )}
+                                 </div>
+                                 <Select
+                                     value={feePresetApply.presetId || (baseCourseFee > 0 ? "base_class_fee" : "")}
+                                     onChange={(val) => setFeePresetApply(prev => ({ ...prev, presetId: val }))}
+                                     placeholder={feeOptions.length === 0 ? "No base fee or presets configured" : "Select fee structure…"}
+                                     options={feeOptions}
+                                 />
+                                 {feeOptions.length === 0 && selectedBatch && (
+                                     <p className="text-xs text-amber-600 mt-1">
+                                         No fee configured on this {isSchool ? "class" : "course"}. Set a fee on the {isSchool ? "Classes" : "Courses"} page first.
+                                     </p>
+                                 )}
+                             </div>
+
+                             {/* Number of installments */}
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-600 mb-1">Number of Installments</label>
+                                 <select
+                                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                     value={feePresetApply.numInstallments}
+                                     onChange={e => setFeePresetApply(prev => ({ ...prev, numInstallments: parseInt(e.target.value, 10) }))}
+                                 >
+                                     <option value={1}>1 (Full payment / Annual)</option>
+                                     <option value={2}>2 installments (Half-yearly / Term-wise)</option>
+                                     <option value={3}>3 installments (Trimester)</option>
+                                     <option value={4}>4 installments (Quarterly)</option>
+                                     <option value={6}>6 installments (Bi-monthly)</option>
+                                     <option value={12}>12 installments (Monthly)</option>
+                                 </select>
+                                 {activeFeeAmount > 0 && (
+                                     <div className="mt-2 p-2.5 bg-blue-50/70 border border-blue-100 rounded-lg flex items-center justify-between text-xs">
+                                         <span className="text-blue-700 font-medium">Total: <strong>₹{activeFeeAmount.toLocaleString()}</strong></span>
+                                         <span className="text-blue-900 font-bold">
+                                             ₹{(activeFeeAmount / feePresetApply.numInstallments).toFixed(2)} per installment
+                                         </span>
+                                     </div>
+                                 )}
+                             </div>
+
+                             <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
+                                 <Button variant="outline" onClick={() => setIsFeePresetModalOpen(false)} disabled={isApplyingPreset}>Cancel</Button>
+                                 <Button
+                                     onClick={handleApplyFeePreset}
+                                     disabled={isApplyingPreset || !feePresetApply.batchId || activeFeeAmount <= 0}
+                                     className="flex items-center gap-2"
+                                 >
+                                     <CreditCard size={16} />
+                                     {isApplyingPreset ? "Applying…" : (isSchool ? "Apply to Section" : "Apply to Batch")}
+                                 </Button>
+                             </div>
+                         </div>
+                     );
+                 })()}
              </Modal>
              
              {/* Page Action Bar */}
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                <div /> {/* Spacer for Title in Global Header */}
-                <div className="flex items-center gap-2">
+                <div className="space-y-1">
+                    <h1 className="text-xl font-bold text-slate-900">
+                        {isSchool ? "Students Directory" : "Learner Directory"}
+                    </h1>
+                    <p className="text-xs text-slate-500 font-medium">
+                        {isSchool ? "Manage enrolled students, promotions, and academic records" : "Manage active profiles, admissions, and student lifecycle"}
+                    </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
                      {selectedStudents.size > 0 && (
                          <>
                              <Button 
                                  onClick={() => setIsPromotionModalOpen(true)} 
-                                 variant="primary" 
+                                 variant="outline" 
                                  size="md" 
-                                 className="flex items-center gap-2 px-6 bg-emerald-600 hover:bg-emerald-700 shadow-sm"
+                                 className="flex items-center gap-2 px-4 border-blue-200 text-blue-600 hover:bg-blue-50"
                              >
-                                 <UserPlus size={18} strokeWidth={2.5} />
+                                 <GraduationCap size={18} strokeWidth={2.5} />
                                  <span>Promote {selectedStudents.size} Students</span>
                              </Button>
                              <Button 
@@ -958,7 +1023,7 @@ export default function StudentsPage() {
                         className="hidden sm:flex items-center gap-2 border-slate-200 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
                     >
                         <CreditCard size={16} />
-                        <span>Apply Fee Preset</span>
+                        <span>{isSchool ? "Apply Fees / Installments" : "Apply Fee Preset"}</span>
                     </Button>
                     <Button 
                         onClick={() => setIsAddModalOpen(true)} 
