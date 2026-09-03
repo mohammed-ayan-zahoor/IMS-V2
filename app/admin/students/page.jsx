@@ -1351,11 +1351,10 @@ export default function StudentsPage() {
                                 required
                             />
                             <Input
-                                label="Last Name"
-                                placeholder="Doe"
+                                label="Last Name (Optional)"
+                                placeholder="Initials or Surname"
                                 value={formData.profile.lastName}
                                 onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, lastName: e.target.value } })}
-                                required
                             />
                         </div>
 

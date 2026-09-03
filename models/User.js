@@ -44,7 +44,7 @@ const UserSchema = new Schema({
     profile: {
         type: {
             firstName: { type: String, required: true },
-            lastName: { type: String, required: true },
+            lastName: { type: String, default: "" },
             phone: { type: String, match: [/^\+?[\d\s-()]+$/, 'Invalid phone number'] },
             gender: { type: String, enum: ['Male', 'Female', 'Other', 'Not Specified', ''] },
             avatar: String,
@@ -283,10 +283,10 @@ UserSchema.index({ institute: 1, activeSessions: 1, role: 1, deletedAt: 1 });
 UserSchema.index({ role: 1, status: 1, deletedAt: 1 });
 // Virtual for full name
 UserSchema.virtual('fullName').get(function () {
-    if (!this.profile || !this.profile.firstName || !this.profile.lastName) {
+    if (!this.profile || !this.profile.firstName) {
         return '';
     }
-    return `${this.profile.firstName} ${this.profile.lastName}`;
+    return `${this.profile.firstName} ${this.profile.lastName || ''}`.trim();
 });
 
 // Virtual for active status

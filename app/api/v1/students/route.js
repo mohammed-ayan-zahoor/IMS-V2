@@ -110,8 +110,8 @@ export async function POST(req) {
         const body = await req.json();
 
         // Basic validation check
-        if (!body.email || !body.profile?.firstName || !body.profile?.lastName) {
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        if (!body.email || !body.profile?.firstName) {
+            return NextResponse.json({ error: "Missing required fields (email and first name)" }, { status: 400 });
         }
 
         // Super admins must explicitly specify target institute via query param or validated field

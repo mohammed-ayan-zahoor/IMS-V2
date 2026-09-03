@@ -407,19 +407,29 @@ export async function POST(req) {
             // Name: prefer separate FirstName/LastName columns (official template)
             // fall back to a single combined Name/FullName column (legacy sheets)
             let firstName = getValByColIndex(row, idxFirstName);
-            let lastName = getValByColIndex(row, idxLastName);
+            let lastName = getValByColIndex(row, idxLastName) || "";
 
             if (!firstName && !lastName) {
-                // Legacy: combined name column
+                // Legacy / Single Name Column
                 const combinedName = getValByColIndex(row, idxName);
                 if (combinedName) {
                     const parts = combinedName.trim().split(/\s+/);
-                    firstName = parts[0] || "";
-                    lastName = parts.slice(1).join(" ") || "";
+                    if (parts.length === 1) {
+                        firstName = parts[0];
+                        lastName = "";
+                    } else {
+                        // For "Devanshi G", "Sanjay S", "K. Ananya" etc.
+                        firstName = parts.slice(0, -1).join(" ");
+                        lastName = parts[parts.length - 1];
+                    }
                 }
+            } else if (!firstName && lastName) {
+                // If user put the name in the Last Name column
+                firstName = lastName;
+                lastName = "";
             }
 
-            let studentName = `${firstName} ${lastName}`.trim();
+            let studentName = `${firstName || ""} ${lastName || ""}`.trim();
 
             const admissionNo = getValByColIndex(row, idxAdmissionNo) || getValByColIndex(row, idxGRNo) || getValByColIndex(row, idxEnrollmentNumber);
             // Class is OPTIONAL — user selects destination class from UI
@@ -449,9 +459,8 @@ export async function POST(req) {
 
             const rowErrors = [];
 
-            // Basic validation
-            if (!firstName) rowErrors.push("First Name is required");
-            if (!lastName) rowErrors.push("Last Name is required");
+            // Basic validation: First Name is required; Last Name is optional (supports single names & initials)
+            if (!firstName && !studentName) rowErrors.push("Student Name / First Name is required");
 
             // Quota Limit Check
             if (maxStudents > 0 && currentStudentCount >= maxStudents) {
@@ -476,10 +485,11 @@ export async function POST(req) {
             }
 
             // Generate unique professional school email (SaaS Standard)
-            const lastNamePart = lastName ? `${lastName.toLowerCase().replace(/[^a-z]/g, "")}.` : "";
-            let email = enrollmentNumber 
+            const cleanFirst = (firstName || "student").toLowerCase().replace(/[^a-z0-9]/g, "");
+            const lastNamePart = lastName ? `${lastName.toLowerCase().replace(/[^a-z0-9]/g, "")}.` : "";
+            let email = emailFromSheet || (enrollmentNumber 
                 ? `${enrollmentNumber.toLowerCase()}@${emailDomain}`
-                : `${firstName.toLowerCase()}.${lastNamePart}${rowNum}@${emailDomain}`;
+                : `${cleanFirst}.${lastNamePart}${rowNum}@${emailDomain}`);
 
             if (seenEmails.has(email) || existingEmailSet.has(email)) {
                 // Add unique timestamp sequence suffix if collision

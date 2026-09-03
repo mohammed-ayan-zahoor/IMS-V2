@@ -3560,10 +3560,9 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                                 required
                             />
                             <Input
-                                label="Last Name"
+                                label="Last Name (Optional)"
                                 value={formData.profile.lastName}
                                 onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, lastName: e.target.value } })}
-                                required
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
