@@ -75,6 +75,10 @@ export default function MouTrackerPage() {
         contactEmail: "",
         contactPhone: "",
         studentCount: "",
+        yr1: "",
+        yr2: "",
+        yr3: "",
+        instituteType: "school",
         mouDuration: "1",
         planType: "standard",
         customRate: "",
@@ -85,37 +89,52 @@ export default function MouTrackerPage() {
         notes: ""
     });
 
+
     const handleCreateManualEntry = async (e) => {
         e.preventDefault();
-        if (!manualForm.schoolName || !manualForm.city || !manualForm.principalName || !manualForm.contactEmail || !manualForm.studentCount) {
-            setManualError("Please fill out all required fields (School Name, City, Principal Name, Email, Student Count).");
+        const isCollege = manualForm.instituteType !== "school";
+
+        if (!manualForm.schoolName || !manualForm.city || !manualForm.principalName || !manualForm.contactEmail) {
+            setManualError("Please fill out all required fields (Name, City, Principal, Email).");
             return;
         }
 
-        const count = parseInt(manualForm.studentCount) || 0;
+        let count, totalPrice, upfrontPrice, rate, yearWiseCounts;
         const duration = parseInt(manualForm.mouDuration) || 1;
-        if (count <= 0) {
-            setManualError("Please enter a valid student count (> 0).");
-            return;
-        }
 
-        let rate = 59;
-        if (manualForm.planType === 'plus') {
-            rate = 69;
-        } else if (manualForm.planType === 'custom') {
-            rate = parseFloat(manualForm.customRate);
-            if (!rate || rate <= 0) {
-                setManualError("Please enter a valid positive custom per-student rate.");
+        if (isCollege) {
+            const yr1 = parseInt(manualForm.yr1) || 0;
+            const yr2 = parseInt(manualForm.yr2) || 0;
+            const yr3 = manualForm.instituteType === "college_degree" ? (parseInt(manualForm.yr3) || 0) : 0;
+            if (yr1 + yr2 + yr3 === 0) {
+                setManualError("Please enter at least one year-wise student count.");
                 return;
             }
+            count = yr1 + yr2 + yr3;
+            yearWiseCounts = { yr1, yr2, yr3 };
+            const yearlyTotal = (yr1 * 59) + (yr2 * 20) + (yr3 * 20);
+            totalPrice = yearlyTotal * duration;
+            rate = Math.round(totalPrice / count);
+        } else {
+            count = parseInt(manualForm.studentCount) || 0;
+            if (count <= 0) {
+                setManualError("Please enter a valid student count (> 0).");
+                return;
+            }
+            rate = 59;
+            if (manualForm.planType === "plus") rate = 69;
+            else if (manualForm.planType === "custom") {
+                rate = parseFloat(manualForm.customRate);
+                if (!rate || rate <= 0) {
+                    setManualError("Please enter a valid positive custom per-student rate.");
+                    return;
+                }
+            }
+            totalPrice = count * rate * duration;
         }
 
-        let upfrontPercent = 0.5;
-        if (count <= 500) upfrontPercent = 1;
-        else if (count <= 1000) upfrontPercent = 0.75;
-
-        const totalPrice = count * rate * duration;
-        const upfrontPrice = totalPrice * upfrontPercent;
+        let upfrontPercent = count <= 500 ? 1 : count <= 1000 ? 0.75 : 0.5;
+        upfrontPrice = totalPrice * upfrontPercent;
         const refId = `QP/MOU/MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
 
         setIsSavingManual(true);
@@ -136,7 +155,9 @@ export default function MouTrackerPage() {
                     studentCount: count,
                     mouDuration: duration,
                     perStudentRate: rate,
-                    planType: manualForm.planType,
+                    planType: isCollege ? "custom" : manualForm.planType,
+                    instituteType: manualForm.instituteType,
+                    ...(yearWiseCounts && { yearWiseCounts }),
                     udiseCode: manualForm.udiseCode.trim(),
                     address: manualForm.address.trim(),
                     totalPrice,
@@ -148,27 +169,15 @@ export default function MouTrackerPage() {
             });
 
             const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data.error || "Failed to create manual MOU entry.");
-            }
+            if (!res.ok) throw new Error(data.error || "Failed to create manual MOU entry.");
 
             setIsManualModalOpen(false);
             setManualForm({
-                schoolName: "",
-                city: "",
-                principalName: "",
-                designation: "Principal",
-                contactEmail: "",
-                contactPhone: "",
-                studentCount: "",
-                mouDuration: "1",
-                planType: "standard",
-                customRate: "",
-                udiseCode: "",
-                address: "",
-                action: "manual_entry",
-                status: "new",
-                notes: ""
+                schoolName: "", city: "", principalName: "", designation: "Principal",
+                contactEmail: "", contactPhone: "", studentCount: "",
+                yr1: "", yr2: "", yr3: "", instituteType: "school",
+                mouDuration: "1", planType: "standard", customRate: "",
+                udiseCode: "", address: "", action: "manual_entry", status: "new", notes: ""
             });
             fetchSubmissions();
         } catch (err) {
@@ -178,6 +187,7 @@ export default function MouTrackerPage() {
             setIsSavingManual(false);
         }
     };
+
 
     const handleDeletePayment = async (submissionId, paymentId, paymentAmount) => {
         if (!confirm(`Are you sure you want to revoke/delete this payment entry of ₹${paymentAmount.toLocaleString('en-IN')}? This will update the total paid amount.`)) {
@@ -679,6 +689,34 @@ export default function MouTrackerPage() {
                                                                             <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full px-2 py-0.5 text-xs font-black">{sub.mouDuration} {sub.mouDuration === 1 ? 'Year' : 'Years'}</span>
                                                                         </p>
                                                                     )}
+                                                                    {sub.instituteType && sub.instituteType !== 'school' && (
+                                                                        <p className="flex items-center gap-1.5">
+                                                                            <span className="font-bold text-slate-500">Institute Type:</span>
+                                                                            <span className="bg-violet-50 text-violet-700 border border-violet-100 rounded-full px-2 py-0.5 text-xs font-black">
+                                                                                {sub.instituteType === 'college_degree' ? 'Degree College (3yr)' : 'PU / Diploma College (2yr)'}
+                                                                            </span>
+                                                                        </p>
+                                                                    )}
+                                                                    {/* College year-wise breakdown */}
+                                                                    {sub.yearWiseCounts && (sub.yearWiseCounts.yr1 > 0 || sub.yearWiseCounts.yr2 > 0 || sub.yearWiseCounts.yr3 > 0) && (
+                                                                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-1.5 text-xs">
+                                                                            <p className="font-black text-slate-500 uppercase tracking-wider text-[10px] mb-2">ID Card Year-wise Breakdown</p>
+                                                                            <div className="flex justify-between">
+                                                                                <span className="text-emerald-600 font-bold">1st Year (₹59/student)</span>
+                                                                                <span className="font-mono font-bold">{(sub.yearWiseCounts.yr1 || 0).toLocaleString('en-IN')} × ₹59 = ₹{((sub.yearWiseCounts.yr1 || 0) * 59).toLocaleString('en-IN')}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between">
+                                                                                <span className="text-indigo-600 font-bold">2nd Year (₹20/student)</span>
+                                                                                <span className="font-mono font-bold">{(sub.yearWiseCounts.yr2 || 0).toLocaleString('en-IN')} × ₹20 = ₹{((sub.yearWiseCounts.yr2 || 0) * 20).toLocaleString('en-IN')}</span>
+                                                                            </div>
+                                                                            {sub.instituteType === 'college_degree' && (
+                                                                                <div className="flex justify-between">
+                                                                                    <span className="text-indigo-600 font-bold">3rd Year (₹20/student)</span>
+                                                                                    <span className="font-mono font-bold">{(sub.yearWiseCounts.yr3 || 0).toLocaleString('en-IN')} × ₹20 = ₹{((sub.yearWiseCounts.yr3 || 0) * 20).toLocaleString('en-IN')}</span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
                                                                     {sub.udiseCode && (
                                                                         <p><span className="font-bold text-slate-500">UDISE Code:</span> {sub.udiseCode}</p>
                                                                     )}
@@ -700,6 +738,7 @@ export default function MouTrackerPage() {
                                                                     </div>
                                                                 </div>
                                                             </div>
+
 
                                                             {/* Signature Canvas View */}
                                                             <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between">
@@ -1010,6 +1049,30 @@ export default function MouTrackerPage() {
                         )}
 
                         <form onSubmit={handleCreateManualEntry} className="space-y-4">
+                            {/* Institute Type Toggle */}
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-wider block mb-3">Institution Type</label>
+                                <div className="flex flex-wrap gap-4">
+                                    {[
+                                        { value: "school", label: "School / Jr. College" },
+                                        { value: "college_degree", label: "Degree College (3 Yrs)" },
+                                        { value: "college_pu", label: "PU / Diploma (2 Yrs)" }
+                                    ].map(opt => (
+                                        <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-sm font-bold text-indigo-800">
+                                            <input
+                                                type="radio"
+                                                name="manualInstType"
+                                                value={opt.value}
+                                                checked={manualForm.instituteType === opt.value}
+                                                onChange={() => setManualForm({ ...manualForm, instituteType: opt.value })}
+                                                className="accent-indigo-600 w-4 h-4"
+                                            />
+                                            {opt.label}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-xs font-black uppercase text-slate-400 tracking-wider">School / Institute Name *</label>
@@ -1018,7 +1081,7 @@ export default function MouTrackerPage() {
                                         required
                                         value={manualForm.schoolName}
                                         onChange={(e) => setManualForm({ ...manualForm, schoolName: e.target.value })}
-                                        placeholder="e.g. St. Mary's High School"
+                                        placeholder="e.g. SCDS College, Hubli"
                                         className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
                                     />
                                 </div>
@@ -1067,7 +1130,7 @@ export default function MouTrackerPage() {
                                         required
                                         value={manualForm.contactEmail}
                                         onChange={(e) => setManualForm({ ...manualForm, contactEmail: e.target.value })}
-                                        placeholder="e.g. principal@stmarys.edu"
+                                        placeholder="e.g. principal@college.edu"
                                         className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800"
                                     />
                                 </div>
@@ -1083,76 +1146,169 @@ export default function MouTrackerPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Student Strength *</label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        required
-                                        value={manualForm.studentCount}
-                                        onChange={(e) => setManualForm({ ...manualForm, studentCount: e.target.value })}
-                                        placeholder="e.g. 500"
-                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Agreement Duration</label>
-                                    <select
-                                        value={manualForm.mouDuration}
-                                        onChange={(e) => setManualForm({ ...manualForm, mouDuration: e.target.value })}
-                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
-                                    >
-                                        <option value="1">1 Year Agreement</option>
-                                        <option value="2">2 Years Agreement</option>
-                                        <option value="3">3 Years Agreement</option>
-                                        <option value="4">4 Years Agreement</option>
-                                        <option value="5">5 Years Agreement</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Initial Status</label>
-                                    <select
-                                        value={manualForm.status}
-                                        onChange={(e) => setManualForm({ ...manualForm, status: e.target.value })}
-                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
-                                    >
-                                        <option value="new">New Lead</option>
-                                        <option value="contacted">Contacted</option>
-                                        <option value="converted">Converted (Agreed)</option>
-                                        <option value="rejected">Rejected</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Pricing Plan / Rate *</label>
-                                    <select
-                                        value={manualForm.planType}
-                                        onChange={(e) => setManualForm({ ...manualForm, planType: e.target.value })}
-                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
-                                    >
-                                        <option value="standard">Standard Plan (Students Only) — ₹59 / Student / Yr</option>
-                                        <option value="plus">Plus Plan (Student + Teacher Access) — ₹69 / Student / Yr</option>
-                                        <option value="custom">Custom Admin Rate (Specify below)</option>
-                                    </select>
-                                </div>
-                                {manualForm.planType === 'custom' && (
+                            {/* Student count — school mode */}
+                            {manualForm.instituteType === "school" ? (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
-                                        <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Custom Rate (₹ / Student) *</label>
+                                        <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Student Strength *</label>
                                         <input
                                             type="number"
                                             min="1"
                                             required
-                                            value={manualForm.customRate}
-                                            onChange={(e) => setManualForm({ ...manualForm, customRate: e.target.value })}
-                                            placeholder="e.g. 75"
+                                            value={manualForm.studentCount}
+                                            onChange={(e) => setManualForm({ ...manualForm, studentCount: e.target.value })}
+                                            placeholder="e.g. 500"
                                             className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
                                         />
                                     </div>
-                                )}
-                            </div>
+                                    <div>
+                                        <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Agreement Duration</label>
+                                        <select
+                                            value={manualForm.mouDuration}
+                                            onChange={(e) => setManualForm({ ...manualForm, mouDuration: e.target.value })}
+                                            className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                        >
+                                            <option value="1">1 Year</option>
+                                            <option value="2">2 Years</option>
+                                            <option value="3">3 Years</option>
+                                            <option value="4">4 Years</option>
+                                            <option value="5">5 Years</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Initial Status</label>
+                                        <select
+                                            value={manualForm.status}
+                                            onChange={(e) => setManualForm({ ...manualForm, status: e.target.value })}
+                                            className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                        >
+                                            <option value="new">New Lead</option>
+                                            <option value="contacted">Contacted</option>
+                                            <option value="converted">Converted (Agreed)</option>
+                                            <option value="rejected">Rejected</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* College mode: year-wise counts */
+                                <div className="space-y-3">
+                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                                        <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3">Year-wise Student Strength (ID Cards)</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-emerald-600 block mb-1">1st Year — ₹59/student (new cards)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={manualForm.yr1}
+                                                    onChange={(e) => setManualForm({ ...manualForm, yr1: e.target.value })}
+                                                    placeholder="e.g. 120"
+                                                    className="w-full p-3 border-2 border-emerald-300 rounded-xl outline-none focus:border-emerald-500 text-sm text-emerald-800 font-bold bg-emerald-50"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-indigo-600 block mb-1">2nd Year — ₹20/student (existing cards)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={manualForm.yr2}
+                                                    onChange={(e) => setManualForm({ ...manualForm, yr2: e.target.value })}
+                                                    placeholder="e.g. 115"
+                                                    className="w-full p-3 border-2 border-indigo-300 rounded-xl outline-none focus:border-indigo-500 text-sm text-indigo-800 font-bold bg-indigo-50"
+                                                />
+                                            </div>
+                                            {manualForm.instituteType === "college_degree" && (
+                                                <div>
+                                                    <label className="text-xs font-bold text-indigo-600 block mb-1">3rd Year — ₹20/student (existing cards)</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        value={manualForm.yr3}
+                                                        onChange={(e) => setManualForm({ ...manualForm, yr3: e.target.value })}
+                                                        placeholder="e.g. 112"
+                                                        className="w-full p-3 border-2 border-indigo-300 rounded-xl outline-none focus:border-indigo-500 text-sm text-indigo-800 font-bold bg-indigo-50"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                        {/* Live calc preview */}
+                                        {(() => {
+                                            const yr1 = parseInt(manualForm.yr1) || 0;
+                                            const yr2 = parseInt(manualForm.yr2) || 0;
+                                            const yr3 = manualForm.instituteType === "college_degree" ? (parseInt(manualForm.yr3) || 0) : 0;
+                                            const total = yr1 + yr2 + yr3;
+                                            if (total === 0) return null;
+                                            const dur = parseInt(manualForm.mouDuration) || 1;
+                                            const yearly = (yr1 * 59) + (yr2 * 20) + (yr3 * 20);
+                                            const grand = yearly * dur;
+                                            return (
+                                                <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-600 font-medium">
+                                                    {yr1}×₹59 + {yr2}×₹20{manualForm.instituteType === "college_degree" ? ` + ${yr3}×₹20` : ""} = <strong>₹{yearly.toLocaleString('en-IN')}/yr</strong> × {dur} yr = <strong className="text-indigo-700">₹{grand.toLocaleString('en-IN')} total</strong>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Agreement Duration</label>
+                                            <select
+                                                value={manualForm.mouDuration}
+                                                onChange={(e) => setManualForm({ ...manualForm, mouDuration: e.target.value })}
+                                                className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                            >
+                                                <option value="1">1 Year</option>
+                                                <option value="2">2 Years</option>
+                                                <option value="3">3 Years</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Initial Status</label>
+                                            <select
+                                                value={manualForm.status}
+                                                onChange={(e) => setManualForm({ ...manualForm, status: e.target.value })}
+                                                className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                            >
+                                                <option value="new">New Lead</option>
+                                                <option value="contacted">Contacted</option>
+                                                <option value="converted">Converted (Agreed)</option>
+                                                <option value="rejected">Rejected</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Pricing plan — school only */}
+                            {manualForm.instituteType === "school" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Pricing Plan / Rate *</label>
+                                        <select
+                                            value={manualForm.planType}
+                                            onChange={(e) => setManualForm({ ...manualForm, planType: e.target.value })}
+                                            className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                        >
+                                            <option value="standard">Standard Plan (Students Only) — ₹59 / Student / Yr</option>
+                                            <option value="plus">Plus Plan (Student + Teacher Access) — ₹69 / Student / Yr</option>
+                                            <option value="custom">Custom Admin Rate (Specify below)</option>
+                                        </select>
+                                    </div>
+                                    {manualForm.planType === "custom" && (
+                                        <div>
+                                            <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Custom Rate (₹ / Student) *</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                required
+                                                value={manualForm.customRate}
+                                                onChange={(e) => setManualForm({ ...manualForm, customRate: e.target.value })}
+                                                placeholder="e.g. 75"
+                                                className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>

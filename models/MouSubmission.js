@@ -73,6 +73,18 @@ const MouSubmissionSchema = new mongoose.Schema({
         default: 59,
         min: 1
     },
+    // School vs College distinction
+    instituteType: {
+        type: String,
+        enum: ['school', 'college_degree', 'college_pu'],
+        default: 'school'
+    },
+    // Year-wise student counts for colleges (1st yr = new ID cards @ ₹59, returning = ₹20)
+    yearWiseCounts: {
+        yr1: { type: Number, default: 0 },
+        yr2: { type: Number, default: 0 },
+        yr3: { type: Number, default: 0 } // only for degree colleges
+    },
     planType: {
         type: String,
         enum: ['standard', 'plus', 'custom'],

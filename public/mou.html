@@ -482,11 +482,28 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 
   <!-- Step 1: Fill Details -->
   <div class="form-card" id="step-form">
-    <h2><span>1</span> School Details — Fill Before Signing</h2>
+    <h2><span>1</span> Institution Details — Fill Before Signing</h2>
+
+    <!-- Institute Type Toggle -->
+    <div style="margin-bottom:18px;background:#f0f4ff;border:1.5px solid #c7d7ff;border-radius:12px;padding:14px 16px;">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;display:block;margin-bottom:10px;">Institution Type</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:#1e3a8a;">
+          <input type="radio" name="f-insttype" value="school" checked onchange="onInstTypeChange()" style="accent-color:#1e3a8a;width:16px;height:16px;"> School / Junior College
+        </label>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:#1e3a8a;">
+          <input type="radio" name="f-insttype" value="college_degree" onchange="onInstTypeChange()" style="accent-color:#1e3a8a;width:16px;height:16px;"> Degree College (3 Years)
+        </label>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:#1e3a8a;">
+          <input type="radio" name="f-insttype" value="college_pu" onchange="onInstTypeChange()" style="accent-color:#1e3a8a;width:16px;height:16px;"> PU / Diploma College (2 Years)
+        </label>
+      </div>
+    </div>
+
     <div class="form-grid">
       <div class="field">
         <label>School / Institution Name *</label>
-        <input id="f-school" type="text" placeholder="e.g. Delhi Public School, Bhopal" oninput="updateDoc()"/>
+        <input id="f-school" type="text" placeholder="e.g. SCDS College, Hubli" oninput="updateDoc()"/>
       </div>
       <div class="field">
         <label>City / District *</label>
@@ -510,15 +527,40 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
       </div>
     </div>
     <div style="margin-top:16px" class="form-grid">
-      <div class="field highlight-field">
+      <!-- SCHOOL: single student count field -->
+      <div class="field highlight-field" id="field-school-students">
         <label>Total Number of Students to be Enrolled *</label>
         <input id="f-students" type="number" min="1" placeholder="e.g. 450" oninput="updateDoc()" style="font-size:18px;font-weight:700"/>
       </div>
       <div class="field" style="border-radius:10px;">
-        <label style="color:#1e3a8a;font-weight:700;">UDISE Code (School Code)</label>
+        <label style="color:#1e3a8a;font-weight:700;">UDISE Code (Institution Code)</label>
         <input id="f-udise" type="text" placeholder="e.g. 23260100101" oninput="updateDoc()" style="font-size:18px;font-weight:700;border-color:#1e3a8a;background:#f8fafc;"/>
       </div>
     </div>
+
+    <!-- COLLEGE: year-wise count inputs (hidden by default) -->
+    <div id="field-college-students" style="display:none;margin-top:16px;background:#f8faff;border:1.5px solid #c7d7ff;border-radius:12px;padding:16px 18px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;margin-bottom:12px;">Year-wise Student Strength (ID Cards)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;" id="college-yr-grid">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#059669;display:block;margin-bottom:4px;">1st Year (New ID Cards) — ₹59/student</label>
+          <input id="f-yr1" type="number" min="0" placeholder="e.g. 120" oninput="updateDoc()" style="width:100%;padding:10px 12px;border:1.5px solid #059669;border-radius:8px;font-size:16px;font-weight:700;color:#059669;background:#f0fdf4;outline:none;"/>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#6366f1;display:block;margin-bottom:4px;">2nd Year (Existing Cards) — ₹20/student</label>
+          <input id="f-yr2" type="number" min="0" placeholder="e.g. 115" oninput="updateDoc()" style="width:100%;padding:10px 12px;border:1.5px solid #6366f1;border-radius:8px;font-size:16px;font-weight:700;color:#6366f1;background:#f5f3ff;outline:none;"/>
+        </div>
+        <div id="field-yr3-wrap">
+          <label style="font-size:11px;font-weight:700;color:#6366f1;display:block;margin-bottom:4px;">3rd Year (Existing Cards) — ₹20/student</label>
+          <input id="f-yr3" type="number" min="0" placeholder="e.g. 112" oninput="updateDoc()" style="width:100%;padding:10px 12px;border:1.5px solid #6366f1;border-radius:8px;font-size:16px;font-weight:700;color:#6366f1;background:#f5f3ff;outline:none;"/>
+        </div>
+      </div>
+      <!-- Live preview -->
+      <div id="college-calc-preview" style="margin-top:12px;padding:10px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#475569;display:none;">
+        <span id="college-calc-text"></span>
+      </div>
+    </div>
+
     <div style="margin-top:16px" class="form-grid">
       <div class="field" style="border-radius:10px;">
         <label style="color:#1e3a8a;font-weight:700;">Duration of Agreement (Years) *</label>
@@ -530,7 +572,8 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
           <option value="5">5 Years</option>
         </select>
       </div>
-      <div class="field" style="border-radius:10px;">
+      <!-- Plan selector: hidden for colleges (pricing is fixed) -->
+      <div class="field" style="border-radius:10px;" id="field-plan-wrap">
         <label style="color:#1e3a8a;font-weight:700;">Platform Package / Plan *</label>
         <select id="f-plan" onchange="updateDoc()" style="font-size:16px;font-weight:700;border-color:#1e3a8a;background:#f8fafc;padding:10px 14px;border-radius:10px;border:1.5px solid #1e3a8a;color:#1e3a8a;cursor:pointer;">
           <option value="standard">Standard Plan (Students Only) — ₹59 / Student / Year</option>
@@ -540,11 +583,12 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
     </div>
     <div style="margin-top:16px" class="form-grid full">
       <div class="field">
-        <label>School Address (optional)</label>
+        <label>Institution Address (optional)</label>
         <textarea id="f-address" rows="2" placeholder="Street, Area, City – PIN" oninput="updateDoc()"></textarea>
       </div>
     </div>
   </div>
+
 
   <!-- MOU Document -->
   <div class="mou-doc" id="mou-document">
@@ -600,12 +644,18 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 
     <div class="mou-section">
       <h3>2. Scope of Enrollment</h3>
-      <p>The School hereby confirms its intent to onboard the following number of students onto the Quantech Platform for the academic year <strong id="d-acad-year">2025–26</strong>:</p>
+      <p>The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">2025–26</strong>:</p>
       <div class="enrollment-commercial-wrapper">
         <div class="highlight-box" style="margin: 0 !important;">
           <div class="label">Agreed Student Enrollment Strength</div>
           <div class="value" id="d-students">— Students</div>
-          <div class="sub" id="d-school-inline">[ School Name ]</div>
+          <!-- College year-wise breakdown (shown for colleges) -->
+          <div id="d-college-yr-breakdown" style="display:none;margin-top:8px;font-size:11px;color:#475569;line-height:1.7;">
+            <span id="d-yr1-line"></span><br/>
+            <span id="d-yr2-line"></span><br/>
+            <span id="d-yr3-line" style="display:none;"></span>
+          </div>
+          <div class="sub" id="d-school-inline">[ Institution Name ]</div>
         </div>
         
         <div class="commercial-box">
@@ -758,21 +808,31 @@ function validateForm() {
   const city = document.getElementById('f-city').value.trim();
   const principal = document.getElementById('f-principal').value.trim();
   const email = document.getElementById('f-email').value.trim();
-  const students = document.getElementById('f-students').value.trim();
 
-  if (!school) { alert('Please enter the School / Institution Name.'); return false; }
+  if (!school) { alert('Please enter the Institution Name.'); return false; }
   if (!city) { alert('Please enter the City / District.'); return false; }
   if (!principal) { alert('Please enter the Principal / Authorised Signatory Name.'); return false; }
   if (!email) { alert('Please enter the Contact Email.'); return false; }
-  if (!students) { alert('Please enter the Total Number of Students to be Enrolled.'); return false; }
-  
+
+  const instType = getInstType();
+  if (instType === 'school') {
+    const students = document.getElementById('f-students').value.trim();
+    if (!students) { alert('Please enter the Total Number of Students to be Enrolled.'); return false; }
+  } else {
+    const yr1 = parseInt(document.getElementById('f-yr1').value) || 0;
+    const yr2 = parseInt(document.getElementById('f-yr2').value) || 0;
+    const yr3 = instType === 'college_degree' ? (parseInt(document.getElementById('f-yr3').value) || 0) : 0;
+    if (yr1 + yr2 + yr3 === 0) { alert('Please enter at least one year-wise student count.'); return false; }
+  }
+
   if (!hasSig) {
     alert('Please sign the document before downloading or printing.');
     return false;
   }
-  
+
   return true;
 }
+
 
 document.querySelectorAll('#doc-date,#doc-date2').forEach(el => el.textContent = dateStr);
 document.querySelectorAll('#doc-ref,#doc-ref2').forEach(el => el.textContent = refId);
@@ -796,39 +856,111 @@ const durationWords = {
   '5': 'five (5) academic years'
 };
 
+function getInstType() {
+  const sel = document.querySelector('input[name="f-insttype"]:checked');
+  return sel ? sel.value : 'school';
+}
+
+function onInstTypeChange() {
+  const t = getInstType();
+  const isCollege = t !== 'school';
+  document.getElementById('field-school-students').style.display = isCollege ? 'none' : '';
+  document.getElementById('field-college-students').style.display = isCollege ? '' : 'none';
+  document.getElementById('field-plan-wrap').style.display = isCollege ? 'none' : '';
+  // Show/hide 3rd year input for PU vs Degree
+  const yr3Wrap = document.getElementById('field-yr3-wrap');
+  if (yr3Wrap) yr3Wrap.style.display = t === 'college_degree' ? '' : 'none';
+  updateDoc();
+}
+
 function updateDoc() {
-  const school = document.getElementById('f-school').value.trim() || '[ School Name ]';
+  const school = document.getElementById('f-school').value.trim() || '[ Institution Name ]';
   const city = document.getElementById('f-city').value.trim() || '[ City / District ]';
   const principal = document.getElementById('f-principal').value.trim() || '[ Authorised Signatory ]';
   const desig = document.getElementById('f-designation').value.trim() || '[ Designation ]';
-  const students = document.getElementById('f-students').value.trim();
   const addr = document.getElementById('f-address').value.trim();
   const duration = document.getElementById('f-duration').value;
+  const instType = getInstType();
+  const isCollege = instType !== 'school';
 
   let perStudentRate = 59;
   let planType = 'standard';
+  let studentCount = 0;
+  let totalPrice = 0;
+  let yearWiseCounts = null;
 
-  if (urlRate && !isNaN(urlRate) && urlRate > 0) {
-    perStudentRate = urlRate;
-    planType = 'custom';
-    const planSelect = document.getElementById('f-plan');
-    if (planSelect) {
-      planSelect.disabled = true;
-      planSelect.innerHTML = `<option value="custom">Custom Admin Rate — ₹${perStudentRate} / Student / Year</option>`;
+  if (isCollege) {
+    const yr1 = parseInt(document.getElementById('f-yr1').value) || 0;
+    const yr2 = parseInt(document.getElementById('f-yr2').value) || 0;
+    const yr3 = instType === 'college_degree' ? (parseInt(document.getElementById('f-yr3').value) || 0) : 0;
+    studentCount = yr1 + yr2 + yr3;
+    yearWiseCounts = { yr1, yr2, yr3 };
+    planType = 'custom'; // college uses fixed year-based pricing
+
+    const yr1Price = yr1 * 59;
+    const yr2Price = yr2 * 20;
+    const yr3Price = yr3 * 20;
+    const yearlyTotal = yr1Price + yr2Price + yr3Price;
+    const durationInt = parseInt(duration) || 1;
+    totalPrice = yearlyTotal * durationInt;
+
+    // Update college calc preview
+    const preview = document.getElementById('college-calc-preview');
+    const previewText = document.getElementById('college-calc-text');
+    if (studentCount > 0) {
+      preview.style.display = '';
+      const parts = [`1st Yr: ${yr1} × ₹59 = ₹${yr1Price.toLocaleString('en-IN')}`];
+      parts.push(`2nd Yr: ${yr2} × ₹20 = ₹${yr2Price.toLocaleString('en-IN')}`);
+      if (instType === 'college_degree') parts.push(`3rd Yr: ${yr3} × ₹20 = ₹${yr3Price.toLocaleString('en-IN')}`);
+      parts.push(`Yearly: ₹${yearlyTotal.toLocaleString('en-IN')} × ${durationInt} yr = ₹${totalPrice.toLocaleString('en-IN')} total`);
+      previewText.textContent = parts.join('  |  ');
+    } else {
+      preview.style.display = 'none';
     }
-  } else {
-    const planSelect = document.getElementById('f-plan');
-    if (planSelect) {
-      if (planSelect.value === 'plus') {
-        perStudentRate = 69;
-        planType = 'plus';
-      } else {
-        perStudentRate = 59;
-        planType = 'standard';
+
+    // Update MOU doc enrollment breakdown
+    const breakdown = document.getElementById('d-college-yr-breakdown');
+    const yr1Line = document.getElementById('d-yr1-line');
+    const yr2Line = document.getElementById('d-yr2-line');
+    const yr3Line = document.getElementById('d-yr3-line');
+    if (breakdown) {
+      breakdown.style.display = studentCount > 0 ? '' : 'none';
+      yr1Line.textContent = `1st Year: ${yr1.toLocaleString('en-IN')} students (new ID cards @ ₹59)`;
+      yr2Line.textContent = `2nd Year: ${yr2.toLocaleString('en-IN')} students (existing cards @ ₹20)`;
+      if (yr3Line) {
+        yr3Line.style.display = instType === 'college_degree' ? '' : 'none';
+        yr3Line.textContent = `3rd Year: ${yr3.toLocaleString('en-IN')} students (existing cards @ ₹20)`;
       }
     }
+
+    perStudentRate = studentCount > 0 ? Math.round(totalPrice / studentCount) : 59;
+  } else {
+    // School mode
+    const studentsRaw = document.getElementById('f-students').value.trim();
+    studentCount = parseInt(studentsRaw) || 0;
+    if (urlRate && !isNaN(urlRate) && urlRate > 0) {
+      perStudentRate = urlRate;
+      planType = 'custom';
+      const planSelect = document.getElementById('f-plan');
+      if (planSelect) {
+        planSelect.disabled = true;
+        planSelect.innerHTML = `<option value="custom">Custom Admin Rate — ₹${perStudentRate} / Student / Year</option>`;
+      }
+    } else {
+      const planSelect = document.getElementById('f-plan');
+      if (planSelect) {
+        if (planSelect.value === 'plus') { perStudentRate = 69; planType = 'plus'; }
+        else { perStudentRate = 59; planType = 'standard'; }
+      }
+    }
+    const durationInt = parseInt(duration) || 1;
+    totalPrice = studentCount * perStudentRate * durationInt;
+    // Hide college breakdown in school mode
+    const breakdown = document.getElementById('d-college-yr-breakdown');
+    if (breakdown) breakdown.style.display = 'none';
   }
 
+  const durationInt = parseInt(duration) || 1;
   const udise = document.getElementById('f-udise').value.trim() || '—';
   document.getElementById('d-school').textContent = school;
   document.getElementById('d-school2').textContent = school;
@@ -840,38 +972,33 @@ function updateDoc() {
   document.getElementById('d-udise').textContent = udise;
   document.getElementById('d-udise-sig').textContent = udise !== '—' ? 'UDISE Code: ' + udise : 'UDISE Code: —';
 
-  // Update Clause 6 duration text dynamically
   document.getElementById('d-duration').textContent = durationWords[duration] || 'one (1) academic year';
 
-  const durationInt = parseInt(duration) || 1;
-  document.getElementById('d-total-label').textContent = `Total Price (for ${durationInt} Year${durationInt > 1 ? 's' : ''} at ₹${perStudentRate} / Student / Year)`;
+  if (isCollege) {
+    document.getElementById('d-total-label').textContent = `Total Price (Year-wise College ID Card Billing, ${durationInt} Year${durationInt > 1 ? 's' : ''})`;
+  } else {
+    document.getElementById('d-total-label').textContent = `Total Price (for ${durationInt} Year${durationInt > 1 ? 's' : ''} at ₹${perStudentRate} / Student / Year)`;
+  }
   document.getElementById('d-comm-footer').textContent = `* Calculated on agreed student strength for ${durationInt} year${durationInt > 1 ? 's' : ''}. Taxes extra.`;
 
-  if (students) {
-    const studentCount = parseInt(students);
-    const totalPrice = studentCount * perStudentRate * durationInt;
-    
+  if (studentCount > 0) {
     let upfrontPercent = 0.5;
-    if (studentCount <= 500) {
-      upfrontPercent = 1;
-    } else if (studentCount <= 1000) {
-      upfrontPercent = 0.75;
-    }
+    if (studentCount <= 500) upfrontPercent = 1;
+    else if (studentCount <= 1000) upfrontPercent = 0.75;
     const upfrontPrice = totalPrice * upfrontPercent;
-    
+
     document.getElementById('d-upfront-label').textContent = `${upfrontPercent * 100}% Upfront Commercial Amount`;
     const upfrontTextSpan = document.getElementById('d-upfront-text-percent');
-    if(upfrontTextSpan) upfrontTextSpan.textContent = `${upfrontPercent * 100}%`;
+    if (upfrontTextSpan) upfrontTextSpan.textContent = `${upfrontPercent * 100}%`;
 
     document.getElementById('d-students').textContent = studentCount.toLocaleString('en-IN') + ' Students';
     document.getElementById('d-students-plus').textContent = studentCount.toLocaleString('en-IN');
     document.getElementById('d-total-price').textContent = '₹' + totalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('d-upfront-price').textContent = '₹' + upfrontPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   } else {
-    document.getElementById('d-upfront-label').textContent = `Upfront Commercial Amount`;
+    document.getElementById('d-upfront-label').textContent = 'Upfront Commercial Amount';
     const upfrontTextSpan = document.getElementById('d-upfront-text-percent');
-    if(upfrontTextSpan) upfrontTextSpan.textContent = `100%`;
-
+    if (upfrontTextSpan) upfrontTextSpan.textContent = '100%';
     document.getElementById('d-students').textContent = '— Students';
     document.getElementById('d-students-plus').textContent = '—';
     document.getElementById('d-total-price').textContent = '₹0.00';
@@ -879,6 +1006,7 @@ function updateDoc() {
   }
 }
 updateDoc();
+
 
 // ── Signature Pad ───────────────────────────────────────────
 const canvas = document.getElementById('sigCanvas');
@@ -1049,42 +1177,44 @@ async function trackMouAction(actionType) {
     const designation = document.getElementById('f-designation').value.trim();
     const contactEmail = document.getElementById('f-email').value.trim();
     const contactPhone = document.getElementById('f-phone').value.trim();
-    const studentsRaw = document.getElementById('f-students').value.trim();
     const udise = document.getElementById('f-udise').value.trim();
     const address = document.getElementById('f-address').value.trim();
+    const instType = getInstType();
+    const isCollege = instType !== 'school';
 
-    if (!schoolName || !principalName || !contactEmail || !studentsRaw) {
-      // Don't log incomplete forms to the database
-      return;
-    }
+    if (!schoolName || !principalName || !contactEmail) return;
 
-    // Strip non-digit characters (e.g. "12,000" or "12,000 students" -> 12000)
-    const studentCount = parseInt(studentsRaw.replace(/[^0-9]/g, '')) || 0;
     const duration = parseInt(document.getElementById('f-duration')?.value || '1');
-    
-    let perStudentRate = 59;
-    let planType = 'standard';
-    if (urlRate && !isNaN(urlRate) && urlRate > 0) {
-      perStudentRate = urlRate;
+    let studentCount, totalPrice, perStudentRate, planType, yearWiseCounts = null;
+
+    if (isCollege) {
+      const yr1 = parseInt(document.getElementById('f-yr1').value) || 0;
+      const yr2 = parseInt(document.getElementById('f-yr2').value) || 0;
+      const yr3 = instType === 'college_degree' ? (parseInt(document.getElementById('f-yr3').value) || 0) : 0;
+      if (yr1 + yr2 + yr3 === 0) return; // incomplete
+      studentCount = yr1 + yr2 + yr3;
+      yearWiseCounts = { yr1, yr2, yr3 };
+      const yearlyTotal = (yr1 * 59) + (yr2 * 20) + (yr3 * 20);
+      totalPrice = yearlyTotal * duration;
+      perStudentRate = Math.round(totalPrice / studentCount);
       planType = 'custom';
     } else {
-      const planVal = document.getElementById('f-plan')?.value;
-      if (planVal === 'plus') {
-        perStudentRate = 69;
-        planType = 'plus';
+      const studentsRaw = document.getElementById('f-students').value.trim();
+      if (!studentsRaw) return;
+      studentCount = parseInt(studentsRaw.replace(/[^0-9]/g, '')) || 0;
+      if (studentCount === 0) return;
+      perStudentRate = 59;
+      planType = 'standard';
+      if (urlRate && !isNaN(urlRate) && urlRate > 0) { perStudentRate = urlRate; planType = 'custom'; }
+      else {
+        const planVal = document.getElementById('f-plan')?.value;
+        if (planVal === 'plus') { perStudentRate = 69; planType = 'plus'; }
       }
+      totalPrice = studentCount * perStudentRate * duration;
     }
 
-    const totalPrice = studentCount * perStudentRate * duration;
-
-    let upfrontPercent = 0.5;
-    if (studentCount <= 500) {
-      upfrontPercent = 1;
-    } else if (studentCount <= 1000) {
-      upfrontPercent = 0.75;
-    }
+    let upfrontPercent = studentCount <= 500 ? 1 : studentCount <= 1000 ? 0.75 : 0.5;
     const upfrontPrice = totalPrice * upfrontPercent;
-
     const sigImg = hasSig ? canvas.toDataURL('image/png') : '';
 
     const payload = {
@@ -1103,6 +1233,8 @@ async function trackMouAction(actionType) {
       totalPrice,
       upfrontPrice,
       mouDuration: duration,
+      instituteType: instType,
+      ...(yearWiseCounts && { yearWiseCounts }),
       action: actionType,
       signatureDataUrl: sigImg,
       screenWidth: window.innerWidth,
@@ -1112,9 +1244,7 @@ async function trackMouAction(actionType) {
     const res = await fetch('/api/v1/mou/submissions', {
       method: 'POST',
       keepalive: true,
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     
@@ -1126,6 +1256,7 @@ async function trackMouAction(actionType) {
     console.error('MOU tracking mechanism error:', e);
   }
 }
+
 
 async function triggerPrint() {
   if (!validateForm()) return;
