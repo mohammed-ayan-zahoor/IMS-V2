@@ -27,7 +27,11 @@ export async function POST(req) {
             mouDuration,
             perStudentRate,
             planType,
+            instituteType,
+            yearWiseCounts,
             action,
+            status,
+            notes,
             signatureDataUrl,
             screenWidth,
             screenHeight
@@ -83,7 +87,11 @@ export async function POST(req) {
             mouDuration: duration,
             perStudentRate: rate,
             planType: plan,
+            instituteType: ['school', 'college_degree', 'college_pu'].includes(instituteType) ? instituteType : 'school',
+            ...(yearWiseCounts && { yearWiseCounts }),
             action,
+            ...(status && { status }),
+            ...(notes && { notes }),
             metadata: {
                 ip,
                 userAgent,

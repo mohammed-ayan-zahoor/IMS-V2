@@ -297,7 +297,9 @@ export default function MouReceiptPage({ params }) {
                                 {payments.length === 0 ? (
                                     <tr className="h-16">
                                         <td className="p-3 pl-5 border-r border-[#002d62] text-slate-800 align-middle">
-                                            Quantech School Management ERP Registration
+                                            {submission.instituteType && submission.instituteType !== 'school'
+                                                ? `Quantech College Management ERP & ID Card Registration (${submission.instituteType === 'college_degree' ? 'Degree 3-Yr' : 'PU 2-Yr'})`
+                                                : 'Quantech School Management ERP Registration'}
                                         </td>
                                         <td className="p-3 pr-5 text-right font-mono text-[#002d62] align-middle text-base">
                                             {formatCurrency(receiptAmount)}
@@ -307,7 +309,9 @@ export default function MouReceiptPage({ params }) {
                                     payments.map((p, index) => (
                                         <tr key={p._id || index} className="h-16">
                                             <td className="p-3 pl-5 border-r border-[#002d62] text-slate-800 align-middle">
-                                                Quantech School Management ERP Registration - Installment #{index + 1} ({getMethodLabel(p.paymentMethod)})
+                                                {submission.instituteType && submission.instituteType !== 'school'
+                                                    ? `Quantech College Management ERP & ID Card Registration (${submission.instituteType === 'college_degree' ? 'Degree 3-Yr' : 'PU 2-Yr'})`
+                                                    : 'Quantech School Management ERP Registration'} - Installment #{index + 1} ({getMethodLabel(p.paymentMethod)})
                                                 {p.referenceId && (
                                                     <span className="text-[11px] text-slate-400 font-normal block mt-0.5 font-sans">Transaction Ref: {p.referenceId}</span>
                                                 )}
@@ -337,7 +341,7 @@ export default function MouReceiptPage({ params }) {
                         <div className="flex-1 flex flex-col justify-between">
                             <div className="text-xs font-medium text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100">
                                 <p className="font-bold text-slate-800 mb-1">Remarks:</p>
-                                <p>Payment received against Quantech School Management ERP Registration.</p>
+                                <p>Payment received against {submission.instituteType && submission.instituteType !== 'school' ? 'Quantech College Management ERP & ID Card Registration' : 'Quantech School Management ERP Registration'}.</p>
                                 <p>Thank you for your trust in our solutions.</p>
                             </div>
                             
