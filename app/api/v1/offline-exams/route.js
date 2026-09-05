@@ -32,6 +32,19 @@ export async function GET(req) {
         if (sessionFilter) query.session = sessionFilter;
         if (status) query.status = status;
 
+        // Apply Instructor isolation
+        if (scope.user.role === 'instructor') {
+            const User = (await import("@/models/User")).default;
+            const instructor = await User.findById(scope.user.id).select('assignments');
+            const assignedCourses = instructor?.assignments?.courses || [];
+            const assignedBatches = instructor?.assignments?.batches || [];
+
+            query.$or = [
+                { course: { $in: assignedCourses } },
+                { batches: { $in: assignedBatches } }
+            ];
+        }
+
         const exams = await OfflineExam.find(query)
             .populate('course', 'name code')
             .populate('session', 'name')

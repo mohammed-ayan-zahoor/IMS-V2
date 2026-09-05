@@ -23,7 +23,13 @@ export async function GET(req) {
         const isGlobalView = scope.isSuperAdmin && (!targetInstParam || targetInstParam === "all");
         const instituteId = isGlobalView ? null : (targetInstParam || scope.instituteId);
 
-        const courses = await CourseService.getCourses({}, instituteId);
+        const filters = {};
+        // Apply Instructor isolation
+        if (scope.user.role === 'instructor') {
+            filters.instructorRoleContext = scope.user.id;
+        }
+
+        const courses = await CourseService.getCourses(filters, instituteId);
         return NextResponse.json({ courses });
     } catch (error) {
         console.error("API Error [Courses GET]:", error);

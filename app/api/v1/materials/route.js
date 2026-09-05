@@ -61,8 +61,20 @@ export async function GET(req) {
                 const batchIds = myBatches.map(b => b._id);
                 // Matched materials must be linked to one of my batches
                 // Note: Materials have `batches` array.
-                query.batches = { $in: batchIds };
-            }
+        }
+
+        // Apply Instructor isolation
+        if (session.user.role === 'instructor') {
+            const User = (await import("@/models/User")).default;
+            const instructor = await User.findById(session.user.id).select('assignments');
+            const assignedCourses = instructor?.assignments?.courses || [];
+            const assignedBatches = instructor?.assignments?.batches || [];
+
+            query.$or = [
+                { course: { $in: assignedCourses } },
+                { courses: { $in: assignedCourses } },
+                { batches: { $in: assignedBatches } }
+            ];
         }
 
         if (courseId) query.course = courseId;

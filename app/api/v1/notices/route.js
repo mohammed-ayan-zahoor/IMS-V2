@@ -148,9 +148,25 @@ export async function GET(req) {
         }
 
         await connectDB();
-        const notices = await Notice.find({ 
+        const query = { 
             institute: session.user.institute.id 
-        }).sort({ isPinned: -1, createdAt: -1 });
+        };
+
+        if (session.user.role === 'instructor') {
+            const User = (await import("@/models/User")).default;
+            const instructor = await User.findById(session.user.id).select('assignments');
+            const assignedCourses = (instructor?.assignments?.courses || []).map(id => id.toString());
+            const assignedBatches = (instructor?.assignments?.batches || []).map(id => id.toString());
+
+            query.$or = [
+                { target: 'all' },
+                { target: 'courses', targetIds: { $in: assignedCourses } },
+                { target: 'batches', targetIds: { $in: assignedBatches } },
+                { createdBy: session.user.id }
+            ];
+        }
+
+        const notices = await Notice.find(query).sort({ isPinned: -1, createdAt: -1 });
 
         return NextResponse.json({ notices });
     } catch (error) {

@@ -41,6 +41,31 @@ export async function GET(req) {
             ];
         }
 
+        // Apply Instructor isolation
+        if (scope.user.role === 'instructor') {
+            const User = (await import("@/models/User")).default;
+            const instructor = await User.findById(scope.user.id).select('assignments');
+            const assignedCourses = instructor?.assignments?.courses || [];
+            const assignedBatches = instructor?.assignments?.batches || [];
+
+            const rbacFilter = {
+                $or: [
+                    { course: { $in: assignedCourses } },
+                    { batches: { $in: assignedBatches } }
+                ]
+            };
+
+            if (query.$or) {
+                query.$and = [
+                    { $or: query.$or },
+                    rbacFilter
+                ];
+                delete query.$or;
+            } else {
+                query.$or = rbacFilter.$or;
+            }
+        }
+
         // Apply Scope
         const scopedQuery = addInstituteFilter(query, scope);
 

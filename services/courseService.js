@@ -83,7 +83,31 @@ export class CourseService {
         });
 
         const query = { deletedAt: null, ...safeFilters };
-        if (instituteId) query.institute = instituteId;
+        if (instituteId) {
+            try {
+                query.institute = new mongoose.Types.ObjectId(instituteId);
+            } catch (e) {
+                query.institute = instituteId;
+            }
+        }
+
+        // RBAC: Restricted view for instructors
+        if (filters.instructorRoleContext) {
+            const instructorId = filters.instructorRoleContext;
+            const User = mongoose.models.User || mongoose.model('User');
+            const instructor = await User.findById(instructorId).select('assignments');
+            const assignedCourses = (instructor?.assignments?.courses || []).map(id => id.toString());
+            const assignedBatches = instructor?.assignments?.batches || [];
+
+            let allCourseIds = [...assignedCourses];
+            if (assignedBatches.length > 0) {
+                const batchCourses = await Batch.find({ _id: { $in: assignedBatches }, deletedAt: null }).distinct('course');
+                allCourseIds = [...new Set([...allCourseIds, ...batchCourses.filter(Boolean).map(id => id.toString())])];
+            }
+
+            // Instructors should ONLY see their assigned courses/classes
+            query._id = { $in: allCourseIds.map(id => new mongoose.Types.ObjectId(id)) };
+        }
 
         return await Course.find(query)
             .populate('subjects')
