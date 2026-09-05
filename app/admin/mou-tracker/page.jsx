@@ -1256,7 +1256,7 @@ export default function MouTrackerPage() {
                                                     type="text"
                                                     value={manualForm.coupon}
                                                     onChange={(e) => setManualForm({ ...manualForm, coupon: e.target.value })}
-                                                    placeholder="e.g. SDC"
+                                                    placeholder="Enter promo code"
                                                     className="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold uppercase text-indigo-900 outline-none focus:border-indigo-500"
                                                 />
                                             </div>
