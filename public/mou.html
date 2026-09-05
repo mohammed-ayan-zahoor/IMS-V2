@@ -543,18 +543,31 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;margin-bottom:12px;">Year-wise Student Strength (ID Cards)</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;" id="college-yr-grid">
         <div>
-          <label style="font-size:11px;font-weight:700;color:#059669;display:block;margin-bottom:4px;">1st Year (New ID Cards) — ₹59/student</label>
+          <label id="lbl-yr1" style="font-size:11px;font-weight:700;color:#059669;display:block;margin-bottom:4px;">1st Year (New ID Cards) — ₹59/student</label>
           <input id="f-yr1" type="number" min="0" placeholder="e.g. 120" oninput="updateDoc()" style="width:100%;padding:10px 12px;border:1.5px solid #059669;border-radius:8px;font-size:16px;font-weight:700;color:#059669;background:#f0fdf4;outline:none;"/>
         </div>
         <div>
-          <label style="font-size:11px;font-weight:700;color:#6366f1;display:block;margin-bottom:4px;">2nd Year (Existing Cards) — ₹20/student</label>
+          <label id="lbl-yr2" style="font-size:11px;font-weight:700;color:#6366f1;display:block;margin-bottom:4px;">2nd Year (Existing Cards) — ₹30/student</label>
           <input id="f-yr2" type="number" min="0" placeholder="e.g. 115" oninput="updateDoc()" style="width:100%;padding:10px 12px;border:1.5px solid #6366f1;border-radius:8px;font-size:16px;font-weight:700;color:#6366f1;background:#f5f3ff;outline:none;"/>
         </div>
         <div id="field-yr3-wrap">
-          <label style="font-size:11px;font-weight:700;color:#6366f1;display:block;margin-bottom:4px;">3rd Year (Existing Cards) — ₹20/student</label>
+          <label id="lbl-yr3" style="font-size:11px;font-weight:700;color:#6366f1;display:block;margin-bottom:4px;">3rd Year (Existing Cards) — ₹30/student</label>
           <input id="f-yr3" type="number" min="0" placeholder="e.g. 112" oninput="updateDoc()" style="width:100%;padding:10px 12px;border:1.5px solid #6366f1;border-radius:8px;font-size:16px;font-weight:700;color:#6366f1;background:#f5f3ff;outline:none;"/>
         </div>
       </div>
+      
+      <!-- Coupon Code Box -->
+      <div style="margin-top:12px;background:#fff;border:1.5px dashed #cbd5e1;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px;">
+          <span style="font-size:16px;">🎟️</span>
+          <div style="flex:1;">
+            <label style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;">Coupon / Promo Code (Optional)</label>
+            <input id="f-coupon" type="text" placeholder="e.g. SDC" oninput="updateDoc()" style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-weight:700;text-transform:uppercase;color:#1e3a8a;outline:none;" />
+          </div>
+        </div>
+        <div id="coupon-badge" style="display:none;font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;"></div>
+      </div>
+
       <!-- Live preview -->
       <div id="college-calc-preview" style="margin-top:12px;padding:10px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#475569;display:none;">
         <span id="college-calc-text"></span>
@@ -842,9 +855,14 @@ if (acadYearEl) {
   acadYearEl.textContent = acadYear.replace('-', '–');
 }
 
-// ── URL Query Rate Override Check ────────────────────────────
+// ── URL Query Rate & Coupon Override Check ───────────────────
 const urlParams = new URLSearchParams(window.location.search);
 const urlRate = parseFloat(urlParams.get('rate'));
+const urlCoupon = urlParams.get('coupon');
+if (urlCoupon) {
+  const couponInputEl = document.getElementById('f-coupon');
+  if (couponInputEl) couponInputEl.value = urlCoupon;
+}
 
 // ── Live doc update ─────────────────────────────────────────
 // Duration word map for Clause 6
@@ -883,6 +901,42 @@ function updateDoc() {
   const instType = getInstType();
   const isCollege = instType !== 'school';
 
+  // Check Coupon
+  const couponInput = (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase();
+  const isSDCCoupon = couponInput === 'SDC' || couponInput === 'SDC20' || couponInput === 'SDC-SPECIAL';
+
+  const yr2Rate = isSDCCoupon ? 20 : 30;
+  const yr3Rate = isSDCCoupon ? 20 : 30;
+
+  // Update UI Labels and Coupon Badge
+  const lblYr2 = document.getElementById('lbl-yr2');
+  if (lblYr2) {
+    lblYr2.innerHTML = `2nd Year (Existing Cards) — ₹${yr2Rate}/student ${isSDCCoupon ? '<span style="color:#047857;font-size:10px;font-weight:700;">(Coupon Applied: ₹20)</span>' : ''}`;
+  }
+  const lblYr3 = document.getElementById('lbl-yr3');
+  if (lblYr3) {
+    lblYr3.innerHTML = `3rd Year (Existing Cards) — ₹${yr3Rate}/student ${isSDCCoupon ? '<span style="color:#047857;font-size:10px;font-weight:700;">(Coupon Applied: ₹20)</span>' : ''}`;
+  }
+
+  const couponBadge = document.getElementById('coupon-badge');
+  if (couponBadge) {
+    if (isSDCCoupon) {
+      couponBadge.style.display = 'inline-block';
+      couponBadge.style.background = '#ecfdf5';
+      couponBadge.style.color = '#047857';
+      couponBadge.style.border = '1px solid #a7f3d0';
+      couponBadge.innerHTML = `🎉 Coupon '${couponInput}' Applied: 2nd &amp; 3rd Yr @ ₹20/student`;
+    } else if (couponInput) {
+      couponBadge.style.display = 'inline-block';
+      couponBadge.style.background = '#fef2f2';
+      couponBadge.style.color = '#b91c1c';
+      couponBadge.style.border = '1px solid #fecaca';
+      couponBadge.innerHTML = `⚠️ Invalid coupon code (default ₹30/student applied)`;
+    } else {
+      couponBadge.style.display = 'none';
+    }
+  }
+
   let perStudentRate = 59;
   let planType = 'standard';
   let studentCount = 0;
@@ -898,8 +952,8 @@ function updateDoc() {
     planType = 'custom'; // college uses fixed year-based pricing
 
     const yr1Price = yr1 * 59;
-    const yr2Price = yr2 * 20;
-    const yr3Price = yr3 * 20;
+    const yr2Price = yr2 * yr2Rate;
+    const yr3Price = yr3 * yr3Rate;
     const yearlyTotal = yr1Price + yr2Price + yr3Price;
     const durationInt = parseInt(duration) || 1;
     totalPrice = yearlyTotal * durationInt;
@@ -910,9 +964,10 @@ function updateDoc() {
     if (studentCount > 0) {
       preview.style.display = '';
       const parts = [`1st Yr: ${yr1} × ₹59 = ₹${yr1Price.toLocaleString('en-IN')}`];
-      parts.push(`2nd Yr: ${yr2} × ₹20 = ₹${yr2Price.toLocaleString('en-IN')}`);
-      if (instType === 'college_degree') parts.push(`3rd Yr: ${yr3} × ₹20 = ₹${yr3Price.toLocaleString('en-IN')}`);
+      parts.push(`2nd Yr: ${yr2} × ₹${yr2Rate} = ₹${yr2Price.toLocaleString('en-IN')}`);
+      if (instType === 'college_degree') parts.push(`3rd Yr: ${yr3} × ₹${yr3Rate} = ₹${yr3Price.toLocaleString('en-IN')}`);
       parts.push(`Yearly: ₹${yearlyTotal.toLocaleString('en-IN')} × ${durationInt} yr = ₹${totalPrice.toLocaleString('en-IN')} total`);
+      if (isSDCCoupon) parts.push(`(Coupon SDC Active)`);
       previewText.textContent = parts.join('  |  ');
     } else {
       preview.style.display = 'none';
@@ -926,10 +981,10 @@ function updateDoc() {
     if (breakdown) {
       breakdown.style.display = studentCount > 0 ? '' : 'none';
       yr1Line.textContent = `1st Year: ${yr1.toLocaleString('en-IN')} students (new ID cards @ ₹59)`;
-      yr2Line.textContent = `2nd Year: ${yr2.toLocaleString('en-IN')} students (existing cards @ ₹20)`;
+      yr2Line.textContent = `2nd Year: ${yr2.toLocaleString('en-IN')} students (existing cards @ ₹${yr2Rate})`;
       if (yr3Line) {
         yr3Line.style.display = instType === 'college_degree' ? '' : 'none';
-        yr3Line.textContent = `3rd Year: ${yr3.toLocaleString('en-IN')} students (existing cards @ ₹20)`;
+        yr3Line.textContent = `3rd Year: ${yr3.toLocaleString('en-IN')} students (existing cards @ ₹${yr3Rate})`;
       }
     }
 
@@ -1194,7 +1249,13 @@ async function trackMouAction(actionType) {
       if (yr1 + yr2 + yr3 === 0) return; // incomplete
       studentCount = yr1 + yr2 + yr3;
       yearWiseCounts = { yr1, yr2, yr3 };
-      const yearlyTotal = (yr1 * 59) + (yr2 * 20) + (yr3 * 20);
+      
+      const couponInput = (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase();
+      const isSDCCoupon = couponInput === 'SDC' || couponInput === 'SDC20' || couponInput === 'SDC-SPECIAL';
+      const yr2Rate = isSDCCoupon ? 20 : 30;
+      const yr3Rate = isSDCCoupon ? 20 : 30;
+
+      const yearlyTotal = (yr1 * 59) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
       totalPrice = yearlyTotal * duration;
       perStudentRate = Math.round(totalPrice / studentCount);
       planType = 'custom';
@@ -1235,6 +1296,7 @@ async function trackMouAction(actionType) {
       mouDuration: duration,
       instituteType: instType,
       ...(yearWiseCounts && { yearWiseCounts }),
+      coupon: (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase() || undefined,
       action: actionType,
       signatureDataUrl: sigImg,
       screenWidth: window.innerWidth,

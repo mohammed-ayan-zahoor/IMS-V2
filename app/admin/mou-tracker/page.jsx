@@ -82,6 +82,7 @@ export default function MouTrackerPage() {
         mouDuration: "1",
         planType: "standard",
         customRate: "",
+        coupon: "",
         udiseCode: "",
         address: "",
         action: "manual_entry",
@@ -112,7 +113,10 @@ export default function MouTrackerPage() {
             }
             count = yr1 + yr2 + yr3;
             yearWiseCounts = { yr1, yr2, yr3 };
-            const yearlyTotal = (yr1 * 59) + (yr2 * 20) + (yr3 * 20);
+            const isSDC = ['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase());
+            const yr2Rate = isSDC ? 20 : 30;
+            const yr3Rate = isSDC ? 20 : 30;
+            const yearlyTotal = (yr1 * 59) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
             totalPrice = yearlyTotal * duration;
             rate = Math.round(totalPrice / count);
         } else {
@@ -698,25 +702,33 @@ export default function MouTrackerPage() {
                                                                         </p>
                                                                     )}
                                                                     {/* College year-wise breakdown */}
-                                                                    {sub.yearWiseCounts && (sub.yearWiseCounts.yr1 > 0 || sub.yearWiseCounts.yr2 > 0 || sub.yearWiseCounts.yr3 > 0) && (
+                                                                    {sub.yearWiseCounts && (sub.yearWiseCounts.yr1 > 0 || sub.yearWiseCounts.yr2 > 0 || sub.yearWiseCounts.yr3 > 0) && (() => {
+                                                                        const isSDCSub = sub.coupon && ['SDC', 'SDC20', 'SDC-SPECIAL'].includes(sub.coupon.toUpperCase());
+                                                                        const yr2Rate = isSDCSub ? 20 : 30;
+                                                                        const yr3Rate = isSDCSub ? 20 : 30;
+                                                                        return (
                                                                         <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-1.5 text-xs">
-                                                                            <p className="font-black text-slate-500 uppercase tracking-wider text-[10px] mb-2">ID Card Year-wise Breakdown</p>
+                                                                            <div className="flex justify-between items-center mb-2">
+                                                                                <p className="font-black text-slate-500 uppercase tracking-wider text-[10px]">ID Card Year-wise Breakdown</p>
+                                                                                {sub.coupon && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 border border-emerald-200 px-1.5 py-0.5 rounded">Coupon: {sub.coupon}</span>}
+                                                                            </div>
                                                                             <div className="flex justify-between">
                                                                                 <span className="text-emerald-600 font-bold">1st Year (₹59/student)</span>
                                                                                 <span className="font-mono font-bold">{(sub.yearWiseCounts.yr1 || 0).toLocaleString('en-IN')} × ₹59 = ₹{((sub.yearWiseCounts.yr1 || 0) * 59).toLocaleString('en-IN')}</span>
                                                                             </div>
                                                                             <div className="flex justify-between">
-                                                                                <span className="text-indigo-600 font-bold">2nd Year (₹20/student)</span>
-                                                                                <span className="font-mono font-bold">{(sub.yearWiseCounts.yr2 || 0).toLocaleString('en-IN')} × ₹20 = ₹{((sub.yearWiseCounts.yr2 || 0) * 20).toLocaleString('en-IN')}</span>
+                                                                                <span className="text-indigo-600 font-bold">2nd Year (₹{yr2Rate}/student)</span>
+                                                                                <span className="font-mono font-bold">{(sub.yearWiseCounts.yr2 || 0).toLocaleString('en-IN')} × ₹{yr2Rate} = ₹{((sub.yearWiseCounts.yr2 || 0) * yr2Rate).toLocaleString('en-IN')}</span>
                                                                             </div>
                                                                             {sub.instituteType === 'college_degree' && (
                                                                                 <div className="flex justify-between">
-                                                                                    <span className="text-indigo-600 font-bold">3rd Year (₹20/student)</span>
-                                                                                    <span className="font-mono font-bold">{(sub.yearWiseCounts.yr3 || 0).toLocaleString('en-IN')} × ₹20 = ₹{((sub.yearWiseCounts.yr3 || 0) * 20).toLocaleString('en-IN')}</span>
+                                                                                    <span className="text-indigo-600 font-bold">3rd Year (₹{yr3Rate}/student)</span>
+                                                                                    <span className="font-mono font-bold">{(sub.yearWiseCounts.yr3 || 0).toLocaleString('en-IN')} × ₹{yr3Rate} = ₹{((sub.yearWiseCounts.yr3 || 0) * yr3Rate).toLocaleString('en-IN')}</span>
                                                                                 </div>
                                                                             )}
                                                                         </div>
-                                                                    )}
+                                                                        );
+                                                                    })()}
                                                                     {sub.udiseCode && (
                                                                         <p><span className="font-bold text-slate-500">UDISE Code:</span> {sub.udiseCode}</p>
                                                                     )}
@@ -1207,7 +1219,9 @@ export default function MouTrackerPage() {
                                                 />
                                             </div>
                                             <div>
-                                                <label className="text-xs font-bold text-indigo-600 block mb-1">2nd Year — ₹20/student (existing cards)</label>
+                                                <label className="text-xs font-bold text-indigo-600 block mb-1">
+                                                    2nd Year — ₹{['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase()) ? '20' : '30'}/student (existing cards)
+                                                </label>
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -1219,7 +1233,9 @@ export default function MouTrackerPage() {
                                             </div>
                                             {manualForm.instituteType === "college_degree" && (
                                                 <div>
-                                                    <label className="text-xs font-bold text-indigo-600 block mb-1">3rd Year — ₹20/student (existing cards)</label>
+                                                    <label className="text-xs font-bold text-indigo-600 block mb-1">
+                                                        3rd Year — ₹{['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase()) ? '20' : '30'}/student (existing cards)
+                                                    </label>
                                                     <input
                                                         type="number"
                                                         min="0"
@@ -1231,6 +1247,26 @@ export default function MouTrackerPage() {
                                                 </div>
                                             )}
                                         </div>
+
+                                        {/* Coupon Code Input */}
+                                        <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-3 flex-wrap">
+                                            <div className="flex-1 min-w-[200px]">
+                                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Promo / Coupon Code (Optional)</label>
+                                                <input
+                                                    type="text"
+                                                    value={manualForm.coupon}
+                                                    onChange={(e) => setManualForm({ ...manualForm, coupon: e.target.value })}
+                                                    placeholder="e.g. SDC"
+                                                    className="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold uppercase text-indigo-900 outline-none focus:border-indigo-500"
+                                                />
+                                            </div>
+                                            {['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase()) && (
+                                                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg">
+                                                    🎉 Coupon SDC Active: 2nd &amp; 3rd Yr @ ₹20
+                                                </span>
+                                            )}
+                                        </div>
+
                                         {/* Live calc preview */}
                                         {(() => {
                                             const yr1 = parseInt(manualForm.yr1) || 0;
@@ -1239,11 +1275,14 @@ export default function MouTrackerPage() {
                                             const total = yr1 + yr2 + yr3;
                                             if (total === 0) return null;
                                             const dur = parseInt(manualForm.mouDuration) || 1;
-                                            const yearly = (yr1 * 59) + (yr2 * 20) + (yr3 * 20);
+                                            const isSDC = ['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase());
+                                            const yr2R = isSDC ? 20 : 30;
+                                            const yr3R = isSDC ? 20 : 30;
+                                            const yearly = (yr1 * 59) + (yr2 * yr2R) + (yr3 * yr3R);
                                             const grand = yearly * dur;
                                             return (
                                                 <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-600 font-medium">
-                                                    {yr1}×₹59 + {yr2}×₹20{manualForm.instituteType === "college_degree" ? ` + ${yr3}×₹20` : ""} = <strong>₹{yearly.toLocaleString('en-IN')}/yr</strong> × {dur} yr = <strong className="text-indigo-700">₹{grand.toLocaleString('en-IN')} total</strong>
+                                                    {yr1}×₹59 + {yr2}×₹{yr2R}{manualForm.instituteType === "college_degree" ? ` + ${yr3}×₹${yr3R}` : ""} = <strong>₹{yearly.toLocaleString('en-IN')}/yr</strong> × {dur} yr = <strong className="text-indigo-700">₹{grand.toLocaleString('en-IN')} total</strong>
                                                 </div>
                                             );
                                         })()}

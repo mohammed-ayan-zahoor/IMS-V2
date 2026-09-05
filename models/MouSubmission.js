@@ -90,6 +90,10 @@ const MouSubmissionSchema = new mongoose.Schema({
         enum: ['standard', 'plus', 'custom'],
         default: 'standard'
     },
+    coupon: {
+        type: String,
+        trim: true
+    },
     signatureDataUrl: {
         type: String // Optional Base64 signature image
     },
