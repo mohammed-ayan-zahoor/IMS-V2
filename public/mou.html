@@ -710,7 +710,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
       <ul>
         <li>Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.</li>
         <li>Provide accurate and complete student data for onboarding within 14 days of agreement execution.</li>
-        <li>Ensure timely payment of subscription fees, with <span id="d-upfront-text-percent">100%</span> of commercials to be paid upfront upon invoice issuance by the Provider.</li>
+        <li id="d-clause4-payment-li">Ensure timely payment of subscription fees, billed annually: <span id="d-clause4-payment-text"><strong>50% upfront upon commencement of each academic year, and the remaining 50% midway through the academic year</strong></span> upon invoice issuance by the Provider.</li>
         <li>Not share, sub-license, or resell access to the Quantech Platform to any third party.</li>
         <li>Report technical issues through the designated support channel promptly.</li>
       </ul>
@@ -941,6 +941,7 @@ function updateDoc() {
   let planType = 'standard';
   let studentCount = 0;
   let totalPrice = 0;
+  let yearlyTotal = 0;
   let yearWiseCounts = null;
 
   if (isCollege) {
@@ -954,7 +955,7 @@ function updateDoc() {
     const yr1Price = yr1 * 59;
     const yr2Price = yr2 * yr2Rate;
     const yr3Price = yr3 * yr3Rate;
-    const yearlyTotal = yr1Price + yr2Price + yr3Price;
+    yearlyTotal = yr1Price + yr2Price + yr3Price;
     const durationInt = parseInt(duration) || 1;
     totalPrice = yearlyTotal * durationInt;
 
@@ -963,10 +964,14 @@ function updateDoc() {
     const previewText = document.getElementById('college-calc-text');
     if (studentCount > 0) {
       preview.style.display = '';
-      const parts = [`1st Yr: ${yr1} × ₹59 = ₹${yr1Price.toLocaleString('en-IN')}`];
-      parts.push(`2nd Yr: ${yr2} × ₹${yr2Rate} = ₹${yr2Price.toLocaleString('en-IN')}`);
-      if (instType === 'college_degree') parts.push(`3rd Yr: ${yr3} × ₹${yr3Rate} = ₹${yr3Price.toLocaleString('en-IN')}`);
-      parts.push(`Yearly: ₹${yearlyTotal.toLocaleString('en-IN')} × ${durationInt} yr = ₹${totalPrice.toLocaleString('en-IN')} total`);
+      const parts = [`1st Yr: ${yr1.toLocaleString('en-IN')} × ₹59 = ₹${yr1Price.toLocaleString('en-IN')}`];
+      parts.push(`2nd Yr: ${yr2.toLocaleString('en-IN')} × ₹${yr2Rate} = ₹${yr2Price.toLocaleString('en-IN')}`);
+      if (instType === 'college_degree') parts.push(`3rd Yr: ${yr3.toLocaleString('en-IN')} × ₹${yr3Rate} = ₹${yr3Price.toLocaleString('en-IN')}`);
+      const yr1Upfront = yearlyTotal * 0.5;
+      parts.push(`Annual Billing: ₹${yearlyTotal.toLocaleString('en-IN')}/yr (50% Yr-1 Upfront: ₹${yr1Upfront.toLocaleString('en-IN')})`);
+      if (durationInt > 1) {
+        parts.push(`${durationInt}-Yr Agreement: ₹${totalPrice.toLocaleString('en-IN')}`);
+      }
       if (isSDCCoupon) parts.push(`(Coupon SDC Active)`);
       previewText.textContent = parts.join('  |  ');
     } else {
@@ -1009,7 +1014,8 @@ function updateDoc() {
       }
     }
     const durationInt = parseInt(duration) || 1;
-    totalPrice = studentCount * perStudentRate * durationInt;
+    yearlyTotal = studentCount * perStudentRate;
+    totalPrice = yearlyTotal * durationInt;
     // Hide college breakdown in school mode
     const breakdown = document.getElementById('d-college-yr-breakdown');
     if (breakdown) breakdown.style.display = 'none';
@@ -1030,30 +1036,36 @@ function updateDoc() {
   document.getElementById('d-duration').textContent = durationWords[duration] || 'one (1) academic year';
 
   if (isCollege) {
-    document.getElementById('d-total-label').textContent = `Total Price (Year-wise College ID Card Billing, ${durationInt} Year${durationInt > 1 ? 's' : ''})`;
+    document.getElementById('d-total-label').textContent = durationInt > 1 
+      ? `Total Agreement Value (${durationInt} Years @ ₹${yearlyTotal.toLocaleString('en-IN')}/yr)` 
+      : `Total Price (Year-wise College ID Card Billing)`;
   } else {
-    document.getElementById('d-total-label').textContent = `Total Price (for ${durationInt} Year${durationInt > 1 ? 's' : ''} at ₹${perStudentRate} / Student / Year)`;
+    document.getElementById('d-total-label').textContent = durationInt > 1
+      ? `Total Agreement Value (${durationInt} Years at ₹${perStudentRate} / Student / Year)`
+      : `Total Price (for ${durationInt} Year${durationInt > 1 ? 's' : ''} at ₹${perStudentRate} / Student / Year)`;
   }
-  document.getElementById('d-comm-footer').textContent = `* Calculated on agreed student strength for ${durationInt} year${durationInt > 1 ? 's' : ''}. Taxes extra.`;
+  
+  document.getElementById('d-comm-footer').textContent = durationInt > 1
+    ? `* Billed annually at ₹${yearlyTotal.toLocaleString('en-IN')}/year in two 50% installments per academic year (50% upfront + 50% milestone). Taxes extra.`
+    : `* Billed in two 50% installments (50% upfront upon commencement + 50% mid-year milestone). Taxes extra.`;
 
   if (studentCount > 0) {
-    let upfrontPercent = 0.5;
-    if (studentCount <= 500) upfrontPercent = 1;
-    else if (studentCount <= 1000) upfrontPercent = 0.75;
-    const upfrontPrice = totalPrice * upfrontPercent;
+    const upfrontPrice = yearlyTotal * 0.5;
 
-    document.getElementById('d-upfront-label').textContent = `${upfrontPercent * 100}% Upfront Commercial Amount`;
+    document.getElementById('d-upfront-label').textContent = durationInt > 1 
+      ? `Year 1 Upfront Amount (50%)` 
+      : `50% Upfront Commercial Amount`;
     const upfrontTextSpan = document.getElementById('d-upfront-text-percent');
-    if (upfrontTextSpan) upfrontTextSpan.textContent = `${upfrontPercent * 100}%`;
+    if (upfrontTextSpan) upfrontTextSpan.textContent = `50%`;
 
     document.getElementById('d-students').textContent = studentCount.toLocaleString('en-IN') + ' Students';
     document.getElementById('d-students-plus').textContent = studentCount.toLocaleString('en-IN');
     document.getElementById('d-total-price').textContent = '₹' + totalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('d-upfront-price').textContent = '₹' + upfrontPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   } else {
-    document.getElementById('d-upfront-label').textContent = 'Upfront Commercial Amount';
+    document.getElementById('d-upfront-label').textContent = durationInt > 1 ? 'Year 1 Upfront Amount (50%)' : 'Upfront Commercial Amount';
     const upfrontTextSpan = document.getElementById('d-upfront-text-percent');
-    if (upfrontTextSpan) upfrontTextSpan.textContent = '100%';
+    if (upfrontTextSpan) upfrontTextSpan.textContent = '50%';
     document.getElementById('d-students').textContent = '— Students';
     document.getElementById('d-students-plus').textContent = '—';
     document.getElementById('d-total-price').textContent = '₹0.00';
@@ -1242,6 +1254,8 @@ async function trackMouAction(actionType) {
     const duration = parseInt(document.getElementById('f-duration')?.value || '1');
     let studentCount, totalPrice, perStudentRate, planType, yearWiseCounts = null;
 
+    let yearlyTotal = 0;
+
     if (isCollege) {
       const yr1 = parseInt(document.getElementById('f-yr1').value) || 0;
       const yr2 = parseInt(document.getElementById('f-yr2').value) || 0;
@@ -1255,7 +1269,7 @@ async function trackMouAction(actionType) {
       const yr2Rate = isSDCCoupon ? 20 : 30;
       const yr3Rate = isSDCCoupon ? 20 : 30;
 
-      const yearlyTotal = (yr1 * 59) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
+      yearlyTotal = (yr1 * 59) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
       totalPrice = yearlyTotal * duration;
       perStudentRate = Math.round(totalPrice / studentCount);
       planType = 'custom';
@@ -1271,11 +1285,11 @@ async function trackMouAction(actionType) {
         const planVal = document.getElementById('f-plan')?.value;
         if (planVal === 'plus') { perStudentRate = 69; planType = 'plus'; }
       }
-      totalPrice = studentCount * perStudentRate * duration;
+      yearlyTotal = studentCount * perStudentRate;
+      totalPrice = yearlyTotal * duration;
     }
 
-    let upfrontPercent = studentCount <= 500 ? 1 : studentCount <= 1000 ? 0.75 : 0.5;
-    const upfrontPrice = totalPrice * upfrontPercent;
+    const upfrontPrice = yearlyTotal * 0.5;
     const sigImg = hasSig ? canvas.toDataURL('image/png') : '';
 
     const payload = {

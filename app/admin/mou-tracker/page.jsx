@@ -103,6 +103,8 @@ export default function MouTrackerPage() {
         let count, totalPrice, upfrontPrice, rate, yearWiseCounts;
         const duration = parseInt(manualForm.mouDuration) || 1;
 
+        let yearlyTotal = 0;
+
         if (isCollege) {
             const yr1 = parseInt(manualForm.yr1) || 0;
             const yr2 = parseInt(manualForm.yr2) || 0;
@@ -116,7 +118,7 @@ export default function MouTrackerPage() {
             const isSDC = ['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase());
             const yr2Rate = isSDC ? 20 : 30;
             const yr3Rate = isSDC ? 20 : 30;
-            const yearlyTotal = (yr1 * 59) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
+            yearlyTotal = (yr1 * 59) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
             totalPrice = yearlyTotal * duration;
             rate = Math.round(totalPrice / count);
         } else {
@@ -134,11 +136,11 @@ export default function MouTrackerPage() {
                     return;
                 }
             }
-            totalPrice = count * rate * duration;
+            yearlyTotal = count * rate;
+            totalPrice = yearlyTotal * duration;
         }
 
-        let upfrontPercent = count <= 500 ? 1 : count <= 1000 ? 0.75 : 0.5;
-        upfrontPrice = totalPrice * upfrontPercent;
+        upfrontPrice = yearlyTotal * 0.5;
         const refId = `QP/MOU/MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
 
         setIsSavingManual(true);
