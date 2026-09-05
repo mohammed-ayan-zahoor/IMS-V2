@@ -61,6 +61,8 @@ export async function GET(req) {
                 const batchIds = myBatches.map(b => b._id);
                 // Matched materials must be linked to one of my batches
                 // Note: Materials have `batches` array.
+                query.batches = { $in: batchIds };
+            }
         }
 
         // Apply Instructor isolation
