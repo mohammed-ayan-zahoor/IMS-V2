@@ -46,9 +46,10 @@ import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 export default function StudentsPage() {
     const toast = useToast();
     const { data: session } = useSession();
-    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
-    const isCollege = session?.user?.institute?.type === 'COLLEGE';
     const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
+    const isCollege = session?.user?.institute?.type === 'COLLEGE';
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || (!isVocational && !isCollege && session?.user?.institute?.code === 'QUANTECH');
+    const [courseBundles, setCourseBundles] = useState([]);
     const [transportRoutes, setTransportRoutes] = useState([]);
     const [transportVehicles, setTransportVehicles] = useState([]);
     const [transportPresets, setTransportPresets] = useState([]);
@@ -237,17 +238,24 @@ export default function StudentsPage() {
 
     const fetchInitialData = async () => {
         try {
-            const [bRes, cRes] = await Promise.all([
+            const fetches = [
                 fetch("/api/v1/batches"),
                 fetch("/api/v1/courses")
-            ]);
-            if (bRes.ok) {
+            ];
+            if (!isSchool) fetches.push(fetch("/api/v1/course-bundles"));
+
+            const [bRes, cRes, bundleRes] = await Promise.all(fetches);
+            if (bRes && bRes.ok) {
                 const bData = await bRes.json();
                 setBatches(bData.batches || []);
             }
-            if (cRes.ok) {
+            if (cRes && cRes.ok) {
                 const cData = await cRes.json();
                 setCourses(cData.courses || []);
+            }
+            if (bundleRes && bundleRes.ok) {
+                const bundleData = await bundleRes.json();
+                setCourseBundles(bundleData.bundles || []);
             }
 
             // Try fetching institutes (only for Super Admin)
@@ -462,13 +470,21 @@ export default function StudentsPage() {
 
                 if (formData.admissionBatch) {
                     try {
+                        const isBundleVal = formData.admissionStd?.startsWith("bundle_");
+                        const bundleId = isBundleVal ? formData.admissionStd.replace("bundle_", "") : null;
+                        const bundleObj = bundleId ? courseBundles.find(b => b._id === bundleId) : null;
+
                         const enrollRes = await fetch(`/api/v1/students/${newStudent._id}/enroll`, {
                             method: "POST",
                             headers: { 
                                 "Content-Type": "application/json",
                                 'x-session-id': formData.sessionId || selectedSessionId || ''
                             },
-                            body: JSON.stringify({ batchId: formData.admissionBatch })
+                            body: JSON.stringify({ 
+                                batchId: formData.admissionBatch,
+                                courseBundleId: bundleId || null,
+                                customAmount: bundleObj ? bundleObj.bundlePrice : null
+                            })
                         });
                         if (!enrollRes.ok) {
                             const errData = await enrollRes.json().catch(() => ({}));
@@ -1196,7 +1212,7 @@ export default function StudentsPage() {
                                                         <div className="flex flex-col gap-1">
                                                             {student.batches.map((b) => (
                                                                 <span key={b._id} className="text-xs font-bold text-slate-700">
-                                                                    {b.course?.name || "No Class"} / {b.name}
+                                                                    {(b.courseBundle ? `🎁 ${b.courseBundle.title}` : (b.course?.name || "No Class"))} / {b.name}
                                                                 </span>
                                                             ))}
                                                         </div>
@@ -1557,11 +1573,19 @@ export default function StudentsPage() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Select
-                                label={isCollege ? "Degree Program / Course" : isVocational ? "Course / Trade" : "Admission Standard"}
+                                label={isCollege ? "Degree Program / Course" : isVocational ? "Course / Trade / Package" : "Admission Standard"}
                                 value={formData.admissionStd}
                                 onChange={(val) => setFormData({ ...formData, admissionStd: val, admissionBatch: "" })}
                                 options={[
-                                    { label: isCollege ? "Select Degree Program" : isVocational ? "Select Course" : "Select Standard", value: "" },
+                                    { label: isCollege ? "Select Degree Program" : isVocational ? "Select Course or Package" : "Select Standard", value: "" },
+                                    ...(isVocational && courseBundles.length > 0 ? [
+                                        { label: "── 🎁 COURSE PACKAGES / SPECIAL OFFERS ──", value: "hdr_pkg", disabled: true },
+                                        ...courseBundles.map(b => ({
+                                            label: `🎁 ${b.title} (${b.code}) — ₹${(b.bundlePrice || 0).toLocaleString()}`,
+                                            value: `bundle_${b._id}`
+                                        })),
+                                        { label: "── INDIVIDUAL COURSES ──", value: "hdr_courses", disabled: true }
+                                    ] : []),
                                     ...courses.map(c => ({ label: c.name, value: c._id }))
                                 ]}
                             />
@@ -1572,7 +1596,14 @@ export default function StudentsPage() {
                                     onChange={(val) => setFormData({ ...formData, admissionBatch: val })}
                                     options={[
                                         { label: isCollege ? "Select Section" : isVocational ? "Select Batch" : "Select Section", value: "" },
-                                        ...batches.filter(b => b.course?._id === formData.admissionStd || b.course === formData.admissionStd)
+                                        ...batches.filter(b => {
+                                            const isBundleVal = formData.admissionStd.startsWith("bundle_");
+                                            if (isBundleVal) {
+                                                const bundleId = formData.admissionStd.replace("bundle_", "");
+                                                return b.courseBundle?._id === bundleId || b.courseBundle === bundleId;
+                                            }
+                                            return b.course?._id === formData.admissionStd || b.course === formData.admissionStd;
+                                        })
                                                   .filter(b => formData.sessionId ? (b.session?._id === formData.sessionId || b.session === formData.sessionId) : true)
                                                   .sort((a, b) => (a.semester || 1) - (b.semester || 1) || (a.name || "").localeCompare(b.name || ""))
                                                   .map(b => ({

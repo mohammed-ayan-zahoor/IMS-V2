@@ -3,17 +3,20 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { format, isPast } from "date-fns";
-import { Plus, Search, Filter, Trash2, Edit, FileText, Clock, CheckCircle, Settings, Layers, Archive, Monitor, FileSpreadsheet, Info, X } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit, FileText, Clock, CheckCircle, Settings, Layers, Monitor, FileSpreadsheet, Info, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useAcademicSession } from "@/contexts/AcademicSessionContext";
+import { useSession } from "next-auth/react";
 
 export default function ExamListPage() {
     const toast = useToast();
     const confirm = useConfirm();
+    const { data: session } = useSession();
+    const isCollege = session?.user?.institute?.type === 'COLLEGE';
     
     const [examMode, setExamMode] = useState("online"); // online, offline
     const [exams, setExams] = useState([]);
@@ -99,7 +102,7 @@ export default function ExamListPage() {
     if (loading) return <LoadingSpinner fullPage />;
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
+        <div className="space-y-6 w-full">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-slate-800 tracking-tight">Examinations</h1>
@@ -182,7 +185,17 @@ export default function ExamListPage() {
                                 }`}>
                                 <Monitor size={20} />
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-1.5 justify-end">
+                                {isCollege && exam.semester && (
+                                    <span className="text-[10px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200">
+                                        Sem {exam.semester}
+                                    </span>
+                                )}
+                                {isCollege && exam.examCategory && exam.examCategory !== 'GENERAL' && (
+                                    <span className="text-[10px] font-extrabold uppercase tracking-wider bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md border border-purple-200">
+                                        {exam.examCategory.replace('_', ' ')}
+                                    </span>
+                                )}
                                 <Badge variant={
                                     exam.status === 'published' ? 'success' :
                                         exam.status === 'draft' ? 'warning' : 'neutral'
@@ -195,7 +208,10 @@ export default function ExamListPage() {
                         <h3 className="text-base font-bold text-slate-900 mb-1 line-clamp-1">
                             {exam.title}
                         </h3>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{exam.course?.name || "Unknown Course"}</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
+                            {exam.course?.name || "Unknown Course"}
+                            {exam.subject?.name ? ` • ${exam.subject.name}` : ""}
+                        </p>
 
                         <div className="space-y-2.5 mb-5 flex-1">
                             <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
@@ -324,9 +340,42 @@ export default function ExamListPage() {
 
                 {((examMode === "online" && filteredOnline.length === 0) || (examMode === "offline" && filteredOffline.length === 0)) && (
                     <div className="col-span-full py-16 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                        <div className="w-14 h-14 bg-white rounded-lg border border-slate-200 flex items-center justify-center mx-auto mb-4 text-slate-400">
-                            <Archive size={28} />
-                        </div>
+                        <svg
+                            width="140"
+                            height="140"
+                            viewBox="0 0 180 180"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="mx-auto mb-4"
+                        >
+                            {/* Background circle */}
+                            <circle cx="90" cy="90" r="90" fill="#F1F5F9" />
+
+                            {/* Clipboard body */}
+                            <rect x="55" y="38" width="70" height="94" rx="8" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="2.5" />
+
+                            {/* Clipboard clip */}
+                            <rect x="76" y="30" width="28" height="14" rx="4" fill="#94A3B8" />
+                            <rect x="80" y="34" width="20" height="6" rx="3" fill="#F1F5F9" />
+
+                            {/* Document lines (faded, representing no content) */}
+                            <rect x="66" y="58" width="48" height="5" rx="2.5" fill="#E2E8F0" />
+                            <rect x="66" y="70" width="36" height="5" rx="2.5" fill="#E2E8F0" />
+                            <rect x="66" y="82" width="42" height="5" rx="2.5" fill="#E2E8F0" />
+                            <rect x="66" y="94" width="28" height="5" rx="2.5" fill="#E2E8F0" />
+
+                            {/* Dashed empty box at bottom of clipboard */}
+                            <rect x="66" y="106" width="48" height="16" rx="4" fill="none" stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4 4" />
+
+                            {/* Magnifying glass, matching app's blue accent */}
+                            <circle cx="118" cy="118" r="17" fill="#EFF6FF" stroke="#3B82F6" strokeWidth="4" />
+                            <line x1="130" y1="130" x2="142" y2="142" stroke="#3B82F6" strokeWidth="5" strokeLinecap="round" />
+
+                            {/* Small decorative dots */}
+                            <circle cx="40" cy="60" r="3" fill="#CBD5E1" />
+                            <circle cx="145" cy="55" r="2.5" fill="#CBD5E1" />
+                            <circle cx="45" cy="130" r="2.5" fill="#CBD5E1" />
+                        </svg>
                         <h3 className="text-base font-bold text-slate-900 mb-1">No {activeTab} {examMode} exams found</h3>
                         <p className="text-xs text-slate-500 mb-6 max-w-sm mx-auto">
                             {activeTab === 'upcoming'
@@ -365,7 +414,7 @@ export default function ExamListPage() {
                             </div>
                             <div className="space-y-2">
                                 <h3 className="font-bold text-slate-900 flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-premium-blue text-white flex items-center justify-center text-xs">2</div> Create Exam</h3>
-                                <p className="pl-8 text-sm">Click <strong>Create Offline Exam</strong>. Give it a name like "Term 1", select the class, and add the subjects that will be tested along with their maximum marks.</p>
+                                <p className="pl-8 text-sm">Click <strong>Create Offline Exam</strong>. Give it a name like &quot;Term 1&quot;, select the class, and add the subjects that will be tested along with their maximum marks.</p>
                             </div>
                             <div className="space-y-2">
                                 <h3 className="font-bold text-slate-900 flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-premium-blue text-white flex items-center justify-center text-xs">3</div> Enter Marks</h3>
@@ -373,7 +422,7 @@ export default function ExamListPage() {
                             </div>
                             <div className="space-y-2">
                                 <h3 className="font-bold text-slate-900 flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs">4</div> Publish & Print Reports</h3>
-                                <p className="pl-8 text-sm">When all marks are entered, go to the <strong>Manage Marks</strong> page and click <strong>Publish Results</strong>. This locks the marks so they can't be edited. You can then click <strong>Report Cards</strong> to view the class performance and print individual report cards.</p>
+                                <p className="pl-8 text-sm">When all marks are entered, go to the <strong>Manage Marks</strong> page and click <strong>Publish Results</strong>. This locks the marks so they can&apos;t be edited. You can then click <strong>Report Cards</strong> to view the class performance and print individual report cards.</p>
                             </div>
                         </div>
                         <div className="p-6 border-t border-slate-100 bg-slate-50 sticky bottom-0 flex justify-end">

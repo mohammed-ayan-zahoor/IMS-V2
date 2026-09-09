@@ -120,7 +120,9 @@ export async function POST(req) {
             showExplanations: body.showExplanations,
             securityConfig: body.securityConfig,
             negativeMarking: body.negativeMarking,
-            negativeMarkingPercentage: body.negativeMarkingPercentage
+            negativeMarkingPercentage: body.negativeMarkingPercentage,
+            semester: body.semester ? Number(body.semester) : null,
+            examCategory: body.examCategory || 'GENERAL'
         };
         const exam = await Exam.create({
             ...allowedFields,

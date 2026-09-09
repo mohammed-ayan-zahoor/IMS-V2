@@ -87,7 +87,9 @@ export async function GET(req, { params }) {
 
         if (!showResults) {
             let message;
-            if (exam.resultPublication === 'immediate') {
+            if (exam.resultPublication === 'manual') {
+                message = 'Results will be published by the institution once grading and review are completed.';
+            } else if (exam.resultPublication === 'immediate') {
                 message = 'Results will be available after you complete all your attempts.';
             } else {
                 const endTime = exam.schedule?.endTime;

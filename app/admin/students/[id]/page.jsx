@@ -69,9 +69,10 @@ export default function StudentDetailsPage({ params }) {
     const { id } = use(params);
     const { data: session } = useSession();
     const { selectedSessionId } = useAcademicSession();
-    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
-    const isCollege = session?.user?.institute?.type === 'COLLEGE';
-    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
+    const instituteType = studentData?.student?.institute?.type || session?.user?.institute?.type;
+    const isVocational = instituteType === 'VOCATIONAL';
+    const isCollege = instituteType === 'COLLEGE';
+    const isSchool = instituteType === 'SCHOOL' || (!isVocational && !isCollege && session?.user?.institute?.code === 'QUANTECH');
     const [studentData, setStudentData] = useState(null);
     const [isEnrollFaceOpen, setIsEnrollFaceOpen] = useState(false);
     const [isIDCardOpen, setIsIDCardOpen] = useState(false);
@@ -702,7 +703,9 @@ export default function StudentDetailsPage({ params }) {
     };
 
     useEffect(() => {
-        if ((isEnrollModalOpen || isEditModalOpen) && courses.length === 0) {
+        if (isEnrollModalOpen) {
+            fetchCourses();
+        } else if (isEditModalOpen && courses.length === 0) {
             fetchCourses();
         }
     }, [isEnrollModalOpen, isEditModalOpen]);
@@ -857,12 +860,18 @@ export default function StudentDetailsPage({ params }) {
 
     const fetchCourses = async () => {
         try {
-            const res = await fetch("/api/v1/courses");
+            const instId = studentData?.student?.institute?._id || studentData?.student?.institute || session?.user?.institute?.id || session?.user?.institute?._id || "";
+            const instQuery = instId ? `?instituteId=${instId}` : "";
+
+            const res = await fetch(`/api/v1/courses${instQuery}`);
             const data = await res.json();
             setCourses(data.courses || []);
 
-            if (!isSchool) {
-                const bRes = await fetch("/api/v1/course-bundles");
+            const currentInstType = studentData?.student?.institute?.type || session?.user?.institute?.type;
+            const isCurrentSchool = currentInstType === 'SCHOOL' || (!currentInstType && session?.user?.institute?.code === 'QUANTECH');
+
+            if (!isCurrentSchool) {
+                const bRes = await fetch(`/api/v1/course-bundles${instQuery}`);
                 if (bRes.ok) {
                     const bData = await bRes.json();
                     setCourseBundles(bData.bundles || []);
@@ -1927,7 +1936,7 @@ export default function StudentDetailsPage({ params }) {
                                                                 </span>
                                                             </div>
                                                             <p className="text-xs text-slate-500">
-                                                                {batch.course?.name || "Program"} · Enrolled {batch.enrollment?.enrolledAt ? format(new Date(batch.enrollment.enrolledAt), "MMM d, yyyy") : "N/A"}
+                                                                {batch.courseBundle ? `🎁 ${batch.courseBundle.title}` : (batch.course?.name || "Program")} · Enrolled {batch.enrollment?.enrolledAt ? format(new Date(batch.enrollment.enrolledAt), "MMM d, yyyy") : "N/A"}
                                                             </p>
                                                         </div>
 
@@ -2093,7 +2102,9 @@ export default function StudentDetailsPage({ params }) {
                                                                 </div>
                                                                 <div>
                                                                     <h4 className="font-bold text-slate-900">{batch.name}</h4>
-                                                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{batch.course?.name}</p>
+                                                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">
+                                                                        {batch.courseBundle ? `🎁 ${batch.courseBundle.title}` : (batch.course?.name || "")}
+                                                                    </p>
                                                                 </div>
                                                             </div>
                                                             <div className="text-right flex items-center gap-2">
@@ -2162,7 +2173,7 @@ export default function StudentDetailsPage({ params }) {
 
                                 return displayBatches.map(batch => {
                                     const fee = displayFees.find(f => f.batch?._id === batch._id);
-                                    const originalTotal = fee?.totalAmount || batch.course?.fees?.amount || 0;
+                                    const originalTotal = fee?.totalAmount || batch.courseBundle?.bundlePrice || batch.course?.fees?.amount || 0;
                                     const discountAmount = fee?.discount?.amount || 0;
                                     const totalPayable = originalTotal - discountAmount;
                                     const paidAmount = fee?.paidAmount || 0;
@@ -2178,6 +2189,11 @@ export default function StudentDetailsPage({ params }) {
                                                     <div>
                                                         <div className="flex items-center gap-2">
                                                             <h4 className="font-bold text-slate-900">{batch.name}</h4>
+                                                            {batch.courseBundle && (
+                                                                <span className="px-2 py-0.5 text-[10px] bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 font-bold">
+                                                                    🎁 {batch.courseBundle.title}
+                                                                </span>
+                                                            )}
                                                             {fee?.feePreset?.name && (
                                                                 <span className="px-2 py-0.5 text-[10px] bg-blue-50 text-blue-600 rounded-full border border-blue-100 uppercase font-medium">
                                                                     {fee.feePreset.name}
@@ -3220,7 +3236,7 @@ export default function StudentDetailsPage({ params }) {
                             );
                         })()}
 
-                        {selectedCourse && (
+                        {(selectedCourse || selectedBundle) && (
                             <div className="space-y-1 animate-fade-in">
                                 <Select
                                     label={`Select ${isSchool ? "Section" : "Batch"}`}

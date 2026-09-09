@@ -144,7 +144,7 @@ export default function StudentExamList() {
                     </div>
                     <h3 className="text-lg font-bold text-slate-900">No Exams Scheduled</h3>
                     <p className="text-slate-500 max-w-sm mx-auto mt-2">
-                        You don't have any exams assigned to your batch at the moment.
+                        You don&apos;t have any exams assigned to your batch at the moment.
                     </p>
                 </div>
             )}
@@ -164,12 +164,24 @@ function ExamCard({ exam, onAction }) {
             <CardHeader className="pb-3">
                 <div className="flex justify-between items-start gap-3">
                     <div className="space-y-1">
-                        <Badge className={`uppercase text-[10px] font-bold tracking-wider mb-2 ${exam.submissionStatus === "available" ? "bg-green-100 text-green-700 hover:bg-green-100" :
-                            exam.submissionStatus === "in_progress" ? "bg-orange-100 text-orange-700 hover:bg-orange-100" :
-                                "bg-slate-100 text-slate-600 hover:bg-slate-100"
-                            }`}>
-                            {exam.submissionStatus.replace("_", " ")}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                            <Badge className={`uppercase text-[10px] font-bold tracking-wider ${exam.submissionStatus === "available" ? "bg-green-100 text-green-700 hover:bg-green-100" :
+                                exam.submissionStatus === "in_progress" ? "bg-orange-100 text-orange-700 hover:bg-orange-100" :
+                                    "bg-slate-100 text-slate-600 hover:bg-slate-100"
+                                }`}>
+                                {exam.submissionStatus.replace("_", " ")}
+                            </Badge>
+                            {exam.semester && (
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200">
+                                    Sem {exam.semester}
+                                </span>
+                            )}
+                            {exam.examCategory && exam.examCategory !== 'GENERAL' && (
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md border border-purple-200">
+                                    {exam.examCategory.replace('_', ' ')}
+                                </span>
+                            )}
+                        </div>
                         <h3 className="text-base font-bold text-slate-900 line-clamp-2">
                             {exam.title}
                         </h3>

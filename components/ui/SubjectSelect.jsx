@@ -14,14 +14,21 @@ import Select from "@/components/ui/Select";
  * @param {Array}    props.courses        - Full list of courses [{ _id, subjects: [...ids] }]
  * @param {string}   props.selectedCourse - Currently selected course ID
  */
-export default function SubjectSelect({ value, onChange, subjects = [], courses = [], selectedCourse = "" }) {
+export default function SubjectSelect({ value, onChange, subjects = [], courses = [], selectedCourse = "", semester = null }) {
     const courseData = courses.find(c => String(c._id) === String(selectedCourse));
     const allowedIds = courseData?.subjects || [];
 
     // If a course is selected, only show subjects assigned to that course.
-    // Otherwise, show all available subjects.
+    // If semester is specified (for colleges), further filter to that semester.
     const filteredSubjects = selectedCourse
-        ? subjects.filter(s => allowedIds.some(aid => String(aid._id || aid) === String(s._id || s)))
+        ? subjects.filter(s => {
+            const matchesCourse = allowedIds.some(aid => String(aid._id || aid) === String(s._id || s));
+            if (!matchesCourse) return false;
+            if (semester !== null && semester !== undefined && semester !== "") {
+                return s.semester === Number(semester);
+            }
+            return true;
+        })
         : subjects;
 
     return (

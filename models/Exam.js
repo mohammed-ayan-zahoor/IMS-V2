@@ -14,6 +14,15 @@ const ExamSchema = new Schema({
         ref: 'Question'
     }],
 
+    // College specific assessment metadata
+    semester: { type: Number, min: 1, max: 12, default: null, index: true },
+    examCategory: {
+        type: String,
+        enum: ['INTERNAL', 'MID_TERM', 'SEMESTER_END', 'PRACTICAL', 'CLASS_TEST', 'ASSIGNMENT', 'GENERAL'],
+        default: 'GENERAL',
+        index: true
+    },
+
     duration: { type: Number, required: true, min: 1 }, // minutes
     totalMarks: { type: Number, default: 0 },
     passingMarks: { type: Number, required: true, min: 0 },
@@ -44,8 +53,8 @@ const ExamSchema = new Schema({
     maxAttempts: { type: Number, default: 1, min: 1 },
     resultPublication: {
         type: String,
-        enum: ['immediate', 'after_exam_end'],
-        default: 'immediate'
+        enum: ['immediate', 'after_exam_end', 'manual'],
+        default: 'after_exam_end'
     },
 
     // Security Configuration

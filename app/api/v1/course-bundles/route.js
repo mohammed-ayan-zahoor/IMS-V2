@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
+import { getInstituteScope } from '@/middleware/instituteScope';
 import CourseBundle from '@/models/CourseBundle';
 import Course from '@/models/Course';
 import Institute from '@/models/Institute';
@@ -14,7 +15,15 @@ export async function GET(req) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const instituteId = session.user.institute?.id || session.user.instituteId;
+        const scope = await getInstituteScope(req);
+        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
+            return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(req.url);
+        const targetInstParam = searchParams.get('instituteId');
+        const instituteId = targetInstParam || scope.instituteId;
+
         if (!instituteId) {
             return NextResponse.json({ error: 'No institute associated with account' }, { status: 400 });
         }
@@ -52,7 +61,13 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const instituteId = session.user.institute?.id || session.user.instituteId;
+        const scope = await getInstituteScope(req);
+        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
+            return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
+        }
+
+        const body = await req.json();
+        const instituteId = (scope.isSuperAdmin && body.institute) ? body.institute : scope.instituteId;
         if (!instituteId) {
             return NextResponse.json({ error: 'No institute associated' }, { status: 400 });
         }
@@ -64,7 +79,6 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Course Bundles are only available for Vocational Institutes' }, { status: 403 });
         }
 
-        const body = await req.json();
         const { title, code, description, courses, bundlePrice } = body;
 
         if (!title || !code || !Array.isArray(courses) || courses.length < 2 || bundlePrice === undefined) {

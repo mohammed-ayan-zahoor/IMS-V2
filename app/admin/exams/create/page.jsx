@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { ArrowLeft, Save, GraduationCap, Award } from "lucide-react";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import SubjectSelect from "@/components/ui/SubjectSelect";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -14,16 +14,21 @@ import { useToast } from "@/contexts/ToastContext";
 export default function CreateExamPage() {
     const router = useRouter();
     const toast = useToast();
+    const { data: session } = useSession();
+    const isCollege = session?.user?.institute?.type === 'COLLEGE';
+
     const [loading, setLoading] = useState(false);
     const [courses, setCourses] = useState([]);
     const [batches, setBatches] = useState([]); // All batches
-    const [filteredBatches, setFilteredBatches] = useState([]); // Filtered by course
+    const [filteredBatches, setFilteredBatches] = useState([]); // Filtered by course & semester
     const [subjects, setSubjects] = useState([]); // All subjects
 
     const [formData, setFormData] = useState({
         title: "",
         instructions: "",
         course: "",
+        semester: "", // COLLEGE only: Semester 1, 2, ...
+        examCategory: "GENERAL", // COLLEGE only: MID_TERM, INTERNAL, SEMESTER_END, PRACTICAL
         subject: null, // nullable subject ID
         batches: [], // Array of batch IDs
         duration: 60,
@@ -33,7 +38,7 @@ export default function CreateExamPage() {
         endAt: "",
         status: "draft",
         questions: [], // Intentionally empty
-        resultPublication: "immediate"
+        resultPublication: "after_exam_end"
     });
     useEffect(() => {
         fetchDropdowns();
@@ -41,15 +46,20 @@ export default function CreateExamPage() {
 
     useEffect(() => {
         if (formData.course) {
-            const courseBatches = batches.filter(b => b.course?._id === formData.course || b.course === formData.course);
+            let courseBatches = batches.filter(b => b.course?._id === formData.course || b.course === formData.course);
+            if (isCollege && formData.semester) {
+                courseBatches = courseBatches.filter(b => {
+                    if (b.semester) return b.semester === Number(formData.semester);
+                    const match = b.name.match(/sem(?:ester)?\s*(\d+)/i);
+                    return match ? Number(match[1]) === Number(formData.semester) : false;
+                });
+            }
             setFilteredBatches(courseBatches);
         } else {
             setFilteredBatches([]);
         }
-        // Reset subject when course changes — the SubjectSelect component
-        // already handles filtering available subjects per-course
         setFormData(prev => ({ ...prev, subject: null }));
-    }, [formData.course, batches]);
+    }, [formData.course, formData.semester, batches, isCollege]);
 
     // Helper: Convert UTC string to Local DateTime string for input[type="datetime-local"]
     const toLocalISOString = (dateString) => {
@@ -177,7 +187,7 @@ export default function CreateExamPage() {
     if (loading) return <LoadingSpinner fullPage />;
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="w-full space-y-6">
             <div className="flex items-center gap-4">
                 <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-slate-400 hover:text-slate-600">
                     <ArrowLeft size={18} />
@@ -188,31 +198,33 @@ export default function CreateExamPage() {
                 </div>
             </div>
 
-            <Card className="animate-fade-in">
-                <div className="p-6 space-y-6">
-                    <Input
-                        label="Exam Title"
-                        placeholder="e.g. Mid-Term Mathematics"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        required
+            <div className="space-y-6 animate-fade-in">
+                <Input
+                    label="Exam Title"
+                    placeholder="e.g. Mid-Term Mathematics"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    required
+                />
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Description / Instructions</label>
+                    <textarea
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-slate-400 transition-colors text-sm font-medium text-slate-700 min-h-[100px]"
+                        placeholder="Instructions for students..."
+                        value={formData.instructions}
+                        onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                     />
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase">Description / Instructions</label>
-                        <textarea
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium text-slate-700 min-h-[100px]"
-                            placeholder="Instructions for students..."
-                            value={formData.instructions}
-                            onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                        />
-                    </div>
+                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Course and College Specific Meta */}
+                    <div className={`grid grid-cols-1 ${isCollege ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 uppercase">Select Course</label>
                             <Select
                                 value={formData.course}
-                                onChange={(val) => setFormData({ ...formData, course: val, batches: [] })}
+                                onChange={(val) => {
+                                    setFormData(prev => ({ ...prev, course: val, semester: "", subject: null, batches: [] }));
+                                }}
                                 placeholder="-- Choose Course --"
                                 options={[
                                     { label: "-- Choose Course --", value: "" },
@@ -220,13 +232,66 @@ export default function CreateExamPage() {
                                 ]}
                             />
                         </div>
+
+                        {isCollege && (
+                            <>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                                        <GraduationCap size={14} className="text-blue-600" />
+                                        Semester
+                                    </label>
+                                    {(() => {
+                                        const selectedCourse = courses.find(c => String(c._id) === String(formData.course));
+                                        const totalSems = selectedCourse?.collegeConfig?.totalSemesters || 8;
+                                        const semOptions = [
+                                            { label: "-- All Semesters --", value: "" },
+                                            ...Array.from({ length: totalSems }, (_, i) => ({
+                                                label: `Semester ${i + 1}`,
+                                                value: String(i + 1)
+                                            }))
+                                        ];
+                                        return (
+                                            <Select
+                                                value={formData.semester}
+                                                onChange={(val) => setFormData(prev => ({ ...prev, semester: val, subject: null, batches: [] }))}
+                                                placeholder="-- Choose Semester --"
+                                                disabled={!formData.course}
+                                                options={semOptions}
+                                            />
+                                        );
+                                    })()}
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                                        <Award size={14} className="text-blue-600" />
+                                        Assessment Category
+                                    </label>
+                                    <Select
+                                        value={formData.examCategory}
+                                        onChange={(val) => setFormData(prev => ({ ...prev, examCategory: val }))}
+                                        options={[
+                                            { label: "Internal Assessment / IA", value: "INTERNAL" },
+                                            { label: "Mid-Term Examination", value: "MID_TERM" },
+                                            { label: "Semester End Exam (SEE)", value: "SEMESTER_END" },
+                                            { label: "Practical / Lab Exam", value: "PRACTICAL" },
+                                            { label: "Class Test / Quiz", value: "CLASS_TEST" },
+                                            { label: "General Assessment", value: "GENERAL" }
+                                        ]}
+                                    />
+                                </div>
+                            </>
+                        )}
+
                         <SubjectSelect
                             value={formData.subject}
-                            onChange={(val) => setFormData({ ...formData, subject: val })}
+                            onChange={(val) => setFormData(prev => ({ ...prev, subject: val }))}
                             subjects={subjects}
                             courses={courses}
                             selectedCourse={formData.course}
+                            semester={isCollege ? formData.semester : null}
                         />
+
                         <Input
                             label="Duration (minutes) - Auto-calculated"
                             type="number"
@@ -236,20 +301,30 @@ export default function CreateExamPage() {
                     </div>
 
                     {formData.course && (
-                        <div className="space-y-2 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Assign Batches</label>
-                            <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2 p-4 bg-white rounded-xl border border-slate-200">
+                            <label className="text-xs font-bold text-slate-500 uppercase">
+                                {isCollege ? "Assign Sections" : "Assign Batches"}
+                                {isCollege && formData.semester ? ` (Semester ${formData.semester})` : ""}
+                            </label>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
                                 {filteredBatches.map(batch => (
-                                    <label key={batch._id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-premium-blue transition-colors">                                        <input
-                                        type="checkbox"
-                                        className="w-4 h-4 text-premium-blue rounded focus:ring-premium-blue"
-                                        checked={formData.batches.includes(batch._id)}
-                                        onChange={() => handleBatchSelection(batch._id)}
-                                    />
+                                    <label key={batch._id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:border-premium-blue transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 text-premium-blue rounded focus:ring-premium-blue"
+                                            checked={formData.batches.includes(batch._id)}
+                                            onChange={() => handleBatchSelection(batch._id)}
+                                        />
                                         <span className="text-sm font-bold text-slate-700">{batch.name}</span>
                                     </label>
                                 ))}
-                                {filteredBatches.length === 0 && <p className="text-sm text-slate-400 italic">No batches found for this course.</p>}
+                                {filteredBatches.length === 0 && (
+                                    <p className="text-sm text-slate-400 italic col-span-full">
+                                        {isCollege && formData.semester 
+                                            ? `No sections found for Semester ${formData.semester}.` 
+                                            : `No ${isCollege ? 'sections' : 'batches'} found for this course.`}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     )}
@@ -289,8 +364,8 @@ export default function CreateExamPage() {
                                 value={formData.resultPublication}
                                 onChange={(val) => setFormData({ ...formData, resultPublication: val })}
                                 options={[
-                                    { label: "Immediate (After Submit)", value: "immediate" },
-                                    { label: "After Exam Ends", value: "after_exam_end" }
+                                    { label: "After Exam Ends", value: "after_exam_end" },
+                                    { label: "Manual Release (After Grading/Review)", value: "manual" }
                                 ]}
                             />
                         </div>
@@ -302,8 +377,7 @@ export default function CreateExamPage() {
                             Create Exam & Add Questions
                         </Button>
                     </div>
-                </div>
-            </Card>
+            </div>
         </div>
     );
 }

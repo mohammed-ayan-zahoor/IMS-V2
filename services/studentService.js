@@ -5,6 +5,7 @@ import Membership from '@/models/Membership';
 import { v2 as cloudinary } from 'cloudinary';
 import { getCloudinaryOptions } from '@/lib/cloudinaryResolver';
 import '@/models/Course'; // Ensure Course schema is registered
+import '@/models/CourseBundle'; // Ensure CourseBundle schema is registered
 import '@/models/Department'; // Ensure Department schema is registered
 import '@/models/Subject'; // Ensure Subject schema is registered
 import '@/models/FeePreset'; // Ensure FeePreset schema is registered
@@ -380,7 +381,7 @@ export class StudentService {
             const batchQuery = { deletedAt: null }; // Scope Batch Search
             if (instituteId) batchQuery.institute = instituteId;
             if (batchId) batchQuery._id = batchId;
-            if (courseId) batchQuery.course = courseId;
+            if (courseId) batchQuery.$or = [{ course: courseId }, { courseBundle: courseId }];
             
             // Strictly scope course/batch filtering by the active academic year to prevent cross-session leakage
             if (sessionId && (targetInstituteType === 'SCHOOL' || !targetInstituteType)) {
@@ -530,7 +531,7 @@ export class StudentService {
         const enrolledBatches = await Batch.find({
             'enrolledStudents.student': { $in: studentIds },
             deletedAt: null
-        }).populate('course', 'name code');
+        }).populate('course', 'name code').populate('courseBundle', 'title code');
 
         // Create a map of student ID string -> array of batches
         const studentBatchMap = {};
@@ -563,6 +564,11 @@ export class StudentService {
                     _id: b.course._id,
                     name: b.course.name,
                     code: b.course.code
+                } : null,
+                courseBundle: b.courseBundle ? {
+                    _id: b.courseBundle._id,
+                    title: b.courseBundle.title,
+                    code: b.courseBundle.code
                 } : null
             }));
             
@@ -683,7 +689,10 @@ export class StudentService {
             await Fee.deleteOne({ student: studentId, batch: batchId, deletedAt: { $ne: null } }).session(session);
 
             // ponytail: Derive fee amount based on college degree blueprint (per-year / per-semester) if configured
-            let feeTotalAmount = customAmount !== null ? parseFloat(customAmount) : (isBundleBatch ? batch.courseBundle.bundlePrice : batch.course.fees.amount);
+            const bundlePrice = (batch.courseBundle && typeof batch.courseBundle === 'object' && 'bundlePrice' in batch.courseBundle) 
+                ? batch.courseBundle.bundlePrice 
+                : 0;
+            let feeTotalAmount = customAmount !== null ? parseFloat(customAmount) : (isBundleBatch ? bundlePrice : (batch.course?.fees?.amount || 0));
             if (customAmount === null && !isBundleBatch && batch.course?.collegeConfig) {
                 const sem = batch.semester || 1;
                 const year = Math.ceil(sem / 2) || 1;
@@ -707,7 +716,7 @@ export class StudentService {
                 })) : [],
                 status: 'not_started',
                 feePreset: presetId || null,
-                courseBundle: courseBundleId || null
+                courseBundle: courseBundleId || (batch.courseBundle?._id || batch.courseBundle) || null
             }], { session });
 
             await session.commitTransaction();
@@ -739,7 +748,7 @@ export class StudentService {
             // Fallback for standalone mongo (Replica Set required for transactions)
             const errorStr = `${error.message || ''} ${error.errmsg || ''} ${error.originalError || ''}`;
             if (error.code === 20 || error.codeName === 'IllegalOperation' || errorStr.includes('Transaction numbers')) {
-                return this.enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount, presetId, installments);
+                return this.enrollInBatchStandalone(studentId, batchId, actorId, instituteId, customAmount, presetId, installments, courseBundleId);
             }
             throw error;
         } finally {
@@ -802,7 +811,10 @@ export class StudentService {
         await Fee.deleteOne({ student: studentId, batch: batchId, deletedAt: { $ne: null } });
 
         // ponytail: Derive fee amount based on college degree blueprint (per-year / per-semester) if configured
-        let feeTotalAmount = customAmount !== null ? parseFloat(customAmount) : (isBundleBatch ? batch.courseBundle.bundlePrice : batch.course.fees.amount);
+        const bundlePrice = (batch.courseBundle && typeof batch.courseBundle === 'object' && 'bundlePrice' in batch.courseBundle) 
+            ? batch.courseBundle.bundlePrice 
+            : 0;
+        let feeTotalAmount = customAmount !== null ? parseFloat(customAmount) : (isBundleBatch ? bundlePrice : (batch.course?.fees?.amount || 0));
         if (customAmount === null && !isBundleBatch && batch.course?.collegeConfig) {
             const sem = batch.semester || 1;
             const year = Math.ceil(sem / 2) || 1;
@@ -825,7 +837,7 @@ export class StudentService {
             })) : [],
             status: 'not_started',
             feePreset: presetId || null,
-            courseBundle: courseBundleId || null
+            courseBundle: courseBundleId || (batch.courseBundle?._id || batch.courseBundle) || null
         });
 
         await createAuditLog({
@@ -867,6 +879,7 @@ export class StudentService {
                 { path: 'subjects', select: 'name code semester credits subjectType' }
             ]
         })
+        .populate('courseBundle', 'title code bundlePrice courses')
         .populate('session', 'sessionName');
 
         // RBAC CHECK
@@ -901,6 +914,7 @@ export class StudentService {
             deletedAt: null
         }).populate([
             { path: 'batch', select: 'name session', populate: { path: 'session', select: 'sessionName' } },
+            { path: 'courseBundle', select: 'title code bundlePrice' },
             { path: 'feePreset', select: 'name', strictPopulate: false }
         ]);
 
@@ -923,6 +937,7 @@ export class StudentService {
                 name: b.name,
                 semester: b.semester,
                 course: b.course,
+                courseBundle: b.courseBundle,
                 session: b.session,
                 enrollment: b.enrolledStudents.find(e => e.student.toString() === studentId.toString()),
                 schedule: b.schedule

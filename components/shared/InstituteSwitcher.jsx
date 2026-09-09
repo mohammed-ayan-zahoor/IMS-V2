@@ -7,7 +7,7 @@ import { ChevronDown, Building2, Check, Loader2, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/contexts/ToastContext';
 
-export default function InstituteSwitcher() {
+export default function InstituteSwitcher({ isCollapsed = false }) {
     const { data: session, update } = useSession();
     const toast = useToast();
     const [isOpen, setIsOpen] = useState(false);
@@ -89,8 +89,10 @@ export default function InstituteSwitcher() {
             <button
                 onClick={handleOpenToggle}
                 disabled={isSwitching || loadingInstitutes}
+                title={isCollapsed ? (activeInstitute?.name || 'Switch Institute') : undefined}
                 className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl border transition-all duration-200 text-left group",
+                    "flex items-center rounded-2xl border transition-all duration-200 text-left group",
+                    isCollapsed ? "justify-center p-1.5 w-11 h-11 mx-auto" : "w-full gap-3 px-3 py-2.5",
                     isOpen
                         ? "bg-white border-slate-200 shadow-sm"
                         : "border-transparent hover:bg-white hover:border-slate-200 hover:shadow-sm"
@@ -112,27 +114,31 @@ export default function InstituteSwitcher() {
                     )}
                 </div>
 
-                {/* Name + code */}
-                <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-slate-800 truncate leading-tight">
-                        {activeInstitute?.name || 'Select Institute'}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
-                        {isSuperAdmin
-                            ? <Globe size={9} className="text-blue-400" />
-                            : <Building2 size={9} />
-                        }
-                        {activeInstitute?.code || 'GLOBAL'}
-                    </p>
-                </div>
+                {/* Name + code (hidden when collapsed) */}
+                {!isCollapsed && (
+                    <>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-semibold text-slate-800 truncate leading-tight">
+                                {activeInstitute?.name || 'Select Institute'}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                                {isSuperAdmin
+                                    ? <Globe size={9} className="text-blue-400" />
+                                    : <Building2 size={9} />
+                                }
+                                {activeInstitute?.code || 'GLOBAL'}
+                            </p>
+                        </div>
 
-                <ChevronDown
-                    size={13}
-                    className={cn(
-                        "text-slate-300 transition-transform duration-200 shrink-0",
-                        isOpen && "rotate-180"
-                    )}
-                />
+                        <ChevronDown
+                            size={13}
+                            className={cn(
+                                "text-slate-300 transition-transform duration-200 shrink-0",
+                                isOpen && "rotate-180"
+                            )}
+                        />
+                    </>
+                )}
             </button>
 
             {/* Dropdown */}

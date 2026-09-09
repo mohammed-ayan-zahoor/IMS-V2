@@ -38,7 +38,7 @@ export default function EditExamPage({ params }) {
         scheduledAt: "",
         endTime: "",
         maxAttempts: 1,
-        resultPublication: "immediate",
+        resultPublication: "after_exam_end",
         status: "draft"
     });
 
@@ -99,7 +99,7 @@ export default function EditExamPage({ params }) {
                 scheduledAt: formatDate(exam.schedule?.startTime),
                 endTime: formatDate(exam.schedule?.endTime),
                 maxAttempts: exam.maxAttempts || 1,
-                resultPublication: exam.resultPublication || "immediate",
+                resultPublication: exam.resultPublication || "after_exam_end",
                 status: exam.status || "draft"
             });
 
@@ -284,8 +284,8 @@ export default function EditExamPage({ params }) {
                                 value={formData.resultPublication}
                                 onChange={(val) => setFormData({ ...formData, resultPublication: val })}
                                 options={[
-                                    { label: "Immediate (After Submit)", value: "immediate" },
-                                    { label: "After Exam Ends", value: "after_exam_end" }
+                                    { label: "After Exam Ends", value: "after_exam_end" },
+                                    { label: "Manual Release (After Grading/Review)", value: "manual" }
                                 ]}
                             />
                         </div>
@@ -339,7 +339,7 @@ export default function EditExamPage({ params }) {
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="text-sm font-bold text-slate-900">Evaluator Assignments</h2>
-                                <p className="text-xs text-slate-400 mt-0.5">Assign which instructor grades which subject's subjective answers.</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Assign which instructor grades which subject&apos;s subjective answers.</p>
                             </div>
                             <Link href={`/admin/exams/${id}/grade`}>
                                 <Button variant="outline" className="font-bold flex items-center gap-2 text-sm">
@@ -349,7 +349,7 @@ export default function EditExamPage({ params }) {
                         </div>
 
                         {examSubjects.length === 0 ? (
-                            <p className="text-sm text-slate-400">No subjects detected in this exam's questions. Add questions first.</p>
+                            <p className="text-sm text-slate-400">No subjects detected in this exam&apos;s questions. Add questions first.</p>
                         ) : (
                             <div className="space-y-3">
                                 {examSubjects.map(sub => {

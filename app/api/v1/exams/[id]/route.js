@@ -135,6 +135,8 @@ export async function PATCH(req, { params }) {
         if (body.maxAttempts !== undefined) exam.maxAttempts = body.maxAttempts;
         if (body.resultPublication !== undefined) exam.resultPublication = body.resultPublication;
         if (body.evaluatorAssignments !== undefined) exam.evaluatorAssignments = body.evaluatorAssignments;
+        if (body.semester !== undefined) exam.semester = body.semester ? Number(body.semester) : null;
+        if (body.examCategory !== undefined) exam.examCategory = body.examCategory;
 
 
         await exam.save();

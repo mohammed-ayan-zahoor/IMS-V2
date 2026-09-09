@@ -23,6 +23,8 @@ import {
     Menu, 
     X, 
     Settings, 
+    PanelLeft,
+    PanelLeftClose, 
     Plus, 
     List, 
     ReceiptText, 
@@ -78,7 +80,24 @@ export default function AdminLayout({ children }) {
     const router = useRouter();
     const [expandedGroup, setExpandedGroup] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const { sessions, selectedSessionId, changeSession, loading: sessionsLoading } = useAcademicSession();
+
+    useEffect(() => {
+        const saved = localStorage.getItem("admin_sidebar_collapsed");
+        if (saved !== null) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setIsSidebarCollapsed(saved === "true");
+        }
+    }, []);
+
+    const toggleSidebarCollapsed = () => {
+        setIsSidebarCollapsed(prev => {
+            const next = !prev;
+            localStorage.setItem("admin_sidebar_collapsed", String(next));
+            return next;
+        });
+    };
 
     // Redirect logic...
     useEffect(() => {
@@ -110,6 +129,7 @@ export default function AdminLayout({ children }) {
     const menuGroups = [
         {
             label: "Academic",
+            icon: BookOpen,
             items: [
                 { label: "Departments", icon: Building2, href: "/admin/departments", instituteType: ["COLLEGE"] },
                 { label: "Students", icon: Users, href: "/admin/students" },
@@ -120,6 +140,7 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Enquiry",
+            icon: Contact,
             role: ["admin", "super_admin"],
             items: [
                 { label: "New Entry", icon: Plus, href: "/admin/enquiries/new" },
@@ -129,6 +150,7 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Learning",
+            icon: Award,
             items: [
                 { label: "Attendance", icon: Calendar, href: "/admin/attendance" },
                 { label: "Online Exams", icon: FileSignature, href: "/admin/exams" },
@@ -140,6 +162,7 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Finance",
+            icon: CreditCard,
             role: ["admin", "super_admin"],
             items: [
                 { label: "Fees", icon: CreditCard, href: "/admin/fees" },
@@ -148,6 +171,7 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Expenses",
+            icon: Coins,
             role: ["admin", "super_admin"],
             items: [
                 { label: "Add Expense", icon: PlusCircle, href: "/admin/expenses/add" },
@@ -157,6 +181,7 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Incomes",
+            icon: Landmark,
             role: ["admin", "super_admin"],
             items: [
                 { label: "Add Income", icon: PlusCircle, href: "/admin/incomes/add" },
@@ -167,6 +192,7 @@ export default function AdminLayout({ children }) {
         // Transport
         ...(isTransportEnabled ? [{
             label: "Transport",
+            icon: Bus,
             role: ["admin", "super_admin"],
             items: [
                 { label: "Transport", icon: Bus, href: "/admin/transport" }
@@ -175,6 +201,7 @@ export default function AdminLayout({ children }) {
         // Hostel
         ...(isHostelEnabled ? [{
             label: "Hostel",
+            icon: Hotel,
             role: ["admin", "super_admin"],
             items: [
                 { label: "Hostel", icon: Hotel, href: "/admin/hostel" }
@@ -182,6 +209,7 @@ export default function AdminLayout({ children }) {
         }] : []),
         {
             label: "Front Office",
+            icon: ClipboardList,
             role: ["admin", "super_admin", "instructor", "staff"],
             permission: "view_front_office",
             items: [
@@ -193,6 +221,7 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Human Resources",
+            icon: UserCog,
             role: ["admin", "super_admin", "instructor", "staff"],
             items: [
                 { label: "Designations", icon: Briefcase, href: "/admin/hr/designations", role: ["admin", "super_admin"] },
@@ -205,6 +234,7 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Reports",
+            icon: BarChart3,
             items: [
                 { label: "Follow-up Queue", icon: History, href: "/admin/reports/follow-ups" },
                 { label: "Attendance", icon: Calendar, href: "/admin/reports/attendance" },
@@ -213,6 +243,7 @@ export default function AdminLayout({ children }) {
         },
         {
             label: "Administration",
+            icon: Settings,
             role: ["admin", "super_admin"],
             items: [
                 { label: "Accounts Master", icon: Building2, href: "/admin/accounts" },
@@ -312,7 +343,10 @@ export default function AdminLayout({ children }) {
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] bg-[#f9fafb] text-[#111827] h-screen w-screen overflow-hidden">
+        <div className={cn(
+            "grid grid-cols-1 bg-[#f9fafb] text-[#111827] h-screen w-screen overflow-hidden transition-[grid-template-columns] duration-300",
+            isSidebarCollapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[240px_minmax(0,1fr)]"
+        )}>
             {/* Mobile Native Shell Nav Bar for Instructors/Staff */}
             {isInstructorOrStaff && <MobileInstructorNav />}
 
@@ -323,28 +357,49 @@ export default function AdminLayout({ children }) {
 
             {/* Sidebar */}
             <aside className={cn(
-                "w-60 h-screen bg-gradient-to-b from-slate-200 to-slate-100 border-r border-[#f1f5f9] flex flex-col fixed inset-y-0 left-0 z-[90] transition-transform duration-300 lg:static lg:translate-x-0 no-print",
+                "h-screen bg-gradient-to-b from-slate-200 to-slate-100 border-r border-[#f1f5f9] flex flex-col fixed inset-y-0 left-0 z-[90] transition-all duration-300 lg:static lg:translate-x-0 no-print",
+                isSidebarCollapsed ? "w-60 lg:w-[72px]" : "w-60",
                 isSidebarOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 {/* Logo Area */}
-                <div className="p-6 border-b border-[#f1f5f9] mb-4 shrink-0">
-                    <InstituteSwitcher />
+                <div className={cn(
+                    "border-b border-[#f1f5f9] mb-4 shrink-0 transition-all flex items-center justify-between",
+                    isSidebarCollapsed ? "p-3 lg:px-2 lg:py-4 justify-center" : "p-4 pr-3"
+                )}>
+                    <div className="flex-1 min-w-0">
+                        <InstituteSwitcher isCollapsed={isSidebarCollapsed} />
+                    </div>
+                    {!isSidebarCollapsed && (
+                        <button
+                            onClick={toggleSidebarCollapsed}
+                            className="hidden lg:flex items-center justify-center p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 rounded-lg transition-colors ml-1 shrink-0"
+                            title="Collapse sidebar"
+                            aria-label="Collapse sidebar"
+                        >
+                            <PanelLeftClose size={18} />
+                        </button>
+                    )}
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 overflow-y-auto px-4 space-y-8 py-2 min-h-0">
+                <nav className={cn(
+                    "flex-1 overflow-y-auto space-y-4 py-2 min-h-0",
+                    isSidebarCollapsed ? "px-2 lg:px-2" : "px-4 space-y-8"
+                )}>
                      {/* Primary Dashboard Link */}
                      <Link
                          href="/admin/dashboard"
                          onClick={() => setIsSidebarOpen(false)}
+                         title={isSidebarCollapsed ? "Dashboard" : undefined}
                          className={cn(
-                            "flex items-center gap-3 px-4 py-2.5 rounded-full transition-all group text-[13px] font-semibold relative",
+                            "flex items-center rounded-full transition-all group text-[13px] font-semibold relative",
+                            isSidebarCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-4 py-2.5 gap-3" : "gap-3 px-4 py-2.5",
                              isDashboard ? "soft-active" : "text-[#6b7280] hover:bg-[#f9fafb]"
                          )}
                      >
                          <span className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-r transition-all", isDashboard ? "bg-blue-500" : "")} />
                          <LayoutDashboard size={18} className={isDashboard ? "" : "text-blue-500"} />
-                         <span>Dashboard</span>
+                         <span className={cn(isSidebarCollapsed && "lg:hidden")}>Dashboard</span>
                      </Link>
 
                      {/* Groups */}
@@ -354,19 +409,50 @@ export default function AdminLayout({ children }) {
                          const groupColor = groupColors[groupIndex % groupColors.length];
                          const itemColor = itemColors[groupIndex % itemColors.length];
                          const isExpanded = expandedGroup === group.label;
+                         const GroupIcon = group.icon || BookOpen;
                          
                          return (
                          <div key={group.label} className="space-y-1">
+                             {/* Group Header Button */}
                              <button 
                                  onClick={() => toggleGroup(group.label)}
-                                 className="w-full flex items-center justify-between px-4 py-2 text-[#9ca3af] hover:text-[#374151] transition-colors font-bold text-[11px] uppercase tracking-wider group"
+                                 title={group.label}
+                                 className={cn(
+                                     "w-full flex items-center transition-colors font-bold uppercase tracking-wider group",
+                                     isSidebarCollapsed 
+                                         ? "justify-between lg:justify-center px-4 py-2 lg:px-0 lg:py-1" 
+                                         : "justify-between px-4 py-2 text-[11px] text-[#9ca3af] hover:text-[#374151]"
+                                 )}
                              >
-                                 <span className={groupColor}>{group.label}</span>
-                                 <ChevronRight size={14} className={cn("transition-transform duration-200 text-[#9ca3af]", isExpanded && "rotate-90")} />
+                                 {isSidebarCollapsed ? (
+                                     <>
+                                         {/* Desktop Collapsed View: group icon badge */}
+                                         <div className={cn(
+                                             "hidden lg:flex w-9 h-9 rounded-xl items-center justify-center transition-all",
+                                             isExpanded ? "bg-slate-300/80 shadow-xs ring-1 ring-slate-400/30" : "hover:bg-slate-200/60"
+                                         )}>
+                                             <GroupIcon size={17} className={cn(groupColor, "transition-transform duration-200", isExpanded && "scale-105")} />
+                                         </div>
+                                         {/* Mobile Drawer View */}
+                                         <div className="flex lg:hidden items-center justify-between w-full text-[11px] text-[#9ca3af] hover:text-[#374151]">
+                                             <span className={groupColor}>{group.label}</span>
+                                             <ChevronRight size={14} className={cn("transition-transform duration-200 text-[#9ca3af]", isExpanded && "rotate-90")} />
+                                         </div>
+                                     </>
+                                 ) : (
+                                     <>
+                                         <span className={groupColor}>{group.label}</span>
+                                         <ChevronRight size={14} className={cn("transition-transform duration-200 text-[#9ca3af]", isExpanded && "rotate-90")} />
+                                     </>
+                                 )}
                              </button>
 
+                             {/* Group Items: strictly rendered only when isExpanded */}
                              {isExpanded && (
-                                 <div className="space-y-1 pl-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                 <div className={cn(
+                                     "space-y-1 animate-in fade-in duration-200",
+                                     !isSidebarCollapsed && "pl-2"
+                                 )}>
                                      {group.items.map((item) => {
                                          const Icon = item.icon;
                                          const actualHref = item.href.startsWith("/admin") && pathname.startsWith("/instructor") 
@@ -379,8 +465,10 @@ export default function AdminLayout({ children }) {
                                                  href={actualHref}
                                                  target={item.target}
                                                  onClick={() => setIsSidebarOpen(false)}
+                                                 title={item.label}
                                                  className={cn(
-                                                     "flex items-center gap-3 px-4 py-2 rounded-full transition-all group text-[13px] font-semibold relative",
+                                                     "flex items-center rounded-full transition-all group text-[13px] font-semibold relative",
+                                                     isSidebarCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-4 py-2 gap-3" : "gap-3 px-4 py-2",
                                                      isActive 
                                                          ? "soft-active" 
                                                          : "text-[#6b7280] hover:bg-[#f9fafb]"
@@ -388,7 +476,7 @@ export default function AdminLayout({ children }) {
                                              >
                                                  <span className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-r transition-all", isActive ? "bg-blue-500" : "")} />
                                                  <Icon size={18} className={isActive ? "" : itemColor} />
-                                                 <span>{item.label}</span>
+                                                 <span className={cn(isSidebarCollapsed && "lg:hidden")}>{item.label}</span>
                                              </Link>
                                          );
                                      })}
@@ -400,23 +488,49 @@ export default function AdminLayout({ children }) {
                 </nav>
 
                 {/* Footer User Info */}
-                <div className="p-4 border-t border-[#f1f5f9] bg-[#f9fafb] shrink-0">
-                    <div className="flex items-center gap-3 mb-3 px-2">
-                        <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">
+                <div className={cn(
+                    "border-t border-[#f1f5f9] bg-[#f9fafb] shrink-0 transition-all",
+                    isSidebarCollapsed ? "p-2 lg:p-2" : "p-4"
+                )}>
+                    <div className={cn(
+                        "flex items-center gap-3 mb-3",
+                        isSidebarCollapsed ? "px-2 lg:px-0 lg:justify-center" : "px-2"
+                    )}>
+                        <div 
+                            className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0"
+                            title={`${session?.user?.name || "User"} (${session?.user?.role || "Admin"})`}
+                        >
                             {session?.user?.name?.[0] || "A"}
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className={cn("flex-1 min-w-0", isSidebarCollapsed && "lg:hidden")}>
                             <p className="text-xs font-bold text-[#111827] truncate">{session?.user?.name || "User"}</p>
                             <p className="text-[10px] text-[#6b7280] uppercase tracking-wider font-bold">{session?.user?.role || "Admin"}</p>
                         </div>
                     </div>
-                    <button
-                        onClick={() => signOut({ callbackUrl: "/login" })}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all"
-                    >
-                        <LogOut size={14} />
-                        <span>Sign Out</span>
-                    </button>
+                    <div className="flex flex-col gap-1.5">
+                        <button
+                            onClick={toggleSidebarCollapsed}
+                            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            className={cn(
+                                "hidden lg:flex items-center justify-center gap-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/70 border border-slate-200/70 transition-all",
+                                isSidebarCollapsed ? "p-2" : "px-3 py-2"
+                            )}
+                        >
+                            {isSidebarCollapsed ? <PanelLeft size={15} /> : <PanelLeftClose size={15} />}
+                            <span className={cn(isSidebarCollapsed && "lg:hidden")}>Collapse Sidebar</span>
+                        </button>
+                        <button
+                            onClick={() => signOut({ callbackUrl: "/login" })}
+                            title="Sign Out"
+                            className={cn(
+                                "w-full flex items-center justify-center gap-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all",
+                                isSidebarCollapsed ? "px-3 py-2 lg:p-2" : "px-3 py-2"
+                            )}
+                        >
+                            <LogOut size={14} />
+                            <span className={cn(isSidebarCollapsed && "lg:hidden")}>Sign Out</span>
+                        </button>
+                    </div>
                 </div>
             </aside>
 
@@ -437,6 +551,14 @@ export default function AdminLayout({ children }) {
                             aria-label="Toggle menu"
                         >
                             <Menu size={20} />
+                        </button>
+                        <button
+                            onClick={toggleSidebarCollapsed}
+                            className="hidden lg:flex items-center justify-center p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                        >
+                            {isSidebarCollapsed ? <PanelLeft size={19} /> : <PanelLeftClose size={19} />}
                         </button>
                         <div>
                             <h1 className="text-lg font-bold text-[#111827] tracking-tight">{title}</h1>
