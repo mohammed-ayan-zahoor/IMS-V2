@@ -402,6 +402,11 @@ export default function AdminLayout({ children }) {
                          <span className={cn(isSidebarCollapsed && "lg:hidden")}>Dashboard</span>
                      </Link>
 
+                     {/* Thin separator below Dashboard in collapsed mode */}
+                     {isSidebarCollapsed && (
+                         <div className="hidden lg:block border-t border-slate-300/70 my-2 mx-3" />
+                     )}
+
                      {/* Groups */}
                      {menuGroups.map((group, groupIndex) => {
                          const groupColors = ['text-blue-600', 'text-teal-600', 'text-orange-600', 'text-cyan-600', 'text-red-600', 'text-amber-600'];
@@ -413,6 +418,11 @@ export default function AdminLayout({ children }) {
                          
                          return (
                          <div key={group.label} className="space-y-1">
+                             {/* Thin separator between groups in collapsed desktop mode */}
+                             {isSidebarCollapsed && groupIndex > 0 && (
+                                 <div className="hidden lg:block border-t border-slate-300/50 my-1.5 mx-3" />
+                             )}
+
                              {/* Group Header Button */}
                              <button 
                                  onClick={() => toggleGroup(group.label)}
@@ -451,7 +461,8 @@ export default function AdminLayout({ children }) {
                              {isExpanded && (
                                  <div className={cn(
                                      "space-y-1 animate-in fade-in duration-200",
-                                     !isSidebarCollapsed && "pl-2"
+                                     !isSidebarCollapsed && "pl-2",
+                                     isSidebarCollapsed && "lg:my-1.5 lg:py-1.5 lg:border-y lg:border-slate-300/80 lg:bg-slate-200/50 lg:rounded-2xl"
                                  )}>
                                      {group.items.map((item) => {
                                          const Icon = item.icon;
