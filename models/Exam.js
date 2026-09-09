@@ -63,6 +63,12 @@ const ExamSchema = new Schema({
     negativeMarking: { type: Boolean, default: false },
     negativeMarkingPercentage: { type: Number, default: 0, min: 0, max: 100 },
 
+    // Evaluator assignments — admin assigns which instructor grades which subject
+    evaluatorAssignments: [{
+        subject:   { type: Schema.Types.ObjectId, ref: 'Subject' },
+        evaluator: { type: Schema.Types.ObjectId, ref: 'User' }
+    }],
+
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     deletedAt: { type: Date, default: null }
 }, { timestamps: true });

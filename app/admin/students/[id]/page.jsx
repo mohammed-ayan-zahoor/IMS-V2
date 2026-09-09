@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import {
@@ -41,7 +41,11 @@ import {
     BarChart2,
     Award,
     Camera,
-    QrCode
+    QrCode,
+    GraduationCap,
+    Layers,
+    Building,
+    MoreHorizontal
 } from "lucide-react";
 import EnrollFaceModal from "@/components/users/EnrollFaceModal";
 import IDCardQR from "@/components/users/IDCardQR";
@@ -66,12 +70,27 @@ export default function StudentDetailsPage({ params }) {
     const { data: session } = useSession();
     const { selectedSessionId } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
-
+    const isCollege = session?.user?.institute?.type === 'COLLEGE';
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
     const [studentData, setStudentData] = useState(null);
     const [isEnrollFaceOpen, setIsEnrollFaceOpen] = useState(false);
     const [isIDCardOpen, setIsIDCardOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("profile");
+    const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+    const actionMenuRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (actionMenuRef.current && !actionMenuRef.current.contains(event.target)) {
+                setIsActionMenuOpen(false);
+            }
+        }
+        if (isActionMenuOpen) {
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => document.removeEventListener("mousedown", handleClickOutside);
+        }
+    }, [isActionMenuOpen]);
 
     const [transportRoutes, setTransportRoutes] = useState([]);
     const [transportVehicles, setTransportVehicles] = useState([]);
@@ -79,6 +98,7 @@ export default function StudentDetailsPage({ params }) {
     const isTransportEnabled = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.features?.transport;
     const isHostelEnabled = session?.user?.institute?.features?.hostel;
     const isRteEnabled = !!session?.user?.institute?.features?.rteAndScholarship;
+    const [curriculumSemTab, setCurriculumSemTab] = useState('CURRENT');
 
 
     // Enrollment Modal State
@@ -682,10 +702,10 @@ export default function StudentDetailsPage({ params }) {
     };
 
     useEffect(() => {
-        if (isEnrollModalOpen && courses.length === 0) {
+        if ((isEnrollModalOpen || isEditModalOpen) && courses.length === 0) {
             fetchCourses();
         }
-    }, [isEnrollModalOpen]);
+    }, [isEnrollModalOpen, isEditModalOpen]);
 
     useEffect(() => {
         if (selectedCourse) {
@@ -721,10 +741,17 @@ export default function StudentDetailsPage({ params }) {
             // Populate form data for editing with normalized address
             if (data.student) {
                 const defaultAddress = { street: "", city: "", state: "", pincode: "" };
+                const primaryBatch = data.batches?.[0];
+                const defaultBatchName = primaryBatch 
+                    ? (primaryBatch.semester ? `Semester ${primaryBatch.semester} - ${primaryBatch.name}` : primaryBatch.name)
+                    : "";
+                const defaultCourseId = data.student.admissionStd || primaryBatch?.course?._id || primaryBatch?.course || "";
+
                 setFormData({
                     email: data.student.email,
                     profile: {
                         ...data.student.profile,
+                        dateOfBirth: data.student.profile?.dateOfBirth ? format(new Date(data.student.profile.dateOfBirth), "yyyy-MM-dd") : "",
                         address: { ...defaultAddress, ...(data.student.profile?.address || {}) },
                         avatar: data.student.profile?.avatar || ""
                     },
@@ -759,10 +786,10 @@ export default function StudentDetailsPage({ params }) {
                     },
                     lastSchoolAttended: data.student.lastSchoolAttended || "",
                     admissionDate: data.student.admissionDate ? format(new Date(data.student.admissionDate), "yyyy-MM-dd") : "",
-                    admissionStd: data.student.admissionStd || "",
+                    admissionStd: defaultCourseId,
                     leavingDate: data.student.leavingDate ? format(new Date(data.student.leavingDate), "yyyy-MM-dd") : "",
                     leavingReason: data.student.leavingReason || "",
-                    studyingSinceStandard: data.student.studyingSinceStandard || "",
+                    studyingSinceStandard: data.student.studyingSinceStandard || defaultBatchName,
                     progress: data.student.progress || "Good",
                     conduct: data.student.conduct || "Good",
                     remarks: data.student.remarks || "",
@@ -786,6 +813,7 @@ export default function StudentDetailsPage({ params }) {
 
     useEffect(() => {
         fetchStudentDetails();
+        fetchCourses();
         if (isTransportEnabled) fetchTransportData();
         const controller = new AbortController();
         fetchCollectors(controller.signal);
@@ -1420,86 +1448,120 @@ export default function StudentDetailsPage({ params }) {
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-slate-400 hover:text-slate-600">
-                    <ArrowLeft size={18} />
-                    <span className="ml-2">Back</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-slate-400 hover:text-slate-600 -ml-2 self-start">
+                    <ArrowLeft size={18} className="mr-1.5" />
+                    Back
                 </Button>
 
-                <div className="flex gap-3">
-                    {['admin', 'super_admin'].includes(session?.user?.role) && (
-                        <>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className={student?.isActive ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50" : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"}
-                                onClick={handleToggleStatus}
-                                disabled={isTogglingStatus}
-                            >
-                                {student?.isActive ? <XCircle size={16} className="mr-2" /> : <CheckCircle size={16} className="mr-2" />}
-                                {isTogglingStatus ? "Processing..." : (student?.isActive ? "Disable Student" : "Enable Student")}
-                            </Button>
-                            <Button
-                                variant="soft"
-                                size="sm"
-                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                onClick={handleDeleteStudent}
-                                disabled={isDeleting}
-                            >
-                                <Trash2 size={16} className="mr-2" />
-                                {isDeleting ? "Deleting..." : "Delete Student"}
-                            </Button>
-                        </>
-                    )}
+                <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+                    {/* Neutral Utility Actions & Edit Profile */}
                     {session?.user?.role !== 'instructor' && (
                         <>
                             <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-slate-600 border-slate-200 hover:bg-slate-50"
+                                className="text-slate-700 border-slate-200 hover:bg-slate-50"
+                                onClick={() => setIsEditModalOpen(true)}
+                            >
+                                <Edit size={14} className="mr-1.5 text-slate-500" />
+                                Edit Profile
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-slate-700 border-slate-200 hover:bg-slate-50"
                                 onClick={handleResetPassword}
                                 disabled={isResettingPassword}
                             >
-                                <Lock size={16} className="mr-2 text-slate-400" />
+                                <Lock size={14} className="mr-1.5 text-slate-400" />
                                 {isResettingPassword ? "Resetting..." : "Reset Password"}
                             </Button>
                             {isSchool && (
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                                    className="text-slate-700 border-slate-200 hover:bg-slate-50"
                                     onClick={() => router.push(`/admin/students/${id}/holistic-report`)}
                                 >
-                                    <BarChart2 size={16} className="mr-2" />
                                     Holistic Report
                                 </Button>
                             )}
                             <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                                className="text-slate-700 border-slate-200 hover:bg-slate-50"
                                 onClick={() => router.push(`/admin/students/${id}/enroll-face`)}
                             >
-                                <Camera size={16} className="mr-2" />
+                                <Camera size={14} className="mr-1.5 text-slate-400" />
                                 {student?.faceEnrolledAt ? "Re-enroll Face" : "Enroll Face"}
                             </Button>
                             <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                className="text-slate-700 border-slate-200 hover:bg-slate-50"
                                 onClick={() => router.push(`/admin/students/${id}/id-card`)}
                             >
-                                <QrCode size={16} className="mr-2" />
+                                <QrCode size={14} className="mr-1.5 text-slate-400" />
                                 ID Card QR
                             </Button>
+                        </>
+                    )}
+
+                    {/* Destructive / Administrative actions overflow menu */}
+                    {['admin', 'super_admin'].includes(session?.user?.role) && (
+                        <div className="relative" ref={actionMenuRef}>
                             <Button
                                 size="sm"
-                                onClick={() => setIsEditModalOpen(true)}
+                                variant="outline"
+                                className="text-slate-600 border-slate-200 hover:bg-slate-50 px-2.5"
+                                onClick={() => setIsActionMenuOpen(prev => !prev)}
+                                title="More actions"
                             >
-                                <Edit size={16} className="mr-2" />
-                                Edit Profile
+                                <MoreHorizontal size={15} />
                             </Button>
-                        </>
+                            {isActionMenuOpen && (
+                                <div className="absolute right-0 mt-1.5 w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg z-30">
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            "w-full px-3 py-2 text-left text-xs font-medium flex items-center gap-2 transition-colors",
+                                            student?.isActive ? "text-slate-700 hover:bg-amber-50 hover:text-amber-800" : "text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
+                                        )}
+                                        onClick={() => {
+                                            setIsActionMenuOpen(false);
+                                            handleToggleStatus();
+                                        }}
+                                        disabled={isTogglingStatus}
+                                    >
+                                        {student?.isActive ? (
+                                            <>
+                                                <XCircle size={14} className="text-amber-600" />
+                                                <span>{isTogglingStatus ? "Processing..." : "Disable Student"}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle size={14} className="text-emerald-600" />
+                                                <span>{isTogglingStatus ? "Processing..." : "Enable Student"}</span>
+                                            </>
+                                        )}
+                                    </button>
+                                    <div className="my-1 border-t border-slate-100" />
+                                    <button
+                                        type="button"
+                                        className="w-full px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                                        onClick={() => {
+                                            setIsActionMenuOpen(false);
+                                            handleDeleteStudent();
+                                        }}
+                                        disabled={isDeleting}
+                                    >
+                                        <Trash2 size={14} className="text-red-500" />
+                                        <span>{isDeleting ? "Deleting..." : "Delete Student"}</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
@@ -1588,14 +1650,20 @@ export default function StudentDetailsPage({ params }) {
 
                                     <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
                                         <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100">
-                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Identity & Academic IDs</h3>
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                                {isCollege ? "University & Government IDs" : isVocational ? "Identity & Verification" : "Identity & Academic IDs"}
+                                            </h3>
                                         </div>
                                         <div className="p-5 space-y-1">
-                                            <InfoRow icon={Shield} label="G.R. Number" value={student.grNumber} />
+                                            <InfoRow icon={Shield} label={isCollege ? "UUCMS / Reg No" : isVocational ? "Registration No" : "G.R. Number"} value={student.grNumber} />
                                             <InfoRow icon={CreditCard} label="Aadhar Number" value={student.aadharNumber} />
-                                            <InfoRow icon={FileText} label="U-DISE Student ID" value={student.studentIdUdise} />
-                                            <InfoRow icon={Percent} label="APAAR ID" value={student.apaarId} />
-                                            <InfoRow icon={Tag} label="PEN Number" value={student.penNumber} />
+                                            {isSchool && (
+                                                <InfoRow icon={FileText} label="U-DISE Student ID" value={student.studentIdUdise} />
+                                            )}
+                                            <InfoRow icon={Percent} label={isCollege ? "APAAR / ABC ID" : "APAAR ID"} value={student.apaarId} />
+                                            {isSchool && (
+                                                <InfoRow icon={Tag} label="PEN Number" value={student.penNumber} />
+                                            )}
                                         </div>
                                     </div>
 
@@ -1645,12 +1713,15 @@ export default function StudentDetailsPage({ params }) {
 
                                     <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
                                         <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100">
-                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Entrance & Admission</h3>
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                                {isCollege ? "Admission & Program" : isVocational ? "Enrollment Details" : "Entrance & Admission"}
+                                            </h3>
                                         </div>
                                         <div className="p-5 space-y-1">
                                             <InfoRow icon={Calendar} label="Admission Date" value={student.admissionDate ? format(new Date(student.admissionDate), "dd MMM yyyy") : null} />
-                                            <InfoRow icon={BookOpen} label="Admission Std" value={student.admissionStd} />
-                                            <InfoRow icon={History} label="Last School" value={student.lastSchoolAttended} />
+                                            <InfoRow icon={BookOpen} label={isCollege ? "Degree / Program" : isSchool ? "Admission Std" : "Course"} value={courses.find(c => c._id === student.admissionStd || c.name === student.admissionStd)?.name || student.admissionStd || batches?.[0]?.course?.name} />
+                                            <InfoRow icon={Calendar} label={isCollege ? "Semester / Batch" : "Admitted Batch / Std"} value={student.studyingSinceStandard || (batches?.[0]?.semester ? `Sem ${batches[0].semester} - ${batches[0].name}` : batches?.[0]?.name)} />
+                                            <InfoRow icon={History} label={isCollege ? "Previous Institution" : "Last School"} value={student.lastSchoolAttended} />
                                             <InfoRow icon={UserPlus} label="Referred By" value={student.referredBy} />
                                         </div>
                                     </div>
@@ -1716,70 +1787,354 @@ export default function StudentDetailsPage({ params }) {
 
                 {activeTab === "academic" && (
                     <div className="space-y-6">
-                        <div className="flex justify-between items-center px-1">
-                            <h3 className="text-lg font-bold text-slate-900">{isSchool ? "Enrolled Sections" : "Enrolled Batches"}</h3>
-                            <Button size="sm" onClick={() => setIsEnrollModalOpen(true)}>
-                                <BookOpen size={16} className="mr-2" />
-                                Enroll New {isSchool ? "Class" : "Course"}
-                            </Button>
-                        </div>
-                        {(() => {
-                            const displayBatches = isSchool && selectedSessionId
-                                ? batches.filter(b => b.session?._id === selectedSessionId || b.session === selectedSessionId || !b.session)
-                                : batches;
+                        {isCollege ? (
+                            /* ===== COLLEGE ACADEMIC PROFILE ===== */
+                            (() => {
+                                const displayBatches = batches || [];
+                                const primaryBatch = displayBatches[0];
+                                const primaryCourse = primaryBatch?.course || courses.find(c => c._id === student.admissionStd || c.name === student.admissionStd);
+                                const totalSemesters = Number(primaryCourse?.collegeConfig?.totalSemesters) || (primaryCourse?.name?.toLowerCase().includes("m.") ? 4 : 8);
+                                const currentSem = Number(primaryBatch?.semester) || 1;
+                                const currentYear = Math.ceil(currentSem / 2);
+                                const totalYears = Math.ceil(totalSemesters / 2);
+                                const progressPercent = Math.min(100, Math.round((currentSem / totalSemesters) * 100));
 
-                            if (displayBatches.length > 0) {
+                                if (!primaryCourse && displayBatches.length === 0) {
+                                    return (
+                                        <div className="p-10 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                            <p className="text-sm font-semibold text-slate-700">No Degree Program Enrolled</p>
+                                            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                                                This student is not yet assigned to any degree course or semester section.
+                                            </p>
+                                            <Button size="sm" className="mt-4" onClick={() => setIsEnrollModalOpen(true)}>
+                                                Enroll Degree Course
+                                            </Button>
+                                        </div>
+                                    );
+                                }
+
                                 return (
-                                    <div className="grid gap-4">
-                                        {displayBatches.map(batch => (
-                                            <Card key={batch._id} className="hover:border-premium-blue/30 transition-colors">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="p-3 rounded-xl bg-violet-50 text-violet-600">
-                                                            <BookOpen size={20} />
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="font-bold text-slate-900">{batch.name}</h4>
-                                                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{batch.course?.name}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right flex items-center gap-2">
-                                                        <Button size="sm"
-                                                            variant="outline"
-                                                            className="text-premium-blue border-blue-100 hover:bg-blue-50 hover:text-blue-700"
-                                                            onClick={() => router.push(`/admin/students/${id}/admission-form?batchId=${batch._id}`)}
-                                                        >
-                                                            <Printer size={15} className="mr-2" />
-                                                            Print Form
-                                                        </Button>
-                                                        <Badge variant="primary" className="mb-2">{batch.enrollment?.status}</Badge>
-                                                        <p className="text-xs text-slate-400 mb-2">
-                                                            Enrolled: {batch.enrollment?.enrolledAt
-                                                                ? format(new Date(batch.enrollment.enrolledAt), "MMM d, yyyy")
-                                                                : "N/A"}
-                                                        </p>
-                                                        <Button size="xs"
-                                                            variant="ghost"
-                                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-6 px-2"
-                                                            onClick={() => handleUnenrollStudent(batch._id, batch.name)}
-                                                        >
-                                                            Remove
-                                                        </Button>
-                                                    </div>
+                                    <div className="space-y-10">
+                                        {/* 1. Primary Anchor Card (Single Strong Card on the Page) */}
+                                        <div className="bg-white rounded-xl border border-slate-200/80 p-6 shadow-xs space-y-6">
+                                            {/* Prominent Header & Single Stated Hierarchy */}
+                                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                                <div className="space-y-1">
+                                                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+                                                        {primaryCourse?.name || "Degree Program"}
+                                                        <span className="text-slate-400 font-normal"> — Semester {currentSem} of {totalSemesters}</span>
+                                                    </h3>
+                                                    <p className="text-xs text-slate-500">
+                                                        {primaryCourse?.department?.name ? `${primaryCourse.department.name} · ` : ""}
+                                                        {primaryCourse?.code ? `Code: ${primaryCourse.code} · ` : ""}
+                                                        {primaryBatch?.session?.sessionName ? `Session ${primaryBatch.session.sessionName} · ` : ""}
+                                                        Section {primaryBatch?.name || "A"}
+                                                    </p>
                                                 </div>
-                                            </Card>
-                                        ))}
+
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {primaryBatch && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="text-slate-700 border-slate-200 hover:bg-slate-50"
+                                                            onClick={() => router.push(`/admin/students/${id}/admission-form?batchId=${primaryBatch._id}`)}
+                                                        >
+                                                            <Printer size={14} className="mr-1.5 text-slate-400" />
+                                                            Admission Form
+                                                        </Button>
+                                                    )}
+                                                    <Button 
+                                                        size="sm" 
+                                                        variant="ghost"
+                                                        className="text-premium-blue hover:bg-blue-50"
+                                                        onClick={() => setIsEnrollModalOpen(true)}
+                                                    >
+                                                        <Plus size={14} className="mr-1" />
+                                                        Enroll Additional
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Compact Segmented Progress Stepper */}
+                                            <div className="space-y-2.5 pt-1">
+                                                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${totalSemesters}, minmax(0, 1fr))` }}>
+                                                    {Array.from({ length: totalSemesters }, (_, i) => i + 1).map(sem => {
+                                                        const isCurrent = sem === currentSem;
+                                                        const isPast = sem < currentSem;
+                                                        return (
+                                                            <div
+                                                                key={sem}
+                                                                title={`Semester ${sem}${isCurrent ? ' (Current)' : isPast ? ' (Passed)' : ''}`}
+                                                                className={cn(
+                                                                    "h-2 rounded-full transition-all",
+                                                                    isCurrent 
+                                                                        ? "bg-premium-blue ring-2 ring-premium-blue/25 shadow-xs" 
+                                                                        : isPast 
+                                                                        ? "bg-premium-blue/45" 
+                                                                        : "bg-slate-200 border border-slate-300/40"
+                                                                )}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                                <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+                                                    <span>Sem {currentSem} of {totalSemesters} · Year {currentYear} of {totalYears}</span>
+                                                    <span>{progressPercent}% completed</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Definition List Metadata Block (Zero nesting, clean text grid) */}
+                                            <dl className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-5 border-t border-slate-100 text-xs">
+                                                <div>
+                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">UUCMS / Univ Reg No</dt>
+                                                    <dd className="text-slate-900 font-semibold mt-1">{student.grNumber || "—"}</dd>
+                                                </div>
+                                                <div>
+                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">APAAR / ABC ID</dt>
+                                                    <dd className="text-slate-900 font-semibold mt-1">{student.apaarId || "—"}</dd>
+                                                </div>
+                                                <div>
+                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">Prior Qualification (10+2 / PUC)</dt>
+                                                    <dd className="text-slate-900 font-semibold mt-1 truncate" title={student.lastSchoolAttended || "—"}>
+                                                        {student.lastSchoolAttended || "—"}
+                                                    </dd>
+                                                </div>
+                                                <div>
+                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">Admission Date</dt>
+                                                    <dd className="text-slate-900 font-semibold mt-1">
+                                                        {student.admissionDate ? format(new Date(student.admissionDate), "MMM d, yyyy") : "—"}
+                                                    </dd>
+                                                </div>
+                                            </dl>
+                                        </div>
+
+                                        {/* 2. Enrolled Sections (Clean flat table on canvas) */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-baseline justify-between px-1">
+                                                <h4 className="text-sm font-semibold text-slate-900">Enrolled Sections</h4>
+                                                <span className="text-xs text-slate-400">{displayBatches.length} active {displayBatches.length === 1 ? "section" : "sections"}</span>
+                                            </div>
+
+                                            <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-xs">
+                                                {displayBatches.map(batch => (
+                                                    <div key={batch._id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
+                                                        <div className="space-y-0.5">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-bold text-sm text-slate-900">{batch.name}</span>
+                                                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-premium-blue/10 text-premium-blue">
+                                                                    {batch.enrollment?.status || "Active"}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-slate-500">
+                                                                {batch.course?.name || "Program"} · Enrolled {batch.enrollment?.enrolledAt ? format(new Date(batch.enrollment.enrolledAt), "MMM d, yyyy") : "N/A"}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3 text-xs self-end sm:self-auto">
+                                                            <button
+                                                                type="button"
+                                                                className="text-slate-500 hover:text-slate-800 font-medium transition-colors"
+                                                                onClick={() => router.push(`/admin/students/${id}/admission-form?batchId=${batch._id}`)}
+                                                            >
+                                                                Print Form
+                                                            </button>
+                                                            <span className="text-slate-200">·</span>
+                                                            <button
+                                                                type="button"
+                                                                className="text-slate-400 hover:text-red-600 font-medium transition-colors"
+                                                                onClick={() => handleUnenrollStudent(batch._id, batch.name)}
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* 3. Course Curriculum (Clean, semester-aware coursework list) */}
+                                        {primaryCourse && (() => {
+                                            const allSubjects = primaryCourse.subjects || [];
+                                            const hasSemesterMapping = allSubjects.some(s => s && s.semester != null);
+                                            const currentSemSubjects = allSubjects.filter(s => s && s.semester === currentSem);
+
+                                            let displayedSubjects = allSubjects;
+                                            if (hasSemesterMapping) {
+                                                if (curriculumSemTab === 'CURRENT') {
+                                                    displayedSubjects = currentSemSubjects.length > 0 ? currentSemSubjects : allSubjects;
+                                                } else if (curriculumSemTab !== 'ALL') {
+                                                    displayedSubjects = allSubjects.filter(s => s && s.semester === Number(curriculumSemTab));
+                                                }
+                                            }
+
+                                            const totalCredits = displayedSubjects.reduce((acc, s) => acc + (Number(s.credits) || 0), 0);
+
+                                            return (
+                                                <div className="space-y-3">
+                                                    <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 px-1">
+                                                        <div className="flex items-center gap-3">
+                                                            <h4 className="text-sm font-semibold text-slate-900">Course Curriculum</h4>
+                                                            {hasSemesterMapping && (
+                                                                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px]">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setCurriculumSemTab('CURRENT')}
+                                                                        className={cn(
+                                                                            "px-2.5 py-0.5 rounded-md font-medium transition-colors",
+                                                                            curriculumSemTab === 'CURRENT' ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500 hover:text-slate-700"
+                                                                        )}
+                                                                    >
+                                                                        Sem {currentSem} (Current)
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setCurriculumSemTab('ALL')}
+                                                                        className={cn(
+                                                                            "px-2.5 py-0.5 rounded-md font-medium transition-colors",
+                                                                            curriculumSemTab === 'ALL' ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500 hover:text-slate-700"
+                                                                        )}
+                                                                    >
+                                                                        All Semesters
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {allSubjects.length > 0 && (
+                                                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                                                                {totalCredits > 0 && (
+                                                                    <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                                                                        {totalCredits} Credits
+                                                                    </span>
+                                                                )}
+                                                                <span>
+                                                                    {displayedSubjects.length} {displayedSubjects.length === 1 ? "subject" : "subjects"}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {displayedSubjects.length > 0 ? (
+                                                        <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-xs">
+                                                            {displayedSubjects.map(subject => (
+                                                                <div key={subject._id || subject} className="p-3.5 px-4 flex items-center justify-between text-xs hover:bg-slate-50/50 transition-colors">
+                                                                    <div className="flex items-center gap-2.5">
+                                                                        <span className="font-medium text-slate-800">{subject.name || "Subject"}</span>
+                                                                        {subject.subjectType && (
+                                                                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                                                                                {subject.subjectType}
+                                                                            </span>
+                                                                        )}
+                                                                        {subject.semester && (
+                                                                            <span className="text-[10px] font-medium text-slate-400">
+                                                                                Sem {subject.semester}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-3">
+                                                                        {subject.credits != null && (
+                                                                            <span className="font-semibold text-slate-700">
+                                                                                {subject.credits} {subject.credits === 1 ? "Credit" : "Credits"}
+                                                                            </span>
+                                                                        )}
+                                                                        <span className="font-mono text-slate-400">{subject.code || "CORE"}</span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                            <span className="text-slate-500">
+                                                                {hasSemesterMapping 
+                                                                    ? `No subjects mapped for Semester ${curriculumSemTab === 'CURRENT' ? currentSem : curriculumSemTab}.` 
+                                                                    : "No subjects mapped to this degree course blueprint yet."}
+                                                            </span>
+                                                            <Button 
+                                                                size="sm" 
+                                                                variant="outline" 
+                                                                className="text-slate-700 hover:text-slate-900 border-slate-200 self-start sm:self-auto"
+                                                                onClick={() => router.push('/admin/courses')}
+                                                            >
+                                                                Add subjects in Courses &rarr;
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 );
-                            } else {
-                                return (
-                                    <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                        <p className="text-slate-400 font-medium">No active enrollments found for this session.</p>
-                                        <Button variant="link" className="mt-2 text-premium-blue" onClick={() => setIsEnrollModalOpen(true)}>Enroll in a {isSchool ? "class" : "course"}</Button>
-                                    </div>
-                                );
-                            }
-                        })()}
+                            })()
+                        ) : (
+                            /* ===== EXISTING SCHOOL & VOCATIONAL ACADEMIC VIEW (UNTOUCHED) ===== */
+                            <>
+                                <div className="flex justify-between items-center px-1">
+                                    <h3 className="text-lg font-bold text-slate-900">{isSchool ? "Enrolled Sections" : "Enrolled Batches"}</h3>
+                                    <Button size="sm" onClick={() => setIsEnrollModalOpen(true)}>
+                                        <BookOpen size={16} className="mr-2" />
+                                        Enroll New {isSchool ? "Class" : "Course"}
+                                    </Button>
+                                </div>
+                                {(() => {
+                                    const displayBatches = isSchool && selectedSessionId
+                                        ? batches.filter(b => b.session?._id === selectedSessionId || b.session === selectedSessionId || !b.session)
+                                        : batches;
+
+                                    if (displayBatches.length > 0) {
+                                        return (
+                                            <div className="grid gap-4">
+                                                {displayBatches.map(batch => (
+                                                    <Card key={batch._id} className="hover:border-premium-blue/30 transition-colors">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="p-3 rounded-xl bg-violet-50 text-violet-600">
+                                                                    <BookOpen size={20} />
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="font-bold text-slate-900">{batch.name}</h4>
+                                                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{batch.course?.name}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right flex items-center gap-2">
+                                                                <Button size="sm"
+                                                                    variant="outline"
+                                                                    className="text-premium-blue border-blue-100 hover:bg-blue-50 hover:text-blue-700"
+                                                                    onClick={() => router.push(`/admin/students/${id}/admission-form?batchId=${batch._id}`)}
+                                                                >
+                                                                    <Printer size={15} className="mr-2" />
+                                                                    Print Form
+                                                                </Button>
+                                                                <Badge variant="primary" className="mb-2">{batch.enrollment?.status}</Badge>
+                                                                <p className="text-xs text-slate-400 mb-2">
+                                                                    Enrolled: {batch.enrollment?.enrolledAt
+                                                                        ? format(new Date(batch.enrollment.enrolledAt), "MMM d, yyyy")
+                                                                        : "N/A"}
+                                                                </p>
+                                                                <Button size="xs"
+                                                                    variant="ghost"
+                                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 h-6 px-2"
+                                                                    onClick={() => handleUnenrollStudent(batch._id, batch.name)}
+                                                                >
+                                                                    Remove
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </Card>
+                                                ))}
+                                            </div>
+                                        );
+                                    } else {
+                                        return (
+                                            <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                                <p className="text-slate-400 font-medium">No active enrollments found for this session.</p>
+                                                <Button variant="link" className="mt-2 text-premium-blue" onClick={() => setIsEnrollModalOpen(true)}>Enroll in a {isSchool ? "class" : "course"}</Button>
+                                            </div>
+                                        );
+                                    }
+                                })()}
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -2717,7 +3072,10 @@ export default function StudentDetailsPage({ params }) {
                         studentData={studentData}
                         selectedSessionId={selectedSessionId}
                         isSchool={isSchool}
+                        isCollege={isCollege}
+                        isVocational={isVocational}
                         isRteEnabled={isRteEnabled}
+                        isTransportEnabled={isTransportEnabled}
                     />
                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
@@ -3526,25 +3884,27 @@ export default function StudentDetailsPage({ params }) {
     );
 }
 
-function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets, studentData, selectedSessionId, isSchool, isRteEnabled }) {
+function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets, studentData, selectedSessionId, isSchool, isCollege, isVocational, isRteEnabled, isTransportEnabled }) {
     const [editTab, setEditTab] = useState("basic");
 
     const tabClasses = (tab) => `
-        flex-1 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-all
+        flex-1 py-3 px-3 text-xs font-black uppercase tracking-widest border-b-2 transition-all whitespace-nowrap text-center shrink-0
         ${editTab === tab ? 'border-premium-blue text-premium-blue bg-premium-blue/5' : 'border-transparent text-slate-400 hover:bg-slate-50'}
     `;
 
     return (
         <div className="space-y-6">
             {/* Modal Internal Tabs */}
-            <div className="flex border-b border-slate-100 -mx-6 bg-slate-50/50">
+            <div className="flex border-b border-slate-100 -mx-6 bg-slate-50/50 overflow-x-auto scrollbar-none">
                 <button type="button" onClick={() => setEditTab("basic")} className={tabClasses("basic")}>Basic Profile</button>
                 <button type="button" onClick={() => setEditTab("parents")} className={tabClasses("parents")}>Parents & Origins</button>
-                <button type="button" onClick={() => setEditTab("school")} className={tabClasses("school")}>School & Certificate</button>
-                {isRteEnabled && (
+                <button type="button" onClick={() => setEditTab("school")} className={tabClasses("school")}>
+                    {isCollege ? "College & Academics" : "School & Certificate"}
+                </button>
+                {isRteEnabled && !isCollege && (
                     <button type="button" onClick={() => setEditTab("rte")} className={tabClasses("rte")}>RTE & Scholarship</button>
                 )}
-                {courses.length === 0 && ( // Just a hacky way to check if we have transport context or use a proper prop
+                {isTransportEnabled && (
                      <button type="button" onClick={() => setEditTab("transport")} className={tabClasses("transport")}>Transport</button>
                 )}
             </div>
@@ -3709,39 +4069,82 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                 {editTab === "school" && (
                     <div className="space-y-6">
                         <div className="space-y-4 p-5 bg-premium-blue/5 rounded-2xl border border-premium-blue/10">
-                            <h4 className="text-[10px] font-black text-premium-blue uppercase tracking-widest flex items-center gap-2"><Shield size={12}/> Government & Institutional IDs</h4>
+                            <h4 className="text-[10px] font-black text-premium-blue uppercase tracking-widest flex items-center gap-2">
+                                <Shield size={12}/> {isCollege ? "University & Government Identity (UUCMS / NEP)" : isVocational ? "Identity & Verification" : "Government & Institutional IDs"}
+                            </h4>
                             <div className="grid grid-cols-2 gap-4">
-                                <Input label="G.R. Number" value={formData.grNumber} onChange={(e) => setFormData({ ...formData, grNumber: e.target.value })} />
-                                <Input label="U-DISE Student ID" value={formData.studentIdUdise} onChange={(e) => setFormData({ ...formData, studentIdUdise: e.target.value })} />
+                                <Input
+                                    label={isCollege ? "UUCMS / University Reg No" : isVocational ? "Registration / Roll No" : "G.R. Number"}
+                                    placeholder={isCollege ? "e.g. U03TJ21S0001" : isVocational ? "REG-001" : "GR123"}
+                                    value={formData.grNumber}
+                                    onChange={(e) => setFormData({ ...formData, grNumber: e.target.value })}
+                                />
+                                {isSchool && (
+                                    <Input
+                                        label="U-DISE Student ID"
+                                        placeholder="Optional"
+                                        value={formData.studentIdUdise}
+                                        onChange={(e) => setFormData({ ...formData, studentIdUdise: e.target.value })}
+                                    />
+                                )}
+                                <Input
+                                    label={isCollege ? "APAAR / ABC ID (DigiLocker)" : "APAAR ID"}
+                                    placeholder={isCollege ? "12-digit ABC ID" : "Optional"}
+                                    value={formData.apaarId}
+                                    onChange={(e) => setFormData({ ...formData, apaarId: e.target.value })}
+                                />
                             </div>
-                            <div className="grid grid-cols-3 gap-4">
-                                <Input label="Student Aadhar" value={formData.aadharNumber} onChange={(e) => setFormData({ ...formData, aadharNumber: e.target.value })} />
-                                <Input label="APAAR ID" value={formData.apaarId} onChange={(e) => setFormData({ ...formData, apaarId: e.target.value })} />
-                                <Input label="PEN Number" value={formData.penNumber} onChange={(e) => setFormData({ ...formData, penNumber: e.target.value })} />
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <Input
+                                    label="Student Aadhar"
+                                    placeholder="12 Digit"
+                                    value={formData.aadharNumber}
+                                    onChange={(e) => setFormData({ ...formData, aadharNumber: e.target.value })}
+                                />
+                                {isSchool && (
+                                    <Input
+                                        label="PEN Number"
+                                        placeholder="Permanent Enrollment"
+                                        value={formData.penNumber}
+                                        onChange={(e) => setFormData({ ...formData, penNumber: e.target.value })}
+                                    />
+                                )}
                             </div>
                         </div>
 
                         <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><BookOpen size={12}/> School Enrollment & Leaving Info</h4>
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <BookOpen size={12}/> {isCollege ? "College Enrollment & Academic History" : isVocational ? "Enrollment Details" : "School Enrollment & Leaving Info"}
+                            </h4>
                             <div className="grid grid-cols-2 gap-4">
-                                <Input label="Last School Attended" value={formData.lastSchoolAttended} onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })} />
+                                <Input
+                                    label={isCollege ? "Previous Institution / PU College Attended" : "Last School Attended"}
+                                    placeholder={isCollege ? "e.g. St. Joseph PU College" : "School name"}
+                                    value={formData.lastSchoolAttended}
+                                    onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
+                                />
                                 <Input label="Admission Date" type="date" value={formData.admissionDate} onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })} />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <Select 
-                                    label="Admission Std" 
-                                    value={formData.admissionStd} 
+                                    label={isCollege ? "Admitted Degree / Program" : isVocational ? "Course / Trade" : "Admission Std"} 
+                                    value={courses.find(c => c._id === formData.admissionStd || c.name === formData.admissionStd)?._id || formData.admissionStd || ""} 
                                     onChange={(val) => setFormData({ ...formData, admissionStd: val })} 
                                     options={[
-                                        { label: "Select Standard", value: "" },
-                                        ...courses.map(c => ({ label: c.name, value: c.name }))
+                                        { label: isCollege ? "Select Degree / Program" : isVocational ? "Select Course" : "Select Standard", value: "" },
+                                        ...courses.map(c => ({ label: c.code ? `${c.name} (${c.code})` : c.name, value: c._id }))
                                     ]}
                                 />
-                                <Input label="Studying Since (Words/Date)" value={formData.studyingSinceStandard} onChange={(e) => setFormData({ ...formData, studyingSinceStandard: e.target.value })} />
+                                <Input
+                                    label={isCollege ? "Admitted Semester / Batch" : isVocational ? "Batch / Section" : "Studying Since (Words/Date)"}
+                                    placeholder={isCollege ? "e.g. Semester 1" : ""}
+                                    value={formData.studyingSinceStandard}
+                                    onChange={(e) => setFormData({ ...formData, studyingSinceStandard: e.target.value })}
+                                />
                             </div>
                             <div className="grid grid-cols-2 gap-4 border-t border-slate-200 pt-4 mt-2">
-                                <Input label="Date of Leaving" type="date" value={formData.leavingDate} onChange={(e) => setFormData({ ...formData, leavingDate: e.target.value })} />
-                                <Input label="Reason for Leaving" value={formData.leavingReason} onChange={(e) => setFormData({ ...formData, leavingReason: e.target.value })} />
+                                <Input label={isCollege ? "Date of Leaving / Graduation" : "Date of Leaving"} type="date" value={formData.leavingDate} onChange={(e) => setFormData({ ...formData, leavingDate: e.target.value })} />
+                                <Input label={isCollege ? "Reason for Leaving / Transfer" : "Reason for Leaving"} value={formData.leavingReason} onChange={(e) => setFormData({ ...formData, leavingReason: e.target.value })} />
                             </div>
                         </div>
 

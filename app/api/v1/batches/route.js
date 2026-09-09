@@ -30,8 +30,8 @@ export async function GET(req) {
             filters.instructorRoleContext = scope.user.id;
         }
 
-        // Global View Logic: Super Admin with explicit instituteId='all'
-        const isGlobalView = scope.isSuperAdmin && targetInstParam === "all";
+        // Global View Logic: Super Admin with explicit instituteId='all' or no explicit instituteId provided
+        const isGlobalView = scope.isSuperAdmin && (!targetInstParam || targetInstParam === "all");
 
         let instituteId;
         if (isGlobalView) {
@@ -46,7 +46,11 @@ export async function GET(req) {
         const batches = await BatchService.getBatches(filters, instituteId);
         return NextResponse.json({ batches });
     } catch (error) {
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        console.error("API Error [Batches GET]:", error);
+        return NextResponse.json({ 
+            error: "Internal Server Error",
+            message: process.env.NODE_ENV === 'development' ? error.message : undefined
+        }, { status: 500 });
     }
 }
 

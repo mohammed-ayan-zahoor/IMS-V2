@@ -1,14 +1,50 @@
 "use client";
 
-import { AlertTriangle, HelpCircle, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { AlertTriangle, HelpCircle } from "lucide-react";
 
 export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCancel, type = "danger", confirmText }) {
-    if (!isOpen) return null;
+    const [mounted, setMounted] = useState(false);
 
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/40 p-4 animate-in fade-in duration-200">
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "unset";
+        }
+
+        const handleEscape = (e) => {
+            if (e.key === "Escape" && onCancel) onCancel();
+        };
+
+        if (isOpen) {
+            window.addEventListener("keydown", handleEscape);
+        }
+
+        return () => {
+            document.body.style.overflow = "unset";
+            window.removeEventListener("keydown", handleEscape);
+        };
+    }, [isOpen, onCancel]);
+
+    if (!mounted || !isOpen) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            {/* Light, clear backdrop without heavy blur */}
             <div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform animate-in zoom-in-95 duration-200"
+                className="absolute inset-0 bg-slate-900/15 transition-opacity"
+                onClick={onCancel}
+            />
+
+            <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform animate-in zoom-in-95 duration-200 relative z-10 border border-slate-100"
                 role="alertdialog"
                 aria-modal="true"
                 aria-labelledby="confirm-title"
@@ -32,14 +68,16 @@ export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCan
 
                 <div className="bg-slate-50 p-4 flex justify-end gap-3 border-t border-slate-100">
                     <button
+                        type="button"
                         onClick={onCancel}
-                        className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                        className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
                     >
                         Cancel
                     </button>
                     <button
+                        type="button"
                         onClick={onConfirm}
-                        className={`px-4 py-2 text-white rounded-xl text-sm font-bold shadow-lg transition-colors
+                        className={`px-4 py-2 text-white rounded-xl text-sm font-bold shadow-lg transition-colors cursor-pointer
                 ${type === 'danger'
                                 ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20'
                                 : 'bg-premium-blue hover:bg-premium-blue/90 shadow-premium-blue/20'
@@ -50,6 +88,7 @@ export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCan
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

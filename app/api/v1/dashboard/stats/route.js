@@ -16,6 +16,9 @@ export { statsCache, clearDashboardCache };
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req) {
     try {
         await connectDB();
@@ -27,6 +30,8 @@ export async function GET(req) {
 
         const { searchParams } = new URL(req.url);
         const targetInstParam = searchParams.get("instituteId");
+        const sessionParam = searchParams.get('session');
+        const bypassCache = searchParams.get('refresh') === 'true' || req.headers.get('cache-control')?.includes('no-cache');
 
         const isGlobalView = scope.isSuperAdmin && (targetInstParam === "all" || !targetInstParam);
         const targetInstituteId = isGlobalView ? null : (targetInstParam || scope.instituteId);
@@ -44,7 +49,8 @@ export async function GET(req) {
             }
             instituteType = inst.type;
 
-            let remainingDays = null;
+            // Calculate remaining subscription days
+            let remainingDays = 0;
             if (inst.subscription?.endDate) {
                 const diffTime = new Date(inst.subscription.endDate) - new Date();
                 remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -93,10 +99,11 @@ export async function GET(req) {
         }
 
         // Check Cache
-        const cacheKey = `stats_${targetInstituteId}_${isGlobalView ? 'global' : 'scoped'}_${sessionId || 'all'}_${scope.user.id}`;
+        const activeSessionKey = sessionParam || sessionId || 'all';
+        const cacheKey = `stats_${targetInstituteId}_${isGlobalView ? 'global' : 'scoped'}_${activeSessionKey}_${scope.user.id}`;
         const cachedEntry = statsCache.get(cacheKey);
         const nowTime = Date.now();
-        if (cachedEntry && (nowTime - cachedEntry.timestamp) < CACHE_DURATION) {
+        if (!bypassCache && cachedEntry && (nowTime - cachedEntry.timestamp) < CACHE_DURATION) {
             return NextResponse.json(cachedEntry.data);
         }
 
@@ -157,7 +164,7 @@ export async function GET(req) {
             studentBaseQuery._id = { $in: instructorStudentIds };
         }
 
-        const sessionParam = searchParams.get('session');
+        // sessionParam is already declared at the top from searchParams
         const source = sessionValidationResult?.source || 'UNKNOWN';
 
         // SECURITY FIX: Apply strict session isolation for Schools and Colleges
@@ -234,16 +241,24 @@ export async function GET(req) {
                                 $expr: {
                                     $and: [
                                         { $eq: ["$course", "$$courseId"] },
-                                        ...(sessionParam ? [{ $eq: ["$session", new mongoose.Types.ObjectId(sessionParam)] }] : []),
+                                        ...(sessionParam && mongoose.Types.ObjectId.isValid(sessionParam) ? [{ $eq: ["$session", new mongoose.Types.ObjectId(sessionParam)] }] : []),
                                         ...(isInstructor ? [{ $in: ["$_id", instructorBatchIds] }] : []),
-                                        { $eq: ["$deletedAt", null] }
+                                        { $eq: [{ $ifNull: ["$deletedAt", null] }, null] }
                                     ]
                                 }
                             }
                         },
                         {
                             $project: {
-                                enrollmentCount: { $size: { $ifNull: ["$enrolledStudents", []] } }
+                                enrollmentCount: {
+                                    $size: {
+                                        $filter: {
+                                            input: { $ifNull: ["$enrolledStudents", []] },
+                                            as: "e",
+                                            cond: { $eq: [{ $ifNull: ["$$e.status", "active"] }, "active"] }
+                                        }
+                                    }
+                                }
                             }
                         }
                     ],
@@ -458,7 +473,11 @@ export async function GET(req) {
         // Cache the response
         statsCache.set(cacheKey, { data: responseData, timestamp: Date.now() });
 
-        return NextResponse.json(responseData);
+        return NextResponse.json(responseData, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+            }
+        });
 
     } catch (error) {
         console.error("Dashboard Stats Error:", error);

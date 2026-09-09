@@ -7,13 +7,33 @@ import Course from "@/models/Course";
 import Batch from "@/models/Batch";
 import Fee from "@/models/Fee";
 import Institute from "@/models/Institute";
+import "@/models/Department";
+import "@/models/Subject";
+import "@/models/Session";
+// Ensure models are registered for populate
 import mongoose from "mongoose";
 import { getInstituteScope } from "@/middleware/instituteScope";
+import { decrypt } from "@/lib/crypto";
+
+function safeDecrypt(val) {
+    if (!val) return "";
+    if (typeof val === 'string' && val.startsWith('enc:')) {
+        try {
+            return decrypt(val.replace(/^enc:/, '')) || "";
+        } catch {
+            return "";
+        }
+    }
+    return val;
+}
 
 // Robust Institute Mapper (DTO)
 function mapInstitute(inst) {
     if (!inst) return {
+        type: '',
         name: 'Institute Name',
+        code: '',
+        affiliation: '',
         address: {},
         phone: 'N/A',
         email: 'N/A',
@@ -21,7 +41,10 @@ function mapInstitute(inst) {
     };
 
     return {
+        type: inst.type || '',
         name: inst.name || 'Institute Name',
+        code: inst.code || '',
+        affiliation: inst.affiliation || inst.affiliatedTo || '',
         address: {
             street: inst.address?.street || inst.address?.line1 || '',
             city: inst.address?.city || inst.address?.district || '',
@@ -82,7 +105,15 @@ export async function GET(req, { params }) {
         }
 
         const foundBatches = await Batch.find(batchQuery)
-            .populate('course', 'name code duration')
+            .populate({
+                path: 'course',
+                select: 'name code duration fees collegeConfig department subjects',
+                populate: [
+                    { path: 'department', select: 'name code' },
+                    { path: 'subjects', select: 'name code' }
+                ]
+            })
+            .populate('session', 'sessionName')
             .lean();
         
         batches = foundBatches;
@@ -121,20 +152,49 @@ export async function GET(req, { params }) {
                 phone: student.profile?.phone,
                 dateOfBirth: student.profile?.dateOfBirth,
                 gender: student.profile?.gender,
+                bloodGroup: student.profile?.bloodGroup,
                 avatar: student.profile?.avatar,
                 address: student.profile?.address || {},
 
-                // Flattened Guardian
+                // College & Academic IDs
+                grNumber: student.grNumber,
+                apaarId: safeDecrypt(student.apaarId),
+                studentIdUdise: student.studentIdUdise,
+                penNumber: safeDecrypt(student.penNumber),
+                aadharNumber: safeDecrypt(student.aadharNumber),
+
+                // Qualification & Entrance
+                lastSchoolAttended: student.lastSchoolAttended,
+                admissionDate: student.admissionDate,
+                admissionStd: student.admissionStd,
+                medium: student.medium,
+                studyingSinceStandard: student.studyingSinceStandard,
+
+                // Parents / Guardians
+                fatherName: student.fatherName,
+                fatherPhone: student.fatherPhone,
+                motherName: student.motherName,
+                motherPhone: student.motherPhone,
                 guardianName: student.guardianDetails?.name,
                 guardianPhone: student.guardianDetails?.phone,
                 guardianRelation: student.guardianDetails?.relation,
+
+                // Demographics
+                nationality: student.nationality || "Indian",
+                motherTongue: student.motherTongue,
+                religion: student.religion,
+                caste: student.caste,
+                subCaste: student.subCaste,
+                referredBy: student.referredBy,
 
                 createdAt: student.createdAt
             },
             batches: batches.map(b => ({
                 _id: b._id,
                 name: b.name,
+                semester: b.semester,
                 course: b.course,
+                session: b.session,
                 schedule: b.schedule,
                 enrollment: b.enrolledStudents?.find(e => String(e.student) === String(id))
             })),

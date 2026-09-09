@@ -12,14 +12,20 @@ export async function POST(req, { params: paramsPromise }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
         const scope = await getInstituteScope(req);
-        const body = await req.json(); // { librarySubjectIds: [...] }
+        const body = await req.json(); // { librarySubjectIds: [...], semester, credits, subjectType }
         
         const subjects = await SubjectService.assignFromLibrary(
             params.id,
             body.librarySubjectIds,
             scope.instituteId,
             session.user.id,
-            req
+            req,
+            {
+                semester: body.semester,
+                credits: body.credits,
+                subjectType: body.subjectType,
+                department: body.department
+            }
         );
         
         return NextResponse.json({ subjects });

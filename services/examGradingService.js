@@ -28,22 +28,48 @@ export class ExamGradingService {
 
             if (!question) continue;
 
-            if (question.type === 'mcq' || question.type === 'true_false') {
-                // Auto-grade objective questions
-                // NOTE: answer.answer is stored as string.
-                // For MCQ: correctAnswer is stored as string "0", "1", "2", etc.
+            const qType = question.type;
+            const isSubjective = ['short_answer', 'essay', 'descriptive', 'match_the_following'].includes(qType);
 
-                // Check if answer matches
-                const studentAnswer = String(answer.answer);
-                const isCorrect = studentAnswer === question.correctAnswer;
+            if (isSubjective) {
+                // Subjective question requires manual teacher evaluation
+                needsManualReview = true;
+                answer.needsGrading = true;
+                answer.marksAwarded = 0;
+            } else {
+                // Auto-grade objective questions (mcq, true_false, multi_correct_mcq, numerical, fill_in_blank)
+                let isCorrect = false;
+                const studentAnswer = answer.answer !== undefined && answer.answer !== null ? String(answer.answer).trim() : '';
+
+                if (qType === 'mcq') {
+                    isCorrect = studentAnswer === String(question.correctAnswer).trim();
+                } else if (qType === 'true_false') {
+                    isCorrect = studentAnswer.toLowerCase() === String(question.correctAnswer).trim().toLowerCase();
+                } else if (qType === 'multi_correct_mcq') {
+                    try {
+                        const sArr = (Array.isArray(answer.answer) ? answer.answer : JSON.parse(studentAnswer || '[]')).map(Number).sort();
+                        const cArr = (Array.isArray(question.correctAnswer) ? question.correctAnswer : JSON.parse(String(question.correctAnswer || '[]'))).map(Number).sort();
+                        isCorrect = sArr.length > 0 && JSON.stringify(sArr) === JSON.stringify(cArr);
+                    } catch {
+                        isCorrect = false;
+                    }
+                } else if (qType === 'numerical') {
+                    const numStudent = parseFloat(studentAnswer);
+                    const numCorrect = parseFloat(question.correctAnswer);
+                    isCorrect = !isNaN(numStudent) && !isNaN(numCorrect) && Math.abs(numStudent - numCorrect) < 0.0001;
+                } else if (qType === 'fill_in_blank') {
+                    const cleanStudent = studentAnswer.toLowerCase();
+                    const cleanExpected = String(question.correctAnswer || '').replace(/\*/g, '').trim().toLowerCase();
+                    isCorrect = cleanStudent.length > 0 && cleanStudent === cleanExpected;
+                }
 
                 answer.isCorrect = isCorrect;
+                answer.needsGrading = false;
 
                 if (isCorrect) {
                     answer.marksAwarded = question.marks;
                 } else {
-                    // Apply negative marking if configured
-                    if (exam.negativeMarking && answer.answer !== undefined && answer.answer !== '') { // Only if attempted
+                    if (exam.negativeMarking && studentAnswer !== '') {
                         answer.marksAwarded = -(question.marks * (exam.negativeMarkingPercentage || 0) / 100);
                     } else {
                         answer.marksAwarded = 0;
@@ -51,16 +77,13 @@ export class ExamGradingService {
                 }
 
                 totalScore += answer.marksAwarded;
-            } else if (question.type === 'descriptive') { // Updated from 'short_answer' to match Exam.js enum
-                // Flag for manual review
-                needsManualReview = true;
-                answer.marksAwarded = 0; // Default until graded
             }
         }
 
         // Update submission
         submission.score = totalScore;
-        submission.percentage = (totalScore / exam.totalMarks) * 100;
+        submission.percentage = exam.totalMarks > 0 ? (totalScore / exam.totalMarks) * 100 : 0;
+        submission.gradingStatus = needsManualReview ? 'pending' : 'not_required';
         submission.status = needsManualReview ? 'submitted' : 'evaluated';
         submission.submittedAt = submission.submittedAt || new Date();
 

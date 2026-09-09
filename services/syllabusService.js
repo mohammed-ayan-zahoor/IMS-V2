@@ -115,15 +115,59 @@ export class SyllabusService {
     }
 
     /**
-     * Get all progress records for a batch (across all subjects).
+     * Get all progress records for a batch (filtered to valid course subjects and semester).
      */
     static async getProgressForBatch(batchId) {
         await connectDB();
-        return await BatchSyllabusProgress.find({ batch: batchId })
-            .populate('subject', 'name code syllabus')
+        const Batch = (await import('@/models/Batch')).default;
+        const batch = await Batch.findById(batchId).populate({
+            path: 'course',
+            select: 'subjects',
+            populate: { path: 'subjects', match: { deletedAt: null }, select: '_id semester deletedAt' }
+        }).lean();
+
+        const progressRecords = await BatchSyllabusProgress.find({ batch: batchId })
+            .populate('subject', 'name code syllabus semester deletedAt')
             .populate('completions.completedBy', 'profile.firstName profile.lastName')
             .populate('completions.unmarkedBy', 'profile.firstName profile.lastName')
             .lean();
+
+        if (!batch) return progressRecords;
+
+        // Resolve semester from field or name pattern (e.g. "CSE - Sem 1 (Sec A)")
+        let batchSemester = batch.semester;
+        if (!batchSemester && batch.name) {
+            const match = batch.name.match(/Sem(?:ester)?\s*(\d+)/i);
+            if (match) {
+                batchSemester = parseInt(match[1], 10);
+                // Auto-heal missing semester on batch document in DB
+                Batch.updateOne({ _id: batchId }, { $set: { semester: batchSemester } }).catch(() => {});
+            }
+        }
+
+        const validCourseSubjectIds = new Set(
+            (batch.course?.subjects || [])
+                .filter(s => {
+                    if (!s || s.deletedAt) return false;
+                    if (batchSemester) {
+                        return s.semester === batchSemester;
+                    }
+                    return true;
+                })
+                .map(s => String(s._id))
+        );
+
+        return progressRecords.filter(pg => {
+            if (!pg.subject || pg.subject.deletedAt) return false;
+            // When batch belongs to a specific semester, strictly match that semester
+            if (batchSemester) {
+                return pg.subject.semester === batchSemester;
+            }
+            if (validCourseSubjectIds.size > 0) {
+                return validCourseSubjectIds.has(String(pg.subject._id));
+            }
+            return true;
+        });
     }
 
     /**

@@ -5,6 +5,8 @@ import Membership from '@/models/Membership';
 import { v2 as cloudinary } from 'cloudinary';
 import { getCloudinaryOptions } from '@/lib/cloudinaryResolver';
 import '@/models/Course'; // Ensure Course schema is registered
+import '@/models/Department'; // Ensure Department schema is registered
+import '@/models/Subject'; // Ensure Subject schema is registered
 import '@/models/FeePreset'; // Ensure FeePreset schema is registered
 import '@/models/Certificate'; // Ensure Certificate schema is registered
 import '@/models/Vehicle'; // Ensure Vehicle schema is registered
@@ -680,13 +682,24 @@ export class StudentService {
             // If a legacy soft-deleted fee exists, hard-delete it first to free the unique index
             await Fee.deleteOne({ student: studentId, batch: batchId, deletedAt: { $ne: null } }).session(session);
 
+            // ponytail: Derive fee amount based on college degree blueprint (per-year / per-semester) if configured
+            let feeTotalAmount = customAmount !== null ? parseFloat(customAmount) : (isBundleBatch ? batch.courseBundle.bundlePrice : batch.course.fees.amount);
+            if (customAmount === null && !isBundleBatch && batch.course?.collegeConfig) {
+                const sem = batch.semester || 1;
+                const year = Math.ceil(sem / 2) || 1;
+                const yearConfig = batch.course.collegeConfig.yearWiseFees?.find(y => y.year === year);
+                if (yearConfig?.amount) {
+                    feeTotalAmount = yearConfig.amount;
+                }
+            }
+
             // Create initial fee record
             const fee = await Fee.create([{
                 student: studentId,
                 batch: batchId,
                 session: batch.session,
                 institute: targetInstitute,
-                totalAmount: customAmount !== null ? parseFloat(customAmount) : (isBundleBatch ? batch.courseBundle.bundlePrice : batch.course.fees.amount),
+                totalAmount: feeTotalAmount,
                 installments: (installments && installments.length > 0) ? installments.map(i => ({
                     amount: parseFloat(i.amount),
                     dueDate: new Date(i.dueDate),
@@ -788,12 +801,23 @@ export class StudentService {
         // If a legacy soft-deleted fee exists, hard-delete it first to free the unique index
         await Fee.deleteOne({ student: studentId, batch: batchId, deletedAt: { $ne: null } });
 
+        // ponytail: Derive fee amount based on college degree blueprint (per-year / per-semester) if configured
+        let feeTotalAmount = customAmount !== null ? parseFloat(customAmount) : (isBundleBatch ? batch.courseBundle.bundlePrice : batch.course.fees.amount);
+        if (customAmount === null && !isBundleBatch && batch.course?.collegeConfig) {
+            const sem = batch.semester || 1;
+            const year = Math.ceil(sem / 2) || 1;
+            const yearConfig = batch.course.collegeConfig.yearWiseFees?.find(y => y.year === year);
+            if (yearConfig?.amount) {
+                feeTotalAmount = yearConfig.amount;
+            }
+        }
+
         const fee = await Fee.create({
             student: studentId,
             batch: batchId,
             session: batch.session,
             institute: batch.institute,
-            totalAmount: customAmount !== null ? parseFloat(customAmount) : (isBundleBatch ? batch.courseBundle.bundlePrice : batch.course.fees.amount),
+            totalAmount: feeTotalAmount,
             installments: (installments && installments.length > 0) ? installments.map(i => ({
                 amount: parseFloat(i.amount),
                 dueDate: new Date(i.dueDate),
@@ -835,7 +859,14 @@ export class StudentService {
             'enrolledStudents.student': studentId,
             deletedAt: null
         })
-        .populate('course', 'name code duration fees')
+        .populate({
+            path: 'course',
+            select: 'name code duration fees collegeConfig department subjects',
+            populate: [
+                { path: 'department', select: 'name code' },
+                { path: 'subjects', select: 'name code semester credits subjectType' }
+            ]
+        })
         .populate('session', 'sessionName');
 
         // RBAC CHECK
@@ -890,6 +921,7 @@ export class StudentService {
             batches: batches.map(b => ({
                 _id: b._id,
                 name: b.name,
+                semester: b.semester,
                 course: b.course,
                 session: b.session,
                 enrollment: b.enrolledStudents.find(e => e.student.toString() === studentId.toString()),

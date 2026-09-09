@@ -1,21 +1,28 @@
 import Subject from '@/models/Subject';
 import '@/models/MasterSubject'; // Register for populate
+import '@/models/Department'; // Register for populate
 import { createAuditLog } from './auditService';
 import { connectDB } from '@/lib/mongodb';
 
 export class SubjectService {
     /**
-     * List subjects with optional institute scoping.
+     * List subjects with optional institute scoping and semester filtering.
      * @param {string|null} instituteId - Scope to this institute, or null for global (super_admin).
+     * @param {string|null} courseId - Scope to this course.
+     * @param {number|null} semester - Scope to this semester.
      */
-    static async getSubjects(instituteId = null, courseId = null) {
+    static async getSubjects(instituteId = null, courseId = null, semester = null) {
         await connectDB();
 
         const query = { deletedAt: null };
         if (instituteId) query.institute = instituteId;
         if (courseId) query.course = courseId;
+        if (semester) query.semester = Number(semester);
 
-        return Subject.find(query).populate('masterSubject').sort({ name: 1 });
+        return Subject.find(query)
+            .populate('masterSubject')
+            .populate('department', 'name code')
+            .sort({ semester: 1, name: 1 });
     }
 
     /**
@@ -35,7 +42,11 @@ export class SubjectService {
     static async createSubject(data, actorId, req = null) {
         await connectDB();
 
-        const { institute, name, code, description, course, masterSubject } = data;
+        const {
+            institute, name, code, description, course, masterSubject,
+            semester, credits, subjectType, department,
+            lectureHours, tutorialHours, practicalHours
+        } = data;
         if (!institute) throw new Error("Institute context missing");
         if (!name || !code) throw new Error("Name and code are required");
 
@@ -57,7 +68,14 @@ export class SubjectService {
             code: normalizedCode,
             course,
             masterSubject,
-            description
+            description,
+            semester: semester ? Number(semester) : null,
+            credits: credits !== undefined && credits !== null && credits !== '' ? Number(credits) : null,
+            subjectType: subjectType || 'THEORY',
+            department: department || null,
+            lectureHours: lectureHours ? Number(lectureHours) : null,
+            tutorialHours: tutorialHours ? Number(tutorialHours) : null,
+            practicalHours: practicalHours ? Number(practicalHours) : null
         });
 
         // Fire-and-forget audit log
@@ -92,6 +110,13 @@ export class SubjectService {
         if (data.name) subject.name = data.name;
         if (data.code) subject.code = data.code.toUpperCase();
         if (data.description !== undefined) subject.description = data.description;
+        if (data.semester !== undefined) subject.semester = data.semester ? Number(data.semester) : null;
+        if (data.credits !== undefined) subject.credits = data.credits !== null && data.credits !== '' ? Number(data.credits) : null;
+        if (data.subjectType !== undefined) subject.subjectType = data.subjectType;
+        if (data.department !== undefined) subject.department = data.department || null;
+        if (data.lectureHours !== undefined) subject.lectureHours = data.lectureHours ? Number(data.lectureHours) : null;
+        if (data.tutorialHours !== undefined) subject.tutorialHours = data.tutorialHours ? Number(data.tutorialHours) : null;
+        if (data.practicalHours !== undefined) subject.practicalHours = data.practicalHours ? Number(data.practicalHours) : null;
 
         await subject.save();
 
@@ -125,6 +150,14 @@ export class SubjectService {
         subject.deletedAt = new Date();
         await subject.save();
 
+        // Also remove from course.subjects if associated
+        if (subject.course) {
+            const Course = (await import('@/models/Course')).default;
+            await Course.findByIdAndUpdate(subject.course, {
+                $pull: { subjects: subject._id }
+            });
+        }
+
         createAuditLog({
             actor: actorId,
             action: 'subject.delete',
@@ -140,7 +173,7 @@ export class SubjectService {
     /**
      * Assign multiple subjects from library to a course.
      */
-    static async assignFromLibrary(courseId, librarySubjectIds, instituteId, actorId, req = null) {
+    static async assignFromLibrary(courseId, librarySubjectIds, instituteId, actorId, req = null, extraData = {}) {
         await connectDB();
         
         const MasterSubject = (await import('@/models/MasterSubject')).default;
@@ -169,7 +202,11 @@ export class SubjectService {
                 masterSubject: libId,
                 name: libSub.name,
                 code: libSub.code,
-                description: libSub.description
+                description: libSub.description,
+                semester: extraData.semester ? Number(extraData.semester) : null,
+                credits: extraData.credits !== undefined && extraData.credits !== null && extraData.credits !== '' ? Number(extraData.credits) : null,
+                subjectType: extraData.subjectType || 'THEORY',
+                department: extraData.department || null
             });
 
             // Update course subjects list
@@ -187,7 +224,7 @@ export class SubjectService {
             action: 'course.assignSubjects',
             resource: { type: 'Course', id: courseId },
             institute: instituteId,
-            details: { assignedCount: results.length },
+            details: { assignedCount: results.length, semester: extraData.semester || null },
             req
         });
 

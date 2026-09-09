@@ -1,6 +1,11 @@
 import Course from '@/models/Course';
 import Batch from '@/models/Batch';
 import '@/models/Subject'; // Ensure Subject schema is registered for populate
+import '@/models/CourseBundle'; // Ensure CourseBundle schema is registered for populate
+import '@/models/Session'; // Ensure Session schema is registered for populate
+import '@/models/User'; // Ensure User schema is registered for populate
+import '@/models/Department'; // Ensure Department schema is registered for populate
+import '@/models/Institute'; // Ensure Institute schema is registered for populate
 import mongoose from 'mongoose';
 import { createAuditLog } from './auditService';
 import { connectDB } from '@/lib/mongodb';
@@ -30,6 +35,14 @@ export class CourseService {
         await connectDB();
         const { institute } = data;
         if (!institute) throw new Error("Institute context missing");
+
+        // ponytail: auto-derive course duration in months from totalSemesters for college courses
+        if (data.collegeConfig?.totalSemesters && (!data.duration || !data.duration.value)) {
+            data.duration = {
+                value: data.collegeConfig.totalSemesters * 6,
+                unit: 'months'
+            };
+        }
 
         let course;
         try {
@@ -110,20 +123,32 @@ export class CourseService {
         }
 
         return await Course.find(query)
-            .populate('subjects')
+            .populate({
+                path: 'subjects',
+                match: { deletedAt: null }
+            })
+            .populate('department', 'name code')
             .populate('createdBy', 'profile.firstName profile.lastName')
             .lean();
     }
 
     static async updateCourse(id, data, actorId, instituteId) {
         await connectDB();
-        const allowedFields = ['code', 'name', 'duration', 'fees', 'description', 'subjects'];
+        const allowedFields = ['code', 'name', 'duration', 'fees', 'description', 'subjects', 'department', 'collegeConfig'];
         const updateData = {};
         allowedFields.forEach(field => {
             if (data[field] !== undefined) {
                 updateData[field] = data[field];
             }
         });
+
+        // ponytail: auto-derive duration from collegeConfig totalSemesters if duration is not explicitly updated
+        if (updateData.collegeConfig?.totalSemesters && !updateData.duration) {
+            updateData.duration = {
+                value: updateData.collegeConfig.totalSemesters * 6,
+                unit: 'months'
+            };
+        }
 
         if (Object.keys(updateData).length === 0) {
             throw new Error("No valid updatable fields provided");
@@ -237,12 +262,15 @@ export class BatchService {
                 // Bundle batches: unique per bundle
                 nameQuery.courseBundle = courseBundleId;
             } else if (!isVocational) {
-                // Schools: scoped to Course + Session
+                // Schools & Colleges: scoped to Course + Session (+ Semester if present)
                 nameQuery.course = courseId;
                 if (data.session) {
                     nameQuery.session = data.session;
                 } else {
                     nameQuery.$or = [{ session: null }, { session: { $exists: false } }];
+                }
+                if (data.semester) {
+                    nameQuery.semester = data.semester;
                 }
             }
 
@@ -422,7 +450,7 @@ export class BatchService {
             instituteId = user.institute;
         }
 
-        const allowedFields = ['name', 'course', 'schedule', 'capacity', 'instructor', 'description', 'startDate', 'endDate', 'session'];
+        const allowedFields = ['name', 'course', 'schedule', 'capacity', 'instructor', 'description', 'startDate', 'endDate', 'session', 'semester'];
         const sanitizedData = {};
         const updatesLog = [];
 

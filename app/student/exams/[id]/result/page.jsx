@@ -57,7 +57,7 @@ export default function ExamResultPage() {
                 <div className="text-center max-w-md">
                     <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-slate-800">Unable to Load Results</h2>
-                    <p className="text-slate-500 mt-2 mb-6">Something went wrong or you don't have permission to view this result yet.</p>
+                    <p className="text-slate-500 mt-2 mb-6">Something went wrong or you don&apos;t have permission to view this result yet.</p>
                     <Button onClick={() => router.push("/student/exams")}>Back to Exams</Button>
                 </div>
             </div>
@@ -131,13 +131,16 @@ export default function ExamResultPage() {
                             return (
                                 <Card key={idx} className={cn(
                                     "border transition-all",
+                                    ans.needsGrading ? "border-amber-200 bg-amber-50/20" :
                                     isCorrect ? "border-green-100 bg-green-50/10" :
-                                        isSkipped ? "border-slate-200 bg-slate-50/50" : "border-red-100 bg-red-50/10"
+                                    isSkipped ? "border-slate-200 bg-slate-50/50" : "border-red-100 bg-red-50/10"
                                 )}>
                                     <CardContent className="p-6">
                                         <div className="flex gap-4">
                                             <div className="shrink-0 pt-1">
-                                                {isCorrect ? (
+                                                {ans.needsGrading ? (
+                                                    <Clock className="text-amber-500 animate-pulse" size={24} />
+                                                ) : isCorrect ? (
                                                     <CheckCircle2 className="text-green-500" size={24} />
                                                 ) : isSkipped ? (
                                                     <AlertCircle className="text-slate-400" size={24} />
@@ -148,14 +151,20 @@ export default function ExamResultPage() {
                                             <div className="flex-1 space-y-4">
                                                 <div>
                                                     <div className="flex justify-between items-start mb-2">
-                                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                                            Question {idx + 1}
-                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                                Question {idx + 1}
+                                                            </span>
+                                                            <span className="text-[10px] uppercase font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                                                                {ans.type?.replace('_', ' ')}
+                                                            </span>
+                                                        </div>
                                                         <span className={cn(
                                                             "text-xs font-bold px-2 py-1 rounded",
+                                                            ans.needsGrading ? "bg-amber-100 text-amber-800" :
                                                             isCorrect ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
                                                         )}>
-                                                            {ans.marksAwarded} / {ans.maxMarks} Marks
+                                                            {ans.needsGrading ? "Pending Evaluation" : `${ans.marksAwarded} / ${ans.maxMarks} Marks`}
                                                         </span>
                                                     </div>
                                                     <p className="font-semibold text-slate-800 text-lg mb-4">
@@ -177,12 +186,34 @@ export default function ExamResultPage() {
                                                             </SyntaxHighlighter>
                                                         </div>
                                                     )}
+                                                    {ans.questionImage && (
+                                                        <div className="mb-4 max-w-md rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
+                                                            <img
+                                                                src={ans.questionImage}
+                                                                alt="Question Diagram"
+                                                                className="w-full h-auto max-h-72 object-contain p-2"
+                                                            />
+                                                        </div>
+                                                    )}
 
-                                                    {ans.type === "mcq" && ans.options && (
+                                                    {/* MCQ / Multi-Correct options */}
+                                                    {(ans.type === "mcq" || ans.type === "multi_correct_mcq") && ans.options && (
                                                         <div className="grid gap-2">
                                                             {ans.options.map((option, optIdx) => {
-                                                                const isUserSelected = parseInt(ans.yourAnswer, 10) === optIdx;
-                                                                const isCorrectOption = parseInt(ans.correctAnswer, 10) === optIdx;
+                                                                let isUserSelected = false;
+                                                                let isCorrectOption = false;
+
+                                                                if (ans.type === "multi_correct_mcq") {
+                                                                    try {
+                                                                        const sArr = JSON.parse(ans.yourAnswer || '[]');
+                                                                        const cArr = JSON.parse(ans.correctAnswer || '[]');
+                                                                        isUserSelected = sArr.includes(optIdx);
+                                                                        isCorrectOption = cArr.includes(optIdx);
+                                                                    } catch {}
+                                                                } else {
+                                                                    isUserSelected = parseInt(ans.yourAnswer, 10) === optIdx;
+                                                                    isCorrectOption = parseInt(ans.correctAnswer, 10) === optIdx;
+                                                                }
 
                                                                 let optionStyle = "bg-white border-slate-200 text-slate-700";
                                                                 let icon = null;
@@ -193,10 +224,6 @@ export default function ExamResultPage() {
                                                                 } else if (isUserSelected && !isCorrect) {
                                                                     optionStyle = "bg-red-50 border-red-200 text-red-800";
                                                                     icon = <XCircle size={16} className="text-red-500" />;
-                                                                } else if (isUserSelected && isCorrect) {
-                                                                    // Should be covered by isCorrectOption but just in case
-                                                                    optionStyle = "bg-green-100 border-green-300 text-green-800";
-                                                                    icon = <CheckCircle2 size={16} className="text-green-600" />;
                                                                 }
 
                                                                 return (
@@ -212,16 +239,27 @@ export default function ExamResultPage() {
                                                         </div>
                                                     )}
 
-                                                    {ans.type === "descriptive" && (
-                                                        <div className="grid md:grid-cols-2 gap-4 text-sm">
-                                                            <div className="p-3 rounded-lg border bg-white border-slate-200 text-slate-700">
-                                                                <span className="block text-xs font-bold opacity-60 mb-1 uppercase">Your Answer</span>
-                                                                {ans.yourAnswer || "Skipped"}
+                                                    {/* Non-MCQ Types (Short Answer, Essay, True/False, Numerical, Fill in Blank) */}
+                                                    {ans.type !== "mcq" && ans.type !== "multi_correct_mcq" && (
+                                                        <div className="space-y-3">
+                                                            <div className="grid md:grid-cols-2 gap-3 text-sm">
+                                                                <div className="p-3 rounded-lg border bg-white border-slate-200 text-slate-700">
+                                                                    <span className="block text-xs font-bold opacity-60 mb-1 uppercase">Your Answer</span>
+                                                                    <p className="whitespace-pre-wrap">{ans.yourAnswer || <span className="italic text-slate-400">Skipped</span>}</p>
+                                                                </div>
+                                                                {(ans.correctAnswer || ans.modelAnswer) && (
+                                                                    <div className="p-3 rounded-lg bg-blue-50 border border-blue-100 text-blue-800">
+                                                                        <span className="block text-xs font-bold opacity-60 mb-1 uppercase">Correct Answer / Model Note</span>
+                                                                        <p className="whitespace-pre-wrap">{ans.modelAnswer || ans.correctAnswer}</p>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                            {ans.correctAnswer && (
-                                                                <div className="p-3 rounded-lg bg-blue-50 border border-blue-100 text-blue-800">
-                                                                    <span className="block text-xs font-bold opacity-60 mb-1 uppercase">Correct Answer Note</span>
-                                                                    {ans.correctAnswer}
+
+                                                            {/* Teacher Feedback */}
+                                                            {ans.feedback && (
+                                                                <div className="p-3 rounded-lg bg-purple-50 border border-purple-200 text-purple-900 text-sm">
+                                                                    <span className="block text-xs font-bold uppercase tracking-wider text-purple-600 mb-1">Teacher Feedback</span>
+                                                                    <p>{ans.feedback}</p>
                                                                 </div>
                                                             )}
                                                         </div>

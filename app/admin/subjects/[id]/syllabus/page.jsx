@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
     ChevronDown, ChevronRight, Plus, Trash2, GripVertical, Save,
     BookOpen, ArrowLeft, FileText, List as ListIcon, Upload, Download
@@ -22,6 +23,11 @@ export default function SyllabusBuilderPage() {
     const { id: subjectId } = useParams();
     const router = useRouter();
     const toast = useToast();
+    const { data: session } = useSession();
+    const isCollege = session?.user?.institute?.type === 'COLLEGE';
+    const unitTerm = isCollege ? "Module" : "Chapter";
+    const unitTermPlural = isCollege ? "Modules" : "Chapters";
+    const unitPrefix = isCollege ? "MOD." : "CH.";
 
     const [subject, setSubject] = useState(null);
     const [chapters, setChapters] = useState([]);
@@ -148,7 +154,7 @@ export default function SyllabusBuilderPage() {
     // ── Save ──────────────────────────────────────────────────────────────────
     const handleSave = async () => {
         if (chapters.length > 0 && chapters.every(ch => !ch.title?.trim())) {
-            toast.error("Please enter a title for at least one chapter");
+            toast.error(`Please enter a title for at least one ${unitTerm.toLowerCase()}`);
             return;
         }
 
@@ -386,9 +392,9 @@ export default function SyllabusBuilderPage() {
                         <Card className="border-dashed border-2 py-20 text-center">
                             <BookOpen size={48} className="mx-auto text-slate-200 mb-4" />
                             <h3 className="text-lg font-bold text-slate-700">Empty Syllabus</h3>
-                            <p className="text-slate-400 text-sm mb-6">Start by adding your first chapter to organize topics.</p>
+                            <p className="text-slate-400 text-sm mb-6">Start by adding your first {unitTerm.toLowerCase()} to organize topics.</p>
                             <Button onClick={addChapter} variant="outline" className="mx-auto flex items-center gap-2">
-                                <Plus size={18} /> Add Chapter
+                                <Plus size={18} /> Add {unitTerm}
                             </Button>
                         </Card>
                     ) : (
@@ -404,16 +410,16 @@ export default function SyllabusBuilderPage() {
                                             <button onClick={() => setExpandedChapters(p => ({ ...p, [ch._tmpId]: !isExpanded }))} className="text-slate-400 hover:text-slate-600 transition-colors">
                                                 {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                             </button>
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest w-12 shrink-0">CH.{chIdx + 1}</span>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest w-12 shrink-0">{unitPrefix}{chIdx + 1}</span>
                                             <input
                                                 type="text"
                                                 value={ch.title}
                                                 onChange={e => updateChapterTitle(ch._tmpId, e.target.value)}
-                                                placeholder="Chapter Title (e.g. Fundamental Concepts)"
+                                                placeholder={`${unitTerm} Title (e.g. Fundamental Concepts)`}
                                                 className="flex-1 bg-transparent text-sm font-bold text-slate-800 outline-none placeholder:text-slate-300"
                                             />
                                             <div className="flex items-center gap-2">
-                                                <button onClick={() => removeChapter(ch._tmpId)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete Chapter">
+                                                <button onClick={() => removeChapter(ch._tmpId)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title={`Delete ${unitTerm}`}>
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>
@@ -467,7 +473,7 @@ export default function SyllabusBuilderPage() {
                                                 ))}
 
                                                 <button onClick={() => addTopic(ch._tmpId)} className="w-full flex items-center justify-center gap-2 py-3 mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-premium-blue hover:bg-blue-50/50 border border-dashed border-slate-200 rounded-xl transition-all">
-                                                    <Plus size={14} /> Add Topic to Chapter {chIdx + 1}
+                                                    <Plus size={14} /> Add Topic to {unitTerm} {chIdx + 1}
                                                 </button>
                                             </div>
                                         )}
@@ -477,7 +483,7 @@ export default function SyllabusBuilderPage() {
 
                             <Button onClick={addChapter} className="w-full py-6 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 rounded-xl shadow-lg mt-8">
                                 <Plus size={20} />
-                                <span className="text-sm font-bold uppercase tracking-widest">Create New Chapter</span>
+                                <span className="text-sm font-bold uppercase tracking-widest">Create New {unitTerm}</span>
                             </Button>
                         </div>
                     )}

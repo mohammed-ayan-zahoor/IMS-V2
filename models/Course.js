@@ -29,8 +29,16 @@ const CourseSchema = new Schema({
             default: 'INR'
         }
     },
-    syllabus: [{ type: String, trim: true }],
     department: { type: Schema.Types.ObjectId, ref: 'Department', default: null, index: true },
+    // Isolated to COLLEGE institutes: defines degree semester count and fee blueprint
+    collegeConfig: {
+        totalSemesters: { type: Number, min: 1, max: 12, default: 8 },
+        billingCycle: { type: String, enum: ['YEARLY', 'SEMESTER'], default: 'YEARLY' },
+        yearWiseFees: [{
+            year: { type: Number, required: true },
+            amount: { type: Number, required: true }
+        }]
+    },
     subjects: [{ type: Schema.Types.ObjectId, ref: 'Subject' }],
     prerequisites: [{ type: Schema.Types.ObjectId, ref: 'Course' }],
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },

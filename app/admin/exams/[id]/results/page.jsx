@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Search, Download, Trophy, Users, Clock, AlertCircle, CheckCircle2, XCircle, Printer } from "lucide-react";
+import { ArrowLeft, Search, Download, Trophy, Users, Clock, AlertCircle, CheckCircle2, XCircle, Printer, ClipboardList } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card, { CardContent } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -285,8 +285,19 @@ export default function ExamResultsPage({ params }) {
                           <p className="text-slate-500">Student performance overview.</p>
                       </div>
                   </div>
-                  <div className="flex gap-3">
-                      {/* Export/Download placeholders could go here */}
+                  <div className="flex items-center gap-3">
+                      <Button
+                          onClick={() => router.push(`/admin/exams/${id}/grade`)}
+                          className="font-bold flex items-center gap-2"
+                      >
+                          <ClipboardList size={16} />
+                          Grade Answers
+                          {submissions.some(s => s.status === 'submitted' || s.gradingStatus === 'pending') && (
+                              <span className="bg-amber-400 text-slate-900 text-xs px-1.5 py-0.5 rounded-full font-black">
+                                  {submissions.filter(s => s.status === 'submitted' || s.gradingStatus === 'pending').length}
+                              </span>
+                          )}
+                      </Button>
                   </div>
               </div>
 
@@ -537,7 +548,7 @@ export default function ExamResultsPage({ params }) {
                                                         {ans.type === "descriptive" && (
                                                             <div className="grid md:grid-cols-2 gap-4 text-sm">
                                                                 <div className="p-3 rounded-lg border bg-white border-slate-200 text-slate-700">
-                                                                    <span className="block text-xs font-bold opacity-60 mb-1 uppercase">Student's Answer</span>
+                                                                    <span className="block text-xs font-bold opacity-60 mb-1 uppercase">Student&apos;s Answer</span>
                                                                     {ans.yourAnswer || "Skipped"}
                                                                 </div>
                                                                 {ans.correctAnswer && (

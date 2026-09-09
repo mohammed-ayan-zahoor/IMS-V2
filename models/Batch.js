@@ -10,6 +10,7 @@ const BatchSchema = new Schema({
         description: 'Academic session this batch belongs to'
     },
     name: { type: String, required: true, trim: true },
+    semester: { type: Number, min: 1, max: 12, default: null, index: true },
     // ponytail: course is optional now — a batch belongs to EITHER a course OR a courseBundle.
     // The pre-validate hook below enforces that exactly one is set.
     course: {
@@ -84,6 +85,7 @@ BatchSchema.pre('validate', function () {
 BatchSchema.index({ course: 1, deletedAt: 1 });
 BatchSchema.index({ courseBundle: 1, deletedAt: 1 });
 BatchSchema.index({ institute: 1, course: 1, deletedAt: 1 });
+BatchSchema.index({ institute: 1, course: 1, semester: 1, deletedAt: 1 });
 BatchSchema.index({ institute: 1, courseBundle: 1, deletedAt: 1 });
 BatchSchema.index({ institute: 1, session: 1, deletedAt: 1 });
 BatchSchema.index({ 'schedule.startDate': 1 });
@@ -95,4 +97,5 @@ BatchSchema.virtual('activeEnrollmentCount').get(function () {
     return this.enrolledStudents.filter(e => e.status === 'active').length;
 });
 
-export default mongoose.models.Batch || mongoose.model('Batch', BatchSchema);
+delete mongoose.models.Batch;
+export default mongoose.model('Batch', BatchSchema);

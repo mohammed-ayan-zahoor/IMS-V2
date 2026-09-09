@@ -2,13 +2,14 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 const AnswerSchema = new Schema({
-    questionId: { type: Schema.Types.ObjectId, required: true },
-    answer: String, // Student's answer (option index for MCQ, text for short answer)
-    isCorrect: { type: Boolean, default: false },
-    marksAwarded: { type: Number, default: 0 },
-    gradedBy: { type: Schema.Types.ObjectId, ref: 'User' }, // For manual grading
-    gradedAt: Date,
-    feedback: String // Grader's feedback on the answer
+    questionId:    { type: Schema.Types.ObjectId, required: true },
+    answer:        String, // Student's answer (option index for MCQ, text for short answer)
+    isCorrect:     { type: Boolean, default: false },
+    marksAwarded:  { type: Number, default: 0 },
+    needsGrading:  { type: Boolean, default: false }, // true for short_answer / essay
+    gradedBy:      { type: Schema.Types.ObjectId, ref: 'User' },
+    gradedAt:      Date,
+    feedback:      String // Grader's feedback on the answer
 });
 
 const SuspiciousEventSchema = new Schema({
@@ -65,6 +66,15 @@ const ExamSubmissionSchema = new Schema({
         default: 'in_progress',
         index: true
     },
+
+    // Manual grading state
+    gradingStatus: {
+        type: String,
+        enum: ['not_required', 'pending', 'in_progress', 'completed'],
+        default: 'not_required',
+        index: true
+    },
+    manualMarksTotal: { type: Number, default: 0 }, // sum of marks from manually graded answers
 
     // Grading
     remarks: { type: String, maxlength: 1000 },

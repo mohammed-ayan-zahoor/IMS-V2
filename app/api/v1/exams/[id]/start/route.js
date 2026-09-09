@@ -51,7 +51,10 @@ export async function POST(req, { params }) {
                 text: q.text,
                 type: q.type,
                 options: q.options,
-                marks: q.marks
+                marks: q.marks,
+                snippet: q.snippet,
+                questionImage: q.questionImage,
+                chapter: q.chapter
             }));
 
             // Resume existing submission
@@ -123,7 +126,10 @@ export async function POST(req, { params }) {
             text: q.text, // Updated from questionText
             type: q.type,
             options: q.options,
-            marks: q.marks
+            marks: q.marks,
+            snippet: q.snippet,
+            questionImage: q.questionImage,
+            chapter: q.chapter
         }));
 
         return Response.json({

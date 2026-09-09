@@ -9,17 +9,6 @@ import Modal from "@/components/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
-const SEEDED_DESIGNATIONS = [
-    { _id: "des-1", name: "Principal & Academic Director", description: "Overall academic leadership, policy execution, and institution administration." },
-    { _id: "des-2", name: "Vice Principal", description: "Academic coordination, discipline enforcement, and curriculum oversight." },
-    { _id: "des-3", name: "Head of Department (HOD)", description: "Departmental lead overseeing subject faculty and syllabus execution." },
-    { _id: "des-4", name: "Senior Lecturer / Faculty", description: "Conducting lectures, mentoring students, and evaluating examination papers." },
-    { _id: "des-5", name: "Assistant Professor / Teacher", description: "Classroom instruction, lab management, and student assignment grading." },
-    { _id: "des-6", name: "Administrative Officer", description: "Front office operations, student admissions, and record maintenance." },
-    { _id: "des-7", name: "Accountant & Payroll Manager", description: "Financial management, fee collection tracking, and staff payroll processing." },
-    { _id: "des-8", name: "IT & Systems Administrator", description: "Infrastructure maintenance, network security, and LMS portal administration." }
-];
-
 export default function DesignationsPage() {
     const toast = useToast();
     const confirm = useConfirm();
@@ -39,11 +28,10 @@ export default function DesignationsPage() {
             });
             if (!res.ok) throw new Error(`HTTP error ${res.status}`);
             const data = await res.json();
-            const fetched = data.designations || [];
-            setDesignations(fetched.length > 0 ? fetched : SEEDED_DESIGNATIONS);
+            setDesignations(data.designations || []);
         } catch (error) {
             if (error.name !== 'AbortError') {
-                setDesignations(SEEDED_DESIGNATIONS);
+                setDesignations([]);
             }
         } finally {
             setLoading(false);
@@ -79,18 +67,10 @@ export default function DesignationsPage() {
                 setFormData({ name: "", description: "" });
                 fetchDesignations();
             } else {
-                const newDes = { _id: `des-${Date.now()}`, name: formData.name.trim(), description: formData.description.trim() };
-                setDesignations(prev => [newDes, ...prev]);
-                toast.success("Designation added successfully");
-                setIsModalOpen(false);
-                setFormData({ name: "", description: "" });
+                toast.error(data.error || "Failed to add designation");
             }
         } catch (error) {
-            const newDes = { _id: `des-${Date.now()}`, name: formData.name.trim(), description: formData.description.trim() };
-            setDesignations(prev => [newDes, ...prev]);
-            toast.success("Designation added successfully");
-            setIsModalOpen(false);
-            setFormData({ name: "", description: "" });
+            toast.error("Network error while adding designation");
         } finally {
             setSaving(false);
         }
@@ -104,16 +84,15 @@ export default function DesignationsPage() {
         })) {
             try {
                 const res = await fetch(`/api/v1/hr/designations/${id}`, { method: "DELETE" });
+                const data = await res.json();
                 if (res.ok) {
                     toast.success("Designation removed successfully");
                     fetchDesignations();
                 } else {
-                    setDesignations(prev => prev.filter(d => d._id !== id));
-                    toast.success("Designation removed successfully");
+                    toast.error(data.error || "Failed to remove designation");
                 }
             } catch (error) {
-                setDesignations(prev => prev.filter(d => d._id !== id));
-                toast.success("Designation removed successfully");
+                toast.error("Network error while removing designation");
             }
         }
     };

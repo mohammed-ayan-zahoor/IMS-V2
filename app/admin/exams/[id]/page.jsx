@@ -2,7 +2,8 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Info } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Save, Info, ClipboardList } from "lucide-react";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -18,9 +19,14 @@ export default function EditExamPage({ params }) {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [savingEvaluators, setSavingEvaluators] = useState(false);
     const [courses, setCourses] = useState([]);
     const [subjects, setSubjects] = useState([]);
-    
+    const [instructors, setInstructors] = useState([]);
+    const [examSubjects, setExamSubjects] = useState([]); // subjects in the exam's questions
+    const [evaluatorAssignments, setEvaluatorAssignments] = useState([]); // [{ subject, evaluator }]
+    const [hasSubjectiveQs, setHasSubjectiveQs] = useState(false);
+
     const [formData, setFormData] = useState({
         title: "",
         instructions: "",
@@ -38,10 +44,11 @@ export default function EditExamPage({ params }) {
 
     const fetchInitialData = async () => {
         try {
-            const [coursesRes, examRes, subjectsRes] = await Promise.all([
+            const [coursesRes, examRes, subjectsRes, instructorsRes] = await Promise.all([
                 fetch("/api/v1/courses"),
                 fetch(`/api/v1/exams/${id}`),
-                fetch("/api/v1/subjects")
+                fetch("/api/v1/subjects"),
+                fetch("/api/v1/users?role=instructor&limit=100")
             ]);
 
             if (!coursesRes.ok || !examRes.ok) throw new Error("Failed to fetch initial data");
@@ -49,9 +56,29 @@ export default function EditExamPage({ params }) {
             const { courses: coursesData } = await coursesRes.json();
             const { exam } = await examRes.json();
             const sData = subjectsRes.ok ? await subjectsRes.json() : { subjects: [] };
+            const iData = instructorsRes.ok ? await instructorsRes.json() : { users: [] };
 
             setCourses(coursesData || []);
             setSubjects(sData.subjects || []);
+            setInstructors(iData.users || iData.data || []);
+
+            // Detect if exam has subjective questions
+            const subjTypes = ['short_answer', 'essay'];
+            const subjective = (exam.questions || []).some(q => subjTypes.includes(q.type));
+            setHasSubjectiveQs(subjective);
+
+            // Unique subjects from questions
+            const uniqueSubjects = [];
+            const seen = new Set();
+            for (const q of exam.questions || []) {
+                const sid = q.subject?._id || q.subject;
+                if (sid && !seen.has(String(sid))) {
+                    seen.add(String(sid));
+                    uniqueSubjects.push({ _id: String(sid), name: q.subject?.name || String(sid) });
+                }
+            }
+            setExamSubjects(uniqueSubjects);
+            setEvaluatorAssignments(exam.evaluatorAssignments || []);
 
             // Helper to format date for input (YYYY-MM-DDTHH:mm)
             const formatDate = (dateStr) => {
@@ -304,6 +331,81 @@ export default function EditExamPage({ params }) {
                     </div>
                 </div>
             </Card>
+
+            {/* Evaluator Assignments — shown only when exam has subjective questions */}
+            {(hasSubjectiveQs || examSubjects.length > 0) && (
+                <Card>
+                    <div className="p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-sm font-bold text-slate-900">Evaluator Assignments</h2>
+                                <p className="text-xs text-slate-400 mt-0.5">Assign which instructor grades which subject's subjective answers.</p>
+                            </div>
+                            <Link href={`/admin/exams/${id}/grade`}>
+                                <Button variant="outline" className="font-bold flex items-center gap-2 text-sm">
+                                    <ClipboardList size={16} /> Grade Answers
+                                </Button>
+                            </Link>
+                        </div>
+
+                        {examSubjects.length === 0 ? (
+                            <p className="text-sm text-slate-400">No subjects detected in this exam's questions. Add questions first.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {examSubjects.map(sub => {
+                                    const currentEval = evaluatorAssignments.find(a => String(a.subject?._id || a.subject) === String(sub._id))?.evaluator;
+                                    const currentEvalId = String(currentEval?._id || currentEval || "");
+                                    return (
+                                        <div key={sub._id} className="flex items-center gap-4">
+                                            <span className="text-sm font-medium text-slate-700 w-40 shrink-0">{sub.name}</span>
+                                            <Select
+                                                value={currentEvalId}
+                                                onChange={val => {
+                                                    setEvaluatorAssignments(prev => {
+                                                        const filtered = prev.filter(a => String(a.subject?._id || a.subject) !== String(sub._id));
+                                                        if (!val) return filtered;
+                                                        return [...filtered, { subject: sub._id, evaluator: val }];
+                                                    });
+                                                }}
+                                                placeholder="Not assigned"
+                                                options={[
+                                                    { label: "Not assigned", value: "" },
+                                                    ...instructors.map(u => ({
+                                                        label: `${u.profile?.firstName || ''} ${u.profile?.lastName || ''}`.trim() || u.email,
+                                                        value: u._id
+                                                    }))
+                                                ]}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                                <div className="pt-2">
+                                    <Button
+                                        onClick={async () => {
+                                            setSavingEvaluators(true);
+                                            try {
+                                                const res = await fetch(`/api/v1/exams/${id}`, {
+                                                    method: "PATCH",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ evaluatorAssignments })
+                                                });
+                                                if (!res.ok) throw new Error();
+                                                toast.success("Evaluator assignments saved");
+                                            } catch { toast.error("Failed to save assignments"); }
+                                            finally { setSavingEvaluators(false); }
+                                        }}
+                                        disabled={savingEvaluators}
+                                        variant="outline"
+                                        className="font-bold"
+                                    >
+                                        {savingEvaluators ? "Saving..." : "Save Assignments"}
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </Card>
+            )}
         </div>
     );
 }

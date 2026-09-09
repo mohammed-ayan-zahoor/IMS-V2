@@ -199,6 +199,63 @@ export async function POST(req) {
                             console.error(`Failed to execute carryforward logic for student ${studentId}:`, cfErr);
                         }
                     }
+                } else if (instituteType === 'COLLEGE') {
+                    // ponytail: Isolated to COLLEGE institutes — degree fee blueprint automation
+                    try {
+                        const targetCourse = targetBatch.course;
+                        const collegeConfig = targetCourse?.collegeConfig;
+                        const targetSemester = targetBatch.semester;
+
+                        let shouldCreateFee = false;
+                        let feeAmount = targetCourse?.fees?.amount || 0;
+
+                        if (collegeConfig) {
+                            if (collegeConfig.billingCycle === 'SEMESTER') {
+                                // Per-semester billing: each semester promotion creates the semester fee record
+                                shouldCreateFee = true;
+                                const targetYear = Math.ceil((targetSemester || 1) / 2);
+                                const yearConfig = collegeConfig.yearWiseFees?.find(y => y.year === targetYear);
+                                feeAmount = yearConfig?.amount || feeAmount;
+                            } else {
+                                // Annual / Yearly billing: only create fee when stepping into a new academic year
+                                // (e.g. Sem 1 -> Sem 2 is same year, no fee created; Sem 2 -> Sem 3 is Year 2, creates Year 2 fee)
+                                const isNewAcademicYear = targetSemester ? (targetSemester % 2 !== 0 && targetSemester > 1) : false;
+                                if (isNewAcademicYear) {
+                                    shouldCreateFee = true;
+                                    const targetYear = Math.ceil(targetSemester / 2);
+                                    const yearConfig = collegeConfig.yearWiseFees?.find(y => y.year === targetYear);
+                                    feeAmount = yearConfig?.amount || feeAmount;
+                                }
+                            }
+                        }
+
+                        if (shouldCreateFee && feeAmount > 0) {
+                            const existingFee = await Fee.findOne({
+                                student: studentId,
+                                batch: targetBatchId,
+                                deletedAt: null
+                            });
+
+                            if (!existingFee) {
+                                await Fee.create([{
+                                    student: studentId,
+                                    batch: targetBatchId,
+                                    session: targetSessionId,
+                                    institute: scope.instituteId,
+                                    totalAmount: feeAmount,
+                                    status: 'not_started'
+                                }]);
+                                results.feesCreated++;
+                            } else {
+                                results.feesSkipped++;
+                            }
+                        } else {
+                            results.feesSkipped++;
+                        }
+                    } catch (colFeeErr) {
+                        console.error(`Failed to generate college fee for student ${studentId}:`, colFeeErr);
+                        results.feesFailed++;
+                    }
                 } else {
                     // VOCATIONAL institute - skip fee creation
                     results.feesSkipped++;
@@ -237,7 +294,7 @@ export async function POST(req) {
 
          return NextResponse.json({
              success: true,
-             message: `Successfully promoted ${results.success} students.${instituteType === 'VOCATIONAL' ? ' Fees were not auto-created for this vocational institute.' : ''}`,
+             message: `Successfully promoted ${results.success} students.${instituteType === 'VOCATIONAL' ? ' Fees were not auto-created for this vocational institute.' : instituteType === 'COLLEGE' ? ` (${results.feesCreated} fee records generated).` : ''}`,
              details: {
                  ...results,
                  instituteType

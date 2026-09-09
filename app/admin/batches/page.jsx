@@ -21,7 +21,8 @@ import {
     HelpCircle,
     Layers,
     Package,
-    ChevronRight
+    ChevronRight,
+    ChevronDown
 } from "lucide-react";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
@@ -49,7 +50,14 @@ export default function BatchesPage() {
     const { selectedSessionId, sessions } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
+    const isCollege = session?.user?.institute?.type === 'COLLEGE';
+    const [departments, setDepartments] = useState([]);
+    const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
+    const [expandedCourses, setExpandedCourses] = useState({});
+    const [activeSemesters, setActiveSemesters] = useState({});
+
     const [search, setSearch] = useState("");
+    const [selectedCourseFilter, setSelectedCourseFilter] = useState("");
     const [listFilter, setListFilter] = useState("all"); // "all" | "course" | "bundle"
     const [institutes, setInstitutes] = useState([]);
     const [selectedInstitute, setSelectedInstitute] = useState("");
@@ -66,18 +74,29 @@ export default function BatchesPage() {
     const [formData, setFormData] = useState({
         name: "",
         course: "",
+        semester: 1,
         courseBundle: "",
         schedule: "",
         startDate: "",
-        capacity: ""
+        capacity: 30
     });
+
+    const toggleCourseExpansion = (courseId) => {
+        setExpandedCourses(prev => {
+            const current = prev[courseId] !== undefined ? prev[courseId] : (collegeFilteredCourses.length === 1);
+            return {
+                ...prev,
+                [courseId]: !current
+            };
+        });
+    };
 
     useEffect(() => {
         fetchInitialData();
         if (session?.user?.role === 'super_admin') {
             fetchInstitutes();
         }
-    }, [session, selectedInstitute, selectedSessionId]);
+    }, [session, selectedInstitute, selectedSessionId, isCollege]);
 
     const fetchInstitutes = async () => {
         try {
@@ -100,9 +119,16 @@ export default function BatchesPage() {
                 fetch(`/api/v1/courses?_t=${Date.now()}${instQuery}`)
             ];
             if (isVocational) fetches.push(fetch("/api/v1/course-bundles"));
+            if (isCollege) fetches.push(fetch(`/api/v1/departments?_t=${Date.now()}${instQuery}`));
 
             const results = await Promise.all(fetches);
-            const [bData, cData] = await Promise.all([results[0].json(), results[1].json()]);
+            const [bRes, cRes] = results;
+            const bData = await bRes.json().catch(() => ({}));
+            const cData = await cRes.json().catch(() => ({}));
+
+            if (!bRes.ok) {
+                console.error("Failed to fetch batches:", bRes.status, bData);
+            }
 
             let batchList = Array.isArray(bData) ? bData : (Array.isArray(bData?.batches) ? bData.batches : []);
             
@@ -115,11 +141,19 @@ export default function BatchesPage() {
             });
 
             setBatches(batchList);
-            setCourses(Array.isArray(cData) ? cData : (Array.isArray(cData?.courses) ? cData.courses : []));
+            const fetchedCourses = Array.isArray(cData) ? cData : (Array.isArray(cData?.courses) ? cData.courses : []);
+            setCourses(fetchedCourses);
 
             if (isVocational && results[2]) {
                 const bndData = await results[2].json();
                 setBundles(bndData.bundles || []);
+            }
+            if (isCollege) {
+                const deptRes = isVocational ? results[3] : results[2];
+                if (deptRes) {
+                    const dData = await deptRes.json();
+                    setDepartments(dData.departments || []);
+                }
             }
         } catch (error) {
             console.error("Failed to fetch data", error);
@@ -146,6 +180,23 @@ export default function BatchesPage() {
         }
     };
 
+    const handleBatchChat = async (batch) => {
+        try {
+            const res = await fetch("/api/v1/chat/conversations", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isBatch: true, batchId: batch._id, name: batch.name })
+            });
+            if (res.ok) {
+                window.location.href = "/admin/chat";
+            } else {
+                toast.error(`Failed to start ${isSchool || isCollege ? "section" : "batch"} chat`);
+            }
+        } catch (err) {
+            toast.error(`Failed to start ${isSchool || isCollege ? "section" : "batch"} chat`);
+        }
+    };
+
     const handleEditBatch = (batch) => {
         setEditingBatch(batch);
         const type = batch.courseBundle ? "bundle" : "course";
@@ -153,6 +204,7 @@ export default function BatchesPage() {
         setFormData({
             name: batch.name,
             course: type === "course" ? (batch.course?._id || "") : "",
+            semester: batch.semester || 1,
             courseBundle: type === "bundle" ? (batch.courseBundle?._id || "") : "",
             capacity: batch.capacity,
             schedule: batch.schedule?.description || "",
@@ -173,11 +225,15 @@ export default function BatchesPage() {
             schedule: { startDate: formData.startDate, description: formData.schedule }
         };
 
+        if (isCollege) {
+            payload.semester = parseInt(formData.semester, 10) || 1;
+        }
+
         if (batchType === "bundle" && formData.courseBundle) {
             payload.courseBundle = formData.courseBundle;
             payload.course = null;
         } else {
-            payload.course = formData.course;
+            payload.course = formData.course || courses[0]?._id;
             payload.courseBundle = null;
         }
 
@@ -192,9 +248,9 @@ export default function BatchesPage() {
                 setIsAddModalOpen(false);
                 setEditingBatch(null);
                 setBatchType("course");
-                setFormData({ name: "", course: "", courseBundle: "", schedule: "", startDate: "", capacity: "" });
+                setFormData({ name: "", course: "", semester: 1, courseBundle: "", schedule: "", startDate: "", capacity: 30 });
                 fetchInitialData();
-                toast.success(editingBatch ? `${isSchool ? "Section" : "Batch"} updated successfully` : `${isSchool ? "Section" : "Batch"} created successfully`);
+                toast.success(editingBatch ? `${isSchool || isCollege ? "Section" : "Batch"} updated successfully` : `${isSchool || isCollege ? "Section" : "Batch"} created successfully`);
             } else {
                 const error = await res.json();
                 toast.error(error.error || "Operation failed");
@@ -248,8 +304,34 @@ export default function BatchesPage() {
         const matchesType = listFilter === "all" ? true
             : listFilter === "bundle" ? !!batch.courseBundle
             : !batch.courseBundle;
-        return matchesSearch && matchesType;
+
+        // Course filter
+        const matchesCourse = !selectedCourseFilter || (
+            (batch.course?._id && String(batch.course._id) === String(selectedCourseFilter)) ||
+            String(batch.course) === String(selectedCourseFilter)
+        );
+
+        return matchesSearch && matchesType && matchesCourse;
     });
+
+    const collegeFilteredCourses = courses.filter(course => {
+        if (selectedDepartmentFilter) {
+            const deptId = course.department?._id || course.department;
+            if (String(deptId) !== String(selectedDepartmentFilter)) return false;
+        }
+        if (search.trim()) {
+            const q = search.trim().toLowerCase();
+            const matchesCourse = course.name?.toLowerCase().includes(q) || course.code?.toLowerCase().includes(q);
+            const matchesBatch = batches.some(b => {
+                const isThisCourse = (b.course?._id && String(b.course._id) === String(course._id)) || String(b.course) === String(course._id);
+                return isThisCourse && b.name?.toLowerCase().includes(q);
+            });
+            if (!matchesCourse && !matchesBatch) return false;
+        }
+        return true;
+    });
+
+    const totalCollegeBatches = batches.filter(b => !!b.course).length;
 
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
 
@@ -262,245 +344,562 @@ export default function BatchesPage() {
             )}
 
             <div className={cn("space-y-6", isInstructorOrStaff ? "hidden md:block" : "")}>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                <div />
-                {session?.user?.role !== 'instructor' && (
-                    <div className="flex items-center gap-2">
-                        {/* How to Use Bundle Batches — only for Vocational */}
-                        {isVocational && (
-                            <button
-                                onClick={() => setIsHowToOpen(true)}
-                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all"
-                                title="How to use Bundle Batches"
-                            >
-                                <HelpCircle size={14} />
-                                How to use Bundle Batches
-                            </button>
-                        )}
-                        {isSchool && (
-                            <Button 
-                                onClick={() => setIsCloneModalOpen(true)}
-                                variant="outline"
-                                size="md"
-                                className="flex items-center gap-2 border-slate-200"
-                            >
-                                <Copy size={16} />
-                                <span>Clone Sections</span>
-                            </Button>
-                        )}
-                        <Button 
-                            onClick={() => {
-                                setEditingBatch(null);
-                                setBatchType("course");
-                                setFormData({ name: "", course: "", courseBundle: "", schedule: "", startDate: "", capacity: 30 });
-                                setIsAddModalOpen(true);
-                            }} 
-                            size="md" 
-                            className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
-                        >
-                            <Plus size={18} strokeWidth={2.5} />
-                            <span>Create {isSchool ? "Section" : "Batch"}</span>
-                        </Button>
-                    </div>
-                )}
-            </div>
-
-            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
-                    <div className="flex flex-wrap items-center gap-3 w-full">
-                        {institutes.length > 0 && (
-                            <div className="min-w-[200px]">
-                                <Select
-                                    value={selectedInstitute}
-                                    onChange={(val) => setSelectedInstitute(val)}
-                                    placeholder="All Institutes"
-                                    buttonClassName="bg-white border-slate-200"
-                                    options={[
-                                        { label: "All Institutes", value: "" },
-                                        ...institutes.map(i => ({ label: i.name, value: i._id }))
-                                    ]}
-                                />
+            {isCollege ? (
+                /* =========================================================================
+                   COLLEGE HIERARCHICAL ACCORDION VIEW (Course ➔ Semester ➔ Sections)
+                   Zero icon containers. Clean typography, badges, and smooth accordion.
+                   ========================================================================= */
+                <div className="space-y-4">
+                    {/* Top Bar for College */}
+                    <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-xs">
+                        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                            <div className="flex flex-wrap items-center gap-3 flex-1">
+                                {departments.length > 0 && (
+                                    <div className="w-56">
+                                        <Select
+                                            value={selectedDepartmentFilter}
+                                            onChange={(val) => setSelectedDepartmentFilter(val)}
+                                            placeholder="All Departments"
+                                            buttonClassName="bg-white border-slate-200"
+                                            options={[
+                                                { label: "All Departments", value: "" },
+                                                ...departments.map(d => ({ label: `${d.name} (${d.code})`, value: d._id }))
+                                            ]}
+                                        />
+                                    </div>
+                                )}
+                                <div className="flex-1 max-w-md">
+                                    <Input
+                                        placeholder="Search courses, batches or sections..."
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        icon={Search}
+                                        className="bg-white border-slate-200"
+                                    />
+                                </div>
                             </div>
-                        )}
-                        <div className="flex-1 max-w-md">
-                            <Input
-                                placeholder={`Search ${isSchool ? "sections" : "batches"}...`}
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                icon={Search}
-                                className="bg-white border-slate-200"
-                            />
+                            <div className="flex items-center gap-3 self-end md:self-auto">
+                                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-2 rounded-lg font-mono">
+                                    {collegeFilteredCourses.length} Courses • {totalCollegeBatches} Active Batches
+                                </span>
+                                {session?.user?.role !== 'instructor' && (
+                                    <Button 
+                                        onClick={() => {
+                                            setEditingBatch(null);
+                                            setBatchType("course");
+                                            setFormData({ name: "", course: courses[0]?._id || "", semester: 1, courseBundle: "", schedule: "", startDate: "", capacity: 30 });
+                                            setIsAddModalOpen(true);
+                                        }} 
+                                        size="md" 
+                                        className="flex items-center gap-2 px-5 shadow-sm shadow-blue-500/10"
+                                    >
+                                        <Plus size={18} strokeWidth={2.5} />
+                                        <span>Create Section</span>
+                                    </Button>
+                                )}
+                            </div>
                         </div>
-                        {/* Type Filter — Vocational only */}
-                        {isVocational && (
-                            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-md p-0.5">
-                                {[{v: "all", label: "All"}, {v: "course", label: "Courses"}, {v: "bundle", label: "🎁 Bundles"}].map(({v, label}) => (
-                                    <button
-                                        key={v}
-                                        onClick={() => setListFilter(v)}
-                                        className={cn(
-                                            "px-2.5 py-1 text-xs font-bold rounded transition-all",
-                                            listFilter === v ? "bg-slate-900 text-white shadow-xs" : "text-slate-500 hover:bg-slate-50"
-                                        )}
-                                    >{label}</button>
-                                ))}
-                            </div>
-                        )}
-                        <div className="flex-1" />
-                        <Badge variant="hot" className="bg-orange-50 text-orange-600 font-mono text-[10px]">
-                            {filteredBatches.length} Active {isSchool ? "Sections" : "Batches"}
-                        </Badge>
                     </div>
-                </div>
 
-                <div>
+                    {/* Courses Accordion List */}
                     {loading ? (
-                        <div className="p-12 flex justify-center"><LoadingSpinner /></div>
-                    ) : filteredBatches.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-slate-100 bg-white">
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">{isSchool ? "Section" : "Batch"} Name</th>
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">{isSchool ? "Class" : "Course"} Detail</th>
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Schedule</th>
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Occupancy</th>
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {filteredBatches.map((batch) => (
-                                        <tr key={batch._id} className="group hover:bg-[#F9FAFB] transition-all duration-200">
-                                            <td className="px-6 py-4">
-                                                <div>
-                                                    <h3 className="font-bold text-slate-900 text-[14px] leading-tight">{batch.name}</h3>
-                                                    <p className="text-[12px] text-slate-400 font-medium mt-0.5">
-                                                        Starts {batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), "MMM d, yyyy") : "TBD"}
-                                                    </p>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {batch.courseBundle ? (
-                                                    <div className="flex flex-col gap-1">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-xs font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md flex items-center gap-1">
-                                                                <Package size={11} /> Bundle
-                                                            </span>
-                                                            <Badge variant="code">{batch.courseBundle?.code || "PKG"}</Badge>
-                                                        </div>
-                                                        <p className="text-[11px] text-slate-500 font-bold mt-0.5 truncate max-w-[160px]">{batch.courseBundle?.title}</p>
-                                                        <p className="text-[10px] text-emerald-600 font-bold">₹{batch.courseBundle?.bundlePrice?.toLocaleString()}</p>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <Badge variant="code">{batch.course?.code || "N/A"}</Badge>
-                                                        <p className="text-[11px] text-slate-500 font-bold mt-1.5 truncate max-w-[150px]">{batch.course?.name}</p>
-                                                    </>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex flex-col gap-1.5">
-                                                    <div className="flex items-center gap-2 text-slate-700 text-[12px] font-bold">
-                                                        <Clock size={14} className="text-slate-400" />
-                                                        <span>{batch.schedule?.timing || "No time set"}</span>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {batch.schedule?.days?.map(day => (
-                                                            <span key={day} className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
-                                                                {day.substring(0, 3)}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[60px]">
-                                                        <div 
-                                                            className={cn(
-                                                                "h-full transition-all duration-500",
-                                                                ((batch.activeEnrollmentCount || 0) / batch.capacity) > 0.8 ? "bg-rose-500" : "bg-emerald-500"
-                                                            )}
-                                                            style={{ width: `${Math.min(100, ((batch.activeEnrollmentCount || 0) / batch.capacity) * 100)}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className="text-[11px] font-black text-slate-900">{batch.activeEnrollmentCount || 0}/{batch.capacity}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
-                                                    <button
-                                                        onClick={() => router.push(`/admin/batches/${batch._id}`)}
-                                                        className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
-                                                        title={`View ${isSchool ? "Section" : "Batch"} Details`}
-                                                    >
-                                                        <ExternalLink size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={async () => {
-                                                            try {
-                                                                const res = await fetch("/api/v1/chat/conversations", {
-                                                                    method: "POST",
-                                                                    headers: { "Content-Type": "application/json" },
-                                                                    body: JSON.stringify({ isBatch: true, batchId: batch._id, name: batch.name })
-                                                                });
-                                                                if (res.ok) {
-                                                                    window.location.href = "/admin/chat";
-                                                                } else {
-                                                                    toast.error(`Failed to start ${isSchool ? "section" : "batch"} chat`);
-                                                                }
-                                                            } catch (err) {
-                                                                toast.error(`Failed to start ${isSchool ? "section" : "batch"} chat`);
-                                                            }
-                                                        }}
-                                                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                                        title={`Broadcast to ${isSchool ? "Section" : "Batch"}`}
-                                                    >
-                                                        <MessageSquare size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => router.push(`/admin/attendance?batchId=${batch._id}`)}
-                                                        className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
-                                                        title="Mark Attendance"
-                                                    >
-                                                        <Calendar size={16} />
-                                                    </button>
-                                                    {session?.user?.role !== 'instructor' && (
-                                                        <>
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleEditBatch(batch); }}
-                                                                className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
-                                                                title={`Edit ${isSchool ? "Section" : "Batch"}`}
-                                                            >
-                                                                <Edit2 size={16} />
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); setDeletingBatch(batch); }}
-                                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                                                title={`Delete ${isSchool ? "Section" : "Batch"}`}
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
+                        <div className="p-16 flex justify-center bg-white rounded-xl border border-slate-100"><LoadingSpinner /></div>
+                    ) : collegeFilteredCourses.length === 0 ? (
                         <EmptyState
                             icon={Calendar}
-                            title={isSchool ? "No sections found" : "No batches found"}
-                            description={isSchool ? "Create your first section for this session to start enrollments." : "Schedule your first batch to start enrollments."}
-                            actionLabel={isSchool ? "Create Section" : "Create Batch"}
-                            onAction={() => setIsAddModalOpen(true)}
+                            title="No courses found"
+                            description={courses.length === 0 ? "No courses have been created yet. Add courses in Courses management to organize batches." : "No courses match your active search or department filter."}
+                            actionLabel={courses.length === 0 ? "Go to Courses" : undefined}
+                            onAction={courses.length === 0 ? () => router.push('/admin/courses') : undefined}
                         />
+                    ) : (
+                        <div className="space-y-3">
+                            {collegeFilteredCourses.map(course => {
+                                const courseBatches = batches.filter(b => (b.course?._id && String(b.course._id) === String(course._id)) || String(b.course) === String(course._id));
+                                const isExpanded = expandedCourses[course._id] !== undefined ? expandedCourses[course._id] : (collegeFilteredCourses.length === 1);
+                                const totalSemesters = course.collegeConfig?.totalSemesters || (course.duration?.value ? Math.round(course.duration.value / 6) : 8);
+                                const currentSem = Math.min(activeSemesters[course._id] || 1, totalSemesters);
+                                const activeSemBatches = courseBatches.filter(b => (Number(b.semester) || 1) === Number(currentSem));
+
+                                return (
+                                    <div
+                                        key={course._id}
+                                        className="bg-white rounded-xl border border-slate-200/80 hover:border-slate-300 transition-all overflow-hidden shadow-xs"
+                                    >
+                                        {/* Course Accordion Header — NO ICON CONTAINERS */}
+                                        <div
+                                            onClick={() => toggleCourseExpansion(course._id)}
+                                            className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50/70 transition-colors select-none"
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                <div className="text-slate-400 hover:text-slate-600 transition-transform p-0.5">
+                                                    {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                                </div>
+                                                <Badge variant="code" className="font-mono text-xs font-bold shrink-0">
+                                                    {course.code}
+                                                </Badge>
+                                                <span className="font-bold text-slate-900 text-sm md:text-[15px] truncate">
+                                                    {course.name}
+                                                </span>
+                                                <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shrink-0">
+                                                    {totalSemesters} Semesters ({Math.round(totalSemesters / 2)} Yrs)
+                                                </span>
+                                                {course.department && (
+                                                    <span className="text-xs text-slate-400 font-medium hidden sm:inline-block truncate max-w-[240px]">
+                                                        {course.department?.name || (typeof course.department === 'string' ? departments.find(d => d._id === course.department)?.name : '')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-3 shrink-0 ml-2">
+                                                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full">
+                                                    {courseBatches.length} Active {courseBatches.length === 1 ? "Batch" : "Batches"}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Course Expanded Content */}
+                                        {isExpanded && (
+                                            <div className="bg-slate-50/50 border-t border-slate-100 p-4 sm:p-5 space-y-4">
+                                                {/* Semester Tabs */}
+                                                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                                                    {Array.from({ length: totalSemesters }, (_, i) => i + 1).map(semNum => {
+                                                        const count = courseBatches.filter(b => (Number(b.semester) || 1) === Number(semNum)).length;
+                                                        const isActive = currentSem === semNum;
+                                                        return (
+                                                            <button
+                                                                key={semNum}
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setActiveSemesters(prev => ({ ...prev, [course._id]: semNum }));
+                                                                }}
+                                                                className={cn(
+                                                                    "px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shrink-0",
+                                                                    isActive
+                                                                        ? "bg-slate-900 text-white shadow-xs"
+                                                                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                                                )}
+                                                            >
+                                                                <span>Sem {semNum}</span>
+                                                                {count > 0 && (
+                                                                    <span className={cn(
+                                                                        "text-[10px] px-1.5 py-0.2 rounded-full",
+                                                                        isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600 font-bold"
+                                                                    )}>
+                                                                        {count}
+                                                                    </span>
+                                                                )}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Active Semester Header & Section Table */}
+                                                <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-xs">
+                                                    <div className="flex items-center justify-between px-5 py-3.5 bg-slate-50/70 border-b border-slate-100">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="text-sm font-bold text-slate-900">Semester {currentSem}</h4>
+                                                            <span className="text-xs text-slate-400 font-medium">
+                                                                • {activeSemBatches.length} {activeSemBatches.length === 1 ? "Section" : "Sections"}
+                                                            </span>
+                                                        </div>
+                                                        {session?.user?.role !== 'instructor' && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setEditingBatch(null);
+                                                                    setBatchType("course");
+                                                                    setFormData({
+                                                                        name: "",
+                                                                        course: course._id,
+                                                                        semester: currentSem,
+                                                                        courseBundle: "",
+                                                                        schedule: "",
+                                                                        startDate: "",
+                                                                        capacity: 30
+                                                                    });
+                                                                    setIsAddModalOpen(true);
+                                                                }}
+                                                                className="flex items-center gap-1 text-xs font-bold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100 h-8 px-3"
+                                                            >
+                                                                <Plus size={14} />
+                                                                <span>Add Section</span>
+                                                            </Button>
+                                                        )}
+                                                    </div>
+
+                                                    {activeSemBatches.length === 0 ? (
+                                                        <div className="py-10 text-center px-4">
+                                                            <p className="text-xs text-slate-400 font-medium">No sections created for Semester {currentSem} yet.</p>
+                                                            {session?.user?.role !== 'instructor' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setEditingBatch(null);
+                                                                        setBatchType("course");
+                                                                        setFormData({
+                                                                            name: "",
+                                                                            course: course._id,
+                                                                            semester: currentSem,
+                                                                            courseBundle: "",
+                                                                            schedule: "",
+                                                                            startDate: "",
+                                                                            capacity: 30
+                                                                        });
+                                                                        setIsAddModalOpen(true);
+                                                                    }}
+                                                                    className="mt-2 text-xs text-blue-600 font-bold hover:underline"
+                                                                >
+                                                                    + Create Section for Semester {currentSem}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-left border-collapse">
+                                                                <thead>
+                                                                    <tr className="border-b border-slate-100 bg-white text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                                                                        <th className="px-5 py-3">Section Name</th>
+                                                                        <th className="px-5 py-3">Schedule</th>
+                                                                        <th className="px-5 py-3">Occupancy</th>
+                                                                        <th className="px-5 py-3 text-right">Actions</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-slate-100 text-sm">
+                                                                    {activeSemBatches.map(batch => (
+                                                                        <tr key={batch._id} className="group hover:bg-slate-50/60 transition-colors">
+                                                                            <td className="px-5 py-3.5">
+                                                                                <div className="font-bold text-slate-900 text-sm">{batch.name}</div>
+                                                                                <div className="text-[11px] text-slate-400 font-medium">
+                                                                                    Starts {batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), "MMM d, yyyy") : "TBD"}
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="px-5 py-3.5">
+                                                                                <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+                                                                                    <Clock size={13} className="text-slate-400" />
+                                                                                    <span>{batch.schedule?.description || batch.schedule?.timing || "No schedule set"}</span>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="px-5 py-3.5">
+                                                                                <div className="flex items-center gap-2.5 max-w-[140px]">
+                                                                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                                        <div
+                                                                                            className={cn(
+                                                                                                "h-full transition-all duration-300",
+                                                                                                ((batch.activeEnrollmentCount || 0) / (batch.capacity || 1)) > 0.8 ? "bg-rose-500" : "bg-emerald-500"
+                                                                                            )}
+                                                                                            style={{ width: `${Math.min(100, ((batch.activeEnrollmentCount || 0) / (batch.capacity || 1)) * 100)}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <span className="text-xs font-bold text-slate-700 font-mono">
+                                                                                        {batch.activeEnrollmentCount || 0}/{batch.capacity || 30}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="px-5 py-3.5 text-right">
+                                                                                <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                                                    <button
+                                                                                        onClick={() => router.push(`/admin/batches/${batch._id}`)}
+                                                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                                                        title="View Section Details"
+                                                                                    >
+                                                                                        <ExternalLink size={15} />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => handleBatchChat(batch)}
+                                                                                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                                                                        title="Broadcast to Section"
+                                                                                    >
+                                                                                        <MessageSquare size={15} />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => router.push(`/admin/attendance?batchId=${batch._id}`)}
+                                                                                        className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
+                                                                                        title="Mark Attendance"
+                                                                                    >
+                                                                                        <Calendar size={15} />
+                                                                                    </button>
+                                                                                    {session?.user?.role !== 'instructor' && (
+                                                                                        <>
+                                                                                            <button
+                                                                                                onClick={(e) => { e.stopPropagation(); handleEditBatch(batch); }}
+                                                                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                                                                title="Edit Section"
+                                                                                            >
+                                                                                                <Edit2 size={15} />
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={(e) => { e.stopPropagation(); handleDeleteBatch(batch._id); }}
+                                                                                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                                                                title="Delete Section"
+                                                                                            >
+                                                                                                <Trash2 size={15} />
+                                                                                            </button>
+                                                                                        </>
+                                                                                    )}
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     )}
                 </div>
-            </div>
+            ) : (
+                /* Existing School / Vocational flat table view */
+                <>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                        <div />
+                        {session?.user?.role !== 'instructor' && (
+                            <div className="flex items-center gap-2">
+                                {/* How to Use Bundle Batches — only for Vocational */}
+                                {isVocational && (
+                                    <button
+                                        onClick={() => setIsHowToOpen(true)}
+                                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all"
+                                        title="How to use Bundle Batches"
+                                    >
+                                        <HelpCircle size={14} />
+                                        How to use Bundle Batches
+                                    </button>
+                                )}
+                                {isSchool && (
+                                    <Button 
+                                        onClick={() => setIsCloneModalOpen(true)}
+                                        variant="outline"
+                                        size="md"
+                                        className="flex items-center gap-2 border-slate-200"
+                                    >
+                                        <Copy size={16} />
+                                        <span>Clone Sections</span>
+                                    </Button>
+                                )}
+                                <Button 
+                                    onClick={() => {
+                                        setEditingBatch(null);
+                                        setBatchType("course");
+                                        setFormData({ name: "", course: "", semester: 1, courseBundle: "", schedule: "", startDate: "", capacity: 30 });
+                                        setIsAddModalOpen(true);
+                                    }} 
+                                    size="md" 
+                                    className="flex items-center gap-2 px-6 shadow-sm shadow-blue-500/10"
+                                >
+                                    <Plus size={18} strokeWidth={2.5} />
+                                    <span>Create {isSchool ? "Section" : "Batch"}</span>
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
+                            <div className="flex flex-wrap items-center gap-3 w-full">
+                                {institutes.length > 0 && (
+                                    <div className="min-w-[200px]">
+                                        <Select
+                                            value={selectedInstitute}
+                                            onChange={(val) => setSelectedInstitute(val)}
+                                            placeholder="All Institutes"
+                                            buttonClassName="bg-white border-slate-200"
+                                            options={[
+                                                { label: "All Institutes", value: "" },
+                                                ...institutes.map(i => ({ label: i.name, value: i._id }))
+                                            ]}
+                                        />
+                                    </div>
+                                )}
+                                {courses.length > 0 && (
+                                    <div className="w-56">
+                                        <Select
+                                            value={selectedCourseFilter}
+                                            onChange={(val) => setSelectedCourseFilter(val)}
+                                            placeholder={isSchool ? "All Classes" : "All Courses"}
+                                            buttonClassName="bg-white border-slate-200"
+                                            options={[
+                                                { label: isSchool ? "All Classes" : "All Courses", value: "" },
+                                                ...courses.map(c => ({ label: `${c.name} (${c.code})`, value: c._id }))
+                                            ]}
+                                        />
+                                    </div>
+                                )}
+                                <div className="flex-1 max-w-md">
+                                    <Input
+                                        placeholder={`Search ${isSchool ? "sections" : "batches"}...`}
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        icon={Search}
+                                        className="bg-white border-slate-200"
+                                    />
+                                </div>
+                                {/* Type Filter — Vocational only */}
+                                {isVocational && (
+                                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-md p-0.5">
+                                        {[{v: "all", label: "All"}, {v: "course", label: "Courses"}, {v: "bundle", label: "🎁 Bundles"}].map(({v, label}) => (
+                                            <button
+                                                key={v}
+                                                onClick={() => setListFilter(v)}
+                                                className={cn(
+                                                    "px-2.5 py-1 text-xs font-bold rounded transition-all",
+                                                    listFilter === v ? "bg-slate-900 text-white shadow-xs" : "text-slate-500 hover:bg-slate-50"
+                                                )}
+                                            >{label}</button>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="flex-1" />
+                                <Badge variant="hot" className="bg-orange-50 text-orange-600 font-mono text-[10px]">
+                                    {filteredBatches.length} Active {isSchool ? "Sections" : "Batches"}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        <div>
+                            {loading ? (
+                                <div className="p-12 flex justify-center"><LoadingSpinner /></div>
+                            ) : filteredBatches.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 bg-white">
+                                                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">{isSchool ? "Section" : "Batch"} Name</th>
+                                                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">{isSchool ? "Class" : "Course"} Detail</th>
+                                                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Schedule</th>
+                                                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Occupancy</th>
+                                                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {filteredBatches.map((batch) => (
+                                                <tr key={batch._id} className="group hover:bg-[#F9FAFB] transition-all duration-200">
+                                                    <td className="px-6 py-4">
+                                                        <div>
+                                                            <h3 className="font-bold text-slate-900 text-[14px] leading-tight">{batch.name}</h3>
+                                                            <p className="text-[12px] text-slate-400 font-medium mt-0.5">
+                                                                Starts {batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), "MMM d, yyyy") : "TBD"}
+                                                            </p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        {batch.courseBundle ? (
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-xs font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                                        <Package size={11} /> Bundle
+                                                                    </span>
+                                                                    <Badge variant="code">{batch.courseBundle?.code || "PKG"}</Badge>
+                                                                </div>
+                                                                <p className="text-[11px] text-slate-500 font-bold mt-0.5 truncate max-w-[160px]">{batch.courseBundle?.title}</p>
+                                                                <p className="text-[10px] text-emerald-600 font-bold">₹{batch.courseBundle?.bundlePrice?.toLocaleString()}</p>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <Badge variant="code">{batch.course?.code || "N/A"}</Badge>
+                                                                <p className="text-[11px] text-slate-500 font-bold mt-1.5 truncate max-w-[150px]">{batch.course?.name}</p>
+                                                            </>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <div className="flex items-center gap-2 text-slate-700 text-[12px] font-bold">
+                                                                <Clock size={14} className="text-slate-400" />
+                                                                <span>{batch.schedule?.timing || "No time set"}</span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {batch.schedule?.days?.map(day => (
+                                                                    <span key={day} className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                                                                        {day.substring(0, 3)}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[60px]">
+                                                                <div 
+                                                                    className={cn(
+                                                                        "h-full transition-all duration-500",
+                                                                        ((batch.activeEnrollmentCount || 0) / batch.capacity) > 0.8 ? "bg-rose-500" : "bg-emerald-500"
+                                                                    )}
+                                                                    style={{ width: `${Math.min(100, ((batch.activeEnrollmentCount || 0) / batch.capacity) * 100)}%` }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-[11px] font-black text-slate-900">{batch.activeEnrollmentCount || 0}/{batch.capacity}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
+                                                            <button
+                                                                onClick={() => router.push(`/admin/batches/${batch._id}`)}
+                                                                className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
+                                                                title={`View ${isSchool ? "Section" : "Batch"} Details`}
+                                                            >
+                                                                <ExternalLink size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleBatchChat(batch)}
+                                                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                                                title={`Broadcast to ${isSchool ? "Section" : "Batch"}`}
+                                                            >
+                                                                <MessageSquare size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => router.push(`/admin/attendance?batchId=${batch._id}`)}
+                                                                className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
+                                                                title="Mark Attendance"
+                                                            >
+                                                                <Calendar size={16} />
+                                                            </button>
+                                                            {session?.user?.role !== 'instructor' && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleEditBatch(batch); }}
+                                                                        className="p-2 text-slate-400 hover:text-premium-blue hover:bg-blue-50 rounded-lg transition-all"
+                                                                        title={`Edit ${isSchool ? "Section" : "Batch"}`}
+                                                                    >
+                                                                        <Edit2 size={16} />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleDeleteBatch(batch._id); }}
+                                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                                        title={`Delete ${isSchool ? "Section" : "Batch"}`}
+                                                                    >
+                                                                        <Trash2 size={16} />
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <EmptyState
+                                    icon={Calendar}
+                                    title={isSchool ? "No sections found" : "No batches found"}
+                                    description={isSchool ? "Create your first section for this session to start enrollments." : "Schedule your first batch to start enrollments."}
+                                    actionLabel={isSchool ? "Create Section" : "Create Batch"}
+                                    onAction={() => setIsAddModalOpen(true)}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
 
             <Modal
                 isOpen={isAddModalOpen}
@@ -508,11 +907,11 @@ export default function BatchesPage() {
                     setIsAddModalOpen(false);
                     setEditingBatch(null);
                     setBatchType("course");
-                    setFormData({ name: "", course: "", courseBundle: "", schedule: "", startDate: "", capacity: "" });
+                    setFormData({ name: "", course: "", semester: 1, courseBundle: "", schedule: "", startDate: "", capacity: 30 });
                 }}
-                title={editingBatch ? `Edit ${isSchool ? "Section" : "Batch"}` : `Schedule New ${isSchool ? "Section" : "Batch"}`}
+                title={editingBatch ? `Edit ${isSchool || isCollege ? "Section" : "Batch"}` : `Schedule New ${isSchool || isCollege ? "Section" : "Batch"}`}
             >
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">{isSchool ? "Section" : "Batch"} Configuration</div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">{isSchool || isCollege ? "Section" : "Batch"} Configuration</div>
                 <form onSubmit={handleFormSubmit} className="space-y-5">
 
                     {/* Batch Type Toggle — Vocational only, hide on edit since type cannot change */}
@@ -599,7 +998,15 @@ export default function BatchesPage() {
                         ) : (
                             <Select
                                 value={formData.course}
-                                onChange={(val) => setFormData(prev => ({ ...prev, course: val }))}
+                                onChange={(val) => {
+                                    const selCourse = courses.find(c => c._id === val);
+                                    const semsCount = selCourse?.collegeConfig?.totalSemesters || (selCourse?.duration?.value ? Math.round(selCourse.duration.value / 6) : 8);
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        course: val,
+                                        semester: Math.min(prev.semester || 1, semsCount)
+                                    }));
+                                }}
                                 options={[
                                     ...courses.map(course => ({ label: `${course.name} (${course.code})`, value: course._id }))
                                 ]}
@@ -609,11 +1016,33 @@ export default function BatchesPage() {
                         )}
                     </div>
 
+                    {isCollege && (
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">
+                                Semester
+                            </label>
+                            <Select
+                                value={String(formData.semester || 1)}
+                                onChange={(val) => setFormData(prev => ({ ...prev, semester: parseInt(val, 10) || 1 }))}
+                                options={(() => {
+                                    const selCourse = courses.find(c => c._id === formData.course);
+                                    const semsCount = selCourse?.collegeConfig?.totalSemesters || (selCourse?.duration?.value ? Math.round(selCourse.duration.value / 6) : 8);
+                                    return Array.from({ length: semsCount }, (_, i) => ({
+                                        label: `Semester ${i + 1}`,
+                                        value: String(i + 1)
+                                    }));
+                                })()}
+                                placeholder="Select Semester"
+                                required
+                            />
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4">
                         <Input
                             id="name"
-                            label={`${isSchool ? "Section" : "Batch"} Name`}
-                            placeholder={`e.g. ${isSchool ? "Section A" : "Morning Batch A"}`}
+                            label={`${isSchool || isCollege ? "Section" : "Batch"} Name`}
+                            placeholder={`e.g. ${isSchool || isCollege ? "Section A" : "Morning Batch A"}`}
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             required
@@ -653,9 +1082,9 @@ export default function BatchesPage() {
                             setIsAddModalOpen(false);
                             setEditingBatch(null);
                             setBatchType("course");
-                            setFormData({ name: "", course: "", courseBundle: "", schedule: "", startDate: "", capacity: "" });
+                            setFormData({ name: "", course: "", semester: 1, courseBundle: "", schedule: "", startDate: "", capacity: 30 });
                         }}>Cancel</Button>
-                        <Button type="submit" className="flex-1">{editingBatch ? `Update ${isSchool ? "Section" : "Batch"}` : `Create ${isSchool ? "Section" : "Batch"}`}</Button>
+                        <Button type="submit" className="flex-1">{editingBatch ? `Update ${isSchool || isCollege ? "Section" : "Batch"}` : `Create ${isSchool || isCollege ? "Section" : "Batch"}`}</Button>
                     </div>
                 </form>
             </Modal>

@@ -134,6 +134,7 @@ export async function PATCH(req, { params }) {
         if (body.instructions !== undefined) exam.instructions = body.instructions;
         if (body.maxAttempts !== undefined) exam.maxAttempts = body.maxAttempts;
         if (body.resultPublication !== undefined) exam.resultPublication = body.resultPublication;
+        if (body.evaluatorAssignments !== undefined) exam.evaluatorAssignments = body.evaluatorAssignments;
 
 
         await exam.save();

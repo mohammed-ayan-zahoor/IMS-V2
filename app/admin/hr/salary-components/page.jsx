@@ -15,21 +15,6 @@ const typeOptions = [
     { value: "deduction", label: "Deduction" }
 ];
 
-const SEEDED_SALARY_COMPONENTS = [
-    // Earnings
-    { _id: "sc-1", name: "Basic Salary", type: "earning", description: "Core fixed salary base based on designation rank." },
-    { _id: "sc-2", name: "House Rent Allowance (HRA)", type: "earning", description: "Housing accommodation allowance calculated per institution policy." },
-    { _id: "sc-3", name: "Dearness Allowance (DA)", type: "earning", description: "Cost of living adjustment component paid monthly." },
-    { _id: "sc-4", name: "Medical Allowance", type: "earning", description: "Fixed medical coverage allowance for staff healthcare." },
-    { _id: "sc-5", name: "Special Performance Allowance", type: "earning", description: "Incentive allowance for outstanding academic contributions." },
-    
-    // Deductions
-    { _id: "sc-6", name: "Provident Fund (PF)", type: "deduction", description: "Statutory monthly retirement savings deduction (12%)." },
-    { _id: "sc-7", name: "Professional Tax (PT)", type: "deduction", description: "Mandatory state government professional tax deduction." },
-    { _id: "sc-8", name: "Income Tax (TDS)", type: "deduction", description: "Tax deducted at source based on annual taxable slab." },
-    { _id: "sc-9", name: "Health Insurance Premium", type: "deduction", description: "Group medical insurance coverage deduction for faculty." }
-];
-
 export default function SalaryComponentsPage() {
     const toast = useToast();
     const confirm = useConfirm();
@@ -51,11 +36,10 @@ export default function SalaryComponentsPage() {
             });
             if (!res.ok) throw new Error(`HTTP error ${res.status}`);
             const data = await res.json();
-            const fetched = data.salaryComponents || [];
-            setComponents(fetched.length > 0 ? fetched : SEEDED_SALARY_COMPONENTS);
+            setComponents(data.salaryComponents || []);
         } catch (error) {
             if (error.name !== 'AbortError') {
-                setComponents(SEEDED_SALARY_COMPONENTS);
+                setComponents([]);
             }
         } finally {
             setLoading(false);
@@ -71,7 +55,7 @@ export default function SalaryComponentsPage() {
     const handleAdd = async (e) => {
         e.preventDefault();
         if (!formData.name.trim()) {
-            toast.error("Please enter component name");
+            toast.error("Please enter a component name");
             return;
         }
         setSaving(true);
@@ -92,18 +76,10 @@ export default function SalaryComponentsPage() {
                 setFormData({ name: "", type: activeTab, description: "" });
                 fetchComponents();
             } else {
-                const newComp = { _id: `sc-${Date.now()}`, name: formData.name.trim(), type: formData.type, description: formData.description.trim() };
-                setComponents(prev => [newComp, ...prev]);
-                toast.success("Salary component added successfully");
-                setIsModalOpen(false);
-                setFormData({ name: "", type: activeTab, description: "" });
+                toast.error(data.error || "Failed to add salary component");
             }
         } catch (error) {
-            const newComp = { _id: `sc-${Date.now()}`, name: formData.name.trim(), type: formData.type, description: formData.description.trim() };
-            setComponents(prev => [newComp, ...prev]);
-            toast.success("Salary component added successfully");
-            setIsModalOpen(false);
-            setFormData({ name: "", type: activeTab, description: "" });
+            toast.error("Network error while adding salary component");
         } finally {
             setSaving(false);
         }
@@ -117,16 +93,15 @@ export default function SalaryComponentsPage() {
         })) {
             try {
                 const res = await fetch(`/api/v1/hr/salary-components/${id}`, { method: "DELETE" });
+                const data = await res.json();
                 if (res.ok) {
                     toast.success("Component removed successfully");
                     fetchComponents();
                 } else {
-                    setComponents(prev => prev.filter(c => c._id !== id));
-                    toast.success("Component removed successfully");
+                    toast.error(data.error || "Failed to remove component");
                 }
             } catch (error) {
-                setComponents(prev => prev.filter(c => c._id !== id));
-                toast.success("Component removed successfully");
+                toast.error("Network error while removing component");
             }
         }
     };

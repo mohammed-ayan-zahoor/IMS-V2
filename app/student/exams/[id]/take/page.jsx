@@ -589,8 +589,8 @@ export default function ExamRoomPage() {
                                         <span className="text-slate-400 text-sm">{examData?.questions?.length}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="px-2 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded uppercase">
-                                            {currentQuestion.type === "mcq" ? "MCQ" : "Desc"}
+                                        <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded uppercase">
+                                            {currentQuestion.type?.replace('_', ' ')}
                                         </span>
                                         <span className="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded">
                                             {currentQuestion.marks} {currentQuestion.marks === 1 ? 'Mark' : 'Marks'}
@@ -620,20 +620,29 @@ export default function ExamRoomPage() {
                                             </SyntaxHighlighter>
                                         </div>
                                     )}
+                                    {currentQuestion.questionImage && (
+                                        <div className="mt-4 max-w-lg rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
+                                            <img
+                                                src={currentQuestion.questionImage}
+                                                alt="Question Diagram"
+                                                className="w-full h-auto max-h-80 object-contain p-2"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Options - Mobile Touch Friendly */}
+                            {/* Options & Answering Inputs */}
                             <div className="space-y-3">
-                                {currentQuestion.type === "mcq" ? (
+                                {currentQuestion.type === "mcq" && (
                                     <div className="grid gap-2.5">
-                                        {currentQuestion.options.map((opt, optIdx) => (
+                                        {currentQuestion.options?.map((opt, optIdx) => (
                                             <div
                                                 key={optIdx}
                                                 onClick={() => handleAnswerChange(String(optIdx))}
                                                 className={cn(
                                                     "p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 group active:scale-[0.98]",
-                                                    "min-h-[64px]", // Larger touch target for mobile
+                                                    "min-h-[64px]",
                                                     answers[currentQuestion._id] === String(optIdx)
                                                         ? "border-blue-500 bg-blue-50 shadow-sm"
                                                         : "border-slate-200 hover:border-slate-300 bg-white"
@@ -658,7 +667,92 @@ export default function ExamRoomPage() {
                                             </div>
                                         ))}
                                     </div>
-                                ) : (
+                                )}
+
+                                {currentQuestion.type === "multi_correct_mcq" && (
+                                    <div className="grid gap-2.5">
+                                        <p className="text-xs font-semibold text-slate-500 mb-1">Select all correct options:</p>
+                                        {currentQuestion.options?.map((opt, optIdx) => {
+                                            let selected = [];
+                                            try { selected = JSON.parse(answers[currentQuestion._id] || "[]"); } catch { selected = []; }
+                                            const isChecked = selected.includes(optIdx);
+                                            return (
+                                                <div
+                                                    key={optIdx}
+                                                    onClick={() => {
+                                                        const next = isChecked ? selected.filter(i => i !== optIdx) : [...selected, optIdx];
+                                                        handleAnswerChange(JSON.stringify(next.sort()));
+                                                    }}
+                                                    className={cn(
+                                                        "p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 group active:scale-[0.98] min-h-[64px]",
+                                                        isChecked ? "border-blue-500 bg-blue-50 shadow-sm" : "border-slate-200 hover:border-slate-300 bg-white"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors mt-0.5",
+                                                        isChecked ? "border-blue-500 bg-blue-500 text-white" : "border-slate-300 group-hover:border-slate-400"
+                                                    )}>
+                                                        {isChecked && <CheckCircle size={14} />}
+                                                    </div>
+                                                    <span className={cn(
+                                                        "font-medium text-sm md:text-base flex-1",
+                                                        isChecked ? "text-blue-900" : "text-slate-700"
+                                                    )}>
+                                                        {opt}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {currentQuestion.type === "true_false" && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {["true", "false"].map(val => (
+                                            <div
+                                                key={val}
+                                                onClick={() => handleAnswerChange(val)}
+                                                className={cn(
+                                                    "p-6 rounded-xl border-2 cursor-pointer transition-all text-center font-bold text-lg capitalize active:scale-[0.98]",
+                                                    answers[currentQuestion._id]?.toLowerCase() === val
+                                                        ? "border-blue-500 bg-blue-50 text-blue-800 shadow-sm"
+                                                        : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
+                                                )}
+                                            >
+                                                {val}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {currentQuestion.type === "numerical" && (
+                                    <div className="space-y-2 max-w-md">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Enter Numeric Answer</label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={answers[currentQuestion._id] || ""}
+                                            onChange={(e) => handleAnswerChange(e.target.value)}
+                                            className="w-full h-14 px-4 rounded-xl border-2 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-bold text-xl text-slate-800 bg-white"
+                                            placeholder="e.g. 42 or 3.14"
+                                        />
+                                    </div>
+                                )}
+
+                                {currentQuestion.type === "fill_in_blank" && (
+                                    <div className="space-y-2 max-w-lg">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Enter Answer</label>
+                                        <input
+                                            type="text"
+                                            value={answers[currentQuestion._id] || ""}
+                                            onChange={(e) => handleAnswerChange(e.target.value)}
+                                            className="w-full h-14 px-4 rounded-xl border-2 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-medium text-base text-slate-800 bg-white"
+                                            placeholder="Type the missing word or phrase..."
+                                        />
+                                    </div>
+                                )}
+
+                                {['short_answer', 'essay', 'descriptive', 'match_the_following'].includes(currentQuestion.type) && (
                                     <textarea
                                         value={answers[currentQuestion._id] || ""}
                                         onChange={(e) => handleAnswerChange(e.target.value)}

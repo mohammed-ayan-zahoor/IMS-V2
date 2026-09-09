@@ -4,7 +4,7 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { ArrowLeft, Save, Plus, Trash2, CheckCircle, Search, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, CheckCircle, Search, AlertCircle, Sparkles } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -23,6 +23,14 @@ export default function ManageExamPage({ params }) {
     const [exam, setExam] = useState(null);
     const [currentQuestions, setCurrentQuestions] = useState([]);
 
+    // Blueprint Generator State
+    const [showBlueprint, setShowBlueprint] = useState(false);
+    const [blueprintLoading, setBlueprintLoading] = useState(false);
+    const [availableChapters, setAvailableChapters] = useState([]);
+    const [selectedChapters, setSelectedChapters] = useState([]);
+    const [diffCounts, setDiffCounts] = useState({ easy: "", medium: "", hard: "" });
+    const [typeCounts, setTypeCounts] = useState({ mcq: "", short_answer: "", essay: "" });
+
     // Modal State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [bankQuestions, setBankQuestions] = useState([]);
@@ -33,6 +41,9 @@ export default function ManageExamPage({ params }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterSubject, setFilterSubject] = useState("");
     const [filterCourse, setFilterCourse] = useState("");
+    const [filterChapter, setFilterChapter] = useState("");
+    const [filterDifficulty, setFilterDifficulty] = useState("");
+    const [filterType, setFilterType] = useState("");
 
     const toast = useToast();
     const confirm = useConfirm();
@@ -53,6 +64,60 @@ export default function ManageExamPage({ params }) {
             toast.error("Failed to load exam details");
         } finally {
             setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!exam?.course) return;
+        const courseId = exam.course?._id || exam.course;
+        const subjectId = exam.subject?._id || exam.subject;
+        const params = new URLSearchParams({ field: 'chapter', course: courseId });
+        if (subjectId) params.set('subject', subjectId);
+        fetch(`/api/v1/questions/distinct?${params}`)
+            .then(r => r.json())
+            .then(d => setAvailableChapters(d.values || []))
+            .catch(() => setAvailableChapters([]));
+    }, [exam]);
+
+    const handleGenerateBlueprint = async () => {
+        setBlueprintLoading(true);
+        try {
+            const courseId = exam.course?._id || exam.course;
+            const subjectId = exam.subject?._id || exam.subject;
+            const res = await fetch("/api/v1/questions/blueprint", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    course: courseId,
+                    subject: subjectId || undefined,
+                    chapters: selectedChapters.length > 0 ? selectedChapters : undefined,
+                    difficultyCounts: {
+                        easy: Number(diffCounts.easy) || 0,
+                        medium: Number(diffCounts.medium) || 0,
+                        hard: Number(diffCounts.hard) || 0
+                    },
+                    typeCounts: {
+                        mcq: Number(typeCounts.mcq) || 0,
+                        short_answer: Number(typeCounts.short_answer) || 0,
+                        essay: Number(typeCounts.essay) || 0
+                    },
+                    excludeIds: currentQuestions.map(q => q._id)
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to generate questions");
+            if (!data.questions || data.questions.length === 0) {
+                toast.warning("No questions matched your blueprint criteria");
+                return;
+            }
+            setCurrentQuestions(prev => [...prev, ...data.questions]);
+            toast.success(`Generated and added ${data.questions.length} questions`);
+            setShowBlueprint(false);
+        } catch (err) {
+            console.error(err);
+            toast.error(err.message || "Failed to generate questions");
+        } finally {
+            setBlueprintLoading(false);
         }
     };
 
@@ -81,6 +146,9 @@ export default function ManageExamPage({ params }) {
         setSearchTerm("");
         setFilterSubject("");
         setFilterCourse("");
+        setFilterChapter("");
+        setFilterDifficulty("");
+        setFilterType("");
 
         fetchBankQuestions();
         setSelectedBankQuestions([]);
@@ -160,10 +228,15 @@ export default function ManageExamPage({ params }) {
 
     // Question Filtering Logic
     const filteredQuestions = bankQuestions.filter(q => {
-        const matchesSearch = (q.text || "").toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = (q.text || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (q.chapter || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (q.topic || "").toLowerCase().includes(searchTerm.toLowerCase());
         const matchesSubject = !filterSubject || q.subject === filterSubject;
         const matchesCourse = !filterCourse || q.course?.name === filterCourse;
-        return matchesSearch && matchesSubject && matchesCourse;
+        const matchesChapter = !filterChapter || q.chapter === filterChapter;
+        const matchesDifficulty = !filterDifficulty || q.difficulty === filterDifficulty;
+        const matchesType = !filterType || q.type === filterType;
+        return matchesSearch && matchesSubject && matchesCourse && matchesChapter && matchesDifficulty && matchesType;
     });
     if (loading) return <LoadingSpinner fullPage />;
     if (!exam) return <div className="p-10 text-center">Exam not found</div>;
@@ -247,11 +320,164 @@ export default function ManageExamPage({ params }) {
                 <div className="lg:col-span-2 space-y-6">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-bold text-slate-800">Exam Questions ({currentQuestions.length})</h2>
-                        <Button size="sm" onClick={openAddModal}>
-                            <Plus size={16} className="mr-2" />
-                            Add From Bank
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowBlueprint(!showBlueprint)}
+                                className="font-bold flex items-center gap-1.5"
+                            >
+                                <Sparkles size={14} className="text-blue-600" />
+                                {showBlueprint ? "Hide Blueprint" : "Auto Generate"}
+                            </Button>
+                            <Button size="sm" onClick={openAddModal}>
+                                <Plus size={16} className="mr-2" />
+                                Add From Bank
+                            </Button>
+                        </div>
                     </div>
+
+                    {showBlueprint && (
+                        <Card className="border border-blue-100 rounded-[8px] shadow-premium">
+                            <div className="p-5 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-sm font-bold text-slate-800">Exam Blueprint Generator</h3>
+                                        <p className="text-xs text-slate-400 mt-0.5">Specify chapter, difficulty, and question type targets to auto-pick questions randomly.</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowBlueprint(false)}
+                                        className="text-xs text-slate-400 hover:text-slate-600 font-bold"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+
+                                {availableChapters.length > 0 && (
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Chapters</label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {availableChapters.map(ch => {
+                                                const isSelected = selectedChapters.includes(ch);
+                                                return (
+                                                    <button
+                                                        key={ch}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedChapters(prev =>
+                                                                isSelected ? prev.filter(c => c !== ch) : [...prev, ch]
+                                                            );
+                                                        }}
+                                                        className={`px-2.5 py-1 rounded-[8px] text-xs font-medium border transition-colors ${
+                                                            isSelected
+                                                                ? "bg-blue-600 border-blue-600 text-white"
+                                                                : "border-slate-200 text-slate-600 hover:border-slate-300 bg-white"
+                                                        }`}
+                                                    >
+                                                        {ch}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Target by Difficulty</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div>
+                                                <span className="text-xs text-slate-500 font-medium">Easy</span>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="0"
+                                                    value={diffCounts.easy}
+                                                    onChange={e => setDiffCounts(prev => ({ ...prev, easy: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-slate-500 font-medium">Medium</span>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="0"
+                                                    value={diffCounts.medium}
+                                                    onChange={e => setDiffCounts(prev => ({ ...prev, medium: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-slate-500 font-medium">Hard</span>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="0"
+                                                    value={diffCounts.hard}
+                                                    onChange={e => setDiffCounts(prev => ({ ...prev, hard: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Target by Type</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div>
+                                                <span className="text-xs text-slate-500 font-medium">MCQ</span>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="0"
+                                                    value={typeCounts.mcq}
+                                                    onChange={e => setTypeCounts(prev => ({ ...prev, mcq: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-slate-500 font-medium">Short Ans</span>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="0"
+                                                    value={typeCounts.short_answer}
+                                                    onChange={e => setTypeCounts(prev => ({ ...prev, short_answer: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-slate-500 font-medium">Essay</span>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="0"
+                                                    value={typeCounts.essay}
+                                                    onChange={e => setTypeCounts(prev => ({ ...prev, essay: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowBlueprint(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        disabled={blueprintLoading}
+                                        onClick={handleGenerateBlueprint}
+                                        className="font-bold flex items-center gap-1.5"
+                                    >
+                                        <Sparkles size={14} />
+                                        {blueprintLoading ? "Generating..." : "Generate Questions"}
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
+                    )}
 
                     {currentQuestions.length === 0 ? (
                         <div className="p-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
@@ -327,27 +553,18 @@ export default function ManageExamPage({ params }) {
                 title="Add Questions from Bank"
             >
                 <div className="space-y-4">
-                    <div className="flex gap-3">
-                        <Input
-                            placeholder="Search questions..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="flex-1"
-                        />
-                        <select
-                            aria-label="Filter by subject"
-                            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-premium-blue/20"
-                            value={filterSubject}
-                            onChange={(e) => setFilterSubject(e.target.value)}
-                        >
-                            <option value="">All Subjects</option>
-                            {[...new Set(bankQuestions.map(q => q.subject).filter(Boolean))].map(s => (
-                                <option key={s} value={s}>{s}</option>
-                            ))}
-                        </select>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                        <div className="col-span-2 sm:col-span-3 md:col-span-2">
+                            <Input
+                                placeholder="Search questions or chapters..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full"
+                            />
+                        </div>
                         <select
                             aria-label="Filter by course"
-                            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-premium-blue/20"
+                            className="px-2.5 py-2 bg-white border border-slate-200 rounded-[8px] text-xs font-medium outline-none focus:ring-2 focus:ring-premium-blue/20 text-slate-700"
                             value={filterCourse}
                             onChange={(e) => setFilterCourse(e.target.value)}
                         >
@@ -355,6 +572,44 @@ export default function ManageExamPage({ params }) {
                             {[...new Set(bankQuestions.map(q => q.course?.name).filter(Boolean))].map(c => (
                                 <option key={c} value={c}>{c}</option>
                             ))}
+                        </select>
+                        <select
+                            aria-label="Filter by chapter"
+                            className="px-2.5 py-2 bg-white border border-slate-200 rounded-[8px] text-xs font-medium outline-none focus:ring-2 focus:ring-premium-blue/20 text-slate-700"
+                            value={filterChapter}
+                            onChange={(e) => setFilterChapter(e.target.value)}
+                        >
+                            <option value="">All Chapters</option>
+                            {[...new Set(bankQuestions.map(q => q.chapter).filter(Boolean))].map(c => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
+                        <select
+                            aria-label="Filter by type"
+                            className="px-2.5 py-2 bg-white border border-slate-200 rounded-[8px] text-xs font-medium outline-none focus:ring-2 focus:ring-premium-blue/20 text-slate-700"
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value)}
+                        >
+                            <option value="">All Types</option>
+                            <option value="mcq">MCQ</option>
+                            <option value="multi_correct_mcq">Multi-Correct</option>
+                            <option value="true_false">True / False</option>
+                            <option value="fill_in_blank">Fill in Blank</option>
+                            <option value="short_answer">Short Answer</option>
+                            <option value="essay">Essay</option>
+                            <option value="numerical">Numerical</option>
+                            <option value="match_the_following">Match</option>
+                        </select>
+                        <select
+                            aria-label="Filter by difficulty"
+                            className="px-2.5 py-2 bg-white border border-slate-200 rounded-[8px] text-xs font-medium outline-none focus:ring-2 focus:ring-premium-blue/20 text-slate-700 capitalize"
+                            value={filterDifficulty}
+                            onChange={(e) => setFilterDifficulty(e.target.value)}
+                        >
+                            <option value="">All Difficulties</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
                         </select>
                     </div>
 
@@ -384,7 +639,7 @@ export default function ManageExamPage({ params }) {
                                                 handleSelectQuestion(q._id);
                                             }
                                         }}
-                                        className={`p-3 rounded-xl border cursor-pointer transition-all flex gap-3 ${selectedBankQuestions.includes(q._id)
+                                        className={`p-3 rounded-[8px] border cursor-pointer transition-all flex gap-3 ${selectedBankQuestions.includes(q._id)
                                             ? "bg-premium-blue/5 border-premium-blue ring-1 ring-premium-blue"
                                             : "bg-white border-slate-200 hover:border-premium-blue/50"
                                             }`}
@@ -395,9 +650,13 @@ export default function ManageExamPage({ params }) {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm text-slate-900 font-medium line-clamp-2" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(q.text) }} />
-                                            <p className="text-xs text-slate-500 mt-1">
-                                                {q.subject} • {q.classLevel} • {q.marks} Marks
-                                            </p>
+                                            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
+                                                {q.chapter && <span className="font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-[4px]">{q.chapter}</span>}
+                                                <span className="uppercase text-[10px] font-bold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-[4px]">{q.type?.replace('_', ' ')}</span>
+                                                <span className="capitalize">{q.difficulty}</span>
+                                                <span>•</span>
+                                                <span>{q.marks} Marks</span>
+                                            </div>
                                         </div>
                                     </div>
                                 ))

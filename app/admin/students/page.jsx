@@ -31,7 +31,8 @@ import {
     MapPin,
     Car,
     Route,
-    CreditCard
+    CreditCard,
+    GraduationCap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -46,6 +47,8 @@ export default function StudentsPage() {
     const toast = useToast();
     const { data: session } = useSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const isCollege = session?.user?.institute?.type === 'COLLEGE';
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
     const [transportRoutes, setTransportRoutes] = useState([]);
     const [transportVehicles, setTransportVehicles] = useState([]);
     const [transportPresets, setTransportPresets] = useState([]);
@@ -442,20 +445,24 @@ export default function StudentsPage() {
     const handleAddStudent = async (e) => {
         e.preventDefault();
         try {
+            const payload = { ...formData };
+            if (!payload.password || !payload.password.trim()) {
+                delete payload.password;
+            }
             const res = await fetch("/api/v1/students", {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json",
                     'x-session-id': selectedSessionId || ''
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
             if (res.ok) {
                 const newStudent = await res.json();
 
                 if (formData.admissionBatch) {
                     try {
-                        await fetch(`/api/v1/students/${newStudent._id}/enroll`, {
+                        const enrollRes = await fetch(`/api/v1/students/${newStudent._id}/enroll`, {
                             method: "POST",
                             headers: { 
                                 "Content-Type": "application/json",
@@ -463,6 +470,11 @@ export default function StudentsPage() {
                             },
                             body: JSON.stringify({ batchId: formData.admissionBatch })
                         });
+                        if (!enrollRes.ok) {
+                            const errData = await enrollRes.json().catch(() => ({}));
+                            console.error("Auto-enrollment failed", errData);
+                            toast.error(`Student admitted, but section enrollment failed: ${errData.error || "Unknown error"}`);
+                        }
                     } catch (err) {
                         console.error("Auto-enrollment failed", err);
                     }
@@ -810,6 +822,7 @@ export default function StudentsPage() {
                     courses={courses}
                     sessions={sessions}
                     isSchool={isSchool}
+                    isCollege={isCollege}
                     selectedCount={selectedStudents.size}
                     onPromote={handlePromote}
                     onClose={() => setIsPromotionModalOpen(false)}
@@ -1419,10 +1432,10 @@ export default function StudentsPage() {
                             <Input
                                 label="Temporary Password"
                                 type="password"
-                                placeholder="••••••••"
+                                placeholder="Leave blank for default (Student@123)"
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                required
+                                helperText="Optional • Defaults to Student@123 if left blank"
                             />
                         </div>
                     </div>
@@ -1468,39 +1481,45 @@ export default function StudentsPage() {
                         </div>
                     </div>
 
-                    {/* 3. School Identity */}
+                    {/* 3. Identity Information */}
                     <div className="space-y-4">
                         <div className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
                             <span className="w-8 h-px bg-emerald-100"></span>
-                            School Identity
+                            {isCollege ? "University & Government Identity (UUCMS / NEP)" : isVocational ? "Identity & Verification" : "School Identity"}
                             <span className="flex-1 h-px bg-emerald-100"></span>
                         </div>
                         
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             <Input
-                                label="G.R. Number"
-                                placeholder="GR123"
+                                label={isCollege ? "UUCMS / University Reg No" : isVocational ? "Registration / Roll No" : "G.R. Number"}
+                                placeholder={isCollege ? "e.g. U03TJ21S0001" : isVocational ? "REG-001" : "GR123"}
                                 value={formData.grNumber}
                                 onChange={(e) => setFormData({ ...formData, grNumber: e.target.value })}
                             />
-                            <Input
-                                label="UDISE ID"
-                                placeholder="Optional"
-                                value={formData.studentIdUdise}
-                                onChange={(e) => setFormData({ ...formData, studentIdUdise: e.target.value })}
-                            />
-                            <Input
-                                label="APAAR ID"
-                                placeholder="Optional"
-                                value={formData.apaarId}
-                                onChange={(e) => setFormData({ ...formData, apaarId: e.target.value })}
-                            />
-                            <Input
-                                label="PEN Number"
-                                placeholder="Permanent Enrollment"
-                                value={formData.penNumber}
-                                onChange={(e) => setFormData({ ...formData, penNumber: e.target.value })}
-                            />
+                            {isSchool && (
+                                <Input
+                                    label="UDISE ID"
+                                    placeholder="Optional"
+                                    value={formData.studentIdUdise}
+                                    onChange={(e) => setFormData({ ...formData, studentIdUdise: e.target.value })}
+                                />
+                            )}
+                            {(isSchool || isCollege) && (
+                                <Input
+                                    label={isCollege ? "APAAR / ABC ID (DigiLocker)" : "APAAR ID"}
+                                    placeholder={isCollege ? "12-digit ABC ID" : "Optional"}
+                                    value={formData.apaarId}
+                                    onChange={(e) => setFormData({ ...formData, apaarId: e.target.value })}
+                                />
+                            )}
+                            {isSchool && (
+                                <Input
+                                    label="PEN Number"
+                                    placeholder="Permanent Enrollment"
+                                    value={formData.penNumber}
+                                    onChange={(e) => setFormData({ ...formData, penNumber: e.target.value })}
+                                />
+                            )}
                             <Input
                                 label="Aadhar Number"
                                 placeholder="12 Digit"
@@ -1514,7 +1533,7 @@ export default function StudentsPage() {
                     <div className="space-y-4">
                         <div className="text-xs font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">
                             <span className="w-8 h-px bg-amber-100"></span>
-                            Admission Info
+                            {isCollege ? "Admission & Program Info" : isVocational ? "Enrollment Details" : "Admission Info"}
                             <span className="flex-1 h-px bg-amber-100"></span>
                         </div>
                         
@@ -1538,30 +1557,34 @@ export default function StudentsPage() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Select
-                                label="Admission Standard"
+                                label={isCollege ? "Degree Program / Course" : isVocational ? "Course / Trade" : "Admission Standard"}
                                 value={formData.admissionStd}
                                 onChange={(val) => setFormData({ ...formData, admissionStd: val, admissionBatch: "" })}
                                 options={[
-                                    { label: "Select Standard", value: "" },
+                                    { label: isCollege ? "Select Degree Program" : isVocational ? "Select Course" : "Select Standard", value: "" },
                                     ...courses.map(c => ({ label: c.name, value: c._id }))
                                 ]}
                             />
                             {formData.admissionStd ? (
                                 <Select
-                                    label="Section / Batch"
+                                    label={isCollege ? "Semester & Section" : isVocational ? "Batch" : "Section / Batch"}
                                     value={formData.admissionBatch}
                                     onChange={(val) => setFormData({ ...formData, admissionBatch: val })}
                                     options={[
-                                        { label: "Select Section", value: "" },
+                                        { label: isCollege ? "Select Section" : isVocational ? "Select Batch" : "Select Section", value: "" },
                                         ...batches.filter(b => b.course?._id === formData.admissionStd || b.course === formData.admissionStd)
                                                   .filter(b => formData.sessionId ? (b.session?._id === formData.sessionId || b.session === formData.sessionId) : true)
-                                                  .map(b => ({ label: b.name, value: b._id }))
+                                                  .sort((a, b) => (a.semester || 1) - (b.semester || 1) || (a.name || "").localeCompare(b.name || ""))
+                                                  .map(b => ({
+                                                      label: isCollege && b.semester ? `Sem ${b.semester} - ${b.name}` : b.name,
+                                                      value: b._id
+                                                  }))
                                     ]}
                                 />
                             ) : (
                                 <Input
-                                    label="Last School Attended"
-                                    placeholder="Previous School Name"
+                                    label={isCollege ? "Previous Institution (10+2 / PUC)" : isVocational ? "Previous School / Qualification" : "Last School Attended"}
+                                    placeholder={isCollege ? "PUC / CBSE / Diploma Institution" : "Previous School Name"}
                                     value={formData.lastSchoolAttended}
                                     onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
                                 />
@@ -1570,8 +1593,8 @@ export default function StudentsPage() {
                         {formData.admissionStd && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input
-                                    label="Last School Attended"
-                                    placeholder="Previous School Name"
+                                    label={isCollege ? "Previous Institution (10+2 / PUC)" : isVocational ? "Previous School / Qualification" : "Last School Attended"}
+                                    placeholder={isCollege ? "PUC / CBSE / Diploma Institution" : "Previous School Name"}
                                     value={formData.lastSchoolAttended}
                                     onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
                                 />
@@ -2281,7 +2304,7 @@ export default function StudentsPage() {
     );
 }
 
-function PromotionModalContent({ batches, courses, sessions, selectedCount, onPromote, onClose, isSchool }) {
+function PromotionModalContent({ batches, courses, sessions, selectedCount, onPromote, onClose, isSchool, isCollege }) {
     const [targetSessionId, setTargetSessionId] = useState("");
     const [targetCourseId, setTargetCourseId] = useState("");
     const [targetBatchId, setTargetBatchId] = useState("");
@@ -2296,7 +2319,8 @@ function PromotionModalContent({ batches, courses, sessions, selectedCount, onPr
 
     const filteredBatches = batches
         .filter(b => b.course?._id === targetCourseId || b.course === targetCourseId)
-        .filter(b => isSchool && targetSessionId ? (b.session === targetSessionId || b.session?._id === targetSessionId) : true);
+        .filter(b => (isSchool || isCollege) && targetSessionId ? (b.session === targetSessionId || b.session?._id === targetSessionId) : true)
+        .sort((a, b) => (a.semester || 1) - (b.semester || 1) || (a.name || "").localeCompare(b.name || ""));
 
     return (
         <div className="space-y-6 py-2">
@@ -2306,12 +2330,12 @@ function PromotionModalContent({ batches, courses, sessions, selectedCount, onPr
                 </div>
                 <div>
                     <p className="text-sm font-bold text-slate-800">{selectedCount} Students Selected</p>
-                    <p className="text-[11px] text-slate-500 font-medium">Select the target {isSchool ? "Class" : "Standard"} and {isSchool ? "Section" : "Batch"} for promotion.</p>
+                    <p className="text-[11px] text-slate-500 font-medium">Select the target {isCollege ? "Degree Program" : isSchool ? "Class" : "Course"} and {isCollege || isSchool ? "Section" : "Batch"} for promotion.</p>
                 </div>
             </div>
 
             <div className="space-y-4">
-                {isSchool && (
+                {(isSchool || isCollege) && (
                     <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-600 ml-1">Target Academic Session</label>
                         <Select
@@ -2330,31 +2354,34 @@ function PromotionModalContent({ batches, courses, sessions, selectedCount, onPr
                 )}
                 
                 <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 ml-1">Target {isSchool ? "Class" : "Course"}</label>
+                    <label className="text-xs font-bold text-slate-600 ml-1">Target {isCollege ? "Degree Program / Course" : isSchool ? "Class" : "Course"}</label>
                     <Select
                         value={targetCourseId}
                         onChange={(val) => {
                             setTargetCourseId(val);
                             setTargetBatchId("");
                         }}
-                        placeholder={`Select ${isSchool ? "Class" : "Course"}...`}
+                        placeholder={`Select ${isCollege ? "Degree Program" : isSchool ? "Class" : "Course"}...`}
                         options={[
-                            { label: `Select ${isSchool ? "Class" : "Course"}`, value: "" },
+                            { label: `Select ${isCollege ? "Degree Program" : isSchool ? "Class" : "Course"}`, value: "" },
                             ...courses.map(c => ({ label: c.name, value: c._id }))
                         ]}
                     />
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 ml-1">Target {isSchool ? "Section" : "Batch"}</label>
+                    <label className="text-xs font-bold text-slate-600 ml-1">Target {isCollege || isSchool ? "Section" : "Batch"}</label>
                     <Select
                         value={targetBatchId}
                         onChange={setTargetBatchId}
                         disabled={!targetCourseId}
-                        placeholder={`Select ${isSchool ? "Section" : "Batch"}...`}
+                        placeholder={`Select ${isCollege || isSchool ? "Section" : "Batch"}...`}
                         options={[
-                            { label: `Select ${isSchool ? "Section" : "Batch"}`, value: "" },
-                            ...filteredBatches.map(b => ({ label: b.name, value: b._id }))
+                            { label: `Select ${isCollege || isSchool ? "Section" : "Batch"}`, value: "" },
+                            ...filteredBatches.map(b => ({
+                                label: isCollege && b.semester ? `Sem ${b.semester} - ${b.name}` : b.name,
+                                value: b._id
+                            }))
                         ]}
                     />
                 </div>

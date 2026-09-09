@@ -18,39 +18,6 @@ const statusOptions = [
     { value: "holiday", label: "Holiday" }
 ];
 
-const SEEDED_ATTENDANCE = [
-    {
-        staff: { _id: "st-1", profile: { firstName: "Dr. Rajesh", lastName: "Sharma" }, email: "rajesh.sharma@quantech.edu", role: "instructor", hrDetails: { designation: { name: "HOD Physics" } } },
-        status: "present",
-        remarks: "On time"
-    },
-    {
-        staff: { _id: "st-2", profile: { firstName: "Anita", lastName: "Verma" }, email: "anita.verma@quantech.edu", role: "instructor", hrDetails: { designation: { name: "Senior Lecturer" } } },
-        status: "present",
-        remarks: "Morning shift"
-    },
-    {
-        staff: { _id: "st-3", profile: { firstName: "Priya", lastName: "Nair" }, email: "priya.nair@quantech.edu", role: "instructor", hrDetails: { designation: { name: "Assistant Teacher" } } },
-        status: "on_leave",
-        remarks: "Approved Casual Leave"
-    },
-    {
-        staff: { _id: "st-4", profile: { firstName: "Vikram", lastName: "Singh" }, email: "vikram.singh@quantech.edu", role: "staff", hrDetails: { designation: { name: "IT Administrator" } } },
-        status: "present",
-        remarks: "Lab network audit"
-    },
-    {
-        staff: { _id: "st-5", profile: { firstName: "Sunita", lastName: "Gupta" }, email: "sunita.gupta@quantech.edu", role: "staff", hrDetails: { designation: { name: "Accountant" } } },
-        status: "half_day",
-        remarks: "First half attendance"
-    },
-    {
-        staff: { _id: "st-6", profile: { firstName: "Amit", lastName: "Kumar" }, email: "amit.kumar@quantech.edu", role: "instructor", hrDetails: { designation: { name: "Mathematics Teacher" } } },
-        status: "absent",
-        remarks: "Uninformed absence"
-    }
-];
-
 export default function StaffAttendancePage() {
     const router = useRouter();
     const toast = useToast();
@@ -58,19 +25,19 @@ export default function StaffAttendancePage() {
     const [saving, setSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [roleFilter, setRoleFilter] = useState("all");
-    const [attendanceDate, setAttendanceDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [designationFilter, setDesignationFilter] = useState("all");
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
     const [records, setRecords] = useState([]);
-
-    const [useTimeRange, setUseTimeRange] = useState(true);
+    const [originalRecords, setOriginalRecords] = useState([]);
+    const [isTimingModalOpen, setIsTimingModalOpen] = useState(false);
     const [checkInStart, setCheckInStart] = useState("08:00");
-    const [checkInEnd, setCheckInEnd] = useState("11:00");
-    const [checkOutStart, setCheckOutStart] = useState("15:00");
+    const [checkInEnd, setCheckInEnd] = useState("09:30");
+    const [checkOutStart, setCheckOutStart] = useState("16:00");
     const [checkOutEnd, setCheckOutEnd] = useState("18:00");
 
+    // Load saved timings from localStorage
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const savedRange = localStorage.getItem("useTimeRange");
-            if (savedRange !== null) setUseTimeRange(savedRange === "true");
             const cis = localStorage.getItem("checkInStart");
             if (cis) setCheckInStart(cis);
             const cie = localStorage.getItem("checkInEnd");
@@ -91,10 +58,12 @@ export default function StaffAttendancePage() {
             if (!res.ok) throw new Error(`HTTP error ${res.status}`);
             const data = await res.json();
             const fetched = data.records || [];
-            setRecords(fetched.length > 0 ? fetched : SEEDED_ATTENDANCE);
+            setRecords(fetched);
+            setOriginalRecords(JSON.parse(JSON.stringify(fetched)));
         } catch (error) {
             if (error.name !== 'AbortError') {
-                setRecords(SEEDED_ATTENDANCE);
+                setRecords([]);
+                setOriginalRecords([]);
             }
         } finally {
             setLoading(false);

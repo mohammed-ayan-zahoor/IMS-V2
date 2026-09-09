@@ -21,7 +21,10 @@ export async function GET(req, { params }) {
         if (scope.instituteId) query.institute = scope.instituteId;
 
         const course = await Course.findOne(query)
-            .populate('subjects')
+            .populate({
+                path: 'subjects',
+                match: { deletedAt: null }
+            })
             .populate('createdBy', 'profile.firstName profile.lastName');
 
         if (!course) {

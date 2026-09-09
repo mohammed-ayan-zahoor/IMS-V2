@@ -100,8 +100,7 @@ function AdmissionFormContent() {
     }
 
     const { student, batches, fees, institute } = data;
-    const batch = batches[0];
-    const fee = fees[0];
+    const isCollege = institute?.type === 'COLLEGE';
 
     return (
         <>
@@ -123,12 +122,12 @@ function AdmissionFormContent() {
 
             <div className="admission-form-container min-h-screen bg-gray-100 p-4 sm:p-8 no-print">
                 <div className="max-w-[210mm] mx-auto bg-white shadow-2xl overflow-hidden">
-                    <AdmissionFormView data={data} />
+                    {isCollege ? <CollegeAdmissionFormView data={data} /> : <AdmissionFormView data={data} />}
                 </div>
             </div>
 
             <div className="only-print hidden print:block print:m-0 print:p-0">
-                <AdmissionFormView data={data} />
+                {isCollege ? <CollegeAdmissionFormView data={data} /> : <AdmissionFormView data={data} />}
             </div>
 
             <style>{`
@@ -148,7 +147,7 @@ function AdmissionFormContent() {
                     }
                     .no-print { display: none !important; }
                     .only-print { display: block !important; }
-                    .admission-form-view {
+                    .admission-form-view, .college-form-view {
                         margin: 0 !important;
                         border: none !important;
                         box-shadow: none !important;
@@ -163,6 +162,20 @@ function AdmissionFormContent() {
                     font-size: 11px;
                     line-height: 1.4;
                     color: #111;
+                    background: white;
+                    position: relative;
+                    box-sizing: border-box;
+                    overflow: hidden;
+                }
+
+                .college-form-view {
+                    width: 210mm;
+                    height: 297mm;
+                    padding: 9mm 12mm;
+                    font-family: "Inter", "Segoe UI", Roboto, sans-serif;
+                    font-size: 9.5px;
+                    line-height: 1.35;
+                    color: #0f172a;
                     background: white;
                     position: relative;
                     box-sizing: border-box;
@@ -198,6 +211,21 @@ function AdmissionFormContent() {
                     align-items: center;
                 }
 
+                .college-section-title {
+                    font-size: 9px;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    border-bottom: 1.5px solid #0f172a;
+                    padding-bottom: 2px;
+                    margin-top: 8px;
+                    margin-bottom: 5px;
+                    letter-spacing: 0.4px;
+                    color: #0f172a;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+
                 .data-grid {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
@@ -212,6 +240,15 @@ function AdmissionFormContent() {
                     padding-bottom: 2px;
                 }
 
+                .college-field {
+                    display: flex;
+                    align-items: baseline;
+                    border-bottom: 0.5px solid #f1f5f9;
+                    padding-bottom: 1.5px;
+                    min-width: 0;
+                    overflow: hidden;
+                }
+
                 .label {
                     font-weight: 600;
                     width: 110px;
@@ -222,10 +259,31 @@ function AdmissionFormContent() {
                     letter-spacing: 0.5px;
                 }
 
+                .college-label {
+                    font-weight: 600;
+                    width: 120px;
+                    color: #64748b;
+                    flex-shrink: 0;
+                    font-size: 8.5px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.3px;
+                }
+
                 .value {
                     flex: 1;
                     color: #000;
                     font-weight: 500;
+                }
+
+                .college-value {
+                    flex: 1;
+                    color: #0f172a;
+                    font-weight: 600;
+                    font-size: 9.5px;
+                    min-width: 0;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
 
                 .signature-line {
@@ -235,6 +293,303 @@ function AdmissionFormContent() {
                 }
             `}</style>
         </>
+    );
+}
+
+function CollegeAdmissionFormView({ data }) {
+    const { student, batches, fees, institute } = data;
+    const batch = batches?.[0];
+    const course = batch?.course;
+    const fee = fees?.[0];
+
+    const formatAddr = (addr) => {
+        if (!addr) return "N/A";
+        if (typeof addr === 'string') return addr;
+        return [
+            addr.street || addr.line1,
+            addr.city || addr.district,
+            addr.state,
+            addr.pincode || addr.postalCode
+        ].filter(Boolean).join(', ') || "N/A";
+    };
+
+    const formatDateSafe = (dateVal, fallback = "—") => {
+        if (!dateVal) return fallback;
+        try {
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return fallback;
+            return format(d, 'dd-MM-yyyy');
+        } catch {
+            return fallback;
+        }
+    };
+
+    const formatAadhaar = (val) => {
+        if (!val) return "—";
+        if (typeof val === 'string' && val.startsWith('enc:')) return "—";
+        const digits = String(val).replace(/\D/g, '');
+        if (digits.length === 12) {
+            return `${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8, 12)}`;
+        }
+        return val;
+    };
+
+    const formatQuota = (admissionStd, studyingSince) => {
+        if (studyingSince && !/^[a-f\d]{24}$/i.test(studyingSince)) return studyingSince;
+        if (!admissionStd || /^[a-f\d]{24}$/i.test(admissionStd)) {
+            return "Regular / Merit (First Year)";
+        }
+        return admissionStd;
+    };
+
+    const programName = course?.name || student?.admissionStd || "Degree Program";
+    const courseCode = course?.code || "—";
+    const departmentName = course?.department?.name || (course?.name ? `${course.name} Department` : "Academic Department");
+    const currentSem = Number(batch?.semester) || 1;
+
+    let totalSemesters = Number(course?.collegeConfig?.totalSemesters);
+    if (!totalSemesters) {
+        const lowerName = String(programName).toLowerCase();
+        if (lowerName.includes("b.tech") || lowerName.includes("btech") || lowerName.includes("b.e.") || lowerName.includes("engineering") || lowerName.includes("b.pharm")) {
+            totalSemesters = 8;
+        } else if (lowerName.includes("m.") || lowerName.includes("mba") || lowerName.includes("mca")) {
+            totalSemesters = 4;
+        } else if (course?.duration?.value) {
+            const months = course.duration.unit === 'years' ? course.duration.value * 12 : course.duration.value;
+            totalSemesters = Math.round(months / 6) || 8;
+        } else {
+            totalSemesters = 8;
+        }
+    }
+    const totalYears = Math.ceil(totalSemesters / 2);
+    const sessionName = batch?.session?.sessionName || "2026-2027";
+
+    const rawBatchName = batch?.name || "";
+    const secMatch = rawBatchName.match(/\((Sec(?:tion)?\s*[A-Z0-9]+)\)/i) || rawBatchName.match(/Sec(?:tion)?\s*[A-Z0-9]+/i);
+    const sectionDisplay = secMatch ? (secMatch[1] || secMatch[0]) : (rawBatchName ? (rawBatchName.length > 15 ? "Section A" : rawBatchName) : "Section A");
+
+    const admissionDate = formatDateSafe(batch?.enrollment?.enrolledAt || student.admissionDate, formatDateSafe(new Date()));
+
+    const fatherInfo = student.fatherName 
+        ? `${student.fatherName}${student.fatherPhone ? ` (${student.fatherPhone})` : ''}` 
+        : null;
+    const motherInfo = student.motherName 
+        ? `${student.motherName}${student.motherPhone ? ` (${student.motherPhone})` : ''}` 
+        : null;
+    const guardianInfo = student.guardianName 
+        ? `${student.guardianName}${student.guardianRelation ? ` [${student.guardianRelation}]` : ''}${student.guardianPhone ? ` - ${student.guardianPhone}` : ''}`
+        : null;
+
+    return (
+        <div className="college-form-view mx-auto">
+            <div className="watermark">OFFICIAL ENROLLMENT</div>
+
+            {/* Header */}
+            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-2.5 mb-2">
+                <div className="flex-1 pr-4">
+                    {institute?.logo && (
+                        <img src={institute.logo} alt="Logo" className="h-9 mb-1 object-contain" />
+                    )}
+                    <h1 className="text-base font-black uppercase tracking-tight text-slate-900 leading-tight">
+                        {institute?.name || "College of Higher Education"}
+                    </h1>
+                    {institute?.affiliation && (
+                        <p className="text-[8.5px] font-semibold text-slate-600 uppercase tracking-wide">
+                            {institute.affiliation}
+                        </p>
+                    )}
+                    <div className="text-[9px] leading-tight text-slate-600 mt-1">
+                        <p>{formatAddr(institute?.address)}</p>
+                        <p className="mt-0.5">Phone: {institute?.phone || "N/A"} | Email: {institute?.email || "N/A"}</p>
+                    </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                    <div className="text-right">
+                        <div className="inline-block p-1 border border-slate-900 mb-1 bg-white">
+                            <p className="font-[Libre Barcode 128] text-2xl leading-none">*{student.enrollmentNumber || student._id}*</p>
+                        </div>
+                        <p className="font-bold text-[8px] uppercase tracking-widest text-slate-500">Degree Enrollment</p>
+                        <p className="font-mono text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 inline-block">
+                            {student.enrollmentNumber || "PENDING"}
+                        </p>
+                    </div>
+                    <div className="w-[22mm] h-[26mm] border-2 border-dashed border-slate-300 flex items-center justify-center bg-slate-50 overflow-hidden shrink-0">
+                        {student.avatar ? (
+                            <img src={student.avatar} alt="Photo" className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="text-[8px] text-slate-400 font-semibold text-center px-1 uppercase tracking-wider">Passport Photo</span>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Title Banner */}
+            <div className="text-center py-1 px-3 bg-slate-100 border-y border-slate-300 mb-2">
+                <h2 className="text-[10.5px] font-black tracking-[0.2em] uppercase text-slate-900">
+                    COLLEGE ADMISSION & DEGREE ENROLLMENT FORM
+                </h2>
+                <p className="text-[8px] font-semibold text-slate-600 uppercase tracking-widest mt-0.5">
+                    Academic Session: {sessionName} · National Education Policy (NEP) Compliant
+                </p>
+            </div>
+
+            {/* 1. Academic & Degree Program Details */}
+            <h3 className="college-section-title">
+                <span>1. Degree Program & Academic Enrollment</span>
+                <span className="text-[7.5px] font-normal text-slate-500 normal-case">University Mapped</span>
+            </h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[9px] mb-1.5">
+                <div className="college-field col-span-2">
+                    <span className="college-label">Degree / Program</span>
+                    <span className="college-value text-blue-950 font-bold uppercase">{programName}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Department</span>
+                    <span className="college-value">{departmentName}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Program Code</span>
+                    <span className="college-value font-mono">{courseCode}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Current Semester</span>
+                    <span className="college-value font-bold">Semester {currentSem} ({sectionDisplay})</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Program Duration</span>
+                    <span className="college-value">{totalYears} Years ({totalSemesters} Semesters)</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">UUCMS / Univ Reg No</span>
+                    <span className="college-value font-mono font-bold text-slate-900">{student.grNumber || "Pending University Allotment"}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">APAAR / ABC ID</span>
+                    <span className="college-value font-mono">{student.apaarId || "—"}</span>
+                </div>
+            </div>
+
+            {/* 2. Student Personal Particulars */}
+            <h3 className="college-section-title">2. Candidate Personal Particulars</h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[9px] mb-1.5">
+                <div className="college-field col-span-2">
+                    <span className="college-label">Candidate Name</span>
+                    <span className="college-value font-black uppercase tracking-wide text-slate-900">
+                        {student.firstName} {student.lastName}
+                    </span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Date of Birth</span>
+                    <span className="college-value">{formatDateSafe(student.dateOfBirth)}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Gender / Blood Group</span>
+                    <span className="college-value">{student.gender || "—"} {student.bloodGroup ? `· Blood: ${student.bloodGroup}` : ''}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Mobile Number</span>
+                    <span className="college-value font-medium">{student.phone || "—"}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Email Address</span>
+                    <span className="college-value lowercase">{student.email || "—"}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Aadhaar Number</span>
+                    <span className="college-value font-mono">{formatAadhaar(student.aadharNumber)}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Admission Date</span>
+                    <span className="college-value">{admissionDate}</span>
+                </div>
+                <div className="college-field col-span-2">
+                    <span className="college-label">Permanent Address</span>
+                    <span className="college-value whitespace-normal break-words">{formatAddr(student.address)}</span>
+                </div>
+            </div>
+
+            {/* 3. Qualifying Academic Background & Parents */}
+            <h3 className="college-section-title">3. Qualifying Examination & Parent Information</h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[9px] mb-1.5">
+                <div className="college-field col-span-2">
+                    <span className="college-label">Prior Qualification</span>
+                    <span className="college-value font-semibold whitespace-normal break-words">
+                        {student.lastSchoolAttended ? `${student.lastSchoolAttended} (10+2 / PUC / Diploma)` : "10+2 / PUC Equivalent Examination"}
+                    </span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Medium of Instruction</span>
+                    <span className="college-value">{student.medium || "English"}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Admission Quota / Std</span>
+                    <span className="college-value">{formatQuota(student.admissionStd, student.studyingSinceStandard)}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Father&apos;s Name & Contact</span>
+                    <span className="college-value">{fatherInfo || "—"}</span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Mother&apos;s Name & Contact</span>
+                    <span className="college-value">{motherInfo || "—"}</span>
+                </div>
+                {(!fatherInfo && !motherInfo && guardianInfo) && (
+                    <div className="college-field col-span-2">
+                        <span className="college-label">Guardian Particulars</span>
+                        <span className="college-value">{guardianInfo}</span>
+                    </div>
+                )}
+                <div className="college-field">
+                    <span className="college-label">Category / Caste</span>
+                    <span className="college-value">
+                        {student.caste ? (student.subCaste ? `${student.caste} (${student.subCaste})` : student.caste) : "General / Unreserved"}
+                    </span>
+                </div>
+                <div className="college-field">
+                    <span className="college-label">Nationality & Religion</span>
+                    <span className="college-value">{student.nationality || "Indian"} · {student.religion || "—"}</span>
+                </div>
+            </div>
+
+            {/* 4. Collegiate Undertaking & Declaration */}
+            <div className="mt-2">
+                <h3 className="college-section-title">4. Undertaking & Declaration by Student & Parent</h3>
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                    <ol className="list-decimal list-inside space-y-1 text-[8px] text-slate-700 leading-relaxed">
+                        <li>I hereby declare that all particulars stated in this application are true and complete to the best of my knowledge. If any information is found incorrect, my admission stands cancelled.</li>
+                        <li>Admission is provisional and subject to verification of original 10+2 / PUC / Diploma certificates and formal approval from the affiliating University.</li>
+                        <li>I agree to abide by the university statutes, collegiate code of conduct, and UGC Anti-Ragging regulations.</li>
+                        <li>I understand that a minimum of 75% attendance in theory and practical coursework in each semester is mandatory to be eligible for semester end examinations.</li>
+                    </ol>
+                </div>
+            </div>
+
+            {/* 5. Signatures */}
+            <div className="flex justify-between items-end mt-8 mb-3 px-4">
+                <div className="text-center">
+                    <div className="signature-line mx-auto"></div>
+                    <p className="font-bold uppercase text-[8px] text-slate-900">Candidate / Student</p>
+                    <p className="text-[7px] text-slate-500 mt-0.5">Date: ______________</p>
+                </div>
+                <div className="text-center">
+                    <div className="signature-line mx-auto"></div>
+                    <p className="font-bold uppercase text-[8px] text-slate-900">Parent / Guardian</p>
+                    <p className="text-[7px] text-slate-500 mt-0.5">Date: ______________</p>
+                </div>
+                <div className="text-center">
+                    <div className="signature-line mx-auto"></div>
+                    <p className="font-bold uppercase text-[8px] text-slate-900">Dean / Principal / Authorized Seal</p>
+                    <p className="text-[7px] text-slate-500 mt-0.5">Date: ______________</p>
+                </div>
+            </div>
+
+            {/* Footer */}
+            <div className="absolute bottom-2 left-0 right-0 px-10 flex justify-between items-center text-[7px] text-slate-400 border-t border-slate-200 pt-1">
+                <p>System Generated Document | Ref: {student._id}</p>
+                <p>Generated: {format(new Date(), 'dd-MM-yyyy HH:mm:ss')}</p>
+            </div>
+        </div>
     );
 }
 

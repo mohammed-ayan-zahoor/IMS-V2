@@ -9,14 +9,6 @@ import Modal from "@/components/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
-const SEEDED_LEAVE_TYPES = [
-    { _id: "lt-1", name: "Casual Leave", code: "CL", maxDaysPerYear: 12, description: "Short-term personal leave for unexpected tasks or urgent errands." },
-    { _id: "lt-2", name: "Sick / Medical Leave", code: "SL", maxDaysPerYear: 12, description: "Medical leave for personal illness, medical checks, or health recovery." },
-    { _id: "lt-3", name: "Earned / Privilege Leave", code: "PL", maxDaysPerYear: 15, description: "Annual leave accrued over service period for planned vacations." },
-    { _id: "lt-4", name: "Maternity / Paternity Leave", code: "ML", maxDaysPerYear: 90, description: "Parental leave granted for childbirth and newborn care." },
-    { _id: "lt-5", name: "Duty / Academic Leave", code: "DL", maxDaysPerYear: 10, description: "Official leave granted to attend conferences, seminars, and workshops." }
-];
-
 export default function LeaveTypesPage() {
     const toast = useToast();
     const confirm = useConfirm();
@@ -38,11 +30,10 @@ export default function LeaveTypesPage() {
             });
             if (!res.ok) throw new Error(`HTTP error ${res.status}`);
             const data = await res.json();
-            const fetched = data.leaveTypes || [];
-            setLeaveTypes(fetched.length > 0 ? fetched : SEEDED_LEAVE_TYPES);
+            setLeaveTypes(data.leaveTypes || []);
         } catch (error) {
             if (error.name !== 'AbortError') {
-                setLeaveTypes(SEEDED_LEAVE_TYPES);
+                setLeaveTypes([]);
             }
         } finally {
             setLoading(false);
@@ -80,18 +71,10 @@ export default function LeaveTypesPage() {
                 setFormData({ name: "", code: "", maxDaysPerYear: 12, description: "" });
                 fetchLeaveTypes();
             } else {
-                const newLt = { _id: `lt-${Date.now()}`, name: formData.name.trim(), code: formData.code.trim().toUpperCase(), maxDaysPerYear: parseInt(formData.maxDaysPerYear) || 12, description: formData.description.trim() };
-                setLeaveTypes(prev => [newLt, ...prev]);
-                toast.success("Leave category added successfully");
-                setIsModalOpen(false);
-                setFormData({ name: "", code: "", maxDaysPerYear: 12, description: "" });
+                toast.error(data.error || "Failed to add leave category");
             }
         } catch (error) {
-            const newLt = { _id: `lt-${Date.now()}`, name: formData.name.trim(), code: formData.code.trim().toUpperCase(), maxDaysPerYear: parseInt(formData.maxDaysPerYear) || 12, description: formData.description.trim() };
-            setLeaveTypes(prev => [newLt, ...prev]);
-            toast.success("Leave category added successfully");
-            setIsModalOpen(false);
-            setFormData({ name: "", code: "", maxDaysPerYear: 12, description: "" });
+            toast.error("Network error while adding leave category");
         } finally {
             setSaving(false);
         }
@@ -105,16 +88,15 @@ export default function LeaveTypesPage() {
         })) {
             try {
                 const res = await fetch(`/api/v1/hr/leave-types/${id}`, { method: "DELETE" });
+                const data = await res.json();
                 if (res.ok) {
                     toast.success("Leave category removed successfully");
                     fetchLeaveTypes();
                 } else {
-                    setLeaveTypes(prev => prev.filter(t => t._id !== id));
-                    toast.success("Leave category removed successfully");
+                    toast.error(data.error || "Failed to remove leave category");
                 }
             } catch (error) {
-                setLeaveTypes(prev => prev.filter(t => t._id !== id));
-                toast.success("Leave category removed successfully");
+                toast.error("Network error while removing leave category");
             }
         }
     };

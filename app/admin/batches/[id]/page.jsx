@@ -133,7 +133,7 @@ function MarksheetsTab({ batchId }) {
                         {isExpanded && (
                             <div className="border-t border-slate-100 p-5 bg-slate-50/50">
                                 {!hasSubmissions ? (
-                                    <p className="text-xs text-slate-500 font-medium py-3 text-center">This student hasn't completed any exams yet.</p>
+                                    <p className="text-xs text-slate-500 font-medium py-3 text-center">This student hasn&apos;t completed any exams yet.</p>
                                 ) : (
                                     <div className="space-y-6">
                                         <div>
@@ -687,7 +687,7 @@ function TimetableTab({ batchId, subjects = [] }) {
             <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900">3. Student's View (Live Preview)</h3>
+                        <h3 className="text-sm font-bold text-slate-900">3. Student&apos;s View (Live Preview)</h3>
                         <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">See exactly what students will see</p>
                     </div>
                     <button 
@@ -865,11 +865,21 @@ export default function BatchDetailPage() {
     }, [fetchBatch, fetchProgress]);
 
     // ── Ensure progress tracker exists for each subject in course ─────────────
+    const batchSemester = batch?.semester || (batch?.name?.match(/Sem(?:ester)?\s*(\d+)/i) ? parseInt(batch.name.match(/Sem(?:ester)?\s*(\d+)/i)[1], 10) : null);
+
     useEffect(() => {
         if (!batch?.course?.subjects?.length) return;
+        const relevantSubjects = batch.course.subjects.filter(s => {
+            if (!s || s.deletedAt) return false;
+            if (batchSemester) {
+                return s.semester === batchSemester;
+            }
+            return true;
+        });
+
         const ensureTrackers = async () => {
-            for (const subjectId of batch.course.subjects) {
-                const sid = typeof subjectId === 'object' ? subjectId._id : subjectId;
+            for (const subject of relevantSubjects) {
+                const sid = typeof subject === 'object' ? subject._id : subject;
                 await fetch('/api/v1/syllabus-progress', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -949,6 +959,11 @@ export default function BatchDetailPage() {
                     <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{batch.name}</h1>
                     <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                         <Badge variant="primary" className="text-[10px] font-mono">{batch.course?.code || batch.course?.name}</Badge>
+                        {batchSemester && (
+                            <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider bg-slate-50 border-slate-200 text-slate-700">
+                                Sem {batchSemester}
+                            </Badge>
+                        )}
                         <span className="text-xs text-slate-400 flex items-center gap-1">
                             <Calendar size={11} /> {startDate} → {endDate}
                         </span>

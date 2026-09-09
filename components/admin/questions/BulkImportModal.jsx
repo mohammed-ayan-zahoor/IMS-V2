@@ -10,31 +10,65 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const SAMPLE_JSON = [
     {
-        text: "What is the capital of France?",
+        text: "What is Newton's Second Law of Motion?",
         type: "mcq",
-        difficulty: "easy",
-        options: ["London", "Berlin", "Paris", "Madrid"],
-        correctAnswer: 2,
+        difficulty: "medium",
+        chapter: "Laws of Motion",
+        topic: "Newton's Laws",
+        syllabus: "CBSE",
+        options: ["F = ma", "F = mv", "F = m/a", "F = a/m"],
+        correctAnswer: 0,
         marks: 1,
-        explanation: "Paris is the capital and largest city of France.",
-        tags: ["geography", "europe"],
-        subject: "60d5ec..."
+        status: "approved",
+        explanation: "Force equals mass times acceleration (F = ma)."
     },
     {
-        text: "The Earth revolves around the Sun.",
+        text: "Select all prime numbers below 10.",
+        type: "multi_correct_mcq",
+        difficulty: "easy",
+        chapter: "Number Systems",
+        topic: "Primes",
+        options: ["2", "4", "5", "9"],
+        correctAnswer: [0, 2],
+        marks: 2,
+        status: "approved"
+    },
+    {
+        text: "The acceleration due to gravity on Earth's surface is approximately 9.8 m/s².",
         type: "true_false",
         difficulty: "easy",
+        chapter: "Gravitation",
         correctAnswer: "true",
         marks: 1,
-        explanation: "The Earth orbits the Sun in an elliptical path."
+        status: "approved"
     },
     {
-        text: "Explain the process of photosynthesis.",
+        text: "What is the boiling point of water at 1 atm in Celsius?",
+        type: "numerical",
+        difficulty: "easy",
+        chapter: "Thermodynamics",
+        correctAnswer: "100",
+        marks: 1,
+        status: "approved"
+    },
+    {
+        text: "Green plants synthesize food through *photosynthesis* using sunlight.",
+        type: "fill_in_blank",
+        difficulty: "easy",
+        chapter: "Plant Biology",
+        correctAnswer: "*photosynthesis*",
+        marks: 1
+    },
+    {
+        text: "Explain the working principle of an electric transformer.",
         type: "short_answer",
-        difficulty: "medium",
-        correctAnswer: "Photosynthesis is the process by which green plants convert sunlight, water, and carbon dioxide into glucose and oxygen.",
+        difficulty: "hard",
+        chapter: "Electromagnetic Induction",
+        topic: "Transformers",
         marks: 3,
-        tags: ["biology", "plants"]
+        modelAnswer: "A transformer works on the principle of mutual induction between two coils with alternating current.",
+        rubric: "2 marks – state principle of mutual induction; 1 mark – mention AC requirement",
+        status: "draft"
     }
 ];
 
@@ -76,9 +110,18 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
         ? batches.filter(b => String(b.course?._id || b.course) === String(courseId))
         : [];
 
-    const filteredSubjects = courseId
+    // Find selected batch to filter subjects by semester if applicable
+    const selectedBatch = batchId ? batches.find(b => String(b._id) === String(batchId)) : null;
+    const batchSemester = selectedBatch?.semester;
+
+    const allCourseSubjects = (courseId
         ? courses.find(c => String(c._id) === String(courseId))?.subjects || []
-        : [];
+        : []).filter(s => !s.deletedAt);
+
+    // If a batch is selected and has a semester, only show subjects for that semester
+    const filteredSubjects = batchSemester
+        ? allCourseSubjects.filter(s => s.semester === batchSemester)
+        : allCourseSubjects;
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -225,7 +268,7 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+                className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[92vh] overflow-hidden flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
@@ -327,6 +370,19 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
                                     </div>
                                 )}
 
+                                {/* Download Template Shortcut */}
+                                <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                                    <span>Need a starter JSON format?</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadSample}
+                                        className="font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 transition-colors"
+                                    >
+                                        <Download size={14} />
+                                        Download Sample JSON
+                                    </button>
+                                </div>
+
                                 {parseError && (
                                     <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 text-sm font-medium flex items-start gap-3">
                                         <AlertTriangle size={18} className="shrink-0 mt-0.5" />
@@ -374,7 +430,7 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
                                     <Select
                                         label="Assign to Batch (optional)"
                                         value={batchId}
-                                        onChange={(val) => setBatchId(val)}
+                                        onChange={(val) => { setBatchId(val); setSubjectId(""); }}
                                         options={batchOptions}
                                         placeholder="Select Batch"
                                         disabled={!courseId}
@@ -383,42 +439,49 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
                                         label="Assign to Subject (optional)"
                                         value={subjectId}
                                         onChange={(val) => setSubjectId(val)}
-                                        options={[{ label: "No Subject", value: "" }, ...filteredSubjects.map(s => ({ label: s.name, value: s._id }))]}
+                                        options={[{ label: "No Subject", value: "" }, ...filteredSubjects.map(s => ({ 
+                                            label: s.semester ? `${s.name} (Sem ${s.semester})` : s.name, 
+                                            value: s._id 
+                                        }))]}
                                         placeholder="Select Subject"
                                         disabled={!courseId || filteredSubjects.length === 0}
                                     />
                                 </div>
 
                                 {/* Preview Table */}
-                                <div className="border border-slate-200 rounded-2xl overflow-hidden max-h-[300px] overflow-y-auto">
+                                <div className="border border-slate-200 rounded-2xl overflow-hidden max-h-[380px] overflow-y-auto shadow-2xs">
                                     <table className="w-full text-sm">
-                                        <thead className="bg-slate-50 text-xs text-slate-500 uppercase sticky top-0">
+                                        <thead className="bg-slate-50 text-xs text-slate-500 uppercase sticky top-0 z-10 border-b border-slate-200/80">
                                             <tr>
-                                                <th className="px-4 py-3 text-left font-bold w-8">#</th>
+                                                <th className="px-4 py-3 text-left font-bold w-12">#</th>
                                                 <th className="px-4 py-3 text-left font-bold">Question</th>
-                                                <th className="px-4 py-3 text-left font-bold">Type</th>
-                                                <th className="px-4 py-3 text-left font-bold">Marks</th>
+                                                <th className="px-4 py-3 text-left font-bold w-40">Chapter</th>
+                                                <th className="px-4 py-3 text-left font-bold w-36">Type</th>
+                                                <th className="px-4 py-3 text-center font-bold w-20">Marks</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {jsonData.slice(0, 50).map((q, i) => (
                                                 <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                                                     <td className="px-4 py-3 text-slate-400 font-bold">{i + 1}</td>
-                                                    <td className="px-4 py-3 font-medium text-slate-800 line-clamp-1 max-w-xs">
-                                                        {q.text}
+                                                    <td className="px-4 py-3 font-medium text-slate-800 leading-snug">
+                                                        <span className="line-clamp-2">{q.text}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs text-slate-500 font-medium">
+                                                        {q.chapter || "—"}
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-2 py-1 rounded-lg">
-                                                            {q.type?.replace('_', ' ')}
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg border border-blue-100/60 inline-block">
+                                                            {q.type?.replace(/_/g, ' ')}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 font-bold text-slate-600">{q.marks ?? 1}</td>
+                                                    <td className="px-4 py-3 font-bold text-slate-700 text-center">{q.marks ?? 1}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                     {jsonData.length > 50 && (
-                                        <div className="bg-slate-50 px-4 py-2 text-xs text-slate-400 text-center font-bold">
+                                        <div className="bg-slate-50 px-4 py-2.5 text-xs text-slate-400 text-center font-bold border-t border-slate-100">
                                             ... and {jsonData.length - 50} more questions
                                         </div>
                                     )}
@@ -480,7 +543,7 @@ export default function BulkImportModal({ isOpen, onClose, courses = [], batches
                 <div className="p-6 border-t border-slate-100 flex items-center justify-between gap-3">
                     {step === 1 && (
                         <p className="text-xs text-slate-400 font-medium">
-                            Supports MCQ, True/False, Short Answer & Essay types
+                            Supports MCQ, Multi-Correct, True/False, Fill in Blank, Short Answer, Essay, Numerical & Match types
                         </p>
                     )}
                     {step === 2 && (

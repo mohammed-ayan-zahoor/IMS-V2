@@ -53,6 +53,42 @@ const SubjectSchema = new Schema({
         type: String,
         maxlength: 1000
     },
+    // College specific semester & credit mapping
+    semester: {
+        type: Number,
+        min: 1,
+        max: 12,
+        default: null,
+        index: true
+    },
+    credits: {
+        type: Number,
+        min: 0,
+        default: null
+    },
+    subjectType: {
+        type: String,
+        enum: ['THEORY', 'LAB', 'ELECTIVE', 'PROJECT', 'AUDIT'],
+        default: 'THEORY'
+    },
+    department: {
+        type: Schema.Types.ObjectId,
+        ref: 'Department',
+        default: null,
+        index: true
+    },
+    lectureHours: {
+        type: Number,
+        default: null
+    },
+    tutorialHours: {
+        type: Number,
+        default: null
+    },
+    practicalHours: {
+        type: Number,
+        default: null
+    },
     // Hierarchical syllabus: Chapter → Topic → SubTopic
     // Defined once per subject; all batches reference this template
     syllabus: [ChapterSchema],

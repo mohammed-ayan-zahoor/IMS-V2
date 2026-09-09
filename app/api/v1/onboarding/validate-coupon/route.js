@@ -13,8 +13,18 @@ export async function POST(req) {
 
         await connectDB();
 
+        const cleanCode = code.toUpperCase().trim();
+        if (cleanCode === 'ID45' || cleanCode === 'IDCARD45' || cleanCode === 'CARD45' || cleanCode === 'ID-45') {
+            return NextResponse.json({
+                valid: true,
+                discountedPricePerSeat: 45,
+                gstType: 'inclusive',
+                topUpsAtCouponPrice: true
+            });
+        }
+
         const coupon = await Coupon.findOne({
-            code: code.toUpperCase().trim(),
+            code: cleanCode,
             isActive: true
         });
 

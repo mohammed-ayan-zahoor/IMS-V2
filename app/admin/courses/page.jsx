@@ -21,6 +21,7 @@ import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
@@ -63,20 +64,30 @@ export default function CoursesPage() {
     const [search, setSearch] = useState("");
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const isCollege = session?.user?.institute?.type === 'COLLEGE';
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
     const [editingCourse, setEditingCourse] = useState(null);
     const [deletingCourse, setDeletingCourse] = useState(null);
     const [activeMenu, setActiveMenu] = useState(null);
     const [institutes, setInstitutes] = useState([]);
     const [selectedInstitute, setSelectedInstitute] = useState("");
+    const [departments, setDepartments] = useState([]);
 
     // Form State for Courses
+    const [differentFeePerYear, setDifferentFeePerYear] = useState(false);
     const [formData, setFormData] = useState({
         name: "",
         code: "",
         description: "",
+        department: "",
         duration: { value: "", unit: "months" },
         fees: { amount: "", currency: "INR" },
-        subjects: []
+        subjects: [],
+        collegeConfig: {
+            totalSemesters: 8,
+            billingCycle: "YEARLY",
+            yearWiseFees: []
+        }
     });
     const [allSubjects, setAllSubjects] = useState([]);
 
@@ -97,16 +108,31 @@ export default function CoursesPage() {
     useEffect(() => {
         fetchCourses();
         fetchSubjects();
+        if (isCollege) {
+            fetchDepartments();
+        }
         if (session?.user?.role === 'super_admin') {
             fetchInstitutes();
         }
-    }, [session, selectedInstitute]);
+    }, [session, selectedInstitute, isCollege]);
 
     useEffect(() => {
-        if (!isSchool && activeTab === "bundles") {
+        if (isVocational && activeTab === "bundles") {
             fetchBundles();
         }
-    }, [activeTab, selectedInstitute, isSchool]);
+    }, [activeTab, selectedInstitute, isVocational]);
+
+    const fetchDepartments = async () => {
+        try {
+            const res = await fetch("/api/v1/departments");
+            if (res.ok) {
+                const data = await res.json();
+                setDepartments(data.departments || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch departments", error);
+        }
+    };
 
     const fetchInstitutes = async () => {
         try {
@@ -178,19 +204,48 @@ export default function CoursesPage() {
             const url = editingCourse ? `/api/v1/courses/${editingCourse._id}` : "/api/v1/courses";
             const method = editingCourse ? "PATCH" : "POST";
 
+            const payload = {
+                ...formData,
+                fees: { ...formData.fees, amount: parseFloat(formData.fees.amount) || 0 }
+            };
+
+            if (isCollege) {
+                const totalSems = parseInt(formData.collegeConfig?.totalSemesters, 10) || 8;
+                payload.duration = {
+                    value: totalSems * 6,
+                    unit: "months"
+                };
+                payload.collegeConfig = {
+                    totalSemesters: totalSems,
+                    billingCycle: formData.collegeConfig?.billingCycle || 'YEARLY',
+                    yearWiseFees: differentFeePerYear ? (formData.collegeConfig?.yearWiseFees || []) : []
+                };
+            }
+
             const res = await fetch(url, {
                 method: method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    ...formData,
-                    fees: { ...formData.fees, amount: parseFloat(formData.fees.amount) || 0 }
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (res.ok) {
                 setIsAddModalOpen(false);
                 setEditingCourse(null);
-                setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" }, subjects: [] });
+                setDifferentFeePerYear(false);
+                setFormData({
+                    name: "",
+                    code: "",
+                    description: "",
+                    department: "",
+                    duration: { value: "", unit: "months" },
+                    fees: { amount: "", currency: "INR" },
+                    subjects: [],
+                    collegeConfig: {
+                        totalSemesters: 8,
+                        billingCycle: "YEARLY",
+                        yearWiseFees: []
+                    }
+                });
                 fetchCourses();
                 toast.success(editingCourse ? "Course updated successfully" : "Course created successfully");
             } else {
@@ -224,20 +279,28 @@ export default function CoursesPage() {
 
     const handleEditClick = (course) => {
         setEditingCourse(course);
+        const totalSems = course.collegeConfig?.totalSemesters || (course.duration?.value ? Math.round(course.duration.value / 6) : 8);
         setFormData({
             name: course.name || "",
             code: course.code || "",
             description: course.description || "",
+            department: course.department?._id || course.department || "",
             duration: {
-                value: course.duration?.value || "",
+                value: course.duration?.value || (totalSems * 6),
                 unit: course.duration?.unit || "months"
             },
             fees: {
                 amount: course.fees?.amount || "",
                 currency: course.fees?.currency || "INR"
             },
-            subjects: course.subjects || []
+            subjects: course.subjects || [],
+            collegeConfig: {
+                totalSemesters: totalSems,
+                billingCycle: course.collegeConfig?.billingCycle || 'YEARLY',
+                yearWiseFees: course.collegeConfig?.yearWiseFees || []
+            }
         });
+        setDifferentFeePerYear(Boolean(course.collegeConfig?.yearWiseFees?.length > 0));
         setIsAddModalOpen(true);
         setActiveMenu(null);
     };
@@ -346,7 +409,7 @@ export default function CoursesPage() {
     return (
         <div className="space-y-6">
             {/* Tab Bar for Vocational Institutes */}
-            {!isSchool && (
+            {isVocational && (
                 <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
                     <button
                         onClick={() => setActiveTab("courses")}
@@ -384,7 +447,21 @@ export default function CoursesPage() {
                         <Button
                             onClick={() => {
                                 setEditingCourse(null);
-                                setFormData({ name: "", code: "", description: "", duration: { value: "", unit: "months" }, fees: { amount: "", currency: "INR" }, subjects: [] });
+                                setDifferentFeePerYear(false);
+                                setFormData({
+                                    name: "",
+                                    code: "",
+                                    description: "",
+                                    department: "",
+                                    duration: isCollege ? { value: "48", unit: "months" } : { value: "", unit: "months" },
+                                    fees: { amount: "", currency: "INR" },
+                                    subjects: [],
+                                    collegeConfig: {
+                                        totalSemesters: 8,
+                                        billingCycle: "YEARLY",
+                                        yearWiseFees: []
+                                    }
+                                });
                                 setIsAddModalOpen(true);
                             }}
                             size="md"
@@ -481,21 +558,42 @@ export default function CoursesPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200/80">
-                                                        {course.code}
-                                                    </span>
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200/80">
+                                                            {course.code}
+                                                        </span>
+                                                        {isCollege && course.department && (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                                                                {course.department.code || course.department.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-xs text-slate-600 font-medium">
                                                     <div className="flex items-center gap-1.5">
                                                         <Clock size={14} className="text-slate-400" />
-                                                        <span>{formatDuration(course.duration?.value, course.duration?.unit)}</span>
+                                                        {isCollege ? (
+                                                            <span>
+                                                                {course.collegeConfig?.totalSemesters || Math.round((course.duration?.value || 48) / 6)} Semesters
+                                                                <span className="text-slate-400 ml-1">({Math.round((course.collegeConfig?.totalSemesters || Math.round((course.duration?.value || 48) / 6)) / 2)} Yrs)</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span>{formatDuration(course.duration?.value, course.duration?.unit)}</span>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 {session?.user?.role !== 'instructor' && (
                                                     <td className="px-6 py-4 text-right">
-                                                        <span className="font-semibold text-slate-900 font-mono text-sm">
-                                                            ₹{course.fees?.amount?.toLocaleString() || 0}
-                                                        </span>
+                                                        <div className="flex flex-col items-end">
+                                                            <span className="font-semibold text-slate-900 font-mono text-sm">
+                                                                ₹{course.fees?.amount?.toLocaleString() || 0}
+                                                            </span>
+                                                            {isCollege && (
+                                                                <span className="text-[11px] text-slate-400 font-medium">
+                                                                    {course.collegeConfig?.billingCycle === 'SEMESTER' ? 'per semester' : 'per year'}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                 )}
                                                 {session?.user?.role !== 'instructor' && (
@@ -694,78 +792,345 @@ export default function CoursesPage() {
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 title={editingCourse ? `Edit ${isSchool ? "Class" : "Course"}` : `Add New ${isSchool ? "Class" : "Course"}`}
+                className={isCollege ? "max-w-4xl" : "max-w-2xl"}
             >
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-2">{isSchool ? "Class" : "Course"} Details</div>
-                <form onSubmit={handleSaveCourse} className="space-y-5">
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input
-                            id="name"
-                            label={`${isSchool ? "Class" : "Course"} Name`}
-                            placeholder={`e.g. ${isSchool ? "10th Standard" : "Master of Science"}`}
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            required
-                        />
-                        <Input
-                            id="code"
-                            label={`${isSchool ? "Class" : "Course"} Code`}
-                            placeholder={`e.g. ${isSchool ? "STD-10" : "MSC-CS"}`}
-                            value={formData.code}
-                            onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                            required
-                        />
-                    </div>
+                <form onSubmit={handleSaveCourse} className="space-y-6">
+                    {isCollege ? (
+                        /* College: 2-Column Responsive Layout */
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Left Column: Basic Information */}
+                            <div className="space-y-4">
+                                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest pb-1.5 border-b border-slate-100">
+                                    Course Details
+                                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="grid grid-cols-2 gap-2">
-                            <Input
-                                id="durationValue"
-                                label="Duration"
-                                type="number"
-                                placeholder="e.g. 3"
-                                value={formData.duration.value || ""}
-                                onChange={(e) => setFormData({ ...formData, duration: { ...formData.duration, value: e.target.value } })}
-                                required
-                            />
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Unit</label>
-                                <Select
-                                    value={formData.duration.unit}
-                                    onChange={(val) => setFormData({ ...formData, duration: { ...formData.duration, unit: val } })}
-                                    options={[
-                                        { label: "Months", value: "months" },
-                                        { label: "Weeks", value: "weeks" },
-                                        { label: "Days", value: "days" }
-                                    ]}
+                                <Input
+                                    id="name"
+                                    label="Course Name"
+                                    placeholder="e.g. B.Tech Computer Science"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    required
+                                />
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Input
+                                        id="code"
+                                        label="Course Code"
+                                        placeholder="e.g. BTECHCSE"
+                                        value={formData.code}
+                                        onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                                        required
+                                    />
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Academic Department</label>
+                                        <Select
+                                            value={formData.department || ""}
+                                            onChange={(val) => setFormData({ ...formData, department: val || null })}
+                                            placeholder="Select Department..."
+                                            options={[
+                                                { label: "No Department (General)", value: "" },
+                                                ...departments.map(d => ({ label: `${d.name} (${d.code})`, value: d._id }))
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Description</label>
+                                    <textarea
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 min-h-[160px] text-sm text-slate-700 placeholder:text-slate-400 transition-all resize-none"
+                                        placeholder="Brief description of the course..."
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Right Column: Degree Architecture & Fee Blueprint */}
+                            <div className="space-y-4">
+                                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest pb-1.5 border-b border-slate-100">
+                                    Degree Duration & Fees
+                                </div>
+
+                                {/* Degree Duration & Semesters */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">
+                                        Degree Duration & Semesters
+                                    </label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[
+                                            { label: "4 Years", sems: 8, desc: "B.Tech, B.E., B.Pharm" },
+                                            { label: "3 Years", sems: 6, desc: "BCA, B.Com, B.Sc, BBA" },
+                                            { label: "2 Years", sems: 4, desc: "MBA, MCA, M.Tech, M.Sc" }
+                                        ].map((preset) => {
+                                            const isSelected = formData.collegeConfig?.totalSemesters === preset.sems;
+                                            return (
+                                                <button
+                                                    key={preset.sems}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            duration: { value: preset.sems * 6, unit: "months" },
+                                                            collegeConfig: { ...prev.collegeConfig, totalSemesters: preset.sems }
+                                                        }));
+                                                    }}
+                                                    className={`p-2.5 rounded-lg text-left border transition-all cursor-pointer ${
+                                                        isSelected
+                                                            ? "border-blue-600 bg-blue-50/60 text-blue-900 ring-1 ring-blue-600"
+                                                            : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                                                    }`}
+                                                >
+                                                    <div className="text-xs font-bold">{preset.label}</div>
+                                                    <div className="text-[11px] font-medium text-slate-500">{preset.sems} Semesters</div>
+                                                    <div className="text-[10px] text-slate-400 truncate mt-0.5">{preset.desc}</div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {/* Custom Semester Count if needed */}
+                                    <div className="flex items-center gap-2 pt-1">
+                                        <span className="text-xs text-slate-500 ml-1">Or custom semester count:</span>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="12"
+                                            className="w-20 px-2.5 py-1 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                                            value={formData.collegeConfig?.totalSemesters || 8}
+                                            onChange={(e) => {
+                                                const sems = parseInt(e.target.value, 10) || 1;
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    duration: { value: sems * 6, unit: "months" },
+                                                    collegeConfig: { ...prev.collegeConfig, totalSemesters: sems }
+                                                }));
+                                            }}
+                                        />
+                                        <span className="text-xs text-slate-400">semesters ({Math.round(((formData.collegeConfig?.totalSemesters || 8) * 6) / 12)} years)</span>
+                                    </div>
+                                </div>
+
+                                {/* Fee Blueprint */}
+                                <div className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <div className="text-xs font-bold text-slate-900">Fee Blueprint</div>
+                                            <div className="text-[11px] text-slate-500">Auto-generates student fee ledgers</div>
+                                        </div>
+                                        {/* Billing Frequency Toggle */}
+                                        <div className="inline-flex rounded-lg p-0.5 bg-slate-200/70 border border-slate-200 text-xs font-semibold">
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData(prev => ({
+                                                    ...prev,
+                                                    collegeConfig: { ...prev.collegeConfig, billingCycle: 'YEARLY' }
+                                                }))}
+                                                className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                                                    formData.collegeConfig?.billingCycle === 'YEARLY'
+                                                        ? 'bg-white text-slate-900 shadow-xs font-bold'
+                                                        : 'text-slate-600 hover:text-slate-900'
+                                                }`}
+                                            >
+                                                Yearly
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData(prev => ({
+                                                    ...prev,
+                                                    collegeConfig: { ...prev.collegeConfig, billingCycle: 'SEMESTER' }
+                                                }))}
+                                                className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                                                    formData.collegeConfig?.billingCycle === 'SEMESTER'
+                                                        ? 'bg-white text-slate-900 shadow-xs font-bold'
+                                                        : 'text-slate-600 hover:text-slate-900'
+                                                }`}
+                                            >
+                                                Per Sem
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                                        <Input
+                                            id="fees"
+                                            label={`${formData.collegeConfig?.billingCycle === 'SEMESTER' ? 'Per Semester' : 'Annual'} Fee Amount (₹)`}
+                                            type="number"
+                                            placeholder="e.g. 58000"
+                                            value={formData.fees.amount}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setFormData(prev => {
+                                                    const updatedYearFees = (prev.collegeConfig?.yearWiseFees || []).map(y => ({ ...y, amount: y.amount || parseFloat(val) || 0 }));
+                                                    return {
+                                                        ...prev,
+                                                        fees: { ...prev.fees, amount: val },
+                                                        collegeConfig: { ...prev.collegeConfig, yearWiseFees: updatedYearFees }
+                                                    };
+                                                });
+                                            }}
+                                            required
+                                        />
+                                        <div className="text-xs text-slate-500 pt-2 sm:pt-4">
+                                            Students can make partial payments flexibly throughout the {formData.collegeConfig?.billingCycle === 'SEMESTER' ? 'semester' : 'academic year'}.
+                                        </div>
+                                    </div>
+
+                                    {/* Optional Year-Wise Fee Customization */}
+                                    <div className="pt-2 border-t border-slate-200/60">
+                                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                                            <input
+                                                type="checkbox"
+                                                checked={differentFeePerYear}
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    setDifferentFeePerYear(checked);
+                                                    if (checked) {
+                                                        const totalYears = Math.ceil((formData.collegeConfig?.totalSemesters || 8) / 2);
+                                                        const defaultAmt = parseFloat(formData.fees.amount) || 0;
+                                                        const initialYears = Array.from({ length: totalYears }, (_, i) => ({
+                                                            year: i + 1,
+                                                            amount: defaultAmt
+                                                        }));
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            collegeConfig: { ...prev.collegeConfig, yearWiseFees: initialYears }
+                                                        }));
+                                                    }
+                                                }}
+                                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span>Different fee for each year (fee escalation)</span>
+                                        </label>
+
+                                        {differentFeePerYear && (
+                                            <div className="grid grid-cols-2 gap-2.5 mt-3 pt-1 max-h-40 overflow-y-auto pr-1">
+                                                {Array.from({ length: Math.ceil((formData.collegeConfig?.totalSemesters || 8) / 2) }, (_, i) => {
+                                                    const yrNum = i + 1;
+                                                    const yrFee = formData.collegeConfig?.yearWiseFees?.find(y => y.year === yrNum)?.amount ?? formData.fees.amount;
+                                                    return (
+                                                        <div key={yrNum} className="p-2 bg-white rounded-lg border border-slate-200">
+                                                            <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Year {yrNum}</div>
+                                                            <div className="text-[10px] text-slate-400 mb-1">Sem {yrNum * 2 - 1} & {yrNum * 2}</div>
+                                                            <input
+                                                                type="number"
+                                                                value={yrFee}
+                                                                onChange={(e) => {
+                                                                    const amt = parseFloat(e.target.value) || 0;
+                                                                    setFormData(prev => {
+                                                                        const currentList = prev.collegeConfig?.yearWiseFees || [];
+                                                                        const exists = currentList.some(y => y.year === yrNum);
+                                                                        const updated = exists
+                                                                            ? currentList.map(y => y.year === yrNum ? { ...y, amount: amt } : y)
+                                                                            : [...currentList, { year: yrNum, amount: amt }];
+                                                                        return {
+                                                                            ...prev,
+                                                                            collegeConfig: { ...prev.collegeConfig, yearWiseFees: updated }
+                                                                        };
+                                                                    });
+                                                                }}
+                                                                className="w-full px-2 py-1 text-xs font-semibold bg-slate-50 border border-slate-200 rounded focus:border-blue-500 outline-none"
+                                                                placeholder="Amount"
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        /* School / Vocational: 2-Column Responsive Layout */
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <Input
+                                    id="name"
+                                    label={`${isSchool ? "Class" : "Course"} Name`}
+                                    placeholder={`e.g. ${isSchool ? "10th Standard" : "Graphic Design"}`}
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    required
+                                />
+                                <Input
+                                    id="code"
+                                    label={`${isSchool ? "Class" : "Course"} Code`}
+                                    placeholder={`e.g. ${isSchool ? "STD-10" : "GD-101"}`}
+                                    value={formData.code}
+                                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                                    required
+                                />
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Description</label>
+                                    <textarea
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 min-h-[120px] text-sm text-slate-700 placeholder:text-slate-400 transition-all resize-none"
+                                        placeholder={`Brief description of the ${isSchool ? "class" : "course"}...`}
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Input
+                                        id="durationValue"
+                                        label="Duration"
+                                        type="number"
+                                        placeholder="e.g. 3"
+                                        value={formData.duration.value || ""}
+                                        onChange={(e) => setFormData({ ...formData, duration: { ...formData.duration, value: e.target.value } })}
+                                        required
+                                    />
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Unit</label>
+                                        <Select
+                                            value={formData.duration.unit}
+                                            onChange={(val) => setFormData({ ...formData, duration: { ...formData.duration, unit: val } })}
+                                            options={[
+                                                { label: "Months", value: "months" },
+                                                { label: "Weeks", value: "weeks" },
+                                                { label: "Days", value: "days" }
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+                                <Input
+                                    id="fees"
+                                    label="Total Fees (₹)"
+                                    type="number"
+                                    placeholder="e.g. 50000"
+                                    value={formData.fees.amount}
+                                    onChange={(e) => setFormData({ ...formData, fees: { ...formData.fees, amount: e.target.value } })}
                                 />
                             </div>
                         </div>
-                        <Input
-                            id="fees"
-                            label="Total Fees (₹)"
-                            type="number"
-                            placeholder="e.g. 50000"
-                            value={formData.fees.amount}
-                            onChange={(e) => setFormData({ ...formData, fees: { ...formData.fees, amount: e.target.value } })}
-                        />
-                    </div>
+                    )}
 
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Description</label>
-                        <textarea
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 min-h-[100px] text-sm text-slate-700 placeholder:text-slate-400 transition-all resize-none"
-                            placeholder={`Brief description of the ${isSchool ? "class" : "course"}...`}
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="pt-4 flex gap-3">
+                    <div className="pt-4 border-t border-slate-100 flex gap-3">
                         <Button type="button" variant="outline" className="flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
                         <Button type="submit" className="flex-1">{editingCourse ? `Update ${isSchool ? "Class" : "Course"}` : `Create ${isSchool ? "Class" : "Course"}`}</Button>
                     </div>
                 </form>
             </Modal>
+
+            {/* Confirm Dialogs */}
+            <ConfirmDialog
+                isOpen={!!deletingCourse}
+                onCancel={() => setDeletingCourse(null)}
+                onConfirm={confirmDelete}
+                title={`Delete ${isSchool ? "Class" : "Course"}`}
+                message={`Are you sure you want to delete "${deletingCourse?.name}" (${deletingCourse?.code})? This action will remove the ${isSchool ? "class" : "course"}. Note: Courses with active batches cannot be deleted.`}
+            />
+
+            <ConfirmDialog
+                isOpen={!!deletingBundle}
+                onCancel={() => setDeletingBundle(null)}
+                onConfirm={confirmDeleteBundle}
+                title="Delete Course Bundle"
+                message={`Are you sure you want to delete bundle "${deletingBundle?.title}"? This action cannot be undone.`}
+            />
         </div>
     );
 }

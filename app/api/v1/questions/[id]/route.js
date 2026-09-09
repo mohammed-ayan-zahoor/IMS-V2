@@ -62,12 +62,17 @@ export async function PATCH(req, { params }) {
         // Sanitize Input (Whitelist)
         // Only allow updating certain fields
         const updates = {};
-        const allowedUpdates = ['text', 'type', 'difficulty', 'marks', 'correctAnswer', 'options', 'explanation', 'course', 'batch', 'subject', 'classLevel', 'tags', 'isActive'];
+        const allowedUpdates = [
+            'text', 'type', 'difficulty', 'marks', 'correctAnswer', 'options', 'explanation',
+            'course', 'batch', 'subject', 'classLevel', 'tags', 'isActive',
+            'chapter', 'topic', 'syllabus', 'bloomsLevel', 'estimatedTimeSeconds',
+            'modelAnswer', 'rubric', 'status', 'questionImage', 'snippet'
+        ];
 
         allowedUpdates.forEach(field => {
             if (body[field] !== undefined) {
                 // Sanitize Empty ObjectIds
-                if ((field === 'course' || field === 'batch') && body[field] === "") {
+                if ((field === 'course' || field === 'batch' || field === 'subject') && body[field] === "") {
                     updates[field] = null;
                 } else {
                     updates[field] = body[field];

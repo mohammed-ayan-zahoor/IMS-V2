@@ -194,9 +194,9 @@ export default function AdminDashboard() {
         try {
             setLoading(true);
             const url = (hasAcademicStructure && selectedSessionId)
-                ? `/api/v1/dashboard/stats?session=${selectedSessionId}`
-                : '/api/v1/dashboard/stats';
-            const res = await fetch(url);
+                ? `/api/v1/dashboard/stats?session=${selectedSessionId}&_t=${Date.now()}`
+                : `/api/v1/dashboard/stats?_t=${Date.now()}`;
+            const res = await fetch(url, { cache: 'no-store' });
             if (res.ok) setDashboardData(await res.json());
         } catch (error) {
             console.error("Dashboard fetch error:", error);

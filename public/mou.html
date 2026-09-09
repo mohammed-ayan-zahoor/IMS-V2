@@ -555,18 +555,6 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
           <input id="f-yr3" type="number" min="0" placeholder="e.g. 112" oninput="updateDoc()" style="width:100%;padding:10px 12px;border:1.5px solid #6366f1;border-radius:8px;font-size:16px;font-weight:700;color:#6366f1;background:#f5f3ff;outline:none;"/>
         </div>
       </div>
-      
-      <!-- Coupon Code Box -->
-      <div style="margin-top:12px;background:#fff;border:1.5px dashed #cbd5e1;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px;">
-          <span style="font-size:16px;">🎟️</span>
-          <div style="flex:1;">
-            <label style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;">Coupon / Promo Code (Optional)</label>
-            <input id="f-coupon" type="text" placeholder="Enter promo code" oninput="updateDoc()" style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-weight:700;text-transform:uppercase;color:#1e3a8a;outline:none;" />
-          </div>
-        </div>
-        <div id="coupon-badge" style="display:none;font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;"></div>
-      </div>
 
       <!-- Live preview -->
       <div id="college-calc-preview" style="margin-top:12px;padding:10px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#475569;display:none;">
@@ -593,6 +581,18 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
           <option value="plus">Plus Plan (Student + Teacher Access) — ₹69 / Student / Year</option>
         </select>
       </div>
+    </div>
+
+    <!-- Universal Coupon Code Box (School + College) -->
+    <div style="margin-top:16px;background:#fff;border:1.5px dashed #cbd5e1;border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:240px;">
+        <span style="font-size:20px;">🎟️</span>
+        <div style="flex:1;">
+          <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;">Coupon / Promo Code (Optional)</label>
+          <input id="f-coupon" type="text" placeholder="e.g. ID45 or SDC" oninput="updateDoc()" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;font-weight:700;text-transform:uppercase;color:#1e3a8a;outline:none;" />
+        </div>
+      </div>
+      <div id="coupon-badge" style="display:none;font-size:12px;font-weight:700;padding:8px 14px;border-radius:8px;"></div>
     </div>
     <div style="margin-top:16px" class="form-grid full">
       <div class="field">
@@ -625,7 +625,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
     <div class="mou-header">
       <div class="badge">Official Document</div>
       <h1>Memorandum of Understanding</h1>
-      <div class="subtitle">For Implementation of Quantech Platform</div>
+      <div class="subtitle" id="d-mou-subtitle">For Implementation of Quantech Platform</div>
     </div>
 
     <div style="text-align:right;margin-bottom:20px;font-family:'Inter',sans-serif;font-size:13px;color:#64748b">
@@ -636,7 +636,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
       <div class="party-block">
         <h4>Party A — Service Provider</h4>
         <div class="party-name">Quantech Infosystem LLP.</div>
-        <div class="party-detail">Developers of Quantech Platform<br/>India</div>
+        <div class="party-detail" id="d-partya-detail">Developers of Quantech Platform<br/>India</div>
       </div>
       <div class="party-sep">&amp;</div>
       <div class="party-block">
@@ -652,12 +652,12 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
     <div class="mou-section">
       <h3>1. Background &amp; Purpose</h3>
       <p>This Memorandum of Understanding ("MOU") is entered into between <strong>Quantech Infosystem LLP.</strong> (hereinafter "the Provider") and <strong id="d-school2">the Institution</strong> (hereinafter "the School"), collectively referred to as "the Parties."</p>
-      <p>The purpose of this MOU is to set forth the terms under which the Provider shall grant the School access to the <strong>Quantech Platform</strong> — a cloud-based software platform for managing academics, fees, attendance, hostel, transport, and administrative operations.</p>
+      <p id="d-clause1-purpose">The purpose of this MOU is to set forth the terms under which the Provider shall grant the School access to the <strong>Quantech Platform</strong> — a cloud-based software platform for managing academics, fees, attendance, hostel, transport, and administrative operations.</p>
     </div>
 
     <div class="mou-section">
       <h3>2. Scope of Enrollment</h3>
-      <p>The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">2025–26</strong>:</p>
+      <p id="d-clause2-intro">The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">2025–26</strong>:</p>
       <div class="enrollment-commercial-wrapper">
         <div class="highlight-box" style="margin: 0 !important;">
           <div class="label">Agreed Student Enrollment Strength</div>
@@ -688,7 +688,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
           </div>
         </div>
       </div>
-      <p>Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond <span id="d-students-plus">—</span> students during the agreement period shall be subject to a revised quote.</p>
+      <p id="d-clause2-sla">Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond <span id="d-students-plus">—</span> students during the agreement period shall be subject to a revised quote.</p>
     </div><!-- end Clause 2 -->
   </div><!-- end Page 1 -->
 
@@ -696,7 +696,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 
     <div class="mou-section">
       <h3>3. Obligations of the Provider</h3>
-      <ul>
+      <ul id="d-clause3-ul">
         <li>Provide full access to the Quantech Platform modules as agreed, including Academics, Fee Management, Attendance, Reports, Hostel, and Transport (as applicable).</li>
         <li>Ensure 99.5% platform uptime during school operational hours.</li>
         <li>Provide onboarding support, staff training sessions (online/on-site), and technical documentation.</li>
@@ -706,8 +706,8 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
     </div>
 
     <div class="mou-section">
-      <h3>4. Obligations of the School</h3>
-      <ul>
+      <h3 id="d-clause4-title">4. Obligations of the School</h3>
+      <ul id="d-clause4-ul">
         <li>Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.</li>
         <li>Provide accurate and complete student data for onboarding within 14 days of agreement execution.</li>
         <li id="d-clause4-payment-li">Ensure timely payment of subscription fees, billed annually: <span id="d-clause4-payment-text"><strong>50% upfront upon commencement of each academic year, and the remaining 50% midway through the academic year</strong></span> upon invoice issuance by the Provider.</li>
@@ -904,23 +904,35 @@ function updateDoc() {
   // Check Coupon
   const couponInput = (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase();
   const isSDCCoupon = couponInput === 'SDC' || couponInput === 'SDC20' || couponInput === 'SDC-SPECIAL';
+  const isIdCard45 = couponInput === 'ID45' || couponInput === 'IDCARD45' || couponInput === 'CARD45' || couponInput === 'ID-45' || couponInput === 'IDONLY45';
 
-  const yr2Rate = isSDCCoupon ? 20 : 30;
-  const yr3Rate = isSDCCoupon ? 20 : 30;
+  const yr1Rate = isIdCard45 ? 45 : 59;
+  const yr2Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
+  const yr3Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
 
   // Update UI Labels and Coupon Badge
+  const lblYr1 = document.getElementById('lbl-yr1');
+  if (lblYr1) {
+    lblYr1.innerHTML = `1st Year (New ID Cards) — ₹${yr1Rate}/student ${isIdCard45 ? '<span style="color:#047857;font-size:10px;font-weight:700;">(Coupon Applied: ₹45)</span>' : ''}`;
+  }
   const lblYr2 = document.getElementById('lbl-yr2');
   if (lblYr2) {
-    lblYr2.innerHTML = `2nd Year (Existing Cards) — ₹${yr2Rate}/student ${isSDCCoupon ? '<span style="color:#047857;font-size:10px;font-weight:700;">(Coupon Applied: ₹20)</span>' : ''}`;
+    lblYr2.innerHTML = `2nd Year (Existing Cards) — ₹${yr2Rate}/student ${(isSDCCoupon || isIdCard45) ? '<span style="color:#047857;font-size:10px;font-weight:700;">(Coupon Applied: ₹20)</span>' : ''}`;
   }
   const lblYr3 = document.getElementById('lbl-yr3');
   if (lblYr3) {
-    lblYr3.innerHTML = `3rd Year (Existing Cards) — ₹${yr3Rate}/student ${isSDCCoupon ? '<span style="color:#047857;font-size:10px;font-weight:700;">(Coupon Applied: ₹20)</span>' : ''}`;
+    lblYr3.innerHTML = `3rd Year (Existing Cards) — ₹${yr3Rate}/student ${(isSDCCoupon || isIdCard45) ? '<span style="color:#047857;font-size:10px;font-weight:700;">(Coupon Applied: ₹20)</span>' : ''}`;
   }
 
   const couponBadge = document.getElementById('coupon-badge');
   if (couponBadge) {
-    if (isSDCCoupon) {
+    if (isIdCard45) {
+      couponBadge.style.display = 'inline-block';
+      couponBadge.style.background = '#ecfdf5';
+      couponBadge.style.color = '#047857';
+      couponBadge.style.border = '1px solid #a7f3d0';
+      couponBadge.innerHTML = `🎉 Coupon '${couponInput}' Applied: ₹45 / Student — Smart ID Card Only (No ERP)`;
+    } else if (isSDCCoupon) {
       couponBadge.style.display = 'inline-block';
       couponBadge.style.background = '#ecfdf5';
       couponBadge.style.color = '#047857';
@@ -931,14 +943,14 @@ function updateDoc() {
       couponBadge.style.background = '#fef2f2';
       couponBadge.style.color = '#b91c1c';
       couponBadge.style.border = '1px solid #fecaca';
-      couponBadge.innerHTML = `⚠️ Invalid coupon code (default ₹30/student applied)`;
+      couponBadge.innerHTML = `⚠️ Invalid coupon code (default pricing applied)`;
     } else {
       couponBadge.style.display = 'none';
     }
   }
 
-  let perStudentRate = 59;
-  let planType = 'standard';
+  let perStudentRate = isIdCard45 ? 45 : 59;
+  let planType = isIdCard45 ? 'custom' : 'standard';
   let studentCount = 0;
   let totalPrice = 0;
   let yearlyTotal = 0;
@@ -952,7 +964,7 @@ function updateDoc() {
     yearWiseCounts = { yr1, yr2, yr3 };
     planType = 'custom'; // college uses fixed year-based pricing
 
-    const yr1Price = yr1 * 59;
+    const yr1Price = yr1 * yr1Rate;
     const yr2Price = yr2 * yr2Rate;
     const yr3Price = yr3 * yr3Rate;
     yearlyTotal = yr1Price + yr2Price + yr3Price;
@@ -964,7 +976,7 @@ function updateDoc() {
     const previewText = document.getElementById('college-calc-text');
     if (studentCount > 0) {
       preview.style.display = '';
-      const parts = [`1st Yr: ${yr1.toLocaleString('en-IN')} × ₹59 = ₹${yr1Price.toLocaleString('en-IN')}`];
+      const parts = [`1st Yr: ${yr1.toLocaleString('en-IN')} × ₹${yr1Rate} = ₹${yr1Price.toLocaleString('en-IN')}`];
       parts.push(`2nd Yr: ${yr2.toLocaleString('en-IN')} × ₹${yr2Rate} = ₹${yr2Price.toLocaleString('en-IN')}`);
       if (instType === 'college_degree') parts.push(`3rd Yr: ${yr3.toLocaleString('en-IN')} × ₹${yr3Rate} = ₹${yr3Price.toLocaleString('en-IN')}`);
       const yr1Upfront = yearlyTotal * 0.5;
@@ -972,7 +984,8 @@ function updateDoc() {
       if (durationInt > 1) {
         parts.push(`${durationInt}-Yr Agreement: ₹${totalPrice.toLocaleString('en-IN')}`);
       }
-      if (isSDCCoupon) parts.push(`(Coupon SDC Active)`);
+      if (isIdCard45) parts.push(`(Coupon ${couponInput} Active: ₹45 ID Only)`);
+      else if (isSDCCoupon) parts.push(`(Coupon SDC Active)`);
       previewText.textContent = parts.join('  |  ');
     } else {
       preview.style.display = 'none';
@@ -985,7 +998,7 @@ function updateDoc() {
     const yr3Line = document.getElementById('d-yr3-line');
     if (breakdown) {
       breakdown.style.display = studentCount > 0 ? '' : 'none';
-      yr1Line.textContent = `1st Year: ${yr1.toLocaleString('en-IN')} students (new ID cards @ ₹59)`;
+      yr1Line.textContent = `1st Year: ${yr1.toLocaleString('en-IN')} students (${isIdCard45 ? 'Smart ID cards @ ₹45' : 'new ID cards @ ₹59'})`;
       yr2Line.textContent = `2nd Year: ${yr2.toLocaleString('en-IN')} students (existing cards @ ₹${yr2Rate})`;
       if (yr3Line) {
         yr3Line.style.display = instType === 'college_degree' ? '' : 'none';
@@ -993,22 +1006,35 @@ function updateDoc() {
       }
     }
 
-    perStudentRate = studentCount > 0 ? Math.round(totalPrice / studentCount) : 59;
+    perStudentRate = studentCount > 0 ? Math.round(totalPrice / studentCount) : yr1Rate;
   } else {
     // School mode
     const studentsRaw = document.getElementById('f-students').value.trim();
     studentCount = parseInt(studentsRaw) || 0;
-    if (urlRate && !isNaN(urlRate) && urlRate > 0) {
+    const planSelect = document.getElementById('f-plan');
+    if (isIdCard45) {
+      perStudentRate = 45;
+      planType = 'custom';
+      if (planSelect) {
+        planSelect.disabled = true;
+        planSelect.innerHTML = `<option value="custom">Smart ID Card Only (No ERP) — ₹45 / Student / Year</option>`;
+      }
+    } else if (urlRate && !isNaN(urlRate) && urlRate > 0) {
       perStudentRate = urlRate;
       planType = 'custom';
-      const planSelect = document.getElementById('f-plan');
       if (planSelect) {
         planSelect.disabled = true;
         planSelect.innerHTML = `<option value="custom">Custom Admin Rate — ₹${perStudentRate} / Student / Year</option>`;
       }
     } else {
-      const planSelect = document.getElementById('f-plan');
       if (planSelect) {
+        planSelect.disabled = false;
+        if (!planSelect.querySelector('option[value="standard"]')) {
+          planSelect.innerHTML = `
+            <option value="standard">Standard Plan (Students Only) — ₹59 / Student / Year</option>
+            <option value="plus">Plus Plan (Student + Teacher Access) — ₹69 / Student / Year</option>
+          `;
+        }
         if (planSelect.value === 'plus') { perStudentRate = 69; planType = 'plus'; }
         else { perStudentRate = 59; planType = 'standard'; }
       }
@@ -1019,6 +1045,73 @@ function updateDoc() {
     // Hide college breakdown in school mode
     const breakdown = document.getElementById('d-college-yr-breakdown');
     if (breakdown) breakdown.style.display = 'none';
+  }
+
+  // Dynamic MOU document wording for ID Card Only vs ERP Platform
+  const mouSub = document.getElementById('d-mou-subtitle');
+  if (mouSub) {
+    mouSub.textContent = isIdCard45 ? 'For Provision of Student Smart ID Card Services' : 'For Implementation of Quantech Platform';
+  }
+
+  const pPartyA = document.getElementById('d-partya-detail');
+  if (pPartyA) {
+    pPartyA.innerHTML = isIdCard45 ? 'Smart ID Card &amp; Digital Solutions Provider<br/>India' : 'Developers of Quantech Platform<br/>India';
+  }
+
+  const c1Purpose = document.getElementById('d-clause1-purpose');
+  if (c1Purpose) {
+    c1Purpose.innerHTML = isIdCard45
+      ? `The purpose of this MOU is to set forth the terms under which the Provider shall design, manufacture, and supply <strong>Student Smart ID Cards &amp; Branded Lanyards</strong> to the Institution. This agreement covers physical ID card provision and student identity services exclusively, and does not include ERP software platform access.`
+      : `The purpose of this MOU is to set forth the terms under which the Provider shall grant the School access to the <strong>Quantech Platform</strong> — a cloud-based software platform for managing academics, fees, attendance, hostel, transport, and administrative operations.`;
+  }
+
+  const c2Intro = document.getElementById('d-clause2-intro');
+  if (c2Intro) {
+    c2Intro.innerHTML = isIdCard45
+      ? `The Institution hereby confirms its order for Student Smart ID Cards &amp; Branded Lanyards for the following student strength for the academic year <strong id="d-acad-year">2025–26</strong>:`
+      : `The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">2025–26</strong>:`;
+  }
+
+  const c2Sla = document.getElementById('d-clause2-sla');
+  if (c2Sla) {
+    c2Sla.innerHTML = isIdCard45
+      ? `ID card manufacturing, lanyard branding, and delivery schedules shall be calculated based on the above student strength. Any additional student ID cards required beyond <span id="d-students-plus">${studentCount > 0 ? studentCount.toLocaleString('en-IN') : '—'}</span> students during the agreement period shall be billed at the agreed rate of ₹45 per card.`
+      : `Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond <span id="d-students-plus">${studentCount > 0 ? studentCount.toLocaleString('en-IN') : '—'}</span> students during the agreement period shall be subject to a revised quote.`;
+  }
+
+  const c3Ul = document.getElementById('d-clause3-ul');
+  if (c3Ul) {
+    c3Ul.innerHTML = isIdCard45
+      ? `<li>Design, print, and supply high-durability PVC Student Smart ID Cards with customized institution branding, photo, and barcode/QR code.</li>
+         <li>Supply matching customized branded lanyards and protective card holders for all enrolled students.</li>
+         <li>Ensure quality inspection, error-free printing, and durable thermal lamination prior to dispatch.</li>
+         <li>Deliver printed cards safely to the Institution premises within agreed delivery timelines upon receiving complete student data.</li>
+         <li>Provide digital student data/ID records to the Institution for institutional record-keeping.</li>`
+      : `<li>Provide full access to the Quantech Platform modules as agreed, including Academics, Fee Management, Attendance, Reports, Hostel, and Transport (as applicable).</li>
+         <li>Ensure 99.5% platform uptime during school operational hours.</li>
+         <li>Provide onboarding support, staff training sessions (online/on-site), and technical documentation.</li>
+         <li>Maintain data confidentiality and comply with applicable data protection laws.</li>
+         <li>Deliver feature updates and security patches throughout the agreement period at no additional cost.</li>`;
+  }
+
+  const c4Title = document.getElementById('d-clause4-title');
+  if (c4Title) {
+    c4Title.textContent = isIdCard45 ? '4. Obligations of the Institution' : '4. Obligations of the School';
+  }
+
+  const c4Ul = document.getElementById('d-clause4-ul');
+  if (c4Ul) {
+    c4Ul.innerHTML = isIdCard45
+      ? `<li>Appoint a designated Institution Coordinator responsible for ID card data collection and sample proof approval.</li>
+         <li>Provide accurate and complete student data (Name, Class/Roll No, Blood Group, Contact, Photo) in the required format.</li>
+         <li>Promptly review and approve digital sample proofs before bulk printing commencement.</li>
+         <li>Ensure timely payment of ID card charges: <strong>50% advance before printing commencement, and the remaining 50% upon delivery of cards</strong>.</li>
+         <li>Report any manufacturing defects or card discrepancies within 14 days of delivery for prompt replacement.</li>`
+      : `<li>Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.</li>
+         <li>Provide accurate and complete student data for onboarding within 14 days of agreement execution.</li>
+         <li id="d-clause4-payment-li">Ensure timely payment of subscription fees, billed annually: <span id="d-clause4-payment-text"><strong>50% upfront upon commencement of each academic year, and the remaining 50% midway through the academic year</strong></span> upon invoice issuance by the Provider.</li>
+         <li>Not share, sub-license, or resell access to the Quantech Platform to any third party.</li>
+         <li>Report technical issues through the designated support channel promptly.</li>`;
   }
 
   const durationInt = parseInt(duration) || 1;
@@ -1266,10 +1359,12 @@ async function trackMouAction(actionType) {
       
       const couponInput = (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase();
       const isSDCCoupon = couponInput === 'SDC' || couponInput === 'SDC20' || couponInput === 'SDC-SPECIAL';
-      const yr2Rate = isSDCCoupon ? 20 : 30;
-      const yr3Rate = isSDCCoupon ? 20 : 30;
+      const isIdCard45 = couponInput === 'ID45' || couponInput === 'IDCARD45' || couponInput === 'CARD45' || couponInput === 'ID-45' || couponInput === 'IDONLY45';
+      const yr1Rate = isIdCard45 ? 45 : 59;
+      const yr2Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
+      const yr3Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
 
-      yearlyTotal = (yr1 * 59) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
+      yearlyTotal = (yr1 * yr1Rate) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
       totalPrice = yearlyTotal * duration;
       perStudentRate = Math.round(totalPrice / studentCount);
       planType = 'custom';
@@ -1278,10 +1373,17 @@ async function trackMouAction(actionType) {
       if (!studentsRaw) return;
       studentCount = parseInt(studentsRaw.replace(/[^0-9]/g, '')) || 0;
       if (studentCount === 0) return;
-      perStudentRate = 59;
-      planType = 'standard';
-      if (urlRate && !isNaN(urlRate) && urlRate > 0) { perStudentRate = urlRate; planType = 'custom'; }
-      else {
+      const couponInput = (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase();
+      const isIdCard45 = couponInput === 'ID45' || couponInput === 'IDCARD45' || couponInput === 'CARD45' || couponInput === 'ID-45' || couponInput === 'IDONLY45';
+      if (isIdCard45) {
+        perStudentRate = 45;
+        planType = 'custom';
+      } else if (urlRate && !isNaN(urlRate) && urlRate > 0) {
+        perStudentRate = urlRate;
+        planType = 'custom';
+      } else {
+        perStudentRate = 59;
+        planType = 'standard';
         const planVal = document.getElementById('f-plan')?.value;
         if (planVal === 'plus') { perStudentRate = 69; planType = 'plus'; }
       }

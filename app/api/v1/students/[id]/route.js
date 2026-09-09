@@ -70,7 +70,7 @@ export async function PATCH(req, { params }) {
 
         Object.entries(updateableFields).forEach(([key, path]) => {
             if (body.profile?.[key] !== undefined) {
-                updates[path] = body.profile[key];
+                updates[path] = (key === 'dateOfBirth' && body.profile[key] === '') ? null : body.profile[key];
             }
         });
 
@@ -102,7 +102,11 @@ export async function PATCH(req, { params }) {
 
         directFields.forEach(field => {
             if (body[field] !== undefined) {
-                updates[field] = body[field];
+                if (['admissionDate', 'leavingDate'].includes(field) && body[field] === '') {
+                    updates[field] = null;
+                } else {
+                    updates[field] = body[field];
+                }
             }
         });
 

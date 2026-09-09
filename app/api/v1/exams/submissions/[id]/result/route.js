@@ -119,12 +119,17 @@ export async function GET(req, { params }) {
                 marksAwarded: ans.marksAwarded,
                 maxMarks: question?.marks || 0,
                 isCorrect: ans.isCorrect || false,
-                snippet: question?.snippet || null
+                feedback: ans.feedback || '',
+                needsGrading: ans.needsGrading || false,
+                snippet: question?.snippet || null,
+                questionImage: question?.questionImage || null
             };
 
             if (exam.showCorrectAnswers) {
                 result.correctAnswer = question?.correctAnswer || null;
                 result.options = question?.options || [];
+                result.modelAnswer = question?.modelAnswer || null;
+                result.explanation = question?.explanation || null;
             }
 
             return result;
@@ -135,6 +140,7 @@ export async function GET(req, { params }) {
                 score: submission.score,
                 percentage: submission.percentage,
                 status: submission.status,
+                gradingStatus: submission.gradingStatus,
                 submittedAt: submission.submittedAt,
                 answers: processedAnswers,
                 remarks: submission.remarks
