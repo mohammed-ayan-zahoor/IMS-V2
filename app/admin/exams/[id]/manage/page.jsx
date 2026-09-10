@@ -4,11 +4,13 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { ArrowLeft, Save, Plus, Trash2, CheckCircle, Search, AlertCircle, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Save, Plus, Trash2, CheckCircle, Search, AlertCircle, UserCheck } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { format } from "date-fns";
@@ -23,13 +25,12 @@ export default function ManageExamPage({ params }) {
     const [exam, setExam] = useState(null);
     const [currentQuestions, setCurrentQuestions] = useState([]);
 
-    // Blueprint Generator State
-    const [showBlueprint, setShowBlueprint] = useState(false);
-    const [blueprintLoading, setBlueprintLoading] = useState(false);
-    const [availableChapters, setAvailableChapters] = useState([]);
-    const [selectedChapters, setSelectedChapters] = useState([]);
-    const [diffCounts, setDiffCounts] = useState({ easy: "", medium: "", hard: "" });
-    const [typeCounts, setTypeCounts] = useState({ mcq: "", short_answer: "", essay: "" });
+    // Evaluator Modal State
+    const [isEvaluatorModalOpen, setIsEvaluatorModalOpen] = useState(false);
+    const [instructors, setInstructors] = useState([]);
+    const [allSubjects, setAllSubjects] = useState([]);
+    const [evaluatorAssignments, setEvaluatorAssignments] = useState([]);
+    const [savingEvaluators, setSavingEvaluators] = useState(false);
 
     // Modal State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -55,69 +56,26 @@ export default function ManageExamPage({ params }) {
     const fetchExam = async () => {
         if (!id || id === 'undefined') return;
         try {
-            const res = await fetch(`/api/v1/exams/${id}`); if (!res.ok) throw new Error("Failed to fetch exam");
-            const data = await res.json();
+            const [examRes, instRes, subjRes] = await Promise.all([
+                fetch(`/api/v1/exams/${id}`),
+                fetch("/api/v1/users?role=instructor,admin,staff"),
+                fetch("/api/v1/subjects")
+            ]);
+            if (!examRes.ok) throw new Error("Failed to fetch exam");
+            const data = await examRes.json();
+            const iData = instRes.ok ? await instRes.json() : { users: [] };
+            const sData = subjRes.ok ? await subjRes.json() : { subjects: [] };
+
             setExam(data.exam);
             setCurrentQuestions(data.exam.questions || []);
+            setEvaluatorAssignments(data.exam.evaluatorAssignments || []);
+            setInstructors(iData.users || iData.data || []);
+            setAllSubjects(sData.subjects || []);
         } catch (error) {
             console.error(error);
             toast.error("Failed to load exam details");
         } finally {
             setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (!exam?.course) return;
-        const courseId = exam.course?._id || exam.course;
-        const subjectId = exam.subject?._id || exam.subject;
-        const params = new URLSearchParams({ field: 'chapter', course: courseId });
-        if (subjectId) params.set('subject', subjectId);
-        fetch(`/api/v1/questions/distinct?${params}`)
-            .then(r => r.json())
-            .then(d => setAvailableChapters(d.values || []))
-            .catch(() => setAvailableChapters([]));
-    }, [exam]);
-
-    const handleGenerateBlueprint = async () => {
-        setBlueprintLoading(true);
-        try {
-            const courseId = exam.course?._id || exam.course;
-            const subjectId = exam.subject?._id || exam.subject;
-            const res = await fetch("/api/v1/questions/blueprint", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    course: courseId,
-                    subject: subjectId || undefined,
-                    chapters: selectedChapters.length > 0 ? selectedChapters : undefined,
-                    difficultyCounts: {
-                        easy: Number(diffCounts.easy) || 0,
-                        medium: Number(diffCounts.medium) || 0,
-                        hard: Number(diffCounts.hard) || 0
-                    },
-                    typeCounts: {
-                        mcq: Number(typeCounts.mcq) || 0,
-                        short_answer: Number(typeCounts.short_answer) || 0,
-                        essay: Number(typeCounts.essay) || 0
-                    },
-                    excludeIds: currentQuestions.map(q => q._id)
-                })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to generate questions");
-            if (!data.questions || data.questions.length === 0) {
-                toast.warning("No questions matched your blueprint criteria");
-                return;
-            }
-            setCurrentQuestions(prev => [...prev, ...data.questions]);
-            toast.success(`Generated and added ${data.questions.length} questions`);
-            setShowBlueprint(false);
-        } catch (err) {
-            console.error(err);
-            toast.error(err.message || "Failed to generate questions");
-        } finally {
-            setBlueprintLoading(false);
         }
     };
 
@@ -187,10 +145,16 @@ export default function ManageExamPage({ params }) {
             // Calculate total marks
             const calculatedTotalMarks = currentQuestions.reduce((sum, q) => sum + (q.marks || 0), 0);
 
+            // Auto-detect subjective questions
+            const subjectiveTypes = ['short_answer', 'essay', 'descriptive'];
+            const hasSubjective = currentQuestions.some(q => subjectiveTypes.includes(q.type));
+
             const payload = {
                 questions: currentQuestions.map(q => q._id),
                 status: newStatus || exam.status,
-                totalMarks: calculatedTotalMarks
+                totalMarks: calculatedTotalMarks,
+                requiresManualGrading: hasSubjective,
+                ...(hasSubjective ? { resultPublication: 'manual' } : {})
             };
 
             if (toggleResults !== null) {
@@ -238,10 +202,80 @@ export default function ManageExamPage({ params }) {
         const matchesType = !filterType || q.type === filterType;
         return matchesSearch && matchesSubject && matchesCourse && matchesChapter && matchesDifficulty && matchesType;
     });
+
+    const areAllFilteredSelected = filteredQuestions.length > 0 && filteredQuestions.every(q => selectedBankQuestions.includes(q._id));
+    const someFilteredSelected = filteredQuestions.some(q => selectedBankQuestions.includes(q._id));
+
+    const handleToggleSelectAllFiltered = () => {
+        if (areAllFilteredSelected) {
+            const filteredIdSet = new Set(filteredQuestions.map(q => q._id));
+            setSelectedBankQuestions(prev => prev.filter(id => !filteredIdSet.has(id)));
+        } else {
+            const newIds = new Set([...selectedBankQuestions, ...filteredQuestions.map(q => q._id)]);
+            setSelectedBankQuestions(Array.from(newIds));
+        }
+    };
+
     if (loading) return <LoadingSpinner fullPage />;
     if (!exam) return <div className="p-10 text-center">Exam not found</div>;
 
     const totalMarks = currentQuestions.reduce((sum, q) => sum + (q.marks || 0), 0);
+    const subjectiveTypes = ['short_answer', 'essay', 'descriptive'];
+    const subjectiveCount = currentQuestions.filter(q => subjectiveTypes.includes(q.type)).length;
+    const hasSubjective = subjectiveCount > 0;
+
+    const examSubjects = (() => {
+        if (!exam) return [];
+        const unique = [];
+        const seen = new Set();
+        if (exam.subject) {
+            const sid = String(exam.subject._id || exam.subject);
+            const sObj = allSubjects.find(s => String(s._id) === sid);
+            seen.add(sid);
+            unique.push({ _id: sid, name: sObj?.name || exam.subject?.name || "Main Subject" });
+        }
+        for (const q of currentQuestions || []) {
+            const sid = q.subject?._id || q.subject;
+            if (sid && !seen.has(String(sid))) {
+                seen.add(String(sid));
+                const sObj = allSubjects.find(s => String(s._id) === String(sid));
+                unique.push({ _id: String(sid), name: sObj?.name || q.subject?.name || "Subject" });
+            }
+        }
+        if (unique.length === 0 && (exam.course?.name || exam.title)) {
+            unique.push({ _id: "default", name: exam.course?.name || exam.title });
+        }
+        return unique;
+    })();
+
+    const handleSaveEvaluators = async () => {
+        setSavingEvaluators(true);
+        try {
+            const res = await fetch(`/api/v1/exams/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    evaluatorAssignments: evaluatorAssignments
+                        .filter(a => a.evaluator)
+                        .map(a => ({
+                            subject: a.subject === "default" ? (exam?.subject?._id || exam?.subject || undefined) : a.subject,
+                            evaluator: a.evaluator
+                        }))
+                })
+            });
+            if (!res.ok) throw new Error("Failed to save assignments");
+            const data = await res.json();
+            setExam(data.exam);
+            setEvaluatorAssignments(data.exam.evaluatorAssignments || []);
+            toast.success("Evaluator assignments saved successfully!");
+            setIsEvaluatorModalOpen(false);
+        } catch (err) {
+            console.error(err);
+            toast.error(err.message || "Failed to save evaluator assignments");
+        } finally {
+            setSavingEvaluators(false);
+        }
+    };
 
     return (
         <div className="space-y-6 w-full">
@@ -251,11 +285,16 @@ export default function ManageExamPage({ params }) {
                         <ArrowLeft size={18} />
                     </Button>
                     <div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5 flex-wrap">
                             <h1 className="text-2xl font-black text-slate-900 tracking-tight">{exam.title}</h1>
                             <Badge className={exam.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}>
                                 {exam.status.toUpperCase()}
                             </Badge>
+                            {hasSubjective && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-premium-blue border border-blue-200">
+                                    ✍️ Manual Grading ({subjectiveCount} subjective)
+                                </span>
+                            )}
                         </div>
                         {(() => {
                             const endTime = exam.schedule?.endTime
@@ -265,12 +304,27 @@ export default function ManageExamPage({ params }) {
                             return (
                                 <p className="text-sm text-slate-500 font-medium mt-1">
                                     {format(new Date(exam.scheduledAt), "MMM d, h:mm a")} - {format(endTime, "MMM d, h:mm a")} • {exam.duration} mins (Limit)
+                                    {hasSubjective && (
+                                        <span className="ml-2 text-xs text-amber-600 font-semibold">• Results held until manual evaluation</span>
+                                    )}
                                 </p>
                             );
                         })()}
                     </div>
                 </div>
                 <div className="flex gap-3">
+                    {/* Assign Evaluators button if subjective questions exist */}
+                    {hasSubjective && (
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsEvaluatorModalOpen(true)}
+                            className="font-bold flex items-center gap-1.5 text-slate-700 border-slate-200 hover:border-premium-blue hover:text-premium-blue"
+                        >
+                            <UserCheck size={16} className="text-premium-blue" />
+                            Assign Evaluators
+                        </Button>
+                    )}
+
                     {/* Publish Results Button */}
                     {exam.status !== 'draft' && (
                         <Button
@@ -293,7 +347,9 @@ export default function ManageExamPage({ params }) {
                                 }
                                 if (await confirm({
                                     title: "Publish Exam?",
-                                    message: "Once published, students will be able to see this exam. Are you sure?",
+                                    message: hasSubjective
+                                        ? `This exam contains ${subjectiveCount} subjective question(s) requiring manual evaluation. Once submitted, answers will be placed in the instructor's grading queue before results are released. Ready to publish?`
+                                        : "Once published, students will be able to see this exam. Are you sure?",
                                     type: "info"
                                 })) {
                                     handleSave('published');
@@ -320,164 +376,11 @@ export default function ManageExamPage({ params }) {
                 <div className="lg:col-span-2 space-y-6">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-bold text-slate-800">Exam Questions ({currentQuestions.length})</h2>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowBlueprint(!showBlueprint)}
-                                className="font-bold flex items-center gap-1.5"
-                            >
-                                <Sparkles size={14} className="text-blue-600" />
-                                {showBlueprint ? "Hide Blueprint" : "Auto Generate"}
-                            </Button>
-                            <Button size="sm" onClick={openAddModal}>
-                                <Plus size={16} className="mr-2" />
-                                Add From Bank
-                            </Button>
-                        </div>
+                        <Button size="sm" onClick={openAddModal}>
+                            <Plus size={16} className="mr-2" />
+                            Add From Bank
+                        </Button>
                     </div>
-
-                    {showBlueprint && (
-                        <Card className="border border-blue-100 rounded-[8px] shadow-premium">
-                            <div className="p-5 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="text-sm font-bold text-slate-800">Exam Blueprint Generator</h3>
-                                        <p className="text-xs text-slate-400 mt-0.5">Specify chapter, difficulty, and question type targets to auto-pick questions randomly.</p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowBlueprint(false)}
-                                        className="text-xs text-slate-400 hover:text-slate-600 font-bold"
-                                    >
-                                        Close
-                                    </button>
-                                </div>
-
-                                {availableChapters.length > 0 && (
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Chapters</label>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {availableChapters.map(ch => {
-                                                const isSelected = selectedChapters.includes(ch);
-                                                return (
-                                                    <button
-                                                        key={ch}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSelectedChapters(prev =>
-                                                                isSelected ? prev.filter(c => c !== ch) : [...prev, ch]
-                                                            );
-                                                        }}
-                                                        className={`px-2.5 py-1 rounded-[8px] text-xs font-medium border transition-colors ${
-                                                            isSelected
-                                                                ? "bg-blue-600 border-blue-600 text-white"
-                                                                : "border-slate-200 text-slate-600 hover:border-slate-300 bg-white"
-                                                        }`}
-                                                    >
-                                                        {ch}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Target by Difficulty</label>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <div>
-                                                <span className="text-xs text-slate-500 font-medium">Easy</span>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    placeholder="0"
-                                                    value={diffCounts.easy}
-                                                    onChange={e => setDiffCounts(prev => ({ ...prev, easy: e.target.value }))}
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="text-xs text-slate-500 font-medium">Medium</span>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    placeholder="0"
-                                                    value={diffCounts.medium}
-                                                    onChange={e => setDiffCounts(prev => ({ ...prev, medium: e.target.value }))}
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="text-xs text-slate-500 font-medium">Hard</span>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    placeholder="0"
-                                                    value={diffCounts.hard}
-                                                    onChange={e => setDiffCounts(prev => ({ ...prev, hard: e.target.value }))}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Target by Type</label>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <div>
-                                                <span className="text-xs text-slate-500 font-medium">MCQ</span>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    placeholder="0"
-                                                    value={typeCounts.mcq}
-                                                    onChange={e => setTypeCounts(prev => ({ ...prev, mcq: e.target.value }))}
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="text-xs text-slate-500 font-medium">Short Ans</span>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    placeholder="0"
-                                                    value={typeCounts.short_answer}
-                                                    onChange={e => setTypeCounts(prev => ({ ...prev, short_answer: e.target.value }))}
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="text-xs text-slate-500 font-medium">Essay</span>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    placeholder="0"
-                                                    value={typeCounts.essay}
-                                                    onChange={e => setTypeCounts(prev => ({ ...prev, essay: e.target.value }))}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setShowBlueprint(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        disabled={blueprintLoading}
-                                        onClick={handleGenerateBlueprint}
-                                        className="font-bold flex items-center gap-1.5"
-                                    >
-                                        <Sparkles size={14} />
-                                        {blueprintLoading ? "Generating..." : "Generate Questions"}
-                                    </Button>
-                                </div>
-                            </div>
-                        </Card>
-                    )}
 
                     {currentQuestions.length === 0 ? (
                         <div className="p-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
@@ -613,6 +516,48 @@ export default function ManageExamPage({ params }) {
                         </select>
                     </div>
 
+                    {/* Bulk Selection Bar */}
+                    <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-[8px] text-xs">
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={handleToggleSelectAllFiltered}
+                                disabled={bankLoading || filteredQuestions.length === 0}
+                                className="flex items-center gap-2 px-2.5 py-1 rounded-[6px] bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                            >
+                                <div className={`w-4 h-4 rounded-[4px] flex items-center justify-center border transition-colors ${
+                                    areAllFilteredSelected
+                                        ? "bg-premium-blue border-premium-blue text-white"
+                                        : someFilteredSelected
+                                        ? "bg-blue-50 border-premium-blue text-premium-blue"
+                                        : "border-slate-300 bg-white"
+                                }`}>
+                                    {areAllFilteredSelected && <CheckCircle size={12} className="text-white" />}
+                                    {!areAllFilteredSelected && someFilteredSelected && <div className="w-2 h-0.5 bg-premium-blue rounded-full" />}
+                                </div>
+                                <span>{areAllFilteredSelected ? "Deselect All" : "Select All"} ({filteredQuestions.length})</span>
+                            </button>
+
+                            {selectedBankQuestions.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-slate-700">
+                                        <span className="text-blue-600 font-bold">{selectedBankQuestions.length}</span> total selected
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedBankQuestions([])}
+                                        className="text-slate-400 hover:text-rose-600 font-medium underline"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="text-slate-500 font-medium hidden sm:block">
+                            Showing {filteredQuestions.length} of {bankQuestions.length} questions
+                        </div>
+                    </div>
+
                     <div className="max-h-[50vh] overflow-y-auto space-y-2 p-1">
                         {bankLoading ? <LoadingSpinner /> : (
                             filteredQuestions.length === 0 ? (
@@ -671,6 +616,67 @@ export default function ManageExamPage({ params }) {
                     </Button>
                 </div>
             </Modal >
+
+            {/* Assign Evaluators Modal */}
+            <Modal
+                isOpen={isEvaluatorModalOpen}
+                onClose={() => setIsEvaluatorModalOpen(false)}
+                title="Assign Exam Evaluators"
+                className="max-w-xl"
+            >
+                <div className="space-y-4">
+                    <p className="text-xs text-slate-500">
+                        Assign instructors to evaluate and grade subjective or essay answers for each subject in this exam.
+                    </p>
+
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto p-1">
+                        {examSubjects.map(sub => {
+                            const currentAssignment = evaluatorAssignments.find(
+                                a => String(a.subject?._id || a.subject) === String(sub._id)
+                            );
+                            const currentEvalId = String(currentAssignment?.evaluator?._id || currentAssignment?.evaluator || "");
+
+                            return (
+                                <div key={sub._id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide block">
+                                        {sub.name}
+                                    </span>
+                                    <Select
+                                        value={currentEvalId}
+                                        onChange={val => {
+                                            setEvaluatorAssignments(prev => {
+                                                const filtered = prev.filter(a => String(a.subject?._id || a.subject) !== String(sub._id));
+                                                if (!val) return filtered;
+                                                return [...filtered, { subject: sub._id, evaluator: val }];
+                                            });
+                                        }}
+                                        placeholder="-- Select Evaluator Instructor --"
+                                        options={[
+                                            { label: "-- Not Assigned (Admins Only) --", value: "" },
+                                            ...instructors.map(u => {
+                                                const name = `${u.profile?.firstName || ''} ${u.profile?.lastName || ''}`.trim() || u.name || u.email;
+                                                const role = u.instituteRole || u.role;
+                                                const formattedRole = role ? (role === 'instructor' ? 'Instructor' : role.charAt(0).toUpperCase() + role.slice(1)) : '';
+                                                return {
+                                                    label: formattedRole ? `${name} (${formattedRole})` : name,
+                                                    value: u._id
+                                                };
+                                            })
+                                        ]}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setIsEvaluatorModalOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSaveEvaluators} disabled={savingEvaluators}>
+                            {savingEvaluators ? "Saving..." : "Save Assignments"}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div >
     );
 }

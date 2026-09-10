@@ -69,6 +69,7 @@ const ExamSchema = new Schema({
     },
 
     // Grading Configuration
+    requiresManualGrading: { type: Boolean, default: false },
     negativeMarking: { type: Boolean, default: false },
     negativeMarkingPercentage: { type: Number, default: 0, min: 0, max: 100 },
 

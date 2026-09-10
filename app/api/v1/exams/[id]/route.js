@@ -78,7 +78,21 @@ export async function PATCH(req, { params }) {
 
         // --- UPDATE LOGIC ---
         // 1. Direct Field Updates
-        if (body.questions !== undefined) exam.questions = body.questions;
+        if (body.questions !== undefined) {
+            exam.questions = body.questions;
+            if (Array.isArray(body.questions) && body.questions.length > 0) {
+                const qDocs = await Question.find({ _id: { $in: body.questions } }).select('type').lean();
+                const hasSubjective = qDocs.some(q => ['short_answer', 'essay', 'descriptive'].includes(q.type));
+                if (hasSubjective) {
+                    exam.requiresManualGrading = true;
+                    exam.resultPublication = 'manual';
+                } else if (body.requiresManualGrading === undefined) {
+                    exam.requiresManualGrading = false;
+                }
+            } else if (Array.isArray(body.questions) && body.questions.length === 0 && body.requiresManualGrading === undefined) {
+                exam.requiresManualGrading = false;
+            }
+        }
         if (body.title !== undefined) exam.title = body.title;
         if (body.totalMarks !== undefined) exam.totalMarks = body.totalMarks;
         if (body.course !== undefined) exam.course = body.course;
@@ -134,6 +148,7 @@ export async function PATCH(req, { params }) {
         if (body.instructions !== undefined) exam.instructions = body.instructions;
         if (body.maxAttempts !== undefined) exam.maxAttempts = body.maxAttempts;
         if (body.resultPublication !== undefined) exam.resultPublication = body.resultPublication;
+        if (body.requiresManualGrading !== undefined) exam.requiresManualGrading = body.requiresManualGrading;
         if (body.evaluatorAssignments !== undefined) exam.evaluatorAssignments = body.evaluatorAssignments;
         if (body.semester !== undefined) exam.semester = body.semester ? Number(body.semester) : null;
         if (body.examCategory !== undefined) exam.examCategory = body.examCategory;

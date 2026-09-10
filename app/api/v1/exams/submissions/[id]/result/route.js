@@ -22,7 +22,7 @@ export async function GET(req, { params }) {
             student: session.user.id
         }).populate({
             path: 'exam',
-            select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations resultsPublished maxAttempts', populate: {
+            select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations resultsPublished maxAttempts requiresManualGrading', populate: {
                 path: 'questions',
                 model: 'Question',
                 select: 'text type options correctAnswer marks snippet'
@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
                 .sort({ score: -1 }) // Best score first
                 .populate({
                     path: 'exam',
-                    select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations resultsPublished maxAttempts',
+                    select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations resultsPublished maxAttempts requiresManualGrading',
                     populate: {
                         path: 'questions',
                         model: 'Question',
@@ -59,36 +59,39 @@ export async function GET(req, { params }) {
 
         // Check Result Visibility
         let showResults = false;
+        const isGradingPending = submission.gradingStatus === 'pending' || (exam.requiresManualGrading && submission.status !== 'evaluated');
 
-        // Manual override (Admin clicked "Publish Results") - Highest Priority
-        if (exam.resultsPublished) {
+        // Manual override (Admin clicked "Publish Results") - Highest Priority, but only if grading complete
+        if (exam.resultsPublished && !isGradingPending) {
             showResults = true;
         }
-        // Automatic Logic
-        else if (exam.resultPublication === 'immediate') {
-            const totalAttempts = await ExamSubmission.countDocuments({
-                exam: exam._id,
-                student: session.user.id,
-                status: { $ne: 'in_progress' }
-            });
-            const max = exam.maxAttempts || 1; // Default to 1 if undefined
-            const isUnlimited = exam.maxAttempts === 0;
+        // Automatic Logic (Only applicable if NO manual grading is pending/required)
+        else if (!isGradingPending && !exam.requiresManualGrading) {
+            if (exam.resultPublication === 'immediate') {
+                const totalAttempts = await ExamSubmission.countDocuments({
+                    exam: exam._id,
+                    student: session.user.id,
+                    status: { $ne: 'in_progress' }
+                });
+                const max = exam.maxAttempts || 1; // Default to 1 if undefined
+                const isUnlimited = exam.maxAttempts === 0;
 
-            if (isUnlimited || totalAttempts >= max) {
-                showResults = true;
+                if (isUnlimited || totalAttempts >= max) {
+                    showResults = true;
+                }
             }
-        }
-        else if (exam.resultPublication === 'after_exam_end') {
-            const endTime = exam.schedule?.endTime;
-            if (endTime && new Date() > new Date(endTime)) {
-                showResults = true;
+            else if (exam.resultPublication === 'after_exam_end') {
+                const endTime = exam.schedule?.endTime;
+                if (endTime && new Date() > new Date(endTime)) {
+                    showResults = true;
+                }
             }
         }
 
         if (!showResults) {
             let message;
-            if (exam.resultPublication === 'manual') {
-                message = 'Results will be published by the institution once grading and review are completed.';
+            if (isGradingPending || exam.requiresManualGrading || exam.resultPublication === 'manual') {
+                message = 'Your submission is pending manual evaluation by instructors. Results will be published once grading is completed.';
             } else if (exam.resultPublication === 'immediate') {
                 message = 'Results will be available after you complete all your attempts.';
             } else {

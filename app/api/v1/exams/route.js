@@ -121,6 +121,7 @@ export async function POST(req) {
             securityConfig: body.securityConfig,
             negativeMarking: body.negativeMarking,
             negativeMarkingPercentage: body.negativeMarkingPercentage,
+            requiresManualGrading: body.requiresManualGrading ?? false,
             semester: body.semester ? Number(body.semester) : null,
             examCategory: body.examCategory || 'GENERAL'
         };

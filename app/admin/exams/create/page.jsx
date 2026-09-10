@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, Save, GraduationCap, Award } from "lucide-react";
+import { ArrowLeft, Save, GraduationCap, Award, Sparkles } from "lucide-react";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import SubjectSelect from "@/components/ui/SubjectSelect";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
+import { cn } from "@/lib/utils";
 
 export default function CreateExamPage() {
     const router = useRouter();
@@ -38,7 +39,8 @@ export default function CreateExamPage() {
         endAt: "",
         status: "draft",
         questions: [], // Intentionally empty
-        resultPublication: "after_exam_end"
+        resultPublication: "after_exam_end",
+        requiresManualGrading: false
     });
     useEffect(() => {
         fetchDropdowns();
@@ -359,15 +361,27 @@ export default function CreateExamPage() {
                             onChange={(e) => setFormData({ ...formData, maxAttempts: Number(e.target.value) })}
                         />
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Result Visibility</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Default Result Visibility</label>
                             <Select
                                 value={formData.resultPublication}
                                 onChange={(val) => setFormData({ ...formData, resultPublication: val })}
                                 options={[
-                                    { label: "After Exam Ends", value: "after_exam_end" },
+                                    { label: "After Exam Ends (Auto-holds if subjective questions added)", value: "after_exam_end" },
                                     { label: "Manual Release (After Grading/Review)", value: "manual" }
                                 ]}
                             />
+                        </div>
+                    </div>
+
+                    <div className="flex items-start gap-3.5 p-4 rounded-xl border border-blue-100 bg-blue-50/50 text-slate-700">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 text-premium-blue flex items-center justify-center shrink-0 mt-0.5 border border-blue-200">
+                            <Sparkles size={16} />
+                        </div>
+                        <div className="space-y-0.5">
+                            <p className="text-xs font-bold text-slate-900 uppercase tracking-wider">Intelligent Grading Detection</p>
+                            <p className="text-xs text-slate-600 leading-relaxed">
+                                Questions are selected on the next screen. If you include subjective questions (such as short answer or essay), the exam will <strong>automatically activate manual grading mode</strong> and prevent premature score release until instructors complete evaluation.
+                            </p>
                         </div>
                     </div>
 

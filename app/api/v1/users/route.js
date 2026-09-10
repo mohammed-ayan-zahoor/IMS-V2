@@ -28,6 +28,8 @@ export async function GET(req) {
         const role = searchParams.get("role");
         const targetInstParam = searchParams.get("instituteId");
 
+        const rolesList = role ? role.split(',').map(r => r.trim()).filter(Boolean) : null;
+
         let query = { deletedAt: null };
         let memberships = [];
 
@@ -44,25 +46,33 @@ export async function GET(req) {
             }
             const safeInstituteId = new mongoose.Types.ObjectId(instituteToQuery);
 
-            memberships = await Membership.find({
+            const membershipFilter = {
                 institute: safeInstituteId,
                 isActive: true
-            }).select('user role');
+            };
+            if (rolesList && rolesList.length > 0) {
+                membershipFilter.role = { $in: rolesList };
+            }
+
+            memberships = await Membership.find(membershipFilter).select('user role');
 
             const userIdsFromMemberships = memberships.map(m => m.user);
 
+            const baseOr = [
+                { _id: { $in: userIdsFromMemberships } }
+            ];
+            if (rolesList && rolesList.length > 0) {
+                baseOr.push({ institute: safeInstituteId, role: { $in: rolesList } });
+            } else {
+                baseOr.push({ institute: safeInstituteId });
+            }
+
             query = {
-                $or: [
-                    { _id: { $in: userIdsFromMemberships } },
-                    { institute: safeInstituteId }
-                ],
+                $or: baseOr,
                 deletedAt: null
             };
-        }
-
-        // Apply role filter if provided
-        if (role) {
-            query.role = role;
+        } else if (rolesList && rolesList.length > 0) {
+            query.role = { $in: rolesList };
         }
 
         const users = await User.find(query)
@@ -71,7 +81,7 @@ export async function GET(req) {
             .sort({ createdAt: -1 });
 
         // Map users and attach roles from membership records
-        const usersWithRoles = users.map(u => {
+        let usersWithRoles = users.map(u => {
             const userObj = u.toObject();
             const memberRecord = memberships.find(m => m.user && m.user.toString() === u._id.toString());
             return {
@@ -79,6 +89,12 @@ export async function GET(req) {
                 instituteRole: memberRecord?.role || u.role
             };
         });
+
+        if (rolesList && rolesList.length > 0) {
+            usersWithRoles = usersWithRoles.filter(u =>
+                rolesList.includes(u.instituteRole) || rolesList.includes(u.role)
+            );
+        }
 
         return NextResponse.json({ users: usersWithRoles });
 

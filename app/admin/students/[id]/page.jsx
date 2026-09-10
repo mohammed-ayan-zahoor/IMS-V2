@@ -69,11 +69,11 @@ export default function StudentDetailsPage({ params }) {
     const { id } = use(params);
     const { data: session } = useSession();
     const { selectedSessionId } = useAcademicSession();
+    const [studentData, setStudentData] = useState(null);
     const instituteType = studentData?.student?.institute?.type || session?.user?.institute?.type;
     const isVocational = instituteType === 'VOCATIONAL';
     const isCollege = instituteType === 'COLLEGE';
     const isSchool = instituteType === 'SCHOOL' || (!isVocational && !isCollege && session?.user?.institute?.code === 'QUANTECH');
-    const [studentData, setStudentData] = useState(null);
     const [isEnrollFaceOpen, setIsEnrollFaceOpen] = useState(false);
     const [isIDCardOpen, setIsIDCardOpen] = useState(false);
     const [loading, setLoading] = useState(true);

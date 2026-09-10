@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { format, isPast } from "date-fns";
-import { Plus, Search, Filter, Trash2, Edit, FileText, Clock, CheckCircle, Settings, Layers, Monitor, FileSpreadsheet, Info, X } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit, FileText, Clock, CheckCircle, Settings, Layers, Monitor, FileSpreadsheet, Info, X, ClipboardList } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -243,6 +243,15 @@ export default function ExamListPage() {
                                     <Button variant="outline" className="w-full font-bold text-blue-600 border-blue-200 hover:bg-blue-50 text-xs">
                                         <Layers size={14} className="mr-1.5" />
                                         View Results
+                                    </Button>
+                                </Link>
+                            )}
+
+                            {exam.requiresManualGrading && (exam.status === 'published' || exam.status === 'completed') && (
+                                <Link href={`/admin/exams/${exam._id}/grade`} className="col-span-2">
+                                    <Button variant="outline" className="w-full font-bold text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100 text-xs">
+                                        <ClipboardList size={14} className="mr-1.5 text-amber-600" />
+                                        Grade Answers
                                     </Button>
                                 </Link>
                             )}

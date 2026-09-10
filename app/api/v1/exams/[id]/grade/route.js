@@ -37,18 +37,25 @@ export async function GET(req, { params }) {
         const isAdmin = ["admin", "super_admin"].includes(scope.user.role);
         let gradableSubjectIds = null;
         if (!isAdmin) {
-            const assignment = exam.evaluatorAssignments.find(
+            const myAssignments = (exam.evaluatorAssignments || []).filter(
                 a => String(a.evaluator?._id || a.evaluator) === String(scope.user._id)
             );
-            if (!assignment) return NextResponse.json({ error: "You are not assigned as an evaluator for this exam" }, { status: 403 });
-            gradableSubjectIds = [String(assignment.subject?._id || assignment.subject)];
+            if (myAssignments.length === 0) {
+                return NextResponse.json({ error: "You are not assigned as an evaluator for this exam" }, { status: 403 });
+            }
+            gradableSubjectIds = myAssignments.map(a => String(a.subject?._id || a.subject || ""));
         }
 
         // Get only subjective questions (those needing manual grading)
         const subjectiveQs = exam.questions.filter(q => SUBJECTIVE_TYPES.includes(q.type));
+        const examSubId = String(exam.subject?._id || exam.subject || "");
+
         const filteredQs = isAdmin
             ? subjectiveQs
-            : subjectiveQs.filter(q => gradableSubjectIds.includes(String(q.subject)));
+            : subjectiveQs.filter(q => {
+                const qSubId = String(q.subject?._id || q.subject || examSubId || "");
+                return gradableSubjectIds.includes(qSubId) || gradableSubjectIds.includes("");
+            });
 
         if (filteredQs.length === 0) {
             return NextResponse.json({ questions: [], totalSubmissions: 0 });
