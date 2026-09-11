@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getInstituteScope } from "@/middleware/instituteScope";
 import { connectDB } from "@/lib/mongodb";
 import Department from "@/models/Department";
 import Course from "@/models/Course";
@@ -14,12 +15,20 @@ import mongoose from "mongoose";
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.institute?.id) {
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const scope = await getInstituteScope(req);
+        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         await connectDB();
-        const instituteId = new mongoose.Types.ObjectId(session.user.institute.id);
+        const instituteId = scope.instituteId ? new mongoose.Types.ObjectId(scope.instituteId) : null;
+        if (!instituteId) {
+            return NextResponse.json({ departments: [], instructors: [] });
+        }
 
         const [departments, instructors, courseCounts, facultyCounts] = await Promise.all([
             Department.find({ institute: instituteId, deletedAt: null })
@@ -71,13 +80,18 @@ export async function GET(req) {
 export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.institute?.id || !["admin", "super_admin"].includes(session.user.role)) {
+        if (!session || !["admin", "super_admin"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const scope = await getInstituteScope(req);
+        if (!scope?.instituteId) {
+            return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
         }
 
         await connectDB();
         const body = await req.json();
-        const instituteId = new mongoose.Types.ObjectId(session.user.institute.id);
+        const instituteId = new mongoose.Types.ObjectId(scope.instituteId);
 
         if (!body.name?.trim() || !body.code?.trim()) {
             return NextResponse.json({ error: "Department Name and Code are required." }, { status: 400 });

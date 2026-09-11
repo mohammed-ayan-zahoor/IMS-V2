@@ -63,14 +63,16 @@ export default function CoursesPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
-    const isCollege = session?.user?.institute?.type === 'COLLEGE';
-    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
+    const [institutes, setInstitutes] = useState([]);
+    const [selectedInstitute, setSelectedInstitute] = useState("");
+    const activeInstitute = institutes.find(i => (i._id || i.id) === selectedInstitute);
+    const activeInstituteType = activeInstitute?.type || session?.user?.institute?.type;
+    const isSchool = activeInstituteType === 'SCHOOL' || (activeInstitute?.code || session?.user?.institute?.code) === 'QUANTECH';
+    const isCollege = activeInstituteType === 'COLLEGE';
+    const isVocational = activeInstituteType === 'VOCATIONAL';
     const [editingCourse, setEditingCourse] = useState(null);
     const [deletingCourse, setDeletingCourse] = useState(null);
     const [activeMenu, setActiveMenu] = useState(null);
-    const [institutes, setInstitutes] = useState([]);
-    const [selectedInstitute, setSelectedInstitute] = useState("");
     const [departments, setDepartments] = useState([]);
 
     // Form State for Courses
@@ -220,6 +222,14 @@ export default function CoursesPage() {
                     billingCycle: formData.collegeConfig?.billingCycle || 'YEARLY',
                     yearWiseFees: differentFeePerYear ? (formData.collegeConfig?.yearWiseFees || []) : []
                 };
+                payload.department = formData.department || null;
+            } else {
+                delete payload.collegeConfig;
+                payload.department = null;
+                payload.duration = {
+                    value: parseFloat(formData.duration?.value) || 12,
+                    unit: formData.duration?.unit || "months"
+                };
             }
 
             const res = await fetch(url, {
@@ -286,7 +296,7 @@ export default function CoursesPage() {
             description: course.description || "",
             department: course.department?._id || course.department || "",
             duration: {
-                value: course.duration?.value || (totalSems * 6),
+                value: course.duration?.value || (isCollege ? totalSems * 6 : 12),
                 unit: course.duration?.unit || "months"
             },
             fees: {

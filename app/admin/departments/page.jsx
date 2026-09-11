@@ -16,6 +16,8 @@ import {
     Calendar,
     Users
 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -24,6 +26,9 @@ import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
 export default function DepartmentsPage() {
+    const { data: session } = useSession();
+    const isCollege = session?.user?.institute?.type === 'COLLEGE';
+    const isSuperAdmin = session?.user?.role === 'super_admin';
     const toast = useToast();
     const confirm = useConfirm();
 
@@ -178,6 +183,30 @@ export default function DepartmentsPage() {
         const totalCourses = departments.reduce((acc, d) => acc + (d.courseCount || 0), 0);
         return { total, withHod, totalCourses };
     }, [departments]);
+
+    if (session && !isCollege && !isSuperAdmin) {
+        return (
+            <div className="p-6 max-w-4xl mx-auto py-16 text-center">
+                <Card className="p-10 border-slate-200 shadow-xs">
+                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
+                        <Building2 size={24} />
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-900">Academic Departments</h2>
+                    <p className="text-slate-600 max-w-md mx-auto mt-2 text-sm leading-relaxed">
+                        Academic departments and faculties are designed for Degree Colleges and Universities.
+                        In your institution model, academic classes and sections are organized directly under Courses.
+                    </p>
+                    <div className="mt-6 flex justify-center gap-3">
+                        <Link href="/admin/courses">
+                            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                                View Classes (Courses)
+                            </Button>
+                        </Link>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">

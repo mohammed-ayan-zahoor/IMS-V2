@@ -596,6 +596,12 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
     </div>
     <div style="margin-top:16px" class="form-grid full">
       <div class="field">
+        <label>Legal Jurisdiction (Court Place) *</label>
+        <input id="f-jurisdiction" type="text" value="Dhule, Maharashtra" placeholder="e.g. Dhule, Maharashtra" oninput="updateDoc()"/>
+      </div>
+    </div>
+    <div style="margin-top:16px" class="form-grid full">
+      <div class="field">
         <label>Institution Address (optional)</label>
         <textarea id="f-address" rows="2" placeholder="Street, Area, City – PIN" oninput="updateDoc()"></textarea>
       </div>
@@ -657,7 +663,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 
     <div class="mou-section">
       <h3>2. Scope of Enrollment</h3>
-      <p id="d-clause2-intro">The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">2025–26</strong>:</p>
+      <p id="d-clause2-intro">The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">2026–27</strong>:</p>
       <div class="enrollment-commercial-wrapper">
         <div class="highlight-box" style="margin: 0 !important;">
           <div class="label">Agreed Student Enrollment Strength</div>
@@ -736,7 +742,7 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 
     <div class="mou-section">
       <h3>8. Governing Law</h3>
-      <p>This MOU shall be governed by the laws of India. Any disputes arising out of or in connection with this MOU shall be subject to the exclusive jurisdiction of the courts in <strong>Dhule, Maharashtra</strong>.</p>
+      <p>This MOU shall be governed by the laws of India. Any disputes arising out of or in connection with this MOU shall be subject to the exclusive jurisdiction of the courts in <strong id="d-jurisdiction">Dhule, Maharashtra</strong>.</p>
     </div>
 
     <div class="mou-section">
@@ -808,12 +814,8 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 const today = new Date();
 const dateStr = today.toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
 
-const getAcademicYear = (date) => {
-  const year = date.getFullYear();
-  return `${year}-${String(year + 1).slice(-2)}`;
-};
-
-const acadYear = getAcademicYear(today);
+const acadYear = '2026-27';
+const acadYearDisplay = '2026–27';
 const refId = 'QP/MOU/' + acadYear + '/' + String(Math.floor(Math.random()*9000)+1000);
 
 function validateForm() {
@@ -821,11 +823,13 @@ function validateForm() {
   const city = document.getElementById('f-city').value.trim();
   const principal = document.getElementById('f-principal').value.trim();
   const email = document.getElementById('f-email').value.trim();
+  const jurisdiction = (document.getElementById('f-jurisdiction')?.value || '').trim();
 
   if (!school) { alert('Please enter the Institution Name.'); return false; }
   if (!city) { alert('Please enter the City / District.'); return false; }
   if (!principal) { alert('Please enter the Principal / Authorised Signatory Name.'); return false; }
   if (!email) { alert('Please enter the Contact Email.'); return false; }
+  if (!jurisdiction) { alert('Please enter the Legal Jurisdiction place.'); return false; }
 
   const instType = getInstType();
   if (instType === 'school') {
@@ -852,7 +856,7 @@ document.querySelectorAll('#doc-ref,#doc-ref2').forEach(el => el.textContent = r
 document.querySelector('#sig-date').textContent = dateStr;
 const acadYearEl = document.getElementById('d-acad-year');
 if (acadYearEl) {
-  acadYearEl.textContent = acadYear.replace('-', '–');
+  acadYearEl.textContent = acadYearDisplay;
 }
 
 // ── URL Query Rate & Coupon Override Check ───────────────────
@@ -862,6 +866,11 @@ const urlCoupon = urlParams.get('coupon');
 if (urlCoupon) {
   const couponInputEl = document.getElementById('f-coupon');
   if (couponInputEl) couponInputEl.value = urlCoupon;
+}
+const urlJurisdiction = urlParams.get('jurisdiction');
+if (urlJurisdiction) {
+  const jurInputEl = document.getElementById('f-jurisdiction');
+  if (jurInputEl) jurInputEl.value = urlJurisdiction;
 }
 
 // ── Live doc update ─────────────────────────────────────────
@@ -897,6 +906,7 @@ function updateDoc() {
   const principal = document.getElementById('f-principal').value.trim() || '[ Authorised Signatory ]';
   const desig = document.getElementById('f-designation').value.trim() || '[ Designation ]';
   const addr = document.getElementById('f-address').value.trim();
+  const jurisdiction = (document.getElementById('f-jurisdiction')?.value || '').trim() || 'Dhule, Maharashtra';
   const duration = document.getElementById('f-duration').value;
   const instType = getInstType();
   const isCollege = instType !== 'school';

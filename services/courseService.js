@@ -36,12 +36,35 @@ export class CourseService {
         const { institute } = data;
         if (!institute) throw new Error("Institute context missing");
 
-        // ponytail: auto-derive course duration in months from totalSemesters for college courses
-        if (data.collegeConfig?.totalSemesters && (!data.duration || !data.duration.value)) {
+        const Institute = (await import('@/models/Institute')).default;
+        const instDoc = await Institute.findById(institute).select('type').lean();
+        const isCollege = instDoc?.type === 'COLLEGE';
+
+        // ponytail: Sanitize department - empty strings/none/falsy become null; non-college courses never have departments
+        if (!isCollege || !data.department || data.department === 'none' || data.department === '') {
+            data.department = null;
+        }
+
+        // ponytail: Non-college institutes do not use collegeConfig
+        if (!isCollege) {
+            delete data.collegeConfig;
+        }
+
+        // ponytail: auto-derive course duration in months from totalSemesters for college courses, or ensure numeric value
+        if (isCollege && data.collegeConfig?.totalSemesters && (!data.duration || !data.duration.value)) {
             data.duration = {
                 value: data.collegeConfig.totalSemesters * 6,
                 unit: 'months'
             };
+        } else if (data.duration) {
+            data.duration = {
+                value: Number(data.duration.value) || 12,
+                unit: data.duration.unit || 'months'
+            };
+        }
+
+        if (data.fees?.amount !== undefined) {
+            data.fees.amount = Number(data.fees.amount) || 0;
         }
 
         let course;
@@ -142,12 +165,37 @@ export class CourseService {
             }
         });
 
-        // ponytail: auto-derive duration from collegeConfig totalSemesters if duration is not explicitly updated
-        if (updateData.collegeConfig?.totalSemesters && !updateData.duration) {
+        const Institute = (await import('@/models/Institute')).default;
+        const instDoc = await Institute.findById(instituteId).select('type').lean();
+        const isCollege = instDoc?.type === 'COLLEGE';
+
+        // ponytail: Sanitize department - empty strings/none/falsy become null; non-college courses never have departments
+        if (updateData.department !== undefined) {
+            if (!isCollege || !updateData.department || updateData.department === 'none' || updateData.department === '') {
+                updateData.department = null;
+            }
+        }
+
+        // ponytail: Non-college courses do not retain collegeConfig
+        if (!isCollege) {
+            delete updateData.collegeConfig;
+        }
+
+        // ponytail: auto-derive duration from collegeConfig totalSemesters if duration is not explicitly updated, or ensure numeric value
+        if (isCollege && updateData.collegeConfig?.totalSemesters && !updateData.duration) {
             updateData.duration = {
                 value: updateData.collegeConfig.totalSemesters * 6,
                 unit: 'months'
             };
+        } else if (updateData.duration?.value !== undefined) {
+            updateData.duration = {
+                value: Number(updateData.duration.value) || 12,
+                unit: updateData.duration.unit || 'months'
+            };
+        }
+
+        if (updateData.fees?.amount !== undefined) {
+            updateData.fees.amount = Number(updateData.fees.amount) || 0;
         }
 
         if (Object.keys(updateData).length === 0) {
@@ -245,14 +293,29 @@ export class BatchService {
             const Institute = (await import('@/models/Institute')).default;
             const instDoc = await Institute.findById(instituteId).select('type').lean();
             const isVocational = instDoc?.type === 'VOCATIONAL';
+            const isCollege = instDoc?.type === 'COLLEGE';
 
-            // Auto-resolve active session for schools if not explicitly passed
+            // ponytail: sanitize course, courseBundle, session, and semester to prevent CastError
+            data.course = courseId;
+            data.courseBundle = courseBundleId;
+            if (!data.session || data.session === 'all' || data.session === 'none' || data.session === '') {
+                data.session = null;
+            }
+
+            // Auto-resolve active session for non-vocational if not explicitly passed
             if (!isVocational && !data.session) {
                 const Session = (await import('@/models/Session')).default;
                 const activeSession = await Session.findOne({ institute: instituteId, isActive: true }).select('_id').lean();
                 if (activeSession) {
                     data.session = activeSession._id;
                 }
+            }
+
+            if (isCollege && data.semester !== undefined && data.semester !== null && data.semester !== '') {
+                const sem = parseInt(data.semester, 10);
+                data.semester = (!isNaN(sem) && sem >= 1 && sem <= 12) ? sem : null;
+            } else {
+                data.semester = null;
             }
 
             // 2. Uniqueness Validation
@@ -390,11 +453,13 @@ export class BatchService {
         Object.keys(safeFilters).forEach(key => {
             if (key !== 'enrolledStudents' && key !== 'instructorRoleContext') {
                 if (key === 'session' && safeFilters.session) {
-                    query.$or = [
-                        { session: safeFilters.session },
-                        { session: null },
-                        { session: { $exists: false } }
-                    ];
+                    if (safeFilters.session !== 'all' && safeFilters.session !== '') {
+                        query.$or = [
+                            { session: safeFilters.session },
+                            { session: null },
+                            { session: { $exists: false } }
+                        ];
+                    }
                 } else {
                     query[key] = safeFilters[key];
                 }
@@ -450,7 +515,7 @@ export class BatchService {
             instituteId = user.institute;
         }
 
-        const allowedFields = ['name', 'course', 'schedule', 'capacity', 'instructor', 'description', 'startDate', 'endDate', 'session', 'semester'];
+        const allowedFields = ['name', 'course', 'courseBundle', 'schedule', 'capacity', 'instructor', 'description', 'startDate', 'endDate', 'session', 'semester'];
         const sanitizedData = {};
         const updatesLog = [];
 
@@ -469,6 +534,34 @@ export class BatchService {
         // Apply top-level convenience fields after schedule, giving them precedence
         if (data.startDate !== undefined) sanitizedData.schedule = { ...sanitizedData.schedule, startDate: data.startDate };
         if (data.endDate !== undefined) sanitizedData.schedule = { ...sanitizedData.schedule, endDate: data.endDate };
+
+        // ponytail: sanitize course, courseBundle, session, and semester to prevent CastError
+        if (sanitizedData.course !== undefined) {
+            sanitizedData.course = sanitizedData.course || null;
+        }
+        if (sanitizedData.courseBundle !== undefined) {
+            sanitizedData.courseBundle = sanitizedData.courseBundle || null;
+        }
+        if (sanitizedData.session !== undefined) {
+            if (!sanitizedData.session || sanitizedData.session === 'all' || sanitizedData.session === 'none' || sanitizedData.session === '') {
+                sanitizedData.session = null;
+            }
+        }
+
+        const Institute = (await import('@/models/Institute')).default;
+        const instDoc = await Institute.findById(instituteId).select('type').lean();
+        const isVocational = instDoc?.type === 'VOCATIONAL';
+        const isCollege = instDoc?.type === 'COLLEGE';
+
+        if (sanitizedData.semester !== undefined) {
+            if (isCollege && sanitizedData.semester !== null && sanitizedData.semester !== '') {
+                const sem = parseInt(sanitizedData.semester, 10);
+                sanitizedData.semester = (!isNaN(sem) && sem >= 1 && sem <= 12) ? sem : null;
+            } else {
+                sanitizedData.semester = null;
+            }
+        }
+
         if (Object.keys(sanitizedData).length === 0) {
             throw new Error("No valid updatable fields provided");
         }
@@ -482,10 +575,6 @@ export class BatchService {
 
         // 1. Uniqueness Validation for Name Change
         if (sanitizedData.name && sanitizedData.name !== existingBatch.name) {
-            const Institute = (await import('@/models/Institute')).default;
-            const instDoc = await Institute.findById(instituteId).select('type').lean();
-            const isVocational = instDoc?.type === 'VOCATIONAL';
-
             const nameQuery = {
                 institute: instituteId,
                 name: sanitizedData.name,
@@ -495,7 +584,16 @@ export class BatchService {
 
             if (!isVocational) {
                 nameQuery.course = sanitizedData.course || existingBatch.course?._id || existingBatch.course;
-                nameQuery.session = sanitizedData.session || existingBatch.session;
+                const effectiveSession = sanitizedData.session !== undefined ? sanitizedData.session : (existingBatch.session?._id || existingBatch.session);
+                if (effectiveSession) {
+                    nameQuery.session = effectiveSession;
+                } else {
+                    nameQuery.$or = [{ session: null }, { session: { $exists: false } }];
+                }
+                const effectiveSemester = sanitizedData.semester !== undefined ? sanitizedData.semester : existingBatch.semester;
+                if (effectiveSemester) {
+                    nameQuery.semester = effectiveSemester;
+                }
             }
 
             const duplicate = await Batch.findOne(nameQuery);

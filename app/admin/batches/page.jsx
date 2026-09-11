@@ -48,9 +48,13 @@ export default function BatchesPage() {
     const [loading, setLoading] = useState(true);
     const { data: session } = useSession();
     const { selectedSessionId, sessions } = useAcademicSession();
-    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
-    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
-    const isCollege = session?.user?.institute?.type === 'COLLEGE';
+    const [institutes, setInstitutes] = useState([]);
+    const [selectedInstitute, setSelectedInstitute] = useState("");
+    const activeInstitute = institutes.find(i => (i._id || i.id) === selectedInstitute);
+    const activeInstituteType = activeInstitute?.type || session?.user?.institute?.type;
+    const isSchool = activeInstituteType === 'SCHOOL' || (activeInstitute?.code || session?.user?.institute?.code) === 'QUANTECH';
+    const isVocational = activeInstituteType === 'VOCATIONAL';
+    const isCollege = activeInstituteType === 'COLLEGE';
     const [departments, setDepartments] = useState([]);
     const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
     const [expandedCourses, setExpandedCourses] = useState({});
@@ -59,8 +63,6 @@ export default function BatchesPage() {
     const [search, setSearch] = useState("");
     const [selectedCourseFilter, setSelectedCourseFilter] = useState("");
     const [listFilter, setListFilter] = useState("all"); // "all" | "course" | "bundle"
-    const [institutes, setInstitutes] = useState([]);
-    const [selectedInstitute, setSelectedInstitute] = useState("");
     const [isHowToOpen, setIsHowToOpen] = useState(false);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -203,9 +205,9 @@ export default function BatchesPage() {
         setBatchType(type);
         setFormData({
             name: batch.name,
-            course: type === "course" ? (batch.course?._id || "") : "",
+            course: type === "course" ? (batch.course?._id || batch.course || "") : "",
             semester: batch.semester || 1,
-            courseBundle: type === "bundle" ? (batch.courseBundle?._id || "") : "",
+            courseBundle: type === "bundle" ? (batch.courseBundle?._id || batch.courseBundle || "") : "",
             capacity: batch.capacity,
             schedule: batch.schedule?.description || "",
             startDate: batch.schedule?.startDate ? new Date(batch.schedule.startDate).toISOString().split('T')[0] : ""
@@ -218,22 +220,28 @@ export default function BatchesPage() {
         const url = editingBatch ? `/api/v1/batches/${editingBatch._id}` : "/api/v1/batches";
         const method = editingBatch ? "PATCH" : "POST";
 
+        const resolvedSession = editingBatch 
+            ? (editingBatch.session?._id || editingBatch.session || null) 
+            : (selectedSessionId && selectedSessionId !== 'all' ? selectedSessionId : null);
+
         const payload = {
             name: formData.name,
             capacity: parseInt(formData.capacity, 10) || 0,
-            session: editingBatch ? editingBatch.session?._id || editingBatch.session : (selectedSessionId || undefined),
+            session: resolvedSession,
             schedule: { startDate: formData.startDate, description: formData.schedule }
         };
 
         if (isCollege) {
             payload.semester = parseInt(formData.semester, 10) || 1;
+        } else {
+            payload.semester = null;
         }
 
         if (batchType === "bundle" && formData.courseBundle) {
             payload.courseBundle = formData.courseBundle;
             payload.course = null;
         } else {
-            payload.course = formData.course || courses[0]?._id;
+            payload.course = formData.course || courses[0]?._id || null;
             payload.courseBundle = null;
         }
 
