@@ -1135,6 +1135,8 @@ function updateDoc() {
   document.getElementById('d-designation').textContent = desig;
   document.getElementById('d-udise').textContent = udise;
   document.getElementById('d-udise-sig').textContent = udise !== '—' ? 'UDISE Code: ' + udise : 'UDISE Code: —';
+  const dJurisdiction = document.getElementById('d-jurisdiction');
+  if (dJurisdiction) dJurisdiction.textContent = jurisdiction;
 
   document.getElementById('d-duration').textContent = durationWords[duration] || 'one (1) academic year';
 
@@ -1415,6 +1417,7 @@ async function trackMouAction(actionType) {
       studentCount,
       udiseCode: udise,
       address,
+      jurisdiction: (document.getElementById('f-jurisdiction')?.value || '').trim() || 'Dhule, Maharashtra',
       perStudentRate,
       planType,
       totalPrice,
