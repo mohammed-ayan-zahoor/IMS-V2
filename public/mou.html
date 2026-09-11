@@ -1078,8 +1078,8 @@ function updateDoc() {
   const c2Intro = document.getElementById('d-clause2-intro');
   if (c2Intro) {
     c2Intro.innerHTML = isIdCard45
-      ? `The Institution hereby confirms its order for Student Smart ID Cards &amp; Branded Lanyards for the following student strength for the academic year <strong id="d-acad-year">2025–26</strong>:`
-      : `The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">2025–26</strong>:`;
+      ? `The Institution hereby confirms its order for Student Smart ID Cards &amp; Branded Lanyards for the following student strength for the academic year <strong id="d-acad-year">${acadYearDisplay}</strong>:`
+      : `The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">${acadYearDisplay}</strong>:`;
   }
 
   const c2Sla = document.getElementById('d-clause2-sla');
