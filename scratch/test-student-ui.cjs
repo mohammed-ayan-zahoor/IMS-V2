@@ -60,10 +60,15 @@ assert(library.includes("/api/v1/student/library"), "Library must fetch /api/v1/
 assert(library.includes("Active Loans"), "Library must show active loans");
 console.log("✓ Student library screen verified");
 
-// 8. Check student fees uses useSession properly
+// 8. Check student fees uses useSession properly and matches Adtech design
 const fees = fs.readFileSync(path.join(__dirname, "../app/student/fees/page.jsx"), "utf8");
 assert(fees.includes("useSession"), "Fees page must import and use useSession");
 assert(!fees.includes("rounded-[3rem]"), "Fees page must eliminate rounded-[3rem] slop");
-console.log("✓ Student fees page verified and hardened");
+assert(!fees.includes("rounded-[2.5rem]"), "Fees page must eliminate rounded-[2.5rem] slop");
+assert(fees.includes("Total Course Fee"), "Fees page must include Total Course Fee metric");
+assert(fees.includes("Outstanding Due"), "Fees page must include Outstanding Due metric");
+assert(fees.includes("hidden md:block"), "Fees page must provide desktop tabular layout");
+assert(fees.includes("md:hidden"), "Fees page must provide mobile card layout");
+console.log("✓ Student fees page verified and strictly adheres to Adtech specs");
 
 console.log("\nALL 8 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");

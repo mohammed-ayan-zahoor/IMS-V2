@@ -20,43 +20,45 @@ export async function GET(req) {
 
         const { searchParams } = new URL(req.url);
         const querySessionId = searchParams.get("sessionId");
+        const queryBatchId = searchParams.get("batchId");
 
-        let activeSession = null;
-        if (querySessionId && session.user.institute?.id) {
-            // Verify the session belongs to this student's institute before trusting it.
-            try {
-                activeSession = await Session.findOne({
-                    _id: new mongoose.Types.ObjectId(querySessionId),
-                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
-                    deletedAt: null
-                }).select("_id");
-            } catch {
-                activeSession = null; // malformed ObjectId — fall through
-            }
-        }
+        const studentObjId = new mongoose.Types.ObjectId(session.user.id);
+        const instituteId = session.user.institute?.id ? new mongoose.Types.ObjectId(session.user.institute.id) : null;
 
-        if (!activeSession && session.user.institute?.id) {
-            activeSession = await Session.findOne({
-                instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
-                isActive: true,
+        // Retrieve enrolled batches for student selector
+        let enrolledBatches = [];
+        if (instituteId) {
+            enrolledBatches = await Batch.find({
+                institute: instituteId,
+                enrolledStudents: {
+                    $elemMatch: {
+                        student: studentObjId,
+                        status: { $in: ["active", "completed"] }
+                    }
+                },
                 deletedAt: null
-            }).select("_id");
-            if (!activeSession) {
-                activeSession = await Session.findOne({
-                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
-                    deletedAt: null
-                }).select("_id").sort({ startDate: -1 });
-            }
+            }).select("_id name course").populate("course", "name code").lean();
         }
 
-        const feeQuery = { student: session.user.id };
-        const transportQuery = { student: session.user.id, deletedAt: null };
-        const hostelQuery = { student: session.user.id, deletedAt: null };
+        const feeQuery = {
+            student: studentObjId,
+            deletedAt: null
+        };
+        if (instituteId) {
+            feeQuery.institute = instituteId;
+        }
+        if (queryBatchId && queryBatchId !== "all" && mongoose.Types.ObjectId.isValid(queryBatchId)) {
+            feeQuery.batch = new mongoose.Types.ObjectId(queryBatchId);
+        }
+        if (querySessionId && mongoose.Types.ObjectId.isValid(querySessionId)) {
+            feeQuery.session = new mongoose.Types.ObjectId(querySessionId);
+        }
 
-        if (activeSession) {
-            feeQuery.session = activeSession._id;
-            transportQuery.session = activeSession._id;
-            hostelQuery.session = activeSession._id;
+        const transportQuery = { student: studentObjId, deletedAt: null };
+        const hostelQuery = { student: studentObjId, deletedAt: null };
+        if (instituteId) {
+            transportQuery.institute = instituteId;
+            hostelQuery.institute = instituteId;
         }
 
         const fees = await Fee.find(feeQuery)
@@ -65,9 +67,10 @@ export async function GET(req) {
                 select: "name course",
                 populate: {
                     path: "course",
-                    select: "name"
+                    select: "name code"
                 }
             })
+            .populate("institute", "name branding address contactEmail contactPhone settings")
             .sort({ updatedAt: -1 })
             .lean();
 
@@ -81,7 +84,17 @@ export async function GET(req) {
             .sort({ updatedAt: -1 })
             .lean();
 
-        return NextResponse.json({ fees, transportFees, hostelAllotments });
+        return NextResponse.json({
+            fees,
+            transportFees,
+            hostelAllotments,
+            batches: enrolledBatches.map(b => ({
+                id: b._id.toString(),
+                name: b.name,
+                courseName: b.course?.name || "General",
+                courseCode: b.course?.code || ""
+            }))
+        });
 
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

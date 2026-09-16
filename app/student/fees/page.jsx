@@ -1,824 +1,629 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Card from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
-import Skeleton from "@/components/shared/Skeleton";
-import { cn } from "@/lib/utils";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { 
     CreditCard, 
-    Calendar, 
     CheckCircle2, 
     AlertCircle, 
     Clock, 
     Receipt, 
-    ChevronRight, 
     ArrowUpRight,
-    Sparkles,
-    Smartphone,
-    Info,
+    Building2,
     Check,
-    Loader2,
-    Shield,
-    Bus,
-    Hotel
+    ShieldCheck,
+    Info
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
-import Button from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 
 export default function StudentFeesPage() {
     const { data: session } = useSession();
+    const router = useRouter();
+
     const [fees, setFees] = useState([]);
     const [transportFees, setTransportFees] = useState([]);
     const [hostelAllotments, setHostelAllotments] = useState([]);
+    const [selectedTab, setSelectedTab] = useState("all"); // "all", "course", "transport", "hostel"
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const router = useRouter();
 
-    // UPI Autopay Simulation States
-    const [autopayStates, setAutopayStates] = useState({}); // mapped by feeId: { enabled: boolean, vpa?: string }
-    const [activeFeeForAutopay, setActiveFeeForAutopay] = useState(null);
-    const [vpaInput, setVpaInput] = useState('');
-    const [vpaError, setVpaError] = useState('');
-    const [isSettingUp, setIsSettingUp] = useState(false);
-    const [setupStep, setSetupStep] = useState(1); // 1: Input VPA, 2: App Pending Approval, 3: Success
-
-    const handleAutopayToggle = (feeId, currentlyEnabled) => {
-        if (currentlyEnabled) {
-            // Cancel Autopay Simulation
-            setAutopayStates(prev => ({
-                ...prev,
-                [feeId]: { enabled: false }
-            }));
-        } else {
-            // Launch Setup Modal Simulation
-            setActiveFeeForAutopay(feeId);
-            setVpaInput('');
-            setVpaError('');
-            setSetupStep(1);
+    const fetchFees = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch("/api/v1/student/fees");
+            if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
+            const data = await res.json();
+            setFees(data.fees || []);
+            setTransportFees(data.transportFees || []);
+            setHostelAllotments(data.hostelAllotments || []);
+        } catch (err) {
+            console.error(err);
+            setError("Unable to load fee details. Please try again later.");
+        } finally {
+            setLoading(false);
         }
-    };
-
-    const handleSetupAutopay = async () => {
-        if (!vpaInput.trim() || !vpaInput.includes('@')) {
-            setVpaError('Please enter a valid UPI VPA (e.g. name@okaxis)');
-            return;
-        }
-        setVpaError('');
-        setIsSettingUp(true);
-        
-        // Simulating Merchant Request & Push Notification Handshake (1.5 seconds)
-        setTimeout(() => {
-            setIsSettingUp(false);
-            setSetupStep(2);
-            
-            // Simulating user opening GPay/PhonePe and authenticating with UPI PIN (3.5 seconds)
-            setTimeout(() => {
-                setSetupStep(3);
-                setAutopayStates(prev => ({
-                    ...prev,
-                    [activeFeeForAutopay]: { enabled: true, vpa: vpaInput }
-                }));
-            }, 3500);
-        }, 1500);
-    };
-
-    useEffect(() => {
-        const controller = new AbortController();
-        const fetchFees = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await fetch("/api/v1/student/fees", { signal: controller.signal });
-                if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
-                const data = await res.json();
-                if (!controller.signal.aborted) {
-                    setFees(data.fees || []);
-                    setTransportFees(data.transportFees || []);
-                    setHostelAllotments(data.hostelAllotments || []);
-                }
-            } catch (error) {
-                if (error.name !== "AbortError") {
-                    console.error(error);
-                    setError("Unable to load fee details. Please try again later.");
-                }
-            } finally {
-                if (!controller.signal.aborted) {
-                    setLoading(false);
-                }
-            }
-        };
-
-        fetchFees();
-
-        return () => controller.abort();
     }, []);
 
-    if (loading) return (
-        <div className="space-y-8 max-w-5xl mx-auto">
-            <div className="space-y-3">
-                <Skeleton className="h-8 w-48" />
-                <Skeleton className="h-4 w-64" />
+    useEffect(() => {
+        fetchFees();
+    }, [fetchFees]);
+
+    // Financial calculations across active fees
+    const summaryMetrics = useMemo(() => {
+        let totalPayable = 0;
+        let totalPaid = 0;
+        let totalBalance = 0;
+        let hasOverdue = false;
+
+        fees.forEach(f => {
+            const finalAmt = (f.totalAmount || 0) - (f.discount?.amount || 0) + (f.extraCharges?.amount || 0);
+            totalPayable += finalAmt;
+            totalPaid += (f.paidAmount || 0);
+            totalBalance += (f.balanceAmount || 0);
+            if (f.status === 'overdue') hasOverdue = true;
+        });
+
+        transportFees.forEach(tf => {
+            totalPayable += (tf.totalAmount || 0);
+            totalPaid += (tf.paidAmount || 0);
+            totalBalance += (tf.balanceAmount || 0);
+            if (tf.status === 'overdue') hasOverdue = true;
+        });
+
+        hostelAllotments.forEach(ha => {
+            totalPayable += (ha.totalAmount || 0);
+            totalPaid += (ha.paidAmount || 0);
+            totalBalance += (ha.balanceAmount || 0);
+            if (ha.feeStatus === 'overdue') hasOverdue = true;
+        });
+
+        const percentCleared = totalPayable > 0 ? Math.round((totalPaid / totalPayable) * 100) : 100;
+
+        return {
+            totalPayable,
+            totalPaid,
+            totalBalance,
+            percentCleared,
+            hasOverdue
+        };
+    }, [fees, transportFees, hostelAllotments]);
+
+    if (loading) {
+        return (
+            <div className="space-y-6 max-w-6xl mx-auto animate-pulse">
+                <div className="h-10 w-48 bg-[#F1EFFB] rounded-full" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[1, 2, 3, 4].map(n => (
+                        <div key={n} className="h-24 bg-white rounded-[16px] border border-[#E9E8F0]" />
+                    ))}
+                </div>
+                <div className="h-72 bg-white rounded-[16px] border border-[#E9E8F0]" />
             </div>
-            <Skeleton className="h-64 rounded-[2.5rem]" />
-            <Skeleton className="h-64 rounded-[2.5rem]" />
-        </div>
-    );
+        );
+    }
 
     if (error) {
         return (
-            <div className="max-w-5xl mx-auto">
-                <div className="py-20 text-center bg-white rounded-[16px] border border-[#E9E8F0] shadow-none">
-                    <div className="w-20 h-20 bg-rose-50 rounded-[2rem] flex items-center justify-center text-rose-500 mx-auto mb-6">
-                        <AlertCircle size={40} />
+            <div className="max-w-6xl mx-auto">
+                <div className="py-16 text-center bg-white rounded-[16px] border border-[#E9E8F0]">
+                    <div className="w-14 h-14 bg-rose-50 rounded-full flex items-center justify-center text-[#F4586A] mx-auto mb-4 border border-rose-100">
+                        <AlertCircle size={28} />
                     </div>
-                    <p className="text-xl font-black text-slate-900 mb-2 italic">Error Loading Fees</p>
-                    <p className="text-slate-500 font-medium">{error}</p>
-                    <Button onClick={() => window.location.reload()} className="mt-8 bg-slate-900 text-white px-8 rounded-xl font-bold">Try Again</Button>
+                    <h3 className="text-lg font-bold text-[#1E1B2E]">Unable to Load Fee Details</h3>
+                    <p className="text-xs text-[#8D8A9B] mt-1 max-w-sm mx-auto">{error}</p>
+                    <button 
+                        onClick={() => fetchFees()} 
+                        className="mt-6 px-6 py-2.5 bg-[#2C2A46] text-white text-xs font-semibold rounded-full hover:bg-[#1E1B2E] transition-colors"
+                    >
+                        Try Again
+                    </button>
                 </div>
             </div>
         );
     }
 
+    const isHostelBundled = session?.user?.institute?.settings?.features?.bundleHostelInBaseFee || session?.user?.institute?.settings?.features?.combinedCourseFees;
+    const isTransportBundled = session?.user?.institute?.settings?.features?.bundleTransportInBaseFee || session?.user?.institute?.settings?.features?.combinedCourseFees;
+
+    const visibleFees = selectedTab === "all" || selectedTab === "course" ? fees : [];
+    const visibleTransport = selectedTab === "all" || selectedTab === "transport" ? transportFees : [];
+    const visibleHostel = selectedTab === "all" || selectedTab === "hostel" ? hostelAllotments : [];
+
+    const isAllEmpty = fees.length === 0 && transportFees.length === 0 && hostelAllotments.length === 0;
+
     return (
-        <div className="max-w-5xl mx-auto space-y-8 pb-12">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 p-6 sm:p-8 rounded-[16px] bg-white border border-[#E9E8F0] text-[#1E1B2E] relative overflow-hidden shadow-none">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-premium-blue/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-                <div className="relative space-y-2">
-                    <div className="flex items-center gap-2 text-premium-blue mb-1">
-                        <CreditCard size={20} />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Finance Hub</span>
-                    </div>
-                    <h1 className="text-3xl font-black italic tracking-tight">Financial Overview</h1>
-                    <p className="text-slate-500 font-medium text-sm">Track your course payments, installment plans, and official receipts.</p>
+        <div className="max-w-6xl mx-auto space-y-6 pb-12 safe-pb">
+            {/* Top Header & Context Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold text-[#1E1B2E] tracking-tight">
+                        Fees & Payments
+                    </h1>
+                    <p className="text-xs text-[#8D8A9B] mt-0.5">
+                        Manage course tuition, installments, payment schedules & receipts
+                    </p>
                 </div>
-                <div className="relative flex items-center gap-4">
-                   <div className="text-right">
-                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Next Due Date</p>
-                       <p className="text-sm font-black italic text-premium-blue">Check Installments</p>
-                   </div>
+
+                {/* Filter Tabs Bar */}
+                <div className="flex items-center gap-1.5 p-1 bg-white rounded-full border border-[#E9E8F0] overflow-x-auto">
+                    <button
+                        onClick={() => setSelectedTab("all")}
+                        className={cn(
+                            "px-4 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all",
+                            selectedTab === "all"
+                                ? "bg-[#2C2A46] text-white"
+                                : "text-[#8D8A9B] hover:text-[#1E1B2E]"
+                        )}
+                    >
+                        All Schedules
+                    </button>
+                    <button
+                        onClick={() => setSelectedTab("course")}
+                        className={cn(
+                            "px-4 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all",
+                            selectedTab === "course"
+                                ? "bg-[#2C2A46] text-white"
+                                : "text-[#8D8A9B] hover:text-[#1E1B2E]"
+                        )}
+                    >
+                        Academic Tuition ({fees.length})
+                    </button>
+                    {transportFees.length > 0 && (
+                        <button
+                            onClick={() => setSelectedTab("transport")}
+                            className={cn(
+                                "px-4 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all",
+                                selectedTab === "transport"
+                                    ? "bg-[#2C2A46] text-white"
+                                    : "text-[#8D8A9B] hover:text-[#1E1B2E]"
+                            )}
+                        >
+                            Transport ({transportFees.length})
+                        </button>
+                    )}
+                    {hostelAllotments.length > 0 && (
+                        <button
+                            onClick={() => setSelectedTab("hostel")}
+                            className={cn(
+                                "px-4 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all",
+                                selectedTab === "hostel"
+                                    ? "bg-[#2C2A46] text-white"
+                                    : "text-[#8D8A9B] hover:text-[#1E1B2E]"
+                            )}
+                        >
+                            Hostel ({hostelAllotments.length})
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {(() => {
-                const isHostelBundled = session?.user?.institute?.settings?.features?.bundleHostelInBaseFee || session?.user?.institute?.settings?.features?.combinedCourseFees;
-                const isTransportBundled = session?.user?.institute?.settings?.features?.bundleTransportInBaseFee || session?.user?.institute?.settings?.features?.combinedCourseFees;
-
-                if (!isHostelBundled && !isTransportBundled) return null;
-
-                const bundledText = isHostelBundled && isTransportBundled
-                    ? "Course, Hostel & Transport services"
-                    : isHostelBundled
-                        ? "Course & Hostel services"
-                        : "Course & Transport services";
-
-                return (
-                    <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200/60 p-4 rounded-2xl text-emerald-800 text-xs font-bold shadow-sm">
-                        <span className="text-base">📦</span>
-                        <div>
-                            <span className="font-black">Bundled Base Fee Schedule:</span> Your main fee schedule covers {bundledText} directly in one structure without separate itemized billing.
+            {/* Adtech 4-Metric Summary Strip */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                {/* 1. Total Net Fee */}
+                <div className="bg-white rounded-[16px] border border-[#E9E8F0] p-4.5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-[#8D8A9B] uppercase tracking-wider">
+                            Total Course Fee
+                        </span>
+                        <div className="w-8 h-8 rounded-full bg-[#F4F3F7] flex items-center justify-center text-[#2C2A46]">
+                            <Receipt size={16} />
                         </div>
                     </div>
-                );
-            })()}
+                    <div className="mt-2 text-xl font-bold text-[#1E1B2E] tracking-tight">
+                        ₹{summaryMetrics.totalPayable.toLocaleString()}
+                    </div>
+                    <p className="text-[11px] text-[#8D8A9B] mt-0.5">
+                        Net approved schedule
+                    </p>
+                </div>
 
-            <div className="grid gap-8">
-                {fees.map((fee, fIdx) => {
+                {/* 2. Total Paid */}
+                <div className="bg-white rounded-[16px] border border-[#E9E8F0] p-4.5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-[#8D8A9B] uppercase tracking-wider">
+                            Total Paid
+                        </span>
+                        <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-[#33C481]">
+                            <CheckCircle2 size={16} />
+                        </div>
+                    </div>
+                    <div className="mt-2 text-xl font-bold text-[#33C481] tracking-tight">
+                        ₹{summaryMetrics.totalPaid.toLocaleString()}
+                    </div>
+                    <p className="text-[11px] text-[#8D8A9B] mt-0.5">
+                        <span className="font-semibold text-[#33C481]">{summaryMetrics.percentCleared}%</span> cleared to date
+                    </p>
+                </div>
+
+                {/* 3. Outstanding Due */}
+                <div className="bg-white rounded-[16px] border border-[#E9E8F0] p-4.5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-[#8D8A9B] uppercase tracking-wider">
+                            Outstanding Due
+                        </span>
+                        <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-[#F4C24A]">
+                            <Clock size={16} />
+                        </div>
+                    </div>
+                    <div className="mt-2 text-xl font-bold text-[#F4C24A] tracking-tight">
+                        ₹{summaryMetrics.totalBalance.toLocaleString()}
+                    </div>
+                    <p className="text-[11px] text-[#8D8A9B] mt-0.5">
+                        {summaryMetrics.totalBalance === 0 ? "Zero outstanding balance" : "Due for next cycle"}
+                    </p>
+                </div>
+
+                {/* 4. Account Compliance Status */}
+                <div className="bg-white rounded-[16px] border border-[#E9E8F0] p-4.5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-[#8D8A9B] uppercase tracking-wider">
+                            Account Standing
+                        </span>
+                        <div className="w-8 h-8 rounded-full bg-[#F1EFFB] flex items-center justify-center text-[#6E5AE0]">
+                            <ShieldCheck size={16} />
+                        </div>
+                    </div>
+                    <div className="mt-2 text-base font-bold text-[#1E1B2E] flex items-center gap-1.5">
+                        <span className={cn(
+                            "w-2 h-2 rounded-full",
+                            summaryMetrics.totalBalance === 0 
+                                ? "bg-[#33C481]" 
+                                : summaryMetrics.hasOverdue 
+                                    ? "bg-[#F4586A]" 
+                                    : "bg-[#6E5AE0]"
+                        )} />
+                        {summaryMetrics.totalBalance === 0 ? "Fully Cleared" : "Good Standing"}
+                    </div>
+                    <p className="text-[11px] text-[#8D8A9B] mt-0.5">
+                        Enrolled in active DCA batch
+                    </p>
+                </div>
+            </div>
+
+            {/* Registrar Payment Instruction Notice */}
+            <div className="p-4 rounded-[16px] bg-[#F8F7FA] border border-[#E9E8F0] flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#EDE8FB] text-[#6E5AE0] flex items-center justify-center shrink-0 mt-0.5">
+                    <Building2 size={16} />
+                </div>
+                <div className="space-y-0.5">
+                    <h4 className="text-xs font-bold text-[#1E1B2E]">Payment Processing Notice</h4>
+                    <p className="text-xs text-[#8D8A9B]">
+                        Fee payments and installment collections are processed through the institute registrar or accounts counter. Official digital receipts are recorded and issued here once verified.
+                    </p>
+                </div>
+            </div>
+
+            {/* Bundled Services Notice */}
+            {(isHostelBundled || isTransportBundled) && (
+                <div className="p-4 rounded-[16px] bg-emerald-50/60 border border-emerald-200/50 flex items-start gap-3">
+                    <span className="text-base mt-0.5">📦</span>
+                    <div>
+                        <span className="text-xs font-bold text-emerald-900">Bundled Base Fee Schedule: </span>
+                        <span className="text-xs text-emerald-800">
+                            Your academic tuition structure includes combined coverage for {isHostelBundled && isTransportBundled ? "Course, Hostel & Transport services" : isHostelBundled ? "Course & Hostel services" : "Course & Transport services"} in one integrated schedule.
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {/* Academic Fee Cards */}
+            <div className="space-y-6">
+                {visibleFees.map((fee) => {
                     const finalAmount = fee.totalAmount - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0);
+                    const percentPaid = finalAmount > 0 ? Math.round((fee.paidAmount / finalAmount) * 100) : 100;
+
                     return (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: fIdx * 0.1 }}
+                        <div 
                             key={fee._id} 
-                            className="bg-white rounded-[16px] border border-[#E9E8F0] shadow-none overflow-hidden hover:shadow-2xl transition-all duration-500"
+                            className="bg-white rounded-[16px] border border-[#E9E8F0] overflow-hidden transition-all"
                         >
-                            <div className="p-8 md:p-10">
-                                <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-900 shadow-sm group-hover:bg-slate-900 group-hover:text-white transition-all">
-                                                <Receipt size={24} />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-2xl font-black text-slate-900 italic tracking-tight">
-                                                    {fee.batch?.name || "Course Fee"}
-                                                </h2>
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                                    Ref: #{fee._id.toString().slice(-8).toUpperCase()}
-                                                </p>
-                                            </div>
+                            {/* Card Header & Summary Banner */}
+                            <div className="p-5 sm:p-6 border-b border-[#E9E8F0]">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#EDE8FB] text-[#6E5AE0]">
+                                                {fee.batch?.course?.code || "DCA"}
+                                            </span>
+                                            <h2 className="text-base sm:text-lg font-bold text-[#1E1B2E]">
+                                                {fee.batch?.name || "Batch 01"} {fee.batch?.course?.name ? `· ${fee.batch.course.name}` : ""}
+                                            </h2>
                                         </div>
-                                    </div>
-                                    <div className="flex flex-col md:items-end gap-3 w-full md:w-auto">
-                                        <StatusBadge status={fee.status} />
-                                        <Button 
-                                            onClick={() => router.push(`/student/receipts/${fee._id}`)}
-                                            className="bg-slate-50 text-slate-900 hover:bg-slate-900 hover:text-white border border-slate-200 rounded-2xl px-6 py-2 font-black uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 group shadow-sm"
-                                        >
-                                            View Receipt <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {/* Progress Bar */}
-                                <div className="mb-10 bg-slate-50 p-8 rounded-[2rem] border border-slate-100 shadow-inner">
-                                    <div className="flex flex-col md:flex-row justify-between gap-6 mb-6">
-                                        <div>
-                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Total Net Payable</p>
-                                            <p className="text-2xl font-black italic tracking-tighter text-slate-900">₹{finalAmount.toLocaleString()}</p>
-                                        </div>
-                                        <div className="flex flex-wrap gap-8">
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Total Paid</p>
-                                                <p className="text-xl font-black italic tracking-tighter text-emerald-600">₹{fee.paidAmount.toLocaleString()}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 mb-1">Outstanding</p>
-                                                <p className="text-xl font-black italic tracking-tighter text-amber-600">₹{fee.balanceAmount.toLocaleString()}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="relative h-4 w-full bg-white rounded-full overflow-hidden border border-slate-200 shadow-sm">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${finalAmount > 0 ? (fee.paidAmount / finalAmount) * 100 : 0}%` }}
-                                            transition={{ duration: 1, ease: "easeOut" }}
-                                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
-                                        />
-                                    </div>
-                                    <div className="flex justify-center mt-4">
-                                        <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-4 py-1 rounded-full uppercase tracking-widest shadow-sm">
-                                            {Math.round((fee.paidAmount / finalAmount) * 100)}% Cleared
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* UPI Autopay Control Card */}
-                                {fee.status !== 'paid' && (
-                                    <div className="mb-10 p-6 rounded-[2rem] border border-slate-200/60 bg-gradient-to-r from-slate-50 via-white to-slate-50/50 shadow-sm relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
-                                        <div className="absolute top-0 left-0 w-24 h-24 bg-blue-500/5 rounded-full -ml-12 -mt-12 blur-2xl"></div>
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-sm shrink-0">
-                                                <Sparkles size={22} className="animate-pulse" />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="text-sm font-black text-slate-800 tracking-tight">UPI Autopay (Auto-Debit)</h4>
-                                                    <span className="text-[9px] font-black uppercase bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md tracking-wider">
-                                                        NPCI Standard
-                                                    </span>
-                                                </div>
-                                                <p className="text-xs text-slate-500 font-medium mt-1 max-w-xl">
-                                                    Automatically clear your upcoming monthly installments using Google Pay, PhonePe, or Paytm. Safe, instant, and completely automated.
-                                                </p>
-                                                {autopayStates[fee._id]?.enabled && (
-                                                    <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-[10px] font-black text-emerald-700 uppercase tracking-widest animate-fade-in">
-                                                        <Check size={12} strokeWidth={3} /> Active Mandate: {autopayStates[fee._id]?.vpa}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="shrink-0 w-full md:w-auto">
-                                            <Button
-                                                onClick={() => handleAutopayToggle(fee._id, autopayStates[fee._id]?.enabled)}
-                                                className={cn(
-                                                    "w-full md:w-auto font-black uppercase tracking-widest text-[10px] py-3 px-6 rounded-2xl transition-all shadow-sm",
-                                                    autopayStates[fee._id]?.enabled
-                                                        ? "bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100"
-                                                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/10"
-                                                )}
-                                            >
-                                                {autopayStates[fee._id]?.enabled ? "Disable Autopay" : "Configure Autopay"}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Installments Table */}
-                                <div className="space-y-4">
-                                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-2">Installment Plan</h3>
-                                    <div className="border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
-                                        <div className="table-scroll-wrapper">
-                                            <table className="w-full text-left text-sm min-w-[500px]">
-                                                <thead className="bg-slate-50 border-b border-slate-100">
-                                                    <tr>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Due Date</th>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Amount</th>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Method</th>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest text-right">Status</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-50">
-                                                    {fee.installments?.map((inst, idx) => (
-                                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors group/row">
-                                                            <td className="px-8 py-5 font-black text-slate-700 italic">
-                                                                {format(new Date(inst.dueDate), "MMM dd, yyyy")}
-                                                            </td>
-                                                            <td className="px-8 py-5 font-black text-slate-900 text-lg tracking-tighter">
-                                                                ₹{inst.amount.toLocaleString()}
-                                                                {(inst.penaltyAmount > 0 || inst.penaltyPaid > 0) && (
-                                                                    <div className="mt-1 text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-100 rounded-md px-1.5 py-0.5 inline-block uppercase tracking-wider">
-                                                                        Late
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                                                {inst.paymentMethod ? inst.paymentMethod.replace('_', ' ') : '-'}
-                                                            </td>
-                                                            <td className="px-8 py-5 text-right">
-                                                                <div className="inline-flex justify-end">
-                                                                    <InstallmentStatusBadge status={inst.status} />
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {/* Also show penalty payment row separately for each installment if active */}
-                                                    {fee.installments?.filter(inst => inst.penaltyAmount > 0 || inst.penaltyPaid > 0).map((inst, idx) => (
-                                                        <tr key={`penalty-${idx}`} className="bg-rose-50/20 hover:bg-rose-50/40 transition-colors">
-                                                            <td className="px-8 py-4 text-xs font-black text-rose-700 italic pl-12 flex items-center gap-1.5">
-                                                                <span>↳ Penalty Payment</span>
-                                                                <span className="text-[9px] font-medium text-slate-400">(Due: {format(new Date(inst.dueDate), "MMM dd")})</span>
-                                                            </td>
-                                                            <td className="px-8 py-4 font-black text-rose-700 text-sm tracking-tighter">
-                                                                ₹{(inst.penaltyPaid || inst.penaltyAmount).toLocaleString()}
-                                                            </td>
-                                                            <td className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                                                -
-                                                            </td>
-                                                            <td className="px-8 py-4 text-right">
-                                                                <div className="inline-flex justify-end">
-                                                                    <span className={cn(
-                                                                        "text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider",
-                                                                        inst.penaltyStatus === 'paid' ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-rose-100 text-rose-700 border border-rose-200"
-                                                                    )}>
-                                                                        {inst.penaltyStatus === 'paid' ? 'Paid' : 'Overdue'}
-                                                                    </span>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                         </div>
-                          </motion.div>
-                    );
-                })}
-
-                {transportFees.map((fee, tfIdx) => {
-                    const finalAmount = fee.totalAmount;
-                    return (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: (fees.length + tfIdx) * 0.1 }}
-                            key={fee._id} 
-                            className="bg-white rounded-[16px] border border-[#E9E8F0] shadow-none overflow-hidden hover:shadow-2xl transition-all duration-500"
-                        >
-                            <div className="p-8 md:p-10">
-                                <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shadow-sm transition-all">
-                                                <Bus size={24} />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <h2 className="text-2xl font-black text-slate-900 italic tracking-tight">
-                                                        {fee.route?.name || "Transport Fee"}
-                                                    </h2>
-                                                    {fee.preset?.name && (
-                                                        <span className="px-2 py-0.5 text-[10px] bg-amber-100 text-amber-700 rounded-full border border-amber-200 uppercase font-medium">
-                                                            {fee.preset.name}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-slate-500 mt-1">Vehicle: {fee.vehicle?.registrationNumber || "N/A"}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col md:items-end gap-3 w-full md:w-auto">
-                                        <StatusBadge status={fee.status} />
-                                    </div>
-                                </div>
-
-                                {/* Progress Bar */}
-                                <div className="mb-10 bg-amber-50/10 p-8 rounded-[2rem] border border-amber-100/50 shadow-inner">
-                                    <div className="flex flex-col md:flex-row justify-between gap-6 mb-6">
-                                        <div>
-                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Total Transport Fee</p>
-                                            <p className="text-2xl font-black italic tracking-tighter text-slate-900">₹{finalAmount.toLocaleString()}</p>
-                                        </div>
-                                        <div className="flex wrap gap-8">
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Total Paid</p>
-                                                <p className="text-xl font-black italic tracking-tighter text-emerald-600">₹{fee.paidAmount.toLocaleString()}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 mb-1">Outstanding</p>
-                                                <p className="text-xl font-black italic tracking-tighter text-amber-600">₹{fee.balanceAmount.toLocaleString()}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="relative h-4 w-full bg-white rounded-full overflow-hidden border border-slate-200 shadow-sm">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${finalAmount > 0 ? (fee.paidAmount / finalAmount) * 100 : 0}%` }}
-                                            transition={{ duration: 1, ease: "easeOut" }}
-                                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full"
-                                        />
-                                    </div>
-                                    <div className="flex justify-center mt-4">
-                                        <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-4 py-1 rounded-full uppercase tracking-widest shadow-sm">
-                                            {Math.round((fee.paidAmount / finalAmount) * 100)}% Cleared
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Installments Table */}
-                                <div className="space-y-4">
-                                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-2">Installment Plan</h3>
-                                    <div className="border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
-                                        <div className="table-scroll-wrapper">
-                                            <table className="w-full text-left text-sm min-w-[500px]">
-                                                <thead className="bg-slate-50 border-b border-slate-100">
-                                                    <tr>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Period / Month</th>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Amount</th>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Due Date</th>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest text-right">Status</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-50">
-                                                    {fee.installments?.map((inst, idx) => (
-                                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors group/row">
-                                                            <td className="px-8 py-5 font-black text-slate-700 italic">
-                                                                {inst.label}
-                                                            </td>
-                                                            <td className="px-8 py-5 font-black text-slate-900 text-lg tracking-tighter">
-                                                                ₹{inst.amount.toLocaleString()}
-                                                            </td>
-                                                            <td className="px-8 py-5 font-mono text-xs text-slate-500">
-                                                                {inst.dueDate && !isNaN(new Date(inst.dueDate)) ? format(new Date(inst.dueDate), "MMM dd, yyyy") : '-'}
-                                                            </td>
-                                                            <td className="px-8 py-5 text-right">
-                                                                <div className="inline-flex justify-end">
-                                                                    <InstallmentStatusBadge status={inst.status} />
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    );
-                })}
-
-                {hostelAllotments.map((allotment, hIdx) => {
-                    const finalAmount = allotment.totalAmount;
-                    return (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: (fees.length + transportFees.length + hIdx) * 0.1 }}
-                            key={allotment._id} 
-                            className="bg-white rounded-[16px] border border-[#E9E8F0] shadow-none overflow-hidden hover:shadow-2xl transition-all duration-500"
-                        >
-                            <div className="p-8 md:p-10">
-                                <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm transition-all">
-                                                <Hotel size={24} />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <h2 className="text-2xl font-black text-slate-900 italic tracking-tight">
-                                                        {allotment.room?.roomNumber ? `Room ${allotment.room.roomNumber}` : 'Hostel Fee'}
-                                                    </h2>
-                                                    {allotment.block?.blockName && (
-                                                        <span className="px-2 py-0.5 text-[10px] bg-indigo-100 text-indigo-700 rounded-full border border-indigo-200 uppercase font-medium">
-                                                            {allotment.block.blockName}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-slate-500 mt-1 capitalize">Billing Plan: {allotment.billingCycle} (₹{allotment.feePerCycle?.toLocaleString()}/cycle)</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col md:items-end gap-3 w-full md:w-auto">
-                                        <StatusBadge status={allotment.feeStatus} />
-                                    </div>
-                                </div>
-
-                                {/* Progress Bar */}
-                                <div className="mb-10 bg-indigo-50/10 p-8 rounded-[2rem] border border-indigo-100/50 shadow-inner">
-                                    <div className="flex flex-col md:flex-row justify-between gap-6 mb-6">
-                                        <div>
-                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Total Hostel Fee</p>
-                                            <p className="text-2xl font-black italic tracking-tighter text-slate-900">₹{finalAmount.toLocaleString()}</p>
-                                        </div>
-                                        <div className="flex wrap gap-8">
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Total Paid</p>
-                                                <p className="text-xl font-black italic tracking-tighter text-emerald-600">₹{allotment.paidAmount.toLocaleString()}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 mb-1">Outstanding</p>
-                                                <p className="text-xl font-black italic tracking-tighter text-indigo-600">₹{allotment.balanceAmount.toLocaleString()}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="relative h-4 w-full bg-white rounded-full overflow-hidden border border-slate-200 shadow-sm">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${finalAmount > 0 ? (allotment.paidAmount / finalAmount) * 100 : 0}%` }}
-                                            transition={{ duration: 1, ease: "easeOut" }}
-                                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full"
-                                        />
-                                    </div>
-                                    <div className="flex justify-center mt-4">
-                                        <span className="text-[10px] font-black bg-indigo-100 text-indigo-700 px-4 py-1 rounded-full uppercase tracking-widest shadow-sm">
-                                            {Math.round((allotment.paidAmount / finalAmount) * 100)}% Cleared
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Installments Table */}
-                                <div className="space-y-4">
-                                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-2">Installment Plan</h3>
-                                    <div className="border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
-                                        <div className="table-scroll-wrapper">
-                                            <table className="w-full text-left text-sm min-w-[500px]">
-                                                <thead className="bg-slate-50 border-b border-slate-100">
-                                                    <tr>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Period / Month</th>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Amount</th>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Due Date</th>
-                                                        <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest text-right">Status</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-50">
-                                                    {allotment.installments?.map((inst, idx) => (
-                                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors group/row">
-                                                            <td className="px-8 py-5 font-black text-slate-700 italic">
-                                                                {inst.label}
-                                                            </td>
-                                                            <td className="px-8 py-5 font-black text-slate-900 text-lg tracking-tighter">
-                                                                ₹{inst.amount.toLocaleString()}
-                                                            </td>
-                                                            <td className="px-8 py-5 font-mono text-xs text-slate-500">
-                                                                {inst.dueDate && !isNaN(new Date(inst.dueDate)) ? format(new Date(inst.dueDate), "MMM dd, yyyy") : '-'}
-                                                            </td>
-                                                            <td className="px-8 py-5 text-right">
-                                                                <div className="inline-flex justify-end">
-                                                                    <InstallmentStatusBadge status={inst.status} />
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    );
-                })}
-
-                {!loading && fees.length === 0 && transportFees.length === 0 && hostelAllotments.length === 0 && (
-                    <div className="py-20 text-center text-slate-400 bg-white rounded-[16px] border border-dashed border-[#E9E8F0] shadow-none">
-                        <div className="w-16 h-16 bg-[#F1EFFB] rounded-[10px] flex items-center justify-center text-[#6E5AE0] mx-auto mb-4">
-                            <CreditCard size={32} />
-                        </div>
-                        <h4 className="text-xl font-black text-slate-900 tracking-tight italic">Clear Record</h4>
-                        <p className="text-slate-400 text-sm mt-2 max-w-[280px] mx-auto font-medium">No fee records found for your account. Please contact the registrar if this is an error.</p>
-                    </div>
-                )}
-            </div>
-
-            {/* UPI Autopay Setup Modal Simulation */}
-            <AnimatePresence>
-                {activeFeeForAutopay && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        {/* Backdrop */}
-                        <motion.div 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => {
-                                if (setupStep !== 2) setActiveFeeForAutopay(null);
-                            }}
-                            className="absolute inset-0 bg-slate-900/60"
-                        />
-
-                        {/* Modal Container */}
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl w-full max-w-lg p-8 relative z-10 overflow-hidden"
-                        >
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-
-                            {/* Step 1: Input VPA */}
-                            {setupStep === 1 && (
-                                <div className="space-y-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-sm shrink-0">
-                                            <Smartphone size={24} />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-xl font-black text-slate-900 italic tracking-tight">Configure UPI Autopay</h3>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Step 1 of 2: Authorize Mandate</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-3">
-                                        <div className="flex gap-2">
-                                            <Shield size={16} className="text-blue-500 shrink-0 mt-0.5" />
-                                            <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                                                By setting up Autopay, you authorize our secure payment system to auto-debit your scheduled fee installments directly on the due dates.
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Info size={16} className="text-slate-400 shrink-0 mt-0.5" />
-                                            <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                                                Under RBI regulations, you will receive a notification 24 hours before any debit. No UPI PIN is required for transactions up to ₹15,000.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block ml-1">Your UPI ID / VPA</label>
-                                        <input 
-                                            type="text" 
-                                            placeholder="e.g. parent@okaxis" 
-                                            value={vpaInput}
-                                            onChange={(e) => setVpaInput(e.target.value)}
-                                            disabled={isSettingUp}
-                                            className={cn(
-                                                "w-full px-5 py-4 rounded-2xl border bg-slate-50 text-slate-900 text-sm font-semibold outline-none transition-all shadow-inner focus:bg-white focus:ring-2 focus:ring-blue-500/20",
-                                                vpaError ? "border-rose-300 focus:border-rose-500" : "border-slate-200 focus:border-blue-500"
-                                            )}
-                                        />
-                                        {vpaError && (
-                                            <p className="text-xs text-rose-500 font-medium ml-1 flex items-center gap-1">
-                                                <AlertCircle size={12} /> {vpaError}
-                                            </p>
-                                        )}
-                                        <div className="flex items-center justify-between text-[10px] text-slate-400 px-1 pt-1 font-medium">
-                                            <span>Accepted: GPay, PhonePe, Paytm, BHIM</span>
-                                            <span className="flex items-center gap-1"><Shield size={10} className="text-emerald-500" /> Secure 256-Bit SSL</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-3 pt-2">
-                                        <Button 
-                                            variant="ghost" 
-                                            onClick={() => setActiveFeeForAutopay(null)}
-                                            disabled={isSettingUp}
-                                            className="flex-1 py-4 font-bold border border-slate-200 text-slate-500 rounded-2xl transition-all"
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button 
-                                            onClick={handleSetupAutopay}
-                                            disabled={isSettingUp}
-                                            className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-500/10 font-bold flex items-center justify-center gap-2"
-                                        >
-                                            {isSettingUp ? (
-                                                <>
-                                                    <Loader2 size={16} className="animate-spin" />
-                                                    Connecting...
-                                                </>
-                                            ) : (
-                                                'Initiate Setup'
-                                            )}
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Step 2: Verification Pending inside the UPI App */}
-                            {setupStep === 2 && (
-                                <div className="space-y-8 py-4 text-center">
-                                    <div className="relative w-24 h-24 mx-auto mb-6">
-                                        <div className="absolute inset-0 bg-blue-500/10 rounded-full animate-ping"></div>
-                                        <div className="w-24 h-24 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-sm relative">
-                                            <Loader2 size={40} className="animate-spin" />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <h3 className="text-xl font-black text-slate-900 italic tracking-tight">App Authorization Pending</h3>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Step 2 of 2: Authorize in your App</p>
-                                    </div>
-
-                                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4 max-w-sm mx-auto text-left">
-                                        <div className="flex gap-3">
-                                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-black shrink-0">1</div>
-                                            <p className="text-xs text-slate-600 font-medium">Open your UPI App (**{vpaInput}**).</p>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-black shrink-0">2</div>
-                                            <p className="text-xs text-slate-600 font-medium">Review the pending mandate authorization notification.</p>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-black shrink-0">3</div>
-                                            <p className="text-xs text-slate-600 font-medium">Enter your **UPI PIN** to verify a refundable ₹1 authorization.</p>
-                                        </div>
-                                    </div>
-
-                                    <p className="text-[10px] text-slate-400 font-medium italic animate-pulse">
-                                        Listening for Payment Gateway confirmation...
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Step 3: Success Screen */}
-                            {setupStep === 3 && (
-                                <div className="space-y-6 text-center py-4">
-                                    <div className="w-20 h-20 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shadow-md mx-auto mb-6">
-                                        <CheckCircle2 size={40} className="animate-bounce" />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <h3 className="text-2xl font-black text-slate-900 italic tracking-tight">UPI Autopay Active!</h3>
-                                        <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto">
-                                            Mandate registration successful. Upcoming course installments will be automatically debited.
+                                        <p className="text-xs text-[#8D8A9B]">
+                                            Institute Ref: #{fee._id.toString().slice(-8).toUpperCase()} · Created {format(new Date(fee.createdAt), "MMM yyyy")}
                                         </p>
                                     </div>
 
-                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-left space-y-2.5 max-w-sm mx-auto">
-                                        <div className="flex justify-between text-xs font-medium">
-                                            <span className="text-slate-400">Linked VPA:</span>
-                                            <span className="text-slate-800 font-black italic">{vpaInput}</span>
-                                        </div>
-                                        <div className="flex justify-between text-xs font-medium">
-                                            <span className="text-slate-400">Billing Mode:</span>
-                                            <span className="text-slate-800 font-black italic">Auto-Debit (NPCI)</span>
-                                        </div>
-                                        <div className="flex justify-between text-xs font-medium">
-                                            <span className="text-slate-400">Pre-Debit Alert:</span>
-                                            <span className="text-slate-800 font-black italic">SMS / WhatsApp</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-2">
-                                        <Button 
-                                            onClick={() => setActiveFeeForAutopay(null)}
-                                            className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-slate-900/10 transition-all"
+                                    {/* Action Buttons: Purely View Receipts (No Online Pay) */}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <StatusPill status={fee.status} />
+                                        <button
+                                            onClick={() => router.push(`/student/receipts/${fee._id}`)}
+                                            className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-full bg-[#F4F3F7] text-[#1E1B2E] border border-[#E9E8F0] hover:bg-[#EDE8FB] hover:text-[#6E5AE0] transition-colors"
                                         >
-                                            Got It
-                                        </Button>
+                                            <Receipt size={13} />
+                                            Official Receipt
+                                            <ArrowUpRight size={12} className="opacity-70" />
+                                        </button>
                                     </div>
                                 </div>
-                            )}
-                        </motion.div>
+
+                                {/* Clean Progress Clearance Bar */}
+                                <div className="mt-5 pt-4 border-t border-[#F4F3F7]">
+                                    <div className="flex justify-between items-center text-xs mb-2">
+                                        <span className="font-semibold text-[#1E1B2E]">
+                                            Clearance Progress: <span className="text-[#33C481]">{percentPaid}%</span>
+                                        </span>
+                                        <span className="text-[#8D8A9B]">
+                                            ₹{fee.paidAmount.toLocaleString()} of ₹{finalAmount.toLocaleString()} paid
+                                        </span>
+                                    </div>
+                                    <div className="w-full h-2 bg-[#F4F3F7] rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-[#33C481] rounded-full transition-all duration-500"
+                                            style={{ width: `${percentPaid}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Installment Plan Matrix (Dual Responsive View) */}
+                            <div className="p-5 sm:p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#8D8A9B]">
+                                        Installment Schedule
+                                    </h3>
+                                    <span className="text-xs text-[#8D8A9B]">
+                                        {fee.installments?.length || 0} scheduled periods
+                                    </span>
+                                </div>
+
+                                {/* Desktop Table (>= 768px) */}
+                                <div className="hidden md:block rounded-[12px] border border-[#E9E8F0] overflow-hidden">
+                                    <table className="w-full text-left text-xs">
+                                        <thead className="bg-[#F8F7FA] border-b border-[#E9E8F0]">
+                                            <tr>
+                                                <th className="px-5 py-3 font-semibold text-[#8D8A9B] uppercase text-[10px] tracking-wider">Installment</th>
+                                                <th className="px-5 py-3 font-semibold text-[#8D8A9B] uppercase text-[10px] tracking-wider">Due Date</th>
+                                                <th className="px-5 py-3 font-semibold text-[#8D8A9B] uppercase text-[10px] tracking-wider">Amount</th>
+                                                <th className="px-5 py-3 font-semibold text-[#8D8A9B] uppercase text-[10px] tracking-wider">Payment Details</th>
+                                                <th className="px-5 py-3 font-semibold text-[#8D8A9B] uppercase text-[10px] tracking-wider">Status</th>
+                                                <th className="px-5 py-3 font-semibold text-[#8D8A9B] uppercase text-[10px] tracking-wider text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[#E9E8F0]">
+                                            {fee.installments?.map((inst, idx) => (
+                                                <tr key={inst._id || idx} className="hover:bg-[#F8F7FA]/60 transition-colors">
+                                                    <td className="px-5 py-3.5 font-bold text-[#1E1B2E]">
+                                                        Installment #{idx + 1}
+                                                    </td>
+                                                    <td className="px-5 py-3.5 text-[#8D8A9B]">
+                                                        {format(new Date(inst.dueDate), "MMM dd, yyyy")}
+                                                    </td>
+                                                    <td className="px-5 py-3.5 font-bold text-[#1E1B2E] text-sm">
+                                                        ₹{inst.amount.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-5 py-3.5 text-xs text-[#8D8A9B]">
+                                                        {inst.status === 'paid' ? (
+                                                            <div className="space-y-0.5">
+                                                                <span className="font-semibold text-[#1E1B2E] capitalize">
+                                                                    {inst.paymentMethod ? inst.paymentMethod.replace('_', ' ') : 'Counter Payment'}
+                                                                </span>
+                                                                {inst.transactionId && (
+                                                                    <div className="text-[10px] font-mono text-[#8D8A9B]">
+                                                                        Ref: {inst.transactionId}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[#8D8A9B] italic">Payable at registrar</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3.5">
+                                                        <InstallmentStatusPill status={inst.status} />
+                                                    </td>
+                                                    <td className="px-5 py-3.5 text-right">
+                                                        {inst.status === 'paid' ? (
+                                                            <button
+                                                                onClick={() => router.push(`/student/receipts/${fee._id}`)}
+                                                                className="px-3 py-1 text-[11px] font-semibold rounded-full bg-white border border-[#E9E8F0] text-[#1E1B2E] hover:bg-[#F1EFFB] hover:text-[#6E5AE0] transition-colors"
+                                                            >
+                                                                Receipt
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[11px] text-[#8D8A9B] font-medium">
+                                                                Counter Due
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Mobile Stacked Cards (< 768px) */}
+                                <div className="md:hidden space-y-3">
+                                    {fee.installments?.map((inst, idx) => (
+                                        <div 
+                                            key={inst._id || idx}
+                                            className="p-4 rounded-[12px] border border-[#E9E8F0] bg-[#F8F7FA]/40 space-y-3"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-bold text-[#1E1B2E]">
+                                                    Installment #{idx + 1}
+                                                </span>
+                                                <InstallmentStatusPill status={inst.status} />
+                                            </div>
+
+                                            <div className="flex items-baseline justify-between">
+                                                <div className="text-lg font-bold text-[#1E1B2E]">
+                                                    ₹{inst.amount.toLocaleString()}
+                                                </div>
+                                                <div className="text-xs text-[#8D8A9B]">
+                                                    Due: {format(new Date(inst.dueDate), "MMM dd, yyyy")}
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-2 border-t border-[#E9E8F0] flex items-center justify-between text-xs">
+                                                {inst.status === 'paid' ? (
+                                                    <>
+                                                        <span className="text-[#8D8A9B] font-mono text-[11px]">
+                                                            {inst.transactionId || "Verified Payment"}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => router.push(`/student/receipts/${fee._id}`)}
+                                                            className="px-3 py-1 text-xs font-semibold rounded-full bg-white border border-[#E9E8F0] text-[#1E1B2E]"
+                                                        >
+                                                            View Receipt
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[#8D8A9B] text-xs italic">
+                                                        Payable at accounts counter
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {/* Transport Fees Rendering */}
+                {visibleTransport.map((tf) => (
+                    <div key={tf._id} className="bg-white rounded-[16px] border border-[#E9E8F0] p-5 sm:p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-base font-bold text-[#1E1B2E]">
+                                    {tf.route?.name || "Transport Service"}
+                                </h3>
+                                <p className="text-xs text-[#8D8A9B]">
+                                    Vehicle: {tf.vehicle?.registrationNumber || "Campus Bus"}
+                                </p>
+                            </div>
+                            <StatusPill status={tf.status} />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3 p-3.5 rounded-[12px] bg-[#F8F7FA] text-xs">
+                            <div>
+                                <span className="text-[#8D8A9B]">Total Fee:</span>
+                                <p className="font-bold text-[#1E1B2E]">₹{tf.totalAmount.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <span className="text-[#8D8A9B]">Paid:</span>
+                                <p className="font-bold text-[#33C481]">₹{tf.paidAmount.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <span className="text-[#8D8A9B]">Balance:</span>
+                                <p className="font-bold text-[#F4C24A]">₹{tf.balanceAmount.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+
+                {/* Hostel Allotments Rendering */}
+                {visibleHostel.map((ha) => (
+                    <div key={ha._id} className="bg-white rounded-[16px] border border-[#E9E8F0] p-5 sm:p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-base font-bold text-[#1E1B2E]">
+                                    {ha.room?.roomNumber ? `Hostel Room ${ha.room.roomNumber}` : 'Hostel Allotment'}
+                                </h3>
+                                <p className="text-xs text-[#8D8A9B]">
+                                    Block: {ha.block?.blockName || "Residence"} · {ha.billingCycle} billing
+                                </p>
+                            </div>
+                            <StatusPill status={ha.feeStatus} />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3 p-3.5 rounded-[12px] bg-[#F8F7FA] text-xs">
+                            <div>
+                                <span className="text-[#8D8A9B]">Total Fee:</span>
+                                <p className="font-bold text-[#1E1B2E]">₹{ha.totalAmount.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <span className="text-[#8D8A9B]">Paid:</span>
+                                <p className="font-bold text-[#33C481]">₹{ha.paidAmount.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <span className="text-[#8D8A9B]">Balance:</span>
+                                <p className="font-bold text-[#F4C24A]">₹{ha.balanceAmount.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+
+                {/* Empty State */}
+                {isAllEmpty && (
+                    <div className="py-16 text-center bg-white rounded-[16px] border border-[#E9E8F0]">
+                        <div className="w-12 h-12 bg-[#F1EFFB] text-[#6E5AE0] rounded-full flex items-center justify-center mx-auto mb-3">
+                            <CreditCard size={22} />
+                        </div>
+                        <h4 className="text-base font-bold text-[#1E1B2E]">No Fee Schedules Found</h4>
+                        <p className="text-xs text-[#8D8A9B] mt-1 max-w-xs mx-auto">
+                            There are currently no active fee records or pending dues assigned to your account.
+                        </p>
                     </div>
                 )}
-            </AnimatePresence>
+            </div>
         </div>
     );
 }
 
-function StatusBadge({ status }) {
-    if (status === 'paid') return <Badge variant="success" className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 border-emerald-100">Paid in Full</Badge>;
-    if (status === 'partial') return <Badge variant="warning" className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border-amber-100">Partially Paid</Badge>;
-    if (status === 'overdue') return <Badge variant="error" className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-rose-50 text-rose-600 border-rose-100">Overdue</Badge>;
-    return <Badge variant="neutral" className="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-50 text-slate-400 border-slate-100">Not Started</Badge>;
-}
-
-function InstallmentStatusBadge({ status }) {
+// Visual Status Pills
+function StatusPill({ status }) {
     if (status === 'paid') {
         return (
-            <span className="flex items-center gap-2 text-[10px] font-black text-emerald-600 bg-emerald-50 px-4 py-1.5 rounded-xl border border-emerald-100 uppercase tracking-widest">
-                <CheckCircle2 size={12} /> Paid
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-[#33C481] border border-emerald-200">
+                <CheckCircle2 size={12} /> Paid in Full
+            </span>
+        );
+    }
+    if (status === 'partial') {
+        return (
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-[#F4C24A] border border-amber-200">
+                <Clock size={12} /> Partially Paid
             </span>
         );
     }
     if (status === 'overdue') {
         return (
-            <span className="flex items-center gap-2 text-[10px] font-black text-rose-600 bg-rose-50 px-4 py-1.5 rounded-xl border border-rose-100 uppercase tracking-widest">
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-[#F4586A] border border-rose-200">
                 <AlertCircle size={12} /> Overdue
             </span>
         );
     }
     return (
-        <span className="flex items-center gap-2 text-[10px] font-black text-amber-600 bg-amber-50 px-4 py-1.5 rounded-xl border border-amber-100 uppercase tracking-widest">
-            <Clock size={12} /> Pending
+        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#F4F3F7] text-[#8D8A9B] border border-[#E9E8F0]">
+            Not Started
+        </span>
+    );
+}
+
+function InstallmentStatusPill({ status }) {
+    if (status === 'paid') {
+        return (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#33C481] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                <Check size={11} strokeWidth={2.5} /> Paid
+            </span>
+        );
+    }
+    if (status === 'overdue') {
+        return (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#F4586A] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
+                <AlertCircle size={11} /> Overdue
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#F4C24A] bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+            <Clock size={11} /> Pending
         </span>
     );
 }
