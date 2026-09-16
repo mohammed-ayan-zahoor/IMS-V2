@@ -4,8 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Attendance from "@/models/Attendance";
 import Batch from "@/models/Batch";
+import Course from "@/models/Course";
+import User from "@/models/User";
 import mongoose from "mongoose";
-import Session from "@/models/Session";
 
 export async function GET(req) {
     try {
@@ -18,70 +19,30 @@ export async function GET(req) {
 
         const { searchParams } = new URL(req.url);
         let page = parseInt(searchParams.get("page")) || 1;
-        let limit = parseInt(searchParams.get("limit")) || 20;
-        if (limit > 100) limit = 100;
+        let limit = parseInt(searchParams.get("limit")) || 100;
+        if (limit > 200) limit = 200;
         if (page < 1) page = 1;
-        const skip = (page - 1) * limit;
 
         const studentObjId = new mongoose.Types.ObjectId(session.user.id);
+        const instituteId = session.user.institute?.id ? new mongoose.Types.ObjectId(session.user.institute.id) : null;
 
-        const querySessionId = searchParams.get("sessionId");
-
-        let activeSession = null;
-        if (querySessionId && session.user.institute?.id) {
-            // Verify the requested session belongs to this student's institute.
-            // Never trust a client-provided session ID without ownership check.
-            try {
-                activeSession = await Session.findOne({
-                    _id: new mongoose.Types.ObjectId(querySessionId),
-                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
-                    deletedAt: null
-                }).select("_id");
-                // If null: session doesn't exist or belongs to another institute → fall through below
-            } catch {
-                // Invalid ObjectId format — ignore and fall through
-                activeSession = null;
-            }
+        if (!instituteId) {
+            return NextResponse.json({ error: "Institute not found" }, { status: 400 });
         }
 
-        if (!activeSession && session.user.institute?.id) {
-            // Server-derived fallback: prefer currently active session, else most recent
-            activeSession = await Session.findOne({
-                instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
-                isActive: true,
-                deletedAt: null
-            }).select("_id");
-            if (!activeSession) {
-                activeSession = await Session.findOne({
-                    instituteId: new mongoose.Types.ObjectId(session.user.institute.id),
-                    deletedAt: null
-                }).select("_id").sort({ startDate: -1 });
-            }
-        }
-
-        const batchQuery = {
+        // Retrieve enrolled batches for the student in this institute
+        const enrolledBatches = await Batch.find({
+            institute: instituteId,
             enrolledStudents: {
                 $elemMatch: {
                     student: studentObjId,
                     status: { $in: ["active", "completed"] }
                 }
-            },
-            deletedAt: null
-        };
-
-        if (activeSession) {
-            batchQuery.session = { $in: [activeSession._id, null] };
-        }
-
-        // Get batches first with correct elemMatch query
-        const studentBatches = await Batch.find(batchQuery).select("_id").lean();
-        const batchIds = studentBatches.map(b => b._id);
-
-        const monthParam = searchParams.get("month");
-        const yearParam = searchParams.get("year");
+            }
+        }).select("_id name course").populate("course", "name code").lean();
 
         const query = {
-            batch: { $in: batchIds },
+            institute: instituteId,
             records: {
                 $elemMatch: {
                     student: studentObjId
@@ -89,24 +50,37 @@ export async function GET(req) {
             }
         };
 
+        const batchIdParam = searchParams.get("batchId");
+        if (batchIdParam && batchIdParam !== "all") {
+            try {
+                query.batch = new mongoose.Types.ObjectId(batchIdParam);
+            } catch {
+                // Ignore invalid ObjectId format
+            }
+        }
+
+        const monthParam = searchParams.get("month");
+        const yearParam = searchParams.get("year");
         if (monthParam && yearParam) {
             const m = parseInt(monthParam);
             const y = parseInt(yearParam);
-            const startDate = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
-            const endDate = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
-            query.date = { $gte: startDate, $lte: endDate };
+            if (!isNaN(m) && !isNaN(y) && m >= 1 && m <= 12) {
+                const startDate = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
+                const endDate = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+                query.date = { $gte: startDate, $lte: endDate };
+            }
         }
 
-        // Find attendance records for these batches
+        // Find attendance records for this student and institute
         const [attendance, totalCount] = await Promise.all([
             Attendance.find(query)
                 .populate("batch", "name")
+                .populate("markedBy", "profile role name")
                 .sort({ date: 1 })
-                .lean(), // ascending date order for calendar/list
+                .lean(),
             Attendance.countDocuments(query)
         ]);
 
-        // Map to simpler format for frontend, checking user's specific status
         let present = 0;
         let absent = 0;
         let late = 0;
@@ -123,12 +97,22 @@ export async function GET(req) {
             else if (status === 'excused') excused++;
             else if (status === 'holiday') holiday++;
 
+            const facultyName = record.markedBy?.profile
+                ? `${record.markedBy.profile.firstName || ''} ${record.markedBy.profile.lastName || ''}`.trim()
+                : (record.markedBy?.name || "Faculty In-Charge");
+
             return {
                 _id: record._id,
                 date: record.date,
                 batchId: record.batch?._id || "",
-                batchName: record.batch?.name || "Unknown Batch",
+                batchName: record.batch?.name || "Academic Session",
                 status,
+                method: studentRecord?.method || "manual",
+                slot: studentRecord?.slot || "checkin",
+                markedAt: studentRecord?.markedAt || record.createdAt || null,
+                periodName: studentRecord?.periodName || record.periodName || "Regular Lecture",
+                remarks: studentRecord?.remarks || "",
+                markedByName: facultyName,
                 topic: record.topic || "-"
             };
         });
@@ -147,6 +131,12 @@ export async function GET(req) {
         };
 
         return NextResponse.json({
+            batches: enrolledBatches.map(b => ({
+                _id: String(b._id),
+                name: b.name,
+                courseName: b.course?.name || b.name,
+                courseCode: b.course?.code || ""
+            })),
             history,
             stats,
             pagination: {
@@ -162,3 +152,4 @@ export async function GET(req) {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
+
