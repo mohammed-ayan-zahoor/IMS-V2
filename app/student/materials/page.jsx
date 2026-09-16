@@ -3,7 +3,22 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { format } from "date-fns";
-import { FileText, Video, Link as LinkIcon, Download, Search, BookOpen, Clock, AlertTriangle, X, UploadCloud, CheckCircle, HelpCircle } from "lucide-react";
+import { 
+    FileText, 
+    Video, 
+    Link as LinkIcon, 
+    Download, 
+    Search, 
+    BookOpen, 
+    Clock, 
+    AlertTriangle, 
+    X, 
+    UploadCloud, 
+    CheckCircle, 
+    HelpCircle,
+    Play,
+    ExternalLink
+} from "lucide-react";
 import dynamic from 'next/dynamic';
 
 const PdfViewer = dynamic(() => import('./PdfViewer'), { ssr: false });
@@ -11,7 +26,7 @@ const PdfViewer = dynamic(() => import('./PdfViewer'), { ssr: false });
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { cn } from "@/lib/utils";
+import { cn, getYoutubeVideoId, getYoutubeThumbnail } from "@/lib/utils";
 
 export default function StudentMaterialsPage() {
     return (
@@ -157,203 +172,291 @@ function MaterialsContent() {
     };
 
     const filteredMaterials = materials.filter(mat => {
-        const matchesSearch = mat.title.toLowerCase().includes(search.toLowerCase()) || mat.course?.name?.toLowerCase().includes(search.toLowerCase());
-        const matchesType = activeType === 'all' || mat.file?.type === activeType;
-        return matchesSearch && matchesType;
+        const q = search.toLowerCase().trim();
+        const matchesSearch = !q || 
+            (mat.title || "").toLowerCase().includes(q) || 
+            (mat.course?.name || "").toLowerCase().includes(q) ||
+            (mat.description || "").toLowerCase().includes(q);
+
+        const ytId = getYoutubeVideoId(mat.file?.url);
+        const isVideo = mat.file?.type === 'video' || Boolean(ytId);
+        const isPdf = mat.file?.type === 'pdf';
+
+        if (activeType === 'video') return matchesSearch && isVideo;
+        if (activeType === 'pdf') return matchesSearch && isPdf;
+        return matchesSearch;
     });
 
     if (loading) return <LoadingSpinner fullPage />;
 
-    // IframeWithFallback handles its own loading state locally now.
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
-            <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">Learning Materials</h1>
-                <p className="text-slate-500">Access notes, assignments, and reference videos for your courses.</p>
+        <div className="max-w-7xl mx-auto space-y-6 safe-pb p-2 sm:p-4">
+            {/* Header Strip */}
+            <div className="bg-white rounded-[16px] border border-[#E9E8F0] p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold text-[#1E1B2E]">Learning Materials</h1>
+                    <p className="text-xs text-[#8D8A9B] mt-0.5">
+                        Access video lectures, lecture notes, and reference materials for your enrolled courses.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="px-3.5 py-1.5 rounded-full bg-[#EDE8FB] text-[#6E5AE0] text-xs font-semibold">
+                        {filteredMaterials.length} {filteredMaterials.length === 1 ? "Resource" : "Resources"}
+                    </span>
+                </div>
             </div>
 
             {/* Error Banner */}
             {error && (
-                <div role="alert" className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-start gap-4 animate-in slide-in-from-top-2">
+                <div role="alert" className="bg-red-50 border border-red-200 p-4 rounded-[16px] flex items-start gap-4">
                     <div className="p-2 bg-red-100 rounded-full text-red-600">
                         <AlertTriangle size={20} />
                     </div>
                     <div className="flex-1">
-                        <h3 className="font-bold text-red-800">Unable to load materials</h3>
-                        <p className="text-sm text-red-600 mt-1">{error}</p>
+                        <h3 className="font-bold text-red-800 text-sm">Unable to load materials</h3>
+                        <p className="text-xs text-red-600 mt-0.5">{error}</p>
                     </div>
                 </div>
             )}
 
             {/* Controls */}
-            <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex bg-slate-100/50 p-1 rounded-xl w-fit">
-                    {['all', 'pdf', 'video'].map(type => (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-[16px] border border-[#E9E8F0]">
+                {/* Type Filter Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
+                    {[
+                        { id: 'all', label: 'All Resources' },
+                        { id: 'video', label: 'Video Lectures' },
+                        { id: 'pdf', label: 'PDF Handbooks' }
+                    ].map(tab => (
                         <button
-                            key={type}
-                            onClick={() => setActiveType(type)}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${activeType === type
-                                ? "bg-white text-premium-blue shadow-sm ring-1 ring-slate-200"
-                                : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                                }`}
+                            key={tab.id}
+                            onClick={() => setActiveType(tab.id)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+                                activeType === tab.id
+                                    ? "bg-[#2C2A46] text-white"
+                                    : "bg-[#F8F7FA] text-[#8D8A9B] hover:text-[#1E1B2E]"
+                            }`}
                         >
-                            {type === 'all' ? 'All Resources' : type + 's'}
+                            {tab.label}
                         </button>
                     ))}
                 </div>
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+
+                {/* Search Input */}
+                <div className="relative min-w-[240px]">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8D8A9B]" size={14} />
                     <input
                         type="text"
-                        placeholder="Search by title or course..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-premium-blue/20 outline-none text-slate-700 font-medium"
+                        placeholder="Search resources, topics, or courses..."
+                        className="w-full pl-9 pr-4 py-2 bg-[#F8F7FA] border border-[#E9E8F0] rounded-full text-xs font-medium text-[#1E1B2E] placeholder-[#8D8A9B] outline-none focus:border-[#6E5AE0] transition-colors"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredMaterials.map(mat => (
-                    <div 
-                        key={mat._id} 
-                        ref={el => scrollRefs.current[mat._id] = el}
-                        className={cn(
-                            "transition-all duration-500 rounded-2xl",
-                            highlightedId === mat._id ? "ring-4 ring-blue-600 ring-offset-4 scale-[1.02] z-10" : ""
-                        )}
-                    >
-                        <Card className="group hover:border-premium-blue/30 transition-all flex flex-col h-full hover:shadow-lg bg-white overflow-hidden">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${mat.file?.type === 'pdf' ? 'bg-red-50 text-red-600' :
-                                mat.file?.type === 'video' ? 'bg-purple-50 text-purple-600' :
-                                    'bg-blue-50 text-blue-600'
-                                }`}>
-                                {mat.file?.type === 'pdf' ? <FileText size={22} /> :
-                                    mat.file?.type === 'video' ? <Video size={22} /> :
-                                        <LinkIcon size={22} />}
-                            </div>
-                            <Badge variant="neutral" className="bg-slate-100 text-slate-500">
-                                {mat.file?.type?.toUpperCase() ?? 'UNKNOWN'}
-                            </Badge>                        </div>
+            {/* Materials Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {filteredMaterials.map(mat => {
+                    const ytVideoId = getYoutubeVideoId(mat.file?.url);
+                    const ytThumbnail = ytVideoId ? getYoutubeThumbnail(mat.file?.url) : null;
+                    const isVideo = mat.file?.type === 'video' || Boolean(ytVideoId);
+                    const isPdf = mat.file?.type === 'pdf';
 
-                        <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-1 group-hover:text-premium-blue transition-colors">
-                            {mat.title}
-                        </h3>
-                        <p className="text-sm text-slate-500 mb-6 line-clamp-2">
-                            {mat.description || "No description provided."}
-                        </p>
-
-                        <div className="mt-auto space-y-4">
-                            <div className="flex items-center gap-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                <span className="flex items-center gap-1">
-                                    <BookOpen size={14} />
-                                    {mat.course?.name}
-                                </span>
-                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                <span className="flex items-center gap-1">
-                                    <Clock size={14} />
-                                    {format(new Date(mat.createdAt), "MMM d")}
-                                </span>
-                            </div>
-
-                            {mat.file?.type === 'video' ? (
-                                <button
-                                    onClick={() => setSelectedVideo(mat)} // Triggers loading state logic via useEffect below (not implemented here but in component body)
-                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-premium-blue text-white rounded-xl font-bold hover:bg-premium-blue/90 transition-colors shadow-lg shadow-premium-blue/20"
-                                >
-                                    <Video size={18} />
-                                    Watch Video
-                                </button>
-                            ) : mat.file?.type === 'pdf' ? (
-                                <button
-                                    onClick={() => setSelectedPdf(mat)}
-                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-premium-blue text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20"
-                                >
-                                    <FileText size={18} />
-                                    View PDF
-                                </button>
-                            ) : (
-                                <a
-                                    href={mat.file?.url}
-                                    target="_self"
-                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-premium-blue text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20"
-                                >
-                                    <Download size={18} />
-                                    Access Resource
-                                </a>
+                    return (
+                        <div 
+                            key={mat._id} 
+                            ref={el => scrollRefs.current[mat._id] = el}
+                            className={cn(
+                                "transition-all duration-300 rounded-[16px]",
+                                highlightedId === mat._id ? "ring-2 ring-[#6E5AE0] scale-[1.01]" : ""
                             )}
-
-                            {/* Assignment Submission Section */}
-                            {mat.category === 'assignment' && mat.allowSubmissions && (
-                                <div className="pt-4 mt-4 border-t border-slate-50">
-                                    <div className="flex flex-col gap-3">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Submission Status</span>
-                                            {submissions[mat._id] ? (
-                                                <Badge variant={submissions[mat._id].status === 'graded' ? "success" : "warning"} className="text-[9px] uppercase font-bold py-0.5 px-2">
-                                                    {submissions[mat._id].status === 'graded' ? "Graded" : "Pending Review"}
-                                                </Badge>
-                                            ) : (
-                                                <Badge variant="neutral" className="text-[9px] uppercase font-bold py-0.5 px-2 bg-slate-100 text-slate-400">Not Submitted</Badge>
-                                            )}
-                                        </div>
-
-                                        {submissions[mat._id] ? (
-                                            <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100/50">
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <p className="text-[10px] font-bold text-slate-500 truncate max-w-[140px]">
-                                                        {submissions[mat._id].file?.originalName || "work-submission.pdf"}
-                                                    </p>
-                                                    <button 
-                                                        onClick={() => window.open(submissions[mat._id].file?.url, '_blank')}
-                                                        className="text-[10px] font-black text-premium-blue hover:underline flex items-center gap-1"
-                                                    >
-                                                        View <ExternalLink size={10} />
-                                                    </button>
+                        >
+                            <div className="group bg-white rounded-[16px] border border-[#E9E8F0] p-5 hover:border-[#6E5AE0]/40 transition-all flex flex-col justify-between h-full">
+                                <div>
+                                    {/* YouTube Thumbnail Preview */}
+                                    {ytThumbnail ? (
+                                        <div 
+                                            onClick={() => setSelectedVideo(mat)}
+                                            className="relative w-full aspect-video rounded-[12px] overflow-hidden mb-3.5 bg-slate-950 cursor-pointer group/thumb border border-[#E9E8F0]"
+                                        >
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img 
+                                                src={ytThumbnail}
+                                                alt={mat.title}
+                                                className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
+                                                loading="lazy"
+                                            />
+                                            <div className="absolute inset-0 bg-black/20 group-hover/thumb:bg-black/35 transition-colors flex items-center justify-center">
+                                                <div className="w-11 h-11 rounded-full bg-red-600 text-white flex items-center justify-center shadow-md transform group-hover/thumb:scale-110 transition-transform">
+                                                    <Play size={18} className="fill-white ml-0.5" />
                                                 </div>
-                                                
-                                                {submissions[mat._id].status === 'graded' ? (
-                                                    <div className="flex items-center gap-2 mt-1 pt-2 border-t border-slate-200/50">
-                                                        <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center text-white">
-                                                            <CheckCircle size={14} />
+                                            </div>
+                                            <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-sm text-[10px] font-bold text-white tracking-wide flex items-center gap-1">
+                                                <Video size={11} />
+                                                YouTube
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {/* Meta Row: Type Badge and Category */}
+                                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                                        {ytThumbnail ? (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100 text-[10px] font-bold uppercase tracking-wider">
+                                                <Play size={10} className="fill-red-700" />
+                                                YouTube Video
+                                            </span>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center border ${
+                                                    isPdf 
+                                                        ? 'bg-rose-50 text-rose-600 border-rose-100' 
+                                                        : isVideo 
+                                                            ? 'bg-[#EDE8FB] text-[#6E5AE0] border-[#6E5AE0]/20' 
+                                                            : 'bg-blue-50 text-blue-600 border-blue-100'
+                                                }`}>
+                                                    {isPdf ? <FileText size={18} /> : isVideo ? <Video size={18} /> : <LinkIcon size={18} />}
+                                                </div>
+                                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                                    isPdf 
+                                                        ? 'bg-rose-50 text-rose-700 border-rose-100' 
+                                                        : isVideo 
+                                                            ? 'bg-[#EDE8FB] text-[#6E5AE0] border-[#6E5AE0]/20' 
+                                                            : 'bg-blue-50 text-blue-700 border-blue-100'
+                                                }`}>
+                                                    {isPdf ? 'PDF' : isVideo ? 'VIDEO' : (mat.file?.type?.toUpperCase() || 'FILE')}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <span className="text-[11px] font-semibold text-[#8D8A9B] uppercase">
+                                            {mat.category || "Lecture"}
+                                        </span>
+                                    </div>
+
+                                    {/* Title and Description */}
+                                    <h3 className="text-sm sm:text-base font-bold text-[#1E1B2E] mb-1 line-clamp-1 group-hover:text-[#6E5AE0] transition-colors" title={mat.title}>
+                                        {mat.title}
+                                    </h3>
+                                    <p className="text-xs text-[#8D8A9B] mb-4 line-clamp-2 leading-relaxed">
+                                        {mat.description || "No description provided."}
+                                    </p>
+                                </div>
+
+                                <div className="mt-auto space-y-3 pt-2">
+                                    <div className="flex items-center gap-3 text-xs font-semibold text-[#8D8A9B]">
+                                        <span className="flex items-center gap-1.5 truncate">
+                                            <BookOpen size={13} className="shrink-0 text-[#8D8A9B]" />
+                                            {mat.course?.name || "Enrolled Course"}
+                                        </span>
+                                        <span>•</span>
+                                        <span className="flex items-center gap-1.5 shrink-0">
+                                            <Clock size={13} className="shrink-0 text-[#8D8A9B]" />
+                                            {mat.createdAt ? format(new Date(mat.createdAt), "MMM d") : "Recent"}
+                                        </span>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    {isVideo ? (
+                                        <button
+                                            onClick={() => setSelectedVideo(mat)}
+                                            className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#6E5AE0] text-white rounded-full text-xs font-bold hover:bg-[#5844C7] transition-colors shadow-sm"
+                                        >
+                                            <Play size={14} className="fill-white" />
+                                            Watch Video
+                                        </button>
+                                    ) : isPdf ? (
+                                        <button
+                                            onClick={() => setSelectedPdf(mat)}
+                                            className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#2C2A46] text-white rounded-full text-xs font-bold hover:bg-[#1E1B2E] transition-colors shadow-sm"
+                                        >
+                                            <FileText size={14} />
+                                            View PDF
+                                        </button>
+                                    ) : (
+                                        <a
+                                            href={mat.file?.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#2C2A46] text-white rounded-full text-xs font-bold hover:bg-[#1E1B2E] transition-colors shadow-sm"
+                                        >
+                                            <Download size={14} />
+                                            Access Resource
+                                        </a>
+                                    )}
+
+                                    {/* Assignment Submission Section */}
+                                    {mat.category === 'assignment' && mat.allowSubmissions && (
+                                        <div className="pt-3 mt-2 border-t border-[#E9E8F0]">
+                                            <div className="flex flex-col gap-2.5">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#8D8A9B]">Submission Status</span>
+                                                    {submissions[mat._id] ? (
+                                                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-100">
+                                                            {submissions[mat._id].status === 'graded' ? "Graded" : "Pending Review"}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[#8D8A9B] text-[10px] font-semibold">
+                                                            Not Submitted
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {submissions[mat._id] ? (
+                                                    <div className="bg-[#F8F7FA] rounded-[12px] p-3 border border-[#E9E8F0]">
+                                                        <div className="flex justify-between items-center mb-1.5">
+                                                            <p className="text-[10px] font-semibold text-[#1E1B2E] truncate max-w-[140px]">
+                                                                {submissions[mat._id].file?.originalName || "work-submission.pdf"}
+                                                            </p>
+                                                            <button 
+                                                                onClick={() => window.open(submissions[mat._id].file?.url, '_blank')}
+                                                                className="text-[10px] font-bold text-[#6E5AE0] hover:underline flex items-center gap-1"
+                                                            >
+                                                                View <ExternalLink size={10} />
+                                                            </button>
                                                         </div>
-                                                        <div className="flex-1">
-                                                            <p className="text-[10px] font-black text-slate-900">Score: {submissions[mat._id].marksAwarded} / {mat.totalMarks || "-"}</p>
-                                                            {submissions[mat._id].feedback && <p className="text-[9px] text-slate-500 italic line-clamp-1">"{submissions[mat._id].feedback}"</p>}
-                                                        </div>
+                                                        
+                                                        {submissions[mat._id].status === 'graded' ? (
+                                                            <div className="flex items-center gap-2 mt-1 pt-1.5 border-t border-[#E9E8F0]">
+                                                                <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white shrink-0">
+                                                                    <CheckCircle size={12} />
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <p className="text-[10px] font-bold text-[#1E1B2E]">Score: {submissions[mat._id].marksAwarded} / {mat.totalMarks || "-"}</p>
+                                                                    {submissions[mat._id].feedback && <p className="text-[9px] text-[#8D8A9B] italic line-clamp-1">&ldquo;{submissions[mat._id].feedback}&rdquo;</p>}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <button 
+                                                                onClick={() => setSubmittingMat(mat)}
+                                                                className="text-[10px] font-bold text-[#8D8A9B] hover:text-[#6E5AE0] transition-colors w-full text-left"
+                                                            >
+                                                                Re-submit Work?
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 ) : (
-                                                    <button 
+                                                    <button
                                                         onClick={() => setSubmittingMat(mat)}
-                                                        className="text-[10px] font-bold text-slate-400 hover:text-premium-blue transition-colors w-full text-left"
+                                                        className="flex items-center justify-center gap-1.5 w-full py-2 bg-emerald-50 text-emerald-700 rounded-full text-xs font-semibold hover:bg-emerald-100 transition-colors border border-emerald-100"
                                                     >
-                                                        Re-submit Work?
+                                                        <UploadCloud size={14} />
+                                                        Submit Homework
                                                     </button>
                                                 )}
+                                                
+                                                {mat.dueDate && (
+                                                    <p className="text-[10px] text-center font-medium text-[#8D8A9B]">
+                                                        Deadline: {format(new Date(mat.dueDate), "MMM d, yyyy")}
+                                                    </p>
+                                                )}
                                             </div>
-                                        ) : (
-                                            <button
-                                                onClick={() => setSubmittingMat(mat)}
-                                                className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-bold hover:bg-emerald-100 transition-colors border border-emerald-100"
-                                            >
-                                                <UploadCloud size={18} />
-                                                Submit Homework
-                                            </button>
-                                        )}
-                                        
-                                        {mat.dueDate && (
-                                            <p className="text-[10px] text-center font-bold text-slate-400 italic">
-                                                Deadline: {format(new Date(mat.dueDate), "MMM d, yyyy")}
-                                            </p>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
+                            </div>
                         </div>
-                    </Card>
-                </div>
-                ))}
+                    );
+                })}
 
                 {!loading && filteredMaterials.length === 0 && (
                     <div className="col-span-full py-20 text-center">
@@ -592,30 +695,10 @@ function IframeWithFallback({ src, title, onError, iframeTimeoutMs = 15000 }) {
 // Helper to extract video ID and format as embed URL
 function getEmbedUrl(sourceUrl) {
     if (!sourceUrl) return "";
-
-    try {
-        const url = new URL(sourceUrl);
-        const hostname = url.hostname;
-        let videoId = "";
-
-        if (hostname.includes("youtu.be")) {
-            // https://youtu.be/ID/extra -> becomes [ID, extra]
-            const segments = url.pathname.split('/').filter(Boolean);
-            videoId = segments[0];
-        } else if (hostname.includes("youtube.com")) {
-            // https://youtube.com/watch?v=ID or /embed/ID
-            if (url.pathname.includes("/embed/")) {
-                return sourceUrl;
-            }
-            videoId = url.searchParams.get("v");
-        }
-
-        if (videoId) {
-            return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-        }
-        return sourceUrl;
-
-    } catch (e) {
-        return ""; // Fallback for invalid URLs
+    const videoId = getYoutubeVideoId(sourceUrl);
+    if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
     }
+    return sourceUrl;
 }
+

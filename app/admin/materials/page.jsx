@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
-import { Search, Filter, Plus, FileText, Video, Link as LinkIcon, Download, Trash2, Edit, X, Users, UploadCloud, CheckCircle } from "lucide-react";
+import { Search, Filter, Plus, FileText, Video, Link as LinkIcon, Download, Trash2, Edit, X, Users, UploadCloud, CheckCircle, Play } from "lucide-react";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -15,7 +15,7 @@ import EmptyState from "@/components/shared/EmptyState";
 
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { cn } from "@/lib/utils";
+import { cn, getYoutubeVideoId, getYoutubeThumbnail } from "@/lib/utils";
 import MobileInstructorMaterials from "@/components/instructor/MobileInstructorMaterials";
 
 export default function MaterialsPage() {
@@ -58,15 +58,7 @@ export default function MaterialsPage() {
         };
     }
 
-    useEffect(() => {
-        fetchInitialData();
-    }, []);
-
-    useEffect(() => {
-        fetchMaterials();
-    }, [selectedCourse, selectedType]);
-
-    const fetchInitialData = async () => {
+    const fetchInitialData = useCallback(async () => {
         try {
             const [cRes, bRes] = await Promise.all([
                 fetch("/api/v1/courses"),
@@ -79,9 +71,13 @@ export default function MaterialsPage() {
         } catch (error) {
             console.error("Init data failed", error);
         }
-    };
+    }, []);
 
-    const fetchMaterials = async () => {
+    useEffect(() => {
+        fetchInitialData();
+    }, [fetchInitialData]);
+
+    const fetchMaterials = useCallback(async () => {
         setLoading(true);
         try {
             let url = "/api/v1/materials?";
@@ -97,7 +93,11 @@ export default function MaterialsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedCourse, selectedType, search]);
+
+    useEffect(() => {
+        fetchMaterials();
+    }, [fetchMaterials]);
 
     const handleSave = async (e) => {
         e.preventDefault();
@@ -326,6 +326,9 @@ export default function MaterialsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {materials.map(mat => {
                             const isPlaceholderDesc = !mat.description || mat.description.trim() === "No specific instructions provided.";
+                            const ytVideoId = getYoutubeVideoId(mat.file?.url);
+                            const ytThumbnail = ytVideoId ? getYoutubeThumbnail(mat.file?.url) : null;
+
                             return (
                                 <Card 
                                     key={mat._id} 
@@ -333,6 +336,28 @@ export default function MaterialsPage() {
                                     className="p-5 bg-white border border-slate-200/80 rounded-xl flex flex-col justify-between hover:border-slate-300 transition-colors duration-200 cursor-pointer"
                                 >
                                     <div>
+                                        {/* YouTube Thumbnail Preview */}
+                                        {ytThumbnail && (
+                                            <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-3 bg-slate-950 border border-slate-200 group/adminthumb">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img 
+                                                    src={ytThumbnail}
+                                                    alt={mat.title}
+                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover/adminthumb:scale-105"
+                                                    loading="lazy"
+                                                />
+                                                <div className="absolute inset-0 bg-black/20 group-hover/adminthumb:bg-black/35 transition-colors flex items-center justify-center">
+                                                    <div className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center shadow">
+                                                        <Play size={15} className="fill-white ml-0.5" />
+                                                    </div>
+                                                </div>
+                                                <div className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded bg-black/75 text-[9px] font-bold text-white tracking-wide flex items-center gap-1">
+                                                    <Video size={10} />
+                                                    YouTube
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Header Row: Unboxed Icon + Badges */}
                                         <div className="flex items-center justify-between gap-2 mb-3">
                                             <div className="flex items-center gap-2">
@@ -543,8 +568,34 @@ export default function MaterialsPage() {
                                             <Input
                                                 placeholder="https://..."
                                                 value={formData.fileUrl}
-                                                onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value, isUpload: false })}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    const isYt = Boolean(getYoutubeVideoId(val));
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        fileUrl: val,
+                                                        isUpload: false,
+                                                        fileType: isYt ? "video" : prev.fileType
+                                                    }));
+                                                }}
                                             />
+
+                                            {getYoutubeVideoId(formData.fileUrl) && (
+                                                <div className="mt-2.5 p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-3">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img 
+                                                        src={getYoutubeThumbnail(formData.fileUrl)} 
+                                                        alt="YouTube Preview"
+                                                        className="w-20 aspect-video rounded object-cover border border-slate-200"
+                                                    />
+                                                    <div className="text-left">
+                                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase">
+                                                            <CheckCircle size={11} /> YouTube Video Detected
+                                                        </span>
+                                                        <p className="text-[11px] text-slate-500 truncate max-w-[200px]">{formData.fileUrl}</p>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </>
                                 )}

@@ -46,10 +46,14 @@ export async function GET(req) {
             }
         }
 
+        const studentObjId = mongoose.Types.ObjectId.isValid(session.user.id)
+            ? new mongoose.Types.ObjectId(session.user.id)
+            : session.user.id;
+
         const batchQuery = {
             "enrolledStudents": {
                 $elemMatch: {
-                    student: session.user.id,
+                    student: studentObjId,
                     status: { $in: ["active", "completed"] }
                 }
             },
@@ -63,7 +67,9 @@ export async function GET(req) {
         const studentBatches = await Batch.find(batchQuery).select("course _id").lean();
 
         const enrolledCourseIds = studentBatches.map(b => b.course);
-        const enrolledBatchIds = studentBatches.map(b => b._id.toString()); // Ensure string comparison
+        const enrolledBatchIds = studentBatches.map(b => b._id.toString());
+        const enrolledBatchObjIds = studentBatches.map(b => new mongoose.Types.ObjectId(b._id));
+        const allBatchIdentifiers = [...enrolledBatchIds, ...enrolledBatchObjIds];
 
         // Read pagination params
         let page = parseInt(searchParams.get("page")) || 1;
@@ -84,11 +90,18 @@ export async function GET(req) {
         const query = {
             deletedAt: null,
             visibleToStudents: true,
-            course: { $in: enrolledCourseIds },
             $or: [
-                { batches: { $in: enrolledBatchIds } }, // Explicitly assigned to my batch
-                { batches: { $size: 0 } }, // Assigned to no specific batch (all batches in course)
-                { batches: { $exists: false } } // Safety check
+                { course: { $in: enrolledCourseIds } },
+                { courses: { $in: enrolledCourseIds } }
+            ],
+            $and: [
+                {
+                    $or: [
+                        { batches: { $in: allBatchIdentifiers } }, // Explicitly assigned to my batch
+                        { batches: { $size: 0 } }, // Assigned to no specific batch (all batches in course)
+                        { batches: { $exists: false } } // Safety check
+                    ]
+                }
             ]
         };
 
@@ -97,11 +110,14 @@ export async function GET(req) {
 
         if (courseId) {
             // Verify student is enrolled in this course (by checking if it's in their enrolled batches' courses)
-            // Note: enrolledCourseIds contains IDs of courses the student has at least one active batch in.
             if (!enrolledCourseIds.map(id => id.toString()).includes(courseId)) {
                 return NextResponse.json({ materials: [], pagination: { page, limit, totalCount: 0, totalPages: 0 } });
             }
-            query.course = courseId;
+            const courseObjId = mongoose.Types.ObjectId.isValid(courseId) ? new mongoose.Types.ObjectId(courseId) : courseId;
+            query.$or = [
+                { course: courseObjId },
+                { courses: courseObjId }
+            ];
         }
 
         if (batchId) {

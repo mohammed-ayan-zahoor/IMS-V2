@@ -89,4 +89,18 @@ assert(batchDetail.includes("expandedChapters"), "Batch detail must support coll
 assert(batchDetail.includes("safe-pb"), "Batch detail must include safe-pb");
 console.log("✓ Student batch detail & syllabus progress screen verified");
 
-console.log("\nALL 10 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");
+// 11. Check student materials page with YouTube thumbnail detection
+const { getYoutubeVideoId, getYoutubeThumbnail } = require("../lib/utils");
+assert.strictEqual(getYoutubeVideoId("https://www.youtube.com/watch?v=OAx_6-wdslM"), "OAx_6-wdslM", "getYoutubeVideoId must extract watch?v=");
+assert.strictEqual(getYoutubeVideoId("https://youtu.be/G3e-cpL7ofc"), "G3e-cpL7ofc", "getYoutubeVideoId must extract youtu.be");
+assert.strictEqual(getYoutubeThumbnail("https://www.youtube.com/watch?v=OAx_6-wdslM"), "https://img.youtube.com/vi/OAx_6-wdslM/hqdefault.jpg", "getYoutubeThumbnail must return img.youtube.com URL");
+assert.strictEqual(getYoutubeVideoId("https://dummy.pdf"), null, "getYoutubeVideoId must return null for non-YouTube URLs");
+
+const materialsPage = fs.readFileSync(path.join(__dirname, "../app/student/materials/page.jsx"), "utf8");
+assert(materialsPage.includes("getYoutubeThumbnail"), "Materials page must import and use getYoutubeThumbnail");
+assert(materialsPage.includes("ytThumbnail"), "Materials page must render ytThumbnail");
+assert(materialsPage.includes("aspect-video"), "Materials page must use 16:9 aspect-video for thumbnails");
+assert(materialsPage.includes("safe-pb"), "Materials page must include safe-pb");
+console.log("✓ YouTube URL extraction, thumbnail resolution, and materials cards verified");
+
+console.log("\nALL 11 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");
