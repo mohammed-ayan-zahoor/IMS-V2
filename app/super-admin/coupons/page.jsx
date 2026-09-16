@@ -5,7 +5,7 @@ import {
   Tag, Plus, Search, Check, Copy, Trash2, Power, 
   Loader2, Mail, Calendar, Info, AlertCircle, RefreshCw 
 } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "@/contexts/ToastContext";
 
 export default function SuperAdminCouponsPage() {
   const [coupons, setCoupons] = useState([]);
@@ -207,7 +207,7 @@ export default function SuperAdminCouponsPage() {
           <div className="p-12 text-center text-slate-400 space-y-2">
             <Tag size={40} className="mx-auto text-slate-300" />
             <p className="font-bold text-slate-700">No coupons found</p>
-            <p className="text-xs text-slate-400">Click "Generate Coupon" above to create one for an MOU school.</p>
+            <p className="text-xs text-slate-400">Click &quot;Generate Coupon&quot; above to create one for an MOU school.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

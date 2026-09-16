@@ -5,7 +5,7 @@ import PusherClient from "pusher-js";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Send, User as UserIcon, Users, Reply, X, ArrowLeft, Trash2, MoreVertical, CheckSquare, CheckCircle2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "@/contexts/ToastContext";
 import ConfirmDialog from "../ui/ConfirmDialog";
 
 export default function ChatWindow({ conversation, currentUserId, onBack }) {

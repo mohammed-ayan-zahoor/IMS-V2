@@ -27,10 +27,26 @@ export async function GET(request) {
         const id = searchParams.get('id');
 
         let institute = null;
-        if (id) {
-            institute = await Institute.findById(id);
+        if (session.user.role === 'super_admin') {
+            // Super admins can inspect any institute by id or code
+            if (id) {
+                institute = await Institute.findById(id);
+            } else {
+                institute = await Institute.findOne({ code });
+            }
         } else {
-            institute = await Institute.findOne({ code });
+            // ponytail: Tenant admins are strictly locked to inspecting their own institute
+            const callerInstituteId = session.user.institute?.id || session.user.instituteId || session.user.institute?._id;
+            if (!callerInstituteId) {
+                return NextResponse.json({ error: "Forbidden: No associated institute found" }, { status: 403 });
+            }
+            if (id && id !== callerInstituteId.toString()) {
+                return NextResponse.json({ error: "Forbidden: Cross-institute inspection not permitted" }, { status: 403 });
+            }
+            institute = await Institute.findById(callerInstituteId);
+            if (searchParams.has('code') && institute?.code?.toUpperCase() !== code) {
+                return NextResponse.json({ error: "Forbidden: Cross-institute inspection not permitted" }, { status: 403 });
+            }
         }
 
         if (!institute) {

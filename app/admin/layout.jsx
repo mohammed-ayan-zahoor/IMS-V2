@@ -53,7 +53,10 @@ import {
     Landmark,
     ClipboardList,
     PhoneCall,
-    Mail
+    Mail,
+    Boxes,
+    Package,
+    Monitor
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -167,6 +170,7 @@ export default function AdminLayout({ children }) {
             items: [
                 { label: "Fees", icon: CreditCard, href: "/admin/fees" },
                 { label: "Collection History", icon: ReceiptText, href: "/admin/collections" },
+                { label: "Day Book & Ledger", icon: FileSpreadsheet, href: "/admin/finance/ledger" },
             ]
         },
         {
@@ -208,6 +212,24 @@ export default function AdminLayout({ children }) {
             ]
         }] : []),
         {
+            label: "Stock & Inventory",
+            icon: Boxes,
+            role: ["admin", "super_admin", "instructor", "staff"],
+            permission: "manage_stock",
+            items: [
+                { label: "Stock & Inventory", icon: Boxes, href: "/admin/stock" }
+            ]
+        },
+        {
+            label: "Library",
+            icon: BookOpen,
+            role: ["admin", "super_admin", "instructor", "staff"],
+            permission: "manage_library",
+            items: [
+                { label: "Library", icon: BookOpen, href: "/admin/library" }
+            ]
+        },
+        {
             label: "Front Office",
             icon: ClipboardList,
             role: ["admin", "super_admin", "instructor", "staff"],
@@ -229,7 +251,7 @@ export default function AdminLayout({ children }) {
                 { label: "Leave Types", icon: CalendarDays, href: "/admin/hr/leave-types", role: ["admin", "super_admin"] },
                 { label: "Staff Attendance", icon: UserCheck, href: "/admin/hr/attendance", role: ["admin", "super_admin"] },
                 { label: "Payslip Generator", icon: FileSpreadsheet, href: "/admin/hr/payslips", role: ["admin", "super_admin"] },
-                { label: "Leave Requests", icon: CalendarDays, href: "/admin/hr/leave-requests" }
+                { label: "Permissions & Leaves", icon: CalendarDays, href: "/admin/hr/leave-requests" }
             ]
         },
         {

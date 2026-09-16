@@ -6,6 +6,7 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import Membership from "@/models/Membership";
 import AuditLog from "@/models/AuditLog";
+import Designation from "@/models/Designation";
 import bcrypt from "bcryptjs";
 import { getInstituteScope, addInstituteFilter } from "@/middleware/instituteScope";
 import { getClientIp } from "@/lib/ip-helper";

@@ -2649,7 +2649,7 @@ export default function StudentDetailsPage({ params }) {
                                 <div className="px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center">
                                     <span className="text-xl font-black text-slate-700">
                                         {attendanceStats.total > 0
-                                            ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
+                                            ? Math.round(((attendanceStats.present + attendanceStats.late) / attendanceStats.total) * 100)
                                             : 0}%
                                     </span>
                                     <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Attendance Rate</span>

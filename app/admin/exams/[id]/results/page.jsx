@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Search, Download, Trophy, Users, Clock, AlertCircle, CheckCircle2, XCircle, Printer, ClipboardList } from "lucide-react";
+import { ArrowLeft, Search, Download, Trophy, Users, Clock, AlertCircle, CheckCircle2, XCircle, Printer, ClipboardList, MessageSquare } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card, { CardContent } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -377,7 +377,8 @@ export default function ExamResultsPage({ params }) {
                                         tabIndex={0}
                                         role="button"
                                         className="hover:bg-slate-50 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-premium-blue/20"
-                                    >                                        <td className="px-6 py-4">
+                                    >
+                                        <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-premium-blue/10 text-premium-blue flex items-center justify-center font-bold text-xs uppercase">
                                                     {sub.student?.fullName?.charAt(0) || "U"}
@@ -475,20 +476,30 @@ export default function ExamResultsPage({ params }) {
                         <div className="space-y-4">
                             <h3 className="text-lg font-bold text-slate-800">Detailed Analysis</h3>
                             {(detailedResult.submission?.answers ?? []).map((ans, idx) => {
-                                const isCorrect = ans.isCorrect;
                                 const isSkipped = ans.yourAnswer === "" || ans.yourAnswer === undefined || ans.yourAnswer === null;
+                                const marksAwarded = Number(ans.marksAwarded ?? 0);
+                                const maxMarks = Number(ans.maxMarks ?? 0);
+                                const isFull = !ans.needsGrading && !isSkipped && (ans.isCorrect || (marksAwarded >= maxMarks && maxMarks > 0));
+                                const isPartial = !ans.needsGrading && !isSkipped && (marksAwarded > 0 && marksAwarded < maxMarks);
+                                const isZero = !ans.needsGrading && !isSkipped && marksAwarded === 0;
 
                                 return (
                                     <Card key={idx} className={cn(
                                         "border transition-all",
-                                        isCorrect ? "border-green-100 bg-green-50/10" :
-                                            isSkipped ? "border-slate-200 bg-slate-50/50" : "border-red-100 bg-red-50/10"
+                                        ans.needsGrading ? "border-amber-200 bg-amber-50/20" :
+                                        isFull ? "border-green-200 bg-green-50/20" :
+                                        isPartial ? "border-amber-200 bg-amber-50/20" :
+                                        isSkipped ? "border-slate-200 bg-slate-50/50" : "border-red-200 bg-red-50/20"
                                     )}>
                                         <CardContent className="p-6">
                                             <div className="flex gap-4">
                                                 <div className="shrink-0 pt-1">
-                                                    {isCorrect ? (
+                                                    {ans.needsGrading ? (
+                                                        <Clock className="text-amber-500 animate-pulse" size={24} />
+                                                    ) : isFull ? (
                                                         <CheckCircle2 className="text-green-500" size={24} />
+                                                    ) : isPartial ? (
+                                                        <CheckCircle2 className="text-amber-500" size={24} />
                                                     ) : isSkipped ? (
                                                         <AlertCircle className="text-slate-400" size={24} />
                                                     ) : (
@@ -498,37 +509,72 @@ export default function ExamResultsPage({ params }) {
                                                 <div className="flex-1 space-y-4">
                                                     <div>
                                                         <div className="flex justify-between items-start mb-2">
-                                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                                                Question {idx + 1}
-                                                            </span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                                    Question {idx + 1}
+                                                                </span>
+                                                                {ans.type && (
+                                                                    <span className="text-[10px] uppercase font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                                                                        {ans.type.replace(/_/g, ' ')}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <span className={cn(
-                                                                "text-xs font-bold px-2 py-1 rounded",
-                                                                isCorrect ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
+                                                                "text-xs font-bold px-2.5 py-1 rounded",
+                                                                ans.needsGrading ? "bg-amber-100 text-amber-800" :
+                                                                isFull ? "bg-green-100 text-green-700" :
+                                                                isPartial ? "bg-amber-100 text-amber-800" :
+                                                                isSkipped ? "bg-slate-100 text-slate-600" :
+                                                                "bg-red-100 text-red-700"
                                                             )}>
-                                                                {ans.marksAwarded} / {ans.maxMarks} Marks
+                                                                {ans.needsGrading ? "Pending Evaluation" : `${marksAwarded} / ${maxMarks} Marks${isPartial ? ' · Partial' : isSkipped ? ' · Skipped' : ''}`}
                                                             </span>
                                                         </div>
                                                         <p className="font-semibold text-slate-800 text-base mb-4">
                                                             {ans.questionText}
                                                         </p>
 
-                                                        {ans.type === "mcq" && ans.options && (
+                                                        {/* Diagram image if any */}
+                                                        {ans.questionImage && (
+                                                            <div className="mb-4 max-w-md rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
+                                                                <img
+                                                                    src={ans.questionImage}
+                                                                    alt="Question Diagram"
+                                                                    className="w-full h-auto max-h-72 object-contain p-2"
+                                                                />
+                                                            </div>
+                                                        )}
+
+                                                        {/* MCQ / Multi-Correct options */}
+                                                        {(ans.type === "mcq" || ans.type === "multi_correct_mcq") && ans.options && (
                                                             <div className="grid gap-2">
                                                                 {ans.options.map((option, optIdx) => {
-                                                                    const isUserSelected = parseInt(ans.yourAnswer, 10) === optIdx;
-                                                                    const isCorrectOption = parseInt(ans.correctAnswer, 10) === optIdx;
+                                                                    let isUserSelected = false;
+                                                                    let isCorrectOption = false;
+
+                                                                    if (ans.type === "multi_correct_mcq") {
+                                                                        try {
+                                                                            const sArr = JSON.parse(ans.yourAnswer || '[]');
+                                                                            const cArr = JSON.parse(ans.correctAnswer || '[]');
+                                                                            isUserSelected = sArr.includes(optIdx);
+                                                                            isCorrectOption = cArr.includes(optIdx);
+                                                                        } catch {}
+                                                                    } else {
+                                                                        isUserSelected = parseInt(ans.yourAnswer, 10) === optIdx;
+                                                                        isCorrectOption = parseInt(ans.correctAnswer, 10) === optIdx;
+                                                                    }
 
                                                                     let optionStyle = "bg-white border-slate-200 text-slate-700";
                                                                     let icon = null;
 
                                                                     if (isCorrectOption) {
-                                                                        optionStyle = "bg-green-100 border-green-300 text-green-800";
+                                                                        optionStyle = "bg-green-100 border-green-300 text-green-800 font-medium";
                                                                         icon = <CheckCircle2 size={16} className="text-green-600" />;
-                                                                    } else if (isUserSelected && !isCorrect) {
+                                                                    } else if (isUserSelected && !isFull) {
                                                                         optionStyle = "bg-red-50 border-red-200 text-red-800";
                                                                         icon = <XCircle size={16} className="text-red-500" />;
-                                                                    } else if (isUserSelected && isCorrect) {
-                                                                        optionStyle = "bg-green-100 border-green-300 text-green-800";
+                                                                    } else if (isUserSelected && isFull) {
+                                                                        optionStyle = "bg-green-100 border-green-300 text-green-800 font-medium";
                                                                         icon = <CheckCircle2 size={16} className="text-green-600" />;
                                                                     }
 
@@ -545,16 +591,60 @@ export default function ExamResultsPage({ params }) {
                                                             </div>
                                                         )}
 
-                                                        {ans.type === "descriptive" && (
-                                                            <div className="grid md:grid-cols-2 gap-4 text-sm">
-                                                                <div className="p-3 rounded-lg border bg-white border-slate-200 text-slate-700">
-                                                                    <span className="block text-xs font-bold opacity-60 mb-1 uppercase">Student&apos;s Answer</span>
-                                                                    {ans.yourAnswer || "Skipped"}
+                                                        {/* Non-MCQ Types (Short Answer, Essay, Descriptive, Numerical, Fill in Blank, etc.) */}
+                                                        {ans.type !== "mcq" && ans.type !== "multi_correct_mcq" && (
+                                                            <div className="space-y-3">
+                                                                <div className="grid md:grid-cols-2 gap-3 text-sm">
+                                                                    <div className="p-3.5 rounded-lg border bg-white border-slate-200 text-slate-800 shadow-sm">
+                                                                        <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                                                                            Student&apos;s Answer
+                                                                        </span>
+                                                                        <p className="whitespace-pre-wrap font-medium">
+                                                                            {ans.yourAnswer || <span className="italic text-slate-400">No answer provided (Skipped)</span>}
+                                                                        </p>
+                                                                    </div>
+                                                                    {(ans.modelAnswer || ans.correctAnswer) && (
+                                                                        <div className="p-3.5 rounded-lg bg-blue-50/80 border border-blue-200 text-blue-900 shadow-sm">
+                                                                            <span className="block text-xs font-bold text-blue-700 uppercase tracking-wider mb-1.5">
+                                                                                {ans.modelAnswer ? "Model / Reference Answer" : "Correct Answer Note"}
+                                                                            </span>
+                                                                            <p className="whitespace-pre-wrap font-medium">
+                                                                                {ans.modelAnswer || ans.correctAnswer}
+                                                                            </p>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                                {ans.correctAnswer && (
-                                                                    <div className="p-3 rounded-lg bg-blue-50 border border-blue-100 text-blue-800">
-                                                                        <span className="block text-xs font-bold opacity-60 mb-1 uppercase">Correct Answer Note</span>
-                                                                        {ans.correctAnswer}
+
+                                                                {/* Evaluator Feedback */}
+                                                                {ans.feedback && (
+                                                                    <div className="p-3.5 rounded-lg bg-purple-50 border border-purple-200 text-purple-900 text-sm shadow-sm">
+                                                                        <div className="flex items-center gap-1.5 text-xs font-bold text-purple-700 uppercase tracking-wider mb-1">
+                                                                            <MessageSquare size={14} />
+                                                                            <span>Evaluator Feedback</span>
+                                                                        </div>
+                                                                        <p className="whitespace-pre-wrap font-medium text-purple-950">
+                                                                            {ans.feedback}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Rubric if available */}
+                                                                {ans.rubric && (
+                                                                    <div className="p-3 rounded-lg bg-amber-50/60 border border-amber-200 text-amber-900 text-xs">
+                                                                        <span className="block font-bold text-amber-700 uppercase tracking-wider mb-1">
+                                                                            Grading Rubric
+                                                                        </span>
+                                                                        <p className="whitespace-pre-wrap">{ans.rubric}</p>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Explanation if available */}
+                                                                {ans.explanation && (
+                                                                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs">
+                                                                        <span className="block font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                                                            Explanation
+                                                                        </span>
+                                                                        <p className="whitespace-pre-wrap">{ans.explanation}</p>
                                                                     </div>
                                                                 )}
                                                             </div>

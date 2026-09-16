@@ -138,16 +138,14 @@ class NotificationService {
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         final type = message.data['type']?.toString().toLowerCase() ?? 'general';
         print('[NotificationService] Notification tapped! type=$type, data=${message.data}');
-        _showLocalNotification(message);
         _navigateToScreen(type, message.data);
       });
 
       // Check if app was launched from a terminated state via a notification click
       messaging.getInitialMessage().then((RemoteMessage? message) {
         if (message != null) {
-          final title = message.data['title'] ?? message.notification?.title ?? 'New Notification';
+          final title = message.data['title'] ?? message.notification?.title;
           print('[NotificationService] App launched from terminated state via notification: $title');
-          _showLocalNotification(message);
           final type = message.data['type']?.toString().toLowerCase() ?? 'general';
           _navigateToScreen(type, message.data);
         }
@@ -269,8 +267,19 @@ class NotificationService {
 
   void _showLocalNotification(RemoteMessage message) {
     try {
-      final title = message.notification?.title ?? message.data['title'] ?? 'New Notification';
-      final body = message.notification?.body ?? message.data['body'] ?? '';
+      final rawTitle = message.notification?.title ?? message.data['title'];
+      final rawBody = message.notification?.body ?? message.data['body'];
+
+      // Ignore empty or silent messages (e.g., Beams internal sync / background pings)
+      if ((rawTitle == null || rawTitle.toString().trim().isEmpty) &&
+          (rawBody == null || rawBody.toString().trim().isEmpty)) {
+        return;
+      }
+
+      final title = (rawTitle != null && rawTitle.toString().trim().isNotEmpty)
+          ? rawTitle.toString()
+          : 'Notification';
+      final body = rawBody?.toString() ?? '';
       final conversationId = message.data['conversationId'] ?? '';
       final type = message.data['type'] ?? 'general';
 
@@ -331,6 +340,12 @@ class NotificationService {
 
   /// Public method called by background FCM handler in main.dart
   Future<void> showDataNotification(RemoteMessage message) async {
+    // If Android OS already displayed a system notification from message.notification,
+    // do not show a duplicate local notification.
+    if (message.notification != null) {
+      return;
+    }
+
     // Ensure plugin is initialised (background isolate has a separate engine)
     try {
       const androidInit = AndroidInitializationSettings('@drawable/ic_notification');

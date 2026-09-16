@@ -21,7 +21,7 @@ const InstallmentSchema = new Schema({
     penaltyAmount: { type: Number, default: 0 },
     penaltyPaid: { type: Number, default: 0 },
     penaltyStatus: { type: String, enum: ['none', 'pending', 'paid'], default: 'none' }
-});
+}, { _id: true });
 
 const FeeSchema = new Schema({
     institute: {
@@ -101,13 +101,22 @@ FeeSchema.index(
     { 
         unique: true, 
         partialFilterExpression: { 
-            deletedAt: null, 
+            deletedAt: null,
             feePreset: { $exists: true } 
         } 
     }
 );
 // Pre-save hook to calculate balances
 FeeSchema.pre('save', async function () {
+    // Ensure every installment has a persistent _id
+    if (this.installments && Array.isArray(this.installments)) {
+        this.installments.forEach(inst => {
+            if (!inst._id) {
+                inst._id = new mongoose.Types.ObjectId();
+            }
+        });
+    }
+
     // Auto-balance and validate installment amounts sum
     if (this.installments && this.installments.length > 0) {
         const expectedTotal = this.totalAmount - (this.discount?.amount || 0) + (this.extraCharges?.amount || 0);

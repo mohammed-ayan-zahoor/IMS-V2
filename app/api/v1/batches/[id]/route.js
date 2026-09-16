@@ -43,7 +43,7 @@ export async function DELETE(req, { params }) {
         await BatchService.deleteBatch(id, session.user.id, scope.instituteId);
         return NextResponse.json({ success: true });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 400 });
     }
 }
 

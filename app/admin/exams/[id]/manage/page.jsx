@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import Link from "next/link";
-import { ArrowLeft, Save, Plus, Trash2, CheckCircle, Search, AlertCircle, UserCheck } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, CheckCircle, Search, AlertCircle, UserCheck, ClipboardList } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -63,7 +63,12 @@ export default function ManageExamPage({ params }) {
             ]);
             if (!examRes.ok) throw new Error("Failed to fetch exam");
             const data = await examRes.json();
-            const iData = instRes.ok ? await instRes.json() : { users: [] };
+            let iData = { users: [] };
+            if (instRes.ok) {
+                iData = await instRes.json();
+            } else {
+                console.error("Failed to fetch instructors:", instRes.status, await instRes.text().catch(() => ""));
+            }
             const sData = subjRes.ok ? await subjRes.json() : { subjects: [] };
 
             setExam(data.exam);
@@ -224,46 +229,118 @@ export default function ManageExamPage({ params }) {
     const subjectiveCount = currentQuestions.filter(q => subjectiveTypes.includes(q.type)).length;
     const hasSubjective = subjectiveCount > 0;
 
+    // Consolidate subjects by normalized name/code so recreated or bank questions do not create duplicate rows
     const examSubjects = (() => {
         if (!exam) return [];
-        const unique = [];
-        const seen = new Set();
-        if (exam.subject) {
-            const sid = String(exam.subject._id || exam.subject);
+
+        const subjectiveTypes = ['short_answer', 'essay', 'descriptive'];
+        const subjectiveQs = (currentQuestions || []).filter(q => subjectiveTypes.includes(q.type));
+
+        const resolveSubject = (subRef) => {
+            const sid = String(subRef?._id || subRef || "");
             const sObj = allSubjects.find(s => String(s._id) === sid);
-            seen.add(sid);
-            unique.push({ _id: sid, name: sObj?.name || exam.subject?.name || "Main Subject" });
-        }
-        for (const q of currentQuestions || []) {
-            const sid = q.subject?._id || q.subject;
-            if (sid && !seen.has(String(sid))) {
-                seen.add(String(sid));
-                const sObj = allSubjects.find(s => String(s._id) === String(sid));
-                unique.push({ _id: String(sid), name: sObj?.name || q.subject?.name || "Subject" });
+            return {
+                id: sid,
+                name: (sObj?.name || subRef?.name || "").trim(),
+                code: (sObj?.code || subRef?.code || "").trim(),
+                subjectType: sObj?.subjectType || subRef?.subjectType || ""
+            };
+        };
+
+        const groups = new Map();
+
+        const addSubjectRef = (subRef, isSubjective = false) => {
+            const resolved = resolveSubject(subRef);
+            if (!resolved.id && !resolved.name) return;
+
+            const key = (resolved.name || resolved.code || resolved.id).toLowerCase();
+
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    key,
+                    name: resolved.name || resolved.code || "Subject",
+                    code: resolved.code || "",
+                    subjectType: resolved.subjectType || "",
+                    subjectIds: new Set(),
+                    subjectiveCount: 0
+                });
+            }
+            const group = groups.get(key);
+            if (resolved.id && resolved.id !== "undefined") group.subjectIds.add(resolved.id);
+            if (!group.code && resolved.code) group.code = resolved.code;
+            if (isSubjective) group.subjectiveCount += 1;
+        };
+
+        // If exam contains subjective questions, list those subjects
+        if (subjectiveQs.length > 0) {
+            for (const q of subjectiveQs) {
+                const subRef = q.subject || exam.subject;
+                addSubjectRef(subRef, true);
+            }
+            // If the exam's designated subject has the same name/code as a group, merge its ID
+            if (exam.subject) {
+                const examSub = resolveSubject(exam.subject);
+                const examKey = (examSub.name || examSub.code || examSub.id).toLowerCase();
+                if (groups.has(examKey) && examSub.id) {
+                    groups.get(examKey).subjectIds.add(examSub.id);
+                }
+            }
+        } else {
+            // No subjective questions in exam questions yet: fallback to exam.subject or title
+            if (exam.subject) {
+                addSubjectRef(exam.subject, false);
+            } else if (exam.course?.name || exam.title) {
+                const defaultKey = "default";
+                groups.set(defaultKey, {
+                    key: defaultKey,
+                    name: exam.course?.name || exam.title,
+                    code: "",
+                    subjectType: "",
+                    subjectIds: new Set(["default"]),
+                    subjectiveCount: 0
+                });
             }
         }
-        if (unique.length === 0 && (exam.course?.name || exam.title)) {
-            unique.push({ _id: "default", name: exam.course?.name || exam.title });
-        }
-        return unique;
+
+        return Array.from(groups.values()).map(g => ({
+            _id: Array.from(g.subjectIds)[0] || g.key,
+            allIds: Array.from(g.subjectIds),
+            name: g.name,
+            code: g.code,
+            subjectType: g.subjectType,
+            subjectiveCount: g.subjectiveCount
+        }));
     })();
 
     const handleSaveEvaluators = async () => {
         setSavingEvaluators(true);
         try {
+            // Save clean assignments for all associated IDs of each subject group
+            const cleanAssignments = [];
+            const seenPairs = new Set();
+            for (const a of evaluatorAssignments) {
+                const evalId = String(a.evaluator?._id || a.evaluator || "");
+                const subId = String(a.subject?._id || a.subject || "");
+                if (evalId && subId && subId !== "default") {
+                    const pairKey = `${subId}_${evalId}`;
+                    if (!seenPairs.has(pairKey)) {
+                        seenPairs.add(pairKey);
+                        cleanAssignments.push({ subject: subId, evaluator: evalId });
+                    }
+                }
+            }
+
             const res = await fetch(`/api/v1/exams/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    evaluatorAssignments: evaluatorAssignments
-                        .filter(a => a.evaluator)
-                        .map(a => ({
-                            subject: a.subject === "default" ? (exam?.subject?._id || exam?.subject || undefined) : a.subject,
-                            evaluator: a.evaluator
-                        }))
+                    evaluatorAssignments: cleanAssignments
                 })
             });
-            if (!res.ok) throw new Error("Failed to save assignments");
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to save assignments");
+            }
             const data = await res.json();
             setExam(data.exam);
             setEvaluatorAssignments(data.exam.evaluatorAssignments || []);
@@ -323,6 +400,19 @@ export default function ManageExamPage({ params }) {
                             <UserCheck size={16} className="text-premium-blue" />
                             Assign Evaluators
                         </Button>
+                    )}
+
+                    {/* Grade Answers Button when published/completed */}
+                    {hasSubjective && exam.status !== 'draft' && (
+                        <Link href={`/admin/exams/${id}/grade`}>
+                            <Button
+                                variant="outline"
+                                className="font-bold flex items-center gap-1.5 text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100"
+                            >
+                                <ClipboardList size={16} className="text-amber-600" />
+                                Grade Answers
+                            </Button>
+                        </Link>
                     )}
 
                     {/* Publish Results Button */}
@@ -630,43 +720,68 @@ export default function ManageExamPage({ params }) {
                     </p>
 
                     <div className="space-y-3 max-h-[60vh] overflow-y-auto p-1">
-                        {examSubjects.map(sub => {
-                            const currentAssignment = evaluatorAssignments.find(
-                                a => String(a.subject?._id || a.subject) === String(sub._id)
-                            );
-                            const currentEvalId = String(currentAssignment?.evaluator?._id || currentAssignment?.evaluator || "");
+                        {examSubjects.length === 0 ? (
+                            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                                No subjective or essay questions requiring manual evaluation.
+                            </div>
+                        ) : (
+                            examSubjects.map(sub => {
+                                const currentAssignment = evaluatorAssignments.find(
+                                    a => (sub.allIds || [sub._id]).includes(String(a.subject?._id || a.subject))
+                                );
+                                const currentEvalId = String(currentAssignment?.evaluator?._id || currentAssignment?.evaluator || "");
 
-                            return (
-                                <div key={sub._id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide block">
-                                        {sub.name}
-                                    </span>
-                                    <Select
-                                        value={currentEvalId}
-                                        onChange={val => {
-                                            setEvaluatorAssignments(prev => {
-                                                const filtered = prev.filter(a => String(a.subject?._id || a.subject) !== String(sub._id));
-                                                if (!val) return filtered;
-                                                return [...filtered, { subject: sub._id, evaluator: val }];
-                                            });
-                                        }}
-                                        placeholder="-- Select Evaluator Instructor --"
-                                        options={[
-                                            { label: "-- Not Assigned (Admins Only) --", value: "" },
-                                            ...instructors.map(u => {
-                                                const name = `${u.profile?.firstName || ''} ${u.profile?.lastName || ''}`.trim() || u.name || u.email;
-                                                const role = u.instituteRole || u.role;
-                                                const formattedRole = role ? (role === 'instructor' ? 'Instructor' : role.charAt(0).toUpperCase() + role.slice(1)) : '';
-                                                return {
-                                                    label: formattedRole ? `${name} (${formattedRole})` : name,
-                                                    value: u._id
-                                                };
-                                            })
-                                        ]}
-                                    />
-                                </div>
-                            );
-                        })}
+                                return (
+                                    <div key={sub._id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                                                    {sub.name}
+                                                </span>
+                                                {sub.code && (
+                                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-slate-200/70 text-slate-600 rounded">
+                                                        {sub.code}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {sub.subjectiveCount > 0 ? (
+                                                <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                                                    {sub.subjectiveCount} subjective {sub.subjectiveCount === 1 ? 'question' : 'questions'}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[11px] text-slate-400">
+                                                    Objective questions only
+                                                </span>
+                                            )}
+                                        </div>
+                                        <Select
+                                            value={currentEvalId}
+                                            onChange={val => {
+                                                const ids = sub.allIds || [sub._id];
+                                                setEvaluatorAssignments(prev => {
+                                                    const filtered = prev.filter(a => !ids.includes(String(a.subject?._id || a.subject)));
+                                                    if (!val) return filtered;
+                                                    return [...filtered, ...ids.map(sid => ({ subject: sid, evaluator: val }))];
+                                                });
+                                            }}
+                                            placeholder="-- Select Evaluator Instructor --"
+                                            options={[
+                                                { label: "-- Not Assigned (Admins Only) --", value: "" },
+                                                ...instructors.map(u => {
+                                                    const name = `${u.profile?.firstName || ''} ${u.profile?.lastName || ''}`.trim() || u.name || u.email;
+                                                    const role = u.instituteRole || u.role;
+                                                    const formattedRole = role ? (role === 'instructor' ? 'Instructor' : role.charAt(0).toUpperCase() + role.slice(1)) : '';
+                                                    return {
+                                                        label: formattedRole ? `${name} (${formattedRole})` : name,
+                                                        value: u._id
+                                                    };
+                                                })
+                                            ]}
+                                        />
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
 
                     <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">

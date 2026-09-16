@@ -134,7 +134,7 @@ export async function GET(req) {
         });
 
         const totalMarked = present + absent + late + excused;
-        const rate = totalMarked > 0 ? Math.min(100, Math.round((present / totalMarked) * 100)) : 0;
+        const rate = totalMarked > 0 ? Math.min(100, Math.round(((present + late) / totalMarked) * 100)) : 0;
 
         const stats = {
             present,

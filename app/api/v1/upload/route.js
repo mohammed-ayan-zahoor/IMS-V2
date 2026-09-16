@@ -71,7 +71,8 @@ export async function POST(req) {
             const uniqueId = crypto.randomUUID();
             // preserve extension or default to pdf if unknown
             const ext = file.name.split('.').pop() || 'pdf';
-            const filename = `${uniqueId}.${ext}`;
+            // ponytail: Prefix filename with instituteId to guarantee deterministic tenant isolation
+            const filename = `${instituteId}_${uniqueId}.${ext}`;
             const filePath = path.join(uploadsDir, filename);
 
             await fs.writeFile(filePath, buffer);

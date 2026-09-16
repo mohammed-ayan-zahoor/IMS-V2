@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CheckCircle2, Loader2, Tag, ShieldCheck, ArrowRight, Building2, Sparkles, Layers } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "@/contexts/ToastContext";
 
 const PUBLIC_PRICE_PER_SEAT = 100; // ₹100/seat => ₹1,000/slot (1 slot = 10 seats)
 const GST_RATE = 0.18;

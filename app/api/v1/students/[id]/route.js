@@ -26,6 +26,12 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "Student not found" }, { status: 404 });
         }
 
+        // ponytail: Strict tenant isolation for student profile read
+        const callerInstituteId = session.user.instituteId || session.user.institute?._id || session.user.institute;
+        if (session.user.role !== "super_admin" && data.institute && callerInstituteId && data.institute.toString() !== callerInstituteId.toString()) {
+            return NextResponse.json({ error: "Forbidden: Access denied to foreign tenant student" }, { status: 403 });
+        }
+
         return NextResponse.json(data);
     } catch (error) {
         console.error("API Error [Student GET]:", error);
@@ -56,6 +62,12 @@ export async function PATCH(req, { params }) {
 
         const oldStudent = await User.findOne({ _id: id, role: "student", deletedAt: null });
         if (!oldStudent) return NextResponse.json({ error: "Not found or not a student" }, { status: 404 });
+
+        // ponytail: Strict tenant isolation for student profile mutation
+        const callerInstituteId = session.user.instituteId || session.user.institute?._id || session.user.institute;
+        if (session.user.role !== "super_admin" && oldStudent.institute && callerInstituteId && oldStudent.institute.toString() !== callerInstituteId.toString()) {
+            return NextResponse.json({ error: "Forbidden: Access denied to foreign tenant student" }, { status: 403 });
+        }
 
         // Mass assignment protection: Allow only specific fields
         const updates = {};
@@ -190,8 +202,15 @@ export async function DELETE(req, { params }) {
         const { id } = await params;
         await connectDB();
 
-        // Find student first to retrieve instituteId for cache clearing
-        const studentDoc = await User.findOne({ _id: id }).select("institute");
+        // Find student first to retrieve instituteId for cache clearing and authorization
+        const studentDoc = await User.findOne({ _id: id, role: "student" }).select("institute");
+        if (!studentDoc) return NextResponse.json({ error: "Student not found" }, { status: 404 });
+
+        // ponytail: Strict tenant isolation for student deletion
+        const callerInstituteId = session.user.instituteId || session.user.institute?._id || session.user.institute;
+        if (session.user.role !== "super_admin" && studentDoc.institute && callerInstituteId && studentDoc.institute.toString() !== callerInstituteId.toString()) {
+            return NextResponse.json({ error: "Forbidden: Access denied to foreign tenant student" }, { status: 403 });
+        }
 
         // Perform hard delete via service
         await StudentService.deleteStudent(id, session.user.id);

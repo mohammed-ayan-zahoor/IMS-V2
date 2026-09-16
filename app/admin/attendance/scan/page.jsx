@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Loader2, UserCheck, ScanLine } from "lucide-react";
-import toast from "react-hot-toast";
+import { ArrowLeft, CheckCircle2, Loader2, UserCheck, ScanLine, UserX, XCircle, Search, AlertCircle } from "lucide-react";
+import { toast } from "@/contexts/ToastContext";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
 
@@ -31,6 +32,10 @@ function ScannerPage() {
     const [enrolledUsers, setEnrolledUsers] = useState([]);
     const [markedIds, setMarkedIds] = useState(new Set());
     const [markedSlotsMap, setMarkedSlotsMap] = useState({}); // { [userId]: Set(['checkin', 'checkout']) }
+    const [attendanceStatusMap, setAttendanceStatusMap] = useState({}); // { [userId]: { status: 'present'|'late'|'absent', method, time, slot } }
+    const [filterTab, setFilterTab] = useState("all"); // 'all' | 'unmarked' | 'present' | 'absent'
+    const [searchQuery, setSearchQuery] = useState("");
+    const [bulkLoading, setBulkLoading] = useState(false);
     const [markedUsersList, setMarkedUsersList] = useState([]);
     const [lastMarked, setLastMarked] = useState(null);
     const [statusMsg, setStatusMsg] = useState("");
@@ -178,24 +183,35 @@ function ScannerPage() {
                     const data = await res.json();
                     const list = [];
                     const ids = new Set();
+                    const statusMap = {};
                     (data.records || []).forEach(r => {
-                        if (r.status && r.status !== "absent") {
+                        if (r.status) {
                             const staffMember = r.staff;
                             if (staffMember) {
-                                ids.add(staffMember._id.toString());
-                                list.push({
-                                    id: staffMember._id.toString(),
-                                    name: `${staffMember.profile?.firstName || ""} ${staffMember.profile?.lastName || ""}`.trim() || staffMember.email,
-                                    method: r.remarks?.includes("via") ? r.remarks.split("via")[1].trim() : "Saved",
-                                    time: r.updatedAt ? format(new Date(r.updatedAt), "hh:mm a") : "08:00 AM",
-                                    avatar: staffMember.profile?.avatar || null,
-                                    enrollmentNumber: ""
-                                });
+                                const sId = staffMember._id.toString();
+                                const isAbs = r.status === "absent";
+                                statusMap[sId] = {
+                                    status: r.status,
+                                    method: r.remarks?.includes("via") ? r.remarks.split("via")[1].trim() : (isAbs ? "Manual" : "Saved"),
+                                    time: r.updatedAt ? format(new Date(r.updatedAt), "hh:mm a") : "08:00 AM"
+                                };
+                                if (!isAbs) {
+                                    ids.add(sId);
+                                    list.push({
+                                        id: sId,
+                                        name: `${staffMember.profile?.firstName || ""} ${staffMember.profile?.lastName || ""}`.trim() || staffMember.email,
+                                        method: r.remarks?.includes("via") ? r.remarks.split("via")[1].trim() : "Saved",
+                                        time: r.updatedAt ? format(new Date(r.updatedAt), "hh:mm a") : "08:00 AM",
+                                        avatar: staffMember.profile?.avatar || null,
+                                        enrollmentNumber: ""
+                                    });
+                                }
                             }
                         }
                     });
                     if (active) {
                         setMarkedIds(ids);
+                        setAttendanceStatusMap(statusMap);
                         setMarkedUsersList(list);
                     }
                 } else {
@@ -205,30 +221,41 @@ function ScannerPage() {
                     const list = [];
                     const ids = new Set();
                     const slotsMap = {};
+                    const statusMap = {};
                     (data.records || []).forEach(r => {
-                        if (r.status === "present" || r.status === "late") {
+                        if (r.status) {
                             const stu = r.student;
                             if (stu) {
                                 const sId = (stu._id || stu).toString();
-                                ids.add(sId);
                                 const slotName = r.slot || "checkin";
-                                if (!slotsMap[sId]) slotsMap[sId] = new Set();
-                                slotsMap[sId].add(slotName);
-
-                                list.push({
-                                    id: sId,
-                                    name: `${stu.profile?.firstName || ""} ${stu.profile?.lastName || ""}`.trim() || stu.email,
-                                    method: `${r.method || "Saved"} (${slotName})`,
+                                const isAbs = r.status === "absent";
+                                statusMap[sId] = {
+                                    status: r.status,
+                                    method: `${r.method || (isAbs ? "Manual" : "Saved")} (${slotName})`,
                                     time: r.markedAt ? format(new Date(r.markedAt), "hh:mm a") : "Already Marked",
-                                    avatar: stu.profile?.avatar || null,
-                                    enrollmentNumber: stu.enrollmentNumber || ""
-                                });
+                                    slot: slotName
+                                };
+                                if (!isAbs) {
+                                    ids.add(sId);
+                                    if (!slotsMap[sId]) slotsMap[sId] = new Set();
+                                    slotsMap[sId].add(slotName);
+
+                                    list.push({
+                                        id: sId,
+                                        name: `${stu.profile?.firstName || ""} ${stu.profile?.lastName || ""}`.trim() || stu.email,
+                                        method: `${r.method || "Saved"} (${slotName})`,
+                                        time: r.markedAt ? format(new Date(r.markedAt), "hh:mm a") : "Already Marked",
+                                        avatar: stu.profile?.avatar || null,
+                                        enrollmentNumber: stu.enrollmentNumber || ""
+                                    });
+                                }
                             }
                         }
                     });
                     if (active) {
                         setMarkedIds(ids);
                         setMarkedSlotsMap(slotsMap);
+                        setAttendanceStatusMap(statusMap);
                         setMarkedUsersList(list);
                     }
                 }
@@ -339,7 +366,8 @@ function ScannerPage() {
     const handleRecognized = useCallback(async (user, method) => {
         const slot = getCurrentSlot();
         const userSlots = markedSlotsMap[user.id] || new Set();
-        if (isProcessingRef.current || userSlots.has(slot)) return;
+        const currentStatus = attendanceStatusMap[user.id]?.status;
+        if (isProcessingRef.current || (userSlots.has(slot) && currentStatus !== "absent")) return;
         isProcessingRef.current = true;
 
         try {
@@ -406,6 +434,16 @@ function ScannerPage() {
                 }
             }
 
+            setAttendanceStatusMap(prev => ({
+                ...prev,
+                [user.id]: {
+                    status: "present",
+                    method: `${method} (${slot === "checkout" ? "Check-Out" : "Check-In"})`,
+                    time: format(new Date(), "hh:mm a"),
+                    slot
+                }
+            }));
+
             setMarkedSlotsMap(prev => {
                 const updated = { ...prev };
                 const currentSet = new Set(updated[user.id] || []);
@@ -434,8 +472,214 @@ function ScannerPage() {
         } finally {
             setTimeout(() => { isProcessingRef.current = false; }, 1500);
         }
-    }, [markedSlotsMap, batchId, date, isStaff, getCurrentSlot, attSettings, timetableSlots, selectedPeriodId]);
+    }, [markedSlotsMap, batchId, date, isStaff, getCurrentSlot, attSettings, timetableSlots, selectedPeriodId, attendanceStatusMap]);
     handleRecognizedRef.current = handleRecognized;
+
+    const handleManualMark = async (user, newStatus) => {
+        const slot = getCurrentSlot();
+        const activePeriod = timetableSlots.find(s => s._id === selectedPeriodId);
+        const targetBatchId = user.batchId || batchId;
+
+        try {
+            if (isStaff) {
+                const res = await fetch("/api/v1/hr/attendance", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        date,
+                        records: [{
+                            staffId: user.id,
+                            status: newStatus,
+                            remarks: `Manual (${newStatus})`
+                        }]
+                    })
+                });
+                if (!res.ok) throw new Error("Failed to update staff attendance");
+            } else {
+                if (!targetBatchId || targetBatchId === "all") {
+                    toast.error(`${user.name} is not enrolled in any active batch.`);
+                    return;
+                }
+                const res = await fetch("/api/v1/attendance/batch/single", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        batchId: targetBatchId,
+                        date,
+                        studentId: user.id,
+                        status: newStatus,
+                        slot,
+                        method: "manual",
+                        periodId: activePeriod ? activePeriod._id : null,
+                        periodName: activePeriod ? activePeriod.name : "",
+                        remarks: `Manual (${newStatus})`
+                    })
+                });
+                if (!res.ok) throw new Error("Failed to update student attendance");
+            }
+
+            const timeStr = format(new Date(), "hh:mm a");
+            setAttendanceStatusMap(prev => ({
+                ...prev,
+                [user.id]: {
+                    status: newStatus,
+                    method: "Manual",
+                    time: timeStr,
+                    slot
+                }
+            }));
+
+            if (newStatus === "absent") {
+                setMarkedSlotsMap(prev => {
+                    const updated = { ...prev };
+                    if (updated[user.id]) {
+                        const s = new Set(updated[user.id]);
+                        s.delete(slot);
+                        updated[user.id] = s;
+                    }
+                    return updated;
+                });
+                setMarkedIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(user.id);
+                    return next;
+                });
+                toast.info(`Marked ${user.name} as Absent`);
+            } else {
+                setMarkedSlotsMap(prev => {
+                    const updated = { ...prev };
+                    const currentSet = new Set(updated[user.id] || []);
+                    currentSet.add(slot);
+                    updated[user.id] = currentSet;
+                    return updated;
+                });
+                setMarkedIds(prev => new Set([...prev, user.id]));
+                toast.success(`Marked ${user.name} as Present`);
+            }
+        } catch (err) {
+            toast.error("Mark failed: " + err.message);
+        }
+    };
+
+    const handleMarkRemainingAbsent = async () => {
+        const unmarkedUsers = enrolledUsers.filter(u => {
+            const s = attendanceStatusMap[u.id]?.status;
+            return s !== "present" && s !== "late" && s !== "absent";
+        });
+
+        if (unmarkedUsers.length === 0) {
+            toast.info("No unmarked students remaining.");
+            return;
+        }
+
+        setBulkLoading(true);
+        const slot = getCurrentSlot();
+        const activePeriod = timetableSlots.find(s => s._id === selectedPeriodId);
+
+        try {
+            if (isStaff) {
+                const records = unmarkedUsers.map(u => ({
+                    staffId: u.id,
+                    status: "absent",
+                    remarks: "Auto-marked Absent (did not scan)"
+                }));
+                const res = await fetch("/api/v1/hr/attendance", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ date, records })
+                });
+                if (!res.ok) throw new Error("Failed to save staff attendance");
+            } else {
+                const byBatch = {};
+                unmarkedUsers.forEach(u => {
+                    const bId = u.batchId || batchId;
+                    if (bId && bId !== "all") {
+                        if (!byBatch[bId]) byBatch[bId] = [];
+                        byBatch[bId].push(u.id);
+                    }
+                });
+
+                const batchKeys = Object.keys(byBatch);
+                if (batchKeys.length === 0) {
+                    toast.error("No valid batch found for unmarked students.");
+                    setBulkLoading(false);
+                    return;
+                }
+
+                for (const bId of batchKeys) {
+                    const studentIds = byBatch[bId];
+                    const res = await fetch("/api/v1/attendance/batch/single", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            batchId: bId,
+                            date,
+                            studentIds,
+                            status: "absent",
+                            slot,
+                            method: "manual",
+                            periodId: activePeriod ? activePeriod._id : null,
+                            periodName: activePeriod ? activePeriod.name : "",
+                            remarks: "Auto-marked Absent (did not scan)"
+                        })
+                    });
+                    if (!res.ok) throw new Error("Failed to update batch attendance");
+                }
+            }
+
+            const updatedStatus = { ...attendanceStatusMap };
+            const timeNow = format(new Date(), "hh:mm a");
+            unmarkedUsers.forEach(u => {
+                updatedStatus[u.id] = {
+                    status: "absent",
+                    method: "Batch (Absent)",
+                    time: timeNow,
+                    slot
+                };
+            });
+            setAttendanceStatusMap(updatedStatus);
+
+            toast.success(`Marked ${unmarkedUsers.length} student(s) as Absent`);
+        } catch (err) {
+            toast.error("Failed to mark absent: " + err.message);
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
+    const presentCount = enrolledUsers.filter(u => {
+        const s = attendanceStatusMap[u.id]?.status;
+        return s === "present" || s === "late";
+    }).length;
+
+    const absentCount = enrolledUsers.filter(u => {
+        return attendanceStatusMap[u.id]?.status === "absent";
+    }).length;
+
+    const unmarkedCount = enrolledUsers.filter(u => {
+        const s = attendanceStatusMap[u.id]?.status;
+        return s !== "present" && s !== "late" && s !== "absent";
+    }).length;
+
+    const displayedUsers = enrolledUsers.filter(u => {
+        const record = attendanceStatusMap[u.id];
+        const s = record?.status;
+        const isPresent = s === "present" || s === "late";
+        const isAbsent = s === "absent";
+        const isUnmarked = !s || (s !== "present" && s !== "late" && s !== "absent");
+
+        if (filterTab === "present" && !isPresent) return false;
+        if (filterTab === "absent" && !isAbsent) return false;
+        if (filterTab === "unmarked" && !isUnmarked) return false;
+
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            const nameMatch = (u.name || "").toLowerCase().includes(q);
+            const idMatch = (u.enrollmentNumber || "").toLowerCase().includes(q);
+            return nameMatch || idMatch;
+        }
+        return true;
+    });
 
     const ready = cameraReady && modelsReady && profilesReady;
     const faceCount = enrolledUsers.filter(u => u.faceDescriptor?.length === 128).length;
@@ -481,9 +725,17 @@ function ScannerPage() {
                         </select>
                     )}
                 </div>
-                <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
-                    <UserCheck size={14} />
-                    {markedIds.size} marked
+                <div className="flex items-center gap-2 text-xs font-bold">
+                    <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <UserCheck size={13} />
+                        {presentCount} Present
+                    </span>
+                    {absentCount > 0 && (
+                        <span className="text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <UserX size={13} />
+                            {absentCount} Absent
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -533,43 +785,182 @@ function ScannerPage() {
                     )}
                 </div>
 
-                {/* Right Side: Marked Students Sidebar */}
-                <div className="w-full md:w-80 lg:w-96 bg-white border-t md:border-t-0 md:border-l border-slate-200 flex flex-col overflow-hidden min-h-0 h-[40vh] md:h-full">
-                    <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Marked Attendance</span>
-                        <span className="bg-emerald-50 text-emerald-700 font-extrabold text-[11px] px-2.5 py-1 rounded-full flex items-center gap-1 border border-emerald-200">
-                            {markedIds.size} present
-                        </span>
+                {/* Right Side: Roster & Attendance Sidebar */}
+                <div className="w-full md:w-84 lg:w-96 bg-white border-t md:border-t-0 md:border-l border-slate-200 flex flex-col overflow-hidden min-h-0 h-[40vh] md:h-full">
+                    {/* Header */}
+                    <div className="p-3.5 border-b border-slate-200 bg-slate-50 space-y-2.5 shrink-0">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Roster Attendance</span>
+                                <p className="text-[11px] text-slate-400">{enrolledUsers.length} enrolled</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px] font-extrabold">
+                                <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    {presentCount} P
+                                </span>
+                                <span className="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full border border-rose-200">
+                                    {absentCount} A
+                                </span>
+                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
+                                    {unmarkedCount} Left
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Quick Bulk Action: Mark Remaining as Absent */}
+                        {unmarkedCount > 0 && (
+                            <button
+                                onClick={handleMarkRemainingAbsent}
+                                disabled={bulkLoading}
+                                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                            >
+                                {bulkLoading ? (
+                                    <Loader2 size={13} className="animate-spin" />
+                                ) : (
+                                    <UserX size={13} />
+                                )}
+                                <span>Mark Remaining as Absent ({unmarkedCount})</span>
+                            </button>
+                        )}
+
+                        {/* Search Input & Filter Tabs */}
+                        <div className="space-y-1.5 pt-0.5">
+                            <div className="relative">
+                                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search by name or ID..."
+                                    className="w-full pl-8 pr-3 py-1 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                />
+                            </div>
+
+                            <div className="flex bg-slate-200/70 p-0.5 rounded-lg text-[10px] font-bold">
+                                {[
+                                    { key: "all", label: `All (${enrolledUsers.length})` },
+                                    { key: "unmarked", label: `Unmarked (${unmarkedCount})` },
+                                    { key: "present", label: `Present (${presentCount})` },
+                                    { key: "absent", label: `Absent (${absentCount})` },
+                                ].map(tab => (
+                                    <button
+                                        key={tab.key}
+                                        onClick={() => setFilterTab(tab.key)}
+                                        className={cn(
+                                            "flex-1 py-1 text-center rounded-md transition-all",
+                                            filterTab === tab.key
+                                                ? "bg-white text-slate-800 shadow-xs font-black"
+                                                : "text-slate-600 hover:text-slate-900"
+                                        )}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-                        {markedUsersList.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 py-12">
-                                <UserCheck className="w-8 h-8 text-slate-300 mb-2 animate-pulse" />
-                                <p className="text-sm font-semibold text-slate-600">No students marked yet</p>
-                                <p className="text-xs text-slate-400 mt-1">Present face or scan QR card to begin</p>
+                    {/* Student list */}
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+                        {displayedUsers.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 py-10">
+                                <UserCheck className="w-8 h-8 text-slate-300 mb-2" />
+                                <p className="text-xs font-semibold text-slate-600">No students in this view</p>
                             </div>
                         ) : (
-                            markedUsersList.map(u => (
-                                <div key={u.id} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200/60 hover:border-slate-350 hover:shadow-xs transition-all">
-                                    {u.avatar ? (
-                                        <img src={u.avatar} alt={u.name} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
-                                    ) : (
-                                        <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm border border-indigo-100">
-                                            {u.name[0]}
+                            displayedUsers.map(u => {
+                                const record = attendanceStatusMap[u.id];
+                                const status = record?.status;
+                                const isPresent = status === "present" || status === "late";
+                                const isAbsent = status === "absent";
+                                const isUnmarked = !status;
+
+                                return (
+                                    <div
+                                        key={u.id}
+                                        className={cn(
+                                            "flex items-center gap-2.5 p-2.5 rounded-xl border transition-all",
+                                            isPresent
+                                                ? "bg-emerald-50/40 border-emerald-200/70"
+                                                : isAbsent
+                                                ? "bg-rose-50/40 border-rose-200/70"
+                                                : "bg-white border-slate-200/70 hover:border-slate-300"
+                                        )}
+                                    >
+                                        {u.avatar ? (
+                                            <img src={u.avatar} alt={u.name} className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0" />
+                                        ) : (
+                                            <div className={cn(
+                                                "w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border",
+                                                isPresent
+                                                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                                    : isAbsent
+                                                    ? "bg-rose-100 text-rose-800 border-rose-200"
+                                                    : "bg-indigo-50 text-indigo-700 border-indigo-100"
+                                            )}>
+                                                {u.name[0]}
+                                            </div>
+                                        )}
+
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5">
+                                                <p className="font-bold text-slate-800 text-xs truncate">{u.name}</p>
+                                                {status === "late" && (
+                                                    <span className="text-[9px] font-black uppercase px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                                        Late
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-slate-400 text-[10px] truncate">
+                                                {u.enrollmentNumber ? `ID: ${u.enrollmentNumber} · ` : ''}
+                                                {record ? `${record.method || 'Marked'} (${record.time})` : 'Awaiting recognition'}
+                                            </p>
                                         </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-bold text-slate-700 text-sm truncate">{u.name}</p>
-                                        <p className="text-slate-500 text-xs truncate">
-                                            {u.enrollmentNumber ? `ID: ${u.enrollmentNumber} · ` : ''}{u.time}
-                                        </p>
+
+                                        {/* Action buttons */}
+                                        <div className="flex items-center gap-1 shrink-0">
+                                            {isUnmarked && (
+                                                <>
+                                                    <button
+                                                        onClick={() => handleManualMark(u, "absent")}
+                                                        title="Mark Absent"
+                                                        className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[10px] font-bold transition-colors cursor-pointer"
+                                                    >
+                                                        Absent
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleManualMark(u, "present")}
+                                                        title="Mark Present"
+                                                        className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold transition-colors cursor-pointer"
+                                                    >
+                                                        Present
+                                                    </button>
+                                                </>
+                                            )}
+                                            {isAbsent && (
+                                                <button
+                                                    onClick={() => handleManualMark(u, "present")}
+                                                    title="Change to Present"
+                                                    className="px-2 py-1 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                                                >
+                                                    <span className="text-rose-600 font-extrabold mr-1">✗ Absent</span>
+                                                    <span>→ Present</span>
+                                                </button>
+                                            )}
+                                            {isPresent && (
+                                                <button
+                                                    onClick={() => handleManualMark(u, "absent")}
+                                                    title="Change to Absent"
+                                                    className="px-2 py-1 bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded text-[10px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                                                >
+                                                    <span className="text-emerald-600 font-extrabold mr-1">✓ Present</span>
+                                                    <span className="text-slate-400">→ Absent</span>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                    <span className="text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                                        {u.method}
-                                    </span>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>

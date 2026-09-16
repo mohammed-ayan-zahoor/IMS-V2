@@ -91,6 +91,11 @@ async function handleSendReminders(req) {
                                 channel_id: "high_importance_channel",
                                 sound: "default"
                             },
+                            data: {
+                                title: "Happy Birthday! 🎂",
+                                body: "Wishing you a wonderful birthday from all of us!",
+                                type: "birthday"
+                            },
                             priority: "high"
                         }
                     };
@@ -159,6 +164,11 @@ async function handleSendReminders(req) {
                                     body: bodyText,
                                     channel_id: "high_importance_channel",
                                     sound: "default"
+                                },
+                                data: {
+                                    title: "Fee Payment Reminder 💰",
+                                    body: bodyText,
+                                    type: "fee_due"
                                 },
                                 priority: "high"
                             }

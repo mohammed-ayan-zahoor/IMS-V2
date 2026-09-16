@@ -26,6 +26,12 @@ export async function GET(req) {
         // 1. Super Admin + (instituteId='all' OR no instituteId provided)
         const isGlobalView = scope.isSuperAdmin && (!targetInstParam || targetInstParam === "all");
 
+        // ponytail: Strict tenant isolation. Only super_admin may query arbitrary or all institutes.
+        // Non-superadmin users attempting cross-tenant querying are blocked.
+        if (!scope.isSuperAdmin && targetInstParam && targetInstParam !== "all" && targetInstParam !== scope.instituteId?.toString()) {
+            return NextResponse.json({ error: "Forbidden: Cross-tenant access not permitted" }, { status: 403 });
+        }
+
         const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
         const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get("limit")) || 10));
         const search = searchParams.get("search") || "";
@@ -40,7 +46,9 @@ export async function GET(req) {
         let sessionId = null;
         let sessionValidationResult = null;
 
-        const targetInstituteId = isGlobalView ? null : (targetInstParam || scope.instituteId);
+        const targetInstituteId = scope.isSuperAdmin
+            ? (isGlobalView ? null : (targetInstParam || null))
+            : scope.instituteId;
 
         // SECURITY FIX: Server-side session derivation & validation
         // Do NOT trust client-provided x-session-id header

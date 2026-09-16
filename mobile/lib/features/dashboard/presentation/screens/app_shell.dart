@@ -4,15 +4,7 @@ import 'package:student_app/features/dashboard/presentation/screens/dashboard_sc
 import 'package:student_app/features/attendance/presentation/screens/attendance_screen.dart';
 import 'package:student_app/features/timetable/presentation/screens/timetable_screen.dart';
 import 'package:student_app/features/profile/presentation/screens/profile_screen.dart';
-import 'package:student_app/features/fees/presentation/screens/fees_screen.dart';
-import 'package:student_app/features/notices/presentation/screens/notices_screen.dart';
-import 'package:student_app/features/materials/presentation/screens/learning_materials_screen.dart';
-import 'package:student_app/features/practice/presentation/screens/practice_screen.dart';
-import 'package:student_app/features/exams/presentation/screens/exams_screen.dart';
-import 'package:student_app/features/vault/presentation/screens/vault_screen.dart';
-import 'package:student_app/features/chat/presentation/screens/chat_screen.dart';
-import 'package:student_app/features/timeline/presentation/screens/timeline_screen.dart';
-import 'package:student_app/features/notifications/presentation/screens/notifications_screen.dart';
+import 'package:student_app/features/dashboard/presentation/widgets/more_menu_sheet.dart';
 
 import 'package:provider/provider.dart';
 import 'package:student_app/core/providers/academic_session_provider.dart';
@@ -70,120 +62,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _showMoreBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFC4C6CF),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Student Portals & Services',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF002045),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Access your academic tools and resources',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: const Color(0xFF545F72),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                GridView.count(
-                  shrinkWrap: true,
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.82,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _buildMoreItem(context, 'Fees &\nPayments', Icons.receipt_long_outlined, const Color(0xFF059669), const FeesScreen()),
-                    _buildMoreItem(context, 'Notices', Icons.campaign_outlined, const Color(0xFF2563EB), const NoticesScreen()),
-                    _buildMoreItem(context, 'Timeline', Icons.auto_awesome_outlined, const Color(0xFF7C3AED), const TimelineScreen()),
-                    _buildMoreItem(context, 'Materials', Icons.menu_book_outlined, const Color(0xFFD97706), const LearningMaterialsScreen()),
-                    _buildMoreItem(context, 'Practice', Icons.quiz_outlined, const Color(0xFF6366F1), const PracticeScreen()),
-                    _buildMoreItem(context, 'Exams', Icons.assignment_outlined, const Color(0xFFDC2626), const ExamsScreen()),
-                    _buildMoreItem(context, 'Document\nVault', Icons.folder_shared_outlined, const Color(0xFF0284C7), const VaultScreen()),
-                    _buildMoreItem(context, 'Messages', Icons.chat_bubble_outline, const Color(0xFF0F766E), const ChatScreen()),
-                    _buildMoreItem(context, 'Notifications', Icons.notifications_outlined, const Color(0xFF002045), const NotificationsScreen()),
-                  ],
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMoreItem(BuildContext context, String title, IconData icon, Color color, Widget targetScreen) {
-    return InkWell(
-      onTap: () {
-        Navigator.pop(context);
-        Navigator.push(context, MaterialPageRoute(builder: (_) => targetScreen));
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFEFF4FF),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFC4C6CF).withValues(alpha: 0.5)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF0D1C2E),
-                height: 1.1,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
+    MoreMenuSheet.show(context);
   }
 
   @override

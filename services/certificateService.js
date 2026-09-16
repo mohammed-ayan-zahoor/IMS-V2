@@ -264,6 +264,43 @@ export const renderHtmlToPdf = async (htmlTemplate, cssContent, context, pageCon
 
             const page = await browser.newPage();
             
+            // ponytail: SSRF protection in Puppeteer. Intercept requests to block internal network and file access
+            await page.setRequestInterception(true);
+            page.on('request', (interceptedReq) => {
+                try {
+                    const parsed = new URL(interceptedReq.url());
+                    const proto = parsed.protocol.toLowerCase();
+                    const hostname = parsed.hostname.toLowerCase();
+
+                    // Block local file / system schemes
+                    if (proto === 'file:' || proto === 'about:' || proto === 'chrome:') {
+                        return interceptedReq.abort();
+                    }
+
+                    // Block loopback, cloud metadata (169.254.169.254), private IP ranges, and internal hostnames
+                    const blockedHosts = ['localhost', '127.0.0.1', '::1', '0.0.0.0', '169.254.169.254'];
+                    if (
+                        blockedHosts.includes(hostname) ||
+                        hostname.endsWith('.localhost') ||
+                        hostname.endsWith('.internal') ||
+                        hostname.startsWith('10.') ||
+                        hostname.startsWith('192.168.') ||
+                        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+                    ) {
+                        return interceptedReq.abort();
+                    }
+
+                    // Allow safe web protocols for fonts, assets, and base64 data URIs
+                    if (proto === 'http:' || proto === 'https:' || proto === 'data:') {
+                        return interceptedReq.continue();
+                    }
+
+                    return interceptedReq.abort();
+                } catch {
+                    return interceptedReq.abort();
+                }
+            });
+
             // Compile Handlebars
             const template = Handlebars.compile(htmlTemplate);
             const injectedHtml = template(context);

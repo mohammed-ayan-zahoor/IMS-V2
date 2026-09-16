@@ -61,7 +61,7 @@ class _ExamsScreenState extends State<ExamsScreen> with SingleTickerProviderStat
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Course: ${exam.courseName} • Subject: ${exam.subjectName}',
+                    'Course: ${exam.courseName} • Subject: ${exam.subjectName}${exam.semester != null ? ' • Sem ${exam.semester}' : ''}${exam.examCategory != null ? ' • ${exam.formattedCategory}' : ''}',
                     style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF545F72)),
                   ),
                   const SizedBox(height: 16),
@@ -343,6 +343,47 @@ class _ExamsScreenState extends State<ExamsScreen> with SingleTickerProviderStat
                         ),
                       ],
                     ),
+                    if (exam.examCategory != null || exam.semester != null) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (exam.examCategory != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF3E8FD),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                exam.formattedCategory,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF681DA8),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          if (exam.semester != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE0F2FE),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Semester ${exam.semester}',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF0369A1),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 10),
 
                     Text(

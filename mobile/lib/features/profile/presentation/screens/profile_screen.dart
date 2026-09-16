@@ -94,9 +94,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Consumer2<AuthProvider, AttendanceProvider>(
       builder: (context, authProvider, attProvider, _) {
         final user = authProvider.user;
-        final String name = user?['name'] ?? user?['displayName'] ?? 'Student';
+        final String name = authProvider.userName;
         final String email = user?['email'] ?? '';
-        final String image = user?['image'] ?? user?['profile']?['avatar'] ?? '';
+        final String image = authProvider.userAvatar;
         final String enrollment = user?['enrollmentNumber'] ?? 'N/A';
         
         final profile = (user?['profile'] as Map?) ?? {};
@@ -286,9 +286,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         clipBehavior: Clip.antiAlias,
                         child: Column(
                           children: [
-                            _buildInfoRow(Icons.badge_outlined, 'Enrollment Number', enrollment),
+                            _buildInfoRow(
+                              Icons.badge_outlined,
+                              authProvider.isCollege ? 'University Roll / Reg. No.' : 'Enrollment Number',
+                              enrollment,
+                            ),
                             if (grNumber.isNotEmpty)
-                              _buildInfoRow(Icons.assignment_ind_outlined, 'General Register (GR) No.', grNumber),
+                              _buildInfoRow(
+                                Icons.assignment_ind_outlined,
+                                authProvider.isCollege ? 'College Register (CR) No.' : 'General Register (GR) No.',
+                                grNumber,
+                              ),
                             _buildInfoRow(Icons.apartment_outlined, 'Institute Name', '$instituteName ($instituteCode)', isLast: true),
                           ],
                         ),

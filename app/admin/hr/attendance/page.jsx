@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { UserCheck, Calendar, Search, Loader2, Save, CheckCircle2, XCircle, Clock, Moon, AlertTriangle, ScanLine } from "lucide-react";
+import { UserCheck, Calendar, Search, Loader2, Save, CheckCircle2, XCircle, Clock, Moon, AlertTriangle, ScanLine, Camera } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/contexts/ToastContext";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { cn } from "@/lib/utils";
+import EnrollFaceModal from "@/components/users/EnrollFaceModal";
 
 const statusOptions = [
     { value: "present", label: "Present" },
@@ -30,6 +31,8 @@ export default function StaffAttendancePage() {
     const [records, setRecords] = useState([]);
     const [originalRecords, setOriginalRecords] = useState([]);
     const [isTimingModalOpen, setIsTimingModalOpen] = useState(false);
+    const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+    const [selectedFaceUser, setSelectedFaceUser] = useState(null);
     const [checkInStart, setCheckInStart] = useState("08:00");
     const [checkInEnd, setCheckInEnd] = useState("09:30");
     const [checkOutStart, setCheckOutStart] = useState("16:00");
@@ -310,6 +313,7 @@ export default function StaffAttendancePage() {
                                     <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Staff Member</th>
                                     <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Designation</th>
                                     <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Role</th>
+                                    <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Face Biometrics</th>
                                     <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Attendance Status</th>
                                     <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Remarks / Note</th>
                                 </tr>
@@ -334,6 +338,25 @@ export default function StaffAttendancePage() {
                                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 capitalize">
                                                     {rec.staff.role === 'instructor' ? 'Teacher' : rec.staff.role}
                                                 </span>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedFaceUser(rec.staff);
+                                                        setIsFaceModalOpen(true);
+                                                    }}
+                                                    className={cn(
+                                                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all",
+                                                        rec.staff?.faceEnrolledAt
+                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                                                    )}
+                                                    title={rec.staff?.faceEnrolledAt ? "Face registered. Click to re-enroll." : "Click to register staff face for face recognition"}
+                                                >
+                                                    <Camera size={13} className={rec.staff?.faceEnrolledAt ? "text-emerald-600" : "text-slate-400"} />
+                                                    {rec.staff?.faceEnrolledAt ? "Enrolled" : "Register Face"}
+                                                </button>
                                             </td>
                                             <td className="px-5 py-3.5">
                                                 <div className="flex items-center gap-1.5">
@@ -388,6 +411,17 @@ export default function StaffAttendancePage() {
                     <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Add teachers or staff members to mark daily attendance.</p>
                 </div>
             )}
+
+            {/* Enroll Face Modal */}
+            <EnrollFaceModal
+                user={selectedFaceUser}
+                isOpen={isFaceModalOpen}
+                onClose={() => {
+                    setIsFaceModalOpen(false);
+                    setSelectedFaceUser(null);
+                }}
+                onSuccess={() => fetchAttendance(selectedDate)}
+            />
         </div>
     );
 }

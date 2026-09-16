@@ -22,10 +22,11 @@ export async function GET(req, { params }) {
             student: session.user.id
         }).populate({
             path: 'exam',
-            select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations resultsPublished maxAttempts requiresManualGrading', populate: {
+            select: 'title totalMarks passingMarks questions resultPublication schedule showCorrectAnswers showExplanations resultsPublished maxAttempts requiresManualGrading',
+            populate: {
                 path: 'questions',
                 model: 'Question',
-                select: 'text type options correctAnswer marks snippet'
+                select: 'text type options correctAnswer marks snippet questionImage modelAnswer rubric explanation'
             }
         });
 
@@ -42,7 +43,7 @@ export async function GET(req, { params }) {
                     populate: {
                         path: 'questions',
                         model: 'Question',
-                        select: 'text type options correctAnswer marks snippet'
+                        select: 'text type options correctAnswer marks snippet questionImage modelAnswer rubric explanation'
                     }
                 });
 
@@ -115,15 +116,18 @@ export async function GET(req, { params }) {
         // Process questions to include correctness/feedback based on config
         const processedAnswers = submission.answers.map(ans => {
             const question = exam.questions.find(q => q._id.toString() === ans.questionId.toString());
+            const maxMarks = question?.marks || 0;
+            const marksAwarded = ans.marksAwarded ?? 0;
+            const isFull = ans.isCorrect || (marksAwarded >= maxMarks && maxMarks > 0);
 
             let result = {
                 questionId: ans.questionId,
                 questionText: question?.text || 'Deleted question',
                 type: question?.type || null,
                 yourAnswer: ans.answer,
-                marksAwarded: ans.marksAwarded,
-                maxMarks: question?.marks || 0,
-                isCorrect: ans.isCorrect || false,
+                marksAwarded: marksAwarded,
+                maxMarks: maxMarks,
+                isCorrect: isFull,
                 feedback: ans.feedback || '',
                 needsGrading: ans.needsGrading || false,
                 snippet: question?.snippet || null,
@@ -134,6 +138,7 @@ export async function GET(req, { params }) {
                 result.correctAnswer = question?.correctAnswer || null;
                 result.options = question?.options || [];
                 result.modelAnswer = question?.modelAnswer || null;
+                result.rubric = question?.rubric || null;
                 result.explanation = question?.explanation || null;
             }
 

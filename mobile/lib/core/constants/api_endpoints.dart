@@ -21,6 +21,7 @@ class ApiEndpoints {
   static const String documents = '/student/documents';
   static const String timeline = '/student/timeline';
   static const String sessions = '/student/sessions';
+  static const String studentLibrary = '/student/library';
 
   // Exams
   static const String exams = '/exams';

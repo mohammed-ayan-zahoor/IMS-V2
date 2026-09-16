@@ -789,7 +789,18 @@ export class FeeService {
 
         // 1. Direct Installment Payment
         if (installmentId) {
-            const installment = fee.installments.id(installmentId);
+            let installment = fee.installments.id(installmentId);
+            if (!installment) {
+                installment = fee.installments.find(i => String(i._id) === String(installmentId));
+            }
+            // Fallback for edge cases or ephemeral client IDs: match pending installment by amount or next pending
+            if (!installment && fee.installments && fee.installments.length > 0) {
+                installment = fee.installments.find(i =>
+                    (i.status === 'pending' || i.status === 'overdue') &&
+                    Math.abs(i.amount - (parseFloat(paymentDetails.amount) || 0)) < 0.01
+                ) || fee.installments.find(i => i.status === 'pending' || i.status === 'overdue');
+            }
+
             if (!installment) throw new Error("Installment not found");
             if (installment.status === 'paid') throw new Error("Installment is already paid");
 
@@ -807,7 +818,7 @@ export class FeeService {
 
             // If nextDueDate is provided, update the next pending installment's due date
             if (paymentDetails.nextDueDate) {
-                const nextPending = fee.installments.find(i => i._id.toString() !== installmentId && (i.status === 'pending' || i.status === 'overdue'));
+                const nextPending = fee.installments.find(i => String(i._id) !== String(installment._id) && (i.status === 'pending' || i.status === 'overdue'));
                 if (nextPending) {
                     nextPending.dueDate = parseValidDate(paymentDetails.nextDueDate);
                 }
@@ -819,7 +830,7 @@ export class FeeService {
             savedAmount = installment.amount;
             details = {
                 name: getStudentName(fee.student),
-                installmentId,
+                installmentId: installment._id?.toString() || installmentId,
                 amount: savedAmount
             };
         }

@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, ArrowRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card, { CardContent } from "@/components/ui/Card";
+import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -20,6 +21,7 @@ export default function GradeExamPage() {
     const [sIndex, setSIndex]       = useState(0);    // which student we're on
     const [marksInput, setMarksInput] = useState("");
     const [feedbackInput, setFeedbackInput] = useState("");
+    const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
 
     const fetchGradeData = useCallback(async () => {
         try {
@@ -46,6 +48,7 @@ export default function GradeExamPage() {
     const currentQ   = data?.questions[qIndex];
     const currentAns = currentQ?.answers[sIndex];
     const totalStudents = currentQ?.answers.length || 0;
+    const isLastAnswer = (sIndex === totalStudents - 1 && qIndex === (data?.questions?.length || 1) - 1);
 
     const saveAndNext = useCallback(async () => {
         if (!currentQ || !currentAns || saving) return;
@@ -86,6 +89,7 @@ export default function GradeExamPage() {
                 setSIndex(0);
             } else {
                 toast.success("All answers graded!");
+                setIsCompleteModalOpen(true);
             }
         } catch { toast.error("Failed to save grade"); }
         finally { setSaving(false); }
@@ -139,6 +143,38 @@ export default function GradeExamPage() {
                     style={{ width: totalAnswers > 0 ? `${(gradedCount / totalAnswers) * 100}%` : '0%' }}
                 />
             </div>
+
+            {/* All graded completion banner */}
+            {gradedCount === totalAnswers && totalAnswers > 0 && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                            <CheckCircle2 size={20} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-emerald-900">All Answers Have Been Graded!</p>
+                            <p className="text-xs text-emerald-700">All student submissions are evaluated and scores are updated.</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/admin/exams/${id}/results`)}
+                            className="font-bold text-xs bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-100/50"
+                        >
+                            View Results & Publish
+                        </Button>
+                        <Button
+                            size="sm"
+                            onClick={() => router.push("/admin/exams")}
+                            className="font-bold text-xs bg-emerald-700 hover:bg-emerald-800 text-white"
+                        >
+                            Back to Exams
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Question tabs */}
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -199,27 +235,59 @@ export default function GradeExamPage() {
                 <Card className="lg:col-span-3">
                     <CardContent className="p-6 space-y-5">
                         {/* Student navigation */}
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
                             <div>
-                                <p className="font-bold text-slate-800">
-                                    {currentAns?.student
-                                        ? `${currentAns.student.profile?.firstName || ''} ${currentAns.student.profile?.lastName || ''}`.trim()
-                                        : 'Unknown Student'
-                                    }
-                                </p>
-                                <p className="text-xs text-slate-400">{currentAns?.student?.studentId || ''}</p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <select
+                                        value={sIndex}
+                                        onChange={(e) => setSIndex(Number(e.target.value))}
+                                        className="text-sm font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-500 focus:bg-white cursor-pointer"
+                                    >
+                                        {currentQ?.answers.map((ans, idx) => {
+                                            const sName = ans.student
+                                                ? `${ans.student.profile?.firstName || ''} ${ans.student.profile?.lastName || ''}`.trim() || ans.student.email
+                                                : `Student ${idx + 1}`;
+                                            const status = ans.marksAwarded != null ? `✓ (${ans.marksAwarded}m)` : "• Pending";
+                                            return (
+                                                <option key={ans.submissionId || idx} value={idx}>
+                                                    {sName} {status}
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
+                                    {currentAns?.marksAwarded != null ? (
+                                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                            Graded: {currentAns.marksAwarded}/{currentQ?.question.marks}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                                            Needs Grading
+                                        </span>
+                                    )}
+                                </div>
+                                {currentAns?.student?.studentId && (
+                                    <p className="text-[11px] text-slate-400 mt-1 ml-0.5">Roll/ID: {currentAns.student.studentId}</p>
+                                )}
                             </div>
-                            <div className="flex items-center gap-1 text-sm text-slate-500">
-                                <button onClick={() => setSIndex(s => Math.max(0, s - 1))} disabled={sIndex === 0}
-                                    className="p-1.5 hover:bg-slate-100 rounded-[8px] disabled:opacity-30 transition-colors">
-                                    <ChevronLeft size={18} />
+                            <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                                <button
+                                    onClick={() => setSIndex(s => Math.max(0, s - 1))}
+                                    disabled={sIndex === 0}
+                                    title="Previous Student"
+                                    className="p-1.5 hover:bg-slate-100 rounded-[8px] border border-slate-200 disabled:opacity-30 transition-colors"
+                                >
+                                    <ChevronLeft size={16} />
                                 </button>
-                                <span className="font-bold text-slate-700">{sIndex + 1}</span>
-                                <span className="text-slate-300">/</span>
-                                <span>{totalStudents}</span>
-                                <button onClick={() => setSIndex(s => Math.min(totalStudents - 1, s + 1))} disabled={sIndex === totalStudents - 1}
-                                    className="p-1.5 hover:bg-slate-100 rounded-[8px] disabled:opacity-30 transition-colors">
-                                    <ChevronRight size={18} />
+                                <span className="font-bold text-slate-700 text-xs px-1">
+                                    {sIndex + 1} of {totalStudents}
+                                </span>
+                                <button
+                                    onClick={() => setSIndex(s => Math.min(totalStudents - 1, s + 1))}
+                                    disabled={sIndex === totalStudents - 1}
+                                    title="Next Student"
+                                    className="p-1.5 hover:bg-slate-100 rounded-[8px] border border-slate-200 disabled:opacity-30 transition-colors"
+                                >
+                                    <ChevronRight size={16} />
                                 </button>
                             </div>
                         </div>
@@ -272,12 +340,54 @@ export default function GradeExamPage() {
                         <div className="flex items-center justify-between pt-1">
                             <p className="text-xs text-slate-400">Tip: <kbd className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-mono">Ctrl+Enter</kbd> to save & next</p>
                             <Button onClick={saveAndNext} disabled={saving} className="font-bold flex items-center gap-2">
-                                {saving ? "Saving..." : <>Save & Next <ChevronRight size={16} /></>}
+                                {saving ? "Saving..." : isLastAnswer ? <>Save & Finish 🎉</> : <>Save & Next <ChevronRight size={16} /></>}
                             </Button>
                         </div>
                     </CardContent>
                 </Card>
             </div>
+
+            {/* All Graded Completion Modal */}
+            <Modal
+                isOpen={isCompleteModalOpen}
+                onClose={() => setIsCompleteModalOpen(false)}
+                title="🎉 Evaluation Complete"
+                className="max-w-md"
+            >
+                <div className="space-y-4 py-2 text-center">
+                    <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                        <CheckCircle2 size={32} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900">All Answers Graded</h3>
+                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                            You have evaluated all subjective questions for this exam. Student final scores and percentages have been recalculated.
+                        </p>
+                    </div>
+                    <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                        <Button
+                            onClick={() => router.push(`/admin/exams/${id}/results`)}
+                            className="w-full font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+                        >
+                            View Exam Results & Publish <ArrowRight size={16} />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => router.push("/admin/exams")}
+                            className="w-full font-bold text-slate-700"
+                        >
+                            Return to Exams List
+                        </Button>
+                        <button
+                            type="button"
+                            onClick={() => setIsCompleteModalOpen(false)}
+                            className="text-xs text-slate-400 hover:text-slate-600 mt-1 cursor-pointer"
+                        >
+                            Stay on this page to review
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

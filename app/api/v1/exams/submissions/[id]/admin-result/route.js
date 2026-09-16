@@ -25,7 +25,7 @@ export async function GET(req, { params }) {
                 populate: {
                     path: 'questions',
                     model: 'Question',
-                    select: 'text type options correctAnswer marks'
+                    select: 'text type options correctAnswer marks modelAnswer rubric explanation snippet questionImage'
                 }
             })
             .populate('student'); // Populate all student fields including virtuals like fullName
@@ -40,20 +40,31 @@ export async function GET(req, { params }) {
         // Process questions to include correctness/feedback
         const processedAnswers = submission.answers.map(ans => {
             const question = questions.find(q => q._id.toString() === ans.questionId.toString());
+            const maxMarks = question?.marks || 0;
+            const marksAwarded = ans.marksAwarded ?? 0;
+            const isFull = ans.isCorrect || (marksAwarded >= maxMarks && maxMarks > 0);
+
             let result = {
                 questionId: ans.questionId,
                 questionText: question?.text || 'Deleted question',
                 type: question?.type || null,
                 yourAnswer: ans.answer,
-                marksAwarded: ans.marksAwarded,
-                maxMarks: question?.marks || 0,
-                isCorrect: ans.isCorrect || false
+                marksAwarded: marksAwarded,
+                maxMarks: maxMarks,
+                isCorrect: isFull,
+                feedback: ans.feedback || '',
+                needsGrading: ans.needsGrading || false,
+                snippet: question?.snippet || null,
+                questionImage: question?.questionImage || null
             };
 
-            // Always show correct answers to admins (regardless of exam settings)
+            // Always show correct answers & explanations to admins (regardless of exam settings)
             if (question) {
                 result.correctAnswer = question.correctAnswer || null;
                 result.options = question.options || [];
+                result.modelAnswer = question.modelAnswer || null;
+                result.rubric = question.rubric || null;
+                result.explanation = question.explanation || null;
             }
 
             return result;

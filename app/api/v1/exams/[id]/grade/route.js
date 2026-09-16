@@ -37,8 +37,9 @@ export async function GET(req, { params }) {
         const isAdmin = ["admin", "super_admin"].includes(scope.user.role);
         let gradableSubjectIds = null;
         if (!isAdmin) {
+            const currentUserId = String(scope.user.id || scope.user._id || "");
             const myAssignments = (exam.evaluatorAssignments || []).filter(
-                a => String(a.evaluator?._id || a.evaluator) === String(scope.user._id)
+                a => String(a.evaluator?._id || a.evaluator || "") === currentUserId
             );
             if (myAssignments.length === 0) {
                 return NextResponse.json({ error: "You are not assigned as an evaluator for this exam" }, { status: 403 });
@@ -154,6 +155,7 @@ export async function PATCH(req, { params }) {
         if (ansIdx === -1) return NextResponse.json({ error: "Answer not found in submission" }, { status: 404 });
 
         submission.answers[ansIdx].marksAwarded  = clampedMarks;
+        submission.answers[ansIdx].isCorrect     = clampedMarks === question.marks;
         submission.answers[ansIdx].feedback       = feedback || '';
         submission.answers[ansIdx].gradedBy       = session.user.id;
         submission.answers[ansIdx].gradedAt       = new Date();

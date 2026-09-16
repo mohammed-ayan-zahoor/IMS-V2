@@ -45,6 +45,19 @@ export async function register() {
             }
         }, 12 * 60 * 60 * 1000); // 12 hours
 
-        console.log("[Init] Cleanup and Voice Reminder schedulers initialized.");
+        // Expire stale library holds (status='ready' past expiresAt) every 24 hours
+        setInterval(async () => {
+            const now = new Date().toISOString();
+            console.log(`[Scheduler] Running library hold expiry sweep at ${now}...`);
+            try {
+                const { expireLibraryHolds } = await import("@/services/libraryHoldExpiryService");
+                await expireLibraryHolds();
+            } catch (err) {
+                console.error("[Scheduler Error] Library hold expiry sweep failed:", err);
+            }
+        }, 24 * 60 * 60 * 1000); // 24 hours
+
+        console.log("[Init] Cleanup, Voice Reminder, and Library Hold schedulers initialized.");
     }
 }
+

@@ -163,7 +163,7 @@ export async function GET(req) {
                         $cond: [
                             { $eq: ["$totalDays", 0] },
                             0,
-                            { $multiply: [{ $divide: ["$present", "$totalDays"] }, 100] }
+                            { $multiply: [{ $divide: [{ $add: ["$present", "$late"] }, "$totalDays"] }, 100] }
                         ]
                     }
                 }

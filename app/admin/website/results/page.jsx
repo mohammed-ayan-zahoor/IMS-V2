@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Eye, EyeOff, Save, ExternalLink, Calendar, Award, Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 

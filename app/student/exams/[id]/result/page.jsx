@@ -125,14 +125,19 @@ export default function ExamResultPage() {
                     <h2 className="text-xl font-bold text-slate-800 px-2">Detailed Analysis</h2>
                     <div className="grid gap-4">
                         {submission.answers.map((ans, idx) => {
-                            const isCorrect = ans.isCorrect;
-                            const isSkipped = ans.yourAnswer === "" || ans.yourAnswer === undefined;
+                            const isSkipped = ans.yourAnswer === "" || ans.yourAnswer === undefined || ans.yourAnswer === null;
+                            const marksAwarded = Number(ans.marksAwarded ?? 0);
+                            const maxMarks = Number(ans.maxMarks ?? 0);
+                            const isFull = !ans.needsGrading && !isSkipped && (ans.isCorrect || (marksAwarded >= maxMarks && maxMarks > 0));
+                            const isPartial = !ans.needsGrading && !isSkipped && (marksAwarded > 0 && marksAwarded < maxMarks);
+                            const isZero = !ans.needsGrading && !isSkipped && marksAwarded === 0;
 
                             return (
                                 <Card key={idx} className={cn(
                                     "border transition-all",
                                     ans.needsGrading ? "border-amber-200 bg-amber-50/20" :
-                                    isCorrect ? "border-green-100 bg-green-50/10" :
+                                    isFull ? "border-green-100 bg-green-50/10" :
+                                    isPartial ? "border-amber-200 bg-amber-50/20" :
                                     isSkipped ? "border-slate-200 bg-slate-50/50" : "border-red-100 bg-red-50/10"
                                 )}>
                                     <CardContent className="p-6">
@@ -140,8 +145,10 @@ export default function ExamResultPage() {
                                             <div className="shrink-0 pt-1">
                                                 {ans.needsGrading ? (
                                                     <Clock className="text-amber-500 animate-pulse" size={24} />
-                                                ) : isCorrect ? (
+                                                ) : isFull ? (
                                                     <CheckCircle2 className="text-green-500" size={24} />
+                                                ) : isPartial ? (
+                                                    <CheckCircle2 className="text-amber-500" size={24} />
                                                 ) : isSkipped ? (
                                                     <AlertCircle className="text-slate-400" size={24} />
                                                 ) : (
@@ -162,9 +169,11 @@ export default function ExamResultPage() {
                                                         <span className={cn(
                                                             "text-xs font-bold px-2 py-1 rounded",
                                                             ans.needsGrading ? "bg-amber-100 text-amber-800" :
-                                                            isCorrect ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
+                                                            isFull ? "bg-green-100 text-green-700" :
+                                                            isPartial ? "bg-amber-100 text-amber-800" :
+                                                            isSkipped ? "bg-slate-100 text-slate-600" : "bg-red-100 text-red-700"
                                                         )}>
-                                                            {ans.needsGrading ? "Pending Evaluation" : `${ans.marksAwarded} / ${ans.maxMarks} Marks`}
+                                                            {ans.needsGrading ? "Pending Evaluation" : `${marksAwarded} / ${maxMarks} Marks${isPartial ? ' · Partial' : ''}`}
                                                         </span>
                                                     </div>
                                                     <p className="font-semibold text-slate-800 text-lg mb-4">

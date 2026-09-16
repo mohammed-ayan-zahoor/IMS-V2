@@ -107,7 +107,19 @@ const SEEDED_DEMO_EVENTS = [
     }
 ];
 
+const initialFormState = () => ({
+    title: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    category: "general",
+    target: "all",
+    targetIds: []
+});
+
 export default function AdminCalendarPage() {
+    const { data: session } = useSession();
+    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
     const toast = useToast();
     const confirm = useConfirm();
 
@@ -144,16 +156,14 @@ export default function AdminCalendarPage() {
     const [clearExistingOnImport, setClearExistingOnImport] = useState(false);
     const fileInputRef = useRef(null);
 
-    function initialFormState() {
-        return {
-            title: "",
-            description: "",
-            startDate: "",
-            endDate: "",
-            category: "general",
-            target: "all",
-            targetIds: []
-        };
+    async function fetchInstitutes() {
+        try {
+            const res = await fetch("/api/v1/institutes");
+            const data = await res.json();
+            setInstitutes(data.institutes || []);
+        } catch (error) {
+            console.error("Failed to fetch institutes", error);
+        }
     }
 
     useEffect(() => {
@@ -162,15 +172,36 @@ export default function AdminCalendarPage() {
         }
     }, [session]);
 
-    const fetchInstitutes = async () => {
+    async function fetchInitialData() {
         try {
-            const res = await fetch("/api/v1/institutes");
-            const data = await res.json();
-            setInstitutes(data.institutes || []);
+            const eventUrl = selectedInstitute ? `/api/v1/events?instituteId=${selectedInstitute}` : "/api/v1/events";
+            const coursesUrl = selectedInstitute ? `/api/v1/courses?instituteId=${selectedInstitute}` : "/api/v1/courses";
+            const batchesUrl = selectedInstitute ? `/api/v1/batches?instituteId=${selectedInstitute}` : "/api/v1/batches";
+
+            const [eRes, cRes, bRes] = await Promise.all([
+                fetch(eventUrl),
+                fetch(coursesUrl),
+                fetch(batchesUrl)
+            ]);
+            const eData = await eRes.json();
+            const cData = await cRes.json();
+            const bData = await bRes.json();
+            
+            const fetchedEvents = eData.events || [];
+            setEvents(fetchedEvents.length > 0 ? fetchedEvents : SEEDED_DEMO_EVENTS);
+            setCourses(cData.courses || []);
+            setBatches(bData.batches || []);
         } catch (error) {
-            console.error("Failed to fetch institutes", error);
+            console.error("Failed to load calendar data:", error);
+            setEvents(SEEDED_DEMO_EVENTS);
+        } finally {
+            setLoading(false);
         }
-    };
+    }
+
+    useEffect(() => {
+        fetchInitialData();
+    }, [selectedInstitute]);
 
     const handleImportSubmit = async () => {
         if (!importJson.trim()) {
@@ -240,37 +271,6 @@ export default function AdminCalendarPage() {
             toast.success(`${file.name} loaded successfully`);
         };
         reader.readAsText(file);
-    };
-
-    useEffect(() => {
-        fetchInitialData();
-    }, [selectedInstitute]);
-
-    const fetchInitialData = async () => {
-        try {
-            const eventUrl = selectedInstitute ? `/api/v1/events?instituteId=${selectedInstitute}` : "/api/v1/events";
-            const coursesUrl = selectedInstitute ? `/api/v1/courses?instituteId=${selectedInstitute}` : "/api/v1/courses";
-            const batchesUrl = selectedInstitute ? `/api/v1/batches?instituteId=${selectedInstitute}` : "/api/v1/batches";
-
-            const [eRes, cRes, bRes] = await Promise.all([
-                fetch(eventUrl),
-                fetch(coursesUrl),
-                fetch(batchesUrl)
-            ]);
-            const eData = await eRes.json();
-            const cData = await cRes.json();
-            const bData = await bRes.json();
-            
-            const fetchedEvents = eData.events || [];
-            setEvents(fetchedEvents.length > 0 ? fetchedEvents : SEEDED_DEMO_EVENTS);
-            setCourses(cData.courses || []);
-            setBatches(bData.batches || []);
-        } catch (error) {
-            console.error("Failed to load calendar data:", error);
-            setEvents(SEEDED_DEMO_EVENTS);
-        } finally {
-            setLoading(false);
-        }
     };
 
     const handleEdit = (event, e) => {
@@ -467,9 +467,6 @@ export default function AdminCalendarPage() {
         });
         setIsModalOpen(true);
     };
-
-    const { data: session } = useSession();
-    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
 
     if (loading) return <LoadingSpinner fullPage />;
 

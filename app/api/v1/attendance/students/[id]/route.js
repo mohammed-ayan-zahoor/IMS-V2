@@ -64,8 +64,12 @@ export async function GET(req, { params }) {
             late: attendance.filter(a => a.status === 'late').length,
             excused: attendance.filter(a => a.status === 'excused').length,
             holiday: attendance.filter(a => a.status === 'holiday').length,
-            total: attendance.filter(a => a.status !== 'holiday').length
+            total: attendance.filter(a => a.status !== 'holiday').length,
+            rate: 0,
+            percentage: 0
         };
+        stats.rate = stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0;
+        stats.percentage = stats.rate;
 
         return NextResponse.json({ attendance, stats });
 

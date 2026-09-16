@@ -18,8 +18,12 @@ export async function PATCH(req) {
         const body = await req.json();
         const { batchId, date, studentId, status = "present", slot = "checkin", method = "face", periodId = null, periodName = "", remarks = "" } = body;
 
-        if (!batchId || !date || !studentId) {
-            return NextResponse.json({ error: "batchId, date, and studentId are required" }, { status: 400 });
+        const studentIdList = Array.isArray(body.studentIds)
+            ? body.studentIds.filter(Boolean)
+            : (studentId ? [studentId] : []);
+
+        if (!batchId || !date || studentIdList.length === 0) {
+            return NextResponse.json({ error: "batchId, date, and studentId (or studentIds) are required" }, { status: 400 });
         }
 
         const batchDoc = await Batch.findById(batchId).select("institute");
@@ -37,68 +41,67 @@ export async function PATCH(req) {
             date: { $gte: dayStart, $lte: dayEnd }
         });
 
-        const newRecord = {
-            student: studentId,
-            status,
-            slot,
-            markedAt: new Date(),
-            method,
-            remarks
-        };
-        if (periodId) newRecord.periodId = periodId;
-        if (periodName) newRecord.periodName = periodName;
-
         if (!attendanceDoc) {
+            const records = studentIdList.map(sId => {
+                const rec = {
+                    student: sId,
+                    status,
+                    slot,
+                    markedAt: new Date(),
+                    method,
+                    remarks
+                };
+                if (periodId) rec.periodId = periodId;
+                if (periodName) rec.periodName = periodName;
+                return rec;
+            });
+
             attendanceDoc = await Attendance.create({
                 institute: batchDoc.institute,
                 batch: batchId,
                 date: targetDate,
-                records: [newRecord],
+                records,
                 markedBy: session.user.id
             });
         } else {
-            // Check if record exists for this student, slot, and periodId
-            const existingRecordIndex = (attendanceDoc.records || []).findIndex(
-                r => r.student?.toString() === studentId.toString() &&
-                    (r.slot || "checkin") === slot &&
-                    ((!r.periodId && !periodId) || (r.periodId?.toString() === periodId?.toString()))
-            );
-
-            if (existingRecordIndex > -1) {
-                const setPayload = {
-                    "records.$.status": status,
-                    "records.$.markedAt": new Date(),
-                    "records.$.method": method,
-                    "records.$.remarks": remarks || attendanceDoc.records[existingRecordIndex].remarks || "",
-                    markedBy: session.user.id,
-                    updatedAt: new Date()
-                };
-                if (periodId) setPayload["records.$.periodId"] = periodId;
-                if (periodName) setPayload["records.$.periodName"] = periodName;
-
-                // Update existing record atomically
-                await Attendance.updateOne(
-                    { _id: attendanceDoc._id, "records._id": attendanceDoc.records[existingRecordIndex]._id },
-                    { $set: setPayload }
+            for (const sId of studentIdList) {
+                const existingRecordIndex = (attendanceDoc.records || []).findIndex(
+                    r => r.student?.toString() === sId.toString() &&
+                        (r.slot || "checkin") === slot &&
+                        ((!r.periodId && !periodId) || (r.periodId?.toString() === periodId?.toString()))
                 );
-            } else {
-                // Push new record for student, slot, and periodId
-                await Attendance.updateOne(
-                    { _id: attendanceDoc._id },
-                    {
-                        $push: { records: newRecord },
-                        $set: {
-                            markedBy: session.user.id,
-                            updatedAt: new Date()
-                        }
-                    }
-                );
+
+                if (existingRecordIndex > -1) {
+                    attendanceDoc.records[existingRecordIndex].status = status;
+                    attendanceDoc.records[existingRecordIndex].markedAt = new Date();
+                    attendanceDoc.records[existingRecordIndex].method = method;
+                    if (remarks) attendanceDoc.records[existingRecordIndex].remarks = remarks;
+                    if (periodId) attendanceDoc.records[existingRecordIndex].periodId = periodId;
+                    if (periodName) attendanceDoc.records[existingRecordIndex].periodName = periodName;
+                } else {
+                    const newRec = {
+                        student: sId,
+                        status,
+                        slot,
+                        markedAt: new Date(),
+                        method,
+                        remarks
+                    };
+                    if (periodId) newRec.periodId = periodId;
+                    if (periodName) newRec.periodName = periodName;
+                    attendanceDoc.records.push(newRec);
+                }
             }
+
+            attendanceDoc.markedBy = session.user.id;
+            attendanceDoc.updatedAt = new Date();
+            await attendanceDoc.save();
         }
 
         // Trigger push notification and MongoDB notification record creation
-        sendAttendancePushNotifications(batchDoc.institute, batchId, [{ studentId, status }]).catch(err => {
-            console.error("Single attendance notification push error:", err);
+        const notifPayload = studentIdList.map(sId => ({ studentId: sId, status }));
+        sendAttendancePushNotifications(batchDoc.institute, batchId, notifPayload).catch(err => {
+            console.error("[Attendance Push] Non-blocking push notification error:", err);
         });
 
         return NextResponse.json({ success: true, studentId, slot, periodId, status });

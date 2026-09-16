@@ -11,6 +11,11 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized. Super Admin only." }, { status: 401 });
         }
 
+        // ponytail: Maintenance utilities should only run when explicitly enabled or outside production
+        if (process.env.NODE_ENV === 'production' && process.env.ENABLE_MAINTENANCE_TASKS !== 'true') {
+            return NextResponse.json({ error: "Maintenance task disabled in production." }, { status: 403 });
+        }
+
         await connectDB();
 
         // Use cursor for memory efficiency (Scaling Optimization)

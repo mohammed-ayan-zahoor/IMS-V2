@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import ConversationList from "./ConversationList";
 import ChatWindow from "./ChatWindow";
 import PusherClient from "pusher-js";
-import toast from "react-hot-toast";
+import { toast } from "@/contexts/ToastContext";
 
 export default function ChatLayout({ currentUserId }) {
     const [conversations, setConversations] = useState([]);

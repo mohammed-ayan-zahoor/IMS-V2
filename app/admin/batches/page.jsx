@@ -171,14 +171,15 @@ export default function BatchesPage() {
         try {
             const res = await fetch(`/api/v1/batches/${id}`, { method: "DELETE" });
             if (res.ok) {
-                toast.success(`${isSchool ? "Section" : "Batch"} deleted successfully`);
+                toast.success(`${isSchool || isCollege ? "Section" : "Batch"} deleted successfully`);
                 fetchInitialData();
             } else {
-                toast.error(`Failed to delete ${isSchool ? "section" : "batch"}`);
+                const data = await res.json().catch(() => ({}));
+                toast.error(data.error || `Failed to delete ${isSchool || isCollege ? "section" : "batch"}`);
             }
         } catch (error) {
             console.error(error);
-            toast.error(`Error deleting ${isSchool ? "section" : "batch"}`);
+            toast.error(`Error deleting ${isSchool || isCollege ? "section" : "batch"}`);
         }
     };
 
@@ -342,6 +343,99 @@ export default function BatchesPage() {
     const totalCollegeBatches = batches.filter(b => !!b.course).length;
 
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
+    const standaloneBatches = batches.filter(b => !b.course && !b.courseBundle);
+
+    const renderSectionsTable = (batchList) => (
+        <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+                <thead>
+                    <tr className="border-b border-slate-100 bg-white text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                        <th className="px-5 py-3">Section Name</th>
+                        <th className="px-5 py-3">Schedule</th>
+                        <th className="px-5 py-3">Occupancy</th>
+                        <th className="px-5 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                    {batchList.map(batch => (
+                        <tr key={batch._id} className="group hover:bg-slate-50/60 transition-colors">
+                            <td className="px-5 py-3.5">
+                                <div className="font-bold text-slate-900 text-sm">{batch.name}</div>
+                                <div className="text-[11px] text-slate-400 font-medium">
+                                    Starts {batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), "MMM d, yyyy") : "TBD"}
+                                </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                                <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+                                    <Clock size={13} className="text-slate-400" />
+                                    <span>{batch.schedule?.description || batch.schedule?.timing || "No schedule set"}</span>
+                                </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                                <div className="flex items-center gap-2.5 max-w-[140px]">
+                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                        <div
+                                            className={cn(
+                                                "h-full transition-all duration-300",
+                                                ((batch.activeEnrollmentCount || 0) / (batch.capacity || 1)) > 0.8 ? "bg-rose-500" : "bg-emerald-500"
+                                            )}
+                                            style={{ width: `${Math.min(100, ((batch.activeEnrollmentCount || 0) / (batch.capacity || 1)) * 100)}%` }}
+                                        />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-700 font-mono">
+                                        {batch.activeEnrollmentCount || 0}/{batch.capacity || 30}
+                                    </span>
+                                </div>
+                            </td>
+                            <td className="px-5 py-3.5 text-right">
+                                <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={() => router.push(`/admin/batches/${batch._id}`)}
+                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                        title="View Section Details"
+                                    >
+                                        <ExternalLink size={15} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleBatchChat(batch)}
+                                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                        title="Broadcast to Section"
+                                    >
+                                        <MessageSquare size={15} />
+                                    </button>
+                                    <button
+                                        onClick={() => router.push(`/admin/attendance?batchId=${batch._id}`)}
+                                        className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
+                                        title="Mark Attendance"
+                                    >
+                                        <Calendar size={15} />
+                                    </button>
+                                    {session?.user?.role !== 'instructor' && (
+                                        <>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleEditBatch(batch); }}
+                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                title="Edit Section"
+                                            >
+                                                <Edit2 size={15} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteBatch(batch._id); }}
+                                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                title="Delete Section"
+                                            >
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
 
     return (
         <>
@@ -352,17 +446,17 @@ export default function BatchesPage() {
             )}
 
             <div className={cn("space-y-6", isInstructorOrStaff ? "hidden md:block" : "")}>
-            {isCollege ? (
+            {isCollege || isSchool ? (
                 /* =========================================================================
                    COLLEGE HIERARCHICAL ACCORDION VIEW (Course ➔ Semester ➔ Sections)
                    Zero icon containers. Clean typography, badges, and smooth accordion.
                    ========================================================================= */
                 <div className="space-y-4">
-                    {/* Top Bar for College */}
+                    {/* Top Bar for College & School */}
                     <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-xs">
                         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
                             <div className="flex flex-wrap items-center gap-3 flex-1">
-                                {departments.length > 0 && (
+                                {isCollege && departments.length > 0 && (
                                     <div className="w-56">
                                         <Select
                                             value={selectedDepartmentFilter}
@@ -378,7 +472,7 @@ export default function BatchesPage() {
                                 )}
                                 <div className="flex-1 max-w-md">
                                     <Input
-                                        placeholder="Search courses, batches or sections..."
+                                        placeholder={isSchool ? "Search classes or sections..." : "Search courses, batches or sections..."}
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
                                         icon={Search}
@@ -388,14 +482,25 @@ export default function BatchesPage() {
                             </div>
                             <div className="flex items-center gap-3 self-end md:self-auto">
                                 <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-2 rounded-lg font-mono">
-                                    {collegeFilteredCourses.length} Courses • {totalCollegeBatches} Active Batches
+                                    {collegeFilteredCourses.length} {isSchool ? "Classes" : "Courses"} • {totalCollegeBatches} Active {isSchool ? "Sections" : "Batches"}
                                 </span>
+                                {isSchool && (
+                                    <Button 
+                                        onClick={() => setIsCloneModalOpen(true)}
+                                        variant="outline"
+                                        size="md"
+                                        className="flex items-center gap-2 border-slate-200"
+                                    >
+                                        <Copy size={16} />
+                                        <span>Clone Sections</span>
+                                    </Button>
+                                )}
                                 {session?.user?.role !== 'instructor' && (
                                     <Button 
                                         onClick={() => {
                                             setEditingBatch(null);
                                             setBatchType("course");
-                                            setFormData({ name: "", course: courses[0]?._id || "", semester: 1, courseBundle: "", schedule: "", startDate: "", capacity: 30 });
+                                            setFormData({ name: "", course: courses[0]?._id || "", semester: isCollege ? 1 : null, courseBundle: "", schedule: "", startDate: "", capacity: 30 });
                                             setIsAddModalOpen(true);
                                         }} 
                                         size="md" 
@@ -415,9 +520,9 @@ export default function BatchesPage() {
                     ) : collegeFilteredCourses.length === 0 ? (
                         <EmptyState
                             icon={Calendar}
-                            title="No courses found"
-                            description={courses.length === 0 ? "No courses have been created yet. Add courses in Courses management to organize batches." : "No courses match your active search or department filter."}
-                            actionLabel={courses.length === 0 ? "Go to Courses" : undefined}
+                            title={isSchool ? "No classes found" : "No courses found"}
+                            description={courses.length === 0 ? (isSchool ? "No classes have been created yet. Add classes in Courses management to organize sections." : "No courses have been created yet. Add courses in Courses management to organize batches.") : (isSchool ? "No classes match your active search." : "No courses match your active search or department filter.")}
+                            actionLabel={courses.length === 0 ? (isSchool ? "Go to Classes" : "Go to Courses") : undefined}
                             onAction={courses.length === 0 ? () => router.push('/admin/courses') : undefined}
                         />
                     ) : (
@@ -449,10 +554,12 @@ export default function BatchesPage() {
                                                 <span className="font-bold text-slate-900 text-sm md:text-[15px] truncate">
                                                     {course.name}
                                                 </span>
-                                                <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shrink-0">
-                                                    {totalSemesters} Semesters ({Math.round(totalSemesters / 2)} Yrs)
-                                                </span>
-                                                {course.department && (
+                                                {isCollege && (
+                                                    <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shrink-0">
+                                                        {totalSemesters} Semesters ({Math.round(totalSemesters / 2)} Yrs)
+                                                    </span>
+                                                )}
+                                                {isCollege && course.department && (
                                                     <span className="text-xs text-slate-400 font-medium hidden sm:inline-block truncate max-w-[240px]">
                                                         {course.department?.name || (typeof course.department === 'string' ? departments.find(d => d._id === course.department)?.name : '')}
                                                     </span>
@@ -460,7 +567,7 @@ export default function BatchesPage() {
                                             </div>
                                             <div className="flex items-center gap-3 shrink-0 ml-2">
                                                 <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full">
-                                                    {courseBatches.length} Active {courseBatches.length === 1 ? "Batch" : "Batches"}
+                                                    {courseBatches.length} Active {isSchool ? (courseBatches.length === 1 ? "Section" : "Sections") : (courseBatches.length === 1 ? "Batch" : "Batches")}
                                                 </span>
                                             </div>
                                         </div>
@@ -468,82 +575,124 @@ export default function BatchesPage() {
                                         {/* Course Expanded Content */}
                                         {isExpanded && (
                                             <div className="bg-slate-50/50 border-t border-slate-100 p-4 sm:p-5 space-y-4">
-                                                {/* Semester Tabs */}
-                                                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                                                    {Array.from({ length: totalSemesters }, (_, i) => i + 1).map(semNum => {
-                                                        const count = courseBatches.filter(b => (Number(b.semester) || 1) === Number(semNum)).length;
-                                                        const isActive = currentSem === semNum;
-                                                        return (
-                                                            <button
-                                                                key={semNum}
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setActiveSemesters(prev => ({ ...prev, [course._id]: semNum }));
-                                                                }}
-                                                                className={cn(
-                                                                    "px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shrink-0",
-                                                                    isActive
-                                                                        ? "bg-slate-900 text-white shadow-xs"
-                                                                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
-                                                                )}
-                                                            >
-                                                                <span>Sem {semNum}</span>
-                                                                {count > 0 && (
-                                                                    <span className={cn(
-                                                                        "text-[10px] px-1.5 py-0.2 rounded-full",
-                                                                        isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600 font-bold"
-                                                                    )}>
-                                                                        {count}
-                                                                    </span>
-                                                                )}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-
-                                                {/* Active Semester Header & Section Table */}
-                                                <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-xs">
-                                                    <div className="flex items-center justify-between px-5 py-3.5 bg-slate-50/70 border-b border-slate-100">
-                                                        <div className="flex items-center gap-2">
-                                                            <h4 className="text-sm font-bold text-slate-900">Semester {currentSem}</h4>
-                                                            <span className="text-xs text-slate-400 font-medium">
-                                                                • {activeSemBatches.length} {activeSemBatches.length === 1 ? "Section" : "Sections"}
-                                                            </span>
+                                                {isCollege ? (
+                                                    <>
+                                                        {/* Semester Tabs */}
+                                                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                                                            {Array.from({ length: totalSemesters }, (_, i) => i + 1).map(semNum => {
+                                                                const count = courseBatches.filter(b => (Number(b.semester) || 1) === Number(semNum)).length;
+                                                                const isActive = currentSem === semNum;
+                                                                return (
+                                                                    <button
+                                                                        key={semNum}
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setActiveSemesters(prev => ({ ...prev, [course._id]: semNum }));
+                                                                        }}
+                                                                        className={cn(
+                                                                            "px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shrink-0",
+                                                                            isActive
+                                                                                ? "bg-slate-900 text-white shadow-xs"
+                                                                                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                                                        )}
+                                                                    >
+                                                                        <span>Sem {semNum}</span>
+                                                                        {count > 0 && (
+                                                                            <span className={cn(
+                                                                                "text-[10px] px-1.5 py-0.2 rounded-full",
+                                                                                isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600 font-bold"
+                                                                            )}>
+                                                                                {count}
+                                                                            </span>
+                                                                        )}
+                                                                    </button>
+                                                                );
+                                                            })}
                                                         </div>
-                                                        {session?.user?.role !== 'instructor' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setEditingBatch(null);
-                                                                    setBatchType("course");
-                                                                    setFormData({
-                                                                        name: "",
-                                                                        course: course._id,
-                                                                        semester: currentSem,
-                                                                        courseBundle: "",
-                                                                        schedule: "",
-                                                                        startDate: "",
-                                                                        capacity: 30
-                                                                    });
-                                                                    setIsAddModalOpen(true);
-                                                                }}
-                                                                className="flex items-center gap-1 text-xs font-bold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100 h-8 px-3"
-                                                            >
-                                                                <Plus size={14} />
-                                                                <span>Add Section</span>
-                                                            </Button>
-                                                        )}
-                                                    </div>
 
-                                                    {activeSemBatches.length === 0 ? (
-                                                        <div className="py-10 text-center px-4">
-                                                            <p className="text-xs text-slate-400 font-medium">No sections created for Semester {currentSem} yet.</p>
+                                                        {/* Active Semester Header & Section Table */}
+                                                        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-xs">
+                                                            <div className="flex items-center justify-between px-5 py-3.5 bg-slate-50/70 border-b border-slate-100">
+                                                                <div className="flex items-center gap-2">
+                                                                    <h4 className="text-sm font-bold text-slate-900">Semester {currentSem}</h4>
+                                                                    <span className="text-xs text-slate-400 font-medium">
+                                                                        • {activeSemBatches.length} {activeSemBatches.length === 1 ? "Section" : "Sections"}
+                                                                    </span>
+                                                                </div>
+                                                                {session?.user?.role !== 'instructor' && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setEditingBatch(null);
+                                                                            setBatchType("course");
+                                                                            setFormData({
+                                                                                name: "",
+                                                                                course: course._id,
+                                                                                semester: currentSem,
+                                                                                courseBundle: "",
+                                                                                schedule: "",
+                                                                                startDate: "",
+                                                                                capacity: 30
+                                                                            });
+                                                                            setIsAddModalOpen(true);
+                                                                        }}
+                                                                        className="flex items-center gap-1 text-xs font-bold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100 h-8 px-3"
+                                                                    >
+                                                                        <Plus size={14} />
+                                                                        <span>Add Section</span>
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+
+                                                            {activeSemBatches.length === 0 ? (
+                                                                <div className="py-10 text-center px-4">
+                                                                    <p className="text-xs text-slate-400 font-medium">No sections created for Semester {currentSem} yet.</p>
+                                                                    {session?.user?.role !== 'instructor' && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setEditingBatch(null);
+                                                                                setBatchType("course");
+                                                                                setFormData({
+                                                                                    name: "",
+                                                                                    course: course._id,
+                                                                                    semester: currentSem,
+                                                                                    courseBundle: "",
+                                                                                    schedule: "",
+                                                                                    startDate: "",
+                                                                                    capacity: 30
+                                                                                });
+                                                                                setIsAddModalOpen(true);
+                                                                            }}
+                                                                            className="mt-2 text-xs text-blue-600 font-bold hover:underline"
+                                                                        >
+                                                                            + Create Section for Semester {currentSem}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                renderSectionsTable(activeSemBatches)
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    /* School Direct Section Table without semesters */
+                                                    <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-xs">
+                                                        <div className="flex items-center justify-between px-5 py-3.5 bg-slate-50/70 border-b border-slate-100">
+                                                            <div className="flex items-center gap-2">
+                                                                <h4 className="text-sm font-bold text-slate-900">{course.name} Sections</h4>
+                                                                <span className="text-xs text-slate-400 font-medium">
+                                                                    • {courseBatches.length} {courseBatches.length === 1 ? "Section" : "Sections"}
+                                                                </span>
+                                                            </div>
                                                             {session?.user?.role !== 'instructor' && (
-                                                                <button
-                                                                    type="button"
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         setEditingBatch(null);
@@ -551,7 +700,7 @@ export default function BatchesPage() {
                                                                         setFormData({
                                                                             name: "",
                                                                             course: course._id,
-                                                                            semester: currentSem,
+                                                                            semester: null,
                                                                             courseBundle: "",
                                                                             schedule: "",
                                                                             startDate: "",
@@ -559,114 +708,90 @@ export default function BatchesPage() {
                                                                         });
                                                                         setIsAddModalOpen(true);
                                                                     }}
-                                                                    className="mt-2 text-xs text-blue-600 font-bold hover:underline"
+                                                                    className="flex items-center gap-1 text-xs font-bold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100 h-8 px-3"
                                                                 >
-                                                                    + Create Section for Semester {currentSem}
-                                                                </button>
+                                                                    <Plus size={14} />
+                                                                    <span>Add Section</span>
+                                                                </Button>
                                                             )}
                                                         </div>
-                                                    ) : (
-                                                        <div className="overflow-x-auto">
-                                                            <table className="w-full text-left border-collapse">
-                                                                <thead>
-                                                                    <tr className="border-b border-slate-100 bg-white text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                                                                        <th className="px-5 py-3">Section Name</th>
-                                                                        <th className="px-5 py-3">Schedule</th>
-                                                                        <th className="px-5 py-3">Occupancy</th>
-                                                                        <th className="px-5 py-3 text-right">Actions</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody className="divide-y divide-slate-100 text-sm">
-                                                                    {activeSemBatches.map(batch => (
-                                                                        <tr key={batch._id} className="group hover:bg-slate-50/60 transition-colors">
-                                                                            <td className="px-5 py-3.5">
-                                                                                <div className="font-bold text-slate-900 text-sm">{batch.name}</div>
-                                                                                <div className="text-[11px] text-slate-400 font-medium">
-                                                                                    Starts {batch.schedule?.startDate ? format(new Date(batch.schedule.startDate), "MMM d, yyyy") : "TBD"}
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="px-5 py-3.5">
-                                                                                <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                                                                                    <Clock size={13} className="text-slate-400" />
-                                                                                    <span>{batch.schedule?.description || batch.schedule?.timing || "No schedule set"}</span>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="px-5 py-3.5">
-                                                                                <div className="flex items-center gap-2.5 max-w-[140px]">
-                                                                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                                                        <div
-                                                                                            className={cn(
-                                                                                                "h-full transition-all duration-300",
-                                                                                                ((batch.activeEnrollmentCount || 0) / (batch.capacity || 1)) > 0.8 ? "bg-rose-500" : "bg-emerald-500"
-                                                                                            )}
-                                                                                            style={{ width: `${Math.min(100, ((batch.activeEnrollmentCount || 0) / (batch.capacity || 1)) * 100)}%` }}
-                                                                                        />
-                                                                                    </div>
-                                                                                    <span className="text-xs font-bold text-slate-700 font-mono">
-                                                                                        {batch.activeEnrollmentCount || 0}/{batch.capacity || 30}
-                                                                                    </span>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="px-5 py-3.5 text-right">
-                                                                                <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                                                                    <button
-                                                                                        onClick={() => router.push(`/admin/batches/${batch._id}`)}
-                                                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                                                        title="View Section Details"
-                                                                                    >
-                                                                                        <ExternalLink size={15} />
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={() => handleBatchChat(batch)}
-                                                                                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                                                                        title="Broadcast to Section"
-                                                                                    >
-                                                                                        <MessageSquare size={15} />
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={() => router.push(`/admin/attendance?batchId=${batch._id}`)}
-                                                                                        className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
-                                                                                        title="Mark Attendance"
-                                                                                    >
-                                                                                        <Calendar size={15} />
-                                                                                    </button>
-                                                                                    {session?.user?.role !== 'instructor' && (
-                                                                                        <>
-                                                                                            <button
-                                                                                                onClick={(e) => { e.stopPropagation(); handleEditBatch(batch); }}
-                                                                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                                                                title="Edit Section"
-                                                                                            >
-                                                                                                <Edit2 size={15} />
-                                                                                            </button>
-                                                                                            <button
-                                                                                                onClick={(e) => { e.stopPropagation(); handleDeleteBatch(batch._id); }}
-                                                                                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                                                                                title="Delete Section"
-                                                                                            >
-                                                                                                <Trash2 size={15} />
-                                                                                            </button>
-                                                                                        </>
-                                                                                    )}
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    )}
-                                                </div>
+
+                                                        {courseBatches.length === 0 ? (
+                                                            <div className="py-10 text-center px-4">
+                                                                <p className="text-xs text-slate-400 font-medium">No sections created for {course.name} yet.</p>
+                                                                {session?.user?.role !== 'instructor' && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setEditingBatch(null);
+                                                                            setBatchType("course");
+                                                                            setFormData({
+                                                                                name: "",
+                                                                                course: course._id,
+                                                                                semester: null,
+                                                                                courseBundle: "",
+                                                                                schedule: "",
+                                                                                startDate: "",
+                                                                                capacity: 30
+                                                                            });
+                                                                            setIsAddModalOpen(true);
+                                                                        }}
+                                                                        className="mt-2 text-xs text-blue-600 font-bold hover:underline"
+                                                                    >
+                                                                        + Create Section for {course.name}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            renderSectionsTable(courseBatches)
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
                                 );
                             })}
+
+                            {/* Unassigned / Standalone sections for Schools (if any) */}
+                            {isSchool && standaloneBatches.length > 0 && (
+                                <div className="bg-white rounded-xl border border-slate-200/80 hover:border-slate-300 transition-all overflow-hidden shadow-xs">
+                                    <div
+                                        onClick={() => toggleCourseExpansion('standalone')}
+                                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50/70 transition-colors select-none"
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <div className="text-slate-400 hover:text-slate-600 transition-transform p-0.5">
+                                                {expandedCourses['standalone'] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                            </div>
+                                            <Badge variant="outline" className="font-mono text-xs font-bold shrink-0">
+                                                OTHER
+                                            </Badge>
+                                            <span className="font-bold text-slate-900 text-sm md:text-[15px] truncate">
+                                                Unassigned / General Sections
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-3 shrink-0 ml-2">
+                                            <span className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full">
+                                                {standaloneBatches.length} {standaloneBatches.length === 1 ? "Section" : "Sections"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {expandedCourses['standalone'] && (
+                                        <div className="bg-slate-50/50 border-t border-slate-100 p-4 sm:p-5">
+                                            <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-xs">
+                                                {renderSectionsTable(standaloneBatches)}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
             ) : (
-                /* Existing School / Vocational flat table view */
+                /* Existing Vocational flat table view */
                 <>
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                         <div />

@@ -1291,42 +1291,59 @@ async function downloadPDF() {
   wrap.appendChild(sigPlaceholder);
 
   try {
-    const { jsPDF } = window.jspdf;
+    btn.textContent = 'Generating Vector PDF...';
     
-    // Force standard desktop layout proportions for capture
-    document.body.classList.add('is-exporting');
-    await new Promise(r => setTimeout(r, 150)); // let layout engine settle
+    // Extract stylesheets and mou document HTML
+    const headStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(el => el.outerHTML)
+      .join('\n');
+    const mouDoc = document.getElementById('mou-document');
+    const mouContent = mouDoc ? mouDoc.outerHTML : document.querySelector('.mou-doc').outerHTML;
     
-    const pages = document.querySelectorAll('.mou-page');
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    
-    for (let i = 0; i < pages.length; i++) {
-      const canvasPage = await html2canvas(pages[i], { 
-        scale: 2.5, 
-        useCORS: true, 
-        backgroundColor: '#fff' 
-      });
-      const imgData = canvasPage.toDataURL('image/jpeg', 0.98);
-      const pW = 210; // Standard A4 width in mm
-      const imgHeight = pW * (canvasPage.height / canvasPage.width);
-      
-      pdf.addPage([pW, imgHeight]);
-      pdf.addImage(imgData, 'JPEG', 0, 0, pW, imgHeight);
-    }
-    
-    // Delete the first page which was the default empty page
-    pdf.deletePage(1);
-    
-    // Restore mobile layout immediately after capture
-    document.body.classList.remove('is-exporting');
-    
+    const fullHtml = `<!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8"/>
+      <title>MOU Document</title>
+      <base href="${window.location.origin}"/>
+      ${headStyles}
+    </head>
+    <body class="is-exporting" style="background: #fff !important; margin: 0 !important; padding: 0 !important;">
+      <div class="page-wrapper" style="max-width: 100% !important; margin: 0 !important; padding: 0 !important;">
+        ${mouContent}
+      </div>
+    </body>
+    </html>`;
+
     const school = (document.getElementById('f-school').value.trim() || 'School').replace(/\s+/g,'_');
-    pdf.save(`MOU_Quantech_${school}_${acadYear}.pdf`);
+    const filename = `MOU_Quantech_${school}_${acadYear}.pdf`;
+
+    const res = await fetch('/api/v1/mou/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html: fullHtml, filename })
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error || 'Server PDF generation failed');
+    }
+
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+
     showToast();
   } catch(e) {
-    document.body.classList.remove('is-exporting');
-    console.error(e);
-    alert('PDF generation failed. Please try printing instead.');
+    console.error('Vector PDF failed, attempting print fallback:', e);
+    alert('Server PDF generation failed. Opening print window to Save as PDF...');
+    triggerPrint();
   } finally {
     wrap.removeChild(sigPlaceholder);
     btn.disabled = false;

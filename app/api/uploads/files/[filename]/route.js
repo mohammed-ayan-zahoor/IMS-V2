@@ -53,14 +53,24 @@ export async function GET(req, { params }) {
 
         console.log("File served successfully:", { filename, fileSize: fileBuffer.length, contentType });
 
+        // ponytail: Stored XSS defense. Serve SVGs with a strict sandbox CSP and attachment disposition
+        const headers = {
+            "Content-Type": contentType,
+            "Cache-Control": "public, max-age=3600",
+            "X-Content-Type-Options": "nosniff"
+        };
+
+        if (ext === '.svg') {
+            headers["Content-Security-Policy"] = "default-src 'none'; sandbox";
+            headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+        } else {
+            headers["Content-Disposition"] = `inline; filename="${filename}"`;
+        }
+
         // Return file with proper headers
         return new NextResponse(fileBuffer, {
             status: 200,
-            headers: {
-                "Content-Type": contentType,
-                "Cache-Control": "public, max-age=3600", // Cache for 1 hour
-                "Content-Disposition": `inline; filename="${filename}"`
-            }
+            headers
         });
     } catch (error) {
         console.error("File serve error:", { error: error.message, code: error.code, stack: error.stack });

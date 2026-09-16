@@ -97,6 +97,12 @@ async function handleBirthdayCron(req) {
                     }
                 },
                 fcm: {
+                    notification: {
+                        title,
+                        body,
+                        channel_id: "high_importance_channel",
+                        sound: "default"
+                    },
                     data: {
                         title,
                         body,

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import { CheckCircle2, Loader2, RefreshCw } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "@/contexts/ToastContext";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
 
@@ -90,10 +90,11 @@ function FaceCaptureContent({ user, onClose, onSuccess }) {
     };
 
     const handleSave = async () => {
-        if (!descriptor || !user?._id) return;
+        const userId = user?._id || user?.id;
+        if (!descriptor || !userId) return;
         setSaving(true);
         try {
-            const res = await fetch(`/api/v1/users/${user._id}/face`, {
+            const res = await fetch(`/api/v1/users/${userId}/face`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ descriptor }),
@@ -161,8 +162,12 @@ function FaceCaptureContent({ user, onClose, onSuccess }) {
 }
 
 export default function EnrollFaceModal({ user, isOpen, onClose, onSuccess }) {
+    const userName = user?.profile?.firstName 
+        ? `${user.profile.firstName} ${user.profile.lastName || ''}`.trim() 
+        : user?.name || user?.email || "User";
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Enroll Face Biometrics" className="max-w-md">
+        <Modal isOpen={isOpen} onClose={onClose} title={`Enroll Face - ${userName}`} className="max-w-md">
             {/* Only mount camera content when modal is actually open */}
             {isOpen && <FaceCaptureContent user={user} onClose={onClose} onSuccess={onSuccess} />}
         </Modal>

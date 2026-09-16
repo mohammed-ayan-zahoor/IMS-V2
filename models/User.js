@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import './Counter.js'; // Ensure schema is registered
+import './Designation.js'; // Ensure schema is registered for populate
 import { encrypt, decrypt } from '../lib/crypto.js';
 const { Schema } = mongoose;
 const UserSchema = new Schema({

@@ -56,8 +56,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Consumer2<AuthProvider, DashboardProvider>(
       builder: (context, auth, dash, _) {
         final user = auth.user;
-        final firstName = user?['profile']?['firstName'] ?? user?['displayName'] ?? 'Student';
-        final avatarUrl = user?['profile']?['avatarUrl'];
+        final firstName = auth.userFirstName;
+        final avatarUrl = auth.userAvatar.isNotEmpty ? auth.userAvatar : null;
         final data = dash.dashboardData;
 
         return Scaffold(
@@ -83,7 +83,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'STUDENT PORTAL',
+                  auth.isCollege ? 'COLLEGE PORTAL' : 'STUDENT PORTAL',
                   style: GoogleFonts.hankenGrotesk(
                     color: const Color(0xFF0D1C2E),
                     fontSize: 16,
@@ -174,7 +174,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _getFormattedDate(),
+                                auth.isCollege
+                                    ? '${user?['institute']?['name'] ?? 'Higher Education'} • ${_getFormattedDate()}'
+                                    : _getFormattedDate(),
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF545F72).withValues(alpha: 0.7),
                                   fontSize: 12,
@@ -201,27 +203,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final cardWidth = (constraints.maxWidth - 12) / 2;
+                        final attVal = data?.attendance ?? 0;
+                        final isEligible = attVal >= 75;
                         return Wrap(
                           spacing: 12,
                           runSpacing: 12,
                           children: [
                             _buildStatCard(
                               title: 'ATTENDANCE',
-                              value: '${data?.attendance ?? 0}%',
+                              value: '$attVal%',
+                              suffix: auth.isCollege ? (isEligible ? ' (≥75% OK)' : ' (<75% Risk)') : null,
                               icon: Icons.event_available,
-                              progress: (data?.attendance ?? 0) / 100.0,
+                              progress: attVal / 100.0,
+                              progressColor: auth.isCollege && !isEligible ? const Color(0xFFDC2626) : null,
                               width: mediaQuery.size.width > 600 ? cardWidth : double.infinity,
                             ),
                             _buildStatCard(
-                              title: 'EXAMS COMPLETED',
+                              title: auth.isCollege ? 'ASSESSMENTS' : 'EXAMS COMPLETED',
                               value: '${data?.examsTaken ?? 0}',
-                              suffix: ' Tests',
+                              suffix: auth.isCollege ? ' Evaluated' : ' Tests',
                               icon: Icons.assignment_turned_in,
                               progress: 1.0,
                               width: mediaQuery.size.width > 600 ? cardWidth : double.infinity,
                             ),
                             _buildStatCard(
-                              title: 'STUDY MATERIALS',
+                              title: auth.isCollege ? 'MODULE RESOURCES' : 'STUDY MATERIALS',
                               value: '${data?.materialsCount ?? 0}',
                               suffix: ' Files',
                               icon: Icons.menu_book,
@@ -347,7 +353,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'SUBJECT',
+                                auth.isCollege ? 'COURSE / MODULE' : 'SUBJECT',
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF545F72),
                                   fontSize: 12,
@@ -356,7 +362,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                               ),
                               Text(
-                                'COMPLETION',
+                                auth.isCollege ? 'SYLLABUS PROGRESS' : 'COMPLETION',
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF545F72),
                                   fontSize: 12,
@@ -397,7 +403,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Upcoming Exams',
+                        auth.isCollege ? 'Upcoming Assessments & Exams' : 'Upcoming Exams',
                         style: GoogleFonts.hankenGrotesk(
                           color: const Color(0xFF0D1C2E),
                           fontSize: 22,

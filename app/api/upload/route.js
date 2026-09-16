@@ -73,6 +73,19 @@ export async function POST(req) {
             return NextResponse.json({ error: "File type not allowed or unrecognizable" }, { status: 400 });
         }
 
+        // ponytail: Stored XSS defense. Reject SVGs containing embedded script tags or event handlers
+        if (detectedType === 'image/svg+xml') {
+            const svgContent = buffer.toString('utf8');
+            if (
+                /<script[\s>]/i.test(svgContent) ||
+                /javascript:/i.test(svgContent) ||
+                /<foreignObject[\s>]/i.test(svgContent) ||
+                /on[a-z]+[\s=]/i.test(svgContent)
+            ) {
+                return NextResponse.json({ error: "SVG file contains prohibited active scripts or handlers" }, { status: 400 });
+            }
+        }
+
 
         // Special Case: Certificate Templates or Website Media go to Cloudinary
         if (fileType === "certificate-template" || fileType === "website-media") {

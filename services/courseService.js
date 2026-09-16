@@ -661,18 +661,21 @@ export class BatchService {
     }
 
     static async deleteBatch(id, actorId, instituteId) {
-        // if (!instituteId) throw new Error("Institute context missing");
         await connectDB();
         const query = { _id: id, deletedAt: null };
         if (instituteId) query.institute = instituteId; // Restrict if institute provided
 
-        const batch = await Batch.findOneAndUpdate(
-            query,
-            { deletedAt: new Date() },
-            { new: true }
-        );
-
+        const batch = await Batch.findOne(query);
         if (!batch) throw new Error("Batch not found");
+
+        // Guard: prevent deleting batch if it has active enrolled students
+        const activeStudentCount = (batch.enrolledStudents || []).filter(e => e.status === 'active').length;
+        if (activeStudentCount > 0) {
+            throw new Error(`Cannot delete this ${batch.semester ? "section" : "batch"}. It has ${activeStudentCount} active enrolled student${activeStudentCount > 1 ? 's' : ''}. Please unenroll or transfer them first.`);
+        }
+
+        batch.deletedAt = new Date();
+        await batch.save();
 
         await createAuditLog({
             actor: actorId,

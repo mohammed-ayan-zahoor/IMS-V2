@@ -1,42 +1,18 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
-import Toast from "@/components/ui/Toast";
+import { createContext, useContext, useMemo } from "react";
+import { GooeyToaster, gooeyToast } from "goey-toast";
+import "goey-toast/styles.css";
 
 const ToastContext = createContext(null);
 
+export const toast = gooeyToast;
+
 export function ToastProvider({ children }) {
-    const [toasts, setToasts] = useState([]);
-
-    const addToast = useCallback((message, type = "info") => {
-        const id = Math.random().toString(36).substring(2, 11);
-        setToasts((prev) => [...prev, { id, message, type }]);
-    }, []);
-    const removeToast = useCallback((id) => {
-        setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, []);
-
-    const toast = {
-        success: (msg) => addToast(msg, "success"),
-        error: (msg) => addToast(msg, "error"),
-        warning: (msg) => addToast(msg, "warning"),
-        info: (msg) => addToast(msg, "info"),
-    };
-
     return (
-        <ToastContext.Provider value={toast}>
+        <ToastContext.Provider value={gooeyToast}>
             {children}
-            <div className="fixed bottom-4 right-4 z-[99999] flex flex-col gap-3 pointer-events-none">
-                {toasts.map((t) => (
-                    <Toast
-                        key={t.id}
-                        id={t.id}
-                        type={t.type}
-                        message={t.message}
-                        onDismiss={removeToast}
-                    />
-                ))}
-            </div>
+            <GooeyToaster position="bottom-right" closeButton />
         </ToastContext.Provider>
     );
 }

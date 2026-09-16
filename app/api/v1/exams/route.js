@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
@@ -48,12 +49,22 @@ export async function GET(req) {
             const assignedCourses = instructor?.assignments?.courses || [];
             const assignedBatches = instructor?.assignments?.batches || [];
 
-            const rbacFilter = {
-                $or: [
-                    { course: { $in: assignedCourses } },
-                    { batches: { $in: assignedBatches } }
-                ]
-            };
+            const instructorObjId = mongoose.Types.ObjectId.isValid(scope.user.id)
+                ? new mongoose.Types.ObjectId(scope.user.id)
+                : scope.user.id;
+
+            const rbacConditions = [
+                { 'evaluatorAssignments.evaluator': instructorObjId },
+                { createdBy: instructorObjId }
+            ];
+            if (assignedCourses.length > 0) {
+                rbacConditions.push({ course: { $in: assignedCourses } });
+            }
+            if (assignedBatches.length > 0) {
+                rbacConditions.push({ batches: { $in: assignedBatches } });
+            }
+
+            const rbacFilter = { $or: rbacConditions };
 
             if (query.$or) {
                 query.$and = [

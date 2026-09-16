@@ -67,7 +67,7 @@ export default function StudentAttendancePage() {
         total: monthRecords.filter(r => r.status !== 'holiday').length
     };
 
-    const attendanceRate = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
+    const attendanceRate = stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0;
 
     if (loading) return (
         <div className="space-y-10">

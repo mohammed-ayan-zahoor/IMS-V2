@@ -121,11 +121,11 @@ export async function GET(req) {
                     $elemMatch: { student: studentObjId, status: { $ne: 'holiday' } }
                 }
             }),
-            // Attendance Present - all present sessions
+            // Attendance Present - all present and late sessions
             Attendance.countDocuments({
                 batch: { $in: batchIds },
                 records: {
-                    $elemMatch: { student: studentObjId, status: 'present' }
+                    $elemMatch: { student: studentObjId, status: { $in: ['present', 'late'] } }
                 }
             }),
             // Exams Taken Count

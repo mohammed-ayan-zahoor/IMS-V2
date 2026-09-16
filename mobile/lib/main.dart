@@ -21,6 +21,7 @@ import 'package:student_app/features/assignments/presentation/providers/assignme
 import 'package:student_app/features/timeline/presentation/providers/timeline_provider.dart';
 import 'package:student_app/features/batches/presentation/providers/batches_provider.dart';
 import 'package:student_app/features/notifications/presentation/providers/notifications_provider.dart';
+import 'package:student_app/features/library/presentation/providers/library_provider.dart';
 
 import 'package:student_app/core/providers/academic_session_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -64,6 +65,7 @@ class MainApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TimelineProvider()),
         ChangeNotifierProvider(create: (_) => BatchesProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+        ChangeNotifierProvider(create: (_) => LibraryProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, auth, _) {

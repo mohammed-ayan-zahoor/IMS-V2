@@ -36,7 +36,7 @@ export async function GET(req) {
                 deletedAt: null
             })
             .populate('hrDetails.designation', 'name')
-            .select('profile role hrDetails')
+            .select('profile role hrDetails faceEnrolledAt')
             .sort({ "profile.firstName": 1 });
 
             // Fetch attendance records marked for this date

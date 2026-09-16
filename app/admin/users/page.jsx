@@ -8,11 +8,13 @@ import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { User, Shield, UserCog, Mail, Phone, Plus, Search, Trash2, Lock } from "lucide-react";
+import { User, Shield, UserCog, Mail, Phone, Plus, Search, Trash2, Lock, Camera } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import Select from "@/components/ui/Select";
 import MultiSelect from "@/components/ui/MultiSelect";
+import { cn } from "@/lib/utils";
+import EnrollFaceModal from "@/components/users/EnrollFaceModal";
 
 // Verified: Usage of Select component is compatible with onChange(value) signature.
 export default function UserManagementPage() {
@@ -36,6 +38,15 @@ export default function UserManagementPage() {
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [newPassword, setNewPassword] = useState("");
+
+    // Face Biometrics State
+    const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+    const [selectedFaceUser, setSelectedFaceUser] = useState(null);
+
+    const openFaceModal = (user) => {
+        setSelectedFaceUser(user);
+        setIsFaceModalOpen(true);
+    };
 
     // Form State
     const [isEditing, setIsEditing] = useState(false);
@@ -474,6 +485,21 @@ export default function UserManagementPage() {
                                                 <Button
                                                     size="sm"
                                                     variant="secondary"
+                                                    onClick={() => openFaceModal(user)}
+                                                    className={cn(
+                                                        "shadow-sm px-3 font-medium border",
+                                                        user.faceEnrolledAt
+                                                            ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                                                            : "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200"
+                                                    )}
+                                                    title={user.faceEnrolledAt ? "Face enrolled (click to re-enroll)" : "Enroll face for biometric attendance"}
+                                                >
+                                                    <Camera size={14} className={cn("mr-1.5", user.faceEnrolledAt ? "text-emerald-600" : "text-slate-400")} />
+                                                    {user.faceEnrolledAt ? "Face Enrolled" : "Enroll Face"}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
                                                     onClick={() => openPasswordModal(user)}
                                                     className="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 shadow-sm px-4 font-medium"
                                                 >
@@ -624,7 +650,9 @@ export default function UserManagementPage() {
                                         { label: "Fee collection (Collect & record payments)", value: "manage_fees" },
                                         { label: "Process hostel payments", value: "manage_hostel_payments" },
                                         { label: "Generate student ID cards", value: "generate_id_cards" },
-                                        { label: "Access Front Office logs (Visitors, Calls)", value: "view_front_office" }
+                                        { label: "Access Front Office logs (Visitors, Calls)", value: "view_front_office" },
+                                        { label: "Manage stock & inventory (Storekeeper)", value: "manage_stock" },
+                                        { label: "Manage library (Librarian)", value: "manage_library" }
                                     ].map(perm => (
                                         <label key={perm.value} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 hover:border-blue-100 transition-all cursor-pointer shadow-sm">
                                             <input
@@ -690,6 +718,17 @@ export default function UserManagementPage() {
                     </div>
                 </form>
             </Modal>
+
+            {/* Enroll Face Modal */}
+            <EnrollFaceModal
+                user={selectedFaceUser}
+                isOpen={isFaceModalOpen}
+                onClose={() => {
+                    setIsFaceModalOpen(false);
+                    setSelectedFaceUser(null);
+                }}
+                onSuccess={() => fetchUsers()}
+            />
         </div>
     );
 }

@@ -6,6 +6,7 @@ import 'package:student_app/features/attendance/presentation/providers/attendanc
 import 'package:student_app/features/attendance/data/models/attendance_model.dart';
 
 import 'package:student_app/core/providers/academic_session_provider.dart';
+import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/features/batches/presentation/providers/batches_provider.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -31,6 +32,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     final batchesProv = Provider.of<BatchesProvider>(context);
+    final authProv = Provider.of<AuthProvider>(context);
+    final bool isCollege = authProv.isCollege;
 
     return Consumer<AttendanceProvider>(
       builder: (context, att, _) {
@@ -60,7 +63,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         }
 
         final totalMarked = present + absent + lateCount + excused;
-        final rate = totalMarked > 0 ? ((present / totalMarked) * 100).round() : 0;
+        final rate = totalMarked > 0 ? (((present + lateCount) / totalMarked) * 100).round() : 0;
 
         // Build a mapping of batchId -> batchName
         final Map<String, String> batchMap = {'All': 'All Batches'};
@@ -311,6 +314,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ],
                     ),
                   ),
+                  if (isCollege) ...[
+                    const SizedBox(height: 14),
+                    _buildCollegeEligibilityBanner(rate, present + lateCount, totalMarked),
+                  ],
                   const SizedBox(height: 24),
 
                   // Dynamic Calendar Card
@@ -781,6 +788,97 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildCollegeEligibilityBanner(int rate, int presentWithLate, int totalMarked) {
+    final bool isEligible = rate >= 75;
+    int classesNeeded = 0;
+    if (!isEligible && totalMarked > 0) {
+      // Required attendance formula: (presentWithLate + C) / (totalMarked + C) >= 0.75
+      // 0.25 * C >= 0.75 * totalMarked - presentWithLate => C = ceil(3 * totalMarked - 4 * presentWithLate)
+      classesNeeded = (3 * totalMarked - 4 * presentWithLate).clamp(1, 999);
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.all(14.0),
+      decoration: BoxDecoration(
+        color: isEligible ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isEligible ? const Color(0xFF86EFAC) : const Color(0xFFFECACA),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: isEligible ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isEligible ? Icons.verified_rounded : Icons.warning_amber_rounded,
+              color: isEligible ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      isEligible
+                          ? 'Exam Eligible (≥ 75%)'
+                          : 'Attendance Shortage Risk (< 75%)',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isEligible ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isEligible ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '$rate%',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isEligible
+                      ? 'Your attendance meets the university requirement to appear for semester-end examinations.'
+                      : totalMarked > 0
+                          ? 'University regulations mandate at least 75% attendance. Attend the next $classesNeeded consecutive classes to clear the shortage.'
+                          : 'No sessions recorded yet for this academic period.',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: isEligible ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

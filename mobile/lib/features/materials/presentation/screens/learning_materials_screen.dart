@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:student_app/features/materials/presentation/providers/materials_provider.dart';
 import 'package:student_app/features/materials/data/models/materials_model.dart';
 import 'package:student_app/core/providers/academic_session_provider.dart';
+import 'package:student_app/core/auth/auth_provider.dart';
 
 class LearningMaterialsScreen extends StatefulWidget {
   const LearningMaterialsScreen({super.key});
@@ -61,6 +62,7 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
       builder: (context, materialsProvider, _) {
         final filteredList = materialsProvider.filteredMaterials;
         final availableSubjects = materialsProvider.availableSubjects;
+        final isCollege = Provider.of<AuthProvider>(context).isCollege;
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FF),
@@ -72,7 +74,7 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
-              'Learning Materials',
+              isCollege ? 'Module Resources' : 'Learning Materials',
               style: GoogleFonts.hankenGrotesk(
                 color: const Color(0xFF002045),
                 fontSize: 20,
@@ -89,7 +91,9 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
                 children: [
                   Text(
-                    'Access notes, assignments, and reference videos for your courses.',
+                    isCollege
+                        ? 'Access semester lecture notes, lab manuals, and course reference materials.'
+                        : 'Access notes, assignments, and reference videos for your courses.',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF545F72),
                       fontSize: 14,

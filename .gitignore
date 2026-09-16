@@ -43,6 +43,8 @@ next-env.d.ts
 
 # ignore the whole agent file
 .agent/*
+.agents/*
+.security-audit/*
 
 #ignore .temp_ag_kit
 .temp_ag_kit
@@ -58,6 +60,13 @@ mobile/.dart_tool/
 mobile/.packages
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
+mobile/android/local.properties
+mobile/android/.gradle/
+mobile/assets/debug_*
+mobile/assets/ref_*
+mobile/assets/sq*
+mobile/assets/ic_service_classes.png
+mobile/flutter_*.png
 /docs/execution_plan.md
 /docs/production_roadmap.md
 /docs/teachers_training_prep.md

@@ -18,6 +18,8 @@ class ExamModel {
   final double negativeMarkingPercentage;
   final double? bestScore;
   final double? bestPercentage;
+  final int? semester;
+  final String? examCategory;
 
   ExamModel({
     required this.id,
@@ -39,7 +41,28 @@ class ExamModel {
     required this.negativeMarkingPercentage,
     this.bestScore,
     this.bestPercentage,
+    this.semester,
+    this.examCategory,
   });
+
+  String get formattedCategory {
+    switch (examCategory?.toUpperCase()) {
+      case 'INTERNAL':
+        return 'Internal Assessment (IA)';
+      case 'MID_TERM':
+        return 'Mid-Semester Exam';
+      case 'SEMESTER_END':
+        return 'Semester-End Exam';
+      case 'PRACTICAL':
+        return 'Practical / Lab Viva';
+      case 'CLASS_TEST':
+        return 'Class Test';
+      case 'ASSIGNMENT':
+        return 'Assignment';
+      default:
+        return examCategory ?? 'General';
+    }
+  }
 
   factory ExamModel.fromJson(Map<String, dynamic> json) {
     final course = (json['course'] is Map) ? json['course'] : {};
@@ -86,6 +109,8 @@ class ExamModel {
       bestPercentage: (bestResult != null && bestResult['percentage'] is num)
           ? (bestResult['percentage'] as num).toDouble()
           : null,
+      semester: (json['semester'] is num) ? (json['semester'] as num).toInt() : null,
+      examCategory: json['examCategory']?.toString(),
     );
   }
 }

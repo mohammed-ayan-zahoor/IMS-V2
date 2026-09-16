@@ -15,6 +15,52 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? get user => _user;
   String? get errorMessage => _errorMessage;
 
+  String get userName {
+    final u = _user;
+    if (u == null) return 'Student';
+    // 1. Direct name / displayName / fullName
+    final directName = (u['name'] ?? u['displayName'] ?? u['fullName'])?.toString().trim() ?? '';
+    if (directName.isNotEmpty && directName.toLowerCase() != 'student') return directName;
+
+    // 2. Profile firstName / lastName
+    final profile = u['profile'];
+    if (profile is Map) {
+      final first = profile['firstName']?.toString().trim() ?? '';
+      final last = profile['lastName']?.toString().trim() ?? '';
+      final full = ('$first $last').trim();
+      if (full.isNotEmpty && full.toLowerCase() != 'student') return full;
+      if (first.isNotEmpty) return first;
+    }
+
+    // 3. Fallback to directName or email handle if available
+    if (directName.isNotEmpty) return directName;
+    final email = u['email']?.toString().trim() ?? '';
+    if (email.isNotEmpty && email.contains('@')) {
+      final handle = email.split('@')[0];
+      return handle[0].toUpperCase() + handle.substring(1);
+    }
+    return 'Student';
+  }
+
+  String get userFirstName {
+    final full = userName;
+    if (full.contains(' ')) {
+      return full.split(' ').first;
+    }
+    return full;
+  }
+
+  String get userAvatar {
+    final u = _user;
+    if (u == null) return '';
+    return (u['image'] ?? u['avatar'] ?? u['profile']?['avatarUrl'] ?? u['profile']?['avatar'] ?? '').toString().trim();
+  }
+
+  String get instituteType => _user?['institute']?['type']?.toString().toUpperCase() ?? 'SCHOOL';
+  bool get isCollege => instituteType == 'COLLEGE';
+  bool get isSchool => instituteType == 'SCHOOL';
+  bool get isVocational => instituteType == 'VOCATIONAL';
+
   AuthProvider() {
     checkAuthStatus();
   }
