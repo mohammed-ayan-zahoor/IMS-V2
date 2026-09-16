@@ -125,4 +125,16 @@ assert(!studentLayoutFile.includes("Students List"), "Student layout breadcrumbs
 assert(studentLayoutFile.includes("Student Portal"), "Student layout breadcrumbs must include 'Student Portal'");
 console.log("✓ Student syllabus screen and Student Portal breadcrumbs verified");
 
-console.log("\nALL 13 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");
+// 14. Check Student Notices uses non-card communique stream and document reader
+const noticesPage = fs.readFileSync(path.join(__dirname, "../app/student/notices/page.jsx"), "utf8");
+assert(noticesPage.includes("safe-pb"), "Notices page must include safe-pb");
+assert(!noticesPage.includes("rounded-[3.5rem]"), "Notices page must eliminate rounded-[3.5rem] slop");
+assert(!noticesPage.includes("rounded-[3rem]"), "Notices page must eliminate rounded-[3rem] card slop");
+assert(noticesPage.includes("Communique Stream"), "Notices page must provide chronological communique stream");
+assert(noticesPage.includes("Official Institutional Communique"), "Notices page must provide official document reader");
+assert(noticesPage.includes("divide-y divide-[#E9E8F0]"), "Notices page must use hairline dividers instead of card boxes");
+assert(noticesPage.includes("handlePrint"), "Notices reader must support printing");
+assert(noticesPage.includes("handleCopyLink"), "Notices reader must support link sharing");
+console.log("✓ Student notices non-card communique stream and document reader verified");
+
+console.log("\nALL 14 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");
