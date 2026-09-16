@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Event from "@/models/Event";
 import { createAuditLog } from "@/services/auditService";
+import mongoose from "mongoose";
 import { parseISO, startOfDay, endOfDay, isValid } from "date-fns";
 
 const VALID_CATEGORIES = ['holiday', 'exam', 'cultural', 'academic_assembly', 'sports', 'general'];
@@ -78,18 +79,23 @@ export async function POST(req) {
         }
 
         await connectDB();
-        const instituteId = (session.user.role === 'super_admin' && body.instituteId)
-            ? body.instituteId
-            : session.user.institute?.id;
-
-        if (!instituteId) {
-            return NextResponse.json({ error: "Institute ID is required" }, { status: 400 });
+        let targetInstituteId = session.user.institute?.id;
+        if (session.user.role === 'super_admin') {
+            targetInstituteId = body.instituteId || session.user.institute?.id;
+        } else if (body.instituteId && body.instituteId.toString() !== session.user.institute?.id?.toString()) {
+            return NextResponse.json({ error: "Forbidden: Cross-tenant calendar import is not permitted" }, { status: 403 });
         }
+
+        if (!targetInstituteId || !mongoose.Types.ObjectId.isValid(targetInstituteId)) {
+            return NextResponse.json({ error: "Valid Institute ID is required" }, { status: 400 });
+        }
+
+        const instituteObjectId = new mongoose.Types.ObjectId(targetInstituteId);
 
         // Optionally clear existing calendar events if user explicitly requests clean slate
         if (clearExisting) {
             await Event.updateMany(
-                { institute: instituteId, deletedAt: null },
+                { institute: instituteObjectId, deletedAt: null },
                 { $set: { deletedAt: new Date() } }
             );
         }
@@ -135,7 +141,7 @@ export async function POST(req) {
                 category,
                 target: item.target || 'all',
                 targetIds: Array.isArray(item.targetIds) ? item.targetIds : [],
-                institute: instituteId,
+                institute: instituteObjectId,
                 createdBy: session.user.id
             });
         }
@@ -150,7 +156,7 @@ export async function POST(req) {
                 actor: session.user.id,
                 action: 'event.bulk_import',
                 resource: { type: 'Event' },
-                institute: instituteId,
+                institute: targetInstituteId,
                 details: { importedCount: createdCount, skippedCount, clearExisting }
             });
         } catch (auditErr) {

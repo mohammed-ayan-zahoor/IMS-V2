@@ -19,9 +19,12 @@ export async function GET(req) {
         await connectDB();
         const { searchParams } = new URL(req.url);
         const reqInstituteId = searchParams.get('instituteId');
-        const instituteId = (session.user.role === 'super_admin' && reqInstituteId) 
-            ? reqInstituteId 
-            : session.user.institute?.id;
+        let instituteId = session.user.institute?.id;
+        if (session.user.role === 'super_admin') {
+            instituteId = reqInstituteId || session.user.institute?.id;
+        } else if (reqInstituteId && reqInstituteId.toString() !== session.user.institute?.id?.toString()) {
+            return NextResponse.json({ error: "Forbidden: Cannot access another institute's calendar" }, { status: 403 });
+        }
 
         if (!instituteId) {
             return NextResponse.json({ events: [] });
@@ -60,9 +63,12 @@ export async function POST(req) {
         }
 
         await connectDB();
-        const targetInstitute = (session.user.role === 'super_admin' && reqInstituteId)
-            ? reqInstituteId
-            : session.user.institute?.id;
+        let targetInstitute = session.user.institute?.id;
+        if (session.user.role === 'super_admin') {
+            targetInstitute = reqInstituteId || session.user.institute?.id;
+        } else if (reqInstituteId && reqInstituteId.toString() !== session.user.institute?.id?.toString()) {
+            return NextResponse.json({ error: "Forbidden: Cannot create events for another institute" }, { status: 403 });
+        }
 
         if (!targetInstitute) {
             return NextResponse.json({ error: "Institute ID is required" }, { status: 400 });
