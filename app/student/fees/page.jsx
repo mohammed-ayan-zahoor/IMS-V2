@@ -24,11 +24,13 @@ import {
     Hotel
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import Button from "@/components/ui/Button";
 
 export default function StudentFeesPage() {
+    const { data: session } = useSession();
     const [fees, setFees] = useState([]);
     const [transportFees, setTransportFees] = useState([]);
     const [hostelAllotments, setHostelAllotments] = useState([]);
@@ -129,7 +131,7 @@ export default function StudentFeesPage() {
     if (error) {
         return (
             <div className="max-w-5xl mx-auto">
-                <div className="py-20 text-center bg-white rounded-[3rem] border border-slate-100 shadow-xl">
+                <div className="py-20 text-center bg-white rounded-[16px] border border-[#E9E8F0] shadow-none">
                     <div className="w-20 h-20 bg-rose-50 rounded-[2rem] flex items-center justify-center text-rose-500 mx-auto mb-6">
                         <AlertCircle size={40} />
                     </div>
@@ -143,7 +145,7 @@ export default function StudentFeesPage() {
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 pb-12">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 p-10 rounded-[3rem] bg-white border border-slate-100 text-slate-900 relative overflow-hidden shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 p-6 sm:p-8 rounded-[16px] bg-white border border-[#E9E8F0] text-[#1E1B2E] relative overflow-hidden shadow-none">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-premium-blue/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
                 <div className="relative space-y-2">
                     <div className="flex items-center gap-2 text-premium-blue mb-1">
@@ -192,7 +194,7 @@ export default function StudentFeesPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: fIdx * 0.1 }}
                             key={fee._id} 
-                            className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500"
+                            className="bg-white rounded-[16px] border border-[#E9E8F0] shadow-none overflow-hidden hover:shadow-2xl transition-all duration-500"
                         >
                             <div className="p-8 md:p-10">
                                 <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
@@ -377,7 +379,7 @@ export default function StudentFeesPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: (fees.length + tfIdx) * 0.1 }}
                             key={fee._id} 
-                            className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500"
+                            className="bg-white rounded-[16px] border border-[#E9E8F0] shadow-none overflow-hidden hover:shadow-2xl transition-all duration-500"
                         >
                             <div className="p-8 md:p-10">
                                 <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
@@ -490,7 +492,7 @@ export default function StudentFeesPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: (fees.length + transportFees.length + hIdx) * 0.1 }}
                             key={allotment._id} 
-                            className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500"
+                            className="bg-white rounded-[16px] border border-[#E9E8F0] shadow-none overflow-hidden hover:shadow-2xl transition-all duration-500"
                         >
                             <div className="p-8 md:p-10">
                                 <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-10">
@@ -596,9 +598,9 @@ export default function StudentFeesPage() {
                 })}
 
                 {!loading && fees.length === 0 && transportFees.length === 0 && hostelAllotments.length === 0 && (
-                    <div className="py-32 text-center text-slate-400 bg-white rounded-[3rem] border border-dashed border-slate-200 shadow-inner">
-                        <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center text-slate-200 mx-auto mb-6">
-                            <CreditCard size={40} />
+                    <div className="py-20 text-center text-slate-400 bg-white rounded-[16px] border border-dashed border-[#E9E8F0] shadow-none">
+                        <div className="w-16 h-16 bg-[#F1EFFB] rounded-[10px] flex items-center justify-center text-[#6E5AE0] mx-auto mb-4">
+                            <CreditCard size={32} />
                         </div>
                         <h4 className="text-xl font-black text-slate-900 tracking-tight italic">Clear Record</h4>
                         <p className="text-slate-400 text-sm mt-2 max-w-[280px] mx-auto font-medium">No fee records found for your account. Please contact the registrar if this is an error.</p>

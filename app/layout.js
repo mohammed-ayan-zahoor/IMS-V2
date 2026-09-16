@@ -13,11 +13,26 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  themeColor: "#2C2A46",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
+
 export const metadata = {
   title: "Quantech | School Management System",
   description: "Enterprise Institute Management System",
   icons: {
     icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Quantech",
   },
 };
 

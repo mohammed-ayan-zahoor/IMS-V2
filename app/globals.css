@@ -242,6 +242,42 @@ body {
   animation: float 6s ease-in-out infinite;
 }
 
+/* iOS Web App & Adtech Design Tokens */
+:root {
+  --bg-page: #FFFFFF;
+  --bg-sidebar: #2C2A46;
+  --bg-sidebar-active: #EDE8FB;
+  --bg-profile-header-tint: #E7E1FA;
+  --bg-highlight-banner: #FCF3D6;
+  --border-subtle: #E9E8F0;
+  --text-primary: #1E1B2E;
+  --text-secondary: #8D8A9B;
+  --accent-primary: #6E5AE0;
+  --accent-gold: #F4C24A;
+  --accent-green: #33C481;
+  --accent-coral: #F4586A;
+  --accent-icon-bg: #F1EFFB;
+}
+
+.safe-pb {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.safe-pt {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.ios-glass {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.touch-pan-y {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Mobile Phone App Touch Utilities */
 @media (max-width: 768px) {
   * {

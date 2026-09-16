@@ -3,65 +3,80 @@
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
     LayoutDashboard,
+    Clock,
+    CalendarCheck,
+    CreditCard,
+    BookOpen,
     Layers,
     FileText,
-    CreditCard,
-    Calendar,
-    PenTool,
     Settings,
     LogOut,
-    User,
     MessageSquare,
     MoreHorizontal,
     Bell,
-    Target,
     X,
     Megaphone,
     Trophy,
-    Clock,
-    BookOpen,
-    Award
+    PenTool,
+    Search,
+    ChevronLeft,
+    Target
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useToast } from "@/contexts/ToastContext";
 
 export default function StudentLayout({ children }) {
     const { data: session } = useSession();
     const pathname = usePathname();
+    const router = useRouter();
+    const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
-    // Main Navigation (Top Bar & First 4 Bottom Items)
-    const primaryNav = [
-        { label: "Overview", icon: LayoutDashboard, href: "/student/dashboard" },
+    // Full navigation list for sidebar
+    const navItems = [
+        { label: "Dashboard", icon: LayoutDashboard, href: "/student/dashboard" },
+        { label: "Attendance", icon: CalendarCheck, href: "/student/attendance" },
         { label: "Timetable", icon: Clock, href: "/student/timetable" },
-        { label: "Assignments", icon: Calendar, href: "/student/calendar" },
-        { label: "Attendance", icon: Calendar, href: "/student/attendance" },
-    ];
-
-    // Secondary Navigation (Hidden in "More" on Mobile)
-    const secondaryNav = [
-        { label: "My Batches", icon: Layers, href: "/student/batches" },
         { label: "Fees", icon: CreditCard, href: "/student/fees" },
+        { label: "Library", icon: BookOpen, href: "/student/library" },
+        { label: "My Batches", icon: Layers, href: "/student/batches" },
+        { label: "Materials", icon: FileText, href: "/student/materials" },
         { label: "Syllabus", icon: Target, href: "/student/syllabus" },
-        { label: "Materials", icon: BookOpen, href: "/student/materials" },
-        { label: "Timeline", icon: Award, href: "/student/timeline" },
-        { label: "Documents", icon: FileText, href: "/student/documents" },
-        { label: "Notices", icon: Megaphone, href: "/student/notices" },
-        { label: "Mock Tests", icon: Trophy, href: "/student/practice" },
         { label: "Exams", icon: PenTool, href: "/student/exams" },
+        { label: "Mock Tests", icon: Trophy, href: "/student/practice" },
+        { label: "Notices", icon: Megaphone, href: "/student/notices" },
         { label: "Messages", icon: MessageSquare, href: "/student/chat" },
         { label: "Settings", icon: Settings, href: "/student/settings" },
     ];
 
-    const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+    // Mobile primary bottom tabs (4 tabs + More)
+    const mobileBottomTabs = [
+        { label: "Dashboard", icon: LayoutDashboard, href: "/student/dashboard" },
+        { label: "Attendance", icon: CalendarCheck, href: "/student/attendance" },
+        { label: "Timetable", icon: Clock, href: "/student/timetable" },
+        { label: "Fees", icon: CreditCard, href: "/student/fees" },
+    ];
 
-    // If student is attempting an exam, hide all navigation for a distraction-free environment
+    // Mobile "More" menu items
+    const mobileMoreItems = [
+        { label: "Library", icon: BookOpen, href: "/student/library", desc: "Catalog & issued books" },
+        { label: "My Batches", icon: Layers, href: "/student/batches", desc: "Active enrolled classes" },
+        { label: "Materials", icon: FileText, href: "/student/materials", desc: "Notes & study resources" },
+        { label: "Syllabus", icon: Target, href: "/student/syllabus", desc: "Course curriculum progress" },
+        { label: "Exams", icon: PenTool, href: "/student/exams", desc: "Schedule & results" },
+        { label: "Mock Tests", icon: Trophy, href: "/student/practice", desc: "Practice & quizzes" },
+        { label: "Notices", icon: Megaphone, href: "/student/notices", desc: "Announcements & alerts" },
+        { label: "Messages", icon: MessageSquare, href: "/student/chat", desc: "Instructor communications" },
+        { label: "Settings", icon: Settings, href: "/student/settings", desc: "Profile & preferences" },
+    ];
+
+    // If student is attempting an exam, hide navigation for distraction-free mode
     if (pathname.includes('/take')) {
         return (
-            <div className="bg-slate-50 text-foreground h-screen w-screen overflow-hidden">
+            <div className="bg-[#FFFFFF] text-[#1E1B2E] h-screen w-screen overflow-hidden">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={pathname}
@@ -77,135 +92,184 @@ export default function StudentLayout({ children }) {
         );
     }
 
+    // Determine readable page title and breadcrumb
+    const getPageTitle = () => {
+        if (pathname === "/student/dashboard") return "Student Details";
+        if (pathname === "/student/attendance") return "Attendance Record";
+        if (pathname === "/student/timetable") return "Class Timetable";
+        if (pathname === "/student/fees") return "Fees & Payments";
+        if (pathname === "/student/library") return "Student Library";
+        if (pathname === "/student/batches") return "My Batches";
+        if (pathname === "/student/materials") return "Study Materials";
+        if (pathname === "/student/syllabus") return "Curriculum Syllabus";
+        if (pathname === "/student/exams") return "Examinations";
+        if (pathname === "/student/practice") return "Mock Practice Tests";
+        if (pathname === "/student/notices") return "Campus Notices";
+        if (pathname === "/student/chat") return "Messages";
+        if (pathname === "/student/settings") return "Account Settings";
+        return "Student Portal";
+    };
+
+    const isSubPage = pathname !== "/student/dashboard";
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)] bg-slate-50 text-foreground h-screen w-screen overflow-hidden">
+        <div className="flex h-screen w-screen overflow-hidden bg-[#FFFFFF] text-[#1E1B2E] font-sans antialiased">
             
-            {/* Desktop Sidebar - Collapsible on tablet/small desktop */}
-            <aside className="hidden md:flex flex-col w-20 lg:w-60 h-screen bg-white border-r border-slate-200 fixed lg:relative inset-y-0 left-0 z-40 transition-all duration-300">
-                <div className="p-4 lg:p-6 border-b border-slate-100 flex items-center gap-3">
-                    {session?.user?.institute?.logo ? (
-                        <img
-                            src={session.user.institute.logo}
-                            className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-slate-100 shadow-sm shrink-0"
-                            crossOrigin="anonymous"
-                        />
-                    ) : (
-                        <div className="w-10 h-10 bg-premium-blue rounded-lg flex items-center justify-center shadow-sm shrink-0">
-                            <span className="text-white font-black text-xl italic">
-                                {session?.user?.institute?.name?.[0] || "I"}
+            {/* Desktop Sidebar (Adtech Spec: Solid deep navy-indigo #2C2A46, unbordered) */}
+            <aside className="hidden md:flex flex-col w-56 lg:w-64 h-screen bg-[#2C2A46] shrink-0 z-40 px-4 py-6 justify-between select-none">
+                <div className="space-y-6">
+                    {/* Brand Mark (Adtech Spec: Soft-square 40x40px #6E5AE0 tile + two-line wordmark) */}
+                    <div className="flex items-center gap-3 px-2">
+                        <div className="w-10 h-10 rounded-[10px] bg-[#6E5AE0] flex items-center justify-center shrink-0 shadow-none">
+                            <span className="text-white font-bold text-sm tracking-tight">
+                                {session?.user?.institute?.name ? session.user.institute.name.substring(0, 4).toLowerCase() : "five"}
                             </span>
                         </div>
-                    )}
-                    <div className="min-w-0 hidden lg:block">
-                        <h1 className="text-sm font-black tracking-tighter leading-tight text-slate-900 truncate">
-                            {session?.user?.institute?.name || "Quantech"}
-                        </h1>
-                        <p className="text-[10px] uppercase font-bold text-slate-400 mt-0.5">Student Portal</p>
-                    </div>
-                </div>
-
-                <nav className="flex-1 overflow-y-auto px-2 lg:px-4 py-6 space-y-1 scrollbar-hide">
-                    {[...primaryNav, ...secondaryNav].map((item, index) => {
-                        const isActive = pathname === item.href;
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={cn(
-                                    "flex items-center lg:gap-3 px-3 lg:px-4 py-2.5 rounded-xl transition-all group text-[13px] font-semibold relative justify-center lg:justify-start",
-                                    isActive
-                                        ? "bg-premium-blue text-white shadow-lg shadow-blue-900/10"
-                                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                                )}
-                                title={item.label}
-                            >
-                                <item.icon size={20} className={isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"} />
-                                <span className="hidden lg:block">{item.label}</span>
-                                {isActive && (
-                                    <motion.span 
-                                        layoutId="sidebarActive"
-                                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-r-full hidden lg:block" 
-                                    />
-                                )}
-                            </Link>
-                        );
-                    })}
-                </nav>
-            </aside>
-
-            {/* Main Content Area */}
-            <div className="flex flex-col min-w-0 h-full overflow-hidden w-full md:col-start-2">
-                {/* Header */}
-                <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30">
-                    <div className="flex items-center gap-3 md:hidden">
-                        {session?.user?.institute?.logo ? (
-                            <img
-                                src={session.user.institute.logo}
-                                alt={session.user.institute.name}
-                                className="w-8 h-8 rounded-lg object-contain bg-white p-0.5 border border-slate-100 shadow-sm shrink-0"
-                                crossOrigin="anonymous"
-                            />
-                        ) : (
-                            <div className="w-8 h-8 bg-premium-blue rounded-lg flex items-center justify-center shadow-sm shrink-0">
-                                <span className="text-white font-black text-sm italic">
-                                    {session?.user?.institute?.name?.[0] || "I"}
-                                </span>
-                            </div>
-                        )}
                         <div className="min-w-0">
-                            <h1 className="text-sm font-black tracking-tighter leading-tight text-slate-900 truncate">
-                                {session?.user?.institute?.name || "Quantech"}
-                            </h1>
-                            <p className="text-[9px] uppercase font-bold text-slate-400">Student Portal</p>
+                            <p className="text-[13px] text-white font-normal leading-tight truncate">
+                                {session?.user?.institute?.name || "Dimensions"}
+                            </p>
+                            <p className="text-[12px] text-[#B7B3D6] font-normal leading-tight truncate">
+                                of learning
+                            </p>
                         </div>
                     </div>
 
-                    <div className="hidden md:block">
-                        <h2 className="text-lg font-black text-slate-900 tracking-tight capitalize">
-                            {pathname.split('/').pop() || "Dashboard"}
-                        </h2>
+                    {/* Nav Items List */}
+                    <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-210px)] scrollbar-hide pt-2">
+                        {navItems.map((item) => {
+                            const isActive = pathname === item.href;
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={cn(
+                                        "flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] transition-colors text-[14px] font-normal w-full",
+                                        isActive
+                                            ? "bg-[#EDE8FB] text-[#1E1B2E] font-medium"
+                                            : "text-[#B7B3D6] hover:text-white hover:bg-white/5"
+                                    )}
+                                >
+                                    <item.icon
+                                        size={18}
+                                        strokeWidth={1.8}
+                                        className={isActive ? "text-[#6E5AE0]" : "text-[#B7B3D6]"}
+                                    />
+                                    <span className="truncate">{item.label}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+                </div>
+
+                {/* Sign Out (Adtech Spec: Plain coral text link at bottom, unboxed) */}
+                <div className="pt-4 px-2">
+                    <button
+                        onClick={async () => {
+                            await signOut({ redirect: false });
+                            window.location.href = "/login";
+                        }}
+                        className="flex items-center gap-2 text-[14px] font-normal text-[#F4586A] hover:text-[#ff7887] transition-colors w-full text-left"
+                    >
+                        <LogOut size={16} strokeWidth={1.8} />
+                        <span>Sign Out</span>
+                    </button>
+                </div>
+            </aside>
+
+            {/* Main Content Viewport */}
+            <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#FFFFFF]">
+                
+                {/* Header Bar (Adtech Spec: clean white, search pill, user block, circular icon buttons) */}
+                <header className="h-16 lg:h-20 bg-[#FFFFFF] border-b border-[#E9E8F0] flex items-center justify-between px-4 sm:px-8 shrink-0 z-30">
+                    
+                    {/* Left: Page Title & Breadcrumb */}
+                    <div className="flex items-center gap-3 min-w-0">
+                        {isSubPage && (
+                            <button
+                                onClick={() => router.back()}
+                                className="w-7 h-7 rounded-full border border-[#E9E8F0] flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors shrink-0"
+                                title="Back"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                        )}
+                        <div className="min-w-0">
+                            <h1 className="text-[18px] lg:text-[20px] font-bold text-[#1E1B2E] leading-tight truncate">
+                                {getPageTitle()}
+                            </h1>
+                            <p className="text-[12px] text-[#8D8A9B] leading-tight truncate mt-0.5">
+                                Students List <span className="text-[#8D8A9B]/60">/</span> {getPageTitle()}
+                            </p>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-4 ml-auto">
-                        <div className="flex items-center gap-3 bg-slate-50 p-1 pr-3 rounded-full border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer group">
-                            <div className="w-8 h-8 rounded-full bg-premium-blue flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                    {/* Right: Search Pill + User Block + Circular Actions */}
+                    <div className="flex items-center gap-3 sm:gap-4 ml-auto">
+                        
+                        {/* Search Input Pill (Adtech Spec: Pill shape 999px, thin 1px border #E9E8F0, white fill) */}
+                        <div className="relative hidden md:flex items-center">
+                            <Search size={16} className="absolute left-3.5 text-[#8D8A9B]" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search anything"
+                                className="w-48 lg:w-60 h-9 pl-9 pr-4 text-[13px] text-[#1E1B2E] placeholder:text-[#8D8A9B] bg-white border border-[#E9E8F0] rounded-full focus:outline-none focus:border-[#6E5AE0] transition-colors"
+                            />
+                        </div>
+
+                        {/* User Block (Adtech Spec: Circular 36px avatar + two-line text) */}
+                        <div className="flex items-center gap-3 pl-1 sm:pl-2">
+                            <div className="w-9 h-9 rounded-full bg-[#EDE8FB] border border-[#E9E8F0] flex items-center justify-center overflow-hidden shrink-0">
                                 {session?.user?.image ? (
-                                    <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
+                                    <img src={session.user.image} alt="User" className="w-full h-full object-cover" />
                                 ) : (
-                                    <span className="text-white text-xs font-bold uppercase">
-                                        {session?.user?.name?.substring(0, 2) || "MP"}
+                                    <span className="text-[#6E5AE0] text-[12px] font-bold">
+                                        {session?.user?.name ? session.user.name.substring(0, 2).toUpperCase() : "ST"}
                                     </span>
                                 )}
                             </div>
-                            <div className="hidden sm:block min-w-0">
-                                <p className="text-[12px] font-bold text-slate-900 truncate">
-                                    {session?.user?.name?.split(' ')[0] || "Muskan"}
+                            <div className="hidden sm:block text-left">
+                                <p className="text-[13px] font-bold text-[#1E1B2E] leading-tight truncate max-w-[130px]">
+                                    {session?.user?.name || "Student"}
+                                </p>
+                                <p className="text-[11px] text-[#8D8A9B] leading-tight truncate">
+                                    Student
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={async () => {
-                                await signOut({ redirect: false });
-                                window.location.href = "/login";
-                            }}
-                            className="hidden md:flex w-10 h-10 rounded-full hover:bg-red-50 items-center justify-center text-slate-400 hover:text-red-600 transition-colors"
-                            title="Sign Out"
-                        >
-                            <LogOut size={18} />
-                        </button>
+
+                        {/* Circular Action Buttons (Adtech Spec: Circular 32px, thin border #E9E8F0, white fill) */}
+                        <div className="flex items-center gap-2">
+                            <Link
+                                href="/student/notices"
+                                className="w-8 h-8 rounded-full border border-[#E9E8F0] bg-white flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors shrink-0"
+                                title="Notifications"
+                            >
+                                <Bell size={15} />
+                            </Link>
+                            <Link
+                                href="/student/settings"
+                                className="w-8 h-8 rounded-full border border-[#E9E8F0] bg-white flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors shrink-0"
+                                title="Settings"
+                            >
+                                <Settings size={15} />
+                            </Link>
+                        </div>
                     </div>
                 </header>
 
-                {/* Main scrollable content */}
-                <main className="flex-1 overflow-y-auto bg-slate-50/50 p-4 md:p-8 scrollbar-hide pb-24 md:pb-8">
+                {/* Main Scrollable Canvas */}
+                <main className="flex-1 overflow-y-auto bg-[#FFFFFF] p-4 sm:p-6 lg:p-8 scrollbar-hide pb-28 md:pb-8 touch-pan-y">
                     <div className="max-w-[1400px] mx-auto w-full">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={pathname}
-                                initial={{ opacity: 0, y: 10 }}
+                                initial={{ opacity: 0, y: 4 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2, ease: "easeOut" }}
+                                exit={{ opacity: 0, y: -4 }}
+                                transition={{ duration: 0.15, ease: "easeOut" }}
                             >
                                 {children}
                             </motion.div>
@@ -214,58 +278,51 @@ export default function StudentLayout({ children }) {
                 </main>
             </div>
 
-            {/* Mobile Bottom Navigation */}
-            <div className="md:hidden fixed bottom-1 left-4 right-4 bg-gradient-to-r from-slate-200/90 via-slate-100/90 to-slate-200/90 backdrop-blur-xl rounded-2xl z-50 px-2 pt-2 border border-slate-400 shadow-[0_8px_30px_rgb(0,0,0,0.12)] safe-pb">
-                <div className="flex justify-around items-center gap-1">
-                    {primaryNav.map((item, index) => {
-                        const isActive = pathname === item.href;
-                        const bottomNavColors = ['text-blue-600', 'text-teal-600', 'text-orange-600', 'text-cyan-600'];
-                        const bottomNavColor = bottomNavColors[index % bottomNavColors.length];
+            {/* Mobile Native iOS Bottom Navigation Bar (< 768px) */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-[#E9E8F0] safe-pb">
+                <div className="flex items-center justify-around h-14 px-2">
+                    {mobileBottomTabs.map((tab) => {
+                        const isActive = pathname === tab.href;
                         return (
                             <Link
-                                key={item.href}
-                                href={item.href}
+                                key={tab.href}
+                                href={tab.href}
                                 className={cn(
-                                    "flex flex-col items-center gap-1 pb-1 transition-all relative flex-1 min-w-[3.5rem]",
-                                    isActive ? "text-blue-600" : `text-slate-500 ${bottomNavColor}`
+                                    "flex flex-col items-center justify-center flex-1 py-1 transition-colors relative min-w-[50px]",
+                                    isActive ? "text-[#6E5AE0]" : "text-[#8D8A9B]"
                                 )}
                             >
-                                <div className={cn(
-                                    "p-1.5 rounded-xl transition-all",
-                                    isActive ? "bg-blue-50 scale-110" : "bg-transparent"
-                                )}>
-                                    <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-                                </div>
+                                <tab.icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
                                 <span className={cn(
-                                    "text-[9px] font-bold uppercase tracking-tighter transition-all",
-                                    isActive ? "opacity-100" : "opacity-60 text-slate-400"
+                                    "text-[10px] mt-1 leading-none font-medium tracking-tight",
+                                    isActive ? "text-[#6E5AE0] font-bold" : "text-[#8D8A9B]"
                                 )}>
-                                    {item.label.split(' ')[0]}
+                                    {tab.label}
                                 </span>
                                 {isActive && (
-                                    <motion.div
-                                        layoutId="activeTabIndicator"
-                                        className="absolute -bottom-1.5 w-8 h-1 bg-blue-600 rounded-t-full"
-                                    />
+                                    <div className="w-1 h-1 rounded-full bg-[#6E5AE0] mt-0.5" />
                                 )}
                             </Link>
                         );
                     })}
 
-                    {/* More Button */}
+                    {/* More Menu Trigger */}
                     <button
                         onClick={() => setIsMoreMenuOpen(true)}
-                        className="flex flex-col items-center gap-1 pb-1 text-slate-500 flex-1"
+                        className={cn(
+                            "flex flex-col items-center justify-center flex-1 py-1 transition-colors relative min-w-[50px]",
+                            isMoreMenuOpen ? "text-[#6E5AE0]" : "text-[#8D8A9B]"
+                        )}
                     >
-                        <div className="p-1.5">
-                            <MoreHorizontal size={20} />
-                        </div>
-                        <span className="text-[9px] font-bold uppercase tracking-tighter opacity-60 text-slate-400">More</span>
+                        <MoreHorizontal size={20} strokeWidth={1.8} />
+                        <span className="text-[10px] mt-1 leading-none font-medium tracking-tight">
+                            More
+                        </span>
                     </button>
                 </div>
-            </div>
+            </nav>
 
-            {/* More Menu Drawer */}
+            {/* Mobile Cupertino Bottom Drawer for Secondary Navigation */}
             <AnimatePresence>
                 {isMoreMenuOpen && (
                     <>
@@ -274,52 +331,72 @@ export default function StudentLayout({ children }) {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsMoreMenuOpen(false)}
-                            onClick={() => setIsMoreMenuOpen(false)}
-                            className="fixed inset-0 bg-black/60 z-[60] md:hidden"
+                            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] md:hidden"
                         />
                         <motion.div
                             initial={{ y: "100%" }}
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
-                            transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
-                            className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-200 to-slate-100 rounded-t-[2.5rem] z-[70] p-8 md:hidden shadow-2xl safe-pb will-change-transform touch-none"
+                            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[24px] border-t border-[#E9E8F0] z-[70] p-6 pb-8 md:hidden shadow-2xl safe-pb max-h-[85vh] flex flex-col"
                         >
-                            <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-8" />
-                            <h3 className="text-xl font-black text-slate-900 mb-6 px-2 italic tracking-tighter">Campus Resource Menu</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                {secondaryNav.map((item, index) => {
+                            {/* Cupertino Drag Handle */}
+                            <div className="w-10 h-1 bg-[#E9E8F0] rounded-full mx-auto mb-4 shrink-0" />
+
+                            <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#E9E8F0] shrink-0">
+                                <div>
+                                    <h3 className="text-[17px] font-bold text-[#1E1B2E]">Campus Resources</h3>
+                                    <p className="text-[12px] text-[#8D8A9B]">Explore study tools and student services</p>
+                                </div>
+                                <button
+                                    onClick={() => setIsMoreMenuOpen(false)}
+                                    className="w-8 h-8 rounded-full border border-[#E9E8F0] flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E]"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            {/* Scrollable Resources List */}
+                            <div className="flex-1 overflow-y-auto space-y-2 pr-1 touch-pan-y">
+                                {mobileMoreItems.map((item) => {
                                     const isActive = pathname === item.href;
-                                    const secondaryColors = ['from-blue-50 to-blue-100 border-blue-200 text-blue-900', 'from-teal-50 to-teal-100 border-teal-200 text-teal-900', 'from-orange-50 to-orange-100 border-orange-200 text-orange-900', 'from-cyan-50 to-cyan-100 border-cyan-200 text-cyan-900', 'from-red-50 to-red-100 border-red-200 text-red-900', 'from-amber-50 to-amber-100 border-amber-200 text-amber-900'];
-                                    const colorClass = secondaryColors[index % secondaryColors.length];
                                     return (
                                         <Link
                                             key={item.href}
                                             href={item.href}
                                             onClick={() => setIsMoreMenuOpen(false)}
                                             className={cn(
-                                                "p-5 rounded-2xl border transition-all flex flex-col items-start gap-4",
-                                                isActive 
-                                                    ? "bg-premium-blue border-premium-blue text-white shadow-xl shadow-blue-900/20" 
-                                                    : `bg-gradient-to-br ${colorClass}`
+                                                "flex items-center gap-3.5 p-3 rounded-[12px] transition-colors border",
+                                                isActive
+                                                    ? "bg-[#EDE8FB] border-[#6E5AE0]/30 text-[#1E1B2E]"
+                                                    : "bg-white border-[#E9E8F0] text-[#1E1B2E] hover:bg-slate-50"
                                             )}
                                         >
-                                            <div className={cn(
-                                                "w-10 h-10 rounded-xl flex items-center justify-center",
-                                                isActive ? "bg-white/20" : "bg-white shadow-sm"
-                                            )}>
-                                                <item.icon size={22} />
+                                            <div className="w-9 h-9 rounded-[8px] bg-[#F1EFFB] flex items-center justify-center text-[#6E5AE0] shrink-0">
+                                                <item.icon size={18} />
                                             </div>
-                                            <span className="text-sm font-black uppercase tracking-tight">{item.label}</span>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-[14px] font-bold leading-tight">{item.label}</p>
+                                                <p className="text-[11px] text-[#8D8A9B] leading-tight truncate mt-0.5">{item.desc}</p>
+                                            </div>
                                         </Link>
                                     );
                                 })}
                             </div>
-                            <button
-                                onClick={() => setIsMoreMenuOpen(false)}
-                                className="w-full mt-8 py-4 px-6 bg-slate-100 text-slate-600 rounded-xl font-bold flex items-center justify-center gap-2"
-                            >
-                                <X size={18} /> Close Menu
-                            </button>
+
+                            {/* Bottom Sign Out */}
+                            <div className="pt-4 mt-2 border-t border-[#E9E8F0] shrink-0">
+                                <button
+                                    onClick={async () => {
+                                        await signOut({ redirect: false });
+                                        window.location.href = "/login";
+                                    }}
+                                    className="w-full py-3 rounded-full border border-[#F4586A]/30 text-[#F4586A] text-[13px] font-semibold hover:bg-rose-50 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <LogOut size={16} />
+                                    Sign Out of Portal
+                                </button>
+                            </div>
                         </motion.div>
                     </>
                 )}
@@ -327,4 +404,3 @@ export default function StudentLayout({ children }) {
         </div>
     );
 }
-
