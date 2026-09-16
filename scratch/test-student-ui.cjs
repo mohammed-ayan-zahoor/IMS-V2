@@ -110,4 +110,19 @@ assert(materialsPage.includes("if (e.target === e.currentTarget) onClose()"), "V
 assert(materialsPage.includes("Watch on YouTube"), "VideoModal must provide fallback 'Watch on YouTube' link");
 console.log("✓ VideoModal fail-safe navigation, back button, and backdrop dismissal verified");
 
-console.log("\nALL 12 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");
+// 13. Check Student Syllabus page adheres to Adtech specs and breadcrumb fix
+const syllabusPage = fs.readFileSync(path.join(__dirname, "../app/student/syllabus/page.jsx"), "utf8");
+assert(syllabusPage.includes("safe-pb"), "Syllabus page must include safe-pb");
+assert(syllabusPage.includes("Curriculum & Syllabus"), "Syllabus page must have clean header title");
+assert(syllabusPage.includes("rounded-[16px]"), "Syllabus page must use 16px container radius");
+assert(syllabusPage.includes("rounded-full"), "Syllabus page must use rounded-full for pills and inputs");
+assert(syllabusPage.includes("selectedSubjectFilter"), "Syllabus page must support subject filter tabs");
+assert(syllabusPage.includes("expandedSubject"), "Syllabus page must support collapsible chapter/topic accordions");
+assert(syllabusPage.includes("/student/batches/"), "Syllabus page must link directly to batch detail view");
+
+const studentLayoutFile = fs.readFileSync(path.join(__dirname, "../app/student/layout.jsx"), "utf8");
+assert(!studentLayoutFile.includes("Students List"), "Student layout breadcrumbs must NOT include 'Students List'");
+assert(studentLayoutFile.includes("Student Portal"), "Student layout breadcrumbs must include 'Student Portal'");
+console.log("✓ Student syllabus screen and Student Portal breadcrumbs verified");
+
+console.log("\nALL 13 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");

@@ -101,22 +101,41 @@ export async function GET(req) {
                 String(r.subject) === String(pair.subjectId)
             );
 
-            const totalChapters = pair.syllabus.length;
-            const completedChapters = record ? record.completions.filter(c => c.itemType === 'chapter' && c.isCompleted).length : 0;
-            
-            // Calculate detailed status for each chapter
-            const chapters = pair.syllabus.map(chapter => {
-                const isDone = record?.completions?.some(c => 
-                    String(c.itemId) === String(chapter._id) && 
-                    c.itemType === 'chapter' && 
-                    c.isCompleted
-                );
+            const completedItemIds = new Set(
+                (record?.completions || [])
+                    .filter(c => c.isCompleted)
+                    .map(c => String(c.itemId))
+            );
+
+            let totalTopics = 0;
+            let completedTopics = 0;
+
+            // Calculate detailed status for each chapter and topics
+            const chapters = (pair.syllabus || []).map(chapter => {
+                const isChapterDone = completedItemIds.has(String(chapter._id));
+
+                const topics = (chapter.topics || []).map(topic => {
+                    totalTopics++;
+                    const isTopicDone = completedItemIds.has(String(topic._id)) || isChapterDone;
+                    if (isTopicDone) completedTopics++;
+
+                    return {
+                        id: topic._id,
+                        title: topic.title,
+                        isCompleted: isTopicDone,
+                        subTopics: (topic.subTopics || []).map(st => ({
+                            id: st._id,
+                            title: st.title
+                        }))
+                    };
+                });
                 
                 return {
                     id: chapter._id,
                     title: chapter.title,
-                    isCompleted: !!isDone,
-                    completedAt: record?.completions?.find(c => String(c.itemId) === String(chapter._id))?.completedAt
+                    isCompleted: isChapterDone,
+                    completedAt: record?.completions?.find(c => String(c.itemId) === String(chapter._id))?.completedAt,
+                    topics
                 };
             });
 
@@ -129,6 +148,8 @@ export async function GET(req) {
                 overallProgress: record?.overallProgress || 0,
                 completedChapters,
                 totalChapters,
+                completedTopics,
+                totalTopics,
                 chapters
             };
         });

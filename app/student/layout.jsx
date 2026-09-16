@@ -199,7 +199,7 @@ export default function StudentLayout({ children }) {
                                 {getPageTitle()}
                             </h1>
                             <p className="text-[12px] text-[#8D8A9B] leading-tight truncate mt-0.5">
-                                Students List <span className="text-[#8D8A9B]/60">/</span> {getPageTitle()}
+                                Student Portal <span className="text-[#8D8A9B]/60">/</span> {getPageTitle()}
                             </p>
                         </div>
                     </div>
