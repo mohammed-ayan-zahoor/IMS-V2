@@ -70,7 +70,7 @@ async function sendNoticePushNotifications(notice, instituteId) {
         if (!beamsClient) return;
 
         const cleanBody = (notice.content || '').replace(/<[^>]*>?/gm, '').slice(0, 160);
-        const title = `📢 Notice: ${notice.title}`;
+        const title = `Notice: ${notice.title}`;
         const body = cleanBody ? `${cleanBody}...` : `A new notice has been published by ${instName}.`;
 
         const payload = {

@@ -122,10 +122,10 @@ async function handleFeeDuesCron(req) {
 
             let title, body;
             if (category === "overdue") {
-                title = "⚠️ Overdue Fee Alert";
+                title = "Overdue Fee Alert";
                 body = `Overdue Fee Alert: You have an overdue fee balance at ${instituteName}. Please clear your dues at your earliest.`;
             } else {
-                title = "💳 Fee Payment Reminder";
+                title = "Fee Payment Reminder";
                 body = `Fee Reminder: You have an upcoming fee balance payment due at ${instituteName}. Tap to view details.`;
             }
 

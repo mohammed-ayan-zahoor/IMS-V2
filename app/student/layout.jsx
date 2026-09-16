@@ -24,9 +24,12 @@ import {
     PenTool,
     Search,
     ChevronLeft,
+    ChevronRight,
     Target
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import NotificationBellDropdown from "@/components/notifications/NotificationBellDropdown";
+import WebPushInitializer from "@/components/notifications/WebPushInitializer";
 
 export default function StudentLayout({ children }) {
     const { data: session } = useSession();
@@ -111,9 +114,11 @@ export default function StudentLayout({ children }) {
     };
 
     const isSubPage = pathname !== "/student/dashboard";
+    const isChatPage = pathname === "/student/chat";
 
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-[#FFFFFF] text-[#1E1B2E] font-sans antialiased">
+            <WebPushInitializer />
             
             {/* Desktop Sidebar (Adtech Spec: Solid deep navy-indigo #2C2A46, unbordered) */}
             <aside className="hidden md:flex flex-col w-56 lg:w-64 h-screen bg-[#2C2A46] shrink-0 z-40 px-4 py-6 justify-between select-none">
@@ -254,13 +259,10 @@ export default function StudentLayout({ children }) {
 
                         {/* Circular Action Buttons (Adtech Spec: Circular 32px, thin border #E9E8F0, white fill) */}
                         <div className="flex items-center gap-2">
-                            <Link
-                                href="/student/notices"
-                                className="w-8 h-8 rounded-full border border-[#E9E8F0] bg-white flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors shrink-0"
-                                title="Notifications"
-                            >
-                                <Bell size={15} />
-                            </Link>
+                            <NotificationBellDropdown 
+                                triggerClassName="w-8 h-8 rounded-full border border-[#E9E8F0] bg-white flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors relative outline-none cursor-pointer"
+                                iconSize={15}
+                            />
                             <Link
                                 href="/student/settings"
                                 className="w-8 h-8 rounded-full border border-[#E9E8F0] bg-white flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors shrink-0"
@@ -273,8 +275,16 @@ export default function StudentLayout({ children }) {
                 </header>
 
                 {/* Main Scrollable Canvas */}
-                <main className="flex-1 overflow-y-auto bg-[#FFFFFF] p-4 sm:p-6 lg:p-8 scrollbar-hide pb-28 md:pb-8 touch-pan-y">
-                    <div className="max-w-[1400px] mx-auto w-full">
+                <main className={cn(
+                    "flex-1 bg-[#FFFFFF] min-w-0",
+                    isChatPage
+                        ? "overflow-hidden flex flex-col p-0 pb-16 md:pb-0 h-[calc(100vh-4rem)] lg:h-[calc(100vh-5rem)]"
+                        : "overflow-y-auto p-4 sm:p-6 lg:p-8 scrollbar-hide pb-28 md:pb-8 touch-pan-y"
+                )}>
+                    <div className={cn(
+                        "w-full",
+                        isChatPage ? "h-full flex-1 flex flex-col min-h-0" : "max-w-[1400px] mx-auto"
+                    )}>
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={pathname}
@@ -282,6 +292,7 @@ export default function StudentLayout({ children }) {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -4 }}
                                 transition={{ duration: 0.15, ease: "easeOut" }}
+                                className={isChatPage ? "h-full w-full flex-1 flex flex-col min-h-0" : undefined}
                             >
                                 {children}
                             </motion.div>
@@ -350,26 +361,27 @@ export default function StudentLayout({ children }) {
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[24px] border-t border-[#E9E8F0] z-[70] p-6 pb-8 md:hidden shadow-2xl safe-pb max-h-[85vh] flex flex-col"
+                            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[28px] border-t border-[#E9E8F0] z-[70] px-5 pt-4 pb-7 md:hidden shadow-2xl safe-pb max-h-[85vh] flex flex-col"
                         >
-                            {/* Cupertino Drag Handle */}
-                            <div className="w-10 h-1 bg-[#E9E8F0] rounded-full mx-auto mb-4 shrink-0" />
+                            {/* Drag Handle */}
+                            <div className="w-10 h-1 bg-[#CBD5E1] rounded-full mx-auto mb-3 shrink-0" />
 
-                            <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#E9E8F0] shrink-0">
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-2 pb-3 border-b border-[#F1F5F9] shrink-0">
                                 <div>
-                                    <h3 className="text-[17px] font-bold text-[#1E1B2E]">Campus Resources</h3>
-                                    <p className="text-[12px] text-[#8D8A9B]">Explore study tools and student services</p>
+                                    <h3 className="text-base font-bold text-[#0D1C2E]">More Services</h3>
+                                    <p className="text-xs text-[#8D8A9B]">Academics, tools & student resources</p>
                                 </div>
                                 <button
                                     onClick={() => setIsMoreMenuOpen(false)}
-                                    className="w-8 h-8 rounded-full border border-[#E9E8F0] flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E]"
+                                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-[#545F72] transition-colors cursor-pointer"
                                 >
                                     <X size={16} />
                                 </button>
                             </div>
 
                             {/* Scrollable Resources List */}
-                            <div className="flex-1 overflow-y-auto space-y-2 pr-1 touch-pan-y">
+                            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 pr-1 touch-pan-y">
                                 {mobileMoreItems.map((item) => {
                                     const isActive = pathname === item.href;
                                     return (
@@ -378,35 +390,53 @@ export default function StudentLayout({ children }) {
                                             href={item.href}
                                             onClick={() => setIsMoreMenuOpen(false)}
                                             className={cn(
-                                                "flex items-center gap-3.5 p-3 rounded-[12px] transition-colors border",
+                                                "group flex items-center justify-between py-3 px-2 rounded-xl transition-all",
                                                 isActive
-                                                    ? "bg-[#EDE8FB] border-[#6E5AE0]/30 text-[#1E1B2E]"
-                                                    : "bg-white border-[#E9E8F0] text-[#1E1B2E] hover:bg-slate-50"
+                                                    ? "bg-slate-100/80 text-[#002045]"
+                                                    : "hover:bg-slate-50 active:bg-slate-100"
                                             )}
                                         >
-                                            <div className="w-9 h-9 rounded-[8px] bg-[#F1EFFB] flex items-center justify-center text-[#6E5AE0] shrink-0">
-                                                <item.icon size={18} />
+                                            <div className="flex items-center gap-3.5 min-w-0">
+                                                <item.icon
+                                                    size={20}
+                                                    strokeWidth={1.8}
+                                                    className={cn(
+                                                        "shrink-0 transition-colors",
+                                                        isActive ? "text-[#002045]" : "text-[#545F72] group-hover:text-[#0D1C2E]"
+                                                    )}
+                                                />
+                                                <div className="min-w-0">
+                                                    <p className={cn("text-sm leading-tight", isActive ? "font-bold text-[#002045]" : "font-semibold text-[#0D1C2E]")}>
+                                                        {item.label}
+                                                    </p>
+                                                    <p className="text-xs text-[#8D8A9B] leading-tight truncate mt-0.5">
+                                                        {item.desc}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-[14px] font-bold leading-tight">{item.label}</p>
-                                                <p className="text-[11px] text-[#8D8A9B] leading-tight truncate mt-0.5">{item.desc}</p>
-                                            </div>
+                                            <ChevronRight
+                                                size={16}
+                                                className={cn(
+                                                    "shrink-0 transition-transform group-hover:translate-x-0.5",
+                                                    isActive ? "text-[#002045]" : "text-[#CBD5E1]"
+                                                )}
+                                            />
                                         </Link>
                                     );
                                 })}
                             </div>
 
                             {/* Bottom Sign Out */}
-                            <div className="pt-4 mt-2 border-t border-[#E9E8F0] shrink-0">
+                            <div className="pt-3 mt-2 border-t border-[#F1F5F9] shrink-0">
                                 <button
                                     onClick={async () => {
                                         await signOut({ redirect: false });
                                         window.location.href = "/login";
                                     }}
-                                    className="w-full py-3 rounded-full border border-[#F4586A]/30 text-[#F4586A] text-[13px] font-semibold hover:bg-rose-50 transition-colors flex items-center justify-center gap-2"
+                                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-rose-600 bg-rose-50/70 hover:bg-rose-100/70 font-semibold text-xs tracking-wide uppercase transition-colors cursor-pointer"
                                 >
-                                    <LogOut size={16} />
-                                    Sign Out of Portal
+                                    <LogOut size={16} strokeWidth={2} />
+                                    <span>Sign Out of Account</span>
                                 </button>
                             </div>
                         </motion.div>

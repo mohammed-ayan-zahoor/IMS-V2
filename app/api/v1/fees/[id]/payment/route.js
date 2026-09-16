@@ -115,7 +115,7 @@ export async function POST(req, { params }) {
                     const remainingBalance = fee.balanceAmount ?? 0;
                     const payMethod = (paymentDetails.method || "payment").toUpperCase();
                     
-                    const title = `🧾 Fee Payment Received: ₹${collectedAmount}`;
+                    const title = `Fee Payment Received: ₹${collectedAmount}`;
                     const body = `Payment of ₹${collectedAmount} received via ${payMethod}. Remaining balance: ₹${remainingBalance}.`;
 
                     const payload = {

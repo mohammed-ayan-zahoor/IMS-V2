@@ -86,8 +86,8 @@ async function handleBirthdayCron(req) {
             const beamsClient = await getBeamsInstance(instituteId);
             if (!beamsClient) continue;
 
-            const title = "🎂 Happy Birthday!";
-            const body = `Happy Birthday! Wishing you a wonderful day and a successful year ahead from all of us at ${instituteName}! 🎉`;
+            const title = "Happy Birthday";
+            const body = `Happy Birthday! Wishing you a wonderful day and a successful year ahead from all of us at ${instituteName}!`;
 
             const payload = {
                 apns: {

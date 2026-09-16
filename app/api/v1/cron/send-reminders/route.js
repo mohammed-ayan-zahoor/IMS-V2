@@ -78,7 +78,7 @@ async function handleSendReminders(req) {
                         apns: {
                             aps: {
                                 alert: {
-                                    title: "Happy Birthday! 🎂",
+                                    title: "Happy Birthday",
                                     body: "Wishing you a wonderful birthday from all of us!"
                                 },
                                 sound: "default"
@@ -86,13 +86,13 @@ async function handleSendReminders(req) {
                         },
                         fcm: {
                             notification: {
-                                title: "Happy Birthday! 🎂",
+                                title: "Happy Birthday",
                                 body: "Wishing you a wonderful birthday from all of us!",
                                 channel_id: "high_importance_channel",
                                 sound: "default"
                             },
                             data: {
-                                title: "Happy Birthday! 🎂",
+                                title: "Happy Birthday",
                                 body: "Wishing you a wonderful birthday from all of us!",
                                 type: "birthday"
                             },
@@ -152,7 +152,7 @@ async function handleSendReminders(req) {
                             apns: {
                                 aps: {
                                     alert: {
-                                        title: "Fee Payment Reminder 💰",
+                                        title: "Fee Payment Reminder",
                                         body: bodyText
                                     },
                                     sound: "default"

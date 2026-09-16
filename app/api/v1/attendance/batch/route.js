@@ -55,19 +55,19 @@ export async function sendAttendancePushNotifications(instituteId, batchId, reco
             {
                 status: "present",
                 enabled: attSettings.onPresent === true,
-                title: "✅ Attendance Marked",
+                title: "Attendance Marked",
                 body: `Your attendance at ${instName} was marked Present today.`
             },
             {
                 status: "absent",
                 enabled: attSettings.onAbsent === true,
-                title: "⚠️ Attendance Alert",
+                title: "Attendance Alert",
                 body: `Notice: You were marked Absent at ${instName} today.`
             },
             {
                 status: "late",
                 enabled: attSettings.onLate === true,
-                title: "⏰ Attendance Alert",
+                title: "Attendance Alert",
                 body: `Notice: You were marked Late at ${instName} today.`
             }
         ];

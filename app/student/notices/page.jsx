@@ -9,13 +9,10 @@ import {
     Info, 
     PartyPopper,
     Search, 
-    Paperclip, 
-    ExternalLink, 
     Printer, 
     Share2, 
     ArrowLeft, 
     Check, 
-    FileText, 
     ShieldCheck, 
     Building2,
     SlidersHorizontal
@@ -60,7 +57,8 @@ export default function StudentNoticeBoardPage() {
 
         loadNotices();
         return () => { isMounted = false; };
-    }, [toast]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Filter and search
     const filteredNotices = useMemo(() => {
@@ -254,12 +252,6 @@ export default function StudentNoticeBoardPage() {
                                                 <Building2 size={12} className="text-[#8D8A9B]" />
                                                 Office of Academic Affairs
                                             </span>
-                                            {notice.attachments?.length > 0 && (
-                                                <span className="inline-flex items-center gap-1 font-semibold text-[#6E5AE0] bg-[#EDE8FB] px-2 py-0.5 rounded-full text-[10px]">
-                                                    <Paperclip size={10} />
-                                                    {notice.attachments.length} file{notice.attachments.length > 1 ? "s" : ""}
-                                                </span>
-                                            )}
                                         </div>
                                     </div>
                                 );
@@ -365,39 +357,7 @@ export default function StudentNoticeBoardPage() {
                                     {activeNotice.content}
                                 </div>
 
-                                {/* Attachments Section */}
-                                {activeNotice.attachments && activeNotice.attachments.length > 0 && (
-                                    <div className="pt-6 border-t border-[#E9E8F0] space-y-3">
-                                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#8D8A9B] flex items-center gap-1.5">
-                                            <Paperclip size={13} />
-                                            Attached Documents ({activeNotice.attachments.length})
-                                        </h4>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            {activeNotice.attachments.map((file, idx) => (
-                                                <a
-                                                    key={idx}
-                                                    href={file.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-3 p-3.5 rounded-[12px] bg-[#FAF9FC] hover:bg-[#F1EFFB] border border-[#E9E8F0] transition-colors group"
-                                                >
-                                                    <div className="w-9 h-9 rounded-[8px] bg-white border border-[#E9E8F0] flex items-center justify-center text-[#6E5AE0] shrink-0">
-                                                        <FileText size={16} />
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-xs font-bold text-[#1E1B2E] truncate group-hover:text-[#6E5AE0] transition-colors">
-                                                            {file.name || "Attachment Document"}
-                                                        </p>
-                                                        <p className="text-[10px] text-[#8D8A9B]">
-                                                            PDF / Verified Document
-                                                        </p>
-                                                    </div>
-                                                    <ExternalLink size={13} className="text-[#8D8A9B] group-hover:text-[#6E5AE0] shrink-0" />
-                                                </a>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+
 
                                 {/* Institutional Verification Seal */}
                                 <div className="pt-6 border-t border-[#E9E8F0] flex items-center justify-between gap-4 text-xs text-[#8D8A9B] flex-wrap">

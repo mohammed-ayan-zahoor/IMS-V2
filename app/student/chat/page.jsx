@@ -20,7 +20,7 @@ export default async function StudentChatPage() {
     }
 
     return (
-        <div className="fixed top-20 bottom-[calc(88px+env(safe-area-inset-bottom,0px))] md:bottom-0 left-0 right-0 bg-white z-[40] flex flex-col">
+        <div className="h-full w-full flex-1 flex flex-col min-h-0 overflow-hidden">
             <ChatLayout currentUserId={session.user.id} />
         </div>
     );

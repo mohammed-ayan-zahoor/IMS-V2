@@ -109,19 +109,19 @@ async function handleAttendanceCron(req) {
                 {
                     status: "present",
                     enabled: group.pushConfig.onPresent === true,
-                    title: "✅ Attendance Status",
+                    title: "Attendance Status",
                     body: `Your attendance at ${group.instituteName} was recorded as Present today.`
                 },
                 {
                     status: "absent",
                     enabled: group.pushConfig.onAbsent === true,
-                    title: "⚠️ Attendance Alert",
+                    title: "Attendance Alert",
                     body: `Notice: You were marked Absent at ${group.instituteName} today.`
                 },
                 {
                     status: "late",
                     enabled: group.pushConfig.onLate === true,
-                    title: "⏰ Attendance Alert",
+                    title: "Attendance Alert",
                     body: `Notice: You were marked Late at ${group.instituteName} today.`
                 }
             ];

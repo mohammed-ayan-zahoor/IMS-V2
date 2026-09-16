@@ -16,18 +16,34 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
-export default function NotificationBellDropdown() {
+export default function NotificationBellDropdown({ triggerClassName, iconSize = 18 }) {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
-    const [loading, setLoading] = useState(false);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
-        fetchNotifications();
-        const interval = setInterval(fetchNotifications, 30000); // 30s auto-refresh
-        return () => clearInterval(interval);
+        let isMounted = true;
+        const loadNotifications = async () => {
+            try {
+                const res = await fetch("/api/v1/notifications");
+                if (res.ok && isMounted) {
+                    const data = await res.json();
+                    setNotifications(data.notifications || []);
+                    setUnreadCount(data.unreadCount || 0);
+                }
+            } catch (err) {
+                console.error("Failed to fetch notifications", err);
+            }
+        };
+
+        loadNotifications();
+        const interval = setInterval(loadNotifications, 30000); // 30s auto-refresh
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
     }, []);
 
     // Close dropdown when clicking outside
@@ -40,19 +56,6 @@ export default function NotificationBellDropdown() {
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-
-    const fetchNotifications = async () => {
-        try {
-            const res = await fetch("/api/v1/notifications");
-            if (res.ok) {
-                const data = await res.json();
-                setNotifications(data.notifications || []);
-                setUnreadCount(data.unreadCount || 0);
-            }
-        } catch (err) {
-            console.error("Failed to fetch notifications", err);
-        }
-    };
 
     const handleMarkAsRead = async (notif) => {
         if (!notif.read) {
@@ -105,12 +108,12 @@ export default function NotificationBellDropdown() {
             {/* Bell Icon Trigger */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="p-2 text-slate-500 hover:text-slate-900 transition-colors relative rounded-lg hover:bg-slate-100 outline-none"
+                className={triggerClassName || "p-2 text-slate-500 hover:text-slate-900 transition-colors relative rounded-lg hover:bg-slate-100 outline-none cursor-pointer"}
                 aria-label="Notifications"
             >
-                <Bell size={18} />
+                <Bell size={iconSize} />
                 {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 border-2 border-white">
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 border-2 border-white">
                         {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                 )}

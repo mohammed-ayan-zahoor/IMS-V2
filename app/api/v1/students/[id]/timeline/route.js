@@ -120,7 +120,7 @@ export async function POST(req, { params }) {
                     const { getBeamsInstance } = await import('@/lib/pusher');
                     const beamsClient = await getBeamsInstance(scope.instituteId);
                     if (beamsClient) {
-                        const notifTitle = `⭐ New Timeline Event: ${title}`;
+                        const notifTitle = `New Timeline Event: ${title}`;
                         const notifBody = description.slice(0, 140);
                         const payload = {
                             apns: {
