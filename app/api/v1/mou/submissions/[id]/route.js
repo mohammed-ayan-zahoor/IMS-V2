@@ -40,7 +40,7 @@ export async function GET(req, { params }) {
     }
 }
 
-// PATCH /api/v1/mou/submissions/[id] (Admin-only status and notes updater)
+// PATCH /api/v1/mou/submissions/[id] (Admin-only status, notes and full submission editor)
 export async function PATCH(req, { params }) {
     try {
         const session = await getServerSession(authOptions);
@@ -50,7 +50,28 @@ export async function PATCH(req, { params }) {
 
         const { id } = await params;
         const body = await req.json();
-        const { status, notes } = body;
+        const {
+            schoolName,
+            city,
+            principalName,
+            designation,
+            contactEmail,
+            contactPhone,
+            studentCount,
+            udiseCode,
+            address,
+            totalPrice,
+            upfrontPrice,
+            mouDuration,
+            perStudentRate,
+            planType,
+            instituteType,
+            yearWiseCounts,
+            coupon,
+            action,
+            status,
+            notes
+        } = body;
 
         await connectDB();
 
@@ -60,6 +81,35 @@ export async function PATCH(req, { params }) {
         }
 
         // Apply updates safely
+        if (schoolName !== undefined) submission.schoolName = schoolName.trim();
+        if (city !== undefined) submission.city = (city || "").trim();
+        if (principalName !== undefined) submission.principalName = principalName.trim();
+        if (designation !== undefined) submission.designation = (designation || "Principal").trim();
+        if (contactEmail !== undefined) submission.contactEmail = contactEmail.trim().toLowerCase();
+        if (contactPhone !== undefined) submission.contactPhone = (contactPhone || "").trim();
+        if (studentCount !== undefined) submission.studentCount = Number(studentCount);
+        if (udiseCode !== undefined) submission.udiseCode = (udiseCode || "").trim();
+        if (address !== undefined) submission.address = (address || "").trim();
+        if (totalPrice !== undefined) submission.totalPrice = Number(totalPrice);
+        if (upfrontPrice !== undefined) submission.upfrontPrice = Number(upfrontPrice);
+        if (mouDuration !== undefined) submission.mouDuration = Number(mouDuration);
+        if (perStudentRate !== undefined) submission.perStudentRate = Number(perStudentRate);
+        if (planType !== undefined && ['standard', 'plus', 'custom'].includes(planType)) {
+            submission.planType = planType;
+        }
+        if (instituteType !== undefined && ['school', 'college_degree', 'college_pu'].includes(instituteType)) {
+            submission.instituteType = instituteType;
+        }
+        if (yearWiseCounts !== undefined) {
+            submission.yearWiseCounts = yearWiseCounts;
+        }
+        if (coupon !== undefined) {
+            submission.coupon = (coupon || "").trim().toUpperCase();
+        }
+        if (action !== undefined && ['print', 'download_pdf', 'manual_entry'].includes(action)) {
+            submission.action = action;
+        }
+
         if (status !== undefined) {
             if (!['new', 'contacted', 'converted', 'rejected'].includes(status)) {
                 return NextResponse.json({ error: "Invalid status value" }, { status: 400 });

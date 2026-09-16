@@ -28,7 +28,8 @@ import {
     Landmark,
     Trash2,
     RefreshCw,
-    Tag
+    Tag,
+    Pencil
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -67,6 +68,13 @@ export default function MouTrackerPage() {
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [isSavingManual, setIsSavingManual] = useState(false);
     const [manualError, setManualError] = useState(null);
+
+    // Edit MOU Entry Modal states
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+    const [editError, setEditError] = useState(null);
+    const [editSubmissionId, setEditSubmissionId] = useState(null);
+
     const [manualForm, setManualForm] = useState({
         schoolName: "",
         city: "",
@@ -90,6 +98,33 @@ export default function MouTrackerPage() {
         notes: ""
     });
 
+    const openEditModal = (sub) => {
+        setEditSubmissionId(sub._id);
+        setEditError(null);
+        setManualForm({
+            schoolName: sub.schoolName || "",
+            city: sub.city || "",
+            principalName: sub.principalName || "",
+            designation: sub.designation || "Principal",
+            contactEmail: sub.contactEmail || "",
+            contactPhone: sub.contactPhone || "",
+            studentCount: sub.studentCount !== undefined && sub.studentCount !== null ? String(sub.studentCount) : "",
+            yr1: sub.yearWiseCounts?.yr1 !== undefined && sub.yearWiseCounts?.yr1 !== null ? String(sub.yearWiseCounts.yr1) : "",
+            yr2: sub.yearWiseCounts?.yr2 !== undefined && sub.yearWiseCounts?.yr2 !== null ? String(sub.yearWiseCounts.yr2) : "",
+            yr3: sub.yearWiseCounts?.yr3 !== undefined && sub.yearWiseCounts?.yr3 !== null ? String(sub.yearWiseCounts.yr3) : "",
+            instituteType: sub.instituteType || "school",
+            mouDuration: sub.mouDuration ? String(sub.mouDuration) : "1",
+            planType: sub.planType || "standard",
+            customRate: sub.planType === "custom" && sub.perStudentRate ? String(sub.perStudentRate) : "",
+            coupon: sub.coupon || "",
+            udiseCode: sub.udiseCode || "",
+            address: sub.address || "",
+            action: sub.action || "manual_entry",
+            status: sub.status || "new",
+            notes: sub.notes || ""
+        });
+        setIsEditModalOpen(true);
+    };
 
     const handleCreateManualEntry = async (e) => {
         e.preventDefault();
@@ -164,6 +199,7 @@ export default function MouTrackerPage() {
                     planType: isCollege ? "custom" : manualForm.planType,
                     instituteType: manualForm.instituteType,
                     ...(yearWiseCounts && { yearWiseCounts }),
+                    ...(manualForm.coupon && { coupon: manualForm.coupon.trim().toUpperCase() }),
                     udiseCode: manualForm.udiseCode.trim(),
                     address: manualForm.address.trim(),
                     totalPrice,
@@ -183,7 +219,7 @@ export default function MouTrackerPage() {
                 contactEmail: "", contactPhone: "", studentCount: "",
                 yr1: "", yr2: "", yr3: "", instituteType: "school",
                 mouDuration: "1", planType: "standard", customRate: "",
-                udiseCode: "", address: "", action: "manual_entry", status: "new", notes: ""
+                coupon: "", udiseCode: "", address: "", action: "manual_entry", status: "new", notes: ""
             });
             fetchSubmissions();
         } catch (err) {
@@ -191,6 +227,102 @@ export default function MouTrackerPage() {
             setManualError(err.message || "Failed to create manual entry.");
         } finally {
             setIsSavingManual(false);
+        }
+    };
+
+    const handleSaveEdit = async (e) => {
+        e.preventDefault();
+        if (!editSubmissionId) return;
+        const isCollege = manualForm.instituteType !== "school";
+
+        if (!manualForm.schoolName || !manualForm.city || !manualForm.principalName || !manualForm.contactEmail) {
+            setEditError("Please fill out all required fields (Name, City, Principal, Email).");
+            return;
+        }
+
+        let count, totalPrice, upfrontPrice, rate, yearWiseCounts;
+        const duration = parseInt(manualForm.mouDuration) || 1;
+        let yearlyTotal = 0;
+
+        if (isCollege) {
+            const yr1 = parseInt(manualForm.yr1) || 0;
+            const yr2 = parseInt(manualForm.yr2) || 0;
+            const yr3 = manualForm.instituteType === "college_degree" ? (parseInt(manualForm.yr3) || 0) : 0;
+            if (yr1 + yr2 + yr3 === 0) {
+                setEditError("Please enter at least one year-wise student count.");
+                return;
+            }
+            count = yr1 + yr2 + yr3;
+            yearWiseCounts = { yr1, yr2, yr3 };
+            const isSDC = ['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase());
+            const yr2Rate = isSDC ? 20 : 30;
+            const yr3Rate = isSDC ? 20 : 30;
+            yearlyTotal = (yr1 * 59) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
+            totalPrice = yearlyTotal * duration;
+            rate = Math.round(totalPrice / count);
+        } else {
+            count = parseInt(manualForm.studentCount) || 0;
+            if (count <= 0) {
+                setEditError("Please enter a valid student count (> 0).");
+                return;
+            }
+            rate = 59;
+            if (manualForm.planType === "plus") rate = 69;
+            else if (manualForm.planType === "custom") {
+                rate = parseFloat(manualForm.customRate);
+                if (!rate || rate <= 0) {
+                    setEditError("Please enter a valid positive custom per-student rate.");
+                    return;
+                }
+            }
+            yearlyTotal = count * rate;
+            totalPrice = yearlyTotal * duration;
+        }
+
+        upfrontPrice = yearlyTotal * 0.5;
+
+        setIsSavingEdit(true);
+        setEditError(null);
+
+        try {
+            const res = await fetch(`/api/v1/mou/submissions/${editSubmissionId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    schoolName: manualForm.schoolName.trim(),
+                    city: manualForm.city.trim(),
+                    principalName: manualForm.principalName.trim(),
+                    designation: manualForm.designation.trim() || "Principal",
+                    contactEmail: manualForm.contactEmail.trim(),
+                    contactPhone: manualForm.contactPhone.trim(),
+                    studentCount: count,
+                    mouDuration: duration,
+                    perStudentRate: rate,
+                    planType: isCollege ? "custom" : manualForm.planType,
+                    instituteType: manualForm.instituteType,
+                    ...(yearWiseCounts ? { yearWiseCounts } : { yearWiseCounts: { yr1: 0, yr2: 0, yr3: 0 } }),
+                    coupon: (manualForm.coupon || "").trim().toUpperCase(),
+                    udiseCode: manualForm.udiseCode.trim(),
+                    address: manualForm.address.trim(),
+                    totalPrice,
+                    upfrontPrice,
+                    action: manualForm.action || "manual_entry",
+                    status: manualForm.status || "new",
+                    notes: manualForm.notes.trim()
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to update MOU entry.");
+
+            setIsEditModalOpen(false);
+            setEditSubmissionId(null);
+            fetchSubmissions(false);
+        } catch (err) {
+            console.error("handleSaveEdit error:", err);
+            setEditError(err.message || "Failed to save changes.");
+        } finally {
+            setIsSavingEdit(false);
         }
     };
 
@@ -662,6 +794,13 @@ export default function MouTrackerPage() {
                                                             </button>
                                                         )}
                                                         <button
+                                                            onClick={() => openEditModal(sub)}
+                                                            title="Edit MOU Submission"
+                                                            className="inline-flex items-center justify-center p-1.5 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 rounded-lg transition-all"
+                                                        >
+                                                            <Pencil size={15} />
+                                                        </button>
+                                                        <button
                                                             onClick={() => handleDeleteSubmission(sub._id)}
                                                             title="Delete MOU Submission"
                                                             className="inline-flex items-center justify-center p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-lg transition-all"
@@ -813,7 +952,7 @@ export default function MouTrackerPage() {
                                                                     </div>
                                                                     
                                                                     {!sub.payments || sub.payments.length === 0 ? (
-                                                                        <p className="text-xs text-slate-400 italic py-6 text-center">No payment logs recorded yet. Click "Record Payment" to track collections.</p>
+                                                                        <p className="text-xs text-slate-400 italic py-6 text-center">No payment logs recorded yet. Click &quot;Record Payment&quot; to track collections.</p>
                                                                     ) : (
                                                                         <div className="overflow-x-auto">
                                                                             <table className="w-full text-left text-xs border-collapse">
@@ -1413,6 +1552,390 @@ export default function MouTrackerPage() {
                                     className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 text-xs font-bold"
                                 >
                                     {isSavingManual ? "Saving..." : "Create Manual MOU"}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* EDIT MOU ENTRY MODAL */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-fade-in">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-6">
+                        <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                    <Pencil size={20} className="text-indigo-600" /> Edit MOU Record
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-1">Correct or update student strength, institute details, and pricing terms.</p>
+                            </div>
+                            <button
+                                onClick={() => setIsEditModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                            >
+                                <XCircle size={20} />
+                            </button>
+                        </div>
+
+                        {editError && (
+                            <div className="bg-rose-50 text-rose-600 p-4 rounded-2xl text-xs font-bold border border-rose-100 flex items-center gap-2">
+                                <AlertCircle size={16} className="shrink-0" />
+                                <span>{editError}</span>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSaveEdit} className="space-y-4">
+                            {/* Institute Type Toggle */}
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-wider block mb-3">Institution Type</label>
+                                <div className="flex flex-wrap gap-4">
+                                    {[
+                                        { value: "school", label: "School / Jr. College" },
+                                        { value: "college_degree", label: "Degree College (3 Yrs)" },
+                                        { value: "college_pu", label: "PU / Diploma (2 Yrs)" }
+                                    ].map(opt => (
+                                        <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-sm font-bold text-indigo-800">
+                                            <input
+                                                type="radio"
+                                                name="editInstType"
+                                                value={opt.value}
+                                                checked={manualForm.instituteType === opt.value}
+                                                onChange={() => setManualForm({ ...manualForm, instituteType: opt.value })}
+                                                className="accent-indigo-600 w-4 h-4"
+                                            />
+                                            {opt.label}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">School / Institute Name *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={manualForm.schoolName}
+                                        onChange={(e) => setManualForm({ ...manualForm, schoolName: e.target.value })}
+                                        placeholder="e.g. SCDS College, Hubli"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">City *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={manualForm.city}
+                                        onChange={(e) => setManualForm({ ...manualForm, city: e.target.value })}
+                                        placeholder="e.g. Pune / Mumbai"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Principal / Signatory Name *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={manualForm.principalName}
+                                        onChange={(e) => setManualForm({ ...manualForm, principalName: e.target.value })}
+                                        placeholder="e.g. Dr. Rajesh Sharma"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Designation</label>
+                                    <input
+                                        type="text"
+                                        value={manualForm.designation}
+                                        onChange={(e) => setManualForm({ ...manualForm, designation: e.target.value })}
+                                        placeholder="e.g. Principal / Director"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Contact Email *</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={manualForm.contactEmail}
+                                        onChange={(e) => setManualForm({ ...manualForm, contactEmail: e.target.value })}
+                                        placeholder="e.g. principal@college.edu"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Contact Phone</label>
+                                    <input
+                                        type="tel"
+                                        value={manualForm.contactPhone}
+                                        onChange={(e) => setManualForm({ ...manualForm, contactPhone: e.target.value })}
+                                        placeholder="e.g. 9876543210"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-mono"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Student count — school mode */}
+                            {manualForm.instituteType === "school" ? (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Student Strength *</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            required
+                                            value={manualForm.studentCount}
+                                            onChange={(e) => setManualForm({ ...manualForm, studentCount: e.target.value })}
+                                            placeholder="e.g. 500"
+                                            className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Agreement Duration</label>
+                                        <select
+                                            value={manualForm.mouDuration}
+                                            onChange={(e) => setManualForm({ ...manualForm, mouDuration: e.target.value })}
+                                            className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                        >
+                                            <option value="1">1 Year</option>
+                                            <option value="2">2 Years</option>
+                                            <option value="3">3 Years</option>
+                                            <option value="4">4 Years</option>
+                                            <option value="5">5 Years</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Status</label>
+                                        <select
+                                            value={manualForm.status}
+                                            onChange={(e) => setManualForm({ ...manualForm, status: e.target.value })}
+                                            className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                        >
+                                            <option value="new">New Lead</option>
+                                            <option value="contacted">Contacted</option>
+                                            <option value="converted">Converted (Agreed)</option>
+                                            <option value="rejected">Rejected</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* College mode: year-wise counts */
+                                <div className="space-y-3">
+                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                                        <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3">Year-wise Student Strength (ID Cards)</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-emerald-600 block mb-1">1st Year — ₹59/student (new cards)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={manualForm.yr1}
+                                                    onChange={(e) => setManualForm({ ...manualForm, yr1: e.target.value })}
+                                                    placeholder="e.g. 120"
+                                                    className="w-full p-3 border-2 border-emerald-300 rounded-xl outline-none focus:border-emerald-500 text-sm text-emerald-800 font-bold bg-emerald-50"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-indigo-600 block mb-1">
+                                                    2nd Year — ₹{['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase()) ? '20' : '30'}/student (existing cards)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={manualForm.yr2}
+                                                    onChange={(e) => setManualForm({ ...manualForm, yr2: e.target.value })}
+                                                    placeholder="e.g. 115"
+                                                    className="w-full p-3 border-2 border-indigo-300 rounded-xl outline-none focus:border-indigo-500 text-sm text-indigo-800 font-bold bg-indigo-50"
+                                                />
+                                            </div>
+                                            {manualForm.instituteType === "college_degree" && (
+                                                <div>
+                                                    <label className="text-xs font-bold text-indigo-600 block mb-1">
+                                                        3rd Year — ₹{['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase()) ? '20' : '30'}/student (existing cards)
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        value={manualForm.yr3}
+                                                        onChange={(e) => setManualForm({ ...manualForm, yr3: e.target.value })}
+                                                        placeholder="e.g. 112"
+                                                        className="w-full p-3 border-2 border-indigo-300 rounded-xl outline-none focus:border-indigo-500 text-sm text-indigo-800 font-bold bg-indigo-50"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Coupon Code Input */}
+                                        <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-3 flex-wrap">
+                                            <div className="flex-1 min-w-[200px]">
+                                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Promo / Coupon Code (Optional)</label>
+                                                <input
+                                                    type="text"
+                                                    value={manualForm.coupon}
+                                                    onChange={(e) => setManualForm({ ...manualForm, coupon: e.target.value })}
+                                                    placeholder="Enter promo code"
+                                                    className="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold uppercase text-indigo-900 outline-none focus:border-indigo-500"
+                                                />
+                                            </div>
+                                            {['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase()) && (
+                                                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg">
+                                                    🎉 Coupon SDC Active: 2nd &amp; 3rd Yr @ ₹20
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Live calc preview */}
+                                        {(() => {
+                                            const yr1 = parseInt(manualForm.yr1) || 0;
+                                            const yr2 = parseInt(manualForm.yr2) || 0;
+                                            const yr3 = manualForm.instituteType === "college_degree" ? (parseInt(manualForm.yr3) || 0) : 0;
+                                            const total = yr1 + yr2 + yr3;
+                                            if (total === 0) return null;
+                                            const dur = parseInt(manualForm.mouDuration) || 1;
+                                            const isSDC = ['SDC', 'SDC20', 'SDC-SPECIAL'].includes((manualForm.coupon || '').trim().toUpperCase());
+                                            const yr2R = isSDC ? 20 : 30;
+                                            const yr3R = isSDC ? 20 : 30;
+                                            const yearly = (yr1 * 59) + (yr2 * yr2R) + (yr3 * yr3R);
+                                            const grand = yearly * dur;
+                                            return (
+                                                <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-600 font-medium">
+                                                    {yr1}×₹59 + {yr2}×₹{yr2R}{manualForm.instituteType === "college_degree" ? ` + ${yr3}×₹${yr3R}` : ""} = <strong>₹{yearly.toLocaleString('en-IN')}/yr</strong> × {dur} yr = <strong className="text-indigo-700">₹{grand.toLocaleString('en-IN')} total</strong>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Agreement Duration</label>
+                                            <select
+                                                value={manualForm.mouDuration}
+                                                onChange={(e) => setManualForm({ ...manualForm, mouDuration: e.target.value })}
+                                                className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                            >
+                                                <option value="1">1 Year</option>
+                                                <option value="2">2 Years</option>
+                                                <option value="3">3 Years</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Status</label>
+                                            <select
+                                                value={manualForm.status}
+                                                onChange={(e) => setManualForm({ ...manualForm, status: e.target.value })}
+                                                className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                            >
+                                                <option value="new">New Lead</option>
+                                                <option value="contacted">Contacted</option>
+                                                <option value="converted">Converted (Agreed)</option>
+                                                <option value="rejected">Rejected</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Pricing plan — school only */}
+                            {manualForm.instituteType === "school" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Pricing Plan / Rate *</label>
+                                        <select
+                                            value={manualForm.planType}
+                                            onChange={(e) => setManualForm({ ...manualForm, planType: e.target.value })}
+                                            className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                        >
+                                            <option value="standard">Standard Plan (Students Only) — ₹59 / Student / Yr</option>
+                                            <option value="plus">Plus Plan (Student + Teacher Access) — ₹69 / Student / Yr</option>
+                                            <option value="custom">Custom Admin Rate (Specify below)</option>
+                                        </select>
+                                    </div>
+                                    {manualForm.planType === "custom" && (
+                                        <div>
+                                            <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Custom Rate (₹ / Student) *</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                required
+                                                value={manualForm.customRate}
+                                                onChange={(e) => setManualForm({ ...manualForm, customRate: e.target.value })}
+                                                placeholder="e.g. 75"
+                                                className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-bold"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">UDISE Code (Optional)</label>
+                                    <input
+                                        type="text"
+                                        value={manualForm.udiseCode}
+                                        onChange={(e) => setManualForm({ ...manualForm, udiseCode: e.target.value })}
+                                        placeholder="e.g. 27240100101"
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800 font-mono"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Action Type</label>
+                                    <select
+                                        value={manualForm.action}
+                                        onChange={(e) => setManualForm({ ...manualForm, action: e.target.value })}
+                                        className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-slate-800 bg-white"
+                                    >
+                                        <option value="manual_entry">Manual Record (Technical Glitch / Offline)</option>
+                                        <option value="print">Printed MOU</option>
+                                        <option value="download_pdf">PDF Downloaded</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-wider">School Address (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={manualForm.address}
+                                    onChange={(e) => setManualForm({ ...manualForm, address: e.target.value })}
+                                    placeholder="Full street address..."
+                                    className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-800"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Notes & Comments</label>
+                                <textarea
+                                    value={manualForm.notes}
+                                    onChange={(e) => setManualForm({ ...manualForm, notes: e.target.value })}
+                                    placeholder="Internal comments, reason for edit, or notes..."
+                                    rows="2"
+                                    className="w-full mt-1 p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm text-slate-700 resize-none"
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-3">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setIsEditModalOpen(false)}
+                                    className="w-1/2 rounded-xl py-3 text-xs font-bold"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={isSavingEdit}
+                                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 text-xs font-bold"
+                                >
+                                    {isSavingEdit ? "Saving..." : "Save Changes"}
                                 </Button>
                             </div>
                         </form>
