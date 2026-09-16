@@ -41,7 +41,7 @@ function numberToWordsINR(num) {
     return (str.trim() + ' Rupees Only');
 }
 
-function generateExecutiveReceiptHtml(fee) {
+function generateExecutiveReceiptHtml(fee, logoBase64 = null) {
     const studentProfile = fee.student?.profile || {};
     const studentName = (studentProfile.firstName || studentProfile.lastName) 
         ? `${studentProfile.firstName || ''} ${studentProfile.lastName || ''}`.trim()
@@ -51,6 +51,7 @@ function generateExecutiveReceiptHtml(fee) {
     const regNo = fee.student?.enrollmentNumber || 'STU20260005';
     
     const instituteName = fee.institute?.name || 'AQS Institute of Learning';
+    const instituteLogo = logoBase64 || fee.institute?.branding?.logo || fee.institute?.logo;
     const addressObj = fee.institute?.address || {};
     const instituteAddress = addressObj.street
         ? `${addressObj.street}, ${addressObj.city || ''} ${addressObj.state || ''} ${addressObj.pincode || ''}`.trim()
@@ -149,18 +150,11 @@ function generateExecutiveReceiptHtml(fee) {
                 padding-bottom: 20px;
                 margin-bottom: 24px;
             }
-            .inst-logo-box {
-                width: 56px;
-                height: 56px;
-                background: #0F172A;
-                color: #FFFFFF;
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 20px;
-                font-weight: 900;
-                letter-spacing: -1px;
+            .inst-logo-img {
+                max-height: 56px;
+                max-width: 140px;
+                object-fit: contain;
+                display: block;
             }
             .inst-name {
                 font-size: 22px;
@@ -388,53 +382,10 @@ function generateExecutiveReceiptHtml(fee) {
                 color: #92400E;
             }
 
-            /* Signatures & Security Footer */
-            .signature-block {
-                margin-top: 36px;
-                padding-top: 18px;
-                display: table;
-                width: 100%;
-            }
-            .sig-col {
-                display: table-cell;
-                width: 33.33%;
-                vertical-align: bottom;
-            }
-            .qr-placeholder {
-                width: 60px;
-                height: 60px;
-                border: 1px dashed #94A3B8;
-                border-radius: 4px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 8px;
-                font-weight: 700;
-                color: #64748B;
-                text-align: center;
-                line-height: 1.1;
-                padding: 4px;
-            }
-            .sign-line {
-                width: 85%;
-                border-top: 1px solid #0F172A;
-                margin-top: 40px;
-                padding-top: 6px;
-                font-size: 10px;
-                font-weight: 800;
-                color: #0F172A;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-            .sign-sub {
-                font-size: 9px;
-                color: #64748B;
-                font-weight: normal;
-                margin-top: 1px;
-            }
+            /* Security Footer */
             .footer-security-note {
-                margin-top: 24px;
-                padding-top: 12px;
+                margin-top: 32px;
+                padding-top: 14px;
                 border-top: 1px solid #E2E8F0;
                 font-size: 8.5px;
                 color: #94A3B8;
@@ -448,12 +399,12 @@ function generateExecutiveReceiptHtml(fee) {
             <!-- Institutional Header -->
             <table class="header-table" cellpadding="0" cellspacing="0">
                 <tr>
-                    <td style="width: 68px; vertical-align: middle;">
-                        <div class="inst-logo-box">
-                            ${instituteName.slice(0, 3).toUpperCase()}
-                        </div>
+                    ${instituteLogo ? `
+                    <td style="vertical-align: middle; width: 140px; padding-right: 18px;">
+                        <img src="${instituteLogo}" alt="${instituteName}" style="max-height: 56px; max-width: 140px; object-fit: contain; display: block;" />
                     </td>
-                    <td style="vertical-align: middle; padding-left: 14px;">
+                    ` : ''}
+                    <td style="vertical-align: middle;">
                         <div class="inst-name">${instituteName}</div>
                         <div class="inst-address">${instituteAddress}</div>
                         <div class="inst-contact">Email: ${contactEmail} • Phone: ${contactPhone}</div>
@@ -588,34 +539,14 @@ function generateExecutiveReceiptHtml(fee) {
                 </div>
             </div>
 
-            <!-- Signature & Seal Block -->
-            <div class="signature-block">
-                <div class="sig-col">
-                    <div class="qr-placeholder">
-                        QR VERIFIED<br>
-                        ${receiptNo.slice(-6)}
-                    </div>
-                    <div style="font-size: 8px; color: #94A3B8; margin-top: 4px;">Cryptographically Verified</div>
+            <!-- System-Generated Verification Note -->
+            <div class="footer-security-note" style="margin-top: 42px; text-align: center;">
+                <div style="font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 4px;">
+                    This is an authentic computer-generated receipt issued from the Student Portal. Since the transaction is recorded and verified in the system, no physical signature is required.
                 </div>
-
-                <div class="sig-col" style="text-align: center;">
-                    <div style="width: 64px; height: 64px; border: 1.5px solid #CBD5E1; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #64748B; font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2;">
-                        OFFICIAL<br>SEAL
-                    </div>
-                    <div style="font-size: 8.5px; color: #94A3B8; margin-top: 4px;">Accounts Department</div>
+                <div style="font-size: 8.5px; color: #94A3B8;">
+                    Official secure document issued by ${instituteName} (IMS V2 Enterprise) • Generated on ${issueDateStr} • Reference #${receiptNo}
                 </div>
-
-                <div class="sig-col" style="text-align: right;">
-                    <div class="sign-line" style="margin-left: auto;">
-                        Authorized Signatory
-                        <div class="sign-sub">Finance & Registrar Officer</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Footer Security Note -->
-            <div class="footer-security-note">
-                This is a secure system-generated document issued by ${instituteName} (IMS V2 Enterprise). Generated on ${issueDateStr}. To verify the authenticity of this receipt, present this certificate or quote reference #${receiptNo}.
             </div>
         </div>
     </body>
@@ -660,7 +591,25 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "Access denied: outside institute boundary" }, { status: 403 });
         }
 
-        const html = generateExecutiveReceiptHtml(fee);
+        const rawLogoUrl = fee.institute?.branding?.logo || fee.institute?.logo;
+        let logoBase64 = null;
+        if (rawLogoUrl && rawLogoUrl.startsWith('http')) {
+            try {
+                const imgRes = await fetch(rawLogoUrl, { signal: AbortSignal.timeout(2500) });
+                if (imgRes.ok) {
+                    const arrayBuffer = await imgRes.arrayBuffer();
+                    const mime = imgRes.headers.get('content-type') || 'image/png';
+                    logoBase64 = `data:${mime};base64,${Buffer.from(arrayBuffer).toString('base64')}`;
+                }
+            } catch (err) {
+                console.warn("Could not pre-fetch logo as base64, using raw URL:", err.message);
+                logoBase64 = rawLogoUrl;
+            }
+        } else if (rawLogoUrl) {
+            logoBase64 = rawLogoUrl;
+        }
+
+        const html = generateExecutiveReceiptHtml(fee, logoBase64);
 
         browser = await puppeteer.launch({
             headless: true,

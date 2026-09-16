@@ -227,6 +227,7 @@ export default function StudentReceiptPage({ params }) {
     const regNo = fee.student?.enrollmentNumber || 'STU20260005';
 
     const instituteName = fee.institute?.name || 'AQS Institute of Learning';
+    const instituteLogo = fee.institute?.branding?.logo || fee.institute?.logo;
     const addressObj = fee.institute?.address || {};
     const instituteAddress = addressObj.street
         ? `${addressObj.street}, ${addressObj.city || ''} ${addressObj.state || ''} ${addressObj.pincode || ''}`.trim()
@@ -305,9 +306,15 @@ export default function StudentReceiptPage({ params }) {
                 {/* Institutional Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-6 border-b-2 border-[#0F172A] pb-6 mb-6">
                     <div className="flex items-start gap-4">
-                        <div className="w-14 h-14 bg-[#0F172A] text-white rounded-lg flex items-center justify-center font-black text-xl italic tracking-tight shrink-0">
-                            {instituteName.slice(0, 3).toUpperCase()}
-                        </div>
+                        {instituteLogo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={instituteLogo}
+                                alt={instituteName}
+                                className="h-14 w-auto max-w-[170px] object-contain shrink-0"
+                                crossOrigin="anonymous"
+                            />
+                        ) : null}
                         <div>
                             <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-[#0F172A]">
                                 {instituteName}
@@ -487,40 +494,14 @@ export default function StudentReceiptPage({ params }) {
                     </div>
                 </div>
 
-                {/* Signatures & Seal Block */}
-                <div className="grid grid-cols-3 gap-4 pt-10 mt-6 border-t border-[#E2E8F0] text-center">
-                    <div className="flex flex-col items-start justify-end">
-                        <div className="w-14 h-14 border border-dashed border-[#94A3B8] rounded flex flex-col items-center justify-center text-[8px] font-bold text-[#64748B] leading-tight">
-                            <span>QR</span>
-                            <span>VERIFIED</span>
-                            <span className="font-mono text-[7px]">{receiptNo.slice(-6)}</span>
-                        </div>
-                        <span className="text-[9px] text-[#94A3B8] mt-1.5">Cryptographically Verified</span>
-                    </div>
-
-                    <div className="flex flex-col items-center justify-end">
-                        <div className="w-14 h-14 border border-[#CBD5E1] rounded-full flex flex-col items-center justify-center text-[8px] font-bold text-[#64748B] uppercase leading-tight">
-                            <span>OFFICIAL</span>
-                            <span>SEAL</span>
-                        </div>
-                        <span className="text-[9px] text-[#94A3B8] mt-1.5">Accounts Department</span>
-                    </div>
-
-                    <div className="flex flex-col items-end justify-end">
-                        <div className="w-44 border-t border-[#0F172A] pt-1.5 text-right">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#0F172A]">
-                                Authorized Signatory
-                            </div>
-                            <div className="text-[9px] text-[#64748B]">
-                                Finance & Registrar Officer
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Footer Security Note */}
-                <div className="mt-8 pt-4 border-t border-[#E2E8F0] text-center text-[9px] text-[#94A3B8]">
-                    This is an official secure document issued by {instituteName} (IMS V2 Enterprise). Generated on {issueDateStr}. To verify the authenticity of this receipt, present this certificate or quote reference #{receiptNo}.
+                {/* System-Generated Verification Note */}
+                <div className="mt-10 pt-4 border-t border-[#E2E8F0] text-center space-y-1">
+                    <p className="text-[10px] font-semibold text-[#64748B]">
+                        This is an authentic computer-generated receipt issued from the Student Portal. Since the transaction is recorded and verified in the system, no physical signature is required.
+                    </p>
+                    <p className="text-[9px] text-[#94A3B8]">
+                        Official secure document issued by {instituteName} (IMS V2 Enterprise) • Generated on {issueDateStr} • Reference #{receiptNo}
+                    </p>
                 </div>
             </div>
         </div>
