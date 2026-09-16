@@ -38,75 +38,6 @@ import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import MobileInstructorCalendar from "@/components/instructor/MobileInstructorCalendar";
 
-const SEEDED_DEMO_EVENTS = [
-    {
-        _id: "demo-1",
-        title: "Pre-Board Examinations",
-        description: "Mid-term examination for Class 10 & 12 students in Main Hall.",
-        startDate: new Date(2026, 8, 3, 9, 0).toISOString(),
-        endDate: new Date(2026, 8, 5, 17, 0).toISOString(),
-        category: "exam",
-        target: "all",
-        targetLabel: "Class 10 & 12",
-        createdAt: new Date(2026, 8, 1).toISOString()
-    },
-    {
-        _id: "demo-2",
-        title: "Teachers' Day Celebration",
-        description: "Special cultural program organized by student council in Main Auditorium.",
-        startDate: new Date(2026, 8, 5, 10, 30).toISOString(),
-        endDate: new Date(2026, 8, 5, 13, 0).toISOString(),
-        category: "cultural",
-        target: "all",
-        targetLabel: "Entire School",
-        createdAt: new Date(2026, 8, 1).toISOString()
-    },
-    {
-        _id: "demo-3",
-        title: "Annual Sports Meet 2026",
-        description: "Inter-house track and field competitions on the main sports ground.",
-        startDate: new Date(2026, 8, 10, 8, 30).toISOString(),
-        endDate: new Date(2026, 8, 12, 16, 0).toISOString(),
-        category: "sports",
-        target: "all",
-        targetLabel: "All Students",
-        createdAt: new Date(2026, 8, 2).toISOString()
-    },
-    {
-        _id: "demo-4",
-        title: "Science & Robotics Exhibition",
-        description: "Student projects display and live demonstrations in Science Lab.",
-        startDate: new Date(2026, 8, 17, 9, 30).toISOString(),
-        endDate: new Date(2026, 8, 17, 15, 30).toISOString(),
-        category: "academic_assembly",
-        target: "all",
-        targetLabel: "All Classes",
-        createdAt: new Date(2026, 8, 2).toISOString()
-    },
-    {
-        _id: "demo-5",
-        title: "Staff & Faculty Workshop",
-        description: "Professional development workshop on digital pedagogy.",
-        startDate: new Date(2026, 8, 22, 14, 0).toISOString(),
-        endDate: new Date(2026, 8, 22, 17, 0).toISOString(),
-        category: "general",
-        target: "all",
-        targetLabel: "Staff Only",
-        createdAt: new Date(2026, 8, 2).toISOString()
-    },
-    {
-        _id: "demo-6",
-        title: "Mahatma Gandhi Jayanti Holiday",
-        description: "Official institute holiday.",
-        startDate: new Date(2026, 8, 28, 0, 0).toISOString(),
-        endDate: new Date(2026, 8, 28, 23, 59).toISOString(),
-        category: "holiday",
-        target: "all",
-        targetLabel: "All",
-        createdAt: new Date(2026, 8, 2).toISOString()
-    }
-];
-
 const initialFormState = () => ({
     title: "",
     description: "",
@@ -130,8 +61,8 @@ export default function AdminCalendarPage() {
     
     // View Settings
     const [viewMode, setViewMode] = useState("calendar"); // "calendar" or "list"
-    const [currentMonth, setCurrentMonth] = useState(new Date(2026, 8, 1));
-    const [selectedDate, setSelectedDate] = useState(new Date(2026, 8, 3));
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(new Date());
     
     // Filters
     const [categoryFilter, setCategoryFilter] = useState("all");
@@ -188,12 +119,12 @@ export default function AdminCalendarPage() {
             const bData = await bRes.json();
             
             const fetchedEvents = eData.events || [];
-            setEvents(fetchedEvents.length > 0 ? fetchedEvents : SEEDED_DEMO_EVENTS);
+            setEvents(fetchedEvents);
             setCourses(cData.courses || []);
             setBatches(bData.batches || []);
         } catch (error) {
             console.error("Failed to load calendar data:", error);
-            setEvents(SEEDED_DEMO_EVENTS);
+            setEvents([]);
         } finally {
             setLoading(false);
         }
@@ -307,8 +238,8 @@ export default function AdminCalendarPage() {
                 toast.success("Event deleted successfully");
                 fetchInitialData();
             } else {
-                setEvents(prev => prev.filter(ev => ev._id !== id));
-                toast.success("Event removed from view");
+                const data = await res.json().catch(() => ({}));
+                toast.error(data.error || "Failed to delete event");
             }
         } catch (error) {
             toast.error("Network error");
@@ -328,6 +259,7 @@ export default function AdminCalendarPage() {
                 body: JSON.stringify(formData)
             });
             
+            const data = await res.json().catch(() => ({}));
             if (res.ok) {
                 toast.success(editingId ? "Event updated successfully" : "Event created successfully");
                 setIsModalOpen(false);
@@ -335,18 +267,7 @@ export default function AdminCalendarPage() {
                 setFormData(initialFormState());
                 fetchInitialData();
             } else {
-                // Fallback local update for demo state
-                const newEv = {
-                    _id: editingId || `demo-${Date.now()}`,
-                    ...formData,
-                    targetLabel: formData.target === "all" ? "Entire Institute" : formData.target,
-                    createdAt: new Date().toISOString()
-                };
-                setEvents(prev => editingId ? prev.map(ev => ev._id === editingId ? newEv : ev) : [newEv, ...prev]);
-                toast.success(editingId ? "Event updated successfully" : "Event created successfully");
-                setIsModalOpen(false);
-                setEditingId(null);
-                setFormData(initialFormState());
+                toast.error(data.error || "Failed to save event");
             }
         } catch (error) {
             toast.error("Network error");
@@ -450,7 +371,7 @@ export default function AdminCalendarPage() {
     };
 
     const handleGoToToday = () => {
-        const today = new Date(2026, 8, 2);
+        const today = new Date();
         setCurrentMonth(today);
         setSelectedDate(today);
     };
@@ -643,7 +564,7 @@ export default function AdminCalendarPage() {
                                 {calendarDays.map((cell, idx) => {
                                     const dayEvents = getEventsForDate(cell.date);
                                     const isSelected = isSameDay(cell.date, selectedDate);
-                                    const isTodayDate = isToday(cell.date) || isSameDay(cell.date, new Date(2026, 8, 2));
+                                    const isTodayDate = isToday(cell.date);
                                     
                                     return (
                                         <div
