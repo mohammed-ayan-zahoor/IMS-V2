@@ -163,13 +163,13 @@ export default function StudentLayout({ children }) {
                 </div>
 
                 {/* Sign Out (Adtech Spec: Plain coral text link at bottom, unboxed) */}
-                <div className="pt-4 px-2">
+                <div className="pt-4 pb-10 px-2">
                     <button
                         onClick={async () => {
                             await signOut({ redirect: false });
                             window.location.href = "/login";
                         }}
-                        className="flex items-center gap-2 text-[14px] font-normal text-[#F4586A] hover:text-[#ff7887] transition-colors w-full text-left"
+                        className="flex items-center gap-2 text-[14px] font-normal text-[#F4586A] hover:text-[#ff7887] transition-colors w-full text-left cursor-pointer"
                     >
                         <LogOut size={16} strokeWidth={1.8} />
                         <span>Sign Out</span>
@@ -188,7 +188,7 @@ export default function StudentLayout({ children }) {
                         {isSubPage && (
                             <button
                                 onClick={() => router.back()}
-                                className="w-7 h-7 rounded-full border border-[#E9E8F0] flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors shrink-0"
+                                className="w-7 h-7 rounded-full border border-[#E9E8F0] flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors shrink-0 cursor-pointer"
                                 title="Back"
                             >
                                 <ChevronLeft size={16} />
@@ -208,19 +208,31 @@ export default function StudentLayout({ children }) {
                     <div className="flex items-center gap-3 sm:gap-4 ml-auto">
                         
                         {/* Search Input Pill (Adtech Spec: Pill shape 999px, thin 1px border #E9E8F0, white fill) */}
-                        <div className="relative hidden md:flex items-center">
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                if (searchQuery.trim()) {
+                                    router.push(`/student/materials?q=${encodeURIComponent(searchQuery.trim())}`);
+                                }
+                            }}
+                            className="relative hidden md:flex items-center"
+                        >
                             <Search size={16} className="absolute left-3.5 text-[#8D8A9B]" />
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search anything"
-                                className="w-48 lg:w-60 h-9 pl-9 pr-4 text-[13px] text-[#1E1B2E] placeholder:text-[#8D8A9B] bg-white border border-[#E9E8F0] rounded-full focus:outline-none focus:border-[#6E5AE0] transition-colors"
+                                placeholder="Search anything (press Enter)"
+                                className="w-48 lg:w-64 h-9 pl-9 pr-4 text-[13px] text-[#1E1B2E] placeholder:text-[#8D8A9B] bg-white border border-[#E9E8F0] rounded-full focus:outline-none focus:border-[#6E5AE0] transition-colors"
                             />
-                        </div>
+                        </form>
 
                         {/* User Block (Adtech Spec: Circular 36px avatar + two-line text) */}
-                        <div className="flex items-center gap-3 pl-1 sm:pl-2">
+                        <Link
+                            href="/student/settings"
+                            className="flex items-center gap-3 pl-1 sm:pl-2 hover:opacity-80 transition-opacity cursor-pointer group"
+                            title="Account Settings"
+                        >
                             <div className="w-9 h-9 rounded-full bg-[#EDE8FB] border border-[#E9E8F0] flex items-center justify-center overflow-hidden shrink-0">
                                 {session?.user?.image ? (
                                     <img src={session.user.image} alt="User" className="w-full h-full object-cover" />
@@ -231,14 +243,14 @@ export default function StudentLayout({ children }) {
                                 )}
                             </div>
                             <div className="hidden sm:block text-left">
-                                <p className="text-[13px] font-bold text-[#1E1B2E] leading-tight truncate max-w-[130px]">
+                                <p className="text-[13px] font-bold text-[#1E1B2E] leading-tight truncate max-w-[130px] group-hover:text-[#6E5AE0] transition-colors">
                                     {session?.user?.name || "Student"}
                                 </p>
                                 <p className="text-[11px] text-[#8D8A9B] leading-tight truncate">
                                     Student
                                 </p>
                             </div>
-                        </div>
+                        </Link>
 
                         {/* Circular Action Buttons (Adtech Spec: Circular 32px, thin border #E9E8F0, white fill) */}
                         <div className="flex items-center gap-2">

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     Search,
     ChevronDown,
@@ -22,24 +23,43 @@ import {
     Sparkles,
     Calendar,
     Layers,
-    AlertCircle
+    AlertCircle,
+    Check,
+    FileText
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Skeleton from "@/components/shared/Skeleton";
 
 export default function StudentDashboard() {
     const { data: session } = useSession();
+    const router = useRouter();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Interactive Filters & Popover States
     const [activityFilter, setActivityFilter] = useState("This Week");
+    const [isKebabOpen, setIsKebabOpen] = useState(false);
     const [performanceFilter, setPerformanceFilter] = useState("Last 6 Months");
     const [courseSearch, setCourseSearch] = useState("");
     const [courseStatusFilter, setCourseStatusFilter] = useState("All");
 
+    const kebabRef = useRef(null);
+
     useEffect(() => {
         fetchDashboardData();
+    }, []);
+
+    // Close kebab menu on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (kebabRef.current && !kebabRef.current.contains(e.target)) {
+                setIsKebabOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     const fetchDashboardData = async () => {
@@ -79,7 +99,7 @@ export default function StudentDashboard() {
         );
     }
 
-    // Fallback data structure if fields are empty
+    // Profile Fallbacks
     const profile = data?.studentProfile || {
         name: session?.user?.name || "Student",
         enrollmentNumber: "STU-005",
@@ -96,32 +116,119 @@ export default function StudentDashboard() {
         ]
     };
 
-    const learningActivity = data?.learningActivity || [
-        { day: "Mon", classHours: 3.5, quizHours: 1.5, selfHours: 1.0 },
-        { day: "Tue", classHours: 4.0, quizHours: 1.0, selfHours: 1.5 },
-        { day: "Wed", classHours: 2.5, quizHours: 2.0, selfHours: 1.0 },
-        { day: "Thu", classHours: 4.5, quizHours: 1.0, selfHours: 2.0 },
-        { day: "Fri", classHours: 3.0, quizHours: 1.5, selfHours: 1.5 },
-        { day: "Sat", classHours: 2.0, quizHours: 1.0, selfHours: 0.5 },
-        { day: "Sun", classHours: 1.0, quizHours: 0.5, selfHours: 1.5 }
-    ];
-
-    const performance = data?.performance || {
-        overallScore: 80,
-        participation: data?.attendance || 85,
-        quizScore: 78,
-        examScore: 88,
-        monthlyTrend: [
-            { month: "Jan", score: 72 },
-            { month: "Feb", score: 76 },
-            { month: "Mar", score: 79 },
-            { month: "Apr", score: 81 },
-            { month: "May", score: 84 },
-            { month: "Jun", score: 88 }
-        ],
-        quote: "Success is the sum of small efforts, repeated day in and day out."
+    // Dynamic Learning Activity Datasets for "This Week" / "Last Week" / "Monthly Average"
+    const activityDatasets = {
+        "This Week": {
+            hoursSummary: "16 Hours",
+            caption: "Total Weekly Study",
+            target: "85% Rate",
+            modules: "4 Modules",
+            chart: data?.learningActivity || [
+                { day: "Mon", classHours: 3.5, quizHours: 1.5, selfHours: 1.0 },
+                { day: "Tue", classHours: 4.0, quizHours: 1.0, selfHours: 1.5 },
+                { day: "Wed", classHours: 2.5, quizHours: 2.0, selfHours: 1.0 },
+                { day: "Thu", classHours: 4.5, quizHours: 1.0, selfHours: 2.0 },
+                { day: "Fri", classHours: 3.0, quizHours: 1.5, selfHours: 1.5 },
+                { day: "Sat", classHours: 2.0, quizHours: 1.0, selfHours: 0.5 },
+                { day: "Sun", classHours: 1.0, quizHours: 0.5, selfHours: 1.5 }
+            ]
+        },
+        "Last Week": {
+            hoursSummary: "19 Hours",
+            caption: "Completed Study Hours",
+            target: "92% Rate",
+            modules: "5 Modules",
+            chart: [
+                { day: "Mon", classHours: 4.0, quizHours: 1.5, selfHours: 1.5 },
+                { day: "Tue", dayName: "Tue", classHours: 4.5, quizHours: 1.0, selfHours: 2.0 },
+                { day: "Wed", classHours: 3.0, quizHours: 1.5, selfHours: 1.5 },
+                { day: "Thu", classHours: 4.0, quizHours: 1.5, selfHours: 1.5 },
+                { day: "Fri", classHours: 3.5, quizHours: 2.0, selfHours: 1.0 },
+                { day: "Sat", classHours: 2.5, quizHours: 1.0, selfHours: 1.0 },
+                { day: "Sun", classHours: 1.5, quizHours: 0.5, selfHours: 1.0 }
+            ]
+        },
+        "Monthly Average": {
+            hoursSummary: "17.5 Hours",
+            caption: "Weekly Average",
+            target: "88% Rate",
+            modules: "16 Modules",
+            chart: [
+                { day: "Mon", classHours: 3.8, quizHours: 1.4, selfHours: 1.2 },
+                { day: "Tue", classHours: 4.2, quizHours: 1.1, selfHours: 1.6 },
+                { day: "Wed", classHours: 2.8, quizHours: 1.8, selfHours: 1.2 },
+                { day: "Thu", classHours: 4.3, quizHours: 1.2, selfHours: 1.8 },
+                { day: "Fri", classHours: 3.2, quizHours: 1.6, selfHours: 1.4 },
+                { day: "Sat", classHours: 2.2, quizHours: 0.9, selfHours: 0.8 },
+                { day: "Sun", classHours: 1.2, quizHours: 0.6, selfHours: 1.2 }
+            ]
+        }
     };
 
+    const currentActivity = activityDatasets[activityFilter] || activityDatasets["This Week"];
+
+    // Dynamic Performance Datasets
+    const performanceDatasets = {
+        "Last 6 Months": {
+            overallScore: data?.performance?.overallScore || 80,
+            delta: "+3.4%",
+            participation: data?.performance?.participation || 85,
+            quizScore: 78,
+            examScore: 88,
+            absence: 15,
+            monthlyTrend: [
+                { month: "Jan", score: 72 },
+                { month: "Feb", score: 76 },
+                { month: "Mar", score: 79 },
+                { month: "Apr", score: 81 },
+                { month: "May", score: 84 },
+                { month: "Jun", score: 88 }
+            ],
+            svgPath: "M 0,60 Q 50,45 100,40 T 200,28 T 300,15",
+            svgArea: "M 0,60 Q 50,45 100,40 T 200,28 T 300,15 L 300,80 L 0,80 Z",
+            tooltipX: "right-8",
+            quote: data?.performance?.quote || "Success is the sum of small efforts, repeated day in and day out."
+        },
+        "Last 3 Months": {
+            overallScore: 84,
+            delta: "+4.2%",
+            participation: 90,
+            quizScore: 82,
+            examScore: 91,
+            absence: 10,
+            monthlyTrend: [
+                { month: "Apr", score: 81 },
+                { month: "May", score: 84 },
+                { month: "Jun", score: 88 }
+            ],
+            svgPath: "M 0,55 Q 75,35 150,30 T 300,12",
+            svgArea: "M 0,55 Q 75,35 150,30 T 300,12 L 300,80 L 0,80 Z",
+            tooltipX: "right-10",
+            quote: "Focus on progress, not perfection. Every challenge is a stepping stone."
+        },
+        "Academic Year": {
+            overallScore: 82,
+            delta: "+5.1%",
+            participation: 88,
+            quizScore: 80,
+            examScore: 89,
+            absence: 12,
+            monthlyTrend: [
+                { month: "Term 1", score: 74 },
+                { month: "Midterm", score: 79 },
+                { month: "Term 2", score: 83 },
+                { month: "Finals", score: 88 }
+            ],
+            svgPath: "M 0,65 Q 60,50 120,42 T 240,24 T 300,10",
+            svgArea: "M 0,65 Q 60,50 120,42 T 240,24 T 300,10 L 300,80 L 0,80 Z",
+            tooltipX: "right-8",
+            quote: "Consistent discipline outlasts temporary motivation every time."
+        }
+    };
+
+    const currentPerformance = performanceDatasets[performanceFilter] || performanceDatasets["Last 6 Months"];
+
+    // Enrolled Courses Data
     const enrolledCourses = (data?.enrolledCourses && data.enrolledCourses.length > 0)
         ? data.enrolledCourses
         : [
@@ -166,16 +273,14 @@ export default function StudentDashboard() {
     // Filter courses based on search & status
     const filteredCourses = enrolledCourses.filter(course => {
         const matchesSearch = course.title.toLowerCase().includes(courseSearch.toLowerCase()) ||
-            course.category.toLowerCase().includes(courseSearch.toLowerCase());
+            course.category.toLowerCase().includes(courseSearch.toLowerCase()) ||
+            course.code.toLowerCase().includes(courseSearch.toLowerCase());
         const matchesStatus = courseStatusFilter === "All" || course.status === courseStatusFilter;
         return matchesSearch && matchesStatus;
     });
 
-    // Gauge geometry calculation for semi-circle
-    const gaugeScore = Math.min(100, Math.max(0, performance.overallScore));
-    // Semi-circle arc: radius 54, circumference for 180 degrees = PI * 54 = ~169.6
-    const arcCircumference = Math.PI * 54;
-    const strokeDashoffset = arcCircumference * (1 - gaugeScore / 100);
+    // Gauge geometry calculation for semi-circle (radius 50, arc length = PI * 50 = ~157)
+    const gaugeScore = Math.min(100, Math.max(0, currentPerformance.overallScore));
 
     return (
         <div className="space-y-6 select-text pb-6">
@@ -189,7 +294,11 @@ export default function StudentDashboard() {
                     {/* Header Tint Block (Adtech Spec: Solid light lavender #E7E1FA, rounded top only) */}
                     <div className="bg-[#E7E1FA] pt-6 pb-4 px-4 flex flex-col items-center justify-center relative">
                         {/* Circular Avatar with crisp 3px white ring */}
-                        <div className="w-[72px] h-[72px] rounded-full border-[3px] border-white bg-white overflow-hidden shadow-none shrink-0">
+                        <Link
+                            href="/student/settings"
+                            className="w-[72px] h-[72px] rounded-full border-[3px] border-white bg-white overflow-hidden shadow-none shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+                            title="Edit Profile Photo"
+                        >
                             {profile.avatar ? (
                                 <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
                             ) : (
@@ -197,7 +306,7 @@ export default function StudentDashboard() {
                                     {profile.name.substring(0, 2).toUpperCase()}
                                 </div>
                             )}
-                        </div>
+                        </Link>
                     </div>
 
                     {/* White Body */}
@@ -227,21 +336,21 @@ export default function StudentDashboard() {
                         <div className="flex items-center justify-center gap-2 pt-1 pb-2">
                             <a
                                 href={`tel:${profile.phone}`}
-                                className="w-8 h-8 rounded-full border border-[#E9E8F0] flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors"
-                                title="Call"
+                                className="w-8 h-8 rounded-full border border-[#E9E8F0] flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors cursor-pointer"
+                                title={`Call: ${profile.phone}`}
                             >
                                 <Phone size={14} />
                             </a>
                             <a
                                 href={`mailto:${profile.email}`}
-                                className="w-8 h-8 rounded-full border border-[#E9E8F0] flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors"
-                                title="Email"
+                                className="w-8 h-8 rounded-full border border-[#E9E8F0] flex items-center justify-center text-[#8D8A9B] hover:text-[#1E1B2E] hover:border-[#8D8A9B] transition-colors cursor-pointer"
+                                title={`Email: ${profile.email}`}
                             >
                                 <Mail size={14} />
                             </a>
                             <Link
                                 href="/student/chat"
-                                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#EDE8FB] text-[#6E5AE0] text-[12px] font-semibold hover:bg-[#dfd7f9] transition-colors"
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#EDE8FB] text-[#6E5AE0] text-[12px] font-semibold hover:bg-[#dfd7f9] transition-colors cursor-pointer"
                             >
                                 <MessageSquare size={13} />
                                 <span>Chat</span>
@@ -258,9 +367,9 @@ export default function StudentDashboard() {
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-[11px] text-[#8D8A9B] leading-none">Email</p>
-                                        <p className="text-[12px] font-medium text-[#1E1B2E] leading-tight truncate mt-0.5">
+                                        <a href={`mailto:${profile.email}`} className="text-[12px] font-medium text-[#1E1B2E] hover:text-[#6E5AE0] leading-tight truncate block mt-0.5">
                                             {profile.email}
-                                        </p>
+                                        </a>
                                     </div>
                                 </div>
 
@@ -270,9 +379,9 @@ export default function StudentDashboard() {
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-[11px] text-[#8D8A9B] leading-none">Phone Number</p>
-                                        <p className="text-[12px] font-medium text-[#1E1B2E] leading-tight mt-0.5">
+                                        <a href={`tel:${profile.phone}`} className="text-[12px] font-medium text-[#1E1B2E] hover:text-[#6E5AE0] leading-tight block mt-0.5">
                                             {profile.phone}
-                                        </p>
+                                        </a>
                                     </div>
                                 </div>
 
@@ -295,10 +404,14 @@ export default function StudentDashboard() {
                             <h3 className="text-[13px] font-bold text-[#1E1B2E] mb-2.5">Awards & Recognisations</h3>
                             <div className="space-y-2">
                                 {profile.awards.map((award) => (
-                                    <div key={award.id} className="flex items-center gap-2 text-[12px] text-[#1E1B2E]">
-                                        <Award size={14} className="text-[#8D8A9B] shrink-0" />
+                                    <Link
+                                        key={award.id}
+                                        href="/student/timeline"
+                                        className="flex items-center gap-2 text-[12px] text-[#1E1B2E] hover:text-[#6E5AE0] transition-colors group cursor-pointer"
+                                    >
+                                        <Award size={14} className="text-[#8D8A9B] group-hover:text-[#6E5AE0] shrink-0" />
                                         <span className="truncate">{award.title}</span>
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
                         </div>
@@ -307,7 +420,7 @@ export default function StudentDashboard() {
                         <div className="pt-3">
                             <Link
                                 href="/student/settings"
-                                className="w-full py-2 px-4 rounded-full border border-[#E9E8F0] bg-white text-[#1E1B2E] text-[12px] font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                                className="w-full py-2 px-4 rounded-full border border-[#E9E8F0] bg-white text-[#1E1B2E] text-[12px] font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                             >
                                 <Edit3 size={13} className="text-[#8D8A9B]" />
                                 Edit Profile
@@ -321,16 +434,70 @@ export default function StudentDashboard() {
                     
                     {/* Header */}
                     <div>
-                        <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center justify-between mb-6 relative">
                             <h3 className="text-[15px] font-bold text-[#1E1B2E]">Learning Activity</h3>
+                            
                             <div className="flex items-center gap-2">
-                                <button className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#E9E8F0] text-[12px] text-[#8D8A9B] hover:text-[#1E1B2E] bg-white transition-colors">
-                                    <span>{activityFilter}</span>
-                                    <ChevronDown size={13} />
-                                </button>
-                                <button className="text-[#8D8A9B] hover:text-[#1E1B2E] p-1">
-                                    <MoreHorizontal size={16} />
-                                </button>
+                                {/* Interactive Dropdown Pill */}
+                                <div className="relative">
+                                    <select
+                                        value={activityFilter}
+                                        onChange={(e) => setActivityFilter(e.target.value)}
+                                        className="h-7 pl-3 pr-6 text-[12px] text-[#8D8A9B] hover:text-[#1E1B2E] bg-white border border-[#E9E8F0] rounded-full focus:outline-none focus:border-[#6E5AE0] appearance-none cursor-pointer font-medium"
+                                    >
+                                        <option value="This Week">This Week</option>
+                                        <option value="Last Week">Last Week</option>
+                                        <option value="Monthly Average">Monthly Average</option>
+                                    </select>
+                                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8D8A9B] pointer-events-none" />
+                                </div>
+
+                                {/* Kebab Menu with floating quick actions */}
+                                <div className="relative" ref={kebabRef}>
+                                    <button
+                                        onClick={() => setIsKebabOpen(!isKebabOpen)}
+                                        className="text-[#8D8A9B] hover:text-[#1E1B2E] p-1.5 rounded-full hover:bg-slate-50 transition-colors cursor-pointer"
+                                        title="Activity Actions"
+                                    >
+                                        <MoreHorizontal size={16} />
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {isKebabOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                                                className="absolute right-0 top-8 w-48 bg-white border border-[#E9E8F0] rounded-[12px] shadow-lg py-1.5 z-30 space-y-0.5"
+                                            >
+                                                <Link
+                                                    href="/student/attendance"
+                                                    className="flex items-center gap-2 px-3 py-2 text-[12px] text-[#1E1B2E] hover:bg-[#F1EFFB] hover:text-[#6E5AE0] transition-colors"
+                                                    onClick={() => setIsKebabOpen(false)}
+                                                >
+                                                    <Calendar size={13} />
+                                                    Detailed Attendance
+                                                </Link>
+                                                <Link
+                                                    href="/student/timetable"
+                                                    className="flex items-center gap-2 px-3 py-2 text-[12px] text-[#1E1B2E] hover:bg-[#F1EFFB] hover:text-[#6E5AE0] transition-colors"
+                                                    onClick={() => setIsKebabOpen(false)}
+                                                >
+                                                    <Clock size={13} />
+                                                    Weekly Timetable
+                                                </Link>
+                                                <Link
+                                                    href="/student/materials"
+                                                    className="flex items-center gap-2 px-3 py-2 text-[12px] text-[#1E1B2E] hover:bg-[#F1EFFB] hover:text-[#6E5AE0] transition-colors"
+                                                    onClick={() => setIsKebabOpen(false)}
+                                                >
+                                                    <FileText size={13} />
+                                                    Study Materials
+                                                </Link>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
                             </div>
                         </div>
 
@@ -342,40 +509,39 @@ export default function StudentDashboard() {
                                 {/* Faint Baseline */}
                                 <div className="absolute bottom-6 left-0 right-0 h-[1px] bg-[#E9E8F0]" />
 
-                                {learningActivity.map((item) => {
+                                {currentActivity.chart.map((item) => {
                                     // Total hours max scale = 8 hours
-                                    const total = item.classHours + item.quizHours + item.selfHours;
                                     const maxHeightPx = 180;
                                     const classPx = (item.classHours / 8) * maxHeightPx;
                                     const quizPx = (item.quizHours / 8) * maxHeightPx;
                                     const selfPx = (item.selfHours / 8) * maxHeightPx;
 
                                     return (
-                                        <div key={item.day} className="flex-1 flex flex-col items-center justify-end h-full z-10 group">
+                                        <div key={item.day} className="flex-1 flex flex-col items-center justify-end h-full z-10 group cursor-default">
                                             {/* Stacked Bar Column */}
                                             <div className="w-5 sm:w-7 flex flex-col justify-end">
                                                 {/* Top Segment: Coral (Self Study) */}
                                                 <div
                                                     style={{ height: `${selfPx}px` }}
-                                                    className="w-full bg-[#F4586A] rounded-t-[4px] transition-all group-hover:opacity-90"
-                                                    title={`Self-study: ${item.selfHours}h`}
+                                                    className="w-full bg-[#F4586A] rounded-t-[4px] transition-all group-hover:brightness-95"
+                                                    title={`${item.day} Self-study: ${item.selfHours}h`}
                                                 />
                                                 {/* Middle Segment: Gold (Quiz) */}
                                                 <div
                                                     style={{ height: `${quizPx}px` }}
-                                                    className="w-full bg-[#F4C24A] transition-all group-hover:opacity-90"
-                                                    title={`Quiz/Lab: ${item.quizHours}h`}
+                                                    className="w-full bg-[#F4C24A] transition-all group-hover:brightness-95"
+                                                    title={`${item.day} Quiz/Lab: ${item.quizHours}h`}
                                                 />
                                                 {/* Bottom Segment: Indigo (Class) */}
                                                 <div
                                                     style={{ height: `${classPx}px` }}
-                                                    className="w-full bg-[#6E5AE0] transition-all group-hover:opacity-90"
-                                                    title={`Class Lecture: ${item.classHours}h`}
+                                                    className="w-full bg-[#6E5AE0] transition-all group-hover:brightness-95"
+                                                    title={`${item.day} Class Lecture: ${item.classHours}h`}
                                                 />
                                             </div>
 
                                             {/* X-axis day label */}
-                                            <span className="text-[11px] font-medium text-[#8D8A9B] mt-2 group-hover:text-[#1E1B2E]">
+                                            <span className="text-[11px] font-medium text-[#8D8A9B] mt-2 group-hover:text-[#1E1B2E] transition-colors">
                                                 {item.day}
                                             </span>
                                         </div>
@@ -387,15 +553,15 @@ export default function StudentDashboard() {
                             <div className="flex items-center justify-center gap-5 mt-4 pt-2 border-t border-[#E9E8F0]/50 text-[11px] text-[#8D8A9B]">
                                 <div className="flex items-center gap-1.5">
                                     <span className="w-2 h-2 rounded-full bg-[#6E5AE0]" />
-                                    <span>Class ({learningActivity.reduce((acc, c) => acc + c.classHours, 0)}h)</span>
+                                    <span>Class ({currentActivity.chart.reduce((acc, c) => acc + c.classHours, 0).toFixed(1)}h)</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <span className="w-2 h-2 rounded-full bg-[#F4C24A]" />
-                                    <span>Quizzes ({learningActivity.reduce((acc, c) => acc + c.quizHours, 0)}h)</span>
+                                    <span>Quizzes ({currentActivity.chart.reduce((acc, c) => acc + c.quizHours, 0).toFixed(1)}h)</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <span className="w-2 h-2 rounded-full bg-[#F4586A]" />
-                                    <span>Self-study ({learningActivity.reduce((acc, c) => acc + c.selfHours, 0)}h)</span>
+                                    <span>Self-study ({currentActivity.chart.reduce((acc, c) => acc + c.selfHours, 0).toFixed(1)}h)</span>
                                 </div>
                             </div>
                         </div>
@@ -404,15 +570,15 @@ export default function StudentDashboard() {
                     {/* Metric Summary Row (Adtech Spec: 3 stat blocks separated by thin vertical hairline dividers) */}
                     <div className="grid grid-cols-3 border-t border-[#E9E8F0] pt-4 mt-2">
                         <div className="pr-3">
-                            <p className="text-[17px] font-bold text-[#1E1B2E] leading-none">16 Hours</p>
-                            <p className="text-[11px] text-[#8D8A9B] mt-1 truncate">Total Weekly Study</p>
+                            <p className="text-[17px] font-bold text-[#1E1B2E] leading-none">{currentActivity.hoursSummary}</p>
+                            <p className="text-[11px] text-[#8D8A9B] mt-1 truncate">{currentActivity.caption}</p>
                         </div>
                         <div className="px-3 border-l border-[#E9E8F0]">
-                            <p className="text-[17px] font-bold text-[#1E1B2E] leading-none">85% Rate</p>
+                            <p className="text-[17px] font-bold text-[#1E1B2E] leading-none">{currentActivity.target}</p>
                             <p className="text-[11px] text-[#8D8A9B] mt-1 truncate">Attendance Target</p>
                         </div>
                         <div className="pl-3 border-l border-[#E9E8F0]">
-                            <p className="text-[17px] font-bold text-[#1E1B2E] leading-none">4 Modules</p>
+                            <p className="text-[17px] font-bold text-[#1E1B2E] leading-none">{currentActivity.modules}</p>
                             <p className="text-[11px] text-[#8D8A9B] mt-1 truncate">Completed This Term</p>
                         </div>
                     </div>
@@ -422,13 +588,22 @@ export default function StudentDashboard() {
                 <div className="lg:col-span-4 rounded-[16px] border border-[#E9E8F0] bg-white p-5 lg:p-6 shadow-none flex flex-col justify-between h-full min-h-[480px]">
                     
                     <div>
-                        {/* Header */}
+                        {/* Header with Interactive Filter Pill */}
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-[15px] font-bold text-[#1E1B2E]">Performance</h3>
-                            <button className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#E9E8F0] text-[12px] text-[#8D8A9B] hover:text-[#1E1B2E] bg-white transition-colors">
-                                <span>{performanceFilter}</span>
-                                <ChevronDown size={13} />
-                            </button>
+                            
+                            <div className="relative">
+                                <select
+                                    value={performanceFilter}
+                                    onChange={(e) => setPerformanceFilter(e.target.value)}
+                                    className="h-7 pl-3 pr-6 text-[12px] text-[#8D8A9B] hover:text-[#1E1B2E] bg-white border border-[#E9E8F0] rounded-full focus:outline-none focus:border-[#6E5AE0] appearance-none cursor-pointer font-medium"
+                                >
+                                    <option value="Last 6 Months">Last 6 Months</option>
+                                    <option value="Last 3 Months">Last 3 Months</option>
+                                    <option value="Academic Year">Academic Year</option>
+                                </select>
+                                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8D8A9B] pointer-events-none" />
+                            </div>
                         </div>
 
                         {/* Semi-Circular Score Gauge & Legend */}
@@ -477,33 +652,33 @@ export default function StudentDashboard() {
                                         <span className="w-2 h-2 rounded-full bg-[#6E5AE0]" />
                                         <span className="text-[#8D8A9B]">Participation</span>
                                     </div>
-                                    <span className="font-semibold text-[#1E1B2E]">{performance.participation}%</span>
+                                    <span className="font-semibold text-[#1E1B2E]">{currentPerformance.participation}%</span>
                                 </div>
                                 <div className="flex items-center justify-between text-[12px]">
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2 h-2 rounded-full bg-[#F4C24A]" />
                                         <span className="text-[#8D8A9B]">Class Quiz</span>
                                     </div>
-                                    <span className="font-semibold text-[#1E1B2E]">{performance.quizScore}%</span>
+                                    <span className="font-semibold text-[#1E1B2E]">{currentPerformance.quizScore}%</span>
                                 </div>
                                 <div className="flex items-center justify-between text-[12px]">
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2 h-2 rounded-full bg-[#F4586A]" />
                                         <span className="text-[#8D8A9B]">Exam Marks</span>
                                     </div>
-                                    <span className="font-semibold text-[#1E1B2E]">{performance.examScore}%</span>
+                                    <span className="font-semibold text-[#1E1B2E]">{currentPerformance.examScore}%</span>
                                 </div>
                                 <div className="flex items-center justify-between text-[12px]">
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2 h-2 rounded-full bg-[#8D8A9B]/40" />
                                         <span className="text-[#8D8A9B]">Absence</span>
                                     </div>
-                                    <span className="font-semibold text-[#1E1B2E]">{Math.max(0, 100 - performance.participation)}%</span>
+                                    <span className="font-semibold text-[#1E1B2E]">{currentPerformance.absence}%</span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* 6-Month Trend Area Chart with Floating Tooltip Callout */}
+                        {/* Trend Area Chart with Floating Tooltip Callout */}
                         <div className="relative pt-3 pb-1">
                             <div className="h-28 w-full relative">
                                 <svg className="w-full h-24 overflow-visible" preserveAspectRatio="none" viewBox="0 0 300 80">
@@ -515,12 +690,12 @@ export default function StudentDashboard() {
                                     </defs>
                                     {/* Area fill */}
                                     <path
-                                        d="M 0,60 Q 50,45 100,40 T 200,28 T 300,15 L 300,80 L 0,80 Z"
+                                        d={currentPerformance.svgArea}
                                         fill="url(#trendGradient)"
                                     />
                                     {/* Line stroke */}
                                     <path
-                                        d="M 0,60 Q 50,45 100,40 T 200,28 T 300,15"
+                                        d={currentPerformance.svgPath}
                                         fill="none"
                                         stroke="#6E5AE0"
                                         strokeWidth="2.5"
@@ -529,17 +704,17 @@ export default function StudentDashboard() {
                                 </svg>
 
                                 {/* Floating Tooltip (Adtech Spec: The ONE legitimate shadow use case on the page) */}
-                                <div className="absolute top-2 right-8 bg-white border border-[#E9E8F0] shadow-md rounded-[8px] px-2.5 py-1 text-center pointer-events-none">
+                                <div className={cn("absolute top-2 bg-white border border-[#E9E8F0] shadow-md rounded-[8px] px-2.5 py-1 text-center pointer-events-none transition-all", currentPerformance.tooltipX)}>
                                     <p className="text-[11px] font-bold text-[#1E1B2E] leading-none flex items-center gap-1">
-                                        {performance.overallScore}%
-                                        <span className="text-[#33C481] text-[10px] font-medium">+3.4%</span>
+                                        {currentPerformance.overallScore}%
+                                        <span className="text-[#33C481] text-[10px] font-medium">{currentPerformance.delta}</span>
                                     </p>
                                 </div>
                             </div>
 
                             {/* Month labels along bottom */}
                             <div className="flex items-center justify-between text-[11px] text-[#8D8A9B] px-1">
-                                {performance.monthlyTrend.map((m) => (
+                                {currentPerformance.monthlyTrend.map((m) => (
                                     <span key={m.month}>{m.month}</span>
                                 ))}
                             </div>
@@ -548,7 +723,7 @@ export default function StudentDashboard() {
 
                     {/* Motivational Quote Banner (Adtech Spec: The ONE deliberate flat pale-yellow #FCF3D6 highlight strip) */}
                     <div className="bg-[#FCF3D6] rounded-[10px] p-3 text-[12px] font-medium text-[#1E1B2E] leading-snug mt-3">
-                        &ldquo;{performance.quote}&rdquo; 🌟
+                        &ldquo;{currentPerformance.quote}&rdquo; 🌟
                     </div>
                 </div>
             </div>
@@ -593,29 +768,31 @@ export default function StudentDashboard() {
                         {/* View All Primary Pill */}
                         <Link
                             href="/student/batches"
-                            className="h-8 px-4 rounded-full bg-[#6E5AE0] text-white text-[12px] font-medium hover:bg-[#5946cb] transition-colors flex items-center justify-center shrink-0"
+                            className="h-8 px-4 rounded-full bg-[#6E5AE0] text-white text-[12px] font-medium hover:bg-[#5946cb] transition-colors flex items-center justify-center shrink-0 cursor-pointer"
                         >
                             View All
                         </Link>
                     </div>
                 </div>
 
-                {/* Course Rows List (Hairline separated, no per-row cards) */}
+                {/* Course Rows List (Hairline separated, clickable rows linking to batches/syllabus) */}
                 <div className="divide-y divide-[#E9E8F0]">
                     {filteredCourses.map((course) => {
                         const isCompleted = course.status === "Completed";
                         return (
                             <div
                                 key={course.id}
-                                className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-slate-50/50 px-2 rounded-[8px]"
+                                onClick={() => router.push("/student/batches")}
+                                className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-slate-50/70 px-2 rounded-[8px] cursor-pointer group"
+                                title="Click to view course details and syllabus"
                             >
                                 {/* Left: Subject Thumbnail + Title Block */}
                                 <div className="flex items-center gap-3.5 min-w-[240px]">
-                                    <div className="w-10 h-10 rounded-[8px] bg-[#F1EFFB] flex items-center justify-center text-[#6E5AE0] shrink-0">
+                                    <div className="w-10 h-10 rounded-[8px] bg-[#F1EFFB] flex items-center justify-center text-[#6E5AE0] group-hover:scale-105 transition-transform shrink-0">
                                         <BookOpen size={18} />
                                     </div>
                                     <div className="min-w-0">
-                                        <h4 className="text-[13px] font-bold text-[#1E1B2E] leading-tight truncate">
+                                        <h4 className="text-[13px] font-bold text-[#1E1B2E] leading-tight truncate group-hover:text-[#6E5AE0] transition-colors">
                                             {course.title}
                                         </h4>
                                         <p className="text-[11px] text-[#8D8A9B] mt-0.5 truncate">
