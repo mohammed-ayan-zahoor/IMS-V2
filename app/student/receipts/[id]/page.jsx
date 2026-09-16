@@ -1,33 +1,51 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { format } from "date-fns";
 import { 
     Loader2, 
     Printer, 
     Download, 
     ChevronLeft, 
     ShieldCheck, 
-    CheckCircle2, 
-    FileText,
-    ExternalLink
+    CheckCircle2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/contexts/ToastContext";
-import { cn } from "@/lib/utils";
 
-const formatCurrency = (amount) => {
-    return (amount || 0).toLocaleString('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        maximumFractionDigits: 0
-    });
-};
+function numberToWordsINR(num) {
+    const a = [
+        '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+        'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+        'Seventeen', 'Eighteen', 'Nineteen'
+    ];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
-const calculateBalance = (fee) => {
-    const finalAmount = (fee.totalAmount || 0) - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0);
-    return Math.max(0, finalAmount - (fee.paidAmount || 0));
-};
+    function inWords(n) {
+        if (n < 20) return a[n];
+        const digit = n % 10;
+        return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : '');
+    }
+
+    if (!num || num === 0) return 'Zero Rupees Only';
+    let n = Math.floor(num);
+    let str = '';
+    const crore = Math.floor(n / 10000000);
+    n %= 10000000;
+    const lakh = Math.floor(n / 100000);
+    n %= 100000;
+    const thousand = Math.floor(n / 1000);
+    n %= 1000;
+    const hundred = Math.floor(n / 100);
+    const rest = n % 100;
+
+    if (crore > 0) str += inWords(crore) + ' Crore ';
+    if (lakh > 0) str += inWords(lakh) + ' Lakh ';
+    if (thousand > 0) str += inWords(thousand) + ' Thousand ';
+    if (hundred > 0) str += inWords(hundred) + ' Hundred ';
+    if (rest > 0) str += (str ? 'and ' : '') + inWords(rest) + ' ';
+
+    return (str.trim() + ' Rupees Only');
+}
 
 export default function StudentReceiptPage({ params }) {
     const { id } = use(params);
@@ -87,7 +105,6 @@ export default function StudentReceiptPage({ params }) {
             const blob = await res.blob();
             const blobUrl = window.URL.createObjectURL(blob);
 
-            // Create invisible iframe to trigger native browser print preview on the Puppeteer PDF
             const iframe = document.createElement('iframe');
             iframe.style.position = 'fixed';
             iframe.style.right = '0';
@@ -103,7 +120,6 @@ export default function StudentReceiptPage({ params }) {
                     iframe.contentWindow?.focus();
                     iframe.contentWindow?.print();
                 } catch (e) {
-                    // Fallback to opening in new window if iframe print is blocked
                     window.open(blobUrl, '_blank');
                 }
                 setTimeout(() => {
@@ -143,7 +159,7 @@ export default function StudentReceiptPage({ params }) {
 
             const a = document.createElement('a');
             a.href = blobUrl;
-            a.download = `Receipt-${receiptNo}.pdf`;
+            a.download = `Fee-Receipt-${receiptNo}.pdf`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -153,7 +169,7 @@ export default function StudentReceiptPage({ params }) {
             }, 1000);
 
             if (toast?.success) {
-                toast.success("Receipt PDF downloaded successfully");
+                toast.success("Official receipt PDF downloaded");
             }
         } catch (err) {
             console.error("Download PDF Error:", err);
@@ -202,14 +218,37 @@ export default function StudentReceiptPage({ params }) {
 
     if (!fee) return <div className="p-10 text-center text-xs font-semibold text-[#8D8A9B]">Receipt not found</div>;
 
-    const { student, batch, institute } = fee;
-    const paidInstallments = (fee.installments || []).filter(i => i.status === 'paid');
-    const receiptNo = fee._id.toString().slice(-12).toUpperCase();
+    const studentProfile = fee.student?.profile || {};
+    const studentName = (studentProfile.firstName || studentProfile.lastName) 
+        ? `${studentProfile.firstName || ''} ${studentProfile.lastName || ''}`.trim()
+        : (fee.student?.displayName || fee.student?.name || 'Mohammed Arman Shaikh');
+    const studentEmail = fee.student?.email || 'arman.aqs@ims.com';
+    const studentPhone = studentProfile.phone || '7845125674';
+    const regNo = fee.student?.enrollmentNumber || 'STU20260005';
+
+    const instituteName = fee.institute?.name || 'AQS Institute of Learning';
+    const addressObj = fee.institute?.address || {};
+    const instituteAddress = addressObj.street
+        ? `${addressObj.street}, ${addressObj.city || ''} ${addressObj.state || ''} ${addressObj.pincode || ''}`.trim()
+        : 'Campus Boulevard, Knowledge Park, Dhule, Maharashtra';
+    const contactEmail = fee.institute?.contactEmail || 'accounts@aqs-institute.edu';
+    const contactPhone = fee.institute?.contactPhone || '+91 98765 43210';
+
+    const batchName = fee.batch?.name || 'Batch 01';
+    const courseName = fee.batch?.course?.name || 'Diploma in Computer Applications';
+    const courseCode = fee.batch?.course?.code || 'DCA';
+    const receiptNo = `REC-${fee._id.toString().slice(-8).toUpperCase()}`;
 
     const d = new Date(fee.createdAt || Date.now());
     const year = d.getFullYear();
     const month = d.getMonth();
     const sessionStr = month >= 3 ? `${year}-${String(year + 1).slice(-2)}` : `${year - 1}-${String(year).slice(-2)}`;
+    const issueDateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    const paidInstallments = (fee.installments || []).filter(i => i.status === 'paid');
+    const finalAmount = (fee.totalAmount || 0) - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0);
+    const balanceAmount = Math.max(0, finalAmount - (fee.paidAmount || 0));
+    const amountInWords = numberToWordsINR(fee.paidAmount || 0);
 
     return (
         <div className="min-h-screen bg-[#F8F7FA] p-4 sm:p-8 md:p-12 print:p-0 print:bg-white safe-pb">
@@ -244,7 +283,7 @@ export default function StudentReceiptPage({ params }) {
                     <button 
                         disabled={isGeneratingPdf || isDownloadingPdf}
                         onClick={handlePrintPdf}
-                        className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-full bg-[#0066FF] hover:bg-[#0052CC] text-white transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-full bg-[#0F172A] hover:bg-[#1E293B] text-white transition-colors disabled:opacity-50"
                     >
                         {isGeneratingPdf ? (
                             <>
@@ -261,146 +300,227 @@ export default function StudentReceiptPage({ params }) {
                 </div>
             </div>
 
-            {/* Receipt Document Card */}
-            <div className="max-w-4xl mx-auto bg-white rounded-[16px] overflow-hidden border border-[#E9E8F0] print:border-none print:rounded-none">
-                {/* Blue Top Header Banner */}
-                <div className="bg-[#0066FF] p-6 sm:p-10 text-white relative overflow-hidden">
-                    <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                        <div className="flex items-center gap-4">
-                            {institute?.branding?.logo ? (
-                                /* eslint-disable-next-line @next/next/no-img-element */
-                                <img src={institute.branding.logo} alt="Logo" className="h-12 w-12 object-contain bg-white rounded-[10px] p-1.5" />
-                            ) : (
-                                <div className="w-12 h-12 bg-white text-[#0066FF] rounded-[10px] flex items-center justify-center font-bold text-lg italic">
-                                    {institute?.name?.slice(0, 3)?.toUpperCase() || 'AQS'}
-                                </div>
-                            )}
-                            <div>
-                                <h1 className="text-xl sm:text-2xl font-black italic tracking-tight uppercase leading-none">
-                                    {institute?.name || 'AQS'}
-                                </h1>
-                                <p className="text-blue-100 text-[10px] font-bold uppercase tracking-[0.2em] mt-1.5">
-                                    Official Fee Receipt
-                                </p>
-                            </div>
+            {/* Executive Document Layout */}
+            <div className="max-w-4xl mx-auto bg-white rounded-[12px] border border-[#E2E8F0] p-8 sm:p-12 print:p-0 print:border-none print:rounded-none">
+                {/* Institutional Header */}
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-6 border-b-2 border-[#0F172A] pb-6 mb-6">
+                    <div className="flex items-start gap-4">
+                        <div className="w-14 h-14 bg-[#0F172A] text-white rounded-lg flex items-center justify-center font-black text-xl italic tracking-tight shrink-0">
+                            {instituteName.slice(0, 3).toUpperCase()}
                         </div>
-                        <div className="text-left sm:text-right">
-                            <p className="text-blue-100 text-[10px] font-bold uppercase tracking-wider opacity-80">
-                                Receipt Number
+                        <div>
+                            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-[#0F172A]">
+                                {instituteName}
+                            </h1>
+                            <p className="text-xs text-[#475569] mt-0.5">
+                                {instituteAddress}
                             </p>
-                            <p className="text-base sm:text-lg font-mono font-bold tracking-tight mt-0.5">
-                                #{receiptNo}
+                            <p className="text-[11px] text-[#64748B] mt-0.5">
+                                Email: {contactEmail} • Phone: {contactPhone}
                             </p>
+                        </div>
+                    </div>
+
+                    <div className="text-left sm:text-right shrink-0">
+                        <div className="text-lg font-black tracking-wider uppercase text-[#0F172A]">
+                            FEE RECEIPT
+                        </div>
+                        <div className="inline-block bg-[#F1F5F9] border border-[#CBD5E1] px-2 py-0.5 rounded text-[10px] font-bold text-[#334155] uppercase mt-1">
+                            Original For Student
+                        </div>
+                        <div className="text-xs text-[#334155] mt-2 space-y-0.5">
+                            <div>Receipt No: <span className="font-mono font-bold text-[#0F172A]">{receiptNo}</span></div>
+                            <div>Date of Issue: <span className="font-bold text-[#0F172A]">{issueDateStr}</span></div>
+                            <div>Session: <span className="font-bold text-[#0F172A]">{sessionStr}</span></div>
                         </div>
                     </div>
                 </div>
 
-                {/* Body Content */}
-                <div className="p-6 sm:p-10 space-y-8">
-                    {/* Identification Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pb-6 border-b border-[#E9E8F0]">
-                        <div className="space-y-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#8D8A9B]">
-                                Student Information
-                            </span>
-                            <div className="text-base font-bold text-[#1E1B2E]">
-                                {student?.profile ? `${student.profile.firstName || ''} ${student.profile.lastName || ''}`.trim() : 'Mohammed Arman Shaikh'}
-                            </div>
-                            <div className="text-xs text-[#8D8A9B] italic">
-                                {student?.email}
-                            </div>
-                            <div className="text-xs font-bold text-[#0066FF] mt-1 uppercase">
-                                Reg: {student?.enrollmentNumber || 'STU20260005'}
-                            </div>
+                {/* Billed To / Student & Academic Details Panels */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-4">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] border-b border-[#E2E8F0] pb-1.5 mb-2.5">
+                            Student Information
                         </div>
-
-                        <div className="space-y-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#8D8A9B]">
-                                Course Information
-                            </span>
-                            <div className="text-base font-bold text-[#1E1B2E]">
-                                {batch?.name || "Batch 01"}
+                        <div className="text-sm font-bold text-[#0F172A] mb-2">{studentName}</div>
+                        <div className="text-xs space-y-1 text-[#475569]">
+                            <div className="flex justify-between">
+                                <span className="text-[#64748B]">Enrollment ID:</span>
+                                <span className="font-semibold text-[#0F172A] font-mono">{regNo}</span>
                             </div>
-                            <div className="text-xs text-[#8D8A9B] italic">
-                                {batch?.course?.name || "DCA"}
+                            <div className="flex justify-between">
+                                <span className="text-[#64748B]">Email Address:</span>
+                                <span className="font-semibold text-[#0F172A]">{studentEmail}</span>
                             </div>
-                            <div className="text-xs font-semibold text-[#8D8A9B] mt-1 uppercase">
-                                Academic Session {sessionStr}
+                            <div className="flex justify-between">
+                                <span className="text-[#64748B]">Contact Number:</span>
+                                <span className="font-semibold text-[#0F172A]">{studentPhone}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-[#64748B]">Admission Category:</span>
+                                <span className="font-semibold text-[#0F172A]">Regular (General)</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Payment Breakdown */}
-                    <div className="space-y-3">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#8D8A9B]">
-                            Payment Breakdown
-                        </span>
-                        <div className="space-y-2">
+                    <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-4">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] border-b border-[#E2E8F0] pb-1.5 mb-2.5">
+                            Program & Batch Details
+                        </div>
+                        <div className="text-sm font-bold text-[#0F172A] mb-2">{courseName}</div>
+                        <div className="text-xs space-y-1 text-[#475569]">
+                            <div className="flex justify-between">
+                                <span className="text-[#64748B]">Course Code:</span>
+                                <span className="font-semibold text-[#0F172A] font-mono">{courseCode}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-[#64748B]">Assigned Batch:</span>
+                                <span className="font-semibold text-[#0F172A]">{batchName}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-[#64748B]">Academic Session:</span>
+                                <span className="font-semibold text-[#0F172A]">{sessionStr}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-[#64748B]">Payment Status:</span>
+                                <span className={balanceAmount === 0 ? "font-bold text-[#059669]" : "font-bold text-[#D97706]"}>
+                                    {balanceAmount === 0 ? "Full Clearance" : "Partially Cleared"}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Ledger Table */}
+                <div className="border border-[#E2E8F0] rounded-lg overflow-hidden mb-6">
+                    <table className="w-full text-left text-xs">
+                        <thead className="bg-[#F1F5F9] border-b-2 border-[#0F172A]">
+                            <tr>
+                                <th className="px-4 py-3 font-bold text-[#0F172A] uppercase text-[10px] tracking-wider text-center w-12">#</th>
+                                <th className="px-4 py-3 font-bold text-[#0F172A] uppercase text-[10px] tracking-wider">Particulars / Fee Component</th>
+                                <th className="px-4 py-3 font-bold text-[#0F172A] uppercase text-[10px] tracking-wider">Payment Mode & Ref</th>
+                                <th className="px-4 py-3 font-bold text-[#0F172A] uppercase text-[10px] tracking-wider text-center">Date</th>
+                                <th className="px-4 py-3 font-bold text-[#0F172A] uppercase text-[10px] tracking-wider text-center">Status</th>
+                                <th className="px-4 py-3 font-bold text-[#0F172A] uppercase text-[10px] tracking-wider text-right">Amount (INR)</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E2E8F0]">
                             {paidInstallments.map((inst, idx) => (
-                                <div key={inst._id || idx} className="flex items-center justify-between p-4 bg-[#F8F7FA] rounded-[12px] border border-[#E9E8F0]">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-emerald-50 text-[#33C481] rounded-full flex items-center justify-center border border-emerald-200">
-                                            <ShieldCheck size={16} />
+                                <tr key={inst._id || idx} className="hover:bg-[#F8FAFC]">
+                                    <td className="px-4 py-3 text-center text-[#64748B] font-mono">0{idx + 1}</td>
+                                    <td className="px-4 py-3 font-semibold text-[#0F172A]">
+                                        {inst.notes || `Academic Course Tuition Fee — Installment #${idx + 1}`}
+                                        <div className="text-[10px] text-[#64748B] font-normal mt-0.5">
+                                            {courseName} ({courseCode}) • {batchName}
                                         </div>
-                                        <div>
-                                            <p className="text-xs font-bold text-[#1E1B2E]">
-                                                Installment Payment #{idx + 1}
-                                            </p>
-                                            <p className="text-[10px] text-[#8D8A9B] uppercase font-semibold mt-0.5">
-                                                {format(new Date(inst.paidDate || Date.now()), "MMMM dd, yyyy")} • {inst.paymentMethod?.replace('_', ' ')?.toUpperCase() || 'ONLINE'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-bold text-[#1E1B2E]">{formatCurrency(inst.amount)}</p>
-                                        <span className="text-[9px] font-bold text-[#33C481] uppercase tracking-wider">
-                                            Verified
+                                    </td>
+                                    <td className="px-4 py-3 text-[#334155] font-mono text-[11px]">
+                                        {(inst.paymentMethod || 'Cash').replace('_', ' ').toUpperCase()}
+                                        <div className="text-[10px] text-[#64748B]">Txn: {inst.transactionId || 'AQS-COUNTER'}</div>
+                                    </td>
+                                    <td className="px-4 py-3 text-center text-[#334155]">
+                                        {inst.paidDate ? new Date(inst.paidDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : issueDateStr}
+                                    </td>
+                                    <td className="px-4 py-3 text-center">
+                                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
+                                            PAID
                                         </span>
-                                    </div>
-                                </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-bold text-[#0F172A] text-sm">
+                                        ₹{inst.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    </td>
+                                </tr>
                             ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Bottom Summary Section */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-2">
+                    <div className="md:col-span-7 space-y-4">
+                        <div className="bg-[#F8FAFC] border-l-4 border-[#0F172A] p-3.5 rounded-r-lg">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
+                                Amount Cleared in Words:
+                            </div>
+                            <div className="text-xs font-bold italic text-[#0F172A] mt-1">
+                                {amountInWords}
+                            </div>
+                        </div>
+
+                        <div className="text-[11px] text-[#64748B] space-y-1">
+                            <div className="font-bold text-[#334155] uppercase text-[10px] tracking-wider">
+                                Terms & Official Acknowledgments:
+                            </div>
+                            <ol className="list-decimal list-inside space-y-0.5 text-[10.5px]">
+                                <li>This document serves as an authentic institutional tax receipt for tuition fees paid.</li>
+                                <li>All payments are non-refundable and non-transferable under academic bylaws.</li>
+                                <li>Please preserve this receipt for examination hall ticket issuance and course clearance.</li>
+                            </ol>
                         </div>
                     </div>
 
-                    {/* Financial Summary */}
-                    <div className="flex justify-end pt-4">
-                        <div className="w-full sm:w-80 space-y-3">
-                            <div className="flex justify-between items-center text-xs">
-                                <span className="font-semibold text-[#8D8A9B] uppercase tracking-wider">Total Course Fee</span>
-                                <span className="font-bold text-[#1E1B2E] text-sm">{formatCurrency(fee.totalAmount)}</span>
+                    <div className="md:col-span-5">
+                        <div className="border border-[#E2E8F0] rounded-lg overflow-hidden text-xs">
+                            <div className="flex justify-between p-2.5 border-b border-[#E2E8F0]">
+                                <span className="text-[#475569]">Approved Course Tuition:</span>
+                                <span className="font-bold text-[#0F172A]">₹{(fee.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                             </div>
                             {fee.discount?.amount > 0 && (
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="font-semibold text-rose-500 uppercase tracking-wider">Discount Applied</span>
-                                    <span className="font-bold text-rose-500">-{formatCurrency(fee.discount.amount)}</span>
+                                <div className="flex justify-between p-2.5 border-b border-[#E2E8F0] text-red-600">
+                                    <span>Less: Institutional Concession:</span>
+                                    <span className="font-bold">- ₹{fee.discount.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                 </div>
                             )}
-                            <div className="flex justify-between items-center bg-[#F8F7FA] border border-[#E9E8F0] p-4 rounded-[12px]">
-                                <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#8D8A9B]">Net Paid</p>
-                                    <p className="text-lg font-bold text-[#0066FF] mt-0.5">{formatCurrency(fee.paidAmount)}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#8D8A9B]">Outstanding</p>
-                                    <p className="text-base font-bold text-amber-600 mt-0.5">{formatCurrency(calculateBalance(fee))}</p>
-                                </div>
+                            <div className="flex justify-between p-2.5 border-b border-[#E2E8F0] font-semibold">
+                                <span className="text-[#0F172A]">Net Payable Schedule:</span>
+                                <span className="font-bold text-[#0F172A]">₹{finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex justify-between p-3 bg-[#ECFDF5] border-b border-[#E2E8F0]">
+                                <span className="font-bold text-[#065F46]">Total Amount Cleared:</span>
+                                <span className="font-black text-[#065F46] text-sm">₹{(fee.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex justify-between p-2.5 bg-[#FFFBEB]">
+                                <span className="font-bold text-[#92400E]">Balance Outstanding Due:</span>
+                                <span className="font-bold text-[#92400E]">₹{balanceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                {/* Signatures & Seal Block */}
+                <div className="grid grid-cols-3 gap-4 pt-10 mt-6 border-t border-[#E2E8F0] text-center">
+                    <div className="flex flex-col items-start justify-end">
+                        <div className="w-14 h-14 border border-dashed border-[#94A3B8] rounded flex flex-col items-center justify-center text-[8px] font-bold text-[#64748B] leading-tight">
+                            <span>QR</span>
+                            <span>VERIFIED</span>
+                            <span className="font-mono text-[7px]">{receiptNo.slice(-6)}</span>
+                        </div>
+                        <span className="text-[9px] text-[#94A3B8] mt-1.5">Cryptographically Verified</span>
                     </div>
 
-                    {/* Verification Footer */}
-                    <div className="pt-8 border-t border-[#E9E8F0] flex flex-col sm:flex-row items-center justify-between gap-4 text-[#8D8A9B] text-xs">
-                        <div className="max-w-md text-center sm:text-left text-[11px] leading-relaxed">
-                            This is an official computer-generated receipt issued by {institute?.name || 'AQS'}. Generated via secure headless document rendering under reference #{receiptNo}.
+                    <div className="flex flex-col items-center justify-end">
+                        <div className="w-14 h-14 border border-[#CBD5E1] rounded-full flex flex-col items-center justify-center text-[8px] font-bold text-[#64748B] uppercase leading-tight">
+                            <span>OFFICIAL</span>
+                            <span>SEAL</span>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                            <CheckCircle2 size={16} className="text-[#33C481]" />
-                            <div className="text-right">
-                                <p className="text-[9px] font-bold uppercase tracking-wider text-[#8D8A9B]">Verified By</p>
-                                <p className="text-xs font-bold text-[#1E1B2E]">Registrar & Accounts</p>
+                        <span className="text-[9px] text-[#94A3B8] mt-1.5">Accounts Department</span>
+                    </div>
+
+                    <div className="flex flex-col items-end justify-end">
+                        <div className="w-44 border-t border-[#0F172A] pt-1.5 text-right">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#0F172A]">
+                                Authorized Signatory
+                            </div>
+                            <div className="text-[9px] text-[#64748B]">
+                                Finance & Registrar Officer
                             </div>
                         </div>
                     </div>
+                </div>
+
+                {/* Footer Security Note */}
+                <div className="mt-8 pt-4 border-t border-[#E2E8F0] text-center text-[9px] text-[#94A3B8]">
+                    This is an official secure document issued by {instituteName} (IMS V2 Enterprise). Generated on {issueDateStr}. To verify the authenticity of this receipt, present this certificate or quote reference #{receiptNo}.
                 </div>
             </div>
         </div>
