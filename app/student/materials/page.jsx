@@ -17,7 +17,8 @@ import {
     CheckCircle, 
     HelpCircle,
     Play,
-    ExternalLink
+    ExternalLink,
+    ArrowLeft
 } from "lucide-react";
 import dynamic from 'next/dynamic';
 
@@ -540,7 +541,7 @@ function MaterialsContent() {
 // PDF Modal Component
 
 
-// Video Modal Component with Accessibility
+// Video Modal Component with Fail-Safe Navigation & Accessibility
 function VideoModal({ video, onClose }) {
     const [videoError, setVideoError] = useState(false);
     const modalRef = useRef(null);
@@ -581,57 +582,137 @@ function VideoModal({ video, onClose }) {
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
-            if (previousActiveElement) previousActiveElement.focus();
+            if (previousActiveElement && previousActiveElement.focus) previousActiveElement.focus();
         };
     }, [onClose]);
 
+    const isYoutube = Boolean(video.file?.url && (video.file.url.includes('youtube.com') || video.file.url.includes('youtu.be')));
+    const externalUrl = video.file?.url || "";
+
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 md:p-6 animate-in fade-in overflow-y-auto"
             ref={modalRef}
             tabIndex={-1}
             role="dialog"
             aria-modal="true"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) onClose();
+            }}
         >
-            <div className="bg-black rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col relative outline-none">
-                <div className="flex justify-between items-center p-4 absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent z-10">
-                    <h3 className="text-white font-bold truncate pr-8">{video.title}</h3>
+            {/* Top Navigation Bar - Always visible & accessible above the video */}
+            <div className="w-full max-w-4xl flex items-center justify-between gap-3 mb-3 shrink-0 z-20">
+                <button
+                    onClick={onClose}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white text-xs sm:text-sm font-semibold backdrop-blur-md border border-white/20 transition-all shadow-lg cursor-pointer"
+                    aria-label="Back to Materials"
+                >
+                    <ArrowLeft size={16} />
+                    <span>Back to Materials</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                    {isYoutube && externalUrl && (
+                        <a
+                            href={externalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-red-600/90 hover:bg-red-600 active:scale-95 text-white text-xs font-semibold backdrop-blur-md transition-all shadow-md"
+                            title="Watch on YouTube (opens in new tab)"
+                        >
+                            <Play size={13} className="fill-current" />
+                            <span className="hidden sm:inline">Watch on</span> YouTube
+                            <ExternalLink size={12} className="ml-0.5" />
+                        </a>
+                    )}
                     <button
                         onClick={onClose}
-                        className="text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-2 backdrop-blur-md focus:ring-2 focus:ring-white/50 outline-none"
-                        aria-label="Close video"
+                        className="p-2 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white/80 hover:text-white backdrop-blur-md border border-white/20 transition-all cursor-pointer"
+                        aria-label="Close modal"
+                        title="Close (Esc)"
                     >
-                        <X size={24} />
+                        <X size={18} />
                     </button>
                 </div>
+            </div>
 
-                <div className="aspect-video bg-black flex items-center justify-center relative">
+            {/* Video Box */}
+            <div 
+                className="bg-slate-950 rounded-2xl shadow-2xl w-full max-w-4xl border border-white/10 overflow-hidden flex flex-col relative outline-none shrink-0"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header in normal document flow - NOT absolute over the iframe */}
+                <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-white/10 shrink-0">
+                    <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                        <div className="p-1.5 bg-red-500/15 text-red-400 rounded-lg shrink-0">
+                            <Video size={16} />
+                        </div>
+                        <h3 className="text-white text-sm md:text-base font-semibold truncate">
+                            {video.title}
+                        </h3>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                        {externalUrl && (
+                            <a
+                                href={externalUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-medium transition-colors"
+                            >
+                                <ExternalLink size={13} />
+                                <span>Open link</span>
+                            </a>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                            aria-label="Close video"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Video / Iframe Viewport */}
+                <div className="aspect-video bg-black flex items-center justify-center relative w-full">
                     {videoError ? (
-                        <div className="text-center p-6 space-y-4">
-                            <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-500">
-                                <AlertTriangle size={32} />
+                        <div className="text-center p-6 space-y-4 max-w-md mx-auto">
+                            <div className="w-14 h-14 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center mx-auto text-amber-400">
+                                <AlertTriangle size={28} />
                             </div>
                             <div>
-                                <h3 className="text-white font-bold">Video Unavailable</h3>
-                                <p className="text-slate-400 text-sm">The video could not be loaded.</p>
+                                <h3 className="text-white font-bold text-base">Unable to play video here</h3>
+                                <p className="text-slate-400 text-xs sm:text-sm mt-1">
+                                    The video host may have restricted embedded playback or the link is temporarily unavailable.
+                                </p>
                             </div>
-                            <div className="flex gap-3 justify-center">
+                            <div className="flex flex-wrap gap-2.5 justify-center pt-2">
                                 <button
                                     onClick={() => setVideoError(false)}
-                                    className="px-4 py-2 bg-white/10 text-white rounded-lg text-xs font-bold hover:bg-white/20"
+                                    className="px-4 py-2 bg-white/10 text-white rounded-lg text-xs font-semibold hover:bg-white/20 transition-colors cursor-pointer"
                                 >
                                     Retry
                                 </button>
-                                <a
-                                    href={video.file?.url}
-                                    target="_self"
-                                    className="px-4 py-2 bg-premium-blue text-white rounded-lg text-xs font-bold hover:bg-premium-blue/90"
+                                {externalUrl && (
+                                    <a
+                                        href={externalUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                                    >
+                                        <ExternalLink size={13} />
+                                        Watch on YouTube
+                                    </a>
+                                )}
+                                <button
+                                    onClick={onClose}
+                                    className="px-4 py-2 bg-white/15 text-white rounded-lg text-xs font-semibold hover:bg-white/25 transition-colors cursor-pointer"
                                 >
-                                    Open Directly
-                                </a>
+                                    Back to Materials
+                                </button>
                             </div>
                         </div>
-                    ) : (video.file?.url && (video.file.url.includes('youtube.com') || video.file.url.includes('youtu.be'))) ? (
+                    ) : isYoutube ? (
                         <IframeWithFallback
                             src={getEmbedUrl(video.file.url)}
                             title={video.title}
@@ -649,6 +730,33 @@ function VideoModal({ video, onClose }) {
                             Your browser does not support the video tag.
                         </video>
                     )}
+                </div>
+
+                {/* Fail-safe bottom bar */}
+                <div className="px-4 py-2.5 bg-slate-900/90 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 shrink-0">
+                    <div className="flex items-center gap-2">
+                        {isYoutube && externalUrl ? (
+                            <span>
+                                Playback issue?{" "}
+                                <a
+                                    href={externalUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-red-400 hover:text-red-300 font-medium underline inline-flex items-center gap-0.5 ml-1"
+                                >
+                                    Watch on YouTube <ExternalLink size={11} />
+                                </a>
+                            </span>
+                        ) : (
+                            <span>Playing lesson video</span>
+                        )}
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors cursor-pointer"
+                    >
+                        Back to Materials
+                    </button>
                 </div>
             </div>
         </div>
@@ -697,7 +805,7 @@ function getEmbedUrl(sourceUrl) {
     if (!sourceUrl) return "";
     const videoId = getYoutubeVideoId(sourceUrl);
     if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+        return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
     }
     return sourceUrl;
 }

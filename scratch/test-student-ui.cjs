@@ -103,4 +103,11 @@ assert(materialsPage.includes("aspect-video"), "Materials page must use 16:9 asp
 assert(materialsPage.includes("safe-pb"), "Materials page must include safe-pb");
 console.log("✓ YouTube URL extraction, thumbnail resolution, and materials cards verified");
 
-console.log("\nALL 11 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");
+// 12. Check VideoModal has fail-safe back button, backdrop click-to-close, and external fallback
+assert(materialsPage.includes("Back to Materials"), "VideoModal must include visible 'Back to Materials' button");
+assert(materialsPage.includes("ArrowLeft"), "VideoModal must use ArrowLeft icon for back navigation");
+assert(materialsPage.includes("if (e.target === e.currentTarget) onClose()"), "VideoModal must support backdrop click-to-close");
+assert(materialsPage.includes("Watch on YouTube"), "VideoModal must provide fallback 'Watch on YouTube' link");
+console.log("✓ VideoModal fail-safe navigation, back button, and backdrop dismissal verified");
+
+console.log("\nALL 12 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");
