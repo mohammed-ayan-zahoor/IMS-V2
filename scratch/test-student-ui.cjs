@@ -71,4 +71,22 @@ assert(fees.includes("hidden md:block"), "Fees page must provide desktop tabular
 assert(fees.includes("md:hidden"), "Fees page must provide mobile card layout");
 console.log("✓ Student fees page verified and strictly adheres to Adtech specs");
 
-console.log("\nALL 8 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");
+// 9. Check student batches list page uses semantic Link and Adtech tokens
+const batches = fs.readFileSync(path.join(__dirname, "../app/student/batches/page.jsx"), "utf8");
+assert(batches.includes("Link from \"next/link\"") || batches.includes("import Link from \"next/link\";"), "Batches page must use next/link");
+assert(!batches.includes("window.location.href"), "Batches page must not use window.location.href");
+assert(batches.includes("rounded-[16px]"), "Batches page must use 16px container radius");
+assert(batches.includes("safe-pb"), "Batches page must include safe-pb");
+console.log("✓ Student batches page verified with Adtech tokens and semantic Link navigation");
+
+// 10. Check student batch detail & syllabus progress page
+const batchDetail = fs.readFileSync(path.join(__dirname, "../app/student/batches/[id]/page.jsx"), "utf8");
+assert(batchDetail.includes("Syllabus Completion Pace"), "Batch detail must include Syllabus Completion Pace");
+assert(batchDetail.includes("stats.avgProgress"), "Batch detail must compute dynamic stats");
+assert(batchDetail.includes("All Subjects"), "Batch detail must include subject filter pills");
+assert(batchDetail.includes("Search topics or chapters"), "Batch detail must include topic search");
+assert(batchDetail.includes("expandedChapters"), "Batch detail must support collapsible chapter accordions");
+assert(batchDetail.includes("safe-pb"), "Batch detail must include safe-pb");
+console.log("✓ Student batch detail & syllabus progress screen verified");
+
+console.log("\nALL 10 STUDENT UI AND ADTECH CHECKS PASSED SUCCESSFULLY!");

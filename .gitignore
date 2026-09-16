@@ -74,3 +74,7 @@ mobile/flutter_*.png
 # Firebase / Google Credentials
 *firebase-adminsdk*.json
 google-services.json
+
+# Scratch & test scripts
+/scratch/*
+!/scratch/test-student-ui.cjs
