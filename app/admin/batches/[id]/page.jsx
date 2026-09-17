@@ -8,7 +8,7 @@ import {
     ArrowLeft, Users, Calendar, Clock, BookOpen, CheckSquare, Square,
     ChevronDown, ChevronRight, History, AlertCircle, BarChart3,
     User, MessageSquare, CheckCircle2, Circle, FileText, Download,
-    Trash2, Plus, Save, AlertTriangle, Edit2, Settings, X
+    Trash2, Plus, Save, AlertTriangle, Edit2, Settings, X, Sparkles, Copy
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -204,6 +204,24 @@ function TimetableTab({ batchId, subjects = [] }) {
     const [editingOverridesDay, setEditingOverridesDay] = useState(null);
     const toast = useToast();
 
+    // Auto-Generate Periods Wizard state
+    const [showAutoGenerateModal, setShowAutoGenerateModal] = useState(false);
+    const [genStartTime, setGenStartTime] = useState("08:30");
+    const [genDuration, setGenDuration] = useState(45);
+    const [genNumPeriods, setGenNumPeriods] = useState(6);
+    const [genHasBreak, setGenHasBreak] = useState(true);
+    const [genBreakAfter, setGenBreakAfter] = useState(3);
+    const [genBreakDuration, setGenBreakDuration] = useState(30);
+    const [genBreakName, setGenBreakName] = useState("Recess / Break");
+
+    // Clone from Existing Batch state
+    const [showCloneModal, setShowCloneModal] = useState(false);
+    const [instituteBatches, setInstituteBatches] = useState([]);
+    const [selectedCloneBatchId, setSelectedCloneBatchId] = useState("");
+    const [cloneWithAssignments, setCloneWithAssignments] = useState(false);
+    const [loadingBatches, setLoadingBatches] = useState(false);
+    const [cloning, setCloning] = useState(false);
+
     const DAYS = [
         { id: 1, name: "Monday" },
         { id: 2, name: "Tuesday" },
@@ -222,6 +240,14 @@ function TimetableTab({ batchId, subjects = [] }) {
         const ampm = numH >= 12 ? "PM" : "AM";
         const finalH = numH % 12 || 12;
         return `${finalH}:${m} ${ampm}`;
+    };
+
+    const addMinutesToTime = (timeStr, minutesToAdd) => {
+        const [h, m] = (timeStr || "08:00").split(":").map(Number);
+        const totalMins = (h || 0) * 60 + (m || 0) + Number(minutesToAdd);
+        const newH = Math.floor(totalMins / 60) % 24;
+        const newM = totalMins % 60;
+        return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
     };
 
     useEffect(() => {
@@ -274,6 +300,203 @@ function TimetableTab({ batchId, subjects = [] }) {
             ...day,
             assignments: day.assignments.filter(a => a.timeSlotId !== id)
         })));
+    };
+
+    const handleGenerateSchedule = () => {
+        const totalPeriods = Math.max(1, Math.min(12, Number(genNumPeriods) || 6));
+        const duration = Math.max(10, Math.min(180, Number(genDuration) || 45));
+        const breakAfter = Number(genBreakAfter);
+        const hasBreak = genHasBreak && breakAfter > 0 && breakAfter < totalPeriods;
+        const breakMins = Math.max(5, Math.min(120, Number(genBreakDuration) || 30));
+
+        let currentTime = genStartTime || "08:30";
+        const newSlots = [];
+
+        for (let p = 1; p <= totalPeriods; p++) {
+            const periodEnd = addMinutesToTime(currentTime, duration);
+            newSlots.push({
+                _id: Math.random().toString(36).substr(2, 9),
+                name: `Period ${p}`,
+                startTime: currentTime,
+                endTime: periodEnd,
+                isBreak: false
+            });
+            currentTime = periodEnd;
+
+            // Insert break without breaking academic period counting
+            if (hasBreak && p === breakAfter) {
+                const breakEnd = addMinutesToTime(currentTime, breakMins);
+                newSlots.push({
+                    _id: Math.random().toString(36).substr(2, 9),
+                    name: genBreakName.trim() || "Recess / Break",
+                    startTime: currentTime,
+                    endTime: breakEnd,
+                    isBreak: true
+                });
+                currentTime = breakEnd;
+            }
+        }
+
+        setTimeSlots(newSlots);
+        setShowAutoGenerateModal(false);
+        toast.success(`Generated ${newSlots.length} time slots`);
+    };
+
+    const openCloneModal = async () => {
+        setShowCloneModal(true);
+        setLoadingBatches(true);
+        try {
+            const res = await fetch("/api/v1/batches");
+            if (res.ok) {
+                const data = await res.json();
+                const otherBatches = (data.batches || []).filter(b => String(b._id) !== String(batchId));
+                setInstituteBatches(otherBatches);
+                if (otherBatches.length > 0) {
+                    setSelectedCloneBatchId(String(otherBatches[0]._id));
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load batches", e);
+            toast.error("Failed to load batches");
+        } finally {
+            setLoadingBatches(false);
+        }
+    };
+
+    const handleCloneTimetable = async () => {
+        if (!selectedCloneBatchId) return;
+        setCloning(true);
+        try {
+            const res = await fetch(`/api/v1/batches/${selectedCloneBatchId}/timetable`);
+            if (!res.ok) {
+                toast.error("Failed to fetch timetable for the selected batch");
+                return;
+            }
+            const data = await res.json();
+            const srcTimetable = data.timetable;
+            if (!srcTimetable || !srcTimetable.timeSlots || srcTimetable.timeSlots.length === 0) {
+                toast.error("The selected batch does not have a timetable yet");
+                return;
+            }
+
+            // Map old slot IDs to fresh temporary client IDs
+            const idMap = new Map();
+            const newTimeSlots = srcTimetable.timeSlots.map(slot => {
+                const freshId = Math.random().toString(36).substr(2, 9);
+                idMap.set(String(slot._id), freshId);
+                return {
+                    _id: freshId,
+                    name: slot.name,
+                    startTime: slot.startTime,
+                    endTime: slot.endTime,
+                    isBreak: !!slot.isBreak
+                };
+            });
+
+            let newSchedule = [];
+            if (cloneWithAssignments && srcTimetable.schedule) {
+                newSchedule = srcTimetable.schedule.map(day => ({
+                    dayOfWeek: day.dayOfWeek,
+                    assignments: (day.assignments || []).map(a => {
+                        const mappedSlotId = idMap.get(String(a.timeSlotId?._id || a.timeSlotId));
+                        if (!mappedSlotId) return null;
+                        return {
+                            timeSlotId: mappedSlotId,
+                            subject: a.subject?._id || a.subject || null,
+                            instructor: a.instructor?._id || a.instructor || null,
+                            startTimeOverride: a.startTimeOverride || undefined,
+                            endTimeOverride: a.endTimeOverride || undefined
+                        };
+                    }).filter(Boolean)
+                }));
+            }
+
+            setTimeSlots(newTimeSlots);
+            setSchedule(newSchedule);
+            setShowCloneModal(false);
+            toast.success(`Cloned timetable structure${cloneWithAssignments ? " and assignments" : ""} successfully`);
+        } catch (e) {
+            console.error("Clone error:", e);
+            toast.error("Error cloning timetable");
+        } finally {
+            setCloning(false);
+        }
+    };
+
+    const handleCopyMondayToWeekdays = () => {
+        const mondayData = schedule.find(d => d.dayOfWeek === 1);
+        if (!mondayData || !mondayData.assignments || mondayData.assignments.length === 0) {
+            toast.error("Monday has no assignments to copy");
+            return;
+        }
+
+        // Filter out breaks - only academic slots
+        const academicSlots = timeSlots.filter(s => !s.isBreak);
+        const academicSlotIds = new Set(academicSlots.map(s => String(s._id)));
+        const mondayAcademicAssignments = mondayData.assignments.filter(a => {
+            const slotId = String(a.timeSlotId?._id || a.timeSlotId);
+            return academicSlotIds.has(slotId) && (a.subject || a.instructor);
+        });
+
+        if (mondayAcademicAssignments.length === 0) {
+            toast.error("No active subject/teacher assignments found on Monday to copy");
+            return;
+        }
+
+        // Check if Tue-Fri already have assignments
+        const weekdays = [2, 3, 4, 5];
+        const hasExisting = schedule.some(d =>
+            weekdays.includes(d.dayOfWeek) && d.assignments?.some(a => a.subject || a.instructor)
+        );
+
+        if (hasExisting) {
+            const confirmed = window.confirm("This will overwrite existing assignments on Tuesday through Friday. Continue?");
+            if (!confirmed) return;
+        }
+
+        setSchedule(prev => {
+            const newSchedule = [...prev];
+            weekdays.forEach(dayId => {
+                const dayIdx = newSchedule.findIndex(d => d.dayOfWeek === dayId);
+                const replicatedAssignments = mondayAcademicAssignments.map(a => ({
+                    timeSlotId: a.timeSlotId?._id || a.timeSlotId,
+                    subject: a.subject?._id || a.subject || null,
+                    instructor: a.instructor?._id || a.instructor || null
+                }));
+
+                if (dayIdx === -1) {
+                    newSchedule.push({
+                        dayOfWeek: dayId,
+                        assignments: replicatedAssignments
+                    });
+                } else {
+                    const existingAssignments = [...newSchedule[dayIdx].assignments];
+                    mondayAcademicAssignments.forEach(monAssign => {
+                        const slotId = monAssign.timeSlotId?._id || monAssign.timeSlotId;
+                        const existIdx = existingAssignments.findIndex(a =>
+                            String(a.timeSlotId?._id || a.timeSlotId) === String(slotId)
+                        );
+                        if (existIdx === -1) {
+                            existingAssignments.push({
+                                timeSlotId: slotId,
+                                subject: monAssign.subject?._id || monAssign.subject || null,
+                                instructor: monAssign.instructor?._id || monAssign.instructor || null
+                            });
+                        } else {
+                            existingAssignments[existIdx] = {
+                                ...existingAssignments[existIdx],
+                                subject: monAssign.subject?._id || monAssign.subject || null,
+                                instructor: monAssign.instructor?._id || monAssign.instructor || null
+                            };
+                        }
+                    });
+                    newSchedule[dayIdx] = { ...newSchedule[dayIdx], assignments: existingAssignments };
+                }
+            });
+            return newSchedule;
+        });
+
+        toast.success("Copied Monday's schedule to Tuesday–Friday");
     };
 
     const updateAssignment = (dayId, slotId, field, value) => {
@@ -361,24 +584,48 @@ function TimetableTab({ batchId, subjects = [] }) {
             <div className="flex-1 min-w-0 space-y-8">
                 {/* Step 1: Time Slots Definition */}
                 <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
+                    <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <h3 className="text-sm font-bold text-slate-900">1. Define Periods & Breaks</h3>
                             <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Setup the daily structure</p>
                         </div>
-                        <button 
-                            onClick={addTimeSlot}
-                            className="flex items-center gap-2 bg-premium-blue text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-600 transition-all shadow-sm"
-                        >
-                            <Plus size={14} /> Add Slot
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => setShowAutoGenerateModal(true)}
+                                className="flex items-center gap-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                title="Auto-generate sequential periods and breaks"
+                            >
+                                <Sparkles size={13} className="text-blue-600" /> Auto-Generate
+                            </button>
+                            <button 
+                                onClick={openCloneModal}
+                                className="flex items-center gap-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                title="Clone timetable structure from another batch"
+                            >
+                                <Copy size={13} className="text-emerald-600" /> Clone from Batch
+                            </button>
+                            <button 
+                                onClick={addTimeSlot}
+                                className="flex items-center gap-2 bg-premium-blue text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-600 transition-all shadow-sm"
+                            >
+                                <Plus size={14} /> Add Slot
+                            </button>
+                        </div>
                     </div>
                     
                     <div className="p-6">
                         {timeSlots.length === 0 ? (
                             <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-2xl">
                                 <Clock size={32} className="mx-auto text-slate-200 mb-2" />
-                                <p className="text-xs text-slate-400 font-medium">No time slots defined yet.</p>
+                                <p className="text-xs text-slate-400 font-medium mb-3">No time slots defined yet.</p>
+                                <div className="flex justify-center gap-2">
+                                    <button 
+                                        onClick={() => setShowAutoGenerateModal(true)}
+                                        className="inline-flex items-center gap-1.5 bg-blue-50 text-premium-blue px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
+                                    >
+                                        <Sparkles size={13} /> Auto-Generate Schedule
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -437,9 +684,20 @@ function TimetableTab({ batchId, subjects = [] }) {
 
                 {/* Step 2: Subject Assignments Grid */}
                 <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30">
-                        <h3 className="text-sm font-bold text-slate-900">2. Weekly Assignments</h3>
-                        <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Drag subjects from palette or select below</p>
+                    <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900">2. Weekly Assignments</h3>
+                            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Drag subjects from palette or select below</p>
+                        </div>
+                        {timeSlots.length > 0 && (
+                            <button 
+                                onClick={handleCopyMondayToWeekdays}
+                                className="flex items-center gap-1.5 bg-blue-50 text-premium-blue hover:bg-blue-100 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                title="Copy Monday's assignments to Tuesday through Friday"
+                            >
+                                <Sparkles size={13} /> Copy Mon → Tue–Fri
+                            </button>
+                        )}
                     </div>
 
                     <div className="overflow-x-auto">
@@ -449,15 +707,26 @@ function TimetableTab({ batchId, subjects = [] }) {
                                     <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 sticky left-0 bg-white z-10 min-w-[120px]">Time Slot</th>
                                     {DAYS.map(day => (
                                         <th key={day.id} className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 min-w-[140px]">
-                                            <div className="flex items-center justify-between">
+                                            <div className="flex items-center justify-between gap-1">
                                                 <span>{day.name}</span>
-                                                <button 
-                                                    onClick={() => setEditingOverridesDay(day.id)}
-                                                    className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
-                                                    title="Edit specific timings for this day"
-                                                >
-                                                    <Settings size={12} />
-                                                </button>
+                                                <div className="flex items-center gap-0.5">
+                                                    {day.id === 1 && (
+                                                        <button 
+                                                            onClick={handleCopyMondayToWeekdays}
+                                                            className="p-1 hover:bg-blue-50 rounded text-blue-500 hover:text-blue-700 transition-colors"
+                                                            title="Copy Monday to Tue–Fri"
+                                                        >
+                                                            <Copy size={12} />
+                                                        </button>
+                                                    )}
+                                                    <button 
+                                                        onClick={() => setEditingOverridesDay(day.id)}
+                                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
+                                                        title="Edit specific timings for this day"
+                                                    >
+                                                        <Settings size={12} />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </th>
                                     ))}
@@ -539,6 +808,215 @@ function TimetableTab({ batchId, subjects = [] }) {
                         </div>
                     )}
                 </div>
+
+                {/* Auto-Generate Periods Modal */}
+                {showAutoGenerateModal && typeof document !== 'undefined' && createPortal(
+                    <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 transform scale-100 transition-all">
+                            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                        <Sparkles size={14} />
+                                    </div>
+                                    <h3 className="text-sm font-bold text-slate-900">Auto-Generate Schedule</h3>
+                                </div>
+                                <button onClick={() => setShowAutoGenerateModal(false)} className="p-1.5 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                                    Quickly create a standard sequential period and recess structure. This will replace your current time slots.
+                                </p>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-500 mb-1 block">Start Time</label>
+                                        <input 
+                                            type="time" 
+                                            value={genStartTime}
+                                            onChange={(e) => setGenStartTime(e.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-premium-blue"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-500 mb-1 block">Period Duration (min)</label>
+                                        <input 
+                                            type="number" 
+                                            min="15" 
+                                            max="120"
+                                            value={genDuration}
+                                            onChange={(e) => setGenDuration(e.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-premium-blue"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-500 mb-1 block">Total Academic Periods</label>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        max="12"
+                                        value={genNumPeriods}
+                                        onChange={(e) => setGenNumPeriods(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-premium-blue"
+                                    />
+                                </div>
+
+                                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={genHasBreak}
+                                                onChange={(e) => setGenHasBreak(e.target.checked)}
+                                                className="rounded text-premium-blue focus:ring-premium-blue"
+                                            />
+                                            Include Recess / Break
+                                        </label>
+                                    </div>
+
+                                    {genHasBreak && (
+                                        <div className="space-y-3 pt-2 border-t border-slate-200/60">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">After Period</label>
+                                                    <input 
+                                                        type="number" 
+                                                        min="1" 
+                                                        max={Math.max(1, genNumPeriods - 1)}
+                                                        value={genBreakAfter}
+                                                        onChange={(e) => setGenBreakAfter(e.target.value)}
+                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Break Duration (min)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        min="5" 
+                                                        max="90"
+                                                        value={genBreakDuration}
+                                                        onChange={(e) => setGenBreakDuration(e.target.value)}
+                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Break Label</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={genBreakName}
+                                                    onChange={(e) => setGenBreakName(e.target.value)}
+                                                    placeholder="Recess / Break"
+                                                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="p-3.5 px-5 border-t border-slate-100 bg-slate-50/80 flex justify-end gap-2">
+                                <button 
+                                    onClick={() => setShowAutoGenerateModal(false)}
+                                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={handleGenerateSchedule}
+                                    className="bg-slate-900 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 shadow-sm transition-colors flex items-center gap-1.5"
+                                >
+                                    <Sparkles size={13} /> Generate
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+
+                {/* Clone from Existing Batch Modal */}
+                {showCloneModal && typeof document !== 'undefined' && createPortal(
+                    <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 transform scale-100 transition-all">
+                            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                                        <Copy size={14} />
+                                    </div>
+                                    <h3 className="text-sm font-bold text-slate-900">Clone from Existing Batch</h3>
+                                </div>
+                                <button onClick={() => setShowCloneModal(false)} className="p-1.5 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                                    Import the period timings and break layout from another batch in your institute.
+                                </p>
+
+                                {loadingBatches ? (
+                                    <div className="py-8 flex justify-center">
+                                        <LoadingSpinner size="sm" />
+                                    </div>
+                                ) : instituteBatches.length === 0 ? (
+                                    <div className="py-6 text-center text-xs text-slate-400 font-medium">
+                                        No other batches found in this institute.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase text-slate-500 mb-1 block">Source Batch</label>
+                                            <select 
+                                                value={selectedCloneBatchId}
+                                                onChange={(e) => setSelectedCloneBatchId(e.target.value)}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-premium-blue"
+                                            >
+                                                {instituteBatches.map(b => (
+                                                    <option key={b._id} value={b._id}>
+                                                        {b.name} ({b.course?.name || "Batch"})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <label className="text-xs font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={cloneWithAssignments}
+                                                    onChange={(e) => setCloneWithAssignments(e.target.checked)}
+                                                    className="rounded text-premium-blue focus:ring-premium-blue"
+                                                />
+                                                Also copy weekly subject & teacher assignments
+                                            </label>
+                                            <p className="text-[10px] text-slate-400 mt-1 pl-5">
+                                                Leave unchecked to only copy the period & break time structure.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="p-3.5 px-5 border-t border-slate-100 bg-slate-50/80 flex justify-end gap-2">
+                                <button 
+                                    onClick={() => setShowCloneModal(false)}
+                                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    disabled={cloning || instituteBatches.length === 0}
+                                    onClick={handleCloneTimetable}
+                                    className="bg-slate-900 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                >
+                                    {cloning ? <LoadingSpinner size="sm" /> : <Copy size={13} />} Clone Structure
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
 
                 {/* Editing Overrides Modal */}
                 {editingOverridesDay !== null && typeof document !== 'undefined' && createPortal(
