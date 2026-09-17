@@ -202,6 +202,8 @@ function TimetableTab({ batchId, subjects = [] }) {
     const [schedule, setSchedule] = useState([]); // Array of { dayOfWeek, assignments: [] }
     const [instructors, setInstructors] = useState([]);
     const [editingOverridesDay, setEditingOverridesDay] = useState(null);
+    const [isStage1Expanded, setIsStage1Expanded] = useState(false);
+    const [editingCell, setEditingCell] = useState(null); // { dayId, slotId, subject, instructor }
     const toast = useToast();
 
     // Auto-Generate Periods Wizard state
@@ -265,9 +267,16 @@ function TimetableTab({ batchId, subjects = [] }) {
                 if (ttRes.ok) {
                     const ttData = await ttRes.json();
                     if (ttData.timetable) {
-                        setTimeSlots(ttData.timetable.timeSlots || []);
+                        const slots = ttData.timetable.timeSlots || [];
+                        setTimeSlots(slots);
                         setSchedule(ttData.timetable.schedule || []);
+                        // Auto-expand if no slots exist yet
+                        setIsStage1Expanded(slots.length === 0);
+                    } else {
+                        setIsStage1Expanded(true);
                     }
+                } else {
+                    setIsStage1Expanded(true);
                 }
             } catch (error) {
                 console.error("Failed to load timetable data", error);
@@ -280,7 +289,7 @@ function TimetableTab({ batchId, subjects = [] }) {
 
     const addTimeSlot = () => {
         const newSlot = {
-            _id: Math.random().toString(36).substr(2, 9), // Temporary ID for new slots
+            _id: Math.random().toString(36).substr(2, 9),
             name: `Period ${timeSlots.length + 1}`,
             startTime: "09:00",
             endTime: "09:45",
@@ -295,7 +304,6 @@ function TimetableTab({ batchId, subjects = [] }) {
 
     const removeTimeSlot = (id) => {
         setTimeSlots(timeSlots.filter(slot => slot._id !== id));
-        // Also clean up schedule assignments for this slot
         setSchedule(schedule.map(day => ({
             ...day,
             assignments: day.assignments.filter(a => a.timeSlotId !== id)
@@ -323,7 +331,6 @@ function TimetableTab({ batchId, subjects = [] }) {
             });
             currentTime = periodEnd;
 
-            // Insert break without breaking academic period counting
             if (hasBreak && p === breakAfter) {
                 const breakEnd = addMinutesToTime(currentTime, breakMins);
                 newSlots.push({
@@ -339,6 +346,7 @@ function TimetableTab({ batchId, subjects = [] }) {
 
         setTimeSlots(newSlots);
         setShowAutoGenerateModal(false);
+        setIsStage1Expanded(false);
         toast.success(`Generated ${newSlots.length} time slots`);
     };
 
@@ -379,7 +387,6 @@ function TimetableTab({ batchId, subjects = [] }) {
                 return;
             }
 
-            // Map old slot IDs to fresh temporary client IDs
             const idMap = new Map();
             const newTimeSlots = srcTimetable.timeSlots.map(slot => {
                 const freshId = Math.random().toString(36).substr(2, 9);
@@ -414,6 +421,7 @@ function TimetableTab({ batchId, subjects = [] }) {
             setTimeSlots(newTimeSlots);
             setSchedule(newSchedule);
             setShowCloneModal(false);
+            setIsStage1Expanded(false);
             toast.success(`Cloned timetable structure${cloneWithAssignments ? " and assignments" : ""} successfully`);
         } catch (e) {
             console.error("Clone error:", e);
@@ -430,7 +438,6 @@ function TimetableTab({ batchId, subjects = [] }) {
             return;
         }
 
-        // Filter out breaks - only academic slots
         const academicSlots = timeSlots.filter(s => !s.isBreak);
         const academicSlotIds = new Set(academicSlots.map(s => String(s._id)));
         const mondayAcademicAssignments = mondayData.assignments.filter(a => {
@@ -443,7 +450,6 @@ function TimetableTab({ batchId, subjects = [] }) {
             return;
         }
 
-        // Check if Tue-Fri already have assignments
         const weekdays = [2, 3, 4, 5];
         const hasExisting = schedule.some(d =>
             weekdays.includes(d.dayOfWeek) && d.assignments?.some(a => a.subject || a.instructor)
@@ -458,16 +464,14 @@ function TimetableTab({ batchId, subjects = [] }) {
             const newSchedule = [...prev];
             weekdays.forEach(dayId => {
                 const dayIdx = newSchedule.findIndex(d => d.dayOfWeek === dayId);
-                const replicatedAssignments = mondayAcademicAssignments.map(a => ({
-                    timeSlotId: a.timeSlotId?._id || a.timeSlotId,
-                    subject: a.subject?._id || a.subject || null,
-                    instructor: a.instructor?._id || a.instructor || null
-                }));
-
                 if (dayIdx === -1) {
                     newSchedule.push({
                         dayOfWeek: dayId,
-                        assignments: replicatedAssignments
+                        assignments: mondayAcademicAssignments.map(a => ({
+                            timeSlotId: a.timeSlotId?._id || a.timeSlotId,
+                            subject: a.subject?._id || a.subject || null,
+                            instructor: a.instructor?._id || a.instructor || null
+                        }))
                     });
                 } else {
                     const existingAssignments = [...newSchedule[dayIdx].assignments];
@@ -520,6 +524,17 @@ function TimetableTab({ batchId, subjects = [] }) {
                 }
                 newSchedule[dayIdx] = { ...newSchedule[dayIdx], assignments };
             }
+            return newSchedule;
+        });
+    };
+
+    const clearAssignment = (dayId, slotId) => {
+        setSchedule(prev => {
+            const dayIdx = prev.findIndex(d => d.dayOfWeek === dayId);
+            if (dayIdx === -1) return prev;
+            const newSchedule = [...prev];
+            const assignments = newSchedule[dayIdx].assignments.filter(a => String(a.timeSlotId?._id || a.timeSlotId) !== String(slotId));
+            newSchedule[dayIdx] = { ...newSchedule[dayIdx], assignments };
             return newSchedule;
         });
     };
@@ -577,589 +592,704 @@ function TimetableTab({ batchId, subjects = [] }) {
 
     if (loading) return <LoadingSpinner />;
 
+    const recessCount = timeSlots.filter(s => s.isBreak).length;
+    const academicCount = timeSlots.length - recessCount;
+    const timeSpanText = timeSlots.length > 0 
+        ? `${timeSlots.length} slots (${academicCount} academic, ${recessCount} recess) · ${formatTime12Hour(timeSlots[0]?.startTime)} – ${formatTime12Hour(timeSlots[timeSlots.length - 1]?.endTime)}`
+        : "No time slots defined";
+
     return (
-        <div className="space-y-10 pb-20">
-            <div className="flex flex-col lg:flex-row gap-6">
-            {/* Left Column: Editor */}
-            <div className="flex-1 min-w-0 space-y-8">
-                {/* Step 1: Time Slots Definition */}
-                <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-900">1. Define Periods & Breaks</h3>
-                            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Setup the daily structure</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button 
-                                onClick={() => setShowAutoGenerateModal(true)}
-                                className="flex items-center gap-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
-                                title="Auto-generate sequential periods and breaks"
-                            >
-                                <Sparkles size={13} className="text-blue-600" /> Auto-Generate
-                            </button>
-                            <button 
-                                onClick={openCloneModal}
-                                className="flex items-center gap-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
-                                title="Clone timetable structure from another batch"
-                            >
-                                <Copy size={13} className="text-emerald-600" /> Clone from Batch
-                            </button>
-                            <button 
-                                onClick={addTimeSlot}
-                                className="flex items-center gap-2 bg-premium-blue text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-600 transition-all shadow-sm"
-                            >
-                                <Plus size={14} /> Add Slot
-                            </button>
-                        </div>
+        <div className="space-y-6 pb-20">
+            {/* Top Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                <div>
+                    <h3 className="text-sm font-bold text-slate-900">Timetable Configuration</h3>
+                    <p className="text-xs text-slate-500 font-medium">Manage daily period slots and weekly subject schedules</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => setShowPreview(!showPreview)}
+                        className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition"
+                    >
+                        {showPreview ? "Hide Preview" : "Student Preview"}
+                    </button>
+                    <button 
+                        disabled={saving}
+                        onClick={handleSave}
+                        className="flex items-center gap-1.5 bg-slate-900 text-white px-4 py-1.5 rounded-md text-xs font-semibold hover:bg-slate-800 transition disabled:opacity-50"
+                    >
+                        {saving ? <LoadingSpinner size="sm" /> : <Save size={13} />}
+                        Save Timetable
+                    </button>
+                </div>
+            </div>
+
+            {/* Stage 1: Period Structure Strip (Un-boxed, Flat) */}
+            <section className="space-y-3">
+                <div className="flex items-center justify-between py-1">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Period Structure</h4>
+                        <span className="text-xs font-medium text-slate-700">{timeSpanText}</span>
                     </div>
-                    
-                    <div className="p-6">
-                        {timeSlots.length === 0 ? (
-                            <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-2xl">
-                                <Clock size={32} className="mx-auto text-slate-200 mb-2" />
-                                <p className="text-xs text-slate-400 font-medium mb-3">No time slots defined yet.</p>
-                                <div className="flex justify-center gap-2">
-                                    <button 
-                                        onClick={() => setShowAutoGenerateModal(true)}
-                                        className="inline-flex items-center gap-1.5 bg-blue-50 text-premium-blue px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
-                                    >
-                                        <Sparkles size={13} /> Auto-Generate Schedule
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {timeSlots.map((slot) => (
-                                    <div key={slot._id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 hover:border-slate-200 transition-all group">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <input 
-                                                value={slot.name}
-                                                onChange={(e) => updateTimeSlot(slot._id, { name: e.target.value })}
-                                                className="bg-transparent font-bold text-slate-800 focus:outline-none w-full mr-2"
-                                                placeholder="Slot Name"
-                                            />
-                                            <button 
-                                                onClick={() => removeTimeSlot(slot._id)}
-                                                className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex-1">
-                                                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Start</p>
-                                                <input 
-                                                    type="time" 
-                                                    value={slot.startTime}
-                                                    onChange={(e) => updateTimeSlot(slot._id, { startTime: e.target.value })}
-                                                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold outline-none"
-                                                />
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">End</p>
-                                                <input 
-                                                    type="time" 
-                                                    value={slot.endTime}
-                                                    onChange={(e) => updateTimeSlot(slot._id, { endTime: e.target.value })}
-                                                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold outline-none"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="mt-3 flex items-center gap-2">
-                                            <button 
-                                                onClick={() => updateTimeSlot(slot._id, { isBreak: !slot.isBreak })}
-                                                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter transition-all ${
-                                                    slot.isBreak ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
-                                                }`}
-                                            >
-                                                {slot.isBreak ? 'Break' : 'Academic'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <button 
+                        onClick={() => setIsStage1Expanded(!isStage1Expanded)}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition"
+                    >
+                        {isStage1Expanded ? "Hide Structure" : "Edit Periods"}
+                    </button>
                 </div>
 
-                {/* Step 2: Subject Assignments Grid */}
-                <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-900">2. Weekly Assignments</h3>
-                            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Drag subjects from palette or select below</p>
+                {/* Expanded Stage 1 Editor */}
+                {isStage1Expanded && (
+                    <div className="pt-2 pb-3 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs text-slate-500 font-medium">Configure period names, timings, and recess placement.</p>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => setShowAutoGenerateModal(true)}
+                                    className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition"
+                                >
+                                    Auto-Generate
+                                </button>
+                                <button 
+                                    onClick={openCloneModal}
+                                    className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition"
+                                >
+                                    Clone Batch
+                                </button>
+                                <button 
+                                    onClick={addTimeSlot}
+                                    className="px-2.5 py-1 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded transition"
+                                >
+                                    + Add Period
+                                </button>
+                            </div>
                         </div>
-                        {timeSlots.length > 0 && (
+
+                        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                            {timeSlots.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <Clock size={24} className="mx-auto text-slate-300 mb-2" />
+                                    <p className="text-xs text-slate-400 font-medium mb-3">No periods configured yet.</p>
+                                    <div className="flex justify-center gap-2">
+                                        <button 
+                                            onClick={() => setShowAutoGenerateModal(true)}
+                                            className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-xs font-semibold hover:bg-slate-200 transition"
+                                        >
+                                            Auto-Generate Structure
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <table className="w-full text-left text-xs">
+                                    <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200">
+                                        <tr>
+                                            <th className="py-2 px-3">Period Name</th>
+                                            <th className="py-2 px-3 w-32">Start Time</th>
+                                            <th className="py-2 px-3 w-32">End Time</th>
+                                            <th className="py-2 px-3 w-28 text-center">Type</th>
+                                            <th className="py-2 px-3 w-10 text-center"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {timeSlots.map(slot => (
+                                            <tr key={slot._id} className={`hover:bg-slate-50 ${slot.isBreak ? 'bg-amber-50/40' : ''}`}>
+                                                <td className="py-1.5 px-3">
+                                                    <input 
+                                                        value={slot.name}
+                                                        onChange={(e) => updateTimeSlot(slot._id, { name: e.target.value })}
+                                                        className={`font-semibold bg-transparent outline-none w-full ${slot.isBreak ? 'text-amber-900' : 'text-slate-800'}`}
+                                                        placeholder="Period Name"
+                                                    />
+                                                </td>
+                                                <td className="py-1.5 px-3">
+                                                    <input 
+                                                        type="time" 
+                                                        value={slot.startTime}
+                                                        onChange={(e) => updateTimeSlot(slot._id, { startTime: e.target.value })}
+                                                        className="border border-slate-200 rounded px-1.5 py-0.5 font-medium text-xs bg-white outline-none"
+                                                    />
+                                                </td>
+                                                <td className="py-1.5 px-3">
+                                                    <input 
+                                                        type="time" 
+                                                        value={slot.endTime}
+                                                        onChange={(e) => updateTimeSlot(slot._id, { endTime: e.target.value })}
+                                                        className="border border-slate-200 rounded px-1.5 py-0.5 font-medium text-xs bg-white outline-none"
+                                                    />
+                                                </td>
+                                                <td className="py-1.5 px-3 text-center">
+                                                    <button 
+                                                        onClick={() => updateTimeSlot(slot._id, { isBreak: !slot.isBreak })}
+                                                        className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                                                            slot.isBreak ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+                                                        }`}
+                                                    >
+                                                        {slot.isBreak ? 'Recess' : 'Academic'}
+                                                    </button>
+                                                </td>
+                                                <td className="py-1.5 px-3 text-center">
+                                                    <button 
+                                                        onClick={() => removeTimeSlot(slot._id)}
+                                                        className="text-slate-400 hover:text-red-600 font-semibold text-sm"
+                                                        title="Delete Period"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </section>
+
+            {/* Stage 2: Weekly Schedule Matrix (Self-Contained Table) */}
+            <section className="space-y-2.5 pt-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Weekly Schedule</h4>
+                        <p className="text-xs text-slate-500 mt-0.5 font-medium">Click any cell to assign subject and instructor, or drag from palette.</p>
+                    </div>
+                    {timeSlots.length > 0 && (
+                        <div className="flex items-center gap-2">
                             <button 
                                 onClick={handleCopyMondayToWeekdays}
-                                className="flex items-center gap-1.5 bg-blue-50 text-premium-blue hover:bg-blue-100 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm"
-                                title="Copy Monday's assignments to Tuesday through Friday"
+                                className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition"
+                                title="Replicate Monday schedule across Tuesday through Friday"
                             >
-                                <Sparkles size={13} /> Copy Mon → Tue–Fri
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50/50">
-                                    <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 sticky left-0 bg-white z-10 min-w-[120px]">Time Slot</th>
-                                    {DAYS.map(day => (
-                                        <th key={day.id} className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 min-w-[140px]">
-                                            <div className="flex items-center justify-between gap-1">
-                                                <span>{day.name}</span>
-                                                <div className="flex items-center gap-0.5">
-                                                    {day.id === 1 && (
-                                                        <button 
-                                                            onClick={handleCopyMondayToWeekdays}
-                                                            className="p-1 hover:bg-blue-50 rounded text-blue-500 hover:text-blue-700 transition-colors"
-                                                            title="Copy Monday to Tue–Fri"
-                                                        >
-                                                            <Copy size={12} />
-                                                        </button>
-                                                    )}
-                                                    <button 
-                                                        onClick={() => setEditingOverridesDay(day.id)}
-                                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
-                                                        title="Edit specific timings for this day"
-                                                    >
-                                                        <Settings size={12} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {timeSlots.map(slot => (
-                                    <tr key={slot._id} className="hover:bg-slate-50/30 transition-colors">
-                                        <td className="px-6 py-4 border-r border-slate-50 sticky left-0 bg-white z-10">
-                                            <div className="font-bold text-slate-800 text-xs">{slot.name}</div>
-                                            <div className="text-[9px] text-slate-400 font-mono mt-1">{formatTime12Hour(slot.startTime)} - {formatTime12Hour(slot.endTime)}</div>
-                                        </td>
-                                        {DAYS.map(day => {
-                                            if (slot.isBreak) return (
-                                                <td key={day.id} className="px-6 py-4 bg-orange-50/20">
-                                                    <div className="text-[10px] font-black text-orange-200 uppercase tracking-widest text-center italic">Break</div>
-                                                </td>
-                                            );
-
-                                            const dayData = schedule.find(d => d.dayOfWeek === day.id);
-                                            const assignment = dayData?.assignments.find(a => a.timeSlotId === slot._id) || {};
-                                            const assignedSub = subjects.find(s => String(s._id) === String(assignment.subject?._id || assignment.subject));
-
-                                            return (
-                                                <td 
-                                                    key={day.id} 
-                                                    className={`px-4 py-4 space-y-3 transition-all ${draggedSubject ? 'bg-blue-50/30 ring-1 ring-blue-100/50 rounded-lg' : ''}`}
-                                                    onDragOver={(e) => e.preventDefault()}
-                                                    onDrop={(e) => {
-                                                        e.preventDefault();
-                                                        if (draggedSubject) updateAssignment(day.id, slot._id, 'subject', draggedSubject._id);
-                                                    }}
-                                                >
-                                                    <div className="relative group/cell">
-                                                        <select 
-                                                            value={assignment.subject?._id || assignment.subject || ""}
-                                                            onChange={(e) => updateAssignment(day.id, slot._id, 'subject', e.target.value)}
-                                                            className={`w-full bg-white border rounded-lg px-2 py-1.5 text-[11px] font-bold outline-none transition-all ${assignedSub ? 'border-premium-blue text-slate-800 shadow-sm' : 'border-slate-100 text-slate-400'}`}
-                                                        >
-                                                            <option value="">No Subject</option>
-                                                            {subjects.map(sub => (
-                                                                <option key={sub._id} value={sub._id}>{sub.name}</option>
-                                                            ))}
-                                                        </select>
-                                                        {assignedSub && (
-                                                            <p className="text-[8px] font-black text-premium-blue mt-1 uppercase tracking-widest pl-1">{assignedSub.code}</p>
-                                                        )}
-                                                    </div>
-                                                    
-                                                    <select 
-                                                        value={assignment.instructor?._id || assignment.instructor || ""}
-                                                        onChange={(e) => updateAssignment(day.id, slot._id, 'instructor', e.target.value)}
-                                                        className="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[10px] font-medium text-slate-500 outline-none"
-                                                    >
-                                                        <option value="">Teacher</option>
-                                                        {instructors.map(inst => (
-                                                            <option key={inst._id} value={inst._id}>{inst.profile?.firstName} {inst.profile?.lastName}</option>
-                                                        ))}
-                                                    </select>
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    {timeSlots.length > 0 && (
-                        <div className="p-6 bg-slate-50/30 border-t border-slate-50 flex justify-end">
-                            <button 
-                                disabled={saving}
-                                onClick={handleSave}
-                                className="flex items-center gap-2 bg-slate-900 text-white px-8 py-3 rounded-2xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg disabled:opacity-50"
-                            >
-                                {saving ? <LoadingSpinner size="sm" /> : <Save size={16} />}
-                                Save Timetable
+                                Copy Mon → Tue–Fri
                             </button>
                         </div>
                     )}
                 </div>
 
-                {/* Auto-Generate Periods Modal */}
-                {showAutoGenerateModal && typeof document !== 'undefined' && createPortal(
-                    <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4">
-                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 transform scale-100 transition-all">
-                            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                                        <Sparkles size={14} />
-                                    </div>
-                                    <h3 className="text-sm font-bold text-slate-900">Auto-Generate Schedule</h3>
-                                </div>
-                                <button onClick={() => setShowAutoGenerateModal(false)} className="p-1.5 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
-                                    <X size={14} />
-                                </button>
-                            </div>
-                            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-                                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                                    Quickly create a standard sequential period and recess structure. This will replace your current time slots.
-                                </p>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase text-slate-500 mb-1 block">Start Time</label>
-                                        <input 
-                                            type="time" 
-                                            value={genStartTime}
-                                            onChange={(e) => setGenStartTime(e.target.value)}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-premium-blue"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase text-slate-500 mb-1 block">Period Duration (min)</label>
-                                        <input 
-                                            type="number" 
-                                            min="15" 
-                                            max="120"
-                                            value={genDuration}
-                                            onChange={(e) => setGenDuration(e.target.value)}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-premium-blue"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="text-[10px] font-black uppercase text-slate-500 mb-1 block">Total Academic Periods</label>
-                                    <input 
-                                        type="number" 
-                                        min="1" 
-                                        max="12"
-                                        value={genNumPeriods}
-                                        onChange={(e) => setGenNumPeriods(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-premium-blue"
-                                    />
-                                </div>
-
-                                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-xs font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={genHasBreak}
-                                                onChange={(e) => setGenHasBreak(e.target.checked)}
-                                                className="rounded text-premium-blue focus:ring-premium-blue"
-                                            />
-                                            Include Recess / Break
-                                        </label>
-                                    </div>
-
-                                    {genHasBreak && (
-                                        <div className="space-y-3 pt-2 border-t border-slate-200/60">
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">After Period</label>
-                                                    <input 
-                                                        type="number" 
-                                                        min="1" 
-                                                        max={Math.max(1, genNumPeriods - 1)}
-                                                        value={genBreakAfter}
-                                                        onChange={(e) => setGenBreakAfter(e.target.value)}
-                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Break Duration (min)</label>
-                                                    <input 
-                                                        type="number" 
-                                                        min="5" 
-                                                        max="90"
-                                                        value={genBreakDuration}
-                                                        onChange={(e) => setGenBreakDuration(e.target.value)}
-                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Break Label</label>
-                                                <input 
-                                                    type="text" 
-                                                    value={genBreakName}
-                                                    onChange={(e) => setGenBreakName(e.target.value)}
-                                                    placeholder="Recess / Break"
-                                                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none"
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="p-3.5 px-5 border-t border-slate-100 bg-slate-50/80 flex justify-end gap-2">
-                                <button 
-                                    onClick={() => setShowAutoGenerateModal(false)}
-                                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    onClick={handleGenerateSchedule}
-                                    className="bg-slate-900 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 shadow-sm transition-colors flex items-center gap-1.5"
-                                >
-                                    <Sparkles size={13} /> Generate
-                                </button>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
-                )}
-
-                {/* Clone from Existing Batch Modal */}
-                {showCloneModal && typeof document !== 'undefined' && createPortal(
-                    <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4">
-                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 transform scale-100 transition-all">
-                            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                                        <Copy size={14} />
-                                    </div>
-                                    <h3 className="text-sm font-bold text-slate-900">Clone from Existing Batch</h3>
-                                </div>
-                                <button onClick={() => setShowCloneModal(false)} className="p-1.5 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
-                                    <X size={14} />
-                                </button>
-                            </div>
-                            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-                                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                                    Import the period timings and break layout from another batch in your institute.
-                                </p>
-
-                                {loadingBatches ? (
-                                    <div className="py-8 flex justify-center">
-                                        <LoadingSpinner size="sm" />
-                                    </div>
-                                ) : instituteBatches.length === 0 ? (
-                                    <div className="py-6 text-center text-xs text-slate-400 font-medium">
-                                        No other batches found in this institute.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase text-slate-500 mb-1 block">Source Batch</label>
-                                            <select 
-                                                value={selectedCloneBatchId}
-                                                onChange={(e) => setSelectedCloneBatchId(e.target.value)}
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-premium-blue"
-                                            >
-                                                {instituteBatches.map(b => (
-                                                    <option key={b._id} value={b._id}>
-                                                        {b.name} ({b.course?.name || "Batch"})
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-                                            <label className="text-xs font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={cloneWithAssignments}
-                                                    onChange={(e) => setCloneWithAssignments(e.target.checked)}
-                                                    className="rounded text-premium-blue focus:ring-premium-blue"
-                                                />
-                                                Also copy weekly subject & teacher assignments
-                                            </label>
-                                            <p className="text-[10px] text-slate-400 mt-1 pl-5">
-                                                Leave unchecked to only copy the period & break time structure.
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="p-3.5 px-5 border-t border-slate-100 bg-slate-50/80 flex justify-end gap-2">
-                                <button 
-                                    onClick={() => setShowCloneModal(false)}
-                                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    disabled={cloning || instituteBatches.length === 0}
-                                    onClick={handleCloneTimetable}
-                                    className="bg-slate-900 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                                >
-                                    {cloning ? <LoadingSpinner size="sm" /> : <Copy size={13} />} Clone Structure
-                                </button>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
-                )}
-
-                {/* Editing Overrides Modal */}
-                {editingOverridesDay !== null && typeof document !== 'undefined' && createPortal(
-                    <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4">
-                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 transform scale-100 transition-all">
-                            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
-                                <h3 className="text-sm font-bold text-slate-900">
-                                    Edit Timings for {DAYS.find(d => d.id === editingOverridesDay)?.name}
-                                </h3>
-                                <button onClick={() => setEditingOverridesDay(null)} className="p-1.5 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
-                                    <X size={14} />
-                                </button>
-                            </div>
-                            <div className="p-5 space-y-2.5 max-h-[60vh] overflow-y-auto">
-                                <p className="text-[11px] text-slate-500 mb-3 font-medium leading-relaxed">
-                                    Override default start and end times for specific periods. Leave blank to use default.
-                                </p>
-                                {timeSlots.map(slot => {
-                                    if (slot.isBreak) return null;
-                                    const dayData = schedule.find(d => d.dayOfWeek === editingOverridesDay);
-                                    const assignment = dayData?.assignments.find(a => String(a.timeSlotId) === String(slot._id) || String(a.timeSlotId?._id) === String(slot._id)) || {};
-                                    const hasOverride = assignment.startTimeOverride || assignment.endTimeOverride;
-                                    
-                                    return (
-                                        <div key={slot._id} className={`flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 px-3 rounded-xl border transition-colors ${hasOverride ? 'bg-blue-50/30 border-blue-100' : 'bg-slate-50 border-slate-100'}`}>
-                                            <div className="w-24 shrink-0">
-                                                <p className="text-[11px] font-bold text-slate-800">{slot.name}</p>
-                                                <p className="text-[9px] text-slate-400 font-medium">Default: {formatTime12Hour(slot.startTime)} - {formatTime12Hour(slot.endTime)}</p>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 flex-1">
-                                                {!hasOverride ? (
+                <div className="flex flex-col xl:flex-row gap-5 items-start">
+                    {/* The Grid Table */}
+                    <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg overflow-hidden w-full">
+                        <div className="overflow-x-auto max-h-[560px]">
+                            <table className="w-full border-collapse text-left text-xs">
+                                <thead className="bg-slate-50 text-[10px] uppercase font-bold text-slate-500 sticky top-0 z-20 border-b border-slate-200">
+                                    <tr>
+                                        <th className="py-2.5 px-3.5 w-32 sticky left-0 bg-slate-50 z-30 border-r border-slate-200">Time Slot</th>
+                                        {DAYS.map(day => (
+                                            <th key={day.id} className="py-2.5 px-2.5 min-w-[130px] border-r border-slate-100 last:border-r-0">
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <span>{day.name}</span>
                                                     <button 
-                                                        onClick={() => {
-                                                            updateAssignmentOverride(editingOverridesDay, slot._id, 'startTimeOverride', slot.startTime);
-                                                            updateAssignmentOverride(editingOverridesDay, slot._id, 'endTimeOverride', slot.endTime);
-                                                        }}
-                                                        className="w-full flex justify-center items-center gap-1.5 bg-white text-slate-400 border border-slate-200 border-dashed rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                                                        onClick={() => setEditingOverridesDay(day.id)}
+                                                        className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-slate-600 transition"
+                                                        title="Edit timings for this day"
                                                     >
-                                                        <Plus size={10} /> Add Override
+                                                        <Settings size={11} />
                                                     </button>
-                                                ) : (
-                                                    <>
-                                                        <input 
-                                                            type="time" 
-                                                            value={assignment.startTimeOverride || ""}
-                                                            onChange={(e) => updateAssignmentOverride(editingOverridesDay, slot._id, 'startTimeOverride', e.target.value)}
-                                                            className="w-full bg-white border border-blue-200 rounded-lg px-2 py-1.5 text-[11px] font-medium outline-none focus:border-premium-blue text-blue-900 transition-colors"
-                                                        />
-                                                        <span className="text-slate-400 text-xs">-</span>
-                                                        <input 
-                                                            type="time" 
-                                                            value={assignment.endTimeOverride || ""}
-                                                            onChange={(e) => updateAssignmentOverride(editingOverridesDay, slot._id, 'endTimeOverride', e.target.value)}
-                                                            className="w-full bg-white border border-blue-200 rounded-lg px-2 py-1.5 text-[11px] font-medium outline-none focus:border-premium-blue text-blue-900 transition-colors"
-                                                        />
-                                                        <button 
-                                                            onClick={() => {
-                                                                updateAssignmentOverride(editingOverridesDay, slot._id, 'startTimeOverride', null);
-                                                                updateAssignmentOverride(editingOverridesDay, slot._id, 'endTimeOverride', null);
-                                                            }}
-                                                            className="p-1.5 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-md transition-colors shrink-0"
-                                                            title="Remove Override"
-                                                        >
-                                                            <Trash2 size={12} />
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className="p-3 px-5 border-t border-slate-100 bg-slate-50/80 flex justify-end">
-                                <button 
-                                    onClick={() => setEditingOverridesDay(null)}
-                                    className="bg-slate-900 text-white px-6 py-2 rounded-lg text-[11px] font-bold hover:bg-slate-800 shadow-sm transition-colors"
-                                >
-                                    Done
-                                </button>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
-                )}
-            </div>
+                                                </div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {timeSlots.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
+                                                Define time slots above to view the schedule matrix.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        timeSlots.map(slot => {
+                                            if (slot.isBreak) {
+                                                return (
+                                                    <tr key={slot._id} className="bg-amber-50/40">
+                                                        <td className="py-2 px-3.5 sticky left-0 bg-amber-50/90 z-10 border-r border-slate-200">
+                                                            <div className="font-semibold text-amber-900 text-xs">{slot.name}</div>
+                                                            <div className="text-[9px] text-amber-700/70 font-mono">{formatTime12Hour(slot.startTime)} – {formatTime12Hour(slot.endTime)}</div>
+                                                        </td>
+                                                        <td colSpan={7} className="py-1.5 px-3 text-center">
+                                                            <span className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">
+                                                                {slot.name}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            }
 
-            {/* Right Column: Subject Palette Sidebar */}
-            <div className="w-full lg:w-72 shrink-0">
-                <div className="sticky top-6 space-y-6">
-                    <div className="bg-slate-900 rounded-3xl p-6 shadow-xl shadow-slate-200">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-2xl bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                                <BookOpen size={20} />
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-bold text-white">Subject Palette</h4>
-                                <p className="text-[10px] font-black uppercase text-blue-400 tracking-widest">Drag & Drop</p>
-                            </div>
-                        </div>
+                                            return (
+                                                <tr key={slot._id} className="hover:bg-slate-50/50">
+                                                    <td className="py-2.5 px-3.5 sticky left-0 bg-white z-10 border-r border-slate-200">
+                                                        <div className="font-bold text-slate-800 text-xs">{slot.name}</div>
+                                                        <div className="text-[10px] text-slate-400 font-mono">{formatTime12Hour(slot.startTime)} – {formatTime12Hour(slot.endTime)}</div>
+                                                    </td>
+                                                    {DAYS.map(day => {
+                                                        const dayData = schedule.find(d => d.dayOfWeek === day.id);
+                                                        const assignment = dayData?.assignments.find(a => String(a.timeSlotId?._id || a.timeSlotId) === String(slot._id)) || {};
+                                                        const assignedSub = subjects.find(s => String(s._id) === String(assignment.subject?._id || assignment.subject));
+                                                        const assignedInst = instructors.find(i => String(i._id) === String(assignment.instructor?._id || assignment.instructor));
 
-                        <div className="space-y-3">
-                            {subjects.length === 0 && <p className="text-[10px] text-slate-500 font-bold italic">No subjects in course syllabus.</p>}
+                                                        return (
+                                                            <td 
+                                                                key={day.id} 
+                                                                className={`p-1.5 border-r border-slate-100 last:border-r-0 transition-colors ${draggedSubject ? 'bg-blue-50/30' : ''}`}
+                                                                onDragOver={(e) => e.preventDefault()}
+                                                                onDrop={(e) => {
+                                                                    e.preventDefault();
+                                                                    if (draggedSubject) updateAssignment(day.id, slot._id, 'subject', draggedSubject._id);
+                                                                }}
+                                                            >
+                                                                {assignedSub ? (
+                                                                    <div 
+                                                                        onClick={() => setEditingCell({
+                                                                            dayId: day.id,
+                                                                            dayName: day.name,
+                                                                            slotId: slot._id,
+                                                                            slotName: slot.name,
+                                                                            subject: assignedSub._id,
+                                                                            instructor: assignedInst?._id || ""
+                                                                        })}
+                                                                        className="p-2 rounded bg-slate-50 hover:bg-slate-100 border border-slate-200/70 cursor-pointer transition relative group"
+                                                                    >
+                                                                        <div className="flex items-center justify-between gap-1">
+                                                                            <span className="text-xs font-bold text-slate-900 truncate">{assignedSub.name}</span>
+                                                                            {assignedSub.code && (
+                                                                                <span className="text-[9px] font-semibold text-slate-600 bg-slate-200/70 px-1 rounded shrink-0">
+                                                                                    {assignedSub.code}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                                                                            <span>
+                                                                                {assignedInst ? `${assignedInst.profile?.firstName || ''} ${assignedInst.profile?.lastName || ''}`.trim() || assignedInst.name : "Unassigned"}
+                                                                            </span>
+                                                                            <button 
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    clearAssignment(day.id, slot._id);
+                                                                                }}
+                                                                                className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 font-bold ml-1"
+                                                                                title="Clear assignment"
+                                                                            >
+                                                                                ×
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div 
+                                                                        onClick={() => setEditingCell({
+                                                                            dayId: day.id,
+                                                                            dayName: day.name,
+                                                                            slotId: slot._id,
+                                                                            slotName: slot.name,
+                                                                            subject: "",
+                                                                            instructor: ""
+                                                                        })}
+                                                                        className="h-11 rounded border border-dashed border-slate-200 hover:border-slate-400 hover:bg-slate-50 flex items-center justify-center text-slate-300 hover:text-slate-600 cursor-pointer transition text-xs font-medium"
+                                                                        title="Assign subject & teacher"
+                                                                    >
+                                                                        +
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Compact Subject Palette Sidebar */}
+                    <div className="w-full xl:w-56 shrink-0 bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2.5">
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                            <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Subject Palette</h5>
+                            <span className="text-[10px] text-slate-400">{subjects.length} subjects</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium leading-tight">Drag onto any slot to assign subject quickly.</p>
+
+                        <div className="space-y-1.5 max-h-[360px] overflow-y-auto pr-1">
+                            {subjects.length === 0 && (
+                                <p className="text-[11px] text-slate-400 italic">No syllabus subjects found.</p>
+                            )}
                             {subjects.map(sub => (
                                 <div 
                                     key={sub._id}
                                     draggable
                                     onDragStart={() => setDraggedSubject(sub)}
                                     onDragEnd={() => setDraggedSubject(null)}
-                                    className="p-3 bg-white/5 border border-white/10 rounded-2xl cursor-grab hover:bg-white/10 active:cursor-grabbing transition-all group"
+                                    className="p-2 bg-white border border-slate-200 rounded cursor-grab hover:border-slate-300 active:cursor-grabbing transition text-xs"
                                 >
-                                    <div className="flex items-center justify-between mb-1">
-                                        <Badge className="text-[8px] bg-blue-500/20 text-blue-400 border-none px-1.5">{sub.code}</Badge>
-                                        <Edit2 size={10} className="text-white/20 group-hover:text-white/40" />
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-semibold text-slate-800 truncate">{sub.name}</span>
+                                        {sub.code && <span className="text-[9px] font-mono text-slate-400 ml-1">{sub.code}</span>}
                                     </div>
-                                    <p className="text-xs font-bold text-slate-200 truncate">{sub.name}</p>
                                 </div>
                             ))}
                         </div>
-                        
-                        <div className="mt-8 pt-6 border-t border-white/10">
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-relaxed">
-                                <AlertTriangle size={10} className="inline mr-1 text-orange-400 mb-0.5" />
-                                Drag a subject from here and drop it into any slot in the grid to quickly assign it!
-                            </p>
+                    </div>
+                </div>
+            </section>
+
+            {/* Quick Cell Assignment Modal */}
+            {editingCell && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden border border-slate-200">
+                        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                            <div>
+                                <h4 className="text-xs font-bold text-slate-900">Assign Class</h4>
+                                <p className="text-[10px] text-slate-500">{editingCell.dayName} · {editingCell.slotName}</p>
+                            </div>
+                            <button onClick={() => setEditingCell(null)} className="text-slate-400 hover:text-slate-600 font-semibold">
+                                <X size={14} />
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            <div>
+                                <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Subject</label>
+                                <select 
+                                    value={editingCell.subject}
+                                    onChange={(e) => setEditingCell({ ...editingCell, subject: e.target.value })}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:border-slate-400"
+                                >
+                                    <option value="">Select Subject...</option>
+                                    {subjects.map(s => (
+                                        <option key={s._id} value={s._id}>{s.name} {s.code ? `(${s.code})` : ''}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Instructor</label>
+                                <select 
+                                    value={editingCell.instructor}
+                                    onChange={(e) => setEditingCell({ ...editingCell, instructor: e.target.value })}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:border-slate-400"
+                                >
+                                    <option value="">Select Instructor...</option>
+                                    {instructors.map(inst => (
+                                        <option key={inst._id} value={inst._id}>
+                                            {inst.profile?.firstName} {inst.profile?.lastName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="p-3 px-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+                            {editingCell.subject ? (
+                                <button 
+                                    onClick={() => {
+                                        clearAssignment(editingCell.dayId, editingCell.slotId);
+                                        setEditingCell(null);
+                                    }}
+                                    className="text-xs text-red-600 hover:underline font-semibold"
+                                >
+                                    Clear Cell
+                                </button>
+                            ) : <div />}
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => setEditingCell(null)}
+                                    className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        updateAssignment(editingCell.dayId, editingCell.slotId, 'subject', editingCell.subject);
+                                        updateAssignment(editingCell.dayId, editingCell.slotId, 'instructor', editingCell.instructor);
+                                        setEditingCell(null);
+                                    }}
+                                    className="px-3.5 py-1.5 bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 rounded"
+                                >
+                                    Done
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    
-                    {/* Live Preview Toggle Button (Mobile/Compact) */}
-                    <button 
-                        onClick={() => setShowPreview(!showPreview)}
-                        className="w-full bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between hover:bg-slate-50 transition-all shadow-sm"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
-                                <Clock size={16} />
-                            </div>
-                            <span className="text-xs font-bold text-slate-800">Toggle Student Preview</span>
+                </div>,
+                document.body
+            )}
+
+            {/* Auto-Generate Periods Modal */}
+            {showAutoGenerateModal && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden border border-slate-200">
+                        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                            <h4 className="text-xs font-bold text-slate-900">Auto-Generate Structure</h4>
+                            <button onClick={() => setShowAutoGenerateModal(false)} className="text-slate-400 hover:text-slate-600 font-semibold">
+                                <X size={14} />
+                            </button>
                         </div>
-                        <ChevronRight size={16} className={`text-slate-300 transition-transform ${showPreview ? 'rotate-90' : ''}`} />
-                    </button>
-                </div>
-            </div>
-            </div>
+                        <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
+                            <p className="text-[11px] text-slate-500 font-medium">
+                                Creates sequential period timings. Replaces current period list.
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-2.5">
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Start Time</label>
+                                    <input 
+                                        type="time" 
+                                        value={genStartTime}
+                                        onChange={(e) => setGenStartTime(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-xs font-semibold outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Duration (min)</label>
+                                    <input 
+                                        type="number" 
+                                        min="15" 
+                                        max="120"
+                                        value={genDuration}
+                                        onChange={(e) => setGenDuration(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-xs font-semibold outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Total Academic Periods</label>
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    max="12"
+                                    value={genNumPeriods}
+                                    onChange={(e) => setGenNumPeriods(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-xs font-semibold outline-none"
+                                />
+                            </div>
+
+                            <div className="p-2.5 bg-slate-50 rounded border border-slate-200/70 space-y-2.5">
+                                <label className="text-xs font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={genHasBreak}
+                                        onChange={(e) => setGenHasBreak(e.target.checked)}
+                                        className="rounded text-slate-900"
+                                    />
+                                    Include Recess / Break
+                                </label>
+
+                                {genHasBreak && (
+                                    <div className="space-y-2 pt-1 border-t border-slate-200">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="text-[9px] font-bold uppercase text-slate-400 mb-1 block">After Period</label>
+                                                <input 
+                                                    type="number" 
+                                                    min="1" 
+                                                    max={Math.max(1, genNumPeriods - 1)}
+                                                    value={genBreakAfter}
+                                                    onChange={(e) => setGenBreakAfter(e.target.value)}
+                                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs font-semibold outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-bold uppercase text-slate-400 mb-1 block">Break (min)</label>
+                                                <input 
+                                                    type="number" 
+                                                    min="5" 
+                                                    max="90"
+                                                    value={genBreakDuration}
+                                                    onChange={(e) => setGenBreakDuration(e.target.value)}
+                                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs font-semibold outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] font-bold uppercase text-slate-400 mb-1 block">Break Name</label>
+                                            <input 
+                                                type="text" 
+                                                value={genBreakName}
+                                                onChange={(e) => setGenBreakName(e.target.value)}
+                                                placeholder="Recess / Break"
+                                                className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs font-semibold outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="p-3 px-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+                            <button 
+                                onClick={() => setShowAutoGenerateModal(false)}
+                                className="px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleGenerateSchedule}
+                                className="bg-slate-900 text-white px-3.5 py-1 rounded text-xs font-semibold hover:bg-slate-800"
+                            >
+                                Generate
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Clone from Existing Batch Modal */}
+            {showCloneModal && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden border border-slate-200">
+                        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                            <h4 className="text-xs font-bold text-slate-900">Clone Structure from Batch</h4>
+                            <button onClick={() => setShowCloneModal(false)} className="text-slate-400 hover:text-slate-600 font-semibold">
+                                <X size={14} />
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            <p className="text-[11px] text-slate-500 font-medium">
+                                Copy period timing layout from another batch in this institute.
+                            </p>
+
+                            {loadingBatches ? (
+                                <div className="py-6 flex justify-center">
+                                    <LoadingSpinner size="sm" />
+                                </div>
+                            ) : instituteBatches.length === 0 ? (
+                                <div className="py-4 text-center text-xs text-slate-400 font-medium">
+                                    No other batches found.
+                                </div>
+                            ) : (
+                                <div className="space-y-2.5">
+                                    <div>
+                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Source Batch</label>
+                                        <select 
+                                            value={selectedCloneBatchId}
+                                            onChange={(e) => setSelectedCloneBatchId(e.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-xs font-semibold outline-none"
+                                        >
+                                            {instituteBatches.map(b => (
+                                                <option key={b._id} value={b._id}>
+                                                    {b.name} ({b.course?.name || "Batch"})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="p-2.5 bg-slate-50 rounded border border-slate-200/70">
+                                        <label className="text-xs font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={cloneWithAssignments}
+                                                onChange={(e) => setCloneWithAssignments(e.target.checked)}
+                                                className="rounded text-slate-900"
+                                            />
+                                            Also copy weekly assignments
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-3 px-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+                            <button 
+                                onClick={() => setShowCloneModal(false)}
+                                className="px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                disabled={cloning || instituteBatches.length === 0}
+                                onClick={handleCloneTimetable}
+                                className="bg-slate-900 text-white px-3.5 py-1 rounded text-xs font-semibold hover:bg-slate-800 disabled:opacity-50"
+                            >
+                                {cloning ? <LoadingSpinner size="sm" /> : "Clone Structure"}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Editing Overrides Modal */}
+            {editingOverridesDay !== null && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden border border-slate-200">
+                        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                            <h4 className="text-xs font-bold text-slate-900">
+                                Specific Timings for {DAYS.find(d => d.id === editingOverridesDay)?.name}
+                            </h4>
+                            <button onClick={() => setEditingOverridesDay(null)} className="text-slate-400 hover:text-slate-600 font-semibold">
+                                <X size={14} />
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-2.5 max-h-[60vh] overflow-y-auto">
+                            <p className="text-[11px] text-slate-500 font-medium">
+                                Override default start and end times for specific periods on this day.
+                            </p>
+                            {timeSlots.map(slot => {
+                                if (slot.isBreak) return null;
+                                const dayData = schedule.find(d => d.dayOfWeek === editingOverridesDay);
+                                const assignment = dayData?.assignments.find(a => String(a.timeSlotId) === String(slot._id) || String(a.timeSlotId?._id) === String(slot._id)) || {};
+                                const hasOverride = assignment.startTimeOverride || assignment.endTimeOverride;
+                                
+                                return (
+                                    <div key={slot._id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded bg-slate-50 border border-slate-200/70">
+                                        <div className="w-24 shrink-0">
+                                            <p className="text-[11px] font-bold text-slate-800">{slot.name}</p>
+                                            <p className="text-[9px] text-slate-400 font-medium">{formatTime12Hour(slot.startTime)} - {formatTime12Hour(slot.endTime)}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 flex-1">
+                                            {!hasOverride ? (
+                                                <button 
+                                                    onClick={() => {
+                                                        updateAssignmentOverride(editingOverridesDay, slot._id, 'startTimeOverride', slot.startTime);
+                                                        updateAssignmentOverride(editingOverridesDay, slot._id, 'endTimeOverride', slot.endTime);
+                                                    }}
+                                                    className="w-full bg-white text-slate-600 border border-slate-200 border-dashed rounded px-2 py-1 text-[10px] font-semibold hover:bg-slate-100 transition"
+                                                >
+                                                    + Add Override
+                                                </button>
+                                            ) : (
+                                                <>
+                                                    <input 
+                                                        type="time" 
+                                                        value={assignment.startTimeOverride || ""}
+                                                        onChange={(e) => updateAssignmentOverride(editingOverridesDay, slot._id, 'startTimeOverride', e.target.value)}
+                                                        className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-[11px] font-medium outline-none"
+                                                    />
+                                                    <span className="text-slate-400 text-xs">-</span>
+                                                    <input 
+                                                        type="time" 
+                                                        value={assignment.endTimeOverride || ""}
+                                                        onChange={(e) => updateAssignmentOverride(editingOverridesDay, slot._id, 'endTimeOverride', e.target.value)}
+                                                        className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-[11px] font-medium outline-none"
+                                                    />
+                                                    <button 
+                                                        onClick={() => {
+                                                            updateAssignmentOverride(editingOverridesDay, slot._id, 'startTimeOverride', null);
+                                                            updateAssignmentOverride(editingOverridesDay, slot._id, 'endTimeOverride', null);
+                                                        }}
+                                                        className="p-1 text-slate-400 hover:text-red-600 rounded shrink-0 font-bold"
+                                                        title="Remove Override"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="p-3 px-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                            <button 
+                                onClick={() => setEditingOverridesDay(null)}
+                                className="bg-slate-900 text-white px-4 py-1 rounded text-xs font-semibold hover:bg-slate-800 transition"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* Step 3: Live Preview */}
             <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
