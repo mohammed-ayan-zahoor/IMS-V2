@@ -112,80 +112,81 @@ export default function StudentsPage() {
         pages: 1
     });
 
-    // Form State
-    const [formData, setFormData] = useState({
-        email: "",
-        password: "",
-        institute: "", // Add institute
-        profile: {
-            firstName: "",
-            lastName: "",
-            phone: "",
-            avatar: "",
-            gender: "",
-            dateOfBirth: "",
-            bloodGroup: "",
-            address: {
-                street: "",
-                city: "",
-                state: "",
-                pincode: ""
-            }
-        },
-        // Identity & Family Metadata
-        grNumber: "",
-        aadharNumber: "",
-        studentIdUdise: "",
-        apaarId: "",
-        penNumber: "",
-        fatherName: "",
-        fatherPhone: "",
-        fatherAadhar: "",
-        motherName: "",
-        motherPhone: "",
-        motherAadhar: "",
-        // Academic History
-        lastSchoolAttended: "",
-        admissionDate: format(new Date(), "yyyy-MM-dd"),
-        admissionStd: "",
-        admissionBatch: "",
-        sessionId: selectedSessionId || "", 
-        // Demographic fields
-        nationality: "Indian",
-        motherTongue: "",
-        religion: "",
-        caste: "",
-        subCaste: "",
-        referredBy: "",
-        
-        // Birth details
-        placeOfBirth: {
+const getInitialFormData = (selectedSessionId = "") => ({
+    email: "",
+    password: "",
+    institute: "",
+    profile: {
+        firstName: "",
+        lastName: "",
+        phone: "",
+        avatar: "",
+        gender: "",
+        dateOfBirth: "",
+        bloodGroup: "",
+        address: {
+            street: "",
             city: "",
-            taluka: "",
-            district: "",
             state: "",
-            country: "India"
-        },
-        transport: {
-            isAvailing: false,
-            route: "",
-            vehicle: "",
-            pickupStop: "",
-            preset: "",
-            maxCycles: ""
-        },
-        rte: {
-            isRte: false,
-            rteDocumentUrl: "",
-            rteDetails: ""
-        },
-        scholarship: {
-            hasScholarship: false,
-            scholarshipName: "",
-            scholarshipAmount: 0,
-            scholarshipType: "flat"
+            pincode: ""
         }
-    });
+    },
+    // Identity & Family Metadata
+    grNumber: "",
+    aadharNumber: "",
+    studentIdUdise: "",
+    apaarId: "",
+    penNumber: "",
+    fatherName: "",
+    fatherPhone: "",
+    fatherAadhar: "",
+    motherName: "",
+    motherPhone: "",
+    motherAadhar: "",
+    // Academic History
+    lastSchoolAttended: "",
+    admissionDate: format(new Date(), "yyyy-MM-dd"),
+    admissionStd: "",
+    admissionBatch: "",
+    sessionId: selectedSessionId || "",
+    // Demographic fields
+    nationality: "Indian",
+    motherTongue: "",
+    religion: "",
+    caste: "",
+    subCaste: "",
+    referredBy: "",
+    
+    // Birth details
+    placeOfBirth: {
+        city: "",
+        taluka: "",
+        district: "",
+        state: "",
+        country: "India"
+    },
+    transport: {
+        isAvailing: false,
+        route: "",
+        vehicle: "",
+        pickupStop: "",
+        preset: "",
+        maxCycles: ""
+    },
+    rte: {
+        isRte: false,
+        rteDocumentUrl: "",
+        rteDetails: ""
+    },
+    scholarship: {
+        hasScholarship: false,
+        scholarshipName: "",
+        scholarshipAmount: 0,
+        scholarshipType: "flat"
+    }
+});
+
+    const [formData, setFormData] = useState(() => getInitialFormData(selectedSessionId));
 
     const isFirstRender = useRef(true);
     const abortControllerRef = useRef(null);
@@ -497,56 +498,7 @@ export default function StudentsPage() {
                 }
 
                 setIsAddModalOpen(false);
-                setFormData({
-                    email: "",
-                    password: "",
-                    institute: "",
-                    profile: { 
-                        firstName: "", 
-                        lastName: "", 
-                        phone: "", 
-                        avatar: "",
-                        gender: "",
-                        dateOfBirth: "",
-                        bloodGroup: "",
-                        address: { street: "", city: "", state: "", pincode: "" }
-                    },
-                    grNumber: "",
-                    aadharNumber: "",
-                    studentIdUdise: "",
-                    apaarId: "",
-                    penNumber: "",
-                    fatherName: "",
-                    fatherPhone: "",
-                    fatherAadhar: "",
-                    motherName: "",
-                    motherPhone: "",
-                    motherAadhar: "",
-                    lastSchoolAttended: "",
-                    admissionDate: format(new Date(), "yyyy-MM-dd"),
-                    admissionStd: "",
-                    admissionBatch: "",
-                    sessionId: selectedSessionId || "", // Preserve selected session
-                    motherTongue: "",
-                    religion: "",
-                    caste: "",
-                    subCaste: "",
-                    referredBy: "",
-                    placeOfBirth: {
-                        city: "",
-                        taluka: "",
-                        district: "",
-                        state: "",
-                        country: "India"
-                    },
-                    transport: {
-                        isAvailing: false,
-                        route: "",
-                        vehicle: "",
-                        pickupStop: "",
-                        preset: ""
-                    }
-                });
+                setFormData(getInitialFormData(selectedSessionId));
                 fetchStudents();
                 toast.success("Student registered successfully");
             } else {
@@ -1949,16 +1901,16 @@ export default function StudentsPage() {
                                             type="button"
                                             onClick={() => setFormData({
                                                 ...formData,
-                                                rte: { ...formData.rte, isRte: !formData.rte.isRte }
+                                                rte: { ...formData.rte, isRte: !formData.rte?.isRte }
                                             })}
                                             className={cn(
                                                 "relative w-10 h-5 rounded-full transition-colors duration-200 shrink-0",
-                                                formData.rte.isRte ? "bg-emerald-500" : "bg-slate-200"
+                                                formData.rte?.isRte ? "bg-emerald-500" : "bg-slate-200"
                                             )}
                                         >
                                             <span className={cn(
                                                 "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200",
-                                                formData.rte.isRte ? "translate-x-5" : "translate-x-0"
+                                                formData.rte?.isRte ? "translate-x-5" : "translate-x-0"
                                             )} />
                                         </button>
                                     </div>
@@ -1972,27 +1924,27 @@ export default function StudentsPage() {
                                             type="button"
                                             onClick={() => setFormData({
                                                 ...formData,
-                                                scholarship: { ...formData.scholarship, hasScholarship: !formData.scholarship.hasScholarship }
+                                                scholarship: { ...formData.scholarship, hasScholarship: !formData.scholarship?.hasScholarship }
                                             })}
                                             className={cn(
                                                 "relative w-10 h-5 rounded-full transition-colors duration-200 shrink-0",
-                                                formData.scholarship.hasScholarship ? "bg-emerald-500" : "bg-slate-200"
+                                                formData.scholarship?.hasScholarship ? "bg-emerald-500" : "bg-slate-200"
                                             )}
                                         >
                                             <span className={cn(
                                                 "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200",
-                                                formData.scholarship.hasScholarship ? "translate-x-5" : "translate-x-0"
+                                                formData.scholarship?.hasScholarship ? "translate-x-5" : "translate-x-0"
                                             )} />
                                         </button>
                                     </div>
                                 </div>
 
-                                {formData.rte.isRte && (
+                                {formData.rte?.isRte && (
                                     <div className="grid grid-cols-2 gap-4 animate-fade-in p-4 rounded-xl border border-slate-100 bg-slate-50/50">
                                         <Input
                                             label="RTE Application ID"
                                             placeholder="e.g. RTE/2026/8947"
-                                            value={formData.rte.rteDetails}
+                                            value={formData.rte?.rteDetails || ""}
                                             onChange={(e) => setFormData({
                                                 ...formData,
                                                 rte: { ...formData.rte, rteDetails: e.target.value }
@@ -2001,7 +1953,7 @@ export default function StudentsPage() {
                                         <Input
                                             label="RTE Document Link"
                                             placeholder="URL to verification doc"
-                                            value={formData.rte.rteDocumentUrl}
+                                            value={formData.rte?.rteDocumentUrl || ""}
                                             onChange={(e) => setFormData({
                                                 ...formData,
                                                 rte: { ...formData.rte, rteDocumentUrl: e.target.value }
@@ -2010,13 +1962,13 @@ export default function StudentsPage() {
                                     </div>
                                 )}
 
-                                {formData.scholarship.hasScholarship && (
+                                {formData.scholarship?.hasScholarship && (
                                     <div className="space-y-4 animate-fade-in p-4 rounded-xl border border-slate-100 bg-slate-50/50">
                                         <div className="grid grid-cols-2 gap-4">
                                             <Input
                                                 label="Scholarship Scheme Name"
                                                 placeholder="e.g. Merit-cum-Means"
-                                                value={formData.scholarship.scholarshipName}
+                                                value={formData.scholarship?.scholarshipName || ""}
                                                 onChange={(e) => setFormData({
                                                     ...formData,
                                                     scholarship: { ...formData.scholarship, scholarshipName: e.target.value }
@@ -2034,7 +1986,7 @@ export default function StudentsPage() {
                                                         })}
                                                         className={cn(
                                                             "flex-1 py-1 rounded-lg text-[10px] font-bold transition-all",
-                                                            formData.scholarship.scholarshipType === "flat"
+                                                            formData.scholarship?.scholarshipType === "flat"
                                                                 ? "bg-white text-slate-800 shadow-sm"
                                                                 : "text-slate-500"
                                                         )}
@@ -2049,7 +2001,7 @@ export default function StudentsPage() {
                                                         })}
                                                         className={cn(
                                                             "flex-1 py-1 rounded-lg text-[10px] font-bold transition-all",
-                                                            formData.scholarship.scholarshipType === "percentage"
+                                                            formData.scholarship?.scholarshipType === "percentage"
                                                                 ? "bg-white text-slate-800 shadow-sm"
                                                                 : "text-slate-500"
                                                         )}
@@ -2061,10 +2013,10 @@ export default function StudentsPage() {
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <Input
-                                                label={formData.scholarship.scholarshipType === "percentage" ? "Discount Percentage (%)" : "Discount Amount (₹)"}
+                                                label={formData.scholarship?.scholarshipType === "percentage" ? "Discount Percentage (%)" : "Discount Amount (₹)"}
                                                 type="number"
                                                 placeholder="e.g. 20"
-                                                value={formData.scholarship.scholarshipAmount || ""}
+                                                value={formData.scholarship?.scholarshipAmount || ""}
                                                 onChange={(e) => setFormData({
                                                     ...formData,
                                                     scholarship: { ...formData.scholarship, scholarshipAmount: parseFloat(e.target.value) || 0 }

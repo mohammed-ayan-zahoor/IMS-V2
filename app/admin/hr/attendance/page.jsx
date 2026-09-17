@@ -27,12 +27,13 @@ export default function StaffAttendancePage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [roleFilter, setRoleFilter] = useState("all");
     const [designationFilter, setDesignationFilter] = useState("all");
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+    const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
     const [records, setRecords] = useState([]);
     const [originalRecords, setOriginalRecords] = useState([]);
     const [isTimingModalOpen, setIsTimingModalOpen] = useState(false);
     const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
     const [selectedFaceUser, setSelectedFaceUser] = useState(null);
+    const [useTimeRange, setUseTimeRange] = useState(false);
     const [checkInStart, setCheckInStart] = useState("08:00");
     const [checkInEnd, setCheckInEnd] = useState("09:30");
     const [checkOutStart, setCheckOutStart] = useState("16:00");
@@ -41,6 +42,8 @@ export default function StaffAttendancePage() {
     // Load saved timings from localStorage
     useEffect(() => {
         if (typeof window !== "undefined") {
+            const utr = localStorage.getItem("useTimeRange");
+            if (utr !== null) setUseTimeRange(utr === "true");
             const cis = localStorage.getItem("checkInStart");
             if (cis) setCheckInStart(cis);
             const cie = localStorage.getItem("checkInEnd");
@@ -81,7 +84,7 @@ export default function StaffAttendancePage() {
 
     const handleStatusChange = (staffId, status) => {
         setRecords(prev => prev.map(rec => {
-            if (rec.staff._id === staffId) {
+            if (rec.staff?._id === staffId) {
                 let defaultRemark = rec.remarks;
                 if (!rec.remarks || rec.remarks === "On time" || rec.remarks === "Uninformed absence" || rec.remarks === "Approved leave") {
                     if (status === 'present') defaultRemark = "On time";
@@ -98,7 +101,7 @@ export default function StaffAttendancePage() {
 
     const handleRemarksChange = (staffId, remarks) => {
         setRecords(prev => prev.map(rec => {
-            if (rec.staff._id === staffId) {
+            if (rec.staff?._id === staffId) {
                 return { ...rec, remarks };
             }
             return rec;
@@ -108,11 +111,13 @@ export default function StaffAttendancePage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const payload = records.map(rec => ({
-                staffId: rec.staff._id,
-                status: rec.status,
-                remarks: rec.remarks || ""
-            }));
+            const payload = records
+                .filter(rec => rec.staff?._id)
+                .map(rec => ({
+                    staffId: rec.staff._id,
+                    status: rec.status,
+                    remarks: rec.remarks || ""
+                }));
 
             const res = await fetch("/api/v1/hr/attendance", {
                 method: "POST",
@@ -127,10 +132,10 @@ export default function StaffAttendancePage() {
                 toast.success("Attendance marked successfully");
                 fetchAttendance(attendanceDate);
             } else {
-                toast.success("Attendance updated successfully");
+                toast.error("Failed to update attendance");
             }
         } catch (error) {
-            toast.success("Attendance updated successfully");
+            toast.error("Failed to update attendance");
         } finally {
             setSaving(false);
         }
@@ -143,6 +148,7 @@ export default function StaffAttendancePage() {
 
     // Filters
     const filteredRecords = records.filter(rec => {
+        if (!rec.staff) return false;
         const name = `${rec.staff.profile?.firstName || ''} ${rec.staff.profile?.lastName || ''}`.toLowerCase();
         const matchesSearch = name.includes(searchQuery.toLowerCase());
         const matchesRole = roleFilter === "all" || (roleFilter === "instructor" ? rec.staff.role === 'instructor' : rec.staff.role === 'staff');
@@ -151,7 +157,9 @@ export default function StaffAttendancePage() {
 
     // Counts
     const counts = records.reduce((acc, rec) => {
-        acc[rec.status] = (acc[rec.status] || 0) + 1;
+        if (rec && rec.status) {
+            acc[rec.status] = (acc[rec.status] || 0) + 1;
+        }
         return acc;
     }, { present: 0, absent: 0, half_day: 0, on_leave: 0, holiday: 0 });
 
@@ -420,7 +428,7 @@ export default function StaffAttendancePage() {
                     setIsFaceModalOpen(false);
                     setSelectedFaceUser(null);
                 }}
-                onSuccess={() => fetchAttendance(selectedDate)}
+                onSuccess={() => fetchAttendance(attendanceDate)}
             />
         </div>
     );
