@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import { Search, Filter, Plus, FileText, Video, Link as LinkIcon, Download, Trash2, Edit, X, Users, UploadCloud, CheckCircle, Play } from "lucide-react";
 import Select from "@/components/ui/Select";
+import MultiSelect from "@/components/ui/MultiSelect";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -239,6 +240,29 @@ export default function MaterialsPage() {
         });
     });
 
+    const handleCoursesChange = (selectedCourseIds) => {
+        const validBatches = batches.filter(b => {
+            const batchCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
+            return selectedCourseIds.some(cid => String(batchCourseId) === String(cid));
+        }).map(b => (typeof b._id === 'object' ? b._id.toString() : b._id));
+
+        setFormData(prev => ({
+            ...prev,
+            courses: selectedCourseIds,
+            batches: prev.batches.filter(bId => validBatches.includes(typeof bId === 'object' ? bId.toString() : bId))
+        }));
+    };
+
+    const courseOptions = courses.map(c => ({
+        label: c.name + (c.code ? ` (${c.code})` : ""),
+        value: c._id
+    }));
+
+    const batchOptions = filteredBatches.map(b => ({
+        label: b.name,
+        value: b._id
+    }));
+
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
 
     const getResourceIcon = (fileType, category) => {
@@ -370,6 +394,23 @@ export default function MaterialsPage() {
                                         </div>
 
                                         <h3 className="font-bold text-slate-900 text-sm mb-1.5 line-clamp-1" title={mat.title}>{mat.title}</h3>
+                                        
+                                        {/* Assigned Courses & Batches Tags */}
+                                        {((mat.courses && mat.courses.length > 0) || mat.course) && (
+                                            <div className="flex flex-wrap gap-1 mb-2">
+                                                {(mat.courses && mat.courses.length > 0 ? mat.courses : [mat.course]).filter(Boolean).map(c => (
+                                                    <span key={typeof c === 'object' ? c._id : c} className="text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                                                        {typeof c === 'object' ? c.name : (isSchool ? 'Class' : 'Course')}
+                                                    </span>
+                                                ))}
+                                                {mat.batches && mat.batches.length > 0 && mat.batches.map(b => (
+                                                    <span key={typeof b === 'object' ? b._id : b} className="text-[10px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                                                        {typeof b === 'object' ? b.name : (isSchool ? 'Section' : 'Batch')}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         <p className={cn(
                                             "text-xs line-clamp-2 min-h-[32px] mb-4 leading-relaxed",
                                             isPlaceholderDesc ? "text-slate-400 italic font-normal" : "text-slate-500 font-normal"
@@ -496,6 +537,25 @@ export default function MaterialsPage() {
                                     ]}
                                 />
                             </div>
+                        </div>
+
+                        {/* Course/Class and Section/Batch Selector */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <MultiSelect
+                                label={`${isSchool ? "Class" : "Course"} *`}
+                                placeholder={`Select ${isSchool ? "classes" : "courses"}...`}
+                                options={courseOptions}
+                                value={formData.courses}
+                                onChange={handleCoursesChange}
+                            />
+                            <MultiSelect
+                                label={isSchool ? "Sections (Optional)" : "Batches (Optional)"}
+                                placeholder={formData.courses.length === 0 ? `Select ${isSchool ? "class" : "course"} first` : `All ${isSchool ? "Sections" : "Batches"}`}
+                                options={batchOptions}
+                                value={formData.batches}
+                                onChange={(vals) => setFormData(prev => ({ ...prev, batches: vals }))}
+                                disabled={formData.courses.length === 0}
+                            />
                         </div>
 
                         {formData.category === 'assignment' && (

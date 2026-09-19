@@ -1,28 +1,54 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { FileText, Plus, Search, ExternalLink, Calendar, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 import MobileBottomSheet from "@/components/mobile/MobileBottomSheet";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
 
 export default function MobileInstructorMaterials() {
     const toast = useToast();
+    const { data: session } = useSession();
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+
     const [materials, setMaterials] = useState([]);
+    const [courses, setCourses] = useState([]);
+    const [batches, setBatches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
 
     const [isUploadSheetOpen, setIsUploadSheetOpen] = useState(false);
-    const [formData, setFormData] = useState({ title: "", description: "", fileUrl: "", subject: "" });
+    const [formData, setFormData] = useState({ 
+        title: "", 
+        description: "", 
+        fileUrl: "", 
+        courses: [], 
+        batches: [],
+        category: "lecture",
+        fileType: "other"
+    });
     const [uploading, setUploading] = useState(false);
 
-    useEffect(() => {
-        fetchMaterials();
+    const fetchInitialData = useCallback(async () => {
+        try {
+            const [cRes, bRes] = await Promise.all([
+                fetch("/api/v1/courses"),
+                fetch("/api/v1/batches")
+            ]);
+            const cData = await cRes.json();
+            const bData = await bRes.json();
+            setCourses(cData.courses || []);
+            setBatches(bData.batches || []);
+        } catch (e) {
+            console.error("Failed to fetch courses/batches", e);
+        }
     }, []);
 
-    const fetchMaterials = async () => {
+    const fetchMaterials = useCallback(async () => {
         try {
             setLoading(true);
             const res = await fetch('/api/v1/materials');
@@ -35,22 +61,63 @@ export default function MobileInstructorMaterials() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchMaterials();
+        fetchInitialData();
+    }, [fetchMaterials, fetchInitialData]);
 
     const handleUpload = async (e) => {
         e.preventDefault();
+        if (!formData.title?.trim()) {
+            toast.error("Title is required");
+            return;
+        }
+        if (!formData.courses || formData.courses.length === 0) {
+            toast.error(`Please select a ${isSchool ? "class" : "course"}`);
+            return;
+        }
+        if (!formData.fileUrl?.trim()) {
+            toast.error("File URL is required");
+            return;
+        }
+
         try {
             setUploading(true);
+            const payload = {
+                title: formData.title.trim(),
+                description: formData.description?.trim(),
+                courses: formData.courses,
+                course: formData.courses[0],
+                batches: formData.batches,
+                category: formData.category || "lecture",
+                visibleToStudents: true,
+                file: {
+                    url: formData.fileUrl.trim(),
+                    type: formData.fileType || "other",
+                    originalName: formData.title.trim()
+                }
+            };
+
             const res = await fetch('/api/v1/materials', {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
                 toast.success("Study material uploaded!");
                 setIsUploadSheetOpen(false);
-                setFormData({ title: "", description: "", fileUrl: "", subject: "" });
+                setFormData({ 
+                    title: "", 
+                    description: "", 
+                    fileUrl: "", 
+                    courses: [], 
+                    batches: [],
+                    category: "lecture",
+                    fileType: "other"
+                });
                 fetchMaterials();
             } else {
                 const err = await res.json();
@@ -65,8 +132,14 @@ export default function MobileInstructorMaterials() {
 
     const filteredMaterials = materials.filter(m => {
         const title = (m.title || '').toLowerCase();
-        const subject = (m.subject || '').toLowerCase();
-        return title.includes(search.toLowerCase()) || subject.includes(search.toLowerCase());
+        const courseNames = ((m.courses || []).map(c => typeof c === 'object' ? c.name : '')).join(' ').toLowerCase();
+        return title.includes(search.toLowerCase()) || courseNames.includes(search.toLowerCase());
+    });
+
+    const filteredBatches = batches.filter(b => {
+        if (formData.courses.length === 0) return false;
+        const bCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
+        return formData.courses.some(cid => String(bCourseId) === String(cid));
     });
 
     return (
@@ -111,7 +184,7 @@ export default function MobileInstructorMaterials() {
                 <div className="bg-white p-6 rounded-lg text-center border border-slate-200">
                     <FileText size={24} className="text-slate-300 mx-auto mb-1.5" />
                     <p className="text-xs font-bold text-slate-700">No Study Materials Found</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Tap "+ Upload Notes" to share notes with your students.</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Tap &quot;+ Upload Notes&quot; to share notes with your students.</p>
                 </div>
             ) : (
                 <div className="space-y-2">
@@ -120,23 +193,42 @@ export default function MobileInstructorMaterials() {
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h3 className="text-xs font-bold text-slate-900 leading-snug">{m.title}</h3>
-                                    {m.subject && (
-                                        <span className="inline-block mt-0.5 text-[10px] font-bold uppercase text-slate-500">
-                                            {m.subject}
-                                        </span>
+                                    {((m.courses && m.courses.length > 0) || m.course) && (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {(m.courses && m.courses.length > 0 ? m.courses : [m.course]).filter(Boolean).map(c => (
+                                                <span key={typeof c === 'object' ? c._id : c} className="text-[9px] font-bold uppercase bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                                                    {typeof c === 'object' ? c.name : (isSchool ? 'Class' : 'Course')}
+                                                </span>
+                                            ))}
+                                            {m.batches && m.batches.length > 0 && m.batches.map(b => (
+                                                <span key={typeof b === 'object' ? b._id : b} className="text-[9px] font-semibold uppercase bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
+                                                    {typeof b === 'object' ? b.name : (isSchool ? 'Section' : 'Batch')}
+                                                </span>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
 
-                                {m.fileUrl && (
-                                    <a
-                                        href={m.fileUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="bg-slate-900 text-white px-2.5 py-1 rounded-md text-[10px] font-bold flex items-center gap-1 shrink-0"
-                                    >
-                                        <ExternalLink size={12} /> View File
-                                    </a>
-                                )}
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    {m.category === 'assignment' && m.allowSubmissions && (
+                                        <a
+                                            href={`/admin/materials/${m._id}/submissions`}
+                                            className="bg-blue-600 text-white px-2.5 py-1 rounded-md text-[10px] font-bold flex items-center gap-1 shrink-0"
+                                        >
+                                            Submissions
+                                        </a>
+                                    )}
+                                    {m.file?.url && (
+                                        <a
+                                            href={m.file.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="bg-slate-900 text-white px-2.5 py-1 rounded-md text-[10px] font-bold flex items-center gap-1 shrink-0"
+                                        >
+                                            <ExternalLink size={12} /> View
+                                        </a>
+                                    )}
+                                </div>
                             </div>
 
                             {m.description && (
@@ -169,15 +261,47 @@ export default function MobileInstructorMaterials() {
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     />
 
-                    <Input
-                        label="Subject / Class Label"
-                        placeholder="e.g. Mathematics - Grade 10"
-                        value={formData.subject}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                    <Select
+                        label={`${isSchool ? "Class" : "Course"} *`}
+                        placeholder={`Select ${isSchool ? "class" : "course"}...`}
+                        value={formData.courses[0] || ""}
+                        onChange={(val) => {
+                            const selectedCourseId = val;
+                            const validBatches = batches.filter(b => {
+                                const bCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
+                                return String(bCourseId) === String(selectedCourseId);
+                            }).map(b => (typeof b._id === 'object' ? b._id.toString() : b._id));
+
+                            setFormData(prev => ({
+                                ...prev,
+                                courses: selectedCourseId ? [selectedCourseId] : [],
+                                batches: prev.batches.filter(id => validBatches.includes(typeof id === 'object' ? id.toString() : id))
+                            }));
+                        }}
+                        options={courses.map(c => ({
+                            label: c.name + (c.code ? ` (${c.code})` : ""),
+                            value: c._id
+                        }))}
+                    />
+
+                    <Select
+                        label={isSchool ? "Section (Optional)" : "Batch (Optional)"}
+                        placeholder={formData.courses.length === 0 ? `Select ${isSchool ? "class" : "course"} first` : `All ${isSchool ? "Sections" : "Batches"}`}
+                        value={formData.batches[0] || ""}
+                        onChange={(val) => setFormData(prev => ({ ...prev, batches: val ? [val] : [] }))}
+                        disabled={formData.courses.length === 0}
+                        options={[
+                            { label: `All ${isSchool ? "Sections" : "Batches"}`, value: "" },
+                            ...filteredBatches.map(b => ({
+                                label: b.name,
+                                value: b._id
+                            }))
+                        ]}
                     />
 
                     <Input
-                        label="File URL / Google Drive Link"
+                        label="File URL / Google Drive Link *"
+                        required
                         placeholder="https://..."
                         value={formData.fileUrl}
                         onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value })}

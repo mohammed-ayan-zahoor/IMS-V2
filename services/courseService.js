@@ -133,13 +133,17 @@ export class CourseService {
             const User = mongoose.models.User || mongoose.model('User');
             const instructor = await User.findById(instructorId).select('assignments');
             const assignedCourses = (instructor?.assignments?.courses || []).map(id => id.toString());
-            const assignedBatches = instructor?.assignments?.batches || [];
+            const assignedBatches = (instructor?.assignments?.batches || []).map(id => id.toString());
 
             let allCourseIds = [...assignedCourses];
-            if (assignedBatches.length > 0) {
-                const batchCourses = await Batch.find({ _id: { $in: assignedBatches }, deletedAt: null }).distinct('course');
-                allCourseIds = [...new Set([...allCourseIds, ...batchCourses.filter(Boolean).map(id => id.toString())])];
-            }
+            const batchCourses = await Batch.find({
+                $or: [
+                    { _id: { $in: assignedBatches } },
+                    { instructor: instructorId }
+                ],
+                deletedAt: null
+            }).distinct('course');
+            allCourseIds = [...new Set([...allCourseIds, ...batchCourses.filter(Boolean).map(id => id.toString())])];
 
             // Instructors should ONLY see their assigned courses/classes
             query._id = { $in: allCourseIds.map(id => new mongoose.Types.ObjectId(id)) };
