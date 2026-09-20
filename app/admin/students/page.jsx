@@ -30,10 +30,14 @@ import {
     Bus,
     MapPin,
     Car,
-    Route,
     CreditCard,
-    GraduationCap
+    GraduationCap,
+    Image as ImageIcon,
+    FolderCheck,
+    Download,
+    Check
 } from "lucide-react";
+import { processImageFolder, findMatchingPhoto, compressAndUploadPhotos } from "@/lib/photoMatcher";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -91,8 +95,20 @@ export default function StudentsPage() {
     const [importFile, setImportFile] = useState(null);
     const [importCourseId, setImportCourseId] = useState("");
     const [importBatchId, setImportBatchId] = useState("");
-    const [importStatus, setImportStatus] = useState("idle"); // idle, uploading, preview, importing, success, error
+    const [importStatus, setImportStatus] = useState("idle"); // idle, uploading, preview, uploading_photos, importing, success, error
     const [importResult, setImportResult] = useState(null); // { successCount, failedCount, errors }
+    const [photoMap, setPhotoMap] = useState(new Map());
+    const [photoFilesCount, setPhotoFilesCount] = useState(0);
+    const [matchedPhotos, setMatchedPhotos] = useState({}); // { [rowIdx]: File }
+    const [photoUploadProgress, setPhotoUploadProgress] = useState(null); // { completed, total, percent }
+    const [importTab, setImportTab] = useState("new_students"); // "new_students" | "existing_photos"
+    const [photoCourseId, setPhotoCourseId] = useState("");
+    const [photoBatchId, setPhotoBatchId] = useState("");
+    const [photoStudents, setPhotoStudents] = useState([]);
+    const [photoLoading, setPhotoLoading] = useState(false);
+    const [photoStatus, setPhotoStatus] = useState("idle"); // idle, uploading_photos, updating_db, success, error
+    const [matchedExistingPhotos, setMatchedExistingPhotos] = useState({}); // { [studentId]: File }
+    const [photoUpdateResult, setPhotoUpdateResult] = useState(null);
 
     // Filter State
     const [batches, setBatches] = useState([]);
@@ -511,6 +527,19 @@ const getInitialFormData = (selectedSessionId = "") => ({
         }
     };
 
+    const handlePhotoFolderSelect = (e) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) {
+            setPhotoMap(new Map());
+            setPhotoFilesCount(0);
+            return;
+        }
+        const { map, count } = processImageFolder(files);
+        setPhotoMap(map);
+        setPhotoFilesCount(count);
+        toast.success(`Indexed ${count} photos from folder`);
+    };
+
     const handleUploadAndPreview = async () => {
         if (!importFile || !importBatchId) {
             toast.error("Please select a file and a target class/section.");
@@ -540,6 +569,22 @@ const getInitialFormData = (selectedSessionId = "") => ({
                     validRows: data.validRows,
                     invalidRows: data.invalidRows
                 });
+
+                // Match photos if photo folder was loaded
+                if (photoMap.size > 0 && Array.isArray(data.rows)) {
+                    const matched = {};
+                    data.rows.forEach((row, idx) => {
+                        const rowKey = row.rowIdx !== undefined ? row.rowIdx : idx;
+                        const file = findMatchingPhoto(row, photoMap);
+                        if (file) {
+                            matched[rowKey] = file;
+                        }
+                    });
+                    setMatchedPhotos(matched);
+                } else {
+                    setMatchedPhotos({});
+                }
+
                 setImportStatus("preview");
             } else {
                 setImportStatus("error");
@@ -557,12 +602,29 @@ const getInitialFormData = (selectedSessionId = "") => ({
     const handleConfirmImport = async () => {
         if (!importFile || !importBatchId) return;
         setLoading(true);
-        setImportStatus("importing");
 
         try {
+            let uploadedPhotosMap = {};
+            const matchedEntries = Object.entries(matchedPhotos).map(([rowIdx, file]) => ({
+                rowIdx: Number(rowIdx),
+                file
+            }));
+
+            if (matchedEntries.length > 0) {
+                setImportStatus("uploading_photos");
+                uploadedPhotosMap = await compressAndUploadPhotos(matchedEntries, (progress) => {
+                    setPhotoUploadProgress(progress);
+                });
+            }
+
+            setImportStatus("importing");
+
             const formData = new FormData();
             formData.append("file", importFile);
             formData.append("targetBatchId", importBatchId);
+            if (Object.keys(uploadedPhotosMap).length > 0) {
+                formData.append("photosPayload", JSON.stringify(uploadedPhotosMap));
+            }
 
             const res = await fetch("/api/v1/students/import", {
                 method: "POST",
@@ -597,10 +659,161 @@ const getInitialFormData = (selectedSessionId = "") => ({
         }
     };
 
+    const fetchClassStudents = async (batchId) => {
+        if (!batchId) {
+            setPhotoStudents([]);
+            return;
+        }
+        try {
+            setPhotoLoading(true);
+            const res = await fetch(`/api/v1/batches/${batchId}`);
+            const data = await res.json();
+            const batch = data.batch;
+            if (batch && Array.isArray(batch.enrolledStudents)) {
+                const list = batch.enrolledStudents
+                    .filter(e => e.status === 'active' && e.student)
+                    .map(e => {
+                        const s = e.student;
+                        return {
+                            studentId: s._id,
+                            studentName: `${s.profile?.firstName || ''} ${s.profile?.lastName || ''}`.trim(),
+                            firstName: s.profile?.firstName || '',
+                            lastName: s.profile?.lastName || '',
+                            rollNo: s.metadata?.studentDetails?.rollNo || '',
+                            admissionNo: s.enrollmentNumber || s.metadata?.studentDetails?.grNumber || '',
+                            photoNo: '',
+                            currentAvatar: s.profile?.avatar || ''
+                        };
+                    });
+                list.sort((a, b) => {
+                    const rollA = parseInt(a.rollNo, 10);
+                    const rollB = parseInt(b.rollNo, 10);
+                    if (!isNaN(rollA) && !isNaN(rollB)) return rollA - rollB;
+                    return a.studentName.localeCompare(b.studentName);
+                });
+                setPhotoStudents(list);
+            }
+        } catch (e) {
+            console.error("Failed to fetch students for batch", e);
+            toast.error("Failed to load class students");
+        } finally {
+            setPhotoLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (photoMap.size > 0 && photoStudents.length > 0) {
+            const matched = {};
+            photoStudents.forEach((student) => {
+                const file = findMatchingPhoto(student, photoMap);
+                if (file) {
+                    matched[student.studentId] = file;
+                }
+            });
+            setMatchedExistingPhotos(matched);
+        } else {
+            setMatchedExistingPhotos({});
+        }
+    }, [photoMap, photoStudents]);
+
+    const handlePhotoExcelSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            const XLSX = await import("xlsx");
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data);
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(worksheet);
+
+            setPhotoStudents(prev => {
+                return prev.map(s => {
+                    const match = json.find(row => 
+                        (row.StudentID && String(row.StudentID) === String(s.studentId)) ||
+                        (row.AdmissionNo && String(row.AdmissionNo).toLowerCase() === String(s.admissionNo).toLowerCase()) ||
+                        (row.RollNo && String(row.RollNo) === String(s.rollNo)) ||
+                        ((row.FirstName || '') + ' ' + (row.LastName || '')).trim().toLowerCase() === s.studentName.toLowerCase()
+                    );
+                    return {
+                        ...s,
+                        photoNo: match?.PhotoNo ? String(match.PhotoNo).trim() : s.photoNo
+                    };
+                });
+            });
+            toast.success(`Loaded ${json.length} student rows from Excel`);
+        } catch (err) {
+            console.error("Failed to parse photo Excel sheet", err);
+            toast.error("Failed to parse Excel file");
+        }
+    };
+
+    const handleConfirmExistingPhotosUpload = async () => {
+        const matchedEntries = Object.entries(matchedExistingPhotos).map(([studentId, file]) => ({
+            studentId,
+            file
+        }));
+
+        if (matchedEntries.length === 0) {
+            toast.error("No matched photos to upload");
+            return;
+        }
+
+        setPhotoStatus("uploading_photos");
+        try {
+            const uploadedMap = await compressAndUploadPhotos(matchedEntries.map((e, idx) => ({
+                rowIdx: idx,
+                file: e.file
+            })), (progress) => {
+                setPhotoUploadProgress(progress);
+            });
+
+            const updates = matchedEntries.map((e, idx) => {
+                const uploaded = uploadedMap[idx];
+                return {
+                    studentId: e.studentId,
+                    avatarUrl: uploaded?.url,
+                    publicId: uploaded?.publicId
+                };
+            }).filter(u => u.avatarUrl);
+
+            setPhotoStatus("updating_db");
+            const res = await fetch("/api/v1/students/bulk-photos", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ updates })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                setPhotoUpdateResult({
+                    successCount: data.updatedCount || updates.length,
+                    totalCount: photoStudents.length
+                });
+                setPhotoStatus("success");
+                fetchStudents(); // Refresh student list
+                toast.success(`Updated ${data.updatedCount || updates.length} student photos successfully!`);
+            } else {
+                setPhotoStatus("error");
+                toast.error(data.error || "Failed to update photos");
+            }
+        } catch (error) {
+            console.error("Bulk photo upload failed", error);
+            setPhotoStatus("error");
+            toast.error("Bulk photo upload failed");
+        }
+    };
+
     const resetImport = () => {
         setImportFile(null);
+        setPhotoMap(new Map());
+        setPhotoFilesCount(0);
+        setMatchedPhotos({});
+        setMatchedExistingPhotos({});
+        setPhotoUploadProgress(null);
         setImportStatus("idle");
         setImportResult(null);
+        setPhotoStatus("idle");
+        setPhotoUpdateResult(null);
         setIsImportModalOpen(false);
     };
 
@@ -2040,245 +2253,630 @@ const getInitialFormData = (selectedSessionId = "") => ({
             <Modal
                 isOpen={isImportModalOpen}
                 onClose={resetImport}
-                title="Bulk Import Students"
-                className={importStatus === "preview" ? "max-w-4xl" : "max-w-lg"}
+                title="Bulk Student Import & Photo Uploader"
+                className={(importStatus === "preview" || (importTab === "existing_photos" && photoStudents.length > 0)) ? "max-w-4xl" : "max-w-lg"}
             >
-                <div className="space-y-6">
-                    {importStatus === "idle" && (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Select
-                                    label={isSchool ? "Target Class" : "Target Course"}
-                                    value={importCourseId}
-                                    onChange={(val) => { setImportCourseId(val); setImportBatchId(""); }}
-                                    options={[
-                                        { label: "Select...", value: "" },
-                                        ...courses.map(c => ({ label: c.name, value: c._id }))
-                                    ]}
-                                />
-                                <Select
-                                    label={isSchool ? "Target Section" : "Target Batch"}
-                                    value={importBatchId}
-                                    onChange={(val) => setImportBatchId(val)}
-                                    options={[
-                                        { label: "Select...", value: "" },
-                                        ...batches
-                                            .filter(b => b.course === importCourseId || b.course?._id === importCourseId)
-                                            .map(b => ({ label: b.name, value: b._id }))
-                                    ]}
-                                    disabled={!importCourseId}
-                                />
-                            </div>
-
-                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center">
-                                <FileSpreadsheet className="mx-auto text-premium-blue mb-2" size={32} />
-                                <h3 className="text-sm font-bold text-slate-800">Upload Excel File</h3>
-                                <p className="text-xs text-slate-500 mt-1 mb-4">
-                                    Select the .xlsx file containing student records.
-                                    <br />
-                                    <a href="/api/v1/students/template" target="_blank" className="text-premium-blue hover:underline font-bold">Download Template</a>
-                                </p>
-                                <input
-                                    type="file"
-                                    accept=".xlsx, .xls"
-                                    onChange={(e) => setImportFile(e.target.files[0])}
-                                    className="block w-full text-sm text-slate-500
-                                      file:mr-4 file:py-2 file:px-4
-                                      file:rounded-full file:border-0
-                                      file:text-xs file:font-semibold
-                                      file:bg-premium-blue file:text-white
-                                      hover:file:bg-premium-blue/90
-                                      cursor-pointer
-                                    "
-                                />
-                            </div>
-                            {importFile && (
-                                <Button onClick={handleUploadAndPreview} className="w-full" disabled={!importFile || !importBatchId}>
-                                    <Upload className="mr-2" size={16} />
-                                    Upload & Preview
-                                </Button>
+                <div className="space-y-5">
+                    {/* Tab Navigation */}
+                    <div className="flex border-b border-slate-200">
+                        <button
+                            type="button"
+                            onClick={() => setImportTab("new_students")}
+                            className={cn(
+                                "flex-1 pb-2.5 text-xs font-bold text-center border-b-2 transition-colors",
+                                importTab === "new_students"
+                                    ? "border-premium-blue text-premium-blue font-bold"
+                                    : "border-transparent text-slate-500 hover:text-slate-800"
                             )}
-                        </div>
-                    )}
+                        >
+                            1. New Students (Excel Import)
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setImportTab("existing_photos")}
+                            className={cn(
+                                "flex-1 pb-2.5 text-xs font-bold text-center border-b-2 transition-colors",
+                                importTab === "existing_photos"
+                                    ? "border-premium-blue text-premium-blue font-bold"
+                                    : "border-transparent text-slate-500 hover:text-slate-800"
+                            )}
+                        >
+                            2. Existing Students (Class Photos)
+                        </button>
+                    </div>
 
-                    {importStatus === "uploading" && (
-                        <div className="flex flex-col items-center justify-center p-8">
-                            <LoadingSpinner />
-                            <p className="text-sm font-bold text-slate-600 mt-4">Validating Spreadsheet...</p>
-                            <p className="text-xs text-slate-400">Performing dry-run check on student records.</p>
-                        </div>
-                    )}
+                    {/* TAB 1: NEW STUDENTS BULK IMPORT */}
+                    {importTab === "new_students" && (
+                        <div className="space-y-5">
+                            {importStatus === "idle" && (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <Select
+                                            label={isSchool ? "Target Class" : "Target Course"}
+                                            value={importCourseId}
+                                            onChange={(val) => { setImportCourseId(val); setImportBatchId(""); }}
+                                            options={[
+                                                { label: "Select...", value: "" },
+                                                ...courses.map(c => ({ label: c.name, value: c._id }))
+                                            ]}
+                                        />
+                                        <Select
+                                            label={isSchool ? "Target Section" : "Target Batch"}
+                                            value={importBatchId}
+                                            onChange={(val) => setImportBatchId(val)}
+                                            options={[
+                                                { label: "Select...", value: "" },
+                                                ...batches
+                                                    .filter(b => b.course === importCourseId || b.course?._id === importCourseId)
+                                                    .map(b => ({ label: b.name, value: b._id }))
+                                            ]}
+                                            disabled={!importCourseId}
+                                        />
+                                    </div>
 
-                    {importStatus === "importing" && (
-                        <div className="flex flex-col items-center justify-center p-8">
-                            <LoadingSpinner />
-                            <p className="text-sm font-bold text-slate-600 mt-4">Importing Students...</p>
-                            <p className="text-xs text-slate-400">Writing records to database. Please do not close this window.</p>
-                        </div>
-                    )}
+                                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                                        <FileSpreadsheet className="mx-auto text-premium-blue mb-2" size={32} />
+                                        <h3 className="text-sm font-bold text-slate-800">Upload Excel File</h3>
+                                        <p className="text-xs text-slate-500 mt-1 mb-4">
+                                            Select the .xlsx file containing student records.
+                                            <br />
+                                            <a href="/api/v1/students/template" target="_blank" className="text-premium-blue hover:underline font-bold">Download Template</a>
+                                        </p>
+                                        <input
+                                            type="file"
+                                            accept=".xlsx, .xls"
+                                            onChange={(e) => setImportFile(e.target.files[0])}
+                                            className="block w-full text-sm text-slate-500
+                                              file:mr-4 file:py-2 file:px-4
+                                              file:rounded-full file:border-0
+                                              file:text-xs file:font-semibold
+                                              file:bg-premium-blue file:text-white
+                                              hover:file:bg-premium-blue/90
+                                              cursor-pointer
+                                            "
+                                        />
+                                    </div>
 
-                    {importStatus === "preview" && importResult && (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                                <div>
-                                    <h4 className="text-sm font-bold text-slate-800">Pre-Import Summary</h4>
-                                    <p className="text-xs text-slate-500">Please review validation results before confirming.</p>
+                                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                                        <ImageIcon className="mx-auto text-slate-600 mb-2" size={30} />
+                                        <h3 className="text-sm font-bold text-slate-800">Student Photos Folder (Optional)</h3>
+                                        <p className="text-xs text-slate-500 mt-1 mb-3">
+                                            Select a folder of student photos. Matched by Photo No, Admission No, Roll No, or Name.
+                                        </p>
+                                        {photoFilesCount > 0 && (
+                                            <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 py-1.5 px-3 rounded-lg w-fit mx-auto mb-3">
+                                                <FolderCheck size={16} /> {photoFilesCount} Photos Loaded
+                                            </div>
+                                        )}
+                                        <input
+                                            type="file"
+                                            webkitdirectory=""
+                                            directory=""
+                                            multiple
+                                            accept="image/*"
+                                            onChange={handlePhotoFolderSelect}
+                                            className="block w-full text-sm text-slate-500
+                                              file:mr-4 file:py-2 file:px-4
+                                              file:rounded-full file:border-0
+                                              file:text-xs file:font-semibold
+                                              file:bg-slate-800 file:text-white
+                                              hover:file:bg-slate-700
+                                              cursor-pointer"
+                                        />
+                                    </div>
+
+                                    {importFile && (
+                                        <Button onClick={handleUploadAndPreview} className="w-full" disabled={!importFile || !importBatchId}>
+                                            <Upload className="mr-2" size={16} />
+                                            Upload & Preview
+                                        </Button>
+                                    )}
                                 </div>
-                                <div className="flex gap-2">
-                                    <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600">
-                                        Total: {importResult.totalRows}
-                                    </span>
-                                    <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-100">
-                                        Valid: {importResult.validRows}
-                                    </span>
-                                    <span className="px-2.5 py-1 bg-red-50 text-red-700 rounded-lg text-xs font-bold border border-red-100">
-                                        Errors: {importResult.invalidRows}
-                                    </span>
+                            )}
+
+                            {importStatus === "uploading" && (
+                                <div className="flex flex-col items-center justify-center p-8">
+                                    <LoadingSpinner />
+                                    <p className="text-sm font-bold text-slate-600 mt-4">Validating Spreadsheet...</p>
+                                    <p className="text-xs text-slate-400">Performing dry-run check on student records.</p>
                                 </div>
-                            </div>
+                            )}
 
-                            <div className="max-h-[350px] overflow-y-auto border border-slate-200 rounded-xl">
-                                <table className="w-full text-left border-collapse">
-                                    <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
-                                        <tr>
-                                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-16">Row</th>
-                                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-1/4">Name</th>
-                                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Admission ID</th>
-                                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Class</th>
-                                            <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Infrastructure Status / Errors</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-slate-100">
-                                        {importResult.rows.map((row, idx) => (
-                                            <tr 
-                                                key={idx} 
-                                                className={cn(
-                                                    "transition-colors",
-                                                    row.isValid 
-                                                        ? "hover:bg-slate-50/50" 
-                                                        : "bg-red-50/50 hover:bg-red-50 text-red-900 border-l-4 border-l-red-500"
-                                                )}
-                                            >
-                                                <td className="px-4 py-3 text-xs font-mono text-slate-500 align-top">{row.row}</td>
-                                                <td className="px-4 py-3 text-xs font-bold align-top">
-                                                    {row.studentName}
-                                                    {row.phone && row.phone !== "N/A" && (
-                                                        <span className="block text-[10px] font-medium text-slate-400 mt-0.5">{row.phone}</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-4 py-3 text-xs font-mono text-slate-600 align-top">{row.admissionNo}</td>
-                                                <td className="px-4 py-3 text-xs font-medium text-slate-600 align-top">{row.className}</td>
-                                                <td className="px-4 py-3 text-xs align-top">
-                                                    {row.isValid ? (
-                                                        <div className="space-y-1">
-                                                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                                                <CheckCircle size={10} /> Valid
-                                                            </span>
-                                                            {row.batchStatus && row.batchStatus !== "Ok" && (
-                                                                <span className="block text-[10px] font-medium text-amber-600">
-                                                                    💡 {row.batchStatus}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="space-y-1 text-red-600">
-                                                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
-                                                                <AlertCircle size={10} /> Invalid
-                                                            </span>
-                                                            <ul className="list-disc list-inside text-[10px] font-semibold space-y-0.5 mt-1">
-                                                                {row.errors.map((err, errIdx) => (
-                                                                    <li key={errIdx}>{err}</li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="flex gap-3 pt-2">
-                                <Button onClick={() => setImportStatus("idle")} variant="outline" className="flex-1">
-                                    Cancel & Re-upload
-                                </Button>
-                                <Button 
-                                    onClick={handleConfirmImport} 
-                                    className="flex-1" 
-                                    disabled={importResult.validRows === 0}
-                                >
-                                    <Upload className="mr-2" size={16} />
-                                    Confirm Import ({importResult.validRows} Students)
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {importStatus === "success" && importResult && (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex flex-col items-center">
-                                    <CheckCircle className="text-emerald-500 mb-1" size={24} />
-                                    <span className="text-2xl font-black text-emerald-800">{importResult.successCount}</span>
-                                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Imported</span>
+                            {importStatus === "uploading_photos" && (
+                                <div className="flex flex-col items-center justify-center p-8 space-y-3">
+                                    <LoadingSpinner />
+                                    <p className="text-sm font-bold text-slate-700">Uploading & Optimizing Student Photos...</p>
+                                    {photoUploadProgress && (
+                                        <div className="w-full max-w-xs space-y-1.5">
+                                            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                                <div 
+                                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${photoUploadProgress.percent}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-center font-medium text-slate-500">
+                                                {photoUploadProgress.completed} of {photoUploadProgress.total} uploaded ({photoUploadProgress.percent}%)
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex flex-col items-center">
-                                    <X className="text-red-500 mb-1" size={24} />
-                                    <span className="text-2xl font-black text-red-800">{importResult.failedCount}</span>
-                                    <span className="text-xs font-bold text-red-600 uppercase tracking-wider">Failed</span>
-                                </div>
-                            </div>
+                            )}
 
-                            {importResult.failedCount > 0 && (
-                                <div className="space-y-2">
-                                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Error Report</h4>
-                                    <div className="max-h-[200px] overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+                            {importStatus === "importing" && (
+                                <div className="flex flex-col items-center justify-center p-8">
+                                    <LoadingSpinner />
+                                    <p className="text-sm font-bold text-slate-600 mt-4">Importing Students...</p>
+                                    <p className="text-xs text-slate-400">Writing records to database. Please do not close this window.</p>
+                                </div>
+                            )}
+
+                            {importStatus === "preview" && importResult && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-800">Pre-Import Summary</h4>
+                                            <p className="text-xs text-slate-500">Please review validation results before confirming.</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600">
+                                                Total: {importResult.totalRows}
+                                            </span>
+                                            <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-100">
+                                                Valid: {importResult.validRows}
+                                            </span>
+                                            {photoFilesCount > 0 && (
+                                                <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-100">
+                                                    Photos: {Object.keys(matchedPhotos).length}/{importResult.validRows}
+                                                </span>
+                                            )}
+                                            <span className="px-2.5 py-1 bg-red-50 text-red-700 rounded-lg text-xs font-bold border border-red-100">
+                                                Errors: {importResult.invalidRows}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="max-h-[350px] overflow-y-auto border border-slate-200 rounded-xl">
                                         <table className="w-full text-left border-collapse">
                                             <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
                                                 <tr>
-                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase w-16">Row</th>
-                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Input</th>
-                                                    <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Reason</th>
+                                                    <th className="px-3 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-12">Row</th>
+                                                    <th className="px-3 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-20">Photo</th>
+                                                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-1/4">Name</th>
+                                                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Admission ID</th>
+                                                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Class</th>
+                                                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Infrastructure Status / Errors</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="bg-white">
-                                                {importResult.errors.map((err, idx) => (
-                                                    <tr key={idx} className="hover:bg-red-50/50">
-                                                        <td className="px-3 py-2 text-xs font-mono text-slate-500">{err.row}</td>
-                                                        <td className="px-3 py-2 text-xs font-medium text-slate-700">{err.identifier}</td>
-                                                        <td className="px-3 py-2 text-xs font-bold text-red-600">{err.reason}</td>
-                                                    </tr>
-                                                ))}
+                                            <tbody className="bg-white divide-y divide-slate-100">
+                                                {importResult.rows.map((row, idx) => {
+                                                    const rowKey = row.rowIdx !== undefined ? row.rowIdx : idx;
+                                                    const matchedFile = matchedPhotos[rowKey];
+                                                    return (
+                                                        <tr 
+                                                            key={idx} 
+                                                            className={cn(
+                                                                "transition-colors",
+                                                                row.isValid 
+                                                                    ? "hover:bg-slate-50/50" 
+                                                                    : "bg-red-50/50 hover:bg-red-50 text-red-900 border-l-4 border-l-red-500"
+                                                            )}
+                                                        >
+                                                            <td className="px-3 py-3 text-xs font-mono text-slate-500 align-top">{row.row}</td>
+                                                            <td className="px-3 py-3 align-top">
+                                                                {matchedFile ? (
+                                                                    <div className="flex items-center gap-1.5" title={matchedFile.name}>
+                                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                        <img 
+                                                                            src={URL.createObjectURL(matchedFile)} 
+                                                                            alt="avatar" 
+                                                                            className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
+                                                                        />
+                                                                        <span className="text-[9px] font-mono text-slate-500 truncate max-w-[50px]">
+                                                                            {matchedFile.name}
+                                                                        </span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-[10px] text-slate-300 italic">None</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-xs font-bold align-top">
+                                                                {row.studentName}
+                                                                {row.phone && row.phone !== "N/A" && (
+                                                                    <span className="block text-[10px] font-medium text-slate-400 mt-0.5">{row.phone}</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-xs font-mono text-slate-600 align-top">{row.admissionNo}</td>
+                                                            <td className="px-4 py-3 text-xs font-medium text-slate-600 align-top">{row.className}</td>
+                                                            <td className="px-4 py-3 text-xs align-top">
+                                                                {row.isValid ? (
+                                                                    <div className="space-y-1">
+                                                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                                                            <CheckCircle size={10} /> Valid
+                                                                        </span>
+                                                                        {row.batchStatus && row.batchStatus !== "Ok" && (
+                                                                            <span className="block text-[10px] font-medium text-amber-600">
+                                                                                💡 {row.batchStatus}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-1 text-red-600">
+                                                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                                                                            <AlertCircle size={10} /> Invalid
+                                                                        </span>
+                                                                        <ul className="list-disc list-inside text-[10px] font-semibold space-y-0.5 mt-1">
+                                                                            {row.errors.map((err, errIdx) => (
+                                                                                <li key={errIdx}>{err}</li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
+                                    </div>
+
+                                    <div className="flex gap-3 pt-2">
+                                        <Button onClick={() => setImportStatus("idle")} variant="outline" className="flex-1">
+                                            Cancel & Re-upload
+                                        </Button>
+                                        <Button 
+                                            onClick={handleConfirmImport} 
+                                            className="flex-1" 
+                                            disabled={importResult.validRows === 0}
+                                        >
+                                            <Upload className="mr-2" size={16} />
+                                            Confirm Import ({importResult.validRows} Students)
+                                        </Button>
                                     </div>
                                 </div>
                             )}
 
-                            <div className="pt-2">
-                                <Button onClick={resetImport} variant="outline" className="w-full">
-                                    Close & Refresh
-                                </Button>
-                            </div>
+                            {importStatus === "success" && importResult && (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex flex-col items-center">
+                                            <CheckCircle className="text-emerald-500 mb-1" size={24} />
+                                            <span className="text-2xl font-black text-emerald-800">{importResult.successCount}</span>
+                                            <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Imported</span>
+                                        </div>
+                                        <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex flex-col items-center">
+                                            <X className="text-red-500 mb-1" size={24} />
+                                            <span className="text-2xl font-black text-red-800">{importResult.failedCount}</span>
+                                            <span className="text-xs font-bold text-red-600 uppercase tracking-wider">Failed</span>
+                                        </div>
+                                    </div>
+
+                                    {importResult.failedCount > 0 && (
+                                        <div className="space-y-2">
+                                            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Error Report</h4>
+                                            <div className="max-h-[200px] overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
+                                                        <tr>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase w-16">Row</th>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Input</th>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Reason</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="bg-white">
+                                                        {importResult.errors.map((err, idx) => (
+                                                            <tr key={idx} className="hover:bg-red-50/50">
+                                                                <td className="px-3 py-2 text-xs font-mono text-slate-500">{err.row}</td>
+                                                                <td className="px-3 py-2 text-xs font-medium text-slate-700">{err.identifier}</td>
+                                                                <td className="px-3 py-2 text-xs font-bold text-red-600">{err.reason}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-2">
+                                        <Button onClick={resetImport} variant="outline" className="w-full">
+                                            Close & Refresh
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {importStatus === "error" && (
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex flex-col items-center text-center">
+                                        <AlertCircle className="text-red-500 mb-2" size={32} />
+                                        <h3 className="text-lg font-bold text-red-800">Import Failed</h3>
+                                        <p className="text-sm font-medium text-red-600 mt-1">
+                                            The file could not be processed. Please check the format and try again.
+                                        </p>
+                                    </div>
+
+                                    <div className="pt-2">
+                                        <Button onClick={() => setImportStatus("idle")} variant="outline" className="w-full">
+                                            Try Again
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {importStatus === "error" && (
+                    {/* TAB 2: EXISTING STUDENTS CLASS-WISE PHOTO UPLOADER */}
+                    {importTab === "existing_photos" && (
                         <div className="space-y-4">
-                            <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex flex-col items-center text-center">
-                                <AlertCircle className="text-red-500 mb-2" size={32} />
-                                <h3 className="text-lg font-bold text-red-800">Import Failed</h3>
-                                <p className="text-sm font-medium text-red-600 mt-1">
-                                    The file could not be processed. Please check the format and try again.
-                                </p>
-                            </div>
+                            {photoStatus === "idle" && (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <Select
+                                            label={isSchool ? "Select Class *" : "Select Course *"}
+                                            value={photoCourseId}
+                                            onChange={(val) => { setPhotoCourseId(val); setPhotoBatchId(""); setPhotoStudents([]); }}
+                                            options={[
+                                                { label: "Select...", value: "" },
+                                                ...courses.map(c => ({ label: c.name, value: c._id }))
+                                            ]}
+                                        />
+                                        <Select
+                                            label={isSchool ? "Select Section *" : "Select Batch *"}
+                                            value={photoBatchId}
+                                            onChange={(val) => {
+                                                setPhotoBatchId(val);
+                                                fetchClassStudents(val);
+                                            }}
+                                            options={[
+                                                { label: "Select...", value: "" },
+                                                ...batches
+                                                    .filter(b => b.course === photoCourseId || b.course?._id === photoCourseId)
+                                                    .map(b => ({ label: b.name, value: b._id }))
+                                            ]}
+                                            disabled={!photoCourseId}
+                                        />
+                                    </div>
 
-                            <div className="pt-2">
-                                <Button onClick={() => setImportStatus("idle")} variant="outline" className="w-full">
-                                    Try Again
-                                </Button>
-                            </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Step 1: Download Class Photo Sheet */}
+                                        <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <Download className="text-premium-blue" size={18} />
+                                                    <h3 className="text-xs font-bold text-slate-800">1. Download Class Photo Sheet</h3>
+                                                </div>
+                                                <p className="text-[11px] text-slate-500 mb-3">
+                                                    Download pre-populated Excel sheet containing all enrolled students with an empty Photo No column.
+                                                </p>
+                                            </div>
+                                            {photoBatchId ? (
+                                                <a
+                                                    href={`/api/v1/students/photo-template?batchId=${photoBatchId}`}
+                                                    download
+                                                    className="inline-flex items-center justify-center gap-2 w-full py-2 px-3 bg-white border border-slate-200 hover:border-premium-blue text-premium-blue rounded-lg text-xs font-bold shadow-sm transition-all"
+                                                >
+                                                    <FileSpreadsheet size={15} /> Download Sheet (.xlsx)
+                                                </a>
+                                            ) : (
+                                                <Button disabled size="sm" variant="outline" className="w-full text-xs">
+                                                    Select {isSchool ? "Section" : "Batch"} First
+                                                </Button>
+                                            )}
+                                        </div>
+
+                                        {/* Step 2: Upload Edited Excel (Optional) */}
+                                        <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <FileSpreadsheet className="text-emerald-600" size={18} />
+                                                    <h3 className="text-xs font-bold text-slate-800">2. Upload Edited Sheet (Optional)</h3>
+                                                </div>
+                                                <p className="text-[11px] text-slate-500 mb-3">
+                                                    If you filled custom Photo Numbers in the Excel sheet, select it here to auto-apply.
+                                                </p>
+                                            </div>
+                                            <input
+                                                type="file"
+                                                accept=".xlsx, .xls"
+                                                onChange={handlePhotoExcelSelect}
+                                                disabled={!photoBatchId}
+                                                className="block w-full text-xs text-slate-500
+                                                  file:mr-2 file:py-1.5 file:px-3
+                                                  file:rounded-md file:border-0
+                                                  file:text-xs file:font-semibold
+                                                  file:bg-emerald-600 file:text-white
+                                                  hover:file:bg-emerald-700
+                                                  cursor-pointer disabled:opacity-50"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Step 3: Select Photos Folder */}
+                                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                                        <ImageIcon className="mx-auto text-slate-700 mb-1.5" size={28} />
+                                        <h3 className="text-xs font-bold text-slate-800">3. Select Student Photos Folder *</h3>
+                                        <p className="text-[11px] text-slate-500 mt-0.5 mb-2.5">
+                                            Select the folder containing student photos. Matched by Photo No, Roll No, Admission No, or Name.
+                                        </p>
+                                        {photoFilesCount > 0 && (
+                                            <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 py-1 px-3 rounded-lg w-fit mx-auto mb-2.5">
+                                                <FolderCheck size={15} /> {photoFilesCount} Photos Loaded from Folder
+                                            </div>
+                                        )}
+                                        <input
+                                            type="file"
+                                            webkitdirectory=""
+                                            directory=""
+                                            multiple
+                                            accept="image/*"
+                                            onChange={handlePhotoFolderSelect}
+                                            className="block w-full text-xs text-slate-500
+                                              file:mr-4 file:py-2 file:px-4
+                                              file:rounded-full file:border-0
+                                              file:text-xs file:font-semibold
+                                              file:bg-slate-900 file:text-white
+                                              hover:file:bg-slate-800
+                                              cursor-pointer"
+                                        />
+                                    </div>
+
+                                    {/* Student Matching Table */}
+                                    {photoLoading ? (
+                                        <div className="p-8 text-center">
+                                            <LoadingSpinner />
+                                            <p className="text-xs font-bold text-slate-500 mt-2">Loading enrolled students...</p>
+                                        </div>
+                                    ) : photoStudents.length > 0 && (
+                                        <div className="space-y-3 pt-2 border-t border-slate-100">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                                        Enrolled Students ({photoStudents.length})
+                                                    </h4>
+                                                    <p className="text-[11px] text-slate-400">Review matched photos before saving</p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600">
+                                                        Total: {photoStudents.length}
+                                                    </span>
+                                                    <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-100">
+                                                        Matched: {Object.keys(matchedExistingPhotos).length} / {photoStudents.length}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="max-h-[300px] overflow-y-auto border border-slate-200 rounded-xl">
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
+                                                        <tr>
+                                                            <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase w-20">Roll No</th>
+                                                            <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Student Name</th>
+                                                            <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Admission / ID</th>
+                                                            <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Current Photo</th>
+                                                            <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">New Photo</th>
+                                                            <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="bg-white divide-y divide-slate-100">
+                                                        {photoStudents.map((s) => {
+                                                            const matchedFile = matchedExistingPhotos[s.studentId];
+                                                            return (
+                                                                <tr key={s.studentId} className="hover:bg-slate-50/50 transition-colors">
+                                                                    <td className="px-3 py-2 text-xs font-mono font-bold text-slate-700">{s.rollNo || "-"}</td>
+                                                                    <td className="px-3 py-2 text-xs font-bold text-slate-900">{s.studentName}</td>
+                                                                    <td className="px-3 py-2 text-xs font-mono text-slate-500">{s.admissionNo || "-"}</td>
+                                                                    <td className="px-3 py-2">
+                                                                        {s.currentAvatar ? (
+                                                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                                                            <img src={s.currentAvatar} alt="current avatar" className="w-7 h-7 rounded-full object-cover border border-slate-200" />
+                                                                        ) : (
+                                                                            <span className="text-[10px] text-slate-300 italic">None</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-3 py-2">
+                                                                        {matchedFile ? (
+                                                                            <div className="flex items-center gap-1.5" title={matchedFile.name}>
+                                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                                <img src={URL.createObjectURL(matchedFile)} alt="new avatar" className="w-7 h-7 rounded-full object-cover border-2 border-emerald-400" />
+                                                                                <span className="text-[9px] font-mono text-slate-600 truncate max-w-[70px]">{matchedFile.name}</span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-[10px] text-slate-300 italic">No Match</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-3 py-2">
+                                                                        {matchedFile ? (
+                                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                                                                <CheckCircle size={10} /> Matched
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500">
+                                                                                Pending
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <Button
+                                                onClick={handleConfirmExistingPhotosUpload}
+                                                className="w-full shadow-md shadow-blue-500/10"
+                                                disabled={Object.keys(matchedExistingPhotos).length === 0}
+                                            >
+                                                <Upload className="mr-2" size={16} />
+                                                Upload & Save {Object.keys(matchedExistingPhotos).length} Matched Photos
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {photoStatus === "uploading_photos" && (
+                                <div className="flex flex-col items-center justify-center p-8 space-y-3">
+                                    <LoadingSpinner />
+                                    <p className="text-sm font-bold text-slate-700">Compressing & Uploading Student Photos...</p>
+                                    {photoUploadProgress && (
+                                        <div className="w-full max-w-xs space-y-1.5">
+                                            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                                <div 
+                                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${photoUploadProgress.percent}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-center font-medium text-slate-500">
+                                                {photoUploadProgress.completed} of {photoUploadProgress.total} uploaded ({photoUploadProgress.percent}%)
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {photoStatus === "updating_db" && (
+                                <div className="flex flex-col items-center justify-center p-8">
+                                    <LoadingSpinner />
+                                    <p className="text-sm font-bold text-slate-600 mt-4">Saving Photos to Student Profiles...</p>
+                                    <p className="text-xs text-slate-400">Updating database records. Please wait.</p>
+                                </div>
+                            )}
+
+                            {photoStatus === "success" && photoUpdateResult && (
+                                <div className="space-y-4">
+                                    <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-xl flex flex-col items-center text-center">
+                                        <CheckCircle className="text-emerald-500 mb-2" size={36} />
+                                        <h3 className="text-lg font-black text-emerald-800">Photos Updated Successfully!</h3>
+                                        <p className="text-xs font-semibold text-emerald-600 mt-1">
+                                            Saved profile photos for {photoUpdateResult.successCount} students in this class.
+                                        </p>
+                                    </div>
+
+                                    <div className="pt-2">
+                                        <Button onClick={resetImport} variant="outline" className="w-full">
+                                            Close & Refresh
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {photoStatus === "error" && (
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex flex-col items-center text-center">
+                                        <AlertCircle className="text-red-500 mb-2" size={32} />
+                                        <h3 className="text-lg font-bold text-red-800">Photo Upload Failed</h3>
+                                        <p className="text-sm font-medium text-red-600 mt-1">
+                                            An error occurred while uploading or saving photos. Please try again.
+                                        </p>
+                                    </div>
+
+                                    <div className="pt-2">
+                                        <Button onClick={() => setPhotoStatus("idle")} variant="outline" className="w-full">
+                                            Try Again
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

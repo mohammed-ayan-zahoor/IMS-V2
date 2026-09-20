@@ -38,11 +38,7 @@ export default function AssignmentSubmissionsPage({ params }) {
     const [gradeData, setGradeData] = useState({ marks: "", feedback: "" });
     const [isSaving, setIsSaving] = useState(false);
 
-    useEffect(() => {
-        fetchSubmissions();
-    }, [id]);
-
-    const fetchSubmissions = async () => {
+    const fetchSubmissions = useCallback(async () => {
         try {
             setLoading(true);
             const res = await fetch(`/api/v1/assignments/${id}/submissions`);
@@ -59,7 +55,11 @@ export default function AssignmentSubmissionsPage({ params }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, toast]);
+
+    useEffect(() => {
+        fetchSubmissions();
+    }, [fetchSubmissions]);
 
     const handleGrade = async (e) => {
         e.preventDefault();
@@ -135,37 +135,48 @@ export default function AssignmentSubmissionsPage({ params }) {
             </div>
 
             {/* Stats Bar */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 <Card className="bg-white border-slate-100 shadow-sm">
-                    <CardContent className="p-4 flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                            <User size={20} />
+                    <CardContent className="p-3 md:p-4 flex items-center gap-3 md:gap-4">
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                            <User size={18} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Students</p>
-                            <p className="text-xl font-black text-slate-900">{submissions.length}</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total</p>
+                            <p className="text-lg md:text-xl font-black text-slate-900">{submissions.length}</p>
                         </div>
                     </CardContent>
                 </Card>
                 <Card className="bg-white border-slate-100 shadow-sm">
-                    <CardContent className="p-4 flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
-                            <Clock size={20} />
+                    <CardContent className="p-3 md:p-4 flex items-center gap-3 md:gap-4">
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 shrink-0">
+                            <Clock size={18} />
                         </div>
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pending</p>
-                            <p className="text-xl font-black text-slate-900">{submissions.filter(s => s.status === 'pending').length}</p>
+                            <p className="text-lg md:text-xl font-black text-slate-900">{submissions.filter(s => s.status === 'pending').length}</p>
                         </div>
                     </CardContent>
                 </Card>
                 <Card className="bg-white border-slate-100 shadow-sm">
-                    <CardContent className="p-4 flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
-                            <CheckCircle size={20} />
+                    <CardContent className="p-3 md:p-4 flex items-center gap-3 md:gap-4">
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500 shrink-0">
+                            <CheckCircle size={18} />
                         </div>
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Graded</p>
-                            <p className="text-xl font-black text-slate-900">{submissions.filter(s => s.status === 'graded').length}</p>
+                            <p className="text-lg md:text-xl font-black text-slate-900">{submissions.filter(s => s.status === 'graded').length}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-white border-slate-100 shadow-sm">
+                    <CardContent className="p-3 md:p-4 flex items-center gap-3 md:gap-4">
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 shrink-0">
+                            <AlertCircle size={18} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Late</p>
+                            <p className="text-lg md:text-xl font-black text-slate-900">{submissions.filter(s => s.isLate).length}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -187,7 +198,7 @@ export default function AssignmentSubmissionsPage({ params }) {
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left">
+                        <table className="w-full text-left min-w-[620px]">
                             <thead className="bg-slate-50/50 border-b border-slate-100">
                                 <tr>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
@@ -218,7 +229,14 @@ export default function AssignmentSubmissionsPage({ params }) {
                                                 >
                                                     <FileText size={14} /> View Work <ExternalLink size={10} />
                                                 </button>
-                                                <p className="text-[10px] text-slate-400 font-medium">Submitted {format(new Date(sub.submittedAt), "MMM d, h:mm a")}</p>
+                                                <div className="flex items-center gap-1.5">
+                                                    <p className="text-[10px] text-slate-400 font-medium">Submitted {format(new Date(sub.submittedAt), "MMM d, h:mm a")}</p>
+                                                    {sub.isLate && (
+                                                        <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-100 text-[9px] font-bold uppercase tracking-wider">
+                                                            Late
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -236,7 +254,9 @@ export default function AssignmentSubmissionsPage({ params }) {
                                                         <input 
                                                             type="number" 
                                                             placeholder="Marks"
-                                                            className="w-20 px-3 py-1.5 bg-white border border-premium-blue/20 rounded-lg text-xs font-bold outline-none focus:ring-4 focus:ring-premium-blue/5"
+                                                            min="0"
+                                                            max={assignment.totalMarks || undefined}
+                                                            className="w-20 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-slate-300"
                                                             value={gradeData.marks}
                                                             onChange={e => setGradeData({ ...gradeData, marks: e.target.value })}
                                                             required
@@ -244,7 +264,7 @@ export default function AssignmentSubmissionsPage({ params }) {
                                                         <input 
                                                             type="text" 
                                                             placeholder="Feedback..."
-                                                            className="w-40 px-3 py-1.5 bg-white border border-premium-blue/20 rounded-lg text-xs font-medium outline-none focus:ring-4 focus:ring-premium-blue/5"
+                                                            className="w-40 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-slate-300"
                                                             value={gradeData.feedback}
                                                             onChange={e => setGradeData({ ...gradeData, feedback: e.target.value })}
                                                         />

@@ -3,476 +3,1431 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>MOU – Quantech Platform School Agreement</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<title>MOU – Quantech Platform Agreement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap" rel="stylesheet"/>
 <style>
+/* ── Print Styles (Strict A4 Paper Parity: 25.4mm / 1.0in Margins) ── */
 @media print {
   @page {
     size: A4;
-    margin: 12mm 15mm 12mm 15mm;
+    margin: 25.4mm;
   }
-  body { background: #fff !important; padding: 0 !important; margin: 0 !important; font-size: 13px !important; line-height: 1.45 !important; color: #1e293b !important; }
-  .form-card, .actions, #toast { display: none !important; }
-  .page-wrapper { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
-  .mou-doc { background: transparent !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; width: 100% !important; }
-  
+  body {
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 11pt !important;
+    line-height: 1.45 !important;
+    color: #141a2e !important;
+  }
+  .app-header, .stepper-wrap, .form-rail-wrap, .step-nav-bar, .sticky-phone-bar, .actions-wrap, #toast, .edit-step-btn, .mobile-sheet-backdrop, .mobile-sheet {
+    display: none !important;
+  }
+  .page-wrapper {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .mou-doc {
+    display: block !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
   .mou-page {
     box-shadow: none !important;
+    border: none !important;
     border-radius: 0 !important;
     padding: 0 !important;
     margin-bottom: 0 !important;
     page-break-after: always !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    min-height: 272mm !important;
-    height: auto !important; /* Avoid strict text truncation on varying operating systems */
-    overflow: visible !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-start !important;
+    height: auto !important;
+    min-height: 0 !important;
+    display: block !important;
   }
-  .mou-page:last-child { page-break-after: avoid !important; }
-  .sig-clear, .sig-upload-label, .sig-control-sep { display: none !important; }
-  
-  /* Compact layout sizes for print to prevent page overflow */
-  .mou-letterhead { padding-bottom: 8px !important; margin-bottom: 12px !important; border-bottom-width: 1.5px !important; }
-  .logo-container { height: 38px !important; padding: 4px 8px !important; }
-  .lh-details-area h2 { font-size: 13px !important; }
-  .lh-details-area p { font-size: 8.5px !important; margin-top: 1px !important; }
-  
-  .mou-header { text-align: center !important; margin-bottom: 10px !important; padding-bottom: 8px !important; border-bottom-width: 1.5px !important; }
-  .mou-header .badge { font-size: 8px !important; padding: 2px 8px !important; margin-bottom: 8px !important; }
-  .mou-header h1 { font-size: 19px !important; letter-spacing: 0.5px !important; margin-bottom: 2px !important; }
-  .mou-header .subtitle { font-size: 11px !important; }
-  
-  .mou-parties { grid-template-columns: 1fr 1fr !important; gap: 16px !important; padding: 12px !important; margin-bottom: 12px !important; border-radius: 8px !important; }
-  .party-block h4 { font-size: 8.5px !important; margin-bottom: 4px !important; }
-  .party-block .party-name { font-size: 13.5px !important; }
-  .party-block .party-detail { font-size: 10.5px !important; margin-top: 2px !important; }
-  .party-sep { font-size: 16px !important; display: flex !important; align-items: center; justify-content: center; }
-  .party-sep::before, .party-sep::after { display: none !important; }
-  
-  .mou-section { margin-bottom: 10px !important; }
-  .mou-section h3 { font-size: 11px !important; margin-bottom: 5px !important; padding-bottom: 3px !important; }
-  .mou-section p { font-size: 13px !important; line-height: 1.45 !important; margin-bottom: 4px !important; }
-  .mou-section ul, .mou-section li { font-size: 12.5px !important; line-height: 1.4 !important; margin-bottom: 3px !important; }
-  
-  .highlight-box { padding: 10px !important; margin: 8px 0 !important; border-radius: 8px !important; }
-  .highlight-box .label { font-size: 10px !important; }
-  .highlight-box .value { font-size: 17px !important; }
-  .highlight-box .sub { font-size: 9.5px !important; }
-  
-  .sig-section { grid-template-columns: 1fr 1fr !important; gap: 32px !important; margin-top: 16px !important; }
-  .sig-canvas-wrap canvas { height: 105px !important; }
-  .sig-meta { margin-top: 10px !important; }
-  .sig-meta p { font-size: 12px !important; line-height: 1.3 !important; }
-  .sig-meta span { font-size: 11px !important; }
-  
-  .ref-badge { font-size: 10px !important; padding-top: 6px !important; margin-top: auto !important; border-top-width: 1px !important; }
+  .mou-page:last-child {
+    page-break-after: avoid !important;
+  }
+  .sig-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .sig-clear, .sig-upload-label, .sig-control-sep, .sig-segmented {
+    display: none !important;
+  }
 }
 </style>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#f0f2f5;font-family:'Inter',sans-serif;min-height:100vh;padding:40px 16px}
-.page-wrapper{max-width:860px;margin:0 auto}
-
-/* Form card */
-.form-card{background:#fff;border-radius:16px;padding:32px;margin-bottom:24px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
-.form-card h2{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:20px;display:flex;align-items:center;gap:8px}
-.form-card h2 span{background:#1e3a8a;color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.form-grid.full{grid-template-columns:1fr}
-.field label{display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-.field input,.field textarea,.field select{width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:'Inter',sans-serif;color:#1e293b;transition:.2s}
-.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:#1e3a8a;box-shadow:0 0 0 3px rgba(30,58,138,.1)}
-.field textarea{resize:vertical;min-height:64px}
-.highlight-field input{border-color:#f59e0b;background:#fffbeb}
-.highlight-field label{color:#92400e}
-
-/* MOU Document Wrapper & Pages */
-.mou-doc{background:transparent;box-shadow:none;border-radius:0;padding:0;font-family:'EB Garamond',serif;line-height:1.8}
-.mou-page {
-  background: #fff;
-  border-radius: 16px;
-  padding: 56px 64px;
-  box-shadow: 0 4px 24px rgba(0,0,0,.08);
-  margin-bottom: 24px;
-  position: relative;
-  min-height: 297mm; /* Standard aspect ratio */
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
+/* ── Design System Tokens (No Generic AI UI) ── */
+:root {
+  --bg-page: #f4f5f7;
+  --surface: #ffffff;
+  --border-subtle: #d8dce3;
+  --border-focus: #1e3a8a;
+  --text-primary: #141a2e;
+  --text-secondary: #5b6478;
+  --accent: #1e3a8a;
+  --accent-hover: #1e40af;
+  --accent-tint: #eef2ff;
+  --highlight-border: #d97706;
+  --highlight-bg: #fffbeb;
+  --highlight-text: #92400e;
+  --danger: #b42318;
+  --danger-tint: #fef3f2;
+  --radius-input: 6px;
+  --radius-btn: 6px;
+  --radius-sheet: 2px;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-doc: 'Arial', 'Helvetica Neue', 'Segoe UI', -apple-system, sans-serif;
 }
 
-/* Letterhead Styling */
-.mou-letterhead {
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  padding: 0 0 80px 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page-wrapper {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+/* ── Top App Bar ── */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 24px;
+}
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.app-brand img {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+.app-title-wrap h1 {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.app-title-wrap p {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.app-header-badge {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--accent-tint);
+  border: 1px solid #c7d2fe;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+/* ── Stepper Component (Numbered nodes on connector line) ── */
+.stepper-wrap {
+  margin-bottom: 32px;
+  position: relative;
+}
+
+/* Desktop Stepper (>= 1024px) */
+.desktop-stepper {
+  display: flex;
+  list-style: none;
+  position: relative;
+  justify-content: space-between;
+}
+.desktop-step-item {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.desktop-step-btn {
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  padding-right: 16px;
+  width: 100%;
+}
+.desktop-step-item.is-done .desktop-step-btn {
+  cursor: pointer;
+}
+.step-node-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin-bottom: 10px;
+}
+.step-node {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  position: relative;
+  z-index: 2;
+  transition: all 0.16s ease;
+}
+.desktop-step-item.is-current .step-node {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.desktop-step-item.is-done .step-node {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.step-connector {
+  position: absolute;
+  top: 13px;
+  left: 28px;
+  right: -10px;
+  height: 2px;
+  background: var(--border-subtle);
+  z-index: 1;
+}
+.desktop-step-item:last-child .step-connector {
+  display: none;
+}
+.desktop-step-item.is-done .step-connector {
+  background: var(--accent);
+}
+.step-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+.step-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1.25;
+  margin-bottom: 4px;
+}
+.desktop-step-item.is-current .step-title {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.step-status-tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.desktop-step-item.is-current .step-status-tag {
+  color: var(--accent);
+  font-weight: 600;
+}
+.desktop-step-item.is-done .step-status-tag {
+  color: #059669;
+  font-weight: 600;
+}
+
+/* Mobile Stepper Bar (< 1024px) */
+.mobile-stepper-bar {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+  padding: 12px 14px;
+  margin-bottom: 20px;
+}
+.mobile-stepper-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid #1e3a8a;
-  padding-bottom: 16px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.mobile-step-pill {
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-tint);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.mobile-progress-track {
+  display: flex;
+  gap: 6px;
+  height: 4px;
+}
+.mobile-track-seg {
+  flex: 1;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  transition: background 0.16s ease;
+}
+.mobile-track-seg.is-done {
+  background: var(--accent);
+}
+.mobile-track-seg.is-current {
+  background: var(--accent);
+}
+
+/* ── Asymmetric Layout Grid (Form ≈ 68% / Summary Rail ≈ 32%) ── */
+.form-rail-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 68%) minmax(0, 32%);
+  gap: 36px;
+  align-items: start;
+}
+.form-rail-wrap.full-width {
+  grid-template-columns: 1fr;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+/* ── Step Panels ── */
+.step-pane {
+  display: none;
+  animation: fadeIn 0.16s ease-out;
+}
+.step-pane.is-active {
+  display: block;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.step-header {
   margin-bottom: 24px;
 }
-.lh-logo-area {
+.step-header h2 {
+  font-size: 24px;
+  font-weight: 650;
+  color: var(--text-primary);
+  line-height: 1.25;
+  margin-bottom: 6px;
+}
+.step-header p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* ── Field Groups (Unboxed, 1px hairlines) ── */
+.field-group {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.field-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.group-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  display: block;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.form-row.single {
+  grid-template-columns: 1fr;
+}
+.field {
   display: flex;
+  flex-direction: column;
+}
+.field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+.field label span.req {
+  color: var(--danger);
+  margin-left: 2px;
+}
+.field input, .field select, .field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 16px; /* Prevents iOS auto-zoom */
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+  outline: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.15);
+}
+.field input.is-invalid, .field select.is-invalid, .field textarea.is-invalid {
+  border-color: var(--danger) !important;
+  background: var(--danger-tint);
+}
+.field-error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: 4px;
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+.field-error.show {
+  display: flex;
+}
+.field-error svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* The one deliberately different field: Student Count (Amber Highlight) */
+.field.is-highlight input {
+  border: 1.5px solid var(--highlight-border);
+  background: var(--highlight-bg);
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.field.is-highlight label {
+  color: var(--highlight-text);
+  font-weight: 700;
+}
+
+/* ── Choice Tiles (Institution Type) ── */
+.choice-tiles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+.choice-tile {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.14s ease;
+  user-select: none;
+}
+.choice-tile:hover {
+  border-color: var(--text-secondary);
+}
+.choice-tile.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+.choice-tile input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.choice-tile-title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.choice-tile.is-selected .choice-tile-title {
+  color: var(--accent);
+}
+.choice-tile-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ── Choice Rows (Platform Package) ── */
+.choice-rows-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.choice-row-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.14s ease;
+}
+.choice-row-card:hover {
+  border-color: var(--text-secondary);
+}
+.choice-row-card.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+.choice-row-info {
+  display: flex;
+  flex-direction: column;
+}
+.choice-row-name {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+.choice-row-card.is-selected .choice-row-name {
+  color: var(--accent);
+}
+.choice-row-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.choice-row-price {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Segmented Control (Duration) ── */
+.segmented-control {
+  display: flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  overflow: hidden;
+}
+.segment-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: center;
+  border-right: 1px solid var(--border-subtle);
+  transition: all 0.14s ease;
+}
+.segment-btn:last-child {
+  border-right: none;
+}
+.segment-btn:hover {
+  color: var(--text-primary);
+}
+.segment-btn.is-selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── Coupon Code Link / Inline ── */
+.coupon-toggle-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.coupon-toggle-link:hover {
+  text-decoration: underline;
+}
+.coupon-box-wrap {
+  display: none;
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+}
+.coupon-box-wrap.show {
+  display: block;
+}
+
+/* ── Navigation Buttons ── */
+.step-nav-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  transition: all 0.14s ease;
+  user-select: none;
+}
+.btn svg {
+  width: 16px;
+  height: 16px;
+}
+.btn-primary {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+.btn-secondary:hover {
+  border-color: var(--text-secondary);
+}
+.btn-back-text {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+}
+.btn-back-text:hover {
+  color: var(--text-primary);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Summary Rail (Desktop: Unboxed, 1px left rule) ── */
+.summary-rail {
+  border-left: 1px solid var(--border-subtle);
+  padding-left: 28px;
+  position: sticky;
+  top: 24px;
+}
+.summary-rail-title {
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+.rail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 0;
+  font-size: 13px;
+}
+.rail-label {
+  color: var(--text-secondary);
+}
+.rail-val {
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.rail-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 10px 0;
+}
+.rail-total-row {
+  padding-top: 6px;
+}
+.rail-total-row .rail-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.rail-total-row .rail-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.rail-upfront-row .rail-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #059669;
+}
+.rail-note {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-top: 12px;
+}
+
+/* ── Step 4: Word Master Parity Document Sheet ── */
+.doc-review-container {
+  display: flex;
+  flex-direction: column;
   align-items: center;
 }
-.logo-container {
-  background: #1e3a8a !important; /* Theme deep blue to perfectly contrast the white logo letters */
-  padding: 6px 14px;
-  border-radius: 8px;
+.doc-review-toolbar {
+  width: 100%;
+  max-width: 860px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+.doc-sheet-notice {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.doc-sheet-notice svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+}
+
+/* The Document Container */
+.mou-doc {
+  background: transparent;
+  font-family: var(--font-doc);
+  line-height: 1.55;
+  color: #0f172a;
+  width: 100%;
+  max-width: 860px;
+}
+.mou-page {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sheet);
+  padding: 20mm 25.4mm 25.4mm 25.4mm; /* Top padding reduced slightly to account for running header */
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  min-height: 297mm;
+  box-sizing: border-box;
+}
+.mou-running-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 8pt;
+  color: #64748b;
+  border-bottom: 1px solid #cbd5e1;
+  padding-bottom: 5px;
+  margin-bottom: 16px;
+  font-family: var(--font-doc);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+  z-index: 2;
+}
+.mou-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  font-family: var(--font-doc);
+  font-size: 76pt;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: rgba(148, 163, 184, 0.09);
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  white-space: nowrap;
+}
+.mou-page > *:not(.mou-watermark) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Letterhead matching Word Master Template */
+.mou-letterhead-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-bottom: 1.5pt solid #1e3a8a;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+.mou-letterhead-table td {
+  vertical-align: middle;
+  padding: 0 0 10px 0;
+}
+.lh-logo-cell img {
+  max-height: 52px;
+  width: auto;
+  object-fit: contain;
+}
+.lh-corp-cell {
+  text-align: right;
+  font-family: var(--font-doc);
+}
+.lh-corp-cell h2 {
+  font-size: 13pt;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-bottom: 2px;
+  letter-spacing: 0.02em;
+}
+.lh-corp-cell p {
+  font-size: 9pt;
+  color: #475569;
+  line-height: 1.35;
+  margin: 0;
+}
+
+/* Document Title Block */
+.mou-doc-title {
+  text-align: center;
+  margin-top: 14px;
+  margin-bottom: 4px;
+}
+.mou-doc-title h1 {
+  font-size: 17pt;
+  font-weight: 700;
+  color: #1e3a8a;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.mou-doc-title .doc-subtitle {
+  font-size: 11pt;
+  font-style: italic;
+  color: #475569;
+}
+.doc-ref-date-row {
+  text-align: right;
+  font-size: 10pt;
+  color: #64748b;
+  margin-top: 14px;
+  margin-bottom: 18px;
+}
+.doc-ref-date-row strong {
+  color: #0f172a;
+}
+
+/* Parties Table matching Word Template */
+.mou-parties-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-subtle);
+  background: #f8fafc;
+  margin-bottom: 22px;
+}
+.mou-parties-table td {
+  width: 50%;
+  padding: 12px 16px;
+  vertical-align: top;
+  border-right: 1px solid #e2e8f0;
+}
+.mou-parties-table td:last-child {
+  border-right: none;
+}
+.party-cell-title {
+  font-size: 9.5pt;
+  font-weight: 700;
+  color: #1e3a8a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.party-cell-name {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+.party-cell-detail {
+  font-size: 9.5pt;
+  color: #475569;
+  line-height: 1.4;
+}
+
+/* Section Headings & Body */
+.mou-section {
+  margin-bottom: 18px;
+}
+.mou-section h3 {
+  font-size: 12pt;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-bottom: 8px;
+}
+.mou-section p {
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: #1e293b;
+  margin-bottom: 8px;
+  text-align: justify;
+}
+.mou-section ul {
+  padding-left: 20px;
+  margin-bottom: 8px;
+}
+.mou-section ul li {
+  font-size: 10.5pt;
+  line-height: 1.5;
+  color: #1e293b;
+  margin-bottom: 5px;
+}
+
+/* Commercial Table matching Word Template */
+.mou-commercial-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-subtle);
+  margin: 12px 0 16px 0;
+}
+.mou-commercial-table td {
+  padding: 9px 12px;
+  font-size: 10pt;
+  border: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+.mou-commercial-table td.comm-td-label {
+  width: 42%;
+  background: #f1f5f9;
+  font-weight: 700;
+  color: #1e293b;
+}
+.mou-commercial-table td.comm-td-val {
+  width: 58%;
+  color: #0f172a;
+}
+.comm-val-strong {
+  font-weight: 700;
+  color: #1e3a8a;
+  font-size: 11pt;
+}
+.comm-val-upfront {
+  font-weight: 700;
+  color: #059669;
+  font-size: 11pt;
+}
+
+/* Signatures Table matching Word Template */
+.mou-signatures-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 24px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.mou-signatures-table td {
+  width: 50%;
+  vertical-align: top;
+  padding: 0 16px 0 0;
+}
+.mou-signatures-table td:last-child {
+  padding: 0 0 0 16px;
+}
+.sig-party-title {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-bottom: 8px;
+}
+.sig-box-preview {
+  height: 110px;
+  border: 1px dashed var(--border-subtle);
+  background: #f8fafc;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.12);
-  height: 52px;
-  print-color-adjust: exact;
-  -webkit-print-color-adjust: exact;
-}
-.logo-container img {
-  height: 100%;
-  max-width: 140px;
-  object-fit: contain;
-}
-.lh-details-area {
-  text-align: right;
-}
-.lh-details-area h2 {
-  font-family: 'Inter', sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: #1e3a8a;
-  margin: 0 0 2px 0;
-  letter-spacing: 0.5px;
-}
-.lh-details-area p {
-  font-family: 'Inter', sans-serif;
-  font-size: 10px;
-  color: #64748b;
-  margin: 2px 0 0 0;
-  line-height: 1.3;
-}
-
-/* Commercials & Enrollment Wrapper */
-.enrollment-commercial-wrapper {
-  display: grid;
-  grid-template-columns: 1fr 1.30fr;
-  gap: 20px;
-  margin: 20px 0;
-}
-.commercial-box {
-  background: #f0fdf4;
-  border: 1.5px solid #bbf7d0;
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.comm-title {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  color: #166534;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
   margin-bottom: 8px;
 }
-.comm-grid {
+.sig-box-preview img {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+.sig-line-rule {
+  border-bottom: 1px solid #0f172a;
+  height: 2px;
+  margin: 6px 0 8px 0;
+}
+.sig-meta-text p {
+  font-size: 9.5pt;
+  line-height: 1.35;
+  color: #334155;
+  margin-bottom: 2px;
+}
+
+/* Document Footer */
+.mou-doc-footer-note {
+  font-family: var(--font-doc);
+  font-size: 8.5pt;
+  color: #94a3b8;
+  text-align: center;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 12px;
+  margin-top: 24px;
+}
+
+/* Edit Step Buttons on Review Document */
+.edit-step-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-step-btn:hover {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+}
+.edit-step-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ── Step 5: Interactive Signature Screen ── */
+.sign-screen-wrap {
+  max-width: 680px;
+  margin: 0 auto;
+}
+.signatory-summary-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+.signatory-summary-card h3 {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.signatory-meta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 13px;
+}
+.sig-mode-segmented {
+  display: inline-flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.sig-mode-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  color: var(--text-secondary);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.sig-mode-btn.is-selected {
+  background: var(--accent);
+  color: #fff;
+}
+.sig-interactive-wrap {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+  background: #ffffff;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.sig-interactive-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 220px;
+  cursor: crosshair;
+  touch-action: none; /* Prevents touch scroll while signing */
+}
+.sig-baseline-guide {
+  position: absolute;
+  bottom: 36px;
+  left: 32px;
+  right: 32px;
+  border-bottom: 1px dashed #cbd5e1;
+  pointer-events: none;
+}
+.sig-hint-text {
+  position: absolute;
+  bottom: 12px;
+  left: 32px;
+  font-size: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+.sig-interactive-wrap.is-signed .sig-hint-text,
+.sig-interactive-wrap.is-signed .sig-baseline-guide {
+  opacity: 0;
+}
+.sig-upload-pane {
+  display: none;
+  padding: 36px 20px;
+  text-align: center;
+  border: 1.5px dashed var(--border-subtle);
+  border-radius: var(--radius-input);
+  background: #f8fafc;
+  margin-bottom: 8px;
+}
+.sig-upload-pane.is-active {
+  display: block;
+}
+
+.sig-tools-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.sig-clear-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sig-clear-btn:hover {
+  text-decoration: underline;
+}
+
+/* Download Action Buttons */
+.download-actions-stack {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+  margin-top: 24px;
 }
-.comm-label {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  color: #64748b;
+.download-actions-stack .btn {
+  height: 48px;
+  font-size: 15px;
 }
-.comm-value {
-  font-family: 'Inter', sans-serif;
-  font-size: 19px;
+.btn-docx-export {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+.btn-docx-export:hover {
+  background: var(--accent-tint);
+}
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #141a2e;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: var(--radius-input);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.24s ease;
+  z-index: 1000;
+}
+#toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Mobile Sticky Bottom Bar */
+.sticky-phone-bar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border-subtle);
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  z-index: 100;
+  align-items: center;
+  justify-content: space-between;
+}
+.phone-bar-summary {
+  display: flex;
+  flex-direction: column;
+}
+.phone-bar-total {
+  font-size: 15px;
   font-weight: 700;
-  color: #14532d;
-  margin-top: 2px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
-.comm-value.upfront {
-  color: #166534;
-}
-.comm-footer {
-  font-family: 'Inter', sans-serif;
-  font-size: 9.5px;
-  color: #64748b;
-  margin-top: 8px;
-  border-top: 1px dashed #dcfce7;
-  padding-top: 6px;
-  line-height: 1.3;
+.phone-bar-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
-.mou-header{text-align:center;border-bottom:3px double #1e3a8a;padding-bottom:28px;margin-bottom:32px}
-.mou-header .badge{display:inline-block;background:#1e3a8a;color:#fff;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:4px 12px;border-radius:4px;margin-bottom:16px}
-.mou-header h1{font-size:28px;font-weight:700;color:#1e293b;letter-spacing:1px;margin-bottom:4px}
-.mou-header .subtitle{font-size:14px;color:#64748b;font-family:'Inter',sans-serif;font-weight:500}
+/* ── Mobile Responsive Overrides (< 768px) ── */
+@media (max-width: 1023px) {
+  .desktop-stepper { display: none; }
+  .mobile-stepper-bar { display: block; }
+  .form-rail-wrap { grid-template-columns: 1fr; }
+  .summary-rail { display: none; }
+}
 
-.mou-parties{display:grid;grid-template-columns:1fr 1fr;gap:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin-bottom:28px}
-.party-block h4{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:8px}
-.party-block .party-name{font-size:17px;font-weight:700;color:#1e3a8a}
-.party-block .party-detail{font-size:13px;color:#475569;margin-top:4px;font-family:'Inter',sans-serif}
-.party-sep{display:flex;align-items:center;justify-content:center;font-size:22px;color:#94a3b8;font-weight:300}
-
-.mou-section{margin-bottom:24px}
-.mou-section h3{font-family:'Inter',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#1e3a8a;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e2e8f0}
-.mou-section p{font-size:15.5px;color:#334155;margin-bottom:8px;text-align:justify}
-.mou-section ul{padding-left:20px}
-.mou-section ul li{font-size:15.5px;color:#334155;margin-bottom:6px}
-
-.highlight-box{background:linear-gradient(135deg,#1e3a8a08,#f59e0b08);border:1.5px solid #f59e0b;border-radius:10px;padding:16px 20px;margin:20px 0;text-align:center}
-.highlight-box .label{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#92400e;margin-bottom:4px}
-.highlight-box .value{font-size:26px;font-weight:700;color:#1e3a8a;font-family:'Inter',sans-serif}
-.highlight-box .sub{font-size:13px;color:#64748b;font-family:'Inter',sans-serif;margin-top:2px}
-
-/* Signature area */
-.sig-section{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px;padding-top:32px;border-top:2px solid #e2e8f0}
-.sig-block h4{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:12px}
-.sig-canvas-wrap{border:1.5px dashed #cbd5e1;border-radius:10px;background:#f8fafc;position:relative;overflow:hidden}
-.sig-canvas-wrap canvas{display:block;width:100%;height:140px;cursor:crosshair;touch-action:none}
-.sig-canvas-wrap .sig-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Inter',sans-serif;font-size:12px;color:#94a3b8;font-weight:500;pointer-events:none;transition:.2s}
-.sig-canvas-wrap.signed .sig-hint{opacity:0}
-.sig-meta{margin-top:10px}
-.sig-meta .sig-line{border-bottom:1px solid #1e293b;margin-bottom:4px;height:20px}
-.sig-meta p{font-size:13px;color:#334155;font-family:'Inter',sans-serif}
-.sig-meta p strong{font-weight:600}
-.sig-clear{margin-top:6px;font-family:'Inter',sans-serif;font-size:11px;color:#ef4444;cursor:pointer;background:none;border:none;padding:0;font-weight:600}
-.sig-clear:hover{text-decoration:underline}
-
-.provider-sig{text-align:center}
-.provider-sig .stamp{display:inline-block;border:3px solid #1e3a8a;border-radius:50%;width:80px;height:80px;line-height:80px;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;color:#1e3a8a;letter-spacing:1px;margin:4px auto 8px}
-
-/* Footer actions */
-.actions{display:flex;gap:12px;justify-content:flex-end;margin-top:24px;flex-wrap:wrap}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:.2s}
-.btn-primary{background:#1e3a8a;color:#fff;box-shadow:0 4px 12px rgba(30,58,138,.3)}
-.btn-primary:hover{background:#1e40af}
-.btn-secondary{background:#fff;color:#475569;border:1.5px solid #e2e8f0}
-.btn-secondary:hover{border-color:#94a3b8}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-
-.ref-badge{font-family:'Inter',monospace;font-size:11px;color:#94a3b8;text-align:center;margin-top:auto;padding-top:16px;border-top:1px solid #f1f5f9}
-
-.status-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;background:#dcfce7;color:#16a34a;margin-bottom:16px}
-.status-pill::before{content:'';width:7px;height:7px;background:#16a34a;border-radius:50%;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-
-#toast{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;padding:14px 20px;border-radius:12px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.2);transform:translateY(100px);opacity:0;transition:.3s;z-index:999}
-#toast.show{transform:translateY(0);opacity:1}
-
-@media (max-width: 680px) {
+@media (max-width: 767px) {
   body {
-    padding: 16px 8px !important;
+    padding-bottom: 90px;
   }
-  .form-card {
-    padding: 24px 16px !important;
+  .page-wrapper {
+    padding: 16px 12px;
   }
-  .form-grid {
-    grid-template-columns: 1fr !important;
-    gap: 12px !important;
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .choice-tiles-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .sticky-phone-bar {
+    display: flex;
+  }
+  .step-nav-bar {
+    display: none; /* Mobile uses sticky phone bar */
+  }
+  .step-header h2 {
+    font-size: 20px;
+  }
+
+  /* Step 4 Fluid Reading Layout on Phone (No shrunken A4) */
+  .mou-doc {
+    max-width: 100% !important;
   }
   .mou-page {
-    padding: 36px 20px !important; /* Classic formal document page spacing on mobile */
-    border-radius: 12px !important;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.05) !important;
+    padding: 24px 16px !important;
     min-height: 0 !important;
+    border-radius: var(--radius-input) !important;
     margin-bottom: 16px !important;
   }
-  .enrollment-commercial-wrapper {
-    grid-template-columns: 1fr !important;
-    gap: 12px !important;
-    margin: 16px 0 !important;
+  .mou-letterhead-table {
+    display: block;
   }
-  .mou-header {
-    margin-bottom: 24px !important;
-    padding-bottom: 20px !important;
+  .mou-letterhead-table tr {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
-  .mou-header h1 {
-    font-size: 21px !important;
-    line-height: 1.3 !important;
+  .mou-letterhead-table td {
+    display: block;
+    width: 100% !important;
+    text-align: left !important;
   }
-  .mou-header .subtitle {
-    font-size: 12px !important;
-    margin-top: 6px;
+  .lh-corp-cell {
+    text-align: left !important;
   }
-  .mou-parties {
-    grid-template-columns: 1fr !important;
-    gap: 12px !important;
-    padding: 16px !important;
-    margin-bottom: 20px !important;
+  .mou-parties-table {
+    display: block;
   }
-  .party-sep {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px !important;
-    color: #94a3b8;
-    margin: 4px 0 !important;
+  .mou-parties-table tr {
+    display: flex;
+    flex-direction: column;
   }
-  .party-sep::before, .party-sep::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: #e2e8f0;
-    margin: 0 12px;
+  .mou-parties-table td {
+    display: block;
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid #e2e8f0;
   }
-  .highlight-box {
-    padding: 12px !important;
-    margin: 16px 0 !important;
-  }
-  .highlight-box .value {
-    font-size: 20px !important;
-  }
-  .sig-section {
-    grid-template-columns: 1fr !important;
-    gap: 36px !important;
-    margin-top: 32px !important;
-    padding-top: 24px !important;
-  }
-  .sig-block {
+  .mou-commercial-table td {
+    display: block;
     width: 100% !important;
   }
-  .sig-canvas-wrap canvas {
-    height: 120px !important;
+  .mou-signatures-table {
+    display: block;
   }
-  .actions {
-    flex-direction: column !important;
-    gap: 8px !important;
+  .mou-signatures-table tr {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
   }
-  .actions .btn {
+  .mou-signatures-table td {
+    display: block;
     width: 100% !important;
-    justify-content: center !important;
+    padding: 0 !important;
+  }
+  .sig-interactive-wrap canvas {
+    height: 190px;
   }
 }
 
-/* Force standard A4 proportions during PDF capture regardless of viewport size */
+/* ── Export Layout Override: Force True A4 (794px width, 25.4mm margins) regardless of device ── */
 body.is-exporting {
-  width: 1024px !important;
-  background: #f0f2f5 !important;
+  width: 794px !important;
+  background: #fff !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body.is-exporting .app-header,
+body.is-exporting .stepper-wrap,
+body.is-exporting .form-rail-wrap > div:first-child,
+body.is-exporting .summary-rail,
+body.is-exporting .step-nav-bar,
+body.is-exporting .sticky-phone-bar,
+body.is-exporting .doc-review-toolbar,
+body.is-exporting .edit-step-btn,
+body.is-exporting #toast {
+  display: none !important;
 }
 body.is-exporting .page-wrapper {
-  max-width: 860px !important;
-  width: 860px !important;
-  margin: 0 auto !important;
+  max-width: 794px !important;
+  width: 794px !important;
+  margin: 0 !important;
   padding: 0 !important;
 }
 body.is-exporting .mou-doc {
-  background: transparent !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-  width: 860px !important;
-  line-height: 1.55 !important; /* Gain vertical space */
+  display: block !important;
+  max-width: 794px !important;
+  width: 794px !important;
 }
 body.is-exporting .mou-page {
-  padding: 44px 56px !important; /* Reduce padding from 56px 64px to fit content */
+  display: block !important;
+  width: 794px !important;
+  min-height: 1123px !important;
+  padding: 25.4mm !important;
+  border: none !important;
   border-radius: 0 !important;
-  box-shadow: none !important;
-  width: 860px !important;
-  min-height: 1216px !important; /* Fit content aspect ratio */
-  height: auto !important;
   margin-bottom: 0 !important;
-  position: relative !important;
-  overflow: visible !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: flex-start !important;
+  page-break-after: always !important;
 }
-body.is-exporting .form-card, body.is-exporting .actions, body.is-exporting #toast {
-  display: none !important;
+body.is-exporting .mou-page:last-child {
+  page-break-after: avoid !important;
 }
-body.is-exporting .mou-letterhead {
-  padding-bottom: 10px !important;
-  margin-bottom: 16px !important;
+body.is-exporting .mou-letterhead-table {
+  display: table !important;
 }
-body.is-exporting .logo-container {
-  height: 44px !important;
-  padding: 4px 10px !important;
+body.is-exporting .mou-letterhead-table tr {
+  display: table-row !important;
 }
-body.is-exporting .mou-header {
-  padding-bottom: 14px !important;
-  margin-bottom: 18px !important;
-  border-bottom-width: 2px !important;
+body.is-exporting .mou-letterhead-table td {
+  display: table-cell !important;
 }
-body.is-exporting .mou-header h1 {
-  font-size: 24px !important;
+body.is-exporting .lh-corp-cell {
+  text-align: right !important;
 }
-body.is-exporting .mou-header .badge {
-  margin-bottom: 8px !important;
+body.is-exporting .mou-parties-table {
+  display: table !important;
 }
-body.is-exporting .mou-parties {
-  padding: 16px 20px !important;
-  margin-bottom: 18px !important;
-  gap: 20px !important;
+body.is-exporting .mou-parties-table tr {
+  display: table-row !important;
 }
-body.is-exporting .party-block .party-name {
-  font-size: 15px !important;
+body.is-exporting .mou-parties-table td {
+  display: table-cell !important;
+  width: 50% !important;
 }
-body.is-exporting .party-block .party-detail {
-  font-size: 11.5px !important;
+body.is-exporting .mou-commercial-table {
+  display: table !important;
 }
-body.is-exporting .mou-section {
-  margin-bottom: 16px !important;
+body.is-exporting .mou-commercial-table tr {
+  display: table-row !important;
 }
-body.is-exporting .mou-section h3 {
-  margin-bottom: 8px !important;
-  padding-bottom: 4px !important;
+body.is-exporting .mou-commercial-table td {
+  display: table-cell !important;
 }
-body.is-exporting .mou-section p {
-  font-size: 14.5px !important;
-  margin-bottom: 6px !important;
+body.is-exporting .mou-commercial-table td.comm-td-label {
+  width: 42% !important;
 }
-body.is-exporting .mou-section ul li {
-  font-size: 14px !important;
-  margin-bottom: 4px !important;
+body.is-exporting .mou-commercial-table td.comm-td-val {
+  width: 58% !important;
 }
-body.is-exporting .enrollment-commercial-wrapper {
-  grid-template-columns: 1fr 1.30fr !important;
-  gap: 16px !important;
-  margin: 12px 0 !important;
+body.is-exporting .mou-signatures-table {
+  display: table !important;
 }
-body.is-exporting .highlight-box {
-  padding: 10px 14px !important;
-  margin: 12px 0 !important;
+body.is-exporting .mou-signatures-table tr {
+  display: table-row !important;
 }
-body.is-exporting .highlight-box .value {
-  font-size: 22px !important;
+body.is-exporting .mou-signatures-table td {
+  display: table-cell !important;
+  width: 50% !important;
+  padding: 0 16px 0 0 !important;
 }
-body.is-exporting .commercial-box {
-  padding: 10px 14px !important;
-}
-body.is-exporting .comm-value {
-  font-size: 16px !important;
-}
-body.is-exporting .party-sep {
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-}
-body.is-exporting .party-sep::before, body.is-exporting .party-sep::after {
-  display: none !important;
-}
-body.is-exporting .sig-section {
-  grid-template-columns: 1fr 1fr !important;
-  gap: 40px !important;
-  margin-top: 24px !important;
-  padding-top: 20px !important;
-}
-body.is-exporting .sig-block {
-  width: auto !important;
-}
-body.is-exporting .sig-canvas-wrap canvas {
-  height: 140px !important;
-}
-body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-exporting .sig-control-sep {
-  display: none !important;
+body.is-exporting .mou-signatures-table td:last-child {
+  padding: 0 0 0 16px !important;
 }
 </style>
 </head>
@@ -480,401 +1435,754 @@ body.is-exporting .sig-clear, body.is-exporting .sig-upload-label, body.is-expor
 
 <div class="page-wrapper">
 
-  <!-- Step 1: Fill Details -->
-  <div class="form-card" id="step-form">
-    <h2><span>1</span> Institution Details — Fill Before Signing</h2>
-
-    <!-- Institute Type Toggle -->
-    <div style="margin-bottom:18px;background:#f0f4ff;border:1.5px solid #c7d7ff;border-radius:12px;padding:14px 16px;">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;display:block;margin-bottom:10px;">Institution Type</label>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:#1e3a8a;">
-          <input type="radio" name="f-insttype" value="school" checked onchange="onInstTypeChange()" style="accent-color:#1e3a8a;width:16px;height:16px;"> School / Junior College
-        </label>
-        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:#1e3a8a;">
-          <input type="radio" name="f-insttype" value="college_degree" onchange="onInstTypeChange()" style="accent-color:#1e3a8a;width:16px;height:16px;"> Degree College (3 Years)
-        </label>
-        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:#1e3a8a;">
-          <input type="radio" name="f-insttype" value="college_pu" onchange="onInstTypeChange()" style="accent-color:#1e3a8a;width:16px;height:16px;"> PU / Diploma College (2 Years)
-        </label>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="app-brand">
+      <img src="/quantech/Quantech-Logo.png" alt="Quantech Infosystem"/>
+      <div class="app-title-wrap">
+        <h1>MOU Agreement Portal</h1>
+        <p>Official Institutional Service Level Agreement</p>
       </div>
     </div>
+    <div class="app-header-badge">Academic Year 2026–27</div>
+  </header>
 
-    <div class="form-grid">
-      <div class="field">
-        <label>School / Institution Name *</label>
-        <input id="f-school" type="text" placeholder="e.g. SCDS College, Hubli" oninput="updateDoc()"/>
+  <!-- Stepper Component -->
+  <nav class="stepper-wrap" aria-label="Agreement Steps">
+    <!-- Desktop Stepper -->
+    <ol class="desktop-stepper" id="desktopStepper">
+      <li class="desktop-step-item is-current" data-step="1">
+        <button type="button" class="desktop-step-btn" onclick="goToStep(1)">
+          <div class="step-node-row">
+            <span class="step-node">1</span>
+            <span class="step-connector"></span>
+          </div>
+          <span class="step-eyebrow">Step 1</span>
+          <span class="step-title">Institution</span>
+          <span class="step-status-tag" id="status-tag-1">In progress</span>
+        </button>
+      </li>
+      <li class="desktop-step-item" data-step="2">
+        <button type="button" class="desktop-step-btn" onclick="goToStep(2)">
+          <div class="step-node-row">
+            <span class="step-node">2</span>
+            <span class="step-connector"></span>
+          </div>
+          <span class="step-eyebrow">Step 2</span>
+          <span class="step-title">Signatory</span>
+          <span class="step-status-tag" id="status-tag-2">Pending</span>
+        </button>
+      </li>
+      <li class="desktop-step-item" data-step="3">
+        <button type="button" class="desktop-step-btn" onclick="goToStep(3)">
+          <div class="step-node-row">
+            <span class="step-node">3</span>
+            <span class="step-connector"></span>
+          </div>
+          <span class="step-eyebrow">Step 3</span>
+          <span class="step-title">Plan &amp; Strength</span>
+          <span class="step-status-tag" id="status-tag-3">Pending</span>
+        </button>
+      </li>
+      <li class="desktop-step-item" data-step="4">
+        <button type="button" class="desktop-step-btn" onclick="goToStep(4)">
+          <div class="step-node-row">
+            <span class="step-node">4</span>
+            <span class="step-connector"></span>
+          </div>
+          <span class="step-eyebrow">Step 4</span>
+          <span class="step-title">Review</span>
+          <span class="step-status-tag" id="status-tag-4">Pending</span>
+        </button>
+      </li>
+      <li class="desktop-step-item" data-step="5">
+        <button type="button" class="desktop-step-btn" onclick="goToStep(5)">
+          <div class="step-node-row">
+            <span class="step-node">5</span>
+          </div>
+          <span class="step-eyebrow">Step 5</span>
+          <span class="step-title">Sign &amp; Download</span>
+          <span class="step-status-tag" id="status-tag-5">Pending</span>
+        </button>
+      </li>
+    </ol>
+
+    <!-- Mobile Stepper Bar -->
+    <div class="mobile-stepper-bar">
+      <div class="mobile-stepper-header">
+        <span id="mobileStepText">Step 1 of 5 · Institution</span>
+        <span class="mobile-step-pill" id="mobileStepPill">In progress</span>
       </div>
-      <div class="field">
-        <label>City / District *</label>
-        <input id="f-city" type="text" placeholder="e.g. Bhopal, MP" oninput="updateDoc()"/>
-      </div>
-      <div class="field">
-        <label>Principal / Authorised Signatory Name *</label>
-        <input id="f-principal" type="text" placeholder="Full name" oninput="updateDoc()"/>
-      </div>
-      <div class="field">
-        <label>Designation</label>
-        <input id="f-designation" type="text" placeholder="e.g. Principal, Director" oninput="updateDoc()"/>
-      </div>
-      <div class="field">
-        <label>Contact Email *</label>
-        <input id="f-email" type="email" placeholder="principal@school.edu" oninput="updateDoc()"/>
-      </div>
-      <div class="field">
-        <label>Contact Phone</label>
-        <input id="f-phone" type="tel" placeholder="+91 98765 43210" oninput="updateDoc()"/>
+      <div class="mobile-progress-track">
+        <div class="mobile-track-seg is-current" id="mtrack-1"></div>
+        <div class="mobile-track-seg" id="mtrack-2"></div>
+        <div class="mobile-track-seg" id="mtrack-3"></div>
+        <div class="mobile-track-seg" id="mtrack-4"></div>
+        <div class="mobile-track-seg" id="mtrack-5"></div>
       </div>
     </div>
-    <div style="margin-top:16px" class="form-grid">
-      <!-- SCHOOL: single student count field -->
-      <div class="field highlight-field" id="field-school-students">
-        <label>Total Number of Students to be Enrolled *</label>
-        <input id="f-students" type="number" min="1" placeholder="e.g. 450" oninput="updateDoc()" style="font-size:18px;font-weight:700"/>
-      </div>
-      <div class="field" style="border-radius:10px;">
-        <label style="color:#1e3a8a;font-weight:700;">UDISE Code (Institution Code)</label>
-        <input id="f-udise" type="text" placeholder="e.g. 23260100101" oninput="updateDoc()" style="font-size:18px;font-weight:700;border-color:#1e3a8a;background:#f8fafc;"/>
-      </div>
-    </div>
+  </nav>
 
-    <!-- COLLEGE: year-wise count inputs (hidden by default) -->
-    <div id="field-college-students" style="display:none;margin-top:16px;background:#f8faff;border:1.5px solid #c7d7ff;border-radius:12px;padding:16px 18px;">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;margin-bottom:12px;">Year-wise Student Strength (ID Cards)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;" id="college-yr-grid">
-        <div>
-          <label id="lbl-yr1" style="font-size:11px;font-weight:700;color:#059669;display:block;margin-bottom:4px;">1st Year (New ID Cards) — ₹59/student</label>
-          <input id="f-yr1" type="number" min="0" placeholder="e.g. 120" oninput="updateDoc()" style="width:100%;padding:10px 12px;border:1.5px solid #059669;border-radius:8px;font-size:16px;font-weight:700;color:#059669;background:#f0fdf4;outline:none;"/>
+  <!-- Flow Grid Layout -->
+  <div class="form-rail-wrap" id="mainFlowContainer">
+
+    <!-- Left Column: Form Step Panes -->
+    <div class="form-panes-area">
+
+      <!-- STEP 1: Institution -->
+      <section class="step-pane is-active" id="pane-step-1" aria-labelledby="heading-step-1">
+        <div class="step-header">
+          <h2 id="heading-step-1">Institution Details</h2>
+          <p>Enter the legal details of the school or college entering this agreement.</p>
         </div>
-        <div>
-          <label id="lbl-yr2" style="font-size:11px;font-weight:700;color:#6366f1;display:block;margin-bottom:4px;">2nd Year (Existing Cards) — ₹30/student</label>
-          <input id="f-yr2" type="number" min="0" placeholder="e.g. 115" oninput="updateDoc()" style="width:100%;padding:10px 12px;border:1.5px solid #6366f1;border-radius:8px;font-size:16px;font-weight:700;color:#6366f1;background:#f5f3ff;outline:none;"/>
-        </div>
-        <div id="field-yr3-wrap">
-          <label id="lbl-yr3" style="font-size:11px;font-weight:700;color:#6366f1;display:block;margin-bottom:4px;">3rd Year (Existing Cards) — ₹30/student</label>
-          <input id="f-yr3" type="number" min="0" placeholder="e.g. 112" oninput="updateDoc()" style="width:100%;padding:10px 12px;border:1.5px solid #6366f1;border-radius:8px;font-size:16px;font-weight:700;color:#6366f1;background:#f5f3ff;outline:none;"/>
-        </div>
-      </div>
 
-      <!-- Live preview -->
-      <div id="college-calc-preview" style="margin-top:12px;padding:10px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#475569;display:none;">
-        <span id="college-calc-text"></span>
-      </div>
-    </div>
-
-    <div style="margin-top:16px" class="form-grid">
-      <div class="field" style="border-radius:10px;">
-        <label style="color:#1e3a8a;font-weight:700;">Duration of Agreement (Years) *</label>
-        <select id="f-duration" onchange="updateDoc()" style="font-size:16px;font-weight:700;border-color:#1e3a8a;background:#f8fafc;padding:10px 14px;border-radius:10px;border:1.5px solid #1e3a8a;color:#1e3a8a;cursor:pointer;">
-          <option value="1">1 Year</option>
-          <option value="2">2 Years</option>
-          <option value="3">3 Years</option>
-          <option value="4">4 Years</option>
-          <option value="5">5 Years</option>
-        </select>
-      </div>
-      <!-- Plan selector: hidden for colleges (pricing is fixed) -->
-      <div class="field" style="border-radius:10px;" id="field-plan-wrap">
-        <label style="color:#1e3a8a;font-weight:700;">Platform Package / Plan *</label>
-        <select id="f-plan" onchange="updateDoc()" style="font-size:16px;font-weight:700;border-color:#1e3a8a;background:#f8fafc;padding:10px 14px;border-radius:10px;border:1.5px solid #1e3a8a;color:#1e3a8a;cursor:pointer;">
-          <option value="standard">Standard Plan (Students Only) — ₹59 / Student / Year</option>
-          <option value="plus">Plus Plan (Student + Teacher Access) — ₹69 / Student / Year</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Universal Coupon Code Box (School + College) -->
-    <div style="margin-top:16px;background:#fff;border:1.5px dashed #cbd5e1;border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:240px;">
-        <span style="font-size:20px;">🎟️</span>
-        <div style="flex:1;">
-          <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;">Coupon / Promo Code (Optional)</label>
-          <input id="f-coupon" type="text" placeholder="e.g. ID45 or SDC" oninput="updateDoc()" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;font-weight:700;text-transform:uppercase;color:#1e3a8a;outline:none;" />
-        </div>
-      </div>
-      <div id="coupon-badge" style="display:none;font-size:12px;font-weight:700;padding:8px 14px;border-radius:8px;"></div>
-    </div>
-    <div style="margin-top:16px" class="form-grid full">
-      <div class="field">
-        <label>Legal Jurisdiction (Court Place) *</label>
-        <input id="f-jurisdiction" type="text" value="Dhule, Maharashtra" placeholder="e.g. Dhule, Maharashtra" oninput="updateDoc()"/>
-      </div>
-    </div>
-    <div style="margin-top:16px" class="form-grid full">
-      <div class="field">
-        <label>Institution Address (optional)</label>
-        <textarea id="f-address" rows="2" placeholder="Street, Area, City – PIN" oninput="updateDoc()"></textarea>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- MOU Document -->
-  <div class="mou-doc" id="mou-document">
-    <div class="mou-page" id="mou-page-1">
-
-      <!-- Corporate Letterhead -->
-      <div class="mou-letterhead">
-        <div class="lh-logo-area">
-          <div class="logo-container">
-            <img src="/assets/logo-long-white.png" alt="Quantech Infosystem Logo"/>
+        <div class="field-group">
+          <span class="group-eyebrow">Institution Category</span>
+          <div class="choice-tiles-grid">
+            <label class="choice-tile is-selected" id="tile-school">
+              <input type="radio" name="f-insttype" value="school" checked onchange="handleInstTypeChange('school')"/>
+              <span class="choice-tile-title">School / Jr. College</span>
+              <span class="choice-tile-desc">K-12 &amp; Composite Schools</span>
+            </label>
+            <label class="choice-tile" id="tile-degree">
+              <input type="radio" name="f-insttype" value="college_degree" onchange="handleInstTypeChange('college_degree')"/>
+              <span class="choice-tile-title">Degree College</span>
+              <span class="choice-tile-desc">3 Years Undergraduate</span>
+            </label>
+            <label class="choice-tile" id="tile-pu">
+              <input type="radio" name="f-insttype" value="college_pu" onchange="handleInstTypeChange('college_pu')"/>
+              <span class="choice-tile-title">PU / Diploma</span>
+              <span class="choice-tile-desc">2 Years Diploma / PU</span>
+            </label>
           </div>
         </div>
-        <div class="lh-details-area">
-          <h2>QUANTECH INFOSYSTEM LLP.</h2>
-          <p style="font-size:10px; line-height:1.35; color:#64748b; margin-top:2px;">3rd Floor, Behind Gurudwara, Mumbai-Agra Highway,<br/>Dhule, Maharashtra – 424001.</p>
-          <p style="margin-top:2px;">Email: admin@quantechinfosystem.com | Web: https://quantechinfosystem.com</p>
-        </div>
-      </div>
 
-
-    <div class="mou-header">
-      <div class="badge">Official Document</div>
-      <h1>Memorandum of Understanding</h1>
-      <div class="subtitle" id="d-mou-subtitle">For Implementation of Quantech Platform</div>
-    </div>
-
-    <div style="text-align:right;margin-bottom:20px;font-family:'Inter',sans-serif;font-size:13px;color:#64748b">
-      Ref No: <strong id="doc-ref">QP/MOU/—/—</strong>&nbsp;&nbsp;|&nbsp;&nbsp;Date: <strong id="doc-date"></strong>
-    </div>
-
-    <div class="mou-parties">
-      <div class="party-block">
-        <h4>Party A — Service Provider</h4>
-        <div class="party-name">Quantech Infosystem LLP.</div>
-        <div class="party-detail" id="d-partya-detail">Developers of Quantech Platform<br/>India</div>
-      </div>
-      <div class="party-sep">&amp;</div>
-      <div class="party-block">
-        <h4>Party B — Institution</h4>
-        <div class="party-name" id="d-school">[ School Name ]</div>
-        <div class="party-detail">
-          <span id="d-city-addr">[ City / District ]</span>
-          <div style="font-weight:600;margin-top:4px;color:#475569;" id="d-udise-wrap">UDISE Code: <strong id="d-udise" style="color:#1e3a8a;">—</strong></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="mou-section">
-      <h3>1. Background &amp; Purpose</h3>
-      <p>This Memorandum of Understanding ("MOU") is entered into between <strong>Quantech Infosystem LLP.</strong> (hereinafter "the Provider") and <strong id="d-school2">the Institution</strong> (hereinafter "the School"), collectively referred to as "the Parties."</p>
-      <p id="d-clause1-purpose">The purpose of this MOU is to set forth the terms under which the Provider shall grant the School access to the <strong>Quantech Platform</strong> — a cloud-based software platform for managing academics, fees, attendance, hostel, transport, and administrative operations.</p>
-    </div>
-
-    <div class="mou-section">
-      <h3>2. Scope of Enrollment</h3>
-      <p id="d-clause2-intro">The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">2026–27</strong>:</p>
-      <div class="enrollment-commercial-wrapper">
-        <div class="highlight-box" style="margin: 0 !important;">
-          <div class="label">Agreed Student Enrollment Strength</div>
-          <div class="value" id="d-students">— Students</div>
-          <!-- College year-wise breakdown (shown for colleges) -->
-          <div id="d-college-yr-breakdown" style="display:none;margin-top:8px;font-size:11px;color:#475569;line-height:1.7;">
-            <span id="d-yr1-line"></span><br/>
-            <span id="d-yr2-line"></span><br/>
-            <span id="d-yr3-line" style="display:none;"></span>
-          </div>
-          <div class="sub" id="d-school-inline">[ Institution Name ]</div>
-        </div>
-        
-        <div class="commercial-box">
-          <div class="comm-title">Commercial Terms &amp; Billing Breakdown</div>
-          <div class="comm-grid">
-            <div>
-              <div class="comm-label" id="d-total-label">Total Price (at ₹59 / Student)</div>
-              <div class="comm-value" id="d-total-price">₹0.00</div>
+        <div class="field-group">
+          <span class="group-eyebrow">Institution Identification</span>
+          <div class="form-row">
+            <div class="field">
+              <label for="f-school">Institution Name <span class="req">*</span></label>
+              <input id="f-school" type="text" placeholder="e.g. SCDS College, Hubli" autocomplete="organization" oninput="handleFieldInput(this)"/>
+              <div class="field-error" id="err-f-school">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>Institution Name is required</span>
+              </div>
             </div>
-            <div>
-              <div class="comm-label" id="d-upfront-label">Upfront Commercial Amount</div>
-              <div class="comm-value upfront" id="d-upfront-price">₹0.00</div>
+            <div class="field">
+              <label for="f-city">City / District <span class="req">*</span></label>
+              <input id="f-city" type="text" placeholder="e.g. Bhopal, MP" autocomplete="address-level2" oninput="handleFieldInput(this)"/>
+              <div class="field-error" id="err-f-city">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>City / District is required</span>
+              </div>
             </div>
           </div>
-          <div class="comm-footer" id="d-comm-footer">
-            * Calculated on agreed student strength. Taxes extra.
+
+          <div class="form-row">
+            <div class="field">
+              <label for="f-udise">UDISE Code (Institution Code)</label>
+              <input id="f-udise" type="text" placeholder="e.g. 23260100101" inputmode="numeric" oninput="handleFieldInput(this)"/>
+            </div>
+            <div class="field">
+              <label for="f-jurisdiction">Legal Jurisdiction (Court Place) <span class="req">*</span></label>
+              <input id="f-jurisdiction" type="text" value="Dhule, Maharashtra" placeholder="e.g. Dhule, Maharashtra" oninput="handleFieldInput(this)"/>
+              <div class="field-error" id="err-f-jurisdiction">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>Jurisdiction place is required</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row single">
+            <div class="field">
+              <label for="f-address">Campus Physical Address (Optional)</label>
+              <textarea id="f-address" rows="2" placeholder="Street, Area, PIN Code" autocomplete="street-address" oninput="handleFieldInput(this)"></textarea>
+            </div>
           </div>
         </div>
+
+        <div class="step-nav-bar">
+          <div></div>
+          <button type="button" class="btn btn-primary" onclick="nextStep(1)">
+            <span>Continue to Signatory</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- STEP 2: Signatory -->
+      <section class="step-pane" id="pane-step-2" aria-labelledby="heading-step-2">
+        <div class="step-header">
+          <h2 id="heading-step-2">Authorised Signatory</h2>
+          <p>Person legally authorized to sign agreements on behalf of the institution.</p>
+        </div>
+
+        <div class="field-group">
+          <span class="group-eyebrow">Signatory Information</span>
+          <div class="form-row">
+            <div class="field">
+              <label for="f-principal">Signatory Full Name <span class="req">*</span></label>
+              <input id="f-principal" type="text" placeholder="Full legal name" autocomplete="name" enterkeyhint="next" oninput="handleFieldInput(this)"/>
+              <div class="field-error" id="err-f-principal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>Signatory full name is required</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="f-designation">Designation</label>
+              <input id="f-designation" type="text" placeholder="e.g. Principal, Director, Secretary" autocomplete="organization-title" enterkeyhint="next" oninput="handleFieldInput(this)"/>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label for="f-email">Official Contact Email <span class="req">*</span></label>
+              <input id="f-email" type="email" placeholder="principal@institution.edu" autocomplete="email" inputmode="email" enterkeyhint="next" oninput="handleFieldInput(this)"/>
+              <div class="field-error" id="err-f-email">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>Valid email address is required</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="f-phone">Official Contact Phone</label>
+              <input id="f-phone" type="tel" placeholder="+91 98765 43210" autocomplete="tel" inputmode="tel" enterkeyhint="done" oninput="handleFieldInput(this)"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-nav-bar">
+          <button type="button" class="btn-back-text" onclick="prevStep(2)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Back to Institution</span>
+          </button>
+          <button type="button" class="btn btn-primary" onclick="nextStep(2)">
+            <span>Continue to Plan &amp; Strength</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- STEP 3: Plan & Strength -->
+      <section class="step-pane" id="pane-step-3" aria-labelledby="heading-step-3">
+        <div class="step-header">
+          <h2 id="heading-step-3">Plan, Duration &amp; Student Strength</h2>
+          <p>Configure enrollment capacity and commercial duration terms.</p>
+        </div>
+
+        <!-- School Student Count (Amber Highlight Field) -->
+        <div class="field-group" id="field-school-students">
+          <span class="group-eyebrow">Enrollment Capacity</span>
+          <div class="field is-highlight">
+            <label for="f-students">Total Students to be Enrolled <span class="req">*</span></label>
+            <input id="f-students" type="number" min="1" placeholder="e.g. 450" inputmode="numeric" oninput="handleFieldInput(this)"/>
+            <div class="field-error" id="err-f-students">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Please enter student enrollment count</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- College Year-wise Inputs (Shown for Colleges) -->
+        <div class="field-group" id="field-college-students" style="display:none;">
+          <span class="group-eyebrow">Year-Wise Student Strength</span>
+          <div class="form-row">
+            <div class="field is-highlight">
+              <label id="lbl-yr1" for="f-yr1">1st Year (New ID Cards) — ₹59/student</label>
+              <input id="f-yr1" type="number" min="0" placeholder="e.g. 120" inputmode="numeric" oninput="handleFieldInput(this)"/>
+            </div>
+            <div class="field">
+              <label id="lbl-yr2" for="f-yr2">2nd Year (Existing Cards) — ₹30/student</label>
+              <input id="f-yr2" type="number" min="0" placeholder="e.g. 115" inputmode="numeric" oninput="handleFieldInput(this)"/>
+            </div>
+          </div>
+          <div class="form-row single" id="field-yr3-wrap">
+            <div class="field">
+              <label id="lbl-yr3" for="f-yr3">3rd Year (Existing Cards) — ₹30/student</label>
+              <input id="f-yr3" type="number" min="0" placeholder="e.g. 112" inputmode="numeric" oninput="handleFieldInput(this)"/>
+            </div>
+          </div>
+          <div class="field-error" id="err-f-college">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Please enter student count for at least one year</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <span class="group-eyebrow">Agreement Duration</span>
+          <div class="segmented-control" id="durationSegmented">
+            <button type="button" class="segment-btn is-selected" data-val="1" onclick="handleDurationChange('1')">1 Year</button>
+            <button type="button" class="segment-btn" data-val="2" onclick="handleDurationChange('2')">2 Years</button>
+            <button type="button" class="segment-btn" data-val="3" onclick="handleDurationChange('3')">3 Years</button>
+            <button type="button" class="segment-btn" data-val="4" onclick="handleDurationChange('4')">4 Years</button>
+            <button type="button" class="segment-btn" data-val="5" onclick="handleDurationChange('5')">5 Years</button>
+          </div>
+          <input type="hidden" id="f-duration" value="1"/>
+        </div>
+
+        <!-- Plan Package (School Only) -->
+        <div class="field-group" id="field-plan-wrap">
+          <span class="group-eyebrow">Platform Package</span>
+          <div class="choice-rows-stack">
+            <div class="choice-row-card is-selected" id="plan-card-standard" onclick="handlePlanChange('standard')">
+              <div class="choice-row-info">
+                <span class="choice-row-name">Standard Plan</span>
+                <span class="choice-row-sub">Student ERP &amp; Identity Access</span>
+              </div>
+              <span class="choice-row-price">₹59 / student / yr</span>
+            </div>
+            <div class="choice-row-card" id="plan-card-plus" onclick="handlePlanChange('plus')">
+              <div class="choice-row-info">
+                <span class="choice-row-name">Plus Plan</span>
+                <span class="choice-row-sub">Student + Teacher &amp; Staff Access</span>
+              </div>
+              <span class="choice-row-price">₹69 / student / yr</span>
+            </div>
+          </div>
+          <input type="hidden" id="f-plan" value="standard"/>
+        </div>
+
+        <!-- Coupon Code Collapsed Section -->
+        <div class="field-group">
+          <button type="button" class="coupon-toggle-link" onclick="toggleCouponBox()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/></svg>
+            <span id="couponToggleText">Have a coupon or referral code?</span>
+          </button>
+          <div class="coupon-box-wrap" id="couponBoxWrap">
+            <div class="field">
+              <label for="f-coupon">Coupon Code</label>
+              <input id="f-coupon" type="text" placeholder="e.g. ID45 or SDC" style="text-transform:uppercase;font-weight:700;" oninput="handleFieldInput(this)"/>
+            </div>
+            <div id="coupon-badge" style="display:none;margin-top:8px;font-size:12px;font-weight:600;color:#059669;"></div>
+          </div>
+        </div>
+
+        <div class="step-nav-bar">
+          <button type="button" class="btn-back-text" onclick="prevStep(3)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Back to Signatory</span>
+          </button>
+          <button type="button" class="btn btn-primary" onclick="nextStep(3)">
+            <span>Review Full Agreement</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- STEP 4: Review Document Sheet -->
+      <section class="step-pane" id="pane-step-4" aria-labelledby="heading-step-4">
+        <div class="doc-review-container">
+          <div class="doc-review-toolbar">
+            <div class="doc-sheet-notice">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Official Agreement Document · Read thoroughly before signing</span>
+            </div>
+          </div>
+
+          <!-- The Real MOU Document (Exact Word Master Template Typography & Margins) -->
+          <div class="mou-doc" id="mou-document">
+            
+            <!-- Page 1 -->
+            <div class="mou-page" id="mou-page-1">
+              <div class="mou-watermark" aria-hidden="true">CONFIDENTIAL</div>
+              <div class="mou-running-header">
+                <span>Official Memorandum of Understanding</span>
+                <span>MOU Agreement with <strong class="d-school-running">[ School Name ]</strong></span>
+              </div>
+              <table class="mou-letterhead-table">
+                <tr>
+                  <td class="lh-logo-cell">
+                    <img src="/quantech/Quantech-Logo.png" alt="Quantech Infosystem Logo"/>
+                  </td>
+                  <td class="lh-corp-cell">
+                    <h2>QUANTECH INFOSYSTEM LLP.</h2>
+                    <p>3rd Floor, Behind Gurudwara, Mumbai-Agra Highway, Dhule, Maharashtra – 424001</p>
+                    <p>Email: admin@quantechinfosystem.com | Web: https://quantechinfosystem.com</p>
+                  </td>
+                </tr>
+              </table>
+
+              <div class="mou-doc-title">
+                <h1>MEMORANDUM OF UNDERSTANDING</h1>
+                <div class="doc-subtitle" id="d-mou-subtitle">For Implementation of Quantech Platform</div>
+              </div>
+
+              <div class="doc-ref-date-row">
+                Ref No: <strong id="doc-ref">QP/MOU/2026-27/—</strong>&nbsp;&nbsp;|&nbsp;&nbsp;Date: <strong id="doc-date"></strong>
+              </div>
+
+              <table class="mou-parties-table">
+                <tr>
+                  <td>
+                    <div class="party-cell-title">PARTY A — SERVICE PROVIDER</div>
+                    <div class="party-cell-name">Quantech Infosystem LLP.</div>
+                    <div class="party-cell-detail" id="d-partya-detail">Developers of Quantech Platform<br/>India</div>
+                  </td>
+                  <td>
+                    <div class="party-cell-title">PARTY B — INSTITUTION
+                      <button type="button" class="edit-step-btn" onclick="goToStep(1)" title="Edit institution details">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                        Edit
+                      </button>
+                    </div>
+                    <div class="party-cell-name" id="d-school">[ School Name ]</div>
+                    <div class="party-cell-detail">
+                      <span id="d-city-addr">[ City / District ]</span>
+                      <div id="d-udise-wrap" style="margin-top:4px;">UDISE Code: <strong id="d-udise" style="color:#1e3a8a;">—</strong></div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <div class="mou-section">
+                <h3>1. Background &amp; Purpose</h3>
+                <p>This Memorandum of Understanding ("MOU") is entered into between <strong>Quantech Infosystem LLP.</strong> (hereinafter "the Provider") and <strong id="d-school2">the Institution</strong> (hereinafter "the School"), collectively referred to as "the Parties."</p>
+                <p id="d-clause1-purpose">The purpose of this MOU is to set forth the terms under which the Provider shall grant the School access to the <strong>Quantech Platform</strong> — a cloud-based software platform for managing academics, fees, attendance, hostel, transport, and administrative operations.</p>
+              </div>
+
+              <div class="mou-section">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <h3 style="margin-bottom:0;">2. Scope of Enrollment</h3>
+                  <button type="button" class="edit-step-btn" onclick="goToStep(3)" title="Edit student count and plan">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    Edit
+                  </button>
+                </div>
+                <p id="d-clause2-intro">The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">2026–27</strong>:</p>
+
+                <!-- Commercial Terms Table -->
+                <table class="mou-commercial-table">
+                  <tr>
+                    <td class="comm-td-label">Agreed Student Enrollment Strength</td>
+                    <td class="comm-td-val">
+                      <span class="comm-val-strong" id="d-students">— Students</span>
+                      <div id="d-college-yr-breakdown" style="display:none;margin-top:4px;font-size:9pt;color:#475569;">
+                        <span id="d-yr1-line"></span><br/>
+                        <span id="d-yr2-line"></span><br/>
+                        <span id="d-yr3-line" style="display:none;"></span>
+                      </div>
+                      <div id="d-school-inline" style="font-size:8.5pt;color:#64748b;margin-top:2px;">[ Institution Name ]</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="comm-td-label" id="d-total-label">Total Commercial Amount</td>
+                    <td class="comm-td-val">
+                      <span class="comm-val-strong" id="d-total-price">₹0.00</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="comm-td-label" id="d-upfront-label">Upfront Commercial Amount</td>
+                    <td class="comm-td-val">
+                      <span class="comm-val-upfront" id="d-upfront-price">₹0.00</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="comm-td-label">Billing Schedule &amp; Terms</td>
+                    <td class="comm-td-val" id="d-comm-footer">
+                      * Calculated on agreed student strength. Taxes extra.
+                    </td>
+                  </tr>
+                </table>
+
+                <p id="d-clause2-sla">Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond <span id="d-students-plus">—</span> students during the agreement period shall be subject to a revised quote.</p>
+              </div>
+            </div><!-- end Page 1 -->
+
+            <!-- Page 2 -->
+            <div class="mou-page" id="mou-page-2">
+              <div class="mou-watermark" aria-hidden="true">CONFIDENTIAL</div>
+              <div class="mou-running-header">
+                <span>Official Memorandum of Understanding</span>
+                <span>MOU Agreement with <strong class="d-school-running">[ School Name ]</strong></span>
+              </div>
+              <div class="mou-section">
+                <h3>3. Obligations of the Provider</h3>
+                <ul id="d-clause3-ul">
+                  <li>Provide full access to the Quantech Platform modules as agreed, including Academics, Fee Management, Attendance, Reports, Hostel, and Transport (as applicable).</li>
+                  <li>Ensure 99.5% platform uptime during school operational hours.</li>
+                  <li>Provide onboarding support, staff training sessions (online), and technical documentation.</li>
+                  <li>Maintain data confidentiality and comply with applicable data protection laws.</li>
+                  <li>Deliver feature updates and security patches throughout the agreement period at no additional cost.</li>
+                </ul>
+              </div>
+
+              <div class="mou-section">
+                <h3 id="d-clause4-title">4. Obligations of the School</h3>
+                <ul id="d-clause4-ul">
+                  <li>Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.</li>
+                  <li>Provide accurate and complete student data for onboarding within 14 days of agreement execution.</li>
+                  <li id="d-clause4-payment-li">Ensure timely payment of subscription fees, billed annually: <span id="d-clause4-payment-text"><strong>100% upfront advance upon commencement of each academic year</strong></span> upon invoice issuance by the Provider.</li>
+                  <li>Not share, sub-license, or resell access to the Quantech Platform to any third party.</li>
+                  <li>Report technical issues through the designated support channel promptly.</li>
+                </ul>
+              </div>
+
+              <div class="mou-section">
+                <h3>5. Confidentiality</h3>
+                <p>Both Parties agree to maintain strict confidentiality of all information exchanged under this MOU, including student data, pricing, and platform configurations. Student data shall be used solely for the purpose of providing the agreed services and shall not be shared with any third party without prior written consent.</p>
+              </div>
+            </div><!-- end Page 2 -->
+
+            <!-- Page 3 -->
+            <div class="mou-page" id="mou-page-3">
+              <div class="mou-watermark" aria-hidden="true">CONFIDENTIAL</div>
+              <div class="mou-running-header">
+                <span>Official Memorandum of Understanding</span>
+                <span>MOU Agreement with <strong class="d-school-running">[ School Name ]</strong></span>
+              </div>
+              <div class="mou-section">
+                <h3>6. Duration &amp; Termination</h3>
+                <p>This MOU shall be effective from the date of signing and shall remain valid for a period of <strong id="d-duration">one (1) academic year</strong>, renewable by mutual written consent. Either Party may terminate this MOU with <strong>30 days' written notice</strong>. Upon termination, the School's data shall be made available for export for a period of 30 days before deletion.</p>
+              </div>
+
+              <div class="mou-section">
+                <h3>7. Limitation of Liability</h3>
+                <p>The Provider's total liability under this MOU shall not exceed the total fees paid by the School in the preceding 3 months. The Provider shall not be liable for indirect, incidental, or consequential damages arising from the use or inability to use the platform.</p>
+              </div>
+
+              <div class="mou-section">
+                <h3>8. Governing Law</h3>
+                <p>This MOU shall be governed by the laws of India. Any disputes arising out of or in connection with this MOU shall be subject to the exclusive jurisdiction of the courts in <strong id="d-jurisdiction">Dhule, Maharashtra</strong>.</p>
+              </div>
+
+              <div class="mou-section">
+                <h3>9. Entire Agreement</h3>
+                <p>This MOU constitutes the entire understanding between the Parties with respect to its subject matter and supersedes all prior discussions, representations, or agreements. Amendments to this MOU shall be valid only if made in writing and signed by both Parties.</p>
+              </div>
+
+              <!-- Signatures & Execution Table -->
+              <table class="mou-signatures-table">
+                <tr>
+                  <td>
+                    <div class="sig-party-title">For and on behalf of Institution (Party B):</div>
+                    <div class="sig-box-preview" id="docSigReviewBox">
+                      <span id="docSigPendingText" style="font-size:10pt;color:#94a3b8;font-style:italic;">[ Signature will appear here in Step 5 ]</span>
+                    </div>
+                    <div class="sig-line-rule"></div>
+                    <div class="sig-meta-text">
+                      <p><strong id="d-principal">[ Authorised Signatory ]</strong></p>
+                      <p id="d-designation">[ Designation ]</p>
+                      <p id="d-school3">[ School Name ]</p>
+                      <p id="d-udise-sig">UDISE Code: —</p>
+                      <p style="color:#64748b;margin-top:4px;">Date: <span id="sig-date"></span></p>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="sig-party-title">For and on behalf of Provider (Party A):</div>
+                    <div class="sig-box-preview">
+                      <img src="/assets/sign.png" alt="Quantech Authorised Signatory"/>
+                    </div>
+                    <div class="sig-line-rule"></div>
+                    <div class="sig-meta-text">
+                      <p><strong>Authorised Representative</strong></p>
+                      <p>Director / CEO</p>
+                      <p>Quantech Infosystem LLP.</p>
+                      <p style="color:#94a3b8;font-size:9pt;">For office use only</p>
+                      <p style="color:#64748b;margin-top:4px;">Date: <span id="doc-date2"></span></p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <div class="mou-doc-footer-note">
+                This document was digitally generated &amp; executed via Quantech Platform MOU Portal &nbsp;|&nbsp; <span id="doc-ref2"></span>
+              </div>
+            </div><!-- end Page 3 -->
+
+          </div><!-- end #mou-document -->
+
+          <div class="step-nav-bar" style="width:100%;max-width:860px;">
+            <button type="button" class="btn-back-text" onclick="prevStep(4)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              <span>Back to Plan</span>
+            </button>
+            <button type="button" class="btn btn-primary" onclick="nextStep(4)">
+              <span>Proceed to Sign &amp; Download</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 5: Sign & Download -->
+      <section class="step-pane" id="pane-step-5" aria-labelledby="heading-step-5">
+        <div class="sign-screen-wrap">
+          <div class="step-header">
+            <h2 id="heading-step-5">Sign &amp; Download Agreement</h2>
+            <p>Draw or upload the signature of the authorised signatory to execute the agreement.</p>
+          </div>
+
+          <div class="signatory-summary-card">
+            <h3>Authorised Signatory Details</h3>
+            <div class="signatory-meta-grid">
+              <div><strong>Name:</strong> <span id="sign-screen-name">—</span></div>
+              <div><strong>Designation:</strong> <span id="sign-screen-desig">—</span></div>
+              <div><strong>Institution:</strong> <span id="sign-screen-school">—</span></div>
+              <div><strong>Date:</strong> <span id="sign-screen-date">—</span></div>
+            </div>
+          </div>
+
+          <!-- Segmented Tab Switcher: Draw vs Upload -->
+          <div class="sig-mode-segmented">
+            <button type="button" class="sig-mode-btn is-selected" id="tab-draw" onclick="switchSigMode('draw')">
+              Draw Signature
+            </button>
+            <button type="button" class="sig-mode-btn" id="tab-upload" onclick="switchSigMode('upload')">
+              Upload Image
+            </button>
+          </div>
+
+          <!-- Signature Canvas Wrap -->
+          <div class="sig-interactive-wrap" id="sigWrap">
+            <canvas id="sigCanvas"></canvas>
+            <div class="sig-baseline-guide"></div>
+            <div class="sig-hint-text">× Sign above the line using mouse, finger or stylus</div>
+          </div>
+
+          <!-- Upload Pane -->
+          <div class="sig-upload-pane" id="sigUploadPane">
+            <label style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:28px;height:28px;color:var(--accent);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span style="font-size:14px;font-weight:600;color:var(--accent);">Choose signature image (PNG / JPG)</span>
+              <span style="font-size:12px;color:var(--text-secondary);">Clear white background recommended</span>
+              <input type="file" id="sigUploadInput" accept="image/png, image/jpeg" style="display:none;" onchange="handleSigUpload(event)"/>
+            </label>
+          </div>
+
+          <div class="sig-tools-row">
+            <button type="button" class="sig-clear-btn" onclick="clearSig()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+              <span>Clear signature</span>
+            </button>
+            <span id="sigStatusNotice" style="font-size:12px;color:#059669;font-weight:600;display:none;">✓ Signature captured</span>
+          </div>
+
+          <div class="field-error" id="err-signature" style="margin-bottom:16px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Please provide a signature before generating the agreement</span>
+          </div>
+
+          <!-- Download Action Stack (PDF only) -->
+          <div class="download-actions-stack">
+            <button type="button" class="btn btn-primary" id="btn-download" onclick="downloadPDF()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
+              <span>Download &amp; Send PDF</span>
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="triggerPrint()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              <span>Print Agreement</span>
+            </button>
+          </div>
+
+          <div class="step-nav-bar" style="margin-top:20px;">
+            <button type="button" class="btn-back-text" onclick="prevStep(5)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              <span>Back to Review Document</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- end .form-panes-area -->
+
+    <!-- Right Column: Persistent Live Summary Rail (Steps 1–3) -->
+    <aside class="summary-rail" id="summaryRail" aria-label="Commercial Summary">
+      <div class="summary-rail-title">Agreement Summary</div>
+      
+      <div class="rail-row">
+        <span class="rail-label">Institution</span>
+        <span class="rail-val" id="rail-school">Institution</span>
       </div>
-      <p id="d-clause2-sla">Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond <span id="d-students-plus">—</span> students during the agreement period shall be subject to a revised quote.</p>
-    </div><!-- end Clause 2 -->
-  </div><!-- end Page 1 -->
-
-    <div class="mou-page" id="mou-page-2">
-
-    <div class="mou-section">
-      <h3>3. Obligations of the Provider</h3>
-      <ul id="d-clause3-ul">
-        <li>Provide full access to the Quantech Platform modules as agreed, including Academics, Fee Management, Attendance, Reports, Hostel, and Transport (as applicable).</li>
-        <li>Ensure 99.5% platform uptime during school operational hours.</li>
-        <li>Provide onboarding support, staff training sessions (online/on-site), and technical documentation.</li>
-        <li>Maintain data confidentiality and comply with applicable data protection laws.</li>
-        <li>Deliver feature updates and security patches throughout the agreement period at no additional cost.</li>
-      </ul>
-    </div>
-
-    <div class="mou-section">
-      <h3 id="d-clause4-title">4. Obligations of the School</h3>
-      <ul id="d-clause4-ul">
-        <li>Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.</li>
-        <li>Provide accurate and complete student data for onboarding within 14 days of agreement execution.</li>
-        <li id="d-clause4-payment-li">Ensure timely payment of subscription fees, billed annually: <span id="d-clause4-payment-text"><strong>50% upfront upon commencement of each academic year, and the remaining 50% midway through the academic year</strong></span> upon invoice issuance by the Provider.</li>
-        <li>Not share, sub-license, or resell access to the Quantech Platform to any third party.</li>
-        <li>Report technical issues through the designated support channel promptly.</li>
-      </ul>
-    </div>
-
-    <div class="mou-section">
-      <h3>5. Confidentiality</h3>
-      <p>Both Parties agree to maintain strict confidentiality of all information exchanged under this MOU, including student data, pricing, and platform configurations. Student data shall be used solely for the purpose of providing the agreed services and shall not be shared with any third party without prior written consent.</p>
-    </div><!-- end Clause 5 -->
-  </div><!-- end Page 2 -->
-
-    <div class="mou-page" id="mou-page-3">
-
-    <div class="mou-section">
-      <h3>6. Duration &amp; Termination</h3>
-      <p>This MOU shall be effective from the date of signing and shall remain valid for a period of <strong id="d-duration">one (1) academic year</strong>, renewable by mutual written consent. Either Party may terminate this MOU with <strong>30 days' written notice</strong>. Upon termination, the School's data shall be made available for export for a period of 30 days before deletion.</p>
-    </div>
-
-    <div class="mou-section">
-      <h3>7. Limitation of Liability</h3>
-      <p>The Provider's total liability under this MOU shall not exceed the total fees paid by the School in the preceding 3 months. The Provider shall not be liable for indirect, incidental, or consequential damages arising from the use or inability to use the platform.</p>
-    </div>
-
-    <div class="mou-section">
-      <h3>8. Governing Law</h3>
-      <p>This MOU shall be governed by the laws of India. Any disputes arising out of or in connection with this MOU shall be subject to the exclusive jurisdiction of the courts in <strong id="d-jurisdiction">Dhule, Maharashtra</strong>.</p>
-    </div>
-
-    <div class="mou-section">
-      <h3>9. Entire Agreement</h3>
-      <p>This MOU constitutes the entire understanding between the Parties with respect to its subject matter and supersedes all prior discussions, representations, or agreements. Amendments to this MOU shall be valid only if made in writing and signed by both Parties.</p>
-    </div>
-
-    <!-- Signatures -->
-    <div class="sig-section">
-      <div class="sig-block">
-        <h4>Signature — Party B (School)</h4>
-        <div class="sig-canvas-wrap" id="sigWrap">
-          <canvas id="sigCanvas"></canvas>
-          <div class="sig-hint">Sign here using mouse or finger</div>
-        </div>
-        <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
-          <button class="sig-clear" onclick="clearSig()">Clear signature</button>
-          <span class="sig-control-sep" style="color:#cbd5e1; font-family:'Inter',sans-serif; font-size:11px;">|</span>
-          <label class="sig-upload-label" style="font-family:'Inter',sans-serif; font-size:11px; color:#1e3a8a; font-weight:600; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center;">
-            Upload signature image
-            <input type="file" id="sigUploadInput" accept="image/png, image/jpeg" style="display:none;" onchange="handleSigUpload(event)"/>
-          </label>
-        </div>
-        <div class="sig-meta" style="margin-top:14px">
-          <div class="sig-line"></div>
-          <p><strong id="d-principal">[ Authorised Signatory ]</strong></p>
-          <p id="d-designation" style="color:#64748b;font-size:13px">[ Designation ]</p>
-          <p id="d-school3" style="color:#64748b;font-size:13px">[ School Name ]</p>
-          <p id="d-udise-sig" style="color:#64748b;font-size:12px;margin-top:2px;">UDISE Code: —</p>
-          <p style="color:#94a3b8;font-size:12px;margin-top:4px">Date: <span id="sig-date"></span></p>
-        </div>
+      <div class="rail-row">
+        <span class="rail-label">Type</span>
+        <span class="rail-val" id="rail-type">School</span>
+      </div>
+      <div class="rail-row">
+        <span class="rail-label">Students</span>
+        <span class="rail-val" id="rail-students">—</span>
+      </div>
+      <div class="rail-row" id="rail-plan-row">
+        <span class="rail-label">Package</span>
+        <span class="rail-val" id="rail-plan">Standard (₹59/yr)</span>
+      </div>
+      <div class="rail-row">
+        <span class="rail-label">Duration</span>
+        <span class="rail-val" id="rail-duration">1 Year</span>
       </div>
 
-      <div class="sig-block provider-sig">
-        <h4>Signature — Party A (Provider)</h4>
-        <div style="height:140px;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:12px">
-          <img src="/assets/sign.png" alt="Quantech Authorised Signatory" style="max-height:100%; max-width:100%; object-fit:contain; mix-blend-mode: multiply;"/>
-        </div>
-        <div class="sig-meta" style="margin-top:14px">
-          <div class="sig-line"></div>
-          <p><strong>Authorised Representative</strong></p>
-          <p style="color:#64748b;font-size:13px">Director / CEO</p>
-          <p style="color:#64748b;font-size:13px">Quantech Infosystem LLP.</p>
-          <p style="color:#94a3b8;font-size:12px;margin-top:4px">For office use only</p>
-        </div>
+      <div class="rail-divider"></div>
+
+      <div class="rail-row rail-total-row">
+        <span class="rail-label">Total Amount</span>
+        <span class="rail-val" id="rail-total">₹0.00</span>
       </div>
-    </div>
+      <div class="rail-row rail-upfront-row">
+        <span class="rail-label" id="rail-upfront-label">Upfront (100%)</span>
+        <span class="rail-val" id="rail-upfront">₹0.00</span>
+      </div>
 
-    <div class="ref-badge">
-      This document was digitally signed via Quantech Platform MOU Portal &nbsp;|&nbsp; <span id="doc-ref2"></span> &nbsp;|&nbsp; <span id="doc-date2"></span>
-    </div>
+      <p class="rail-note" id="rail-footer-note">* Billed 100% upfront advance upon agreement execution. Taxes extra.</p>
+    </aside>
 
-    </div><!-- end Page 3 -->
-
-  </div><!-- end .mou-doc -->
-
-  <!-- Actions -->
-  <div class="actions">
-    <button class="btn btn-secondary" onclick="triggerPrint()">Print</button>
-    <button class="btn btn-primary" id="btn-download" onclick="downloadPDF()">Download &amp; Send PDF</button>
-  </div>
+  </div><!-- end #mainFlowContainer -->
 
 </div><!-- end .page-wrapper -->
 
-<div id="toast">PDF generated — ready to send!</div>
+<!-- Sticky Phone Bottom Bar (< 768px) -->
+<div class="sticky-phone-bar" id="stickyPhoneBar">
+  <div class="phone-bar-summary">
+    <span class="phone-bar-total" id="mbar-total">₹0.00</span>
+    <span class="phone-bar-sub" id="mbar-sub">100% upfront: ₹0.00</span>
+  </div>
+  <button type="button" class="btn btn-primary" id="btnPhoneNext" onclick="handlePhoneAdvance()" style="height:44px;padding:0 16px;">
+    <span id="phoneNextText">Continue</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
+</div>
+
+<div id="toast">Ready</div>
 
 <script>
-// ── Date & Ref ──────────────────────────────────────────────
+// ── Date & Ref Initialization ───────────────────────────────
 const today = new Date();
 const dateStr = today.toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
-
 const acadYear = '2026-27';
 const acadYearDisplay = '2026–27';
 const refId = 'QP/MOU/' + acadYear + '/' + String(Math.floor(Math.random()*9000)+1000);
 
-function validateForm() {
-  const school = document.getElementById('f-school').value.trim();
-  const city = document.getElementById('f-city').value.trim();
-  const principal = document.getElementById('f-principal').value.trim();
-  const email = document.getElementById('f-email').value.trim();
-  const jurisdiction = (document.getElementById('f-jurisdiction')?.value || '').trim();
-
-  if (!school) { alert('Please enter the Institution Name.'); return false; }
-  if (!city) { alert('Please enter the City / District.'); return false; }
-  if (!principal) { alert('Please enter the Principal / Authorised Signatory Name.'); return false; }
-  if (!email) { alert('Please enter the Contact Email.'); return false; }
-  if (!jurisdiction) { alert('Please enter the Legal Jurisdiction place.'); return false; }
-
-  const instType = getInstType();
-  if (instType === 'school') {
-    const students = document.getElementById('f-students').value.trim();
-    if (!students) { alert('Please enter the Total Number of Students to be Enrolled.'); return false; }
-  } else {
-    const yr1 = parseInt(document.getElementById('f-yr1').value) || 0;
-    const yr2 = parseInt(document.getElementById('f-yr2').value) || 0;
-    const yr3 = instType === 'college_degree' ? (parseInt(document.getElementById('f-yr3').value) || 0) : 0;
-    if (yr1 + yr2 + yr3 === 0) { alert('Please enter at least one year-wise student count.'); return false; }
-  }
-
-  if (!hasSig) {
-    alert('Please sign the document before downloading or printing.');
-    return false;
-  }
-
-  return true;
-}
-
-
 document.querySelectorAll('#doc-date,#doc-date2').forEach(el => el.textContent = dateStr);
 document.querySelectorAll('#doc-ref,#doc-ref2').forEach(el => el.textContent = refId);
-document.querySelector('#sig-date').textContent = dateStr;
+const sigDateEl = document.querySelector('#sig-date');
+if (sigDateEl) sigDateEl.textContent = dateStr;
 const acadYearEl = document.getElementById('d-acad-year');
-if (acadYearEl) {
-  acadYearEl.textContent = acadYearDisplay;
-}
+if (acadYearEl) acadYearEl.textContent = acadYearDisplay;
 
-// ── URL Query Rate & Coupon Override Check ───────────────────
+// URL Parameters
 const urlParams = new URLSearchParams(window.location.search);
 const urlRate = parseFloat(urlParams.get('rate'));
 const urlCoupon = urlParams.get('coupon');
 if (urlCoupon) {
-  const couponInputEl = document.getElementById('f-coupon');
-  if (couponInputEl) couponInputEl.value = urlCoupon;
+  const couponEl = document.getElementById('f-coupon');
+  if (couponEl) {
+    couponEl.value = urlCoupon;
+    toggleCouponBox(true);
+  }
 }
 const urlJurisdiction = urlParams.get('jurisdiction');
 if (urlJurisdiction) {
-  const jurInputEl = document.getElementById('f-jurisdiction');
-  if (jurInputEl) jurInputEl.value = urlJurisdiction;
+  const jurEl = document.getElementById('f-jurisdiction');
+  if (jurEl) jurEl.value = urlJurisdiction;
 }
 
-// ── Live doc update ─────────────────────────────────────────
-// Duration word map for Clause 6
+// ── Step Navigation & State Management ───────────────────────
+let currentStep = 1;
+const stepTitles = {
+  1: 'Institution',
+  2: 'Signatory',
+  3: 'Plan & Strength',
+  4: 'Review Document',
+  5: 'Sign & Download'
+};
+
 const durationWords = {
   '1': 'one (1) academic year',
   '2': 'two (2) academic years',
@@ -888,377 +2196,658 @@ function getInstType() {
   return sel ? sel.value : 'school';
 }
 
-function onInstTypeChange() {
-  const t = getInstType();
-  const isCollege = t !== 'school';
-  document.getElementById('field-school-students').style.display = isCollege ? 'none' : '';
-  document.getElementById('field-college-students').style.display = isCollege ? '' : 'none';
-  document.getElementById('field-plan-wrap').style.display = isCollege ? 'none' : '';
-  // Show/hide 3rd year input for PU vs Degree
+function handleInstTypeChange(val) {
+  ['tile-school', 'tile-degree', 'tile-pu'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('is-selected');
+  });
+  if (val === 'school') document.getElementById('tile-school')?.classList.add('is-selected');
+  else if (val === 'college_degree') document.getElementById('tile-degree')?.classList.add('is-selected');
+  else if (val === 'college_pu') document.getElementById('tile-pu')?.classList.add('is-selected');
+
+  const isCollege = val !== 'school';
+  const schoolStudentsWrap = document.getElementById('field-school-students');
+  const collegeStudentsWrap = document.getElementById('field-college-students');
+  const planWrap = document.getElementById('field-plan-wrap');
   const yr3Wrap = document.getElementById('field-yr3-wrap');
-  if (yr3Wrap) yr3Wrap.style.display = t === 'college_degree' ? '' : 'none';
+
+  if (schoolStudentsWrap) schoolStudentsWrap.style.display = isCollege ? 'none' : '';
+  if (collegeStudentsWrap) collegeStudentsWrap.style.display = isCollege ? '' : 'none';
+  if (planWrap) planWrap.style.display = isCollege ? 'none' : '';
+  if (yr3Wrap) yr3Wrap.style.display = val === 'college_degree' ? '' : 'none';
+
+  invalidateSignatureIfTermsChanged();
   updateDoc();
 }
 
+function handleDurationChange(val) {
+  document.getElementById('f-duration').value = val;
+  const buttons = document.querySelectorAll('#durationSegmented .segment-btn');
+  buttons.forEach(btn => {
+    btn.classList.toggle('is-selected', btn.getAttribute('data-val') === val);
+  });
+  invalidateSignatureIfTermsChanged();
+  updateDoc();
+}
+
+function handlePlanChange(val) {
+  document.getElementById('f-plan').value = val;
+  document.getElementById('plan-card-standard')?.classList.toggle('is-selected', val === 'standard');
+  document.getElementById('plan-card-plus')?.classList.toggle('is-selected', val === 'plus');
+  invalidateSignatureIfTermsChanged();
+  updateDoc();
+}
+
+function toggleCouponBox(forceShow) {
+  const wrap = document.getElementById('couponBoxWrap');
+  if (!wrap) return;
+  const isShown = forceShow !== undefined ? !forceShow : wrap.classList.contains('show');
+  if (isShown) {
+    wrap.classList.remove('show');
+    document.getElementById('couponToggleText').textContent = 'Have a coupon or referral code?';
+  } else {
+    wrap.classList.add('show');
+    document.getElementById('couponToggleText').textContent = 'Coupon code applied:';
+    document.getElementById('f-coupon')?.focus();
+  }
+}
+
+function handleFieldInput(inputEl) {
+  if (inputEl.classList.contains('is-invalid')) {
+    inputEl.classList.remove('is-invalid');
+    const errEl = document.getElementById('err-' + inputEl.id);
+    if (errEl) errEl.classList.remove('show');
+  }
+  invalidateSignatureIfTermsChanged();
+  updateDoc();
+  persistFormData();
+}
+
+// Invalidate signature if user edits terms in steps 1–3
+function invalidateSignatureIfTermsChanged() {
+  if (hasSig) {
+    clearSig();
+    showToast('Details changed — please re-sign in Step 5');
+  }
+}
+
+function validateCurrentStep(step) {
+  let valid = true;
+  let firstInvalid = null;
+
+  function markInvalid(id, errId) {
+    valid = false;
+    const el = document.getElementById(id);
+    if (el) el.classList.add('is-invalid');
+    const err = document.getElementById(errId || ('err-' + id));
+    if (err) err.classList.add('show');
+    if (!firstInvalid && el) firstInvalid = el;
+  }
+
+  if (step === 1) {
+    const school = document.getElementById('f-school').value.trim();
+    const city = document.getElementById('f-city').value.trim();
+    const jur = (document.getElementById('f-jurisdiction')?.value || '').trim();
+    if (!school) markInvalid('f-school');
+    if (!city) markInvalid('f-city');
+    if (!jur) markInvalid('f-jurisdiction');
+  } else if (step === 2) {
+    const principal = document.getElementById('f-principal').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+    if (!principal) markInvalid('f-principal');
+    if (!email || !email.includes('@')) markInvalid('f-email');
+  } else if (step === 3) {
+    const instType = getInstType();
+    if (instType === 'school') {
+      const students = parseInt(document.getElementById('f-students').value) || 0;
+      if (students <= 0) markInvalid('f-students');
+    } else {
+      const yr1 = parseInt(document.getElementById('f-yr1').value) || 0;
+      const yr2 = parseInt(document.getElementById('f-yr2').value) || 0;
+      const yr3 = instType === 'college_degree' ? (parseInt(document.getElementById('f-yr3').value) || 0) : 0;
+      if (yr1 + yr2 + yr3 === 0) {
+        valid = false;
+        document.getElementById('err-f-college')?.classList.add('show');
+        if (!firstInvalid) firstInvalid = document.getElementById('f-yr1');
+      }
+    }
+  } else if (step === 5) {
+    if (!hasSig) {
+      valid = false;
+      document.getElementById('err-signature')?.classList.add('show');
+      return false;
+    }
+  }
+
+  if (!valid && firstInvalid) {
+    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    firstInvalid.focus();
+  }
+  return valid;
+}
+
+function goToStep(targetStep) {
+  if (targetStep === currentStep) return;
+  if (targetStep > currentStep) {
+    for (let s = currentStep; s < targetStep; s++) {
+      if (!validateCurrentStep(s)) return;
+    }
+  }
+  setStep(targetStep);
+}
+
+function nextStep(fromStep) {
+  if (!validateCurrentStep(fromStep)) return;
+  setStep(fromStep + 1);
+}
+
+function prevStep(fromStep) {
+  setStep(fromStep - 1);
+}
+
+function handlePhoneAdvance() {
+  if (currentStep < 5) {
+    nextStep(currentStep);
+  } else {
+    downloadPDF();
+  }
+}
+
+function setStep(newStep) {
+  currentStep = Math.max(1, Math.min(5, newStep));
+
+  // Update Panes
+  document.querySelectorAll('.step-pane').forEach((p, idx) => {
+    p.classList.toggle('is-active', idx + 1 === currentStep);
+  });
+
+  // Update Layout Containers (Review & Sign hide summary rail)
+  const flowContainer = document.getElementById('mainFlowContainer');
+  const summaryRail = document.getElementById('summaryRail');
+  if (currentStep >= 4) {
+    flowContainer.classList.add('full-width');
+    if (summaryRail) summaryRail.style.display = 'none';
+  } else {
+    flowContainer.classList.remove('full-width');
+    if (summaryRail) summaryRail.style.display = '';
+  }
+
+  // Update Stepper Nodes
+  document.querySelectorAll('.desktop-step-item').forEach((item, idx) => {
+    const s = idx + 1;
+    item.classList.toggle('is-current', s === currentStep);
+    item.classList.toggle('is-done', s < currentStep);
+    const node = item.querySelector('.step-node');
+    const tag = document.getElementById(`status-tag-${s}`);
+    if (s < currentStep) {
+      if (node) node.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><polyline points="20 6 9 17 4 12"/></svg>`;
+      if (tag) tag.textContent = 'Completed';
+    } else if (s === currentStep) {
+      if (node) node.textContent = s;
+      if (tag) tag.textContent = 'In progress';
+    } else {
+      if (node) node.textContent = s;
+      if (tag) tag.textContent = 'Pending';
+    }
+  });
+
+  // Mobile bar
+  const mStepText = document.getElementById('mobileStepText');
+  if (mStepText) mStepText.textContent = `Step ${currentStep} of 5 · ${stepTitles[currentStep]}`;
+  for (let s = 1; s <= 5; s++) {
+    const track = document.getElementById(`mtrack-${s}`);
+    if (track) {
+      track.classList.toggle('is-done', s < currentStep);
+      track.classList.toggle('is-current', s === currentStep);
+    }
+  }
+
+  // Mobile Bottom Bar Text
+  const phoneBtnText = document.getElementById('phoneNextText');
+  if (phoneBtnText) {
+    if (currentStep === 3) phoneBtnText.textContent = 'Review Agreement';
+    else if (currentStep === 4) phoneBtnText.textContent = 'Proceed to Sign';
+    else if (currentStep === 5) phoneBtnText.textContent = 'Download PDF';
+    else phoneBtnText.textContent = 'Continue';
+  }
+
+  // Step 5 specific updates
+  if (currentStep === 5) {
+    document.getElementById('sign-screen-name').textContent = document.getElementById('f-principal').value.trim() || 'Authorised Signatory';
+    document.getElementById('sign-screen-desig').textContent = document.getElementById('f-designation').value.trim() || 'Principal / Director';
+    document.getElementById('sign-screen-school').textContent = document.getElementById('f-school').value.trim() || 'Institution';
+    document.getElementById('sign-screen-date').textContent = dateStr;
+    resizeCanvas();
+  }
+
+  // Update live document calculations and text
+  updateDoc();
+
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  history.pushState({ step: currentStep }, '', '#step-' + currentStep);
+}
+
+window.addEventListener('popstate', (e) => {
+  if (e.state && e.state.step) {
+    setStep(e.state.step);
+  }
+});
+
+// ── Advance Payment Tiers ──────────────────────────────────
+// <500 students: 100% advance
+// 500–1000 students: 75% advance (25% mid-year)
+// >1000 students: 50% advance (50% mid-year)
+function getUpfrontTier(studentCount) {
+  const count = Number(studentCount) || 0;
+  if (count < 500) {
+    return {
+      ratePercent: 1.0,
+      percentNum: 100,
+      shortLabel: '100%',
+      fullLabel: '100% Upfront Commercial Amount',
+      multiYearLabel: 'Year 1 Upfront Commercial Amount (100%)',
+      rowTitle: 'Upfront Payment (100% Advance)',
+      clausePaymentSchool: '100% upfront advance upon commencement of each academic year',
+      clausePaymentIdCard: '100% advance before printing commencement',
+      footer1Yr: '* Billed 100% upfront advance upon agreement execution. Taxes extra.',
+      footerMultiYr: (yearly) => `* Billed annually with 100% advance (₹${yearly.toLocaleString('en-IN')}/year) per academic year. Taxes extra.`,
+      railNote: '* Billed 100% upfront advance upon agreement execution. Taxes extra.'
+    };
+  } else if (count <= 1000) {
+    return {
+      ratePercent: 0.75,
+      percentNum: 75,
+      shortLabel: '75%',
+      fullLabel: '75% Upfront Commercial Amount',
+      multiYearLabel: 'Year 1 Upfront Commercial Amount (75%)',
+      rowTitle: 'Upfront Payment (75% Advance)',
+      clausePaymentSchool: '75% upfront upon commencement of each academic year, and the remaining 25% midway through the academic year',
+      clausePaymentIdCard: '75% advance before printing commencement, and the remaining 25% upon delivery of cards',
+      footer1Yr: '* Billed in two installments (75% upfront upon commencement + 25% mid-year). Taxes extra.',
+      footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two installments (75% upfront + 25% mid-year) per academic year. Taxes extra.`,
+      railNote: '* Billed in two installments (75% upfront + 25% mid-year). Taxes extra.'
+    };
+  } else {
+    return {
+      ratePercent: 0.50,
+      percentNum: 50,
+      shortLabel: '50%',
+      fullLabel: '50% Upfront Commercial Amount',
+      multiYearLabel: 'Year 1 Upfront Commercial Amount (50%)',
+      rowTitle: 'Upfront Payment (50% Advance)',
+      clausePaymentSchool: '50% upfront upon commencement of each academic year, and the remaining 50% midway through the academic year',
+      clausePaymentIdCard: '50% advance before printing commencement, and the remaining 50% upon delivery of cards',
+      footer1Yr: '* Billed in two 50% installments (50% upfront upon commencement + 50% mid-year). Taxes extra.',
+      footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two 50% installments per academic year. Taxes extra.`,
+      railNote: '* Billed in two 50% installments. Taxes extra.'
+    };
+  }
+}
+
+// ── Live Document & Pricing Calculation ─────────────────────
 function updateDoc() {
-  const school = document.getElementById('f-school').value.trim() || '[ Institution Name ]';
-  const city = document.getElementById('f-city').value.trim() || '[ City / District ]';
-  const principal = document.getElementById('f-principal').value.trim() || '[ Authorised Signatory ]';
-  const desig = document.getElementById('f-designation').value.trim() || '[ Designation ]';
-  const addr = document.getElementById('f-address').value.trim();
+  const school = document.getElementById('f-school').value.trim() || 'Institution';
+  const city = document.getElementById('f-city').value.trim() || '';
+  const principal = document.getElementById('f-principal').value.trim() || 'Authorised Signatory';
+  const designation = document.getElementById('f-designation').value.trim() || 'Principal';
+  const udise = document.getElementById('f-udise').value.trim() || '—';
   const jurisdiction = (document.getElementById('f-jurisdiction')?.value || '').trim() || 'Dhule, Maharashtra';
-  const duration = document.getElementById('f-duration').value;
+  const durationVal = document.getElementById('f-duration').value || '1';
+  const durationInt = parseInt(durationVal) || 1;
+
+  // Header, Running Headers & Ref
+  document.getElementById('d-school').textContent = school;
+  document.getElementById('d-school2').textContent = school;
+  document.getElementById('d-school3').textContent = school;
+  document.querySelectorAll('.d-school-running').forEach(el => {
+    el.textContent = school;
+  });
+  const schoolInline = document.getElementById('d-school-inline');
+  if (schoolInline) schoolInline.textContent = school;
+  document.getElementById('d-city-addr').textContent = city;
+  document.getElementById('d-udise').textContent = udise;
+  document.getElementById('d-udise-sig').textContent = 'UDISE Code: ' + udise;
+  document.getElementById('d-jurisdiction').textContent = jurisdiction;
+  document.getElementById('d-duration').textContent = durationWords[durationVal] || 'one (1) academic year';
+  document.getElementById('d-principal').textContent = principal;
+  document.getElementById('d-designation').textContent = designation;
+
+  // Rail values
+  document.getElementById('rail-school').textContent = school;
+  document.getElementById('rail-duration').textContent = `${durationInt} Year${durationInt > 1 ? 's' : ''}`;
+
   const instType = getInstType();
   const isCollege = instType !== 'school';
+  document.getElementById('rail-type').textContent = isCollege ? (instType === 'college_degree' ? 'Degree College' : 'PU / Diploma') : 'School';
 
-  // Check Coupon
+  // Coupon
   const couponInput = (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase();
   const isSDCCoupon = couponInput === 'SDC' || couponInput === 'SDC20' || couponInput === 'SDC-SPECIAL';
   const isIdCard45 = couponInput === 'ID45' || couponInput === 'IDCARD45' || couponInput === 'CARD45' || couponInput === 'ID-45' || couponInput === 'IDONLY45';
 
-  const yr1Rate = isIdCard45 ? 45 : 59;
-  const yr2Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
-  const yr3Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
-
-  // Update UI Labels and Coupon Badge
-  const lblYr1 = document.getElementById('lbl-yr1');
-  if (lblYr1) {
-    lblYr1.innerHTML = `1st Year (New ID Cards) — ₹${yr1Rate}/student ${isIdCard45 ? '<span style="color:#047857;font-size:10px;font-weight:700;">(Coupon Applied: ₹45)</span>' : ''}`;
-  }
-  const lblYr2 = document.getElementById('lbl-yr2');
-  if (lblYr2) {
-    lblYr2.innerHTML = `2nd Year (Existing Cards) — ₹${yr2Rate}/student ${(isSDCCoupon || isIdCard45) ? '<span style="color:#047857;font-size:10px;font-weight:700;">(Coupon Applied: ₹20)</span>' : ''}`;
-  }
-  const lblYr3 = document.getElementById('lbl-yr3');
-  if (lblYr3) {
-    lblYr3.innerHTML = `3rd Year (Existing Cards) — ₹${yr3Rate}/student ${(isSDCCoupon || isIdCard45) ? '<span style="color:#047857;font-size:10px;font-weight:700;">(Coupon Applied: ₹20)</span>' : ''}`;
-  }
-
   const couponBadge = document.getElementById('coupon-badge');
   if (couponBadge) {
     if (isIdCard45) {
-      couponBadge.style.display = 'inline-block';
-      couponBadge.style.background = '#ecfdf5';
-      couponBadge.style.color = '#047857';
-      couponBadge.style.border = '1px solid #a7f3d0';
-      couponBadge.innerHTML = `🎉 Coupon '${couponInput}' Applied: ₹45 / Student — Smart ID Card Only (No ERP)`;
+      couponBadge.style.display = 'block';
+      couponBadge.textContent = '✓ ID Card & Lanyard Special (₹45/student)';
     } else if (isSDCCoupon) {
-      couponBadge.style.display = 'inline-block';
-      couponBadge.style.background = '#ecfdf5';
-      couponBadge.style.color = '#047857';
-      couponBadge.style.border = '1px solid #a7f3d0';
-      couponBadge.innerHTML = `🎉 Coupon '${couponInput}' Applied: 2nd &amp; 3rd Yr @ ₹20/student`;
-    } else if (couponInput) {
-      couponBadge.style.display = 'inline-block';
-      couponBadge.style.background = '#fef2f2';
-      couponBadge.style.color = '#b91c1c';
-      couponBadge.style.border = '1px solid #fecaca';
-      couponBadge.innerHTML = `⚠️ Invalid coupon code (default pricing applied)`;
+      couponBadge.style.display = 'block';
+      couponBadge.textContent = '✓ SDC Special Discount Active';
+    } else if (couponInput.length > 2) {
+      couponBadge.style.display = 'block';
+      couponBadge.textContent = '✓ Referral Code: ' + couponInput;
     } else {
       couponBadge.style.display = 'none';
     }
   }
 
-  let perStudentRate = isIdCard45 ? 45 : 59;
-  let planType = isIdCard45 ? 'custom' : 'standard';
+  // ID Card Only mode customization
+  const subtitleEl = document.getElementById('d-mou-subtitle');
+  const roleDetailEl = document.getElementById('d-partya-detail');
+  const purposeEl = document.getElementById('d-clause1-purpose');
+  const introEl = document.getElementById('d-clause2-intro');
+  const slaEl = document.getElementById('d-clause2-sla');
+  const c3Ul = document.getElementById('d-clause3-ul');
+  const c4Title = document.getElementById('d-clause4-title');
+  const c4Ul = document.getElementById('d-clause4-ul');
+
+  if (isIdCard45) {
+    if (subtitleEl) subtitleEl.textContent = 'For Provision of Student Smart ID Card Services';
+    if (roleDetailEl) roleDetailEl.innerHTML = 'Smart ID Card &amp; Digital Solutions Provider<br/>India';
+    if (purposeEl) purposeEl.textContent = 'The purpose of this MOU is to set forth the terms under which the Provider shall design, manufacture, and supply Student Smart ID Cards & Branded Lanyards to the Institution. This agreement covers physical ID card provision and student identity services exclusively, and does not include ERP software platform access.';
+    if (introEl) introEl.textContent = `The Institution hereby confirms its order for Student Smart ID Cards & Branded Lanyards for the following student strength for the academic year ${acadYearDisplay}:`;
+  } else {
+    if (subtitleEl) subtitleEl.textContent = 'For Implementation of Quantech Platform';
+    if (roleDetailEl) roleDetailEl.innerHTML = 'Developers of Quantech Platform<br/>India';
+    if (purposeEl) purposeEl.textContent = 'The purpose of this MOU is to set forth the terms under which the Provider shall grant the School access to the Quantech Platform — a cloud-based software platform for managing academics, fees, attendance, hostel, transport, and administrative operations.';
+    if (introEl) introEl.textContent = `The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year ${acadYearDisplay}:`;
+  }
+
   let studentCount = 0;
-  let totalPrice = 0;
   let yearlyTotal = 0;
-  let yearWiseCounts = null;
+  let totalPrice = 0;
 
   if (isCollege) {
     const yr1 = parseInt(document.getElementById('f-yr1').value) || 0;
     const yr2 = parseInt(document.getElementById('f-yr2').value) || 0;
     const yr3 = instType === 'college_degree' ? (parseInt(document.getElementById('f-yr3').value) || 0) : 0;
     studentCount = yr1 + yr2 + yr3;
-    yearWiseCounts = { yr1, yr2, yr3 };
-    planType = 'custom'; // college uses fixed year-based pricing
 
-    const yr1Price = yr1 * yr1Rate;
-    const yr2Price = yr2 * yr2Rate;
-    const yr3Price = yr3 * yr3Rate;
-    yearlyTotal = yr1Price + yr2Price + yr3Price;
-    const durationInt = parseInt(duration) || 1;
+    const yr1Rate = isIdCard45 ? 45 : 59;
+    const yr2Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
+    const yr3Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
+
+    yearlyTotal = (yr1 * yr1Rate) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
     totalPrice = yearlyTotal * durationInt;
 
-    // Update college calc preview
-    const preview = document.getElementById('college-calc-preview');
-    const previewText = document.getElementById('college-calc-text');
-    if (studentCount > 0) {
-      preview.style.display = '';
-      const parts = [`1st Yr: ${yr1.toLocaleString('en-IN')} × ₹${yr1Rate} = ₹${yr1Price.toLocaleString('en-IN')}`];
-      parts.push(`2nd Yr: ${yr2.toLocaleString('en-IN')} × ₹${yr2Rate} = ₹${yr2Price.toLocaleString('en-IN')}`);
-      if (instType === 'college_degree') parts.push(`3rd Yr: ${yr3.toLocaleString('en-IN')} × ₹${yr3Rate} = ₹${yr3Price.toLocaleString('en-IN')}`);
-      const yr1Upfront = yearlyTotal * 0.5;
-      parts.push(`Annual Billing: ₹${yearlyTotal.toLocaleString('en-IN')}/yr (50% Yr-1 Upfront: ₹${yr1Upfront.toLocaleString('en-IN')})`);
-      if (durationInt > 1) {
-        parts.push(`${durationInt}-Yr Agreement: ₹${totalPrice.toLocaleString('en-IN')}`);
-      }
-      if (isIdCard45) parts.push(`(Coupon ${couponInput} Active: ₹45 ID Only)`);
-      else if (isSDCCoupon) parts.push(`(Coupon SDC Active)`);
-      previewText.textContent = parts.join('  |  ');
-    } else {
-      preview.style.display = 'none';
-    }
-
-    // Update MOU doc enrollment breakdown
-    const breakdown = document.getElementById('d-college-yr-breakdown');
-    const yr1Line = document.getElementById('d-yr1-line');
-    const yr2Line = document.getElementById('d-yr2-line');
-    const yr3Line = document.getElementById('d-yr3-line');
-    if (breakdown) {
-      breakdown.style.display = studentCount > 0 ? '' : 'none';
-      yr1Line.textContent = `1st Year: ${yr1.toLocaleString('en-IN')} students (${isIdCard45 ? 'Smart ID cards @ ₹45' : 'new ID cards @ ₹59'})`;
-      yr2Line.textContent = `2nd Year: ${yr2.toLocaleString('en-IN')} students (existing cards @ ₹${yr2Rate})`;
+    const breakdownEl = document.getElementById('d-college-yr-breakdown');
+    if (breakdownEl) {
+      breakdownEl.style.display = studentCount > 0 ? 'block' : 'none';
+      document.getElementById('d-yr1-line').textContent = `• 1st Year (New Cards): ${yr1.toLocaleString('en-IN')} students @ ₹${yr1Rate}`;
+      document.getElementById('d-yr2-line').textContent = `• 2nd Year (Existing Cards): ${yr2.toLocaleString('en-IN')} students @ ₹${yr2Rate}`;
+      const yr3Line = document.getElementById('d-yr3-line');
       if (yr3Line) {
-        yr3Line.style.display = instType === 'college_degree' ? '' : 'none';
-        yr3Line.textContent = `3rd Year: ${yr3.toLocaleString('en-IN')} students (existing cards @ ₹${yr3Rate})`;
+        yr3Line.style.display = instType === 'college_degree' ? 'inline' : 'none';
+        yr3Line.textContent = `• 3rd Year (Existing Cards): ${yr3.toLocaleString('en-IN')} students @ ₹${yr3Rate}`;
       }
     }
 
-    perStudentRate = studentCount > 0 ? Math.round(totalPrice / studentCount) : yr1Rate;
-  } else {
-    // School mode
-    const studentsRaw = document.getElementById('f-students').value.trim();
-    studentCount = parseInt(studentsRaw) || 0;
-    const planSelect = document.getElementById('f-plan');
-    if (isIdCard45) {
-      perStudentRate = 45;
-      planType = 'custom';
-      if (planSelect) {
-        planSelect.disabled = true;
-        planSelect.innerHTML = `<option value="custom">Smart ID Card Only (No ERP) — ₹45 / Student / Year</option>`;
-      }
-    } else if (urlRate && !isNaN(urlRate) && urlRate > 0) {
-      perStudentRate = urlRate;
-      planType = 'custom';
-      if (planSelect) {
-        planSelect.disabled = true;
-        planSelect.innerHTML = `<option value="custom">Custom Admin Rate — ₹${perStudentRate} / Student / Year</option>`;
-      }
-    } else {
-      if (planSelect) {
-        planSelect.disabled = false;
-        if (!planSelect.querySelector('option[value="standard"]')) {
-          planSelect.innerHTML = `
-            <option value="standard">Standard Plan (Students Only) — ₹59 / Student / Year</option>
-            <option value="plus">Plus Plan (Student + Teacher Access) — ₹69 / Student / Year</option>
-          `;
-        }
-        if (planSelect.value === 'plus') { perStudentRate = 69; planType = 'plus'; }
-        else { perStudentRate = 59; planType = 'standard'; }
-      }
-    }
-    const durationInt = parseInt(duration) || 1;
-    yearlyTotal = studentCount * perStudentRate;
-    totalPrice = yearlyTotal * durationInt;
-    // Hide college breakdown in school mode
-    const breakdown = document.getElementById('d-college-yr-breakdown');
-    if (breakdown) breakdown.style.display = 'none';
-  }
-
-  // Dynamic MOU document wording for ID Card Only vs ERP Platform
-  const mouSub = document.getElementById('d-mou-subtitle');
-  if (mouSub) {
-    mouSub.textContent = isIdCard45 ? 'For Provision of Student Smart ID Card Services' : 'For Implementation of Quantech Platform';
-  }
-
-  const pPartyA = document.getElementById('d-partya-detail');
-  if (pPartyA) {
-    pPartyA.innerHTML = isIdCard45 ? 'Smart ID Card &amp; Digital Solutions Provider<br/>India' : 'Developers of Quantech Platform<br/>India';
-  }
-
-  const c1Purpose = document.getElementById('d-clause1-purpose');
-  if (c1Purpose) {
-    c1Purpose.innerHTML = isIdCard45
-      ? `The purpose of this MOU is to set forth the terms under which the Provider shall design, manufacture, and supply <strong>Student Smart ID Cards &amp; Branded Lanyards</strong> to the Institution. This agreement covers physical ID card provision and student identity services exclusively, and does not include ERP software platform access.`
-      : `The purpose of this MOU is to set forth the terms under which the Provider shall grant the School access to the <strong>Quantech Platform</strong> — a cloud-based software platform for managing academics, fees, attendance, hostel, transport, and administrative operations.`;
-  }
-
-  const c2Intro = document.getElementById('d-clause2-intro');
-  if (c2Intro) {
-    c2Intro.innerHTML = isIdCard45
-      ? `The Institution hereby confirms its order for Student Smart ID Cards &amp; Branded Lanyards for the following student strength for the academic year <strong id="d-acad-year">${acadYearDisplay}</strong>:`
-      : `The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year <strong id="d-acad-year">${acadYearDisplay}</strong>:`;
-  }
-
-  const c2Sla = document.getElementById('d-clause2-sla');
-  if (c2Sla) {
-    c2Sla.innerHTML = isIdCard45
-      ? `ID card manufacturing, lanyard branding, and delivery schedules shall be calculated based on the above student strength. Any additional student ID cards required beyond <span id="d-students-plus">${studentCount > 0 ? studentCount.toLocaleString('en-IN') : '—'}</span> students during the agreement period shall be billed at the agreed rate of ₹45 per card.`
-      : `Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond <span id="d-students-plus">${studentCount > 0 ? studentCount.toLocaleString('en-IN') : '—'}</span> students during the agreement period shall be subject to a revised quote.`;
-  }
-
-  const c3Ul = document.getElementById('d-clause3-ul');
-  if (c3Ul) {
-    c3Ul.innerHTML = isIdCard45
-      ? `<li>Design, print, and supply high-durability PVC Student Smart ID Cards with customized institution branding, photo, and barcode/QR code.</li>
-         <li>Supply matching customized branded lanyards and protective card holders for all enrolled students.</li>
-         <li>Ensure quality inspection, error-free printing, and durable thermal lamination prior to dispatch.</li>
-         <li>Deliver printed cards safely to the Institution premises within agreed delivery timelines upon receiving complete student data.</li>
-         <li>Provide digital student data/ID records to the Institution for institutional record-keeping.</li>`
-      : `<li>Provide full access to the Quantech Platform modules as agreed, including Academics, Fee Management, Attendance, Reports, Hostel, and Transport (as applicable).</li>
-         <li>Ensure 99.5% platform uptime during school operational hours.</li>
-         <li>Provide onboarding support, staff training sessions (online/on-site), and technical documentation.</li>
-         <li>Maintain data confidentiality and comply with applicable data protection laws.</li>
-         <li>Deliver feature updates and security patches throughout the agreement period at no additional cost.</li>`;
-  }
-
-  const c4Title = document.getElementById('d-clause4-title');
-  if (c4Title) {
-    c4Title.textContent = isIdCard45 ? '4. Obligations of the Institution' : '4. Obligations of the School';
-  }
-
-  const c4Ul = document.getElementById('d-clause4-ul');
-  if (c4Ul) {
-    c4Ul.innerHTML = isIdCard45
-      ? `<li>Appoint a designated Institution Coordinator responsible for ID card data collection and sample proof approval.</li>
-         <li>Provide accurate and complete student data (Name, Class/Roll No, Blood Group, Contact, Photo) in the required format.</li>
-         <li>Promptly review and approve digital sample proofs before bulk printing commencement.</li>
-         <li>Ensure timely payment of ID card charges: <strong>50% advance before printing commencement, and the remaining 50% upon delivery of cards</strong>.</li>
-         <li>Report any manufacturing defects or card discrepancies within 14 days of delivery for prompt replacement.</li>`
-      : `<li>Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.</li>
-         <li>Provide accurate and complete student data for onboarding within 14 days of agreement execution.</li>
-         <li id="d-clause4-payment-li">Ensure timely payment of subscription fees, billed annually: <span id="d-clause4-payment-text"><strong>50% upfront upon commencement of each academic year, and the remaining 50% midway through the academic year</strong></span> upon invoice issuance by the Provider.</li>
-         <li>Not share, sub-license, or resell access to the Quantech Platform to any third party.</li>
-         <li>Report technical issues through the designated support channel promptly.</li>`;
-  }
-
-  const durationInt = parseInt(duration) || 1;
-  const udise = document.getElementById('f-udise').value.trim() || '—';
-  document.getElementById('d-school').textContent = school;
-  document.getElementById('d-school2').textContent = school;
-  document.getElementById('d-school3').textContent = school;
-  document.getElementById('d-school-inline').textContent = school;
-  document.getElementById('d-city-addr').innerHTML = city + (addr ? '<br/>' + addr : '');
-  document.getElementById('d-principal').textContent = principal;
-  document.getElementById('d-designation').textContent = desig;
-  document.getElementById('d-udise').textContent = udise;
-  document.getElementById('d-udise-sig').textContent = udise !== '—' ? 'UDISE Code: ' + udise : 'UDISE Code: —';
-  const dJurisdiction = document.getElementById('d-jurisdiction');
-  if (dJurisdiction) dJurisdiction.textContent = jurisdiction;
-
-  document.getElementById('d-duration').textContent = durationWords[duration] || 'one (1) academic year';
-
-  if (isCollege) {
-    document.getElementById('d-total-label').textContent = durationInt > 1 
-      ? `Total Agreement Value (${durationInt} Years @ ₹${yearlyTotal.toLocaleString('en-IN')}/yr)` 
-      : `Total Price (Year-wise College ID Card Billing)`;
-  } else {
     document.getElementById('d-total-label').textContent = durationInt > 1
-      ? `Total Agreement Value (${durationInt} Years at ₹${perStudentRate} / Student / Year)`
-      : `Total Price (for ${durationInt} Year${durationInt > 1 ? 's' : ''} at ₹${perStudentRate} / Student / Year)`;
-  }
-  
-  document.getElementById('d-comm-footer').textContent = durationInt > 1
-    ? `* Billed annually at ₹${yearlyTotal.toLocaleString('en-IN')}/year in two 50% installments per academic year (50% upfront + 50% milestone). Taxes extra.`
-    : `* Billed in two 50% installments (50% upfront upon commencement + 50% mid-year milestone). Taxes extra.`;
-
-  if (studentCount > 0) {
-    const upfrontPrice = yearlyTotal * 0.5;
-
-    document.getElementById('d-upfront-label').textContent = durationInt > 1 
-      ? `Year 1 Upfront Amount (50%)` 
-      : `50% Upfront Commercial Amount`;
-    const upfrontTextSpan = document.getElementById('d-upfront-text-percent');
-    if (upfrontTextSpan) upfrontTextSpan.textContent = `50%`;
-
-    document.getElementById('d-students').textContent = studentCount.toLocaleString('en-IN') + ' Students';
-    document.getElementById('d-students-plus').textContent = studentCount.toLocaleString('en-IN');
-    document.getElementById('d-total-price').textContent = '₹' + totalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    document.getElementById('d-upfront-price').textContent = '₹' + upfrontPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      ? `Total Commercial Amount (${durationInt} Years)`
+      : `Total Commercial Amount`;
+    document.getElementById('rail-plan').textContent = 'Tiered ID Card Plan';
   } else {
-    document.getElementById('d-upfront-label').textContent = durationInt > 1 ? 'Year 1 Upfront Amount (50%)' : 'Upfront Commercial Amount';
-    const upfrontTextSpan = document.getElementById('d-upfront-text-percent');
-    if (upfrontTextSpan) upfrontTextSpan.textContent = '50%';
-    document.getElementById('d-students').textContent = '— Students';
-    document.getElementById('d-students-plus').textContent = '—';
-    document.getElementById('d-total-price').textContent = '₹0.00';
-    document.getElementById('d-upfront-price').textContent = '₹0.00';
+    // School
+    const breakdownEl = document.getElementById('d-college-yr-breakdown');
+    if (breakdownEl) breakdownEl.style.display = 'none';
+
+    studentCount = parseInt(document.getElementById('f-students').value) || 0;
+    let rate = 59;
+    const planVal = document.getElementById('f-plan').value;
+    if (isIdCard45) rate = 45;
+    else if (urlRate && !isNaN(urlRate) && urlRate > 0) rate = urlRate;
+    else if (planVal === 'plus') rate = 69;
+
+    yearlyTotal = studentCount * rate;
+    totalPrice = yearlyTotal * durationInt;
+
+    document.getElementById('d-total-label').textContent = durationInt > 1
+      ? `Total Commercial Amount (${durationInt} Years at ₹${rate}/student/yr)`
+      : `Total Commercial Amount (at ₹${rate} / Student)`;
+    document.getElementById('rail-plan').textContent = `${planVal === 'plus' ? 'Plus Plan' : 'Standard Plan'} (₹${rate}/yr)`;
   }
+
+  // Tiered Upfront Payment (<500: 100%, 500-1000: 75%, >1000: 50%)
+  const tier = getUpfrontTier(studentCount);
+  const upfrontPrice = yearlyTotal * tier.ratePercent;
+
+  // Clause 4 payment obligation dynamic text update
+  const c4PaymentLi = document.getElementById('d-clause4-payment-li');
+  if (c4PaymentLi) {
+    if (isIdCard45) {
+      c4PaymentLi.innerHTML = `Ensure timely payment of ID card charges: <span id="d-clause4-payment-text"><strong>${tier.clausePaymentIdCard}</strong></span>.`;
+    } else {
+      c4PaymentLi.innerHTML = `Ensure timely payment of subscription fees, billed annually: <span id="d-clause4-payment-text"><strong>${tier.clausePaymentSchool}</strong></span> upon invoice issuance by the Provider.`;
+    }
+  }
+
+  // SLA text
+  if (slaEl) {
+    const strengthStr = studentCount > 0 ? studentCount.toLocaleString('en-IN') : '—';
+    if (isIdCard45) {
+      slaEl.innerHTML = `ID card manufacturing, lanyard branding, and delivery schedules shall be calculated based on the above student strength. Any additional student ID cards required beyond <span id="d-students-plus">${strengthStr}</span> students during the agreement period shall be billed at the agreed rate of ₹45 per card.`;
+    } else {
+      slaEl.innerHTML = `Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond <span id="d-students-plus">${strengthStr}</span> students during the agreement period shall be subject to a revised quote.`;
+    }
+  }
+
+  // Footer billing note
+  const footerNote = durationInt > 1
+    ? tier.footerMultiYr(yearlyTotal)
+    : tier.footer1Yr;
+  document.getElementById('d-comm-footer').textContent = footerNote;
+  document.getElementById('rail-footer-note').textContent = footerNote;
+
+  // Formatted Numbers
+  const totalFormatted = '₹' + totalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const upfrontFormatted = '₹' + upfrontPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const strengthDisplay = studentCount > 0 ? `${studentCount.toLocaleString('en-IN')} Students` : '— Students';
+
+  document.getElementById('d-students').textContent = strengthDisplay;
+  const plusEl = document.getElementById('d-students-plus');
+  if (plusEl) plusEl.textContent = studentCount > 0 ? studentCount.toLocaleString('en-IN') : '—';
+  document.getElementById('d-total-price').textContent = totalFormatted;
+  document.getElementById('d-upfront-price').textContent = upfrontFormatted;
+  document.getElementById('d-upfront-label').textContent = durationInt > 1 ? tier.multiYearLabel : tier.fullLabel;
+
+  // Rail
+  document.getElementById('rail-students').textContent = studentCount > 0 ? studentCount.toLocaleString('en-IN') : '—';
+  document.getElementById('rail-total').textContent = totalFormatted;
+  document.getElementById('rail-upfront').textContent = upfrontFormatted;
+  const railUpfrontLabel = document.getElementById('rail-upfront-label');
+  if (railUpfrontLabel) railUpfrontLabel.textContent = `Upfront (${tier.shortLabel})`;
+
+  // Phone Bottom Bar
+  document.getElementById('mbar-total').textContent = totalFormatted;
+  document.getElementById('mbar-sub').textContent = `${tier.shortLabel} Upfront: ${upfrontFormatted}`;
 }
-updateDoc();
 
+// ── Form State Persistence (sessionStorage) ─────────────────
+function persistFormData() {
+  const data = {
+    school: document.getElementById('f-school').value,
+    city: document.getElementById('f-city').value,
+    udise: document.getElementById('f-udise').value,
+    jurisdiction: document.getElementById('f-jurisdiction').value,
+    address: document.getElementById('f-address').value,
+    principal: document.getElementById('f-principal').value,
+    designation: document.getElementById('f-designation').value,
+    email: document.getElementById('f-email').value,
+    phone: document.getElementById('f-phone').value,
+    students: document.getElementById('f-students').value,
+    yr1: document.getElementById('f-yr1').value,
+    yr2: document.getElementById('f-yr2').value,
+    yr3: document.getElementById('f-yr3').value,
+    duration: document.getElementById('f-duration').value,
+    plan: document.getElementById('f-plan').value,
+    coupon: document.getElementById('f-coupon').value,
+    instType: getInstType()
+  };
+  try {
+    sessionStorage.setItem('mou_form_data', JSON.stringify(data));
+  } catch(e){}
+}
 
-// ── Signature Pad ───────────────────────────────────────────
+function restoreFormData() {
+  try {
+    const raw = sessionStorage.getItem('mou_form_data');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.school) document.getElementById('f-school').value = data.school;
+    if (data.city) document.getElementById('f-city').value = data.city;
+    if (data.udise) document.getElementById('f-udise').value = data.udise;
+    if (data.jurisdiction) document.getElementById('f-jurisdiction').value = data.jurisdiction;
+    if (data.address) document.getElementById('f-address').value = data.address;
+    if (data.principal) document.getElementById('f-principal').value = data.principal;
+    if (data.designation) document.getElementById('f-designation').value = data.designation;
+    if (data.email) document.getElementById('f-email').value = data.email;
+    if (data.phone) document.getElementById('f-phone').value = data.phone;
+    if (data.students) document.getElementById('f-students').value = data.students;
+    if (data.yr1) document.getElementById('f-yr1').value = data.yr1;
+    if (data.yr2) document.getElementById('f-yr2').value = data.yr2;
+    if (data.yr3) document.getElementById('f-yr3').value = data.yr3;
+    if (data.duration) handleDurationChange(data.duration);
+    if (data.plan) handlePlanChange(data.plan);
+    if (data.coupon) {
+      document.getElementById('f-coupon').value = data.coupon;
+      toggleCouponBox(true);
+    }
+    if (data.instType) {
+      const radio = document.querySelector(`input[name="f-insttype"][value="${data.instType}"]`);
+      if (radio) { radio.checked = true; handleInstTypeChange(data.instType); }
+    }
+  } catch(e){}
+}
+
+// ── Interactive Signature Pad (Pointer Events, DevicePixelRatio) ──
 const canvas = document.getElementById('sigCanvas');
 const ctx = canvas.getContext('2d');
 const wrap = document.getElementById('sigWrap');
 let drawing = false, hasSig = false;
 
 function resizeCanvas() {
-  if (hasSig) return; // Prevent clearing the signature if already signed
   const rect = canvas.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) return;
-  canvas.width = rect.width * window.devicePixelRatio;
-  canvas.height = rect.height * window.devicePixelRatio;
-  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const dpr = window.devicePixelRatio || 1;
+
+  // Save current stroke image if signed
+  let tempImage = null;
+  if (hasSig) {
+    tempImage = canvas.toDataURL();
+  }
+
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
   ctx.strokeStyle = '#1e3a8a';
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+
+  if (tempImage) {
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    img.src = tempImage;
+  }
 }
-resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-function getPos(e) {
+function getPointerPos(e) {
   const rect = canvas.getBoundingClientRect();
-  const src = e.touches ? e.touches[0] : e;
-  return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
 
-canvas.addEventListener('mousedown', e => { drawing = true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
-canvas.addEventListener('mousemove', e => { if (!drawing) return; const p=getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); markSigned(); });
-canvas.addEventListener('mouseup', () => drawing = false);
-canvas.addEventListener('mouseleave', () => drawing = false);
-canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }, {passive:false});
-canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!drawing)return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); markSigned(); }, {passive:false});
-canvas.addEventListener('touchend', () => drawing = false);
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  drawing = true;
+  const pos = getPointerPos(e);
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+});
 
-function markSigned() { hasSig=true; wrap.classList.add('signed'); }
+canvas.addEventListener('pointermove', (e) => {
+  if (!drawing) return;
+  e.preventDefault();
+  const pos = getPointerPos(e);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  markSigned();
+});
+
+canvas.addEventListener('pointerup', (e) => {
+  if (drawing) {
+    drawing = false;
+    canvas.releasePointerCapture(e.pointerId);
+  }
+});
+
+canvas.addEventListener('pointercancel', (e) => {
+  drawing = false;
+});
+
+function markSigned() {
+  hasSig = true;
+  wrap.classList.add('is-signed');
+  document.getElementById('sigStatusNotice').style.display = 'inline';
+  document.getElementById('err-signature')?.classList.remove('show');
+  updateDocumentSignaturePreview();
+}
 
 function clearSig() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   hasSig = false;
-  wrap.classList.remove('signed');
-  // Reset file input so same file can be re-uploaded if needed
+  wrap.classList.remove('is-signed');
+  document.getElementById('sigStatusNotice').style.display = 'none';
   const fileInput = document.getElementById('sigUploadInput');
   if (fileInput) fileInput.value = '';
+  updateDocumentSignaturePreview();
+}
+
+function switchSigMode(mode) {
+  document.getElementById('tab-draw').classList.toggle('is-selected', mode === 'draw');
+  document.getElementById('tab-upload').classList.toggle('is-selected', mode === 'upload');
+  wrap.style.display = mode === 'draw' ? 'block' : 'none';
+  document.getElementById('sigUploadPane').classList.toggle('is-active', mode === 'upload');
+  if (mode === 'draw') resizeCanvas();
 }
 
 function handleSigUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = function(event) {
     const img = new Image();
     img.onload = function() {
-      // Clear canvas first
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      const canvasWidth = canvas.width / window.devicePixelRatio;
-      const canvasHeight = canvas.height / window.devicePixelRatio;
-      
+      switchSigMode('draw');
+      clearSig();
+      const rect = canvas.getBoundingClientRect();
+      const canvasRatio = rect.width / rect.height;
       const imgRatio = img.width / img.height;
-      const canvasRatio = canvasWidth / canvasHeight;
-      
-      let renderWidth, renderHeight, xOffset, yOffset;
-      
-      // Scale and center the image with 12px margin padding
+      let rw, rh, xo, yo;
       if (imgRatio > canvasRatio) {
-        renderWidth = canvasWidth - 24;
-        renderHeight = renderWidth / imgRatio;
-        xOffset = 12;
-        yOffset = (canvasHeight - renderHeight) / 2;
+        rw = rect.width - 24;
+        rh = rw / imgRatio;
+        xo = 12;
+        yo = (rect.height - rh) / 2;
       } else {
-        renderHeight = canvasHeight - 24;
-        renderWidth = renderHeight * imgRatio;
-        xOffset = (canvasWidth - renderWidth) / 2;
-        yOffset = 12;
+        rh = rect.height - 24;
+        rw = rh * imgRatio;
+        xo = (rect.width - rw) / 2;
+        yo = 12;
       }
-      
-      ctx.drawImage(img, xOffset, yOffset, renderWidth, renderHeight);
+      ctx.drawImage(img, xo, yo, rw, rh);
       markSigned();
     };
     img.src = event.target.result;
@@ -1266,228 +2855,214 @@ function handleSigUpload(e) {
   reader.readAsDataURL(file);
 }
 
-// ── PDF Generation ──────────────────────────────────────────
+function updateDocumentSignaturePreview() {
+  const box = document.getElementById('docSigReviewBox');
+  if (!box) return;
+  if (hasSig) {
+    const dataUrl = canvas.toDataURL('image/png');
+    box.innerHTML = `<img src="${dataUrl}" alt="Authorised Signature" style="max-height:100%;max-width:100%;object-fit:contain;"/>`;
+  } else {
+    box.innerHTML = `<span id="docSigPendingText" style="font-size:10pt;color:#94a3b8;font-style:italic;">[ Signature will appear here in Step 5 ]</span>`;
+  }
+}
+
+// ── Export Payloads & Actions ──
+function buildMouPayload() {
+  updateDoc();
+  const instType = getInstType();
+  const isCollege = instType !== 'school';
+  const couponInput = (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase();
+  const isIdCard45 = couponInput === 'ID45' || couponInput === 'IDCARD45' || couponInput === 'CARD45' || couponInput === 'ID-45' || couponInput === 'IDONLY45';
+  const planVal = document.getElementById('f-plan').value;
+  const durationInt = parseInt(document.getElementById('f-duration').value) || 1;
+  let activeRate = isIdCard45 ? 45 : (urlRate && !isNaN(urlRate) && urlRate > 0 ? urlRate : (planVal === 'plus' ? 69 : 59));
+
+  let studentCount = 0, yr1Count = 0, yr2Count = 0, yr1Rate = 59, yr2Rate = 30;
+  if (isCollege) {
+    yr1Count = parseInt(document.getElementById('f-yr1').value) || 0;
+    yr2Count = parseInt(document.getElementById('f-yr2').value) || 0;
+    const yr3Count = instType === 'college_degree' ? (parseInt(document.getElementById('f-yr3').value) || 0) : 0;
+    studentCount = yr1Count + yr2Count + yr3Count;
+    yr1Rate = isIdCard45 ? 45 : 59;
+    const isSDCCoupon = couponInput === 'SDC' || couponInput === 'SDC20' || couponInput === 'SDC-SPECIAL';
+    yr2Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
+  } else {
+    studentCount = parseInt(document.getElementById('f-students').value) || 0;
+  }
+
+  const school = (document.getElementById('f-school').value.trim() || 'School').replace(/\s+/g,'_');
+  const filename = `MOU_Quantech_${school}_${acadYear}.pdf`;
+  const docxFilename = `MOU_Quantech_${school}_${acadYear}.docx`;
+
+  const sigImg = hasSig ? canvas.toDataURL('image/png') : '';
+
+  // Extract stylesheets and mou document HTML for Puppeteer fallback
+  const headStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+    .map(el => el.outerHTML)
+    .join('\n');
+  const mouDoc = document.getElementById('mou-document');
+  const mouContent = mouDoc ? mouDoc.outerHTML : '';
+  
+  const fullHtml = `<!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <title>MOU Document</title>
+    <base href="${window.location.origin}"/>
+    ${headStyles}
+  </head>
+  <body class="is-exporting" style="background: #fff !important; margin: 0 !important; padding: 0 !important;">
+    <div class="page-wrapper" style="max-width: 100% !important; margin: 0 !important; padding: 0 !important;">
+      ${mouContent}
+    </div>
+  </body>
+  </html>`;
+
+  return {
+    schoolName: document.getElementById('f-school').value.trim(),
+    city: document.getElementById('f-city').value.trim(),
+    address: document.getElementById('f-address').value.trim(),
+    udiseCode: document.getElementById('f-udise').value.trim(),
+    principalName: document.getElementById('f-principal').value.trim(),
+    designation: document.getElementById('f-designation').value.trim(),
+    jurisdiction: (document.getElementById('f-jurisdiction')?.value || '').trim() || 'Dhule, Maharashtra',
+    durationWords: durationWords[document.getElementById('f-duration').value] || 'one (1) academic year',
+    duration: durationInt,
+    rate: activeRate,
+    academicYear: acadYearDisplay,
+    refId: refId,
+    date: dateStr,
+    studentCount: studentCount,
+    isCollege: isCollege,
+    yr1Count: yr1Count,
+    yr1Rate: yr1Rate,
+    yr2Count: yr2Count,
+    yr2Rate: yr2Rate,
+    totalPrice: document.getElementById('d-total-price').textContent.trim(),
+    totalPriceLabel: document.getElementById('d-total-label').textContent.trim(),
+    upfrontPrice: document.getElementById('d-upfront-price').textContent.trim(),
+    upfrontPriceLabel: document.getElementById('d-upfront-label').textContent.trim(),
+    commFooter: document.getElementById('d-comm-footer').textContent.trim(),
+    isIdCardOnly: isIdCard45,
+    signatureDataUrl: sigImg,
+    html: fullHtml,
+    filename: filename,
+    docxFilename: docxFilename
+  };
+}
+
 async function downloadPDF() {
-  if (!validateForm()) return;
+  if (!validateCurrentStep(1) || !validateCurrentStep(2) || !validateCurrentStep(3) || !validateCurrentStep(5)) {
+    setStep(!hasSig ? 5 : 1);
+    return;
+  }
 
   const btn = document.getElementById('btn-download');
   btn.disabled = true;
-  btn.textContent = 'Saving MOU...';
+  btn.innerHTML = `<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #ffffff;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;margin-right:8px;vertical-align:middle;"></span><span>Generating PDF &amp; Saving...</span>`;
 
-  // 1. GUARANTEE DB RECORD SAVED FIRST BEFORE PDF GENERATION & SAVE
   try {
+    // 1. Compulsorily save submission to DB first
     await trackMouAction('download_pdf');
-  } catch (err) {
-    console.error('Pre-download MOU database recording error:', err);
-  }
+    const payload = buildMouPayload();
 
-  btn.textContent = 'Generating PDF...';
-
-  // Paste sig into doc
-  const sigImg = canvas.toDataURL('image/png');
-  const sigPlaceholder = document.createElement('img');
-  sigPlaceholder.src = sigImg;
-  sigPlaceholder.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none';
-  wrap.appendChild(sigPlaceholder);
-
-  try {
-    btn.textContent = 'Generating Vector PDF...';
-    
-    // Extract stylesheets and mou document HTML
-    const headStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map(el => el.outerHTML)
-      .join('\n');
-    const mouDoc = document.getElementById('mou-document');
-    const mouContent = mouDoc ? mouDoc.outerHTML : document.querySelector('.mou-doc').outerHTML;
-    
-    const fullHtml = `<!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8"/>
-      <title>MOU Document</title>
-      <base href="${window.location.origin}"/>
-      ${headStyles}
-    </head>
-    <body class="is-exporting" style="background: #fff !important; margin: 0 !important; padding: 0 !important;">
-      <div class="page-wrapper" style="max-width: 100% !important; margin: 0 !important; padding: 0 !important;">
-        ${mouContent}
-      </div>
-    </body>
-    </html>`;
-
-    const school = (document.getElementById('f-school').value.trim() || 'School').replace(/\s+/g,'_');
-    const filename = `MOU_Quantech_${school}_${acadYear}.pdf`;
-
+    // 2. Fetch the vector PDF from backend
     const res = await fetch('/api/v1/mou/pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html: fullHtml, filename })
+      body: JSON.stringify(payload)
     });
 
     if (!res.ok) {
       const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.error || 'Server PDF generation failed');
+      throw new Error(errJson.error || 'PDF generation failed');
     }
 
+    // 3. Initiate browser file download
     const blob = await res.blob();
     const downloadUrl = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = downloadUrl;
-    a.download = filename;
+    a.download = payload.filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(downloadUrl);
 
-    showToast();
-  } catch(e) {
-    console.error('Vector PDF failed, attempting print fallback:', e);
-    alert('Server PDF generation failed. Opening print window to Save as PDF...');
-    triggerPrint();
-  } finally {
-    wrap.removeChild(sigPlaceholder);
+    showToast('Official PDF downloaded! Redirecting to MOU Tracker...');
+
+    // 4. Compulsorily redirect to the MOU tracker page
+    setTimeout(() => {
+      window.location.href = '/admin/mou-tracker';
+    }, 1200);
+  } catch(err) {
+    console.error('PDF error:', err);
+    alert('Server PDF generation error: ' + (err.message || 'Please try again.'));
     btn.disabled = false;
-    btn.textContent = 'Download & Send PDF';
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg><span>Download &amp; Send PDF</span>`;
   }
 }
 
-function showToast() {
-  const t = document.getElementById('toast');
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3500);
+async function triggerPrint() {
+  if (!validateCurrentStep(1) || !validateCurrentStep(2) || !validateCurrentStep(3)) return;
+  await trackMouAction('print');
+  window.print();
 }
 
-// ── Background Database MOU Activity Logger ──────────────────
 async function trackMouAction(actionType) {
   try {
-    const schoolName = document.getElementById('f-school').value.trim();
-    const city = document.getElementById('f-city').value.trim();
-    const principalName = document.getElementById('f-principal').value.trim();
-    const designation = document.getElementById('f-designation').value.trim();
-    const contactEmail = document.getElementById('f-email').value.trim();
-    const contactPhone = document.getElementById('f-phone').value.trim();
-    const udise = document.getElementById('f-udise').value.trim();
-    const address = document.getElementById('f-address').value.trim();
-    const instType = getInstType();
-    const isCollege = instType !== 'school';
-
-    if (!schoolName || !principalName || !contactEmail) return;
-
-    const duration = parseInt(document.getElementById('f-duration')?.value || '1');
-    let studentCount, totalPrice, perStudentRate, planType, yearWiseCounts = null;
-
-    let yearlyTotal = 0;
-
-    if (isCollege) {
-      const yr1 = parseInt(document.getElementById('f-yr1').value) || 0;
-      const yr2 = parseInt(document.getElementById('f-yr2').value) || 0;
-      const yr3 = instType === 'college_degree' ? (parseInt(document.getElementById('f-yr3').value) || 0) : 0;
-      if (yr1 + yr2 + yr3 === 0) return; // incomplete
-      studentCount = yr1 + yr2 + yr3;
-      yearWiseCounts = { yr1, yr2, yr3 };
-      
-      const couponInput = (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase();
-      const isSDCCoupon = couponInput === 'SDC' || couponInput === 'SDC20' || couponInput === 'SDC-SPECIAL';
-      const isIdCard45 = couponInput === 'ID45' || couponInput === 'IDCARD45' || couponInput === 'CARD45' || couponInput === 'ID-45' || couponInput === 'IDONLY45';
-      const yr1Rate = isIdCard45 ? 45 : 59;
-      const yr2Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
-      const yr3Rate = (isSDCCoupon || isIdCard45) ? 20 : 30;
-
-      yearlyTotal = (yr1 * yr1Rate) + (yr2 * yr2Rate) + (yr3 * yr3Rate);
-      totalPrice = yearlyTotal * duration;
-      perStudentRate = Math.round(totalPrice / studentCount);
-      planType = 'custom';
-    } else {
-      const studentsRaw = document.getElementById('f-students').value.trim();
-      if (!studentsRaw) return;
-      studentCount = parseInt(studentsRaw.replace(/[^0-9]/g, '')) || 0;
-      if (studentCount === 0) return;
-      const couponInput = (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase();
-      const isIdCard45 = couponInput === 'ID45' || couponInput === 'IDCARD45' || couponInput === 'CARD45' || couponInput === 'ID-45' || couponInput === 'IDONLY45';
-      if (isIdCard45) {
-        perStudentRate = 45;
-        planType = 'custom';
-      } else if (urlRate && !isNaN(urlRate) && urlRate > 0) {
-        perStudentRate = urlRate;
-        planType = 'custom';
-      } else {
-        perStudentRate = 59;
-        planType = 'standard';
-        const planVal = document.getElementById('f-plan')?.value;
-        if (planVal === 'plus') { perStudentRate = 69; planType = 'plus'; }
-      }
-      yearlyTotal = studentCount * perStudentRate;
-      totalPrice = yearlyTotal * duration;
-    }
-
-    const upfrontPrice = yearlyTotal * 0.5;
-    const sigImg = hasSig ? canvas.toDataURL('image/png') : '';
-
-    const payload = {
-      refId: refId || '',
-      schoolName,
-      city,
-      principalName,
-      designation,
-      contactEmail,
-      contactPhone,
-      studentCount,
-      udiseCode: udise,
-      address,
-      jurisdiction: (document.getElementById('f-jurisdiction')?.value || '').trim() || 'Dhule, Maharashtra',
-      perStudentRate,
-      planType,
-      totalPrice,
-      upfrontPrice,
-      mouDuration: duration,
-      instituteType: instType,
-      ...(yearWiseCounts && { yearWiseCounts }),
-      coupon: (document.getElementById('f-coupon')?.value || urlParams.get('coupon') || '').trim().toUpperCase() || undefined,
+    const payload = buildMouPayload();
+    const trackData = {
+      refId: payload.refId,
+      schoolName: payload.schoolName,
+      city: payload.city,
+      principalName: payload.principalName,
+      designation: payload.designation,
+      contactEmail: document.getElementById('f-email').value.trim(),
+      contactPhone: document.getElementById('f-phone').value.trim(),
+      studentCount: payload.studentCount,
+      udiseCode: payload.udiseCode,
+      address: payload.address,
+      jurisdiction: payload.jurisdiction,
+      perStudentRate: 59,
+      planType: payload.isIdCardOnly ? 'custom' : (document.getElementById('f-plan').value || 'standard'),
+      totalPrice: parseFloat((payload.totalPrice || '0').replace(/[^0-9.]/g, '')) || 0,
+      upfrontPrice: parseFloat((payload.upfrontPrice || '0').replace(/[^0-9.]/g, '')) || 0,
+      mouDuration: parseInt(document.getElementById('f-duration').value) || 1,
+      instituteType: getInstType(),
+      coupon: (document.getElementById('f-coupon')?.value || '').trim().toUpperCase() || undefined,
       action: actionType,
-      signatureDataUrl: sigImg,
+      signatureDataUrl: payload.signatureDataUrl,
       screenWidth: window.innerWidth,
       screenHeight: window.innerHeight
     };
 
-    const res = await fetch('/api/v1/mou/submissions', {
+    await fetch('/api/v1/mou/submissions', {
       method: 'POST',
       keepalive: true,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(trackData)
     });
-    
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      console.error('MOU tracking endpoint rejected submission:', res.status, errData);
-    }
-  } catch (e) {
+  } catch(e) {
     console.error('MOU tracking mechanism error:', e);
   }
 }
 
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
 
-async function triggerPrint() {
-  if (!validateForm()) return;
-
-  // Await tracking log transmission BEFORE window.print pauses browser event loop
-  await trackMouAction('print');
-  
-  // Inject signature as an image for print reliability (canvases often drop in print dialogs)
-  const sigPlaceholder = document.createElement('img');
-  if (hasSig) {
-    sigPlaceholder.src = canvas.toDataURL('image/png');
-    sigPlaceholder.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none';
-    wrap.appendChild(sigPlaceholder);
-    canvas.style.display = 'none';
-  }
-
-  setTimeout(() => {
-    window.print();
-    if (hasSig) {
-      try { wrap.removeChild(sigPlaceholder); } catch(e){}
-      canvas.style.display = 'block';
-    }
-  }, 100);
+// ── Startup Initialization ──
+restoreFormData();
+updateDoc();
+const initHash = window.location.hash;
+if (initHash && initHash.startsWith('#step-')) {
+  const stepNum = parseInt(initHash.replace('#step-', ''));
+  if (stepNum >= 1 && stepNum <= 5) setStep(stepNum);
 }
 </script>
 </body>

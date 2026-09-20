@@ -1,0 +1,163 @@
+/* Motion Spec Tokens and Scoped Classes for MOU Tracker */
+
+:root {
+  /* Durations */
+  --mou-dur-instant: 80ms;    /* press, row hover, icon colour */
+  --mou-dur-fast: 120ms;      /* colour changes, tooltips, chips, copy feedback */
+  --mou-dur-base: 180ms;      /* menus, chevrons, tab indicator, tab text, exits of panels */
+  --mou-dur-slow: 240ms;      /* row expand, dialogs */
+  --mou-dur-sheet: 280ms;     /* phone bottom sheet (max value in this UI) */
+
+  /* Easings */
+  --mou-ease-out: cubic-bezier(0.16, 1, 0.3, 1);      /* things entering / growing: quick start, long soft landing */
+  --mou-ease-in: cubic-bezier(0.32, 0, 0.67, 0);      /* things leaving */
+  --mou-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);  /* things moving between two visible positions (tab indicator, FLIP) */
+}
+
+/* Row Detail Panel — Grid-rows expand technique (§4.1) */
+.mou-tracker .row-detail-container {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--mou-dur-base) var(--mou-ease-in);
+}
+
+.mou-tracker .row-detail-container[data-state="open"] {
+  grid-template-rows: 1fr;
+  transition-duration: var(--mou-dur-slow);
+  transition-timing-function: var(--mou-ease-out);
+}
+
+.mou-tracker .row-detail-container > .row-detail-inner {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s linear var(--mou-dur-base);
+}
+
+.mou-tracker .row-detail-container[data-state="open"] > .row-detail-inner {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.mou-tracker .row-detail-content {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity var(--mou-dur-fast) var(--mou-ease-standard),
+              transform var(--mou-dur-fast) var(--mou-ease-standard);
+}
+
+.mou-tracker .row-detail-container[data-state="open"] .row-detail-content {
+  opacity: 1;
+  transform: none;
+  transition-delay: 60ms;
+}
+
+/* Row accent bar */
+.mou-tracker .row-accent-bar {
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--mou-dur-base) var(--mou-ease-standard);
+}
+
+.mou-tracker .row-accent-bar[data-active="true"] {
+  transform: scaleY(1);
+}
+
+/* Chevron rotation */
+.mou-tracker .chevron-icon {
+  transition: transform var(--mou-dur-base) var(--mou-ease-standard);
+}
+
+.mou-tracker .chevron-icon[data-expanded="true"] {
+  transform: rotate(180deg);
+}
+
+/* Tab indicator (§4.3) */
+.mou-tracker .tabs-nav {
+  position: relative;
+}
+
+.mou-tracker .tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  height: 2px;
+  background-color: #4f46e5;
+  transform-origin: left;
+  pointer-events: none;
+  border-radius: 1px;
+}
+
+.mou-tracker .tabs-nav[data-ready="true"] .tab-indicator {
+  transition: transform var(--mou-dur-base) var(--mou-ease-standard);
+}
+
+/* Row flash after save (§4.7) */
+@keyframes mou-row-flash {
+  0% {
+    background-color: rgba(79, 70, 229, 0.08);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.mou-tracker tr[data-flash="true"],
+.mou-tracker .mobile-card[data-flash="true"] {
+  animation: mou-row-flash 1100ms var(--mou-ease-out);
+}
+
+/* Skeleton pulse (§4.5) */
+@keyframes mou-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.mou-tracker .skeleton-container {
+  animation: mou-skeleton-pulse 1200ms ease-in-out infinite;
+}
+
+/* Refresh rotation spinner (§3.K) */
+@keyframes mou-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.mou-tracker .refresh-spinner {
+  animation: mou-spin 700ms var(--mou-ease-standard) infinite;
+}
+
+/* Button active press */
+@media (hover: hover) {
+  .mou-tracker .btn-pressable:active {
+    transform: scale(0.97);
+    transition: transform var(--mou-dur-instant) ease;
+  }
+}
+
+/* Table body dim on slow load */
+.mou-tracker .table-body-dim {
+  opacity: 0.55;
+  transition: opacity var(--mou-dur-fast) var(--mou-ease-standard);
+}
+
+.mou-tracker .table-body-normal {
+  opacity: 1;
+  transition: opacity var(--mou-dur-base) var(--mou-ease-standard);
+}
+
+/* Reduced motion overrides (§4.8 & §6) */
+@media (prefers-reduced-motion: reduce) {
+  .mou-tracker *,
+  .mou-tracker *::before,
+  .mou-tracker *::after,
+  .mou-portal-layer * {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .mou-tracker .refresh-spinner {
+    animation: none !important;
+  }
+}

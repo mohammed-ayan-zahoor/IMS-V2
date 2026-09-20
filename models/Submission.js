@@ -24,6 +24,10 @@ const SubmissionSchema = new Schema({
         type: Date,
         default: Date.now
     },
+    isLate: {
+        type: Boolean,
+        default: false
+    },
     status: {
         type: String,
         enum: ['pending', 'graded', 'returned'],

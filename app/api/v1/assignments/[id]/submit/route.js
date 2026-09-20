@@ -56,7 +56,16 @@ export async function POST(req, { params }) {
             return NextResponse.json({ error: "File submission is required" }, { status: 400 });
         }
 
-        // 3. Create or Update submission (Allowing students to overwrite their submission before grading)
+        // 3. Block resubmission if already graded
+        const existing = await Submission.findOne({ assignment: id, student: session.user.id });
+        if (existing && existing.status === 'graded') {
+            return NextResponse.json({ error: "Assignment has already been graded and cannot be resubmitted" }, { status: 400 });
+        }
+
+        // ponytail: isLate compares submission time with assignment.dueDate
+        const isLate = Boolean(assignment.dueDate && new Date() > new Date(assignment.dueDate));
+
+        // 4. Create or Update submission (Allowing students to overwrite their submission before grading)
         const submission = await Submission.findOneAndUpdate(
             { assignment: id, student: session.user.id },
             {
@@ -69,7 +78,9 @@ export async function POST(req, { params }) {
                     size: body.file.size
                 },
                 submittedAt: new Date(),
+                isLate,
                 status: 'pending',
+                $unset: { marksAwarded: "", feedback: "", gradedBy: "", gradedAt: "" },
                 // Set expiry (TTL) - e.g. 1 year from now for academic records
                 expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) 
             },

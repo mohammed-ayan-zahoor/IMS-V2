@@ -3,6 +3,10 @@ const nextConfig = {
   output: 'standalone',
   serverExternalPackages: ['pdfkit', 'canvas', 'puppeteer'],
   outputFileTracingRoot: process.cwd(),
+  outputFileTracingIncludes: {
+    '/api/v1/mou/docx': ['./templates/mou/**/*'],
+    '/api/v1/mou/pdf': ['./templates/mou/**/*'],
+  },
   productionBrowserSourceMaps: false,
   typescript: {
     ignoreBuildErrors: true,

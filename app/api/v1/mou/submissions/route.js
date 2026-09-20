@@ -53,14 +53,15 @@ export async function POST(req) {
         const plan = ['standard', 'plus', 'custom'].includes(planType) ? planType : (rate === 69 ? 'plus' : (rate === 59 ? 'standard' : 'custom'));
 
         let upfrontPercent = 0.5;
-        if (count <= 500) {
-            upfrontPercent = 1;
+        if (count < 500) {
+            upfrontPercent = 1.0;
         } else if (count <= 1000) {
             upfrontPercent = 0.75;
         }
 
-        const calculatedTotal = count * rate * duration;
-        const calculatedUpfront = calculatedTotal * upfrontPercent;
+        const calculatedYearly = count * rate;
+        const calculatedTotal = calculatedYearly * duration;
+        const calculatedUpfront = calculatedYearly * upfrontPercent;
 
         let finalTotalPrice = Number(totalPrice);
         if (!finalTotalPrice || (duration > 1 && finalTotalPrice === count * rate)) {
@@ -150,7 +151,7 @@ export async function GET(req) {
         const search = searchParams.get('search') || '';
         const status = searchParams.get('status') || '';
         const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '10');
+        const limit = Math.min(2000, parseInt(searchParams.get('limit') || '500'));
 
         const query = {};
         if (search) {

@@ -162,7 +162,8 @@ function MaterialsContent() {
                 setSubmissions({ ...submissions, [matId]: data.submission });
                 setSubmittingMat(null);
             } else {
-                throw new Error("Submission failed");
+                const resJson = await submitRes.json().catch(() => ({}));
+                throw new Error(resJson.error || "Submission failed");
             }
         } catch (err) {
             console.error(err);
@@ -392,9 +393,16 @@ function MaterialsContent() {
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#8D8A9B]">Submission Status</span>
                                                     {submissions[mat._id] ? (
-                                                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-100">
-                                                            {submissions[mat._id].status === 'graded' ? "Graded" : "Pending Review"}
-                                                        </span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            {submissions[mat._id].isLate && (
+                                                                <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-100 text-[9px] font-bold uppercase tracking-wider">
+                                                                    Late
+                                                                </span>
+                                                            )}
+                                                            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-100">
+                                                                {submissions[mat._id].status === 'graded' ? "Graded" : "Pending Review"}
+                                                            </span>
+                                                        </div>
                                                     ) : (
                                                         <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[#8D8A9B] text-[10px] font-semibold">
                                                             Not Submitted
@@ -499,9 +507,19 @@ function MaterialsContent() {
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div className="p-4 rounded-xl bg-premium-blue/5 border border-premium-blue/10">
+                            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                                 <h3 className="text-sm font-bold text-slate-900">{submittingMat.title}</h3>
-                                <p className="text-xs text-slate-500 mt-1">Total Marks: {submittingMat.totalMarks || "N/A"}</p>
+                                <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                                    <span>Total Marks: {submittingMat.totalMarks || "N/A"}</span>
+                                    {submittingMat.dueDate && (
+                                        <span>• Due: {format(new Date(submittingMat.dueDate), "MMM d, yyyy")}</span>
+                                    )}
+                                </div>
+                                {submittingMat.dueDate && new Date() > new Date(submittingMat.dueDate) && (
+                                    <p className="mt-2 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg p-2">
+                                        The deadline has passed. This submission will be marked as Late.
+                                    </p>
+                                )}
                             </div>
                             
                             <div className="space-y-4">

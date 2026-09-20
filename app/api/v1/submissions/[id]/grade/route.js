@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
-import Submission from "@/models/Submission";
+import Material from "@/models/Material";
 
 /**
  * @route   PATCH /api/v1/submissions/[id]/grade
@@ -20,14 +20,28 @@ export async function PATCH(req, { params }) {
         await connectDB();
         const body = await req.json();
 
-        const submission = await Submission.findById(id);
+        const submission = await Submission.findById(id).populate('assignment');
         if (!submission) {
             return NextResponse.json({ error: "Submission not found" }, { status: 404 });
         }
 
+        // Institute boundary check
+        if (session.user.role !== 'super_admin' && submission.assignment?.institute && String(submission.assignment.institute) !== String(session.user.institute?.id)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const marks = Number(body.marksAwarded);
+        if (isNaN(marks) || marks < 0) {
+            return NextResponse.json({ error: "Invalid marks: must be 0 or greater" }, { status: 400 });
+        }
+
+        if (submission.assignment?.totalMarks != null && marks > submission.assignment.totalMarks) {
+            return NextResponse.json({ error: `Marks cannot exceed total marks (${submission.assignment.totalMarks})` }, { status: 400 });
+        }
+
         // Apply grading
-        submission.marksAwarded = body.marksAwarded;
-        submission.feedback = body.feedback;
+        submission.marksAwarded = marks;
+        submission.feedback = body.feedback || "";
         submission.status = 'graded';
         submission.gradedBy = session.user.id;
         submission.gradedAt = new Date();

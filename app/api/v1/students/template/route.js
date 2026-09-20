@@ -14,6 +14,8 @@ export async function GET(req) {
         const headers = [
             "FirstName",
             "LastName",
+            "RollNo",
+            "PhotoNo",
             "Email",
             "Phone",
             "Gender",
@@ -48,6 +50,8 @@ export async function GET(req) {
             {
                 FirstName: "John",
                 LastName: "Doe",
+                RollNo: "101",
+                PhotoNo: "101",
                 Email: "john.doe@example.com",
                 Phone: "9876543210",
                 Gender: "Male",

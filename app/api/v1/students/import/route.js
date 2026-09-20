@@ -230,7 +230,17 @@ export async function POST(req) {
         const formData = await req.formData();
         const file = formData.get("file");
         const globalTargetBatchId = formData.get("targetBatchId");
-        console.log(`[IMPORT_DEBUG] 6. Target batch ID: ${globalTargetBatchId}, file object exists: ${!!file}`);
+        
+        let photosMap = {};
+        const rawPhotosPayload = formData.get("photosPayload");
+        if (rawPhotosPayload) {
+            try {
+                photosMap = JSON.parse(rawPhotosPayload);
+            } catch (err) {
+                console.warn("[IMPORT] Failed to parse photosPayload:", err);
+            }
+        }
+        console.log(`[IMPORT_DEBUG] 6. Target batch ID: ${globalTargetBatchId}, file object exists: ${!!file}, photos count: ${Object.keys(photosMap).length}`);
 
         if (!file) {
             return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
@@ -336,6 +346,7 @@ export async function POST(req) {
         const idxReligion = getColIndex(["Religion"]);
         const idxEnrollmentNumber = getColIndex(["EnrollmentNumber", "Enrollment Number"]);
         const idxPassword = getColIndex(["Password", "Student Password", "Default Password", "Pass"]);
+        const idxPhotoNo = getColIndex(["PhotoNo", "Photo No", "Photo", "PhotoNumber", "Photo Name", "Image", "ImageName", "Pic", "Picture"]);
 
         const getValByColIndex = (row, colIndex) => {
             if (colIndex === -1 || colIndex >= row.length) return "";
@@ -432,6 +443,8 @@ export async function POST(req) {
             let studentName = `${firstName || ""} ${lastName || ""}`.trim();
 
             const admissionNo = getValByColIndex(row, idxAdmissionNo) || getValByColIndex(row, idxGRNo) || getValByColIndex(row, idxEnrollmentNumber);
+            const rollNo = getValByColIndex(row, idxRollNo);
+            const photoNo = getValByColIndex(row, idxPhotoNo);
             // Class is OPTIONAL — user selects destination class from UI
             const rawClass = getValByColIndex(row, idxClass);
             const rawDOB = getValByColIndex(row, idxDOB);
@@ -523,10 +536,13 @@ export async function POST(req) {
             if (isPreview) {
                 previewRows.push({
                     row: rowNum,
+                    rowIdx: i,
                     studentName: studentName || "N/A",
                     firstName,
                     lastName,
                     admissionNo: enrollmentNumber || "Auto-generated",
+                    rollNo: rollNo || "",
+                    photoNo: photoNo || "",
                     className: rawClass || "N/A",
                     phone: phone || "N/A",
                     gender: gender || "Not Specified",
@@ -547,6 +563,22 @@ export async function POST(req) {
                 continue;
             }
 
+            // Match uploaded avatar from photosMap
+            const matchedPhoto = photosMap[i] || 
+                (enrollmentNumber && photosMap[enrollmentNumber]) || 
+                (admissionNo && photosMap[admissionNo]) || 
+                (photoNo && photosMap[photoNo]) || 
+                (studentName && photosMap[studentName]);
+
+            const avatarUrl = matchedPhoto?.url || undefined;
+            const photoDocuments = avatarUrl ? [{
+                name: 'Profile Photo',
+                url: avatarUrl,
+                publicId: matchedPhoto?.publicId || 'bulk_photo',
+                category: 'Photo',
+                uploadedAt: new Date()
+            }] : [];
+
             const studentObject = {
                 fullName: `${firstName} ${lastName}`,
                 email: emailFromSheet || email,
@@ -557,6 +589,7 @@ export async function POST(req) {
                 profile: {
                     firstName,
                     lastName,
+                    avatar: avatarUrl,
                     phone: phone || undefined,
                     gender: gender || "Not Specified",
                     dateOfBirth: dateOfBirth || undefined,
@@ -569,6 +602,7 @@ export async function POST(req) {
                         pincode: pincode || undefined
                     }
                 },
+                documents: photoDocuments,
                 enrollmentNumber: enrollmentNumber,
 
                 // Metadata details

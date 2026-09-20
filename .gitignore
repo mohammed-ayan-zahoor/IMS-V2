@@ -78,3 +78,5 @@ google-services.json
 # Scratch & test scripts
 /scratch/*
 !/scratch/test-student-ui.cjs
+*.doc
+templates/**/unpacked/

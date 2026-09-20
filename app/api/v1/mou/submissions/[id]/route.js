@@ -80,50 +80,58 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "MOU submission not found" }, { status: 404 });
         }
 
-        // Apply updates safely
-        if (schoolName !== undefined) submission.schoolName = schoolName.trim();
-        if (city !== undefined) submission.city = (city || "").trim();
-        if (principalName !== undefined) submission.principalName = principalName.trim();
-        if (designation !== undefined) submission.designation = (designation || "Principal").trim();
-        if (contactEmail !== undefined) submission.contactEmail = contactEmail.trim().toLowerCase();
-        if (contactPhone !== undefined) submission.contactPhone = (contactPhone || "").trim();
-        if (studentCount !== undefined) submission.studentCount = Number(studentCount);
-        if (udiseCode !== undefined) submission.udiseCode = (udiseCode || "").trim();
-        if (address !== undefined) submission.address = (address || "").trim();
-        if (totalPrice !== undefined) submission.totalPrice = Number(totalPrice);
-        if (upfrontPrice !== undefined) submission.upfrontPrice = Number(upfrontPrice);
-        if (mouDuration !== undefined) submission.mouDuration = Number(mouDuration);
-        if (perStudentRate !== undefined) submission.perStudentRate = Number(perStudentRate);
+        // Build update object safely
+        const updateFields = {};
+        if (schoolName !== undefined) updateFields.schoolName = schoolName.trim();
+        if (city !== undefined) updateFields.city = (city || "").trim();
+        if (principalName !== undefined) updateFields.principalName = principalName.trim();
+        if (designation !== undefined) updateFields.designation = (designation || "Principal").trim();
+        if (contactEmail !== undefined) updateFields.contactEmail = contactEmail.trim().toLowerCase();
+        if (contactPhone !== undefined) updateFields.contactPhone = (contactPhone || "").trim();
+        if (studentCount !== undefined) updateFields.studentCount = Number(studentCount);
+        if (udiseCode !== undefined) updateFields.udiseCode = (udiseCode || "").trim();
+        if (address !== undefined) updateFields.address = (address || "").trim();
+        if (totalPrice !== undefined) updateFields.totalPrice = Number(totalPrice);
+        if (upfrontPrice !== undefined) updateFields.upfrontPrice = Number(upfrontPrice);
+        if (mouDuration !== undefined) updateFields.mouDuration = Number(mouDuration);
+        if (perStudentRate !== undefined) updateFields.perStudentRate = Number(perStudentRate);
         if (planType !== undefined && ['standard', 'plus', 'custom'].includes(planType)) {
-            submission.planType = planType;
+            updateFields.planType = planType;
         }
         if (instituteType !== undefined && ['school', 'college_degree', 'college_pu'].includes(instituteType)) {
-            submission.instituteType = instituteType;
+            updateFields.instituteType = instituteType;
         }
         if (yearWiseCounts !== undefined) {
-            submission.yearWiseCounts = yearWiseCounts;
+            updateFields.yearWiseCounts = yearWiseCounts;
         }
         if (coupon !== undefined) {
-            submission.coupon = (coupon || "").trim().toUpperCase();
+            updateFields.coupon = (coupon || "").trim().toUpperCase();
         }
         if (action !== undefined && ['print', 'download_pdf', 'manual_entry'].includes(action)) {
-            submission.action = action;
+            updateFields.action = action;
         }
 
         if (status !== undefined) {
             if (!['new', 'contacted', 'converted', 'rejected'].includes(status)) {
                 return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
             }
-            submission.status = status;
+            updateFields.status = status;
         }
 
         if (notes !== undefined) {
-            submission.notes = notes;
+            updateFields.notes = notes;
         }
 
-        await submission.save();
+        // ponytail: Update all documents sharing this refId to ensure legacy duplicate events remain in sync
+        const filter = submission.refId ? { refId: submission.refId } : { _id: id };
+        const updateResult = await MouSubmission.updateMany(filter, { $set: updateFields });
+        const updatedSubmission = await MouSubmission.findById(id);
 
-        return NextResponse.json({ success: true, submission });
+        return NextResponse.json({
+            success: true,
+            submission: updatedSubmission,
+            updatedCount: updateResult.modifiedCount
+        });
     } catch (error) {
         console.error("Failed to update MOU submission:", error);
         return NextResponse.json({ error: "Failed to update submission" }, { status: 500 });
@@ -141,12 +149,20 @@ export async function DELETE(req, { params }) {
         const { id } = await params;
         await connectDB();
 
-        const submission = await MouSubmission.findByIdAndDelete(id);
+        const submission = await MouSubmission.findById(id);
         if (!submission) {
             return NextResponse.json({ error: "MOU submission not found" }, { status: 404 });
         }
 
-        return NextResponse.json({ success: true, message: "MOU submission deleted successfully" });
+        // ponytail: Delete all documents sharing this refId so legacy duplicate records do not leave orphans
+        const filter = submission.refId ? { refId: submission.refId } : { _id: id };
+        const deleteResult = await MouSubmission.deleteMany(filter);
+
+        return NextResponse.json({
+            success: true,
+            message: "MOU submission deleted successfully",
+            deletedCount: deleteResult.deletedCount
+        });
     } catch (error) {
         console.error("Failed to delete MOU submission:", error);
         return NextResponse.json({ error: "Failed to delete submission" }, { status: 500 });
