@@ -329,13 +329,553 @@ async function convertDocxToPdfSecure(docxBuffer) {
     }
 }
 
-// Fallback HTML-to-PDF via Puppeteer if LibreOffice is unavailable or legacy HTML is provided
+function generateMouHtml(data) {
+    const schoolName = sanitizeString(data.schoolName, 120, 'Institution');
+    const city = sanitizeString(data.city, 80, '');
+    const address = sanitizeString(data.address, 200, '');
+    const udiseCode = sanitizeString(data.udiseCode, 40, '—');
+    const principalName = sanitizeString(data.principalName, 100, 'Authorised Signatory');
+    const designation = sanitizeString(data.designation, 80, 'Principal');
+    const refId = sanitizeString(data.refId, 60, 'QP/MOU/2026-27/—');
+    const date = sanitizeString(data.date, 40, new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }));
+    const studentCount = Number(data.studentCount) || 0;
+    const isCollege = Boolean(data.isCollege);
+    const yr1Count = Number(data.yr1Count) || 0;
+    const yr1Rate = Number(data.yr1Rate) || 59;
+    const yr2Count = Number(data.yr2Count) || 0;
+    const yr2Rate = Number(data.yr2Rate) || 30;
+    const yr3Count = Number(data.yr3Count) || 0;
+    const isDegreeCollege = data.instituteType === 'college_degree';
+    const duration = Number(data.duration) || 1;
+    const durationWords = sanitizeString(data.durationWords, 50, duration === 1 ? 'one (1) academic year' : `${duration} academic years`);
+    const isIdCardOnly = Boolean(data.isIdCardOnly);
+    const totalPrice = sanitizeString(data.totalPrice, 50, '₹0.00');
+    const upfrontPrice = sanitizeString(data.upfrontPrice, 50, '₹0.00');
+    const commFooter = sanitizeString(data.commFooter, 250, '* Calculated on agreed student strength. Taxes extra.');
+    const signatureDataUrl = data.signatureDataUrl || '';
+
+    const mouSubtitle = isIdCardOnly
+        ? 'For Provision of Student Smart ID Card Services'
+        : 'For Implementation of Quantech Platform';
+
+    const providerRoleDetail = isIdCardOnly
+        ? 'Smart ID Card & Digital Solutions Provider'
+        : 'Developers of Quantech Platform';
+
+    const clause1Purpose = isIdCardOnly
+        ? 'The purpose of this MOU is to set forth the terms under which the Provider shall design, manufacture, and supply Student Smart ID Cards & Branded Lanyards to the Institution. This agreement covers physical ID card provision and student identity services exclusively, and does not include ERP software platform access.'
+        : 'The purpose of this MOU is to set forth the terms under which the Provider shall grant the School access to the Quantech Platform — a cloud-based software platform for managing academics, fees, attendance, hostel, transport, and administrative operations.';
+
+    const clause2Intro = isIdCardOnly
+        ? 'The Institution hereby confirms its order for Student Smart ID Cards & Branded Lanyards for the following student strength for the academic year 2026–27:'
+        : 'The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year 2026–27:';
+
+    const clause2Sla = isIdCardOnly
+        ? `ID card manufacturing, lanyard branding, and delivery schedules shall be calculated based on the above student strength. Any additional student ID cards required beyond ${studentCount > 0 ? studentCount.toLocaleString('en-IN') : '—'} students during the agreement period shall be billed at the agreed rate of ₹45 per card.`
+        : `Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond ${studentCount > 0 ? studentCount.toLocaleString('en-IN') : '—'} students during the agreement period shall be subject to a revised quote.`;
+
+    let collegeBreakdownHtml = '';
+    if (isCollege) {
+        collegeBreakdownHtml = `
+            <div style="margin-top:4px;font-size:8.5pt;color:#475569;line-height:1.4;">
+                • 1st Year (New Cards): <strong>${yr1Count.toLocaleString('en-IN')}</strong> students @ ₹${yr1Rate}/student<br/>
+                • 2nd Year (Renewals): <strong>${yr2Count.toLocaleString('en-IN')}</strong> students @ ₹${yr2Rate}/student
+                ${isDegreeCollege && yr3Count > 0 ? `<br/>• 3rd Year (Renewals): <strong>${yr3Count.toLocaleString('en-IN')}</strong> students @ ₹${yr2Rate}/student` : ''}
+            </div>
+        `;
+    }
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MOU - ${schoolName}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.5;
+    }
+    .mou-page {
+      width: 210mm;
+      min-height: 297mm;
+      height: 297mm;
+      padding: 20mm 22mm 20mm 22mm;
+      position: relative;
+      background: #ffffff;
+      page-break-after: always;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .mou-page:last-child {
+      page-break-after: avoid;
+    }
+    .mou-watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 72pt;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+      color: rgba(148, 163, 184, 0.08);
+      text-transform: uppercase;
+      pointer-events: none;
+      user-select: none;
+      z-index: 0;
+      white-space: nowrap;
+    }
+    .mou-running-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 7.5pt;
+      color: #64748b;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 4px;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: relative;
+      z-index: 1;
+    }
+    .mou-content {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+    }
+    .mou-letterhead-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-bottom: 1.5pt solid #1e3a8a;
+      margin-bottom: 16px;
+    }
+    .mou-letterhead-table td {
+      vertical-align: middle;
+      padding-bottom: 10px;
+    }
+    .lh-logo-cell img {
+      max-height: 48px;
+      width: auto;
+      object-fit: contain;
+    }
+    .lh-corp-cell {
+      text-align: right;
+    }
+    .lh-corp-cell h2 {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin: 0 0 2px 0;
+      letter-spacing: 0.02em;
+    }
+    .lh-corp-cell p {
+      font-size: 8pt;
+      color: #475569;
+      line-height: 1.3;
+      margin: 0;
+    }
+    .mou-doc-title {
+      text-align: center;
+      margin: 10px 0 4px 0;
+    }
+    .mou-doc-title h1 {
+      font-size: 15pt;
+      font-weight: 700;
+      color: #1e3a8a;
+      letter-spacing: 0.03em;
+      margin: 0 0 3px 0;
+    }
+    .mou-doc-title .doc-subtitle {
+      font-size: 10pt;
+      font-style: italic;
+      color: #475569;
+    }
+    .doc-ref-date-row {
+      text-align: right;
+      font-size: 9pt;
+      color: #64748b;
+      margin: 10px 0 14px 0;
+    }
+    .doc-ref-date-row strong {
+      color: #0f172a;
+    }
+    .mou-parties-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      margin-bottom: 16px;
+    }
+    .mou-parties-table td {
+      width: 50%;
+      padding: 10px 14px;
+      vertical-align: top;
+      border-right: 1px solid #e2e8f0;
+    }
+    .mou-parties-table td:last-child {
+      border-right: none;
+    }
+    .party-cell-title {
+      font-size: 8.5pt;
+      font-weight: 700;
+      color: #1e3a8a;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+    .party-cell-name {
+      font-size: 10.5pt;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 2px;
+    }
+    .party-cell-detail {
+      font-size: 8.5pt;
+      color: #475569;
+      line-height: 1.35;
+    }
+    .mou-section {
+      margin-bottom: 14px;
+    }
+    .mou-section h3 {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin: 0 0 6px 0;
+    }
+    .mou-section p {
+      font-size: 9.5pt;
+      line-height: 1.5;
+      color: #1e293b;
+      margin: 0 0 6px 0;
+      text-align: justify;
+    }
+    .mou-section ul {
+      padding-left: 18px;
+      margin: 0 0 6px 0;
+    }
+    .mou-section ul li {
+      font-size: 9pt;
+      line-height: 1.45;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    .mou-commercial-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #cbd5e1;
+      margin: 10px 0 12px 0;
+    }
+    .mou-commercial-table td {
+      padding: 7px 10px;
+      font-size: 9pt;
+      border: 1px solid #e2e8f0;
+      vertical-align: middle;
+    }
+    .mou-commercial-table td.comm-td-label {
+      width: 42%;
+      background: #f1f5f9;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .mou-commercial-table td.comm-td-val {
+      width: 58%;
+      color: #0f172a;
+    }
+    .comm-val-strong {
+      font-weight: 700;
+      color: #1e3a8a;
+      font-size: 10pt;
+    }
+    .comm-val-upfront {
+      font-weight: 700;
+      color: #059669;
+      font-size: 10pt;
+    }
+    .mou-signatures-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      page-break-inside: avoid;
+    }
+    .mou-signatures-table td {
+      width: 50%;
+      vertical-align: top;
+      padding: 0 14px 0 0;
+    }
+    .mou-signatures-table td:last-child {
+      padding: 0 0 0 14px;
+    }
+    .sig-party-title {
+      font-size: 9pt;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin-bottom: 6px;
+    }
+    .sig-box-preview {
+      height: 90px;
+      border: 1px dashed #cbd5e1;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+    .sig-box-preview img {
+      max-height: 80px;
+      max-width: 90%;
+      object-fit: contain;
+    }
+    .sig-line-rule {
+      border-bottom: 1px solid #0f172a;
+      height: 1px;
+      margin: 4px 0 6px 0;
+    }
+    .sig-meta-text p {
+      font-size: 8.5pt;
+      line-height: 1.3;
+      color: #334155;
+      margin: 0 0 2px 0;
+    }
+    .mou-doc-footer-note {
+      font-size: 8pt;
+      color: #94a3b8;
+      text-align: center;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 10px;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Page 1 -->
+  <div class="mou-page">
+    <div class="mou-watermark">CONFIDENTIAL</div>
+    <div class="mou-running-header">
+      <span>Official Memorandum of Understanding</span>
+      <span>MOU Agreement with <strong>${schoolName}</strong></span>
+    </div>
+    
+    <div class="mou-content">
+      <table class="mou-letterhead-table">
+        <tr>
+          <td class="lh-logo-cell">
+            <img src="/quantech/Quantech-Logo.png" alt="Quantech Infosystem Logo" />
+          </td>
+          <td class="lh-corp-cell">
+            <h2>QUANTECH INFOSYSTEM LLP.</h2>
+            <p>3rd Floor, Behind Gurudwara, Mumbai-Agra Highway, Dhule, Maharashtra – 424001</p>
+            <p>Email: admin@quantechinfosystem.com | Web: https://quantechinfosystem.com</p>
+          </td>
+        </tr>
+      </table>
+
+      <div class="mou-doc-title">
+        <h1>MEMORANDUM OF UNDERSTANDING</h1>
+        <div class="doc-subtitle">${mouSubtitle}</div>
+      </div>
+
+      <div class="doc-ref-date-row">
+        Ref No: <strong>${refId}</strong>&nbsp;&nbsp;|&nbsp;&nbsp;Date: <strong>${date}</strong>
+      </div>
+
+      <table class="mou-parties-table">
+        <tr>
+          <td>
+            <div class="party-cell-title">PARTY A — SERVICE PROVIDER</div>
+            <div class="party-cell-name">Quantech Infosystem LLP.</div>
+            <div class="party-cell-detail">${providerRoleDetail}<br/>India</div>
+          </td>
+          <td>
+            <div class="party-cell-title">PARTY B — INSTITUTION</div>
+            <div class="party-cell-name">${schoolName}</div>
+            <div class="party-cell-detail">
+              <span>${city}${address ? (city ? ', ' : '') + address : ''}</span>
+              <div style="margin-top:3px;">UDISE Code: <strong style="color:#1e3a8a;">${udiseCode}</strong></div>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <div class="mou-section">
+        <h3>1. Background &amp; Purpose</h3>
+        <p>This Memorandum of Understanding ("MOU") is entered into between <strong>Quantech Infosystem LLP.</strong> (hereinafter "the Provider") and <strong>${schoolName}</strong> (hereinafter "the Institution"), collectively referred to as "the Parties."</p>
+        <p>${clause1Purpose}</p>
+      </div>
+
+      <div class="mou-section">
+        <h3>2. Scope of Enrollment</h3>
+        <p>${clause2Intro}</p>
+
+        <table class="mou-commercial-table">
+          <tr>
+            <td class="comm-td-label">Agreed Student Enrollment Strength</td>
+            <td class="comm-td-val">
+              <span class="comm-val-strong">${studentCount > 0 ? studentCount.toLocaleString('en-IN') : '—'} Students</span>
+              ${collegeBreakdownHtml}
+              <div style="font-size:8pt;color:#64748b;margin-top:2px;">${schoolName}</div>
+            </td>
+          </tr>
+          <tr>
+            <td class="comm-td-label">${data.totalPriceLabel || 'Total Commercial Amount'}</td>
+            <td class="comm-td-val">
+              <span class="comm-val-strong">${totalPrice}</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="comm-td-label">${data.upfrontPriceLabel || 'Upfront Commercial Amount'}</td>
+            <td class="comm-td-val">
+              <span class="comm-val-upfront">${upfrontPrice}</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="comm-td-label">Billing Schedule &amp; Terms</td>
+            <td class="comm-td-val" style="font-size:8.5pt;">
+              ${commFooter}
+            </td>
+          </tr>
+        </table>
+
+        <p>${clause2Sla}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page 2 -->
+  <div class="mou-page">
+    <div class="mou-watermark">CONFIDENTIAL</div>
+    <div class="mou-running-header">
+      <span>Official Memorandum of Understanding</span>
+      <span>MOU Agreement with <strong>${schoolName}</strong></span>
+    </div>
+
+    <div class="mou-content">
+      <div class="mou-section">
+        <h3>3. Obligations of the Provider</h3>
+        <ul>
+          <li>Provide full access to the Quantech Platform modules as agreed, including Academics, Fee Management, Attendance, Reports, Hostel, and Transport (as applicable).</li>
+          <li>Ensure 99.5% platform uptime during school operational hours.</li>
+          <li>Provide onboarding support, staff training sessions (online), and technical documentation.</li>
+          <li>Maintain data confidentiality and comply with applicable data protection laws.</li>
+          <li>Deliver feature updates and security patches throughout the agreement period at no additional cost.</li>
+        </ul>
+      </div>
+
+      <div class="mou-section">
+        <h3>4. Obligations of the Institution</h3>
+        <ul>
+          <li>Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.</li>
+          <li>Provide accurate and complete student data for onboarding within 14 days of agreement execution.</li>
+          <li>Ensure timely payment of subscription fees: <strong>${data.tier?.clausePaymentSchool || 'upfront advance upon commencement'}</strong> upon invoice issuance by the Provider.</li>
+          <li>Not share, sub-license, or resell access to the Quantech Platform to any third party.</li>
+          <li>Report technical issues through the designated support channel promptly.</li>
+        </ul>
+      </div>
+
+      <div class="mou-section">
+        <h3>5. Confidentiality</h3>
+        <p>Both Parties agree to maintain strict confidentiality of all information exchanged under this MOU, including student data, pricing, and platform configurations. Student data shall be used solely for the purpose of providing the agreed services and shall not be shared with any third party without prior written consent.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page 3 -->
+  <div class="mou-page">
+    <div class="mou-watermark">CONFIDENTIAL</div>
+    <div class="mou-running-header">
+      <span>Official Memorandum of Understanding</span>
+      <span>MOU Agreement with <strong>${schoolName}</strong></span>
+    </div>
+
+    <div class="mou-content">
+      <div class="mou-section">
+        <h3>6. Duration &amp; Termination</h3>
+        <p>This MOU shall be effective from the date of signing and shall remain valid for a period of <strong>${durationWords}</strong>, renewable by mutual written consent. Either Party may terminate this MOU with <strong>30 days' written notice</strong>. Upon termination, the School's data shall be made available for export for a period of 30 days before deletion.</p>
+      </div>
+
+      <div class="mou-section">
+        <h3>7. Limitation of Liability</h3>
+        <p>The Provider's total liability under this MOU shall not exceed the total fees paid by the School in the preceding 3 months. The Provider shall not be liable for indirect, incidental, or consequential damages arising from the use or inability to use the platform.</p>
+      </div>
+
+      <div class="mou-section">
+        <h3>8. Governing Law</h3>
+        <p>This MOU shall be governed by the laws of India. Any disputes arising out of or in connection with this MOU shall be subject to the exclusive jurisdiction of the courts in <strong>Dhule, Maharashtra</strong>.</p>
+      </div>
+
+      <div class="mou-section">
+        <h3>9. Entire Agreement</h3>
+        <p>This MOU constitutes the entire understanding between the Parties with respect to its subject matter and supersedes all prior discussions, representations, or agreements. Amendments to this MOU shall be valid only if made in writing and signed by both Parties.</p>
+      </div>
+
+      <table class="mou-signatures-table">
+        <tr>
+          <td>
+            <div class="sig-party-title">For and on behalf of Institution (Party B):</div>
+            <div class="sig-box-preview">
+              ${signatureDataUrl ? `<img src="${signatureDataUrl}" alt="Authorised Signature" />` : `<span style="font-size:9pt;color:#94a3b8;font-style:italic;">Authorised Signatory</span>`}
+            </div>
+            <div class="sig-line-rule"></div>
+            <div class="sig-meta-text">
+              <p><strong>${principalName}</strong></p>
+              <p>${designation}</p>
+              <p>${schoolName}</p>
+              <p>UDISE Code: ${udiseCode}</p>
+              <p style="color:#64748b;margin-top:2px;">Date: ${date}</p>
+            </div>
+          </td>
+          <td>
+            <div class="sig-party-title">For and on behalf of Provider (Party A):</div>
+            <div class="sig-box-preview">
+              <img src="/assets/sign.png" alt="Quantech Authorised Signatory" />
+            </div>
+            <div class="sig-line-rule"></div>
+            <div class="sig-meta-text">
+              <p><strong>Authorised Representative</strong></p>
+              <p>Director / CEO</p>
+              <p>Quantech Infosystem LLP.</p>
+              <p style="color:#94a3b8;font-size:8pt;">For office use only</p>
+              <p style="color:#64748b;margin-top:2px;">Date: ${date}</p>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <div class="mou-doc-footer-note">
+        This document was digitally generated &amp; executed via Quantech Platform MOU Portal &nbsp;|&nbsp; Ref No: ${refId}
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>`;
+}
+
+// Resilient HTML-to-PDF via Puppeteer (works on any host with or without LibreOffice)
 async function renderHtmlWithPuppeteer(html) {
     let browser = null;
     try {
-        let processedHtml = html.replace(/src=["']\/assets\/([^"']+)["']/g, (match, assetName) => {
+        let processedHtml = html.replace(/src=["']\/(assets|quantech)\/([^"']+)["']/g, (match, folder, assetName) => {
             try {
-                const filePath = path.join(process.cwd(), 'public', 'assets', assetName);
+                const filePath = path.join(process.cwd(), 'public', folder, assetName);
                 if (fs.existsSync(filePath)) {
                     const ext = path.extname(assetName).replace('.', '').toLowerCase();
                     const mime = ext === 'png' ? 'image/png' : (ext === 'svg' ? 'image/svg+xml' : 'image/jpeg');
@@ -371,13 +911,13 @@ async function renderHtmlWithPuppeteer(html) {
         });
 
         await page.emulateMediaType('print');
-        await page.setContent(processedHtml, { waitUntil: 'networkidle0' });
+        await page.setContent(processedHtml, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
         return await page.pdf({
             format: 'A4',
             printBackground: true,
             preferCSSPageSize: true,
-            margin: { top: '25.4mm', bottom: '25.4mm', left: '25.4mm', right: '25.4mm' }
+            margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' }
         });
     } finally {
         if (browser) {
@@ -393,8 +933,9 @@ export async function POST(req) {
         const schoolName = sanitizeString(body.schoolName, 120, '');
         const filename = sanitizeFilename(body.filename || `MOU_Quantech_${schoolName || 'School'}_2026-27.pdf`);
 
-        // Mode A: Primary Secure Path — Convert from Master Word Template (.docx -> PDF)
-        if (schoolName || body.principalName || body.refId) {
+        // Mode A: Try Word template if LibreOffice is available on host
+        const sofficeBinary = getSofficeBinary();
+        if (sofficeBinary && (schoolName || body.principalName || body.refId)) {
             try {
                 const docxBuffer = generateDocxBuffer(body);
                 const pdfBuffer = await convertDocxToPdfSecure(docxBuffer);
@@ -408,27 +949,21 @@ export async function POST(req) {
                     }
                 });
             } catch (docxErr) {
-                console.warn('[MOU PDF] Word template conversion failed, attempting Puppeteer fallback if HTML provided:', docxErr.message);
-                if (!body.html) {
-                    throw docxErr;
-                }
+                console.warn('[MOU PDF POST] Word template conversion failed, falling back to Puppeteer HTML:', docxErr.message);
             }
         }
 
-        // Mode B: Fallback or Legacy Path — HTML via Puppeteer
-        if (body.html && typeof body.html === 'string') {
-            const pdfBuffer = await renderHtmlWithPuppeteer(body.html);
-            return new Response(pdfBuffer, {
-                status: 200,
-                headers: {
-                    'Content-Type': 'application/pdf',
-                    'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
-                    'Cache-Control': 'no-cache'
-                }
-            });
-        }
-
-        return NextResponse.json({ error: "Missing required MOU data or HTML content" }, { status: 400 });
+        // Mode B: Resilient Puppeteer HTML renderer (runs if LibreOffice is missing or docx failed)
+        const html = (body.html && typeof body.html === 'string') ? body.html : generateMouHtml(body);
+        const pdfBuffer = await renderHtmlWithPuppeteer(html);
+        return new Response(pdfBuffer, {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+                'Cache-Control': 'no-cache'
+            }
+        });
     } catch (error) {
         console.error("MOU PDF generation fatal error:", error);
         return NextResponse.json({ error: "Failed to generate PDF: " + (error.message || "Unknown error") }, { status: 500 });
@@ -455,7 +990,7 @@ export async function GET(req) {
             return NextResponse.json({ error: "MOU submission not found" }, { status: 404 });
         }
 
-        const duration = Number(submission.mouDuration) || 1;
+        const duration = Math.max(1, Number(submission.mouDuration) || 1);
         const durationWordsMap = {
             1: 'one (1) academic year',
             2: 'two (2) academic years',
@@ -464,8 +999,42 @@ export async function GET(req) {
             5: 'five (5) academic years'
         };
 
-        const isSDC = submission.coupon && ['SDC', 'SDC20', 'SDC-SPECIAL'].includes(submission.coupon.toUpperCase());
-        const yr2Rate = isSDC ? 20 : 30;
+        const couponUpper = (submission.coupon || '').trim().toUpperCase();
+        const isSDC = ['SDC', 'SDC20', 'SDC-SPECIAL'].includes(couponUpper);
+        const isIdCardOnly = ['ID45', 'IDCARD45', 'CARD45', 'ID-45', 'IDONLY45'].includes(couponUpper);
+
+        // Accurate institute type check (handles legacy entries where instituteType was undefined/null)
+        const isCollege = submission.instituteType === 'college_degree' || submission.instituteType === 'college_pu';
+        const isDegreeCollege = submission.instituteType === 'college_degree';
+
+        const studentCount = Math.max(0, Number(submission.studentCount) || 0);
+        const tier = getUpfrontTier(studentCount);
+
+        const yr1Count = Number(submission.yearWiseCounts?.yr1) || (isCollege ? 0 : studentCount);
+        const yr2Count = Number(submission.yearWiseCounts?.yr2) || 0;
+        const yr3Count = Number(submission.yearWiseCounts?.yr3) || 0;
+
+        const baseRate = Number(submission.perStudentRate) || (isIdCardOnly ? 45 : 59);
+        const yr1Rate = isIdCardOnly ? 45 : baseRate;
+        const yr2Rate = (isSDC || isIdCardOnly) ? 20 : 30;
+
+        // Ensure proper calculated totals
+        let calculatedYearly = 0;
+        if (isCollege) {
+            calculatedYearly = (yr1Count * yr1Rate) + (yr2Count * yr2Rate) + (isDegreeCollege ? yr3Count * yr2Rate : 0);
+            if (calculatedYearly === 0 && studentCount > 0) {
+                calculatedYearly = studentCount * baseRate;
+            }
+        } else {
+            calculatedYearly = studentCount * baseRate;
+        }
+        const calculatedTotal = calculatedYearly * duration;
+
+        const finalTotal = submission.totalPrice > 0 ? submission.totalPrice : calculatedTotal;
+        const finalUpfront = submission.upfrontPrice > 0 ? submission.upfrontPrice : Math.round(calculatedYearly * tier.ratePercent);
+
+        const totalPriceFormatted = '₹' + finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const upfrontPriceFormatted = '₹' + finalUpfront.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         const dateStr = new Date(submission.createdAt || Date.now()).toLocaleDateString('en-IN', {
             day: '2-digit',
@@ -477,33 +1046,61 @@ export async function GET(req) {
         const safeSchool = (submission.schoolName || 'Institute').replace(/[/\\:*?"<>|\r\n\t]/g, '_');
         const filename = `MOU_${safeRef}_${safeSchool}.pdf`;
 
+        const defaultFooter = duration > 1
+            ? tier.footerMultiYr(calculatedYearly)
+            : tier.footer1Yr;
+
         const payload = {
-            schoolName: submission.schoolName,
-            city: submission.city,
-            address: submission.address,
-            udiseCode: submission.udiseCode,
-            principalName: submission.principalName,
-            designation: submission.designation,
+            schoolName: submission.schoolName || 'Institution',
+            city: submission.city || '',
+            address: submission.address || '',
+            udiseCode: submission.udiseCode || '—',
+            principalName: submission.principalName || 'Authorised Signatory',
+            designation: submission.designation || 'Principal',
             academicYear: '2026–27',
-            refId: submission.refId,
-            studentCount: submission.studentCount,
-            duration: duration,
+            refId: submission.refId || safeRef,
+            studentCount,
+            duration,
             durationWords: durationWordsMap[duration] || `${duration} academic years`,
-            rate: submission.perStudentRate || 59,
-            isCollege: submission.instituteType !== 'school',
-            yr1Count: submission.yearWiseCounts?.yr1 || 0,
-            yr1Rate: 59,
-            yr2Count: submission.yearWiseCounts?.yr2 || 0,
-            yr2Rate: yr2Rate,
-            totalPrice: '₹' + (submission.totalPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-            upfrontPrice: '₹' + (submission.upfrontPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            rate: baseRate,
+            instituteType: submission.instituteType || 'school',
+            isCollege,
+            isIdCardOnly,
+            yr1Count,
+            yr1Rate,
+            yr2Count,
+            yr2Rate,
+            yr3Count,
+            tier,
+            totalPrice: totalPriceFormatted,
+            totalPriceLabel: duration > 1 ? `Total Commercial Amount (${duration} Years)` : 'Total Commercial Amount',
+            upfrontPrice: upfrontPriceFormatted,
+            upfrontPriceLabel: duration > 1 ? tier.multiYearLabel : tier.fullLabel,
+            upfrontRowTitle: duration > 1 ? tier.multiYearLabel : tier.rowTitle,
+            commFooter: defaultFooter,
             signatureDataUrl: submission.signatureDataUrl || '',
             date: dateStr,
             filename
         };
 
-        const docxBuffer = generateDocxBuffer(payload);
-        const pdfBuffer = await convertDocxToPdfSecure(docxBuffer);
+        let pdfBuffer = null;
+        const sofficeBinary = getSofficeBinary();
+
+        // Primary attempt: LibreOffice headless conversion if installed
+        if (sofficeBinary) {
+            try {
+                const docxBuffer = generateDocxBuffer(payload);
+                pdfBuffer = await convertDocxToPdfSecure(docxBuffer);
+            } catch (docxErr) {
+                console.warn('[MOU PDF GET] Word template conversion failed, falling back to Puppeteer HTML:', docxErr.message);
+            }
+        }
+
+        // Secondary fallback: High-fidelity HTML to PDF via Puppeteer
+        if (!pdfBuffer) {
+            const html = generateMouHtml(payload);
+            pdfBuffer = await renderHtmlWithPuppeteer(html);
+        }
 
         return new Response(pdfBuffer, {
             status: 200,
