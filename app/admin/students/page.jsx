@@ -1242,6 +1242,11 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                 buttonClassName="w-auto min-w-full bg-white border-slate-200"
                                 options={[
                                     { label: isSchool ? "All Classes" : "All Courses", value: "" },
+                                    ...(isVocational && courseBundles.filter(b => b.isActive !== false).length > 0 ? [
+                                        { label: "── 🎁 PACKAGES ──", value: "hdr_bundles", disabled: true },
+                                        ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `🎁 ${b.title}`, value: b._id })),
+                                        { label: "── COURSES ──", value: "hdr_courses", disabled: true },
+                                    ] : []),
                                     ...courses.map(c => ({ label: c.name, value: c._id }))
                                 ]}
                             />
@@ -1258,7 +1263,9 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                     { label: isSchool ? "All Sections" : "All Batches", value: "" },
                                     ...batches
                                         .filter(b => {
-                                            const matchesCourse = !filters.courseId || b.course === filters.courseId || b.course?._id === filters.courseId;
+                                            const matchesCourse = !filters.courseId ||
+                                                b.course === filters.courseId || b.course?._id === filters.courseId ||
+                                                b.courseBundle === filters.courseId || b.courseBundle?._id === filters.courseId;
                                             const matchesSession = !isSchool || !selectedSessionId || (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
                                             return matchesCourse && matchesSession;
                                         })
