@@ -209,7 +209,7 @@ export default function StudentDetailsPage({ params }) {
         } else {
             setEnrollmentInstallments([]);
         }
-    }, [selectedPreset, selectedCourse, configureInstallments, numInstallments, installmentInterval, courses, feePresets]);
+    }, [selectedPreset, selectedCourse, selectedBundle, configureInstallments, numInstallments, installmentInterval, courses, feePresets, courseBundles]);
 
     const handleEnrollmentInstallmentChange = (index, field, value) => {
         const updated = [...enrollmentInstallments];
@@ -3203,9 +3203,9 @@ export default function StudentDetailsPage({ params }) {
                                 }}
                                 options={[
                                     { label: `-- Choose a ${isSchool ? "Class" : "Course or Package"} --`, value: "" },
-                                    ...(courseBundles.length > 0 ? [
+                                    ...(courseBundles.filter(b => b.isActive !== false).length > 0 ? [
                                         { label: "── 🎁 COURSE PACKAGES / SPECIAL OFFERS ──", value: "header_bundles", disabled: true },
-                                        ...courseBundles.map(b => ({
+                                        ...courseBundles.filter(b => b.isActive !== false).map(b => ({
                                             label: `🎁 ${b.title} (${b.code}) — ₹${b.bundlePrice?.toLocaleString()} [Includes ${b.courses?.length || 0} Courses]`,
                                             value: `bundle_${b._id}`
                                         })),

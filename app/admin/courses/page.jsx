@@ -188,7 +188,10 @@ export default function CoursesPage() {
     const fetchBundles = async () => {
         try {
             setLoadingBundles(true);
-            const res = await fetch("/api/v1/course-bundles");
+            const url = selectedInstitute
+                ? `/api/v1/course-bundles?instituteId=${selectedInstitute}`
+                : "/api/v1/course-bundles";
+            const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
                 setBundles(data.bundles || []);
@@ -1121,6 +1124,165 @@ export default function CoursesPage() {
                     <div className="pt-4 border-t border-slate-100 flex gap-3">
                         <Button type="button" variant="outline" className="flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
                         <Button type="submit" className="flex-1">{editingCourse ? `Update ${isSchool ? "Class" : "Course"}` : `Create ${isSchool ? "Class" : "Course"}`}</Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Modal: Add/Edit Course Bundle (Vocational) */}
+            <Modal
+                isOpen={isAddBundleModalOpen}
+                onClose={() => {
+                    setIsAddBundleModalOpen(false);
+                    setEditingBundle(null);
+                }}
+                title={editingBundle ? "Edit Course Bundle Offer" : "Create Course Bundle Offer"}
+                className="max-w-2xl"
+            >
+                <form onSubmit={handleSaveBundle} className="space-y-6">
+                    <div className="space-y-4">
+                        <Input
+                            id="bundleTitle"
+                            label="Bundle / Offer Title"
+                            placeholder="e.g. Master Graphic & Web Design Bundle"
+                            value={bundleFormData.title}
+                            onChange={(e) => setBundleFormData({ ...bundleFormData, title: e.target.value })}
+                            required
+                        />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                id="bundleCode"
+                                label="Bundle Code"
+                                placeholder="e.g. BNDL-GWD"
+                                value={bundleFormData.code}
+                                onChange={(e) => setBundleFormData({ ...bundleFormData, code: e.target.value.toUpperCase() })}
+                                required
+                            />
+                            <Input
+                                id="bundlePrice"
+                                label="Special Bundle Offer Fee (₹)"
+                                type="number"
+                                placeholder="e.g. 75000"
+                                value={bundleFormData.bundlePrice}
+                                onChange={(e) => setBundleFormData({ ...bundleFormData, bundlePrice: e.target.value })}
+                                required
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">
+                                Description (Optional)
+                            </label>
+                            <textarea
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 min-h-[80px] text-sm text-slate-700 placeholder:text-slate-400 transition-all resize-none"
+                                placeholder="Highlight student savings, job pathways, or special package features..."
+                                value={bundleFormData.description}
+                                onChange={(e) => setBundleFormData({ ...bundleFormData, description: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Courses Selection */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">
+                                    Select Courses to Bundle (Min 2) *
+                                </label>
+                                <span className="text-xs font-medium text-slate-500">
+                                    {bundleFormData.courses.length} selected
+                                </span>
+                            </div>
+
+                            <div className="border border-slate-200 rounded-xl p-3 max-h-52 overflow-y-auto space-y-2 bg-slate-50/50">
+                                {courses.length > 0 ? (
+                                    courses.map((course) => {
+                                        const isChecked = bundleFormData.courses.includes(course._id);
+                                        return (
+                                            <label
+                                                key={course._id}
+                                                className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                                                    isChecked
+                                                        ? "bg-blue-50/70 border-blue-200 text-blue-900"
+                                                        : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={(e) => {
+                                                            const newSelected = e.target.checked
+                                                                ? [...bundleFormData.courses, course._id]
+                                                                : bundleFormData.courses.filter(id => id !== course._id);
+                                                            setBundleFormData({ ...bundleFormData, courses: newSelected });
+                                                        }}
+                                                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                                                    />
+                                                    <div>
+                                                        <div className="text-sm font-semibold">{course.name}</div>
+                                                        <div className="text-xs text-slate-500 font-mono">{course.code}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-xs font-mono font-semibold text-slate-700">
+                                                    ₹{(course.fees?.amount || 0).toLocaleString()}
+                                                </div>
+                                            </label>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-xs text-slate-400 text-center py-4">
+                                        No courses available to bundle. Create individual courses first.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Pricing Summary Calculation */}
+                        {bundleFormData.courses.length > 0 && (() => {
+                            const selectedCourseObjs = courses.filter(c => bundleFormData.courses.includes(c._id));
+                            const originalSum = selectedCourseObjs.reduce((sum, c) => sum + (c.fees?.amount || 0), 0);
+                            const offerAmt = parseFloat(bundleFormData.bundlePrice) || 0;
+                            const diff = originalSum > offerAmt ? originalSum - offerAmt : 0;
+                            const discountPct = originalSum > 0 && diff > 0 ? Math.round((diff / originalSum) * 100) : 0;
+
+                            return (
+                                <div className="p-3.5 bg-blue-50/60 border border-blue-100 rounded-xl space-y-2">
+                                    <div className="text-xs font-bold text-blue-900 uppercase tracking-wider">
+                                        Package Pricing Summary
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-slate-600">Sum of Individual Course Fees:</span>
+                                        <span className="font-mono font-bold text-slate-800">₹{originalSum.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-slate-600">Bundle Offer Price:</span>
+                                        <span className="font-mono font-bold text-emerald-700">₹{offerAmt.toLocaleString()}</span>
+                                    </div>
+                                    {discountPct > 0 && (
+                                        <div className="flex items-center justify-between pt-2 border-t border-blue-100 text-xs font-bold text-emerald-800">
+                                            <span>Student Savings:</span>
+                                            <span>₹{diff.toLocaleString()} ({discountPct}% OFF)</span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex gap-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => {
+                                setIsAddBundleModalOpen(false);
+                                setEditingBundle(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                            {editingBundle ? "Update Bundle Offer" : "Create Bundle Offer"}
+                        </Button>
                     </div>
                 </form>
             </Modal>
