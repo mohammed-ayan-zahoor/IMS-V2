@@ -257,11 +257,33 @@ export async function POST(req) {
             }
         });
 
-        // Attendance-based deduction: deduction for absent and half-day (even if 0)
-        const dailyRate = basicSalary / totalDaysInMonth;
-        const absentDeductionAmount = Math.round((attendanceSummary.absent * dailyRate + (attendanceSummary.halfDay * 0.5 * dailyRate)) * 100) / 100;
+        // Attendance-based deduction: calculate paid days vs total days in month (Positive worked-days model)
+        const dailyRate = totalDaysInMonth > 0 ? (basicSalary / totalDaysInMonth) : 0;
+        const paidDays = (attendanceSummary.present || 0) + 
+                         ((attendanceSummary.halfDay || 0) * 0.5) + 
+                         (attendanceSummary.holiday || 0) + 
+                         (attendanceSummary.onLeave || 0);
+        
+        const unpaidDays = Math.max(0, Math.round((totalDaysInMonth - paidDays) * 10) / 10);
+        const absentDeductionAmount = Math.round(unpaidDays * dailyRate * 100) / 100;
+        
+        const markedTotal = (attendanceSummary.present || 0) + 
+                            (attendanceSummary.absent || 0) + 
+                            (attendanceSummary.halfDay || 0) + 
+                            (attendanceSummary.onLeave || 0) + 
+                            (attendanceSummary.holiday || 0);
+        const unmarkedDays = Math.max(0, totalDaysInMonth - markedTotal);
+
+        let attendanceDesc = `Attendance Deduction (${unpaidDays}d Unpaid`;
+        const parts = [];
+        if (attendanceSummary.absent > 0) parts.push(`${attendanceSummary.absent}d Abs`);
+        if (attendanceSummary.halfDay > 0) parts.push(`${attendanceSummary.halfDay}d Half`);
+        if (unmarkedDays > 0) parts.push(`${unmarkedDays}d Unmarked`);
+        if (parts.length > 0) attendanceDesc += `: ${parts.join(', ')}`;
+        attendanceDesc += ` @ ₹${dailyRate.toFixed(2)}/d)`;
+
         deductions.push({
-            componentName: `Attendance Deduction (${attendanceSummary.absent}d Abs, ${attendanceSummary.halfDay}d Half)`,
+            componentName: unpaidDays > 0 ? attendanceDesc : "Attendance Deduction (0d)",
             amount: absentDeductionAmount
         });
 

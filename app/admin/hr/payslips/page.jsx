@@ -190,9 +190,14 @@ export default function PayslipsPage() {
                     }
                 } catch (e) {}
 
-                // Auto calculate daily rate and attendance penalty deductions
-                const dailyRate = basicSalary / totalDaysInMonth;
-                const absentDeduction = Math.round((summary.absent * dailyRate + (summary.halfDay * 0.5 * dailyRate)) * 100) / 100;
+                // Auto calculate daily rate and attendance penalty deductions (Positive worked-days model)
+                const dailyRate = totalDaysInMonth > 0 ? (basicSalary / totalDaysInMonth) : 0;
+                const paidDays = (summary.present || 0) + 
+                                 ((summary.halfDay || 0) * 0.5) + 
+                                 (summary.holiday || 0) + 
+                                 (summary.onLeave || 0);
+                const unpaidDays = Math.max(0, Math.round((totalDaysInMonth - paidDays) * 10) / 10);
+                const absentDeduction = Math.round(unpaidDays * dailyRate * 100) / 100;
 
                 // Compute timing penalties and OT for preview
                 let totalLateHours = 0;
@@ -281,8 +286,23 @@ export default function PayslipsPage() {
                     }
                 });
 
+                const markedTotal = (summary.present || 0) + 
+                                    (summary.absent || 0) + 
+                                    (summary.halfDay || 0) + 
+                                    (summary.onLeave || 0) + 
+                                    (summary.holiday || 0);
+                const unmarkedDays = Math.max(0, totalDaysInMonth - markedTotal);
+
+                let attendanceDesc = `Attendance Deduction (${unpaidDays}d Unpaid`;
+                const parts = [];
+                if (summary.absent > 0) parts.push(`${summary.absent}d Abs`);
+                if (summary.halfDay > 0) parts.push(`${summary.halfDay}d Half`);
+                if (unmarkedDays > 0) parts.push(`${unmarkedDays}d Unmarked`);
+                if (parts.length > 0) attendanceDesc += `: ${parts.join(', ')}`;
+                attendanceDesc += ` @ ₹${dailyRate.toFixed(2)}/d)`;
+
                 deductions.push({
-                    componentName: `Attendance Deduction (${summary.absent}d Abs, ${summary.halfDay}d Half)`,
+                    componentName: unpaidDays > 0 ? attendanceDesc : "Attendance Deduction (0d)",
                     amount: absentDeduction
                 });
 
@@ -619,18 +639,26 @@ export default function PayslipsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
                                 <div>
                                     <p className="text-xs font-semibold text-slate-400 uppercase">Monthly Attendance Summary</p>
-                                    <div className="grid grid-cols-3 gap-2 mt-2">
+                                    <div className="grid grid-cols-5 gap-1.5 mt-2">
                                         <div className="bg-white p-2 rounded-lg text-center border border-slate-100">
-                                            <span className="block text-xs font-bold text-slate-400">Present</span>
-                                            <span className="block text-base font-black text-emerald-600 mt-0.5">{previewData.attendanceSummary.present}d</span>
+                                            <span className="block text-[10px] font-bold text-slate-400">Present</span>
+                                            <span className="block text-sm font-black text-emerald-600 mt-0.5">{previewData.attendanceSummary.present || 0}d</span>
                                         </div>
                                         <div className="bg-white p-2 rounded-lg text-center border border-slate-100">
-                                            <span className="block text-xs font-bold text-slate-400">Absent</span>
-                                            <span className="block text-base font-black text-rose-600 mt-0.5">{previewData.attendanceSummary.absent}d</span>
+                                            <span className="block text-[10px] font-bold text-slate-400">Absent</span>
+                                            <span className="block text-sm font-black text-rose-600 mt-0.5">{previewData.attendanceSummary.absent || 0}d</span>
                                         </div>
                                         <div className="bg-white p-2 rounded-lg text-center border border-slate-100">
-                                            <span className="block text-xs font-bold text-slate-400">Half Day</span>
-                                            <span className="block text-base font-black text-amber-500 mt-0.5">{previewData.attendanceSummary.halfDay}d</span>
+                                            <span className="block text-[10px] font-bold text-slate-400">Half Day</span>
+                                            <span className="block text-sm font-black text-amber-500 mt-0.5">{previewData.attendanceSummary.halfDay || 0}d</span>
+                                        </div>
+                                        <div className="bg-white p-2 rounded-lg text-center border border-slate-100">
+                                            <span className="block text-[10px] font-bold text-slate-400">Leave</span>
+                                            <span className="block text-sm font-black text-purple-600 mt-0.5">{previewData.attendanceSummary.onLeave || 0}d</span>
+                                        </div>
+                                        <div className="bg-white p-2 rounded-lg text-center border border-slate-100">
+                                            <span className="block text-[10px] font-bold text-slate-400">Holiday</span>
+                                            <span className="block text-sm font-black text-slate-700 mt-0.5">{previewData.attendanceSummary.holiday || 0}d</span>
                                         </div>
                                     </div>
                                 </div>
