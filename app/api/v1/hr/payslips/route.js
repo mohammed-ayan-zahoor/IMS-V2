@@ -169,15 +169,28 @@ export async function POST(req) {
             if (e.component?.name) staffEarningsMap.set(e.component.name.toLowerCase().trim(), e.amount || 0);
         });
 
-        // 1. Build Earnings list: All active earning components in master + Overtime (even if 0)
+        // 1. Build Earnings list: All active earning components in master + baseline template allowances + Overtime (even if 0)
         const earnings = [];
+        const defaultEarningNames = ["House Rent Allowance", "Conveyance Allowance", "Special Allowance", "Other Allowance"];
         const earningComponentsMaster = instituteComponents.filter(c => c.type === 'earning');
+        
         earningComponentsMaster.forEach(comp => {
             const amount = staffEarningsMap.get(comp._id.toString()) ?? staffEarningsMap.get(comp.name.toLowerCase().trim()) ?? 0;
             earnings.push({
                 componentName: comp.name,
                 amount: Math.round(amount * 100) / 100
             });
+        });
+
+        // Ensure default template earnings are present if not already added
+        defaultEarningNames.forEach(name => {
+            if (!earnings.some(e => e.componentName.toLowerCase() === name.toLowerCase())) {
+                const amt = staffEarningsMap.get(name.toLowerCase().trim()) ?? 0;
+                earnings.push({
+                    componentName: name,
+                    amount: Math.round(amt * 100) / 100
+                });
+            }
         });
 
         // If staff had custom earning components not in master, add them
@@ -209,15 +222,28 @@ export async function POST(req) {
             if (d.component?.name) staffDeductionsMap.set(d.component.name.toLowerCase().trim(), d.amount || 0);
         });
 
-        // 2. Build Deductions list: All active deduction components in master + Absence + Timing penalties (even if 0)
+        // 2. Build Deductions list: All active deduction components in master + baseline template deductions + Absence + Timing penalties (even if 0)
         const deductions = [];
+        const defaultDeductionNames = ["Federal Income Tax (TDS)", "FICA / Provident Fund (PF)", "Health Insurance (ESI)"];
         const deductionComponentsMaster = instituteComponents.filter(c => c.type === 'deduction');
+        
         deductionComponentsMaster.forEach(comp => {
             const amount = staffDeductionsMap.get(comp._id.toString()) ?? staffDeductionsMap.get(comp.name.toLowerCase().trim()) ?? 0;
             deductions.push({
                 componentName: comp.name,
                 amount: Math.round(amount * 100) / 100
             });
+        });
+
+        // Ensure default template deductions are present if not already added
+        defaultDeductionNames.forEach(name => {
+            if (!deductions.some(d => d.componentName.toLowerCase() === name.toLowerCase())) {
+                const amt = staffDeductionsMap.get(name.toLowerCase().trim()) ?? 0;
+                deductions.push({
+                    componentName: name,
+                    amount: Math.round(amt * 100) / 100
+                });
+            }
         });
 
         // If staff had custom deduction components not in master, add them

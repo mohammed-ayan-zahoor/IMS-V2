@@ -228,12 +228,23 @@ export default function PayslipsPage() {
                     if (e.component?.name) assignedEarningsMap.set(e.component.name.toLowerCase().trim(), e.amount || 0);
                 });
 
+                const defaultEarningNames = ["House Rent Allowance", "Conveyance Allowance", "Special Allowance", "Other Allowance"];
                 salaryComponents.filter(c => c.type === 'earning').forEach(c => {
                     const amt = assignedEarningsMap.get(c._id.toString()) ?? assignedEarningsMap.get(c.name.toLowerCase().trim()) ?? 0;
                     earnings.push({
                         componentName: c.name,
                         amount: amt
                     });
+                });
+
+                defaultEarningNames.forEach(name => {
+                    if (!earnings.some(e => e.componentName.toLowerCase() === name.toLowerCase())) {
+                        const amt = assignedEarningsMap.get(name.toLowerCase().trim()) ?? 0;
+                        earnings.push({
+                            componentName: name,
+                            amount: amt
+                        });
+                    }
                 });
 
                 earnings.push({
@@ -245,6 +256,7 @@ export default function PayslipsPage() {
 
                 // Build all deductions (master + custom + absence + timing) even if 0
                 const deductions = [];
+                const defaultDeductionNames = ["Federal Income Tax (TDS)", "FICA / Provident Fund (PF)", "Health Insurance (ESI)"];
                 const assignedDeductionsMap = new Map();
                 (staffDetail.hrDetails?.deductions || []).forEach(d => {
                     if (d.component?._id) assignedDeductionsMap.set(d.component._id.toString(), d.amount || 0);
@@ -257,6 +269,16 @@ export default function PayslipsPage() {
                         componentName: c.name,
                         amount: amt
                     });
+                });
+
+                defaultDeductionNames.forEach(name => {
+                    if (!deductions.some(d => d.componentName.toLowerCase() === name.toLowerCase())) {
+                        const amt = assignedDeductionsMap.get(name.toLowerCase().trim()) ?? 0;
+                        deductions.push({
+                            componentName: name,
+                            amount: amt
+                        });
+                    }
                 });
 
                 deductions.push({
