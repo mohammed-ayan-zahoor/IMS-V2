@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, Lock, Eye, EyeOff, Loader, MessageSquare, Save, Settings, PhoneCall, Key, Send, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, CheckCircle2, Lock, Eye, EyeOff, Loader, MessageSquare, Save, Settings, PhoneCall, Key, Send, Loader2, QrCode, RefreshCw, ExternalLink } from 'lucide-react';
 import Card, { CardHeader } from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
 
 export default function NotificationSettingsForm() {
   const [loading, setLoading] = useState(true);
@@ -15,6 +16,13 @@ export default function NotificationSettingsForm() {
   const [waTestPhone, setWaTestPhone] = useState('');
   const [waTestStatus, setWaTestStatus] = useState(null); // null | 'sending' | 'ok' | 'err'
   const [waTestMsg, setWaTestMsg] = useState('');
+
+  // OpenWA QR Modal State
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrData, setQrData] = useState(null);
+  const [qrError, setQrError] = useState('');
+  const [qrStatus, setQrStatus] = useState('');
 
   const [formData, setFormData] = useState({
     // SMS
@@ -151,6 +159,32 @@ export default function NotificationSettingsForm() {
     } catch (e) {
       setWaTestStatus('err');
       setWaTestMsg(e.message);
+    }
+  };
+
+  const handleOpenQrModal = async () => {
+    setQrModalOpen(true);
+    fetchQrCode();
+  };
+
+  const fetchQrCode = async () => {
+    setQrLoading(true);
+    setQrError('');
+    try {
+      const res = await fetch('/api/v1/institute/notifications/openwa-qr');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setQrData(data.qr);
+        setQrStatus(data.connected ? 'CONNECTED' : (data.qr ? 'WAITING_FOR_SCAN' : data.status || 'DISCONNECTED'));
+      } else {
+        setQrError(data.error || 'Failed to fetch QR code');
+        setQrStatus('ERROR');
+      }
+    } catch (e) {
+      setQrError(e.message);
+      setQrStatus('ERROR');
+    } finally {
+      setQrLoading(false);
     }
   };
 
@@ -414,6 +448,21 @@ export default function NotificationSettingsForm() {
                     Session identifier configured in your OpenWA multi-session instance.
                   </p>
                 </div>
+
+                <div className="md:col-span-2 pt-3 border-t border-slate-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">WhatsApp Web Session Connection</p>
+                    <p className="text-[11px] text-slate-500 font-medium">Scan the QR code from your mobile WhatsApp app to link this institute.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleOpenQrModal}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition-all shrink-0"
+                  >
+                    <QrCode size={15} />
+                    Scan QR Code & Connect
+                  </button>
+                </div>
               </div>
             )}
 
@@ -507,7 +556,7 @@ export default function NotificationSettingsForm() {
               <div>
                 <h4 className="text-xs font-black text-amber-800 uppercase tracking-wider">Premium Automated Call Reminders</h4>
                 <p className="text-[11px] text-amber-600 font-bold mt-1 leading-relaxed">
-                  Enabling automated voice reminders will upgrade your institute's platform subscription billing rate to **69 INR per student / year** instead of the standard 59 INR. All call expenses and verification overheads are managed by the platform.
+                  Enabling automated voice reminders will upgrade your institute&apos;s platform subscription billing rate to **69 INR per student / year** instead of the standard 59 INR. All call expenses and verification overheads are managed by the platform.
                 </p>
               </div>
             </div>
@@ -590,6 +639,94 @@ export default function NotificationSettingsForm() {
           </button>
         </div>
       </form>
+
+      {/* OpenWA QR Code Scanner Modal */}
+      <Modal
+        isOpen={qrModalOpen}
+        onClose={() => setQrModalOpen(false)}
+        title="WhatsApp Login (OpenWA)"
+        className="max-w-md"
+      >
+        <div className="space-y-5 p-2">
+          {qrLoading ? (
+            <div className="py-12 text-center flex flex-col items-center justify-center gap-3">
+              <Loader className="animate-spin text-emerald-600" size={36} />
+              <p className="text-xs text-slate-500 font-bold">Connecting to OpenWA server and fetching QR code...</p>
+            </div>
+          ) : qrStatus === 'CONNECTED' ? (
+            <div className="py-8 text-center flex flex-col items-center justify-center gap-3 bg-emerald-50/60 rounded-xl border border-emerald-100 p-6">
+              <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                <CheckCircle2 size={32} />
+              </div>
+              <div>
+                <h4 className="text-base font-black text-slate-800">WhatsApp is Connected!</h4>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Your WhatsApp Web session is currently active and ready to dispatch announcements and receipts.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={fetchQrCode}
+                className="mt-2 px-4 py-2 bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
+              >
+                <RefreshCw size={14} /> Refresh Status
+              </button>
+            </div>
+          ) : qrData ? (
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="p-3 bg-white rounded-2xl border-2 border-emerald-500 shadow-md">
+                <img
+                  src={qrData}
+                  alt="WhatsApp QR Code"
+                  className="w-64 h-64 object-contain rounded-lg"
+                />
+              </div>
+              <div className="space-y-1.5 text-left bg-slate-50 p-4 rounded-xl border border-slate-200 w-full text-xs">
+                <p className="font-bold text-slate-800">How to scan & link:</p>
+                <ol className="list-decimal list-inside space-y-1 text-slate-600 font-medium">
+                  <li>Open <strong>WhatsApp</strong> on your phone.</li>
+                  <li>Tap <strong>Settings / ⋮ Menu</strong> → <strong>Linked Devices</strong>.</li>
+                  <li>Tap <strong>Link a Device</strong> and point your camera at the QR code above.</li>
+                </ol>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={fetchQrCode}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <RefreshCw size={14} /> Refresh QR
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="py-6 text-center space-y-4">
+              <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl text-left">
+                <div className="flex items-start gap-2 text-rose-700 text-xs font-bold">
+                  <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                  <span>{qrError || "Could not reach OpenWA Server."}</span>
+                </div>
+                <div className="mt-3 text-[11px] text-slate-600 space-y-1.5 bg-white p-3 rounded-lg border border-rose-100">
+                  <p className="font-bold text-slate-700">Quick Start OpenWA on your server:</p>
+                  <code className="block bg-slate-900 text-emerald-400 p-2 rounded font-mono text-[11px]">
+                    npx @open-wa/wa-automate --port 2785 --session-id {formData.openwaSessionId || 'default'}
+                  </code>
+                  <p className="text-[10px] text-slate-500">
+                    Make sure the URL in settings is set to <span className="font-mono text-slate-700">{formData.openwaServerUrl || 'http://localhost:2785'}</span> and saved.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={fetchQrCode}
+                className="px-4 py-2 bg-premium-blue hover:bg-premium-blue-hover text-white rounded-lg text-xs font-bold inline-flex items-center gap-2 shadow-sm transition-all"
+              >
+                <RefreshCw size={14} /> Retry Connection
+              </button>
+            </div>
+          )}
+        </div>
+      </Modal>
     </Card>
   );
 }
