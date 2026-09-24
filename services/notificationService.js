@@ -300,21 +300,33 @@ export class NotificationService {
 
         switch (provider) {
             case 'openwa': {
-                if (!config.openwaServerUrl) {
-                    throw new Error('OpenWA Server URL is not configured in Settings.');
-                }
-                const baseUrl = config.openwaServerUrl.replace(/\/+$/, '');
-                const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : '';
-                const sessionId = config.openwaSessionId || 'default';
+                const baseUrl = (config.openwaServerUrl || process.env.OPENWA_SERVER_URL || 'http://localhost:2785').replace(/\/+$/, '');
+                const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : (process.env.OPENWA_API_KEY || '');
+                let sessionId = config.openwaSessionId;
                 const cleanPhone = to.replace(/\D/g, '');
                 const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
 
-                const url = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/messages/send-text`;
                 const headers = { 'Content-Type': 'application/json' };
                 if (apiKey) {
                     headers['X-API-Key'] = apiKey;
                     headers['api_key'] = apiKey;
                 }
+
+                // If sessionId is not a UUID, resolve from OpenWA session list
+                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId);
+                if (!isUuid) {
+                    try {
+                        const listRes = await fetch(`${baseUrl}/api/sessions`, { headers, cache: 'no-store' });
+                        if (listRes.ok) {
+                            const listData = await listRes.json();
+                            const sessions = Array.isArray(listData) ? listData : (listData.sessions || listData.data || []);
+                            const match = sessions.find(s => s.name && s.name.toLowerCase() === (sessionId || '').toLowerCase()) || sessions[0];
+                            if (match?.id) sessionId = match.id;
+                        }
+                    } catch {}
+                }
+
+                const url = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId || 'default')}/messages/send-text`;
 
                 let response = await fetch(url, {
                     method: 'POST',

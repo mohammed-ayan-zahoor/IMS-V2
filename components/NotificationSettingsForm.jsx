@@ -240,20 +240,21 @@ export default function NotificationSettingsForm() {
             clearInterval(qrPollRef.current);
             setTimeout(() => {
               setQrModalOpen(false);
-            }, 1200);
+            }, 1000);
           } else if (data.qr) {
             setQrData(data.qr);
+            setQrLoading(false);
+            setQrError('');
           }
         }
       } catch {
         // Continue polling
       }
-    }, 3000);
+    }, 2500);
   };
 
   const fetchLiveQr = async () => {
     try {
-      setQrLoading(true);
       setQrError('');
       const res = await fetch('/api/v1/institute/notifications/openwa-qr');
       const data = await res.json();
@@ -269,12 +270,13 @@ export default function NotificationSettingsForm() {
         setQrModalOpen(false);
       } else if (data.qr) {
         setQrData(data.qr);
+        setQrLoading(false);
       } else {
-        setQrError('Waiting for QR code generation from OpenWA engine... Please retry in a few seconds.');
+        // Still initializing in background - keep spinner active
+        setQrLoading(true);
       }
     } catch (err) {
       setQrError(err.message || 'Unable to connect to OpenWA server. Please ensure the server is active.');
-    } finally {
       setQrLoading(false);
     }
   };

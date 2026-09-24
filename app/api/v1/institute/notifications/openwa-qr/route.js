@@ -36,46 +36,101 @@ export async function GET(req) {
             headers['api_key'] = apiKey;
         }
 
-        // 1. Check if already connected / logged in
+        // Resolve or create OpenWA Session by UUID
+        const sessionName = inst?.code ? `inst_${inst.code.toLowerCase()}` : `inst_${instituteId}`;
+        let activeSessionId = config.openwaSessionId;
+
+        // Check list of existing sessions in OpenWA
+        try {
+            const listRes = await fetch(`${baseUrl}/api/sessions`, { headers, cache: 'no-store' });
+            if (listRes.ok) {
+                const listData = await listRes.json();
+                const sessions = Array.isArray(listData) ? listData : (listData.sessions || listData.data || []);
+                const match = sessions.find(s => 
+                    (activeSessionId && s.id === activeSessionId) || 
+                    (s.name && s.name.toLowerCase() === sessionName.toLowerCase())
+                );
+
+                if (match) {
+                    activeSessionId = match.id;
+                    if (match.id !== config.openwaSessionId) {
+                        await Institute.findByIdAndUpdate(instituteId, { 'notifications.openwaSessionId': match.id });
+                    }
+                } else {
+                    // Create session
+                    const createRes = await fetch(`${baseUrl}/api/sessions`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ name: sessionName })
+                    });
+                    if (createRes.ok) {
+                        const newSess = await createRes.json();
+                        activeSessionId = newSess.id || newSess.sessionId;
+                        if (activeSessionId) {
+                            await Institute.findByIdAndUpdate(instituteId, { 'notifications.openwaSessionId': activeSessionId });
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[OPENWA_SESSION_DISCOVERY_ERROR]', err.message);
+        }
+
+        if (!activeSessionId) {
+            activeSessionId = sessionName;
+        }
+
+        // 1. Check session existence & status in OpenWA
         let isConnected = false;
         let connectionStatus = 'DISCONNECTED';
         let phone = null;
 
         try {
-            const statusUrl = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/status`;
-            const statusRes = await fetch(statusUrl, { headers, cache: 'no-store' });
-            if (statusRes.ok) {
-                const statusData = await statusRes.json().catch(() => ({}));
-                isConnected = statusData.connected || statusData.state === 'CONNECTED' || statusData.status === 'ready' || statusData.status === 'CONNECTED';
-                connectionStatus = statusData.state || statusData.status || (isConnected ? 'CONNECTED' : 'DISCONNECTED');
-                phone = statusData.phone || statusData.me || statusData.user || null;
-            } else if (statusRes.status === 404) {
-                // Try initializing the session
-                await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/start`, {
+            const sessionCheckUrl = `${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}`;
+            const sessionCheckRes = await fetch(sessionCheckUrl, { headers, cache: 'no-store' });
+
+            if (sessionCheckRes.ok) {
+                const sessData = await sessionCheckRes.json().catch(() => ({}));
+                const state = (sessData.status || sessData.state || '').toLowerCase();
+                if (state === 'ready' || state === 'connected' || state === 'authenticated') {
+                    isConnected = true;
+                    connectionStatus = 'CONNECTED';
+                    phone = sessData.phone || sessData.me || sessData.user || null;
+                } else if (state === 'created' || state === 'stopped' || state === 'disconnected') {
+                    // Start the session
+                    await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}/start`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({})
+                    }).catch(() => {});
+                }
+            } else if (sessionCheckRes.status === 404) {
+                // Try start
+                await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}/start`, {
                     method: 'POST',
                     headers,
-                    body: JSON.stringify({ sessionId })
+                    body: JSON.stringify({})
                 }).catch(() => {});
             }
-        } catch {
-            // Fallback status check
+        } catch (e) {
+            console.log('[OPENWA_STATUS_CHECK_FALLBACK]', e.message);
         }
 
         if (isConnected) {
             return NextResponse.json({
                 success: true,
                 connected: true,
-                status: connectionStatus,
+                status: 'CONNECTED',
                 phone: phone,
-                sessionId: sessionId,
+                sessionId: activeSessionId,
                 message: 'WhatsApp is connected and logged in!'
             });
         }
 
         // 2. Fetch live QR Code
         const candidateQrEndpoints = [
-            `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/qr`,
-            `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/screenshot`,
+            `${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}/qr`,
+            `${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}/screenshot`,
             `${baseUrl}/api/getQr`,
             `${baseUrl}/getQr`,
             `${baseUrl}/qr`
@@ -110,7 +165,7 @@ export async function GET(req) {
             status: connectionStatus,
             qr: qrData,
             serverUrl: baseUrl,
-            sessionId: sessionId
+            sessionId: activeSessionId
         });
 
     } catch (error) {
