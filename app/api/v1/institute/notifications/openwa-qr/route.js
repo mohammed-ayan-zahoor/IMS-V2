@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Institute from '@/models/Institute';
-import { decryptSecret } from '@/lib/encryption';
+import { decryptSecret } from '@/lib/crypto';
 
 /**
  * @route   GET /api/v1/institute/notifications/openwa-qr
