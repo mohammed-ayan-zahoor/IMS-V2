@@ -6,6 +6,52 @@ import Payslip from "@/models/Payslip";
 import { createAuditLog } from "@/services/auditService";
 import mongoose from "mongoose";
 
+import Institute from "@/models/Institute";
+import User from "@/models/User";
+import Designation from "@/models/Designation";
+
+export async function GET(req, { params }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !['admin', 'super_admin', 'instructor', 'staff'].includes(session.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = await params;
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return NextResponse.json({ error: "Invalid payslip ID" }, { status: 400 });
+        }
+
+        const instituteId = session?.user?.institute?.id;
+        if (!instituteId) {
+            return NextResponse.json({ error: "Institute not found" }, { status: 400 });
+        }
+
+        await connectDB();
+
+        const payslip = await Payslip.findOne({ _id: id, institute: instituteId })
+            .populate({
+                path: 'staff',
+                select: 'profile role email phone hrDetails username enrollmentNumber',
+                populate: {
+                    path: 'hrDetails.designation',
+                    select: 'name'
+                }
+            })
+            .populate('institute', 'name code address contact email logo settings')
+            .populate('generatedBy', 'profile role');
+
+        if (!payslip) {
+            return NextResponse.json({ error: "Payslip not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({ payslip });
+    } catch (error) {
+        console.error("Error fetching payslip:", error);
+        return NextResponse.json({ error: "Failed to fetch payslip" }, { status: 500 });
+    }
+}
+
 export async function PATCH(req, { params }) {
     try {
         const session = await getServerSession(authOptions);

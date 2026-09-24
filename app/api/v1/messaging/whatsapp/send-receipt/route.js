@@ -4,6 +4,7 @@ import { getInstituteScope } from '@/middleware/instituteScope';
 import { NotificationService } from '@/services/notificationService';
 import Fee from '@/models/Fee';
 import MouSubmission from '@/models/MouSubmission';
+import Payslip from '@/models/Payslip';
 import mongoose from 'mongoose';
 
 export async function POST(req) {
@@ -70,6 +71,28 @@ export async function POST(req) {
 
             if (!messageText) {
                 messageText = `Dear ${mou.schoolName || 'Partner'},\n\nPayment receipt for your MOU Agreement Ref: ${mou.refId || id} has been generated.\nAmount: ₹${(mou.upfrontPrice || mou.totalPrice || 0).toLocaleString('en-IN')}.\n\nThank you,\nQuantech Infosystem`;
+            }
+        } else if (type === 'payslip') {
+            const payslip = await Payslip.findById(id)
+                .populate('staff', 'profile phone email')
+                .populate('institute', 'name');
+            if (!payslip) return NextResponse.json({ error: 'Payslip not found' }, { status: 404 });
+
+            if (!targetPhone) {
+                targetPhone = (payslip.staff?.phone || payslip.staff?.profile?.phone || '').replace(/\D/g, '');
+            }
+
+            if (!targetPhone) {
+                return NextResponse.json({ error: 'No valid phone number found for staff member.' }, { status: 400 });
+            }
+
+            if (!messageText) {
+                const staffName = payslip.staff?.profile?.firstName || 'Staff Member';
+                const instName = payslip.institute?.name || 'Institute';
+                const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                const monthName = months[payslip.month - 1] || payslip.month;
+
+                messageText = `Dear ${staffName},\n\nYour salary payslip for ${monthName} ${payslip.year} has been generated.\nNet Salary Payable: ₹${(payslip.netSalary || 0).toLocaleString('en-IN')}\nStatus: ${payslip.paymentStatus.toUpperCase()}\n\nThank you,\n${instName}`;
             }
         }
 

@@ -6,6 +6,7 @@ import Payslip from "@/models/Payslip";
 import User from "@/models/User";
 import StaffAttendance from "@/models/StaffAttendance";
 import HRSettings from "@/models/HRSettings";
+import SalaryComponent from "@/models/SalaryComponent";
 import { createAuditLog } from "@/services/auditService";
 
 export async function GET(req) {
@@ -154,50 +155,108 @@ export async function POST(req) {
             }
         });
 
-        // Compute salary calculations
-        const earnings = (staffMember.hrDetails?.earnings || []).map(e => ({
-            componentName: e.component?.name || "Earning Component",
-            amount: e.amount || 0
-        }));
+        // Fetch all active Salary Components for the institute
+        const instituteComponents = await SalaryComponent.find({
+            institute: instituteId,
+            isActive: true,
+            deletedAt: null
+        }).sort({ name: 1 });
 
-        if (totalOvertimeHours > 0 && hrSettings.overtimeRatePerHour > 0) {
-            const overtimeAmount = totalOvertimeHours * hrSettings.overtimeRatePerHour;
+        // Map assigned staff earnings by component ID/Name
+        const staffEarningsMap = new Map();
+        (staffMember.hrDetails?.earnings || []).forEach(e => {
+            if (e.component?._id) staffEarningsMap.set(e.component._id.toString(), e.amount || 0);
+            if (e.component?.name) staffEarningsMap.set(e.component.name.toLowerCase().trim(), e.amount || 0);
+        });
+
+        // 1. Build Earnings list: All active earning components in master + Overtime (even if 0)
+        const earnings = [];
+        const earningComponentsMaster = instituteComponents.filter(c => c.type === 'earning');
+        earningComponentsMaster.forEach(comp => {
+            const amount = staffEarningsMap.get(comp._id.toString()) ?? staffEarningsMap.get(comp.name.toLowerCase().trim()) ?? 0;
             earnings.push({
-                componentName: `Overtime (${totalOvertimeHours} hrs @ ₹${hrSettings.overtimeRatePerHour}/hr)`,
-                amount: overtimeAmount
+                componentName: comp.name,
+                amount: Math.round(amount * 100) / 100
             });
-        }
+        });
 
-        const configuredDeductions = (staffMember.hrDetails?.deductions || []).map(d => ({
-            componentName: d.component?.name || "Deduction Component",
-            amount: d.amount || 0
-        }));
+        // If staff had custom earning components not in master, add them
+        (staffMember.hrDetails?.earnings || []).forEach(e => {
+            const name = e.component?.name;
+            if (name && !earnings.some(existing => existing.componentName.toLowerCase() === name.toLowerCase())) {
+                earnings.push({
+                    componentName: name,
+                    amount: Math.round((e.amount || 0) * 100) / 100
+                });
+            }
+        });
 
-        // Attendance-based deduction: deduction for absent and half-day
+        // Add Overtime row (even if 0 hrs / ₹0)
+        const overtimeAmount = (totalOvertimeHours > 0 && hrSettings.overtimeRatePerHour > 0)
+            ? totalOvertimeHours * hrSettings.overtimeRatePerHour
+            : 0;
+        earnings.push({
+            componentName: totalOvertimeHours > 0 
+                ? `Overtime (${totalOvertimeHours} hrs @ ₹${hrSettings.overtimeRatePerHour}/hr)` 
+                : "Overtime Allowance (0 hrs)",
+            amount: overtimeAmount
+        });
+
+        // Map assigned staff deductions by component ID/Name
+        const staffDeductionsMap = new Map();
+        (staffMember.hrDetails?.deductions || []).forEach(d => {
+            if (d.component?._id) staffDeductionsMap.set(d.component._id.toString(), d.amount || 0);
+            if (d.component?.name) staffDeductionsMap.set(d.component.name.toLowerCase().trim(), d.amount || 0);
+        });
+
+        // 2. Build Deductions list: All active deduction components in master + Absence + Timing penalties (even if 0)
+        const deductions = [];
+        const deductionComponentsMaster = instituteComponents.filter(c => c.type === 'deduction');
+        deductionComponentsMaster.forEach(comp => {
+            const amount = staffDeductionsMap.get(comp._id.toString()) ?? staffDeductionsMap.get(comp.name.toLowerCase().trim()) ?? 0;
+            deductions.push({
+                componentName: comp.name,
+                amount: Math.round(amount * 100) / 100
+            });
+        });
+
+        // If staff had custom deduction components not in master, add them
+        (staffMember.hrDetails?.deductions || []).forEach(d => {
+            const name = d.component?.name;
+            if (name && !deductions.some(existing => existing.componentName.toLowerCase() === name.toLowerCase())) {
+                deductions.push({
+                    componentName: name,
+                    amount: Math.round((d.amount || 0) * 100) / 100
+                });
+            }
+        });
+
+        // Attendance-based deduction: deduction for absent and half-day (even if 0)
         const dailyRate = basicSalary / totalDaysInMonth;
         const absentDeductionAmount = Math.round((attendanceSummary.absent * dailyRate + (attendanceSummary.halfDay * 0.5 * dailyRate)) * 100) / 100;
+        deductions.push({
+            componentName: `Attendance Deduction (${attendanceSummary.absent}d Abs, ${attendanceSummary.halfDay}d Half)`,
+            amount: absentDeductionAmount
+        });
 
-        const deductions = [...configuredDeductions];
-        if (absentDeductionAmount > 0) {
-            deductions.push({
-                componentName: `Attendance Deduction (${attendanceSummary.absent}d Abs, ${attendanceSummary.halfDay}d Half)`,
-                amount: absentDeductionAmount
-            });
-        }
-
+        // Timing penalties: late-in, early-exit, mid-day out-pass (even if 0)
         const totalTimingDeductionHours = totalLateHours + totalEarlyHours + totalMidDayHours;
-        if (totalTimingDeductionHours > 0 && hrSettings.deductionRatePerHour > 0) {
-            const timingDeductionAmount = totalTimingDeductionHours * hrSettings.deductionRatePerHour;
-            const detailsList = [];
-            if (totalLateHours > 0) detailsList.push(`Late: ${totalLateHours}h`);
-            if (totalEarlyHours > 0) detailsList.push(`Early: ${totalEarlyHours}h`);
-            if (totalMidDayHours > 0) detailsList.push(`Out-pass: ${totalMidDayHours}h`);
+        const timingDeductionAmount = (totalTimingDeductionHours > 0 && hrSettings.deductionRatePerHour > 0)
+            ? totalTimingDeductionHours * hrSettings.deductionRatePerHour
+            : 0;
 
-            deductions.push({
-                componentName: `Timing & Penalty Deduction (${detailsList.join(', ')} @ ₹${hrSettings.deductionRatePerHour}/hr)`,
-                amount: timingDeductionAmount
-            });
-        }
+        const detailsList = [];
+        if (totalLateHours > 0) detailsList.push(`Late: ${totalLateHours}h`);
+        if (totalEarlyHours > 0) detailsList.push(`Early: ${totalEarlyHours}h`);
+        if (totalMidDayHours > 0) detailsList.push(`Out-pass: ${totalMidDayHours}h`);
+        const timingDesc = detailsList.length > 0
+            ? `Timing & Penalty Deduction (${detailsList.join(', ')} @ ₹${hrSettings.deductionRatePerHour}/hr)`
+            : "Timing & Late Penalties (0 hrs)";
+
+        deductions.push({
+            componentName: timingDesc,
+            amount: timingDeductionAmount
+        });
 
         const totalEarnings = basicSalary + earnings.reduce((sum, e) => sum + e.amount, 0);
         const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);

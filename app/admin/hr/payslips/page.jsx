@@ -160,22 +160,123 @@ export default function PayslipsPage() {
                     else if (log.status === 'holiday') summary.holiday++;
                 });
 
+                // Fetch salary components for master list
+                let salaryComponents = [];
+                try {
+                    const compRes = await fetch(`/api/v1/hr/salary-components`, { signal: controller.signal });
+                    if (compRes.ok) {
+                        const compData = await compRes.json();
+                        salaryComponents = compData.salaryComponents || [];
+                    }
+                } catch (e) {}
+
+                // Fetch HR settings
+                let hrSettings = {
+                    shiftStart: "09:00",
+                    shiftEnd: "18:00",
+                    checkInGraceMins: 15,
+                    checkOutGraceMins: 10,
+                    deductionRatePerHour: 100,
+                    midDayOutEnabled: true,
+                    overtimeEnabled: true,
+                    overtimeBufferMins: 30,
+                    overtimeRatePerHour: 150
+                };
+                try {
+                    const hrRes = await fetch(`/api/v1/hr/settings`, { signal: controller.signal });
+                    if (hrRes.ok) {
+                        const hrData = await hrRes.json();
+                        if (hrData.settings) hrSettings = hrData.settings;
+                    }
+                } catch (e) {}
+
                 // Auto calculate daily rate and attendance penalty deductions
                 const dailyRate = basicSalary / totalDaysInMonth;
                 const absentDeduction = Math.round((summary.absent * dailyRate + (summary.halfDay * 0.5 * dailyRate)) * 100) / 100;
 
-                const earnings = (staffDetail.hrDetails?.earnings || []).map(e => ({
-                    componentName: e.component?.name || "Allowance Component",
-                    amount: e.amount || 0
-                }));
+                // Compute timing penalties and OT for preview
+                let totalLateHours = 0;
+                let totalEarlyHours = 0;
+                let totalMidDayHours = 0;
+                let totalOvertimeHours = 0;
 
-                const deductions = (staffDetail.hrDetails?.deductions || []).map(d => ({
-                    componentName: d.component?.name || "Deduction Component",
-                    amount: d.amount || 0
-                }));
+                matchedLogs.forEach(log => {
+                    if (log.lateMinutes && log.lateMinutes > (hrSettings.checkInGraceMins || 0)) {
+                        totalLateHours += Math.ceil(log.lateMinutes / 60);
+                    }
+                    if (log.earlyDepartureMinutes && log.earlyDepartureMinutes > (hrSettings.checkOutGraceMins || 0)) {
+                        totalEarlyHours += Math.ceil(log.earlyDepartureMinutes / 60);
+                    }
+                    if (hrSettings.midDayOutEnabled && log.midDayOutMinutes && log.midDayOutMinutes > 0) {
+                        totalMidDayHours += Math.ceil(log.midDayOutMinutes / 60);
+                    }
+                    if (hrSettings.overtimeEnabled && log.overtimeMinutes && log.overtimeMinutes > (hrSettings.overtimeBufferMins || 0)) {
+                        const effectiveOtMinutes = log.overtimeMinutes - (hrSettings.overtimeBufferMins || 0);
+                        const otHours = Math.floor(effectiveOtMinutes / 60);
+                        if (otHours > 0) totalOvertimeHours += otHours;
+                    }
+                });
+
+                const timingDeduction = (totalLateHours + totalEarlyHours + totalMidDayHours) * (hrSettings.deductionRatePerHour || 0);
+                const overtimeAmount = totalOvertimeHours * (hrSettings.overtimeRatePerHour || 0);
+
+                // Build all earnings (master + custom + overtime) even if 0
+                const earnings = [];
+                const assignedEarningsMap = new Map();
+                (staffDetail.hrDetails?.earnings || []).forEach(e => {
+                    if (e.component?._id) assignedEarningsMap.set(e.component._id.toString(), e.amount || 0);
+                    if (e.component?.name) assignedEarningsMap.set(e.component.name.toLowerCase().trim(), e.amount || 0);
+                });
+
+                salaryComponents.filter(c => c.type === 'earning').forEach(c => {
+                    const amt = assignedEarningsMap.get(c._id.toString()) ?? assignedEarningsMap.get(c.name.toLowerCase().trim()) ?? 0;
+                    earnings.push({
+                        componentName: c.name,
+                        amount: amt
+                    });
+                });
+
+                earnings.push({
+                    componentName: totalOvertimeHours > 0 
+                        ? `Overtime (${totalOvertimeHours} hrs @ ₹${hrSettings.overtimeRatePerHour}/hr)` 
+                        : "Overtime Allowance (0 hrs)",
+                    amount: overtimeAmount
+                });
+
+                // Build all deductions (master + custom + absence + timing) even if 0
+                const deductions = [];
+                const assignedDeductionsMap = new Map();
+                (staffDetail.hrDetails?.deductions || []).forEach(d => {
+                    if (d.component?._id) assignedDeductionsMap.set(d.component._id.toString(), d.amount || 0);
+                    if (d.component?.name) assignedDeductionsMap.set(d.component.name.toLowerCase().trim(), d.amount || 0);
+                });
+
+                salaryComponents.filter(c => c.type === 'deduction').forEach(c => {
+                    const amt = assignedDeductionsMap.get(c._id.toString()) ?? assignedDeductionsMap.get(c.name.toLowerCase().trim()) ?? 0;
+                    deductions.push({
+                        componentName: c.name,
+                        amount: amt
+                    });
+                });
+
+                deductions.push({
+                    componentName: `Attendance Deduction (${summary.absent}d Abs, ${summary.halfDay}d Half)`,
+                    amount: absentDeduction
+                });
+
+                const detailsList = [];
+                if (totalLateHours > 0) detailsList.push(`Late: ${totalLateHours}h`);
+                if (totalEarlyHours > 0) detailsList.push(`Early: ${totalEarlyHours}h`);
+                if (totalMidDayHours > 0) detailsList.push(`Out-pass: ${totalMidDayHours}h`);
+                deductions.push({
+                    componentName: detailsList.length > 0 
+                        ? `Timing Penalties (${detailsList.join(', ')} @ ₹${hrSettings.deductionRatePerHour}/hr)` 
+                        : "Timing & Late Penalties (0 hrs)",
+                    amount: timingDeduction
+                });
 
                 const totalEarnings = basicSalary + earnings.reduce((sum, e) => sum + e.amount, 0);
-                const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0) + absentDeduction;
+                const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
                 const netSalary = Math.max(0, totalEarnings - totalDeductions);
 
                 setPreviewData({
@@ -184,6 +285,7 @@ export default function PayslipsPage() {
                     basicSalary,
                     attendanceSummary: summary,
                     absentDeduction,
+                    timingDeduction,
                     earnings,
                     deductions,
                     totalEarnings,
@@ -408,8 +510,8 @@ export default function PayslipsPage() {
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        onClick={() => { setActivePayslip(p); setIsPrintOpen(true); }}
-                                                        className="text-xs font-bold flex items-center gap-1 h-8 rounded-lg"
+                                                        onClick={() => window.open(`/admin/hr/payslips/${p._id}`, "_blank")}
+                                                        className="text-xs font-bold flex items-center gap-1.5 h-8 rounded-lg text-indigo-700 border-indigo-200 hover:bg-indigo-50"
                                                     >
                                                         <Printer size={13} />
                                                         Print View
@@ -720,22 +822,32 @@ export default function PayslipsPage() {
                         </div>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-                        <Button type="button" variant="ghost" onClick={() => setIsPrintOpen(false)}>Close</Button>
+                    <div className="flex justify-between items-center gap-3 pt-6 border-t border-slate-100">
                         <Button
-                            onClick={() => {
-                                const printContent = document.getElementById("printable-payslip").innerHTML;
-                                const originalContent = document.body.innerHTML;
-                                document.body.innerHTML = printContent;
-                                window.print();
-                                document.body.innerHTML = originalContent;
-                                window.location.reload();
-                            }}
-                            className="bg-premium-blue hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2"
+                            type="button"
+                            variant="outline"
+                            onClick={() => window.open(`/admin/hr/payslips/${activePayslip._id}`, "_blank")}
+                            className="text-xs font-bold text-indigo-700 border-indigo-200 hover:bg-indigo-50"
                         >
-                            <Printer size={16} />
-                            Print Receipt
+                            Open Full Document Template (MOU Format)
                         </Button>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="ghost" onClick={() => setIsPrintOpen(false)}>Close</Button>
+                            <Button
+                                onClick={() => {
+                                    const printContent = document.getElementById("printable-payslip").innerHTML;
+                                    const originalContent = document.body.innerHTML;
+                                    document.body.innerHTML = printContent;
+                                    window.print();
+                                    document.body.innerHTML = originalContent;
+                                    window.location.reload();
+                                }}
+                                className="bg-premium-blue hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2"
+                            >
+                                <Printer size={16} />
+                                Print Receipt
+                            </Button>
+                        </div>
                     </div>
                 </Modal>
             )}
