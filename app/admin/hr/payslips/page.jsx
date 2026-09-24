@@ -614,32 +614,60 @@ export default function PayslipsPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <div className="flex justify-between items-center text-slate-600">
-                                        <span className="font-semibold">Basic Salary:</span>
-                                        <span className="font-bold">{formatCurrency(previewData.basicSalary)}</span>
-                                    </div>
-                                    {previewData.earnings.map((e, idx) => (
-                                        <div key={idx} className="flex justify-between items-center text-slate-600">
-                                            <span>(+) {e.componentName}:</span>
-                                            <span className="font-bold text-emerald-600">+{formatCurrency(e.amount)}</span>
-                                        </div>
-                                    ))}
-                                    {previewData.deductions.map((d, idx) => (
-                                        <div key={idx} className="flex justify-between items-center text-slate-600">
-                                            <span>(-) {d.componentName}:</span>
-                                            <span className="font-bold text-rose-600">-{formatCurrency(d.amount)}</span>
-                                        </div>
-                                    ))}
-                                    {previewData.absentDeduction > 0 && (
-                                        <div className="flex justify-between items-center text-slate-600">
-                                            <span>(-) Attendance penalty:</span>
-                                            <span className="font-bold text-rose-600">-{formatCurrency(previewData.absentDeduction)}</span>
-                                        </div>
-                                    )}
-                                    <hr className="border-slate-200 mt-2" />
-                                    <div className="flex justify-between items-center pt-2">
-                                        <span className="font-bold text-slate-800 text-base">Net Payable:</span>
-                                        <span className="font-black text-premium-blue text-lg">{formatCurrency(previewData.netSalary)}</span>
+                                    {(() => {
+                                        const eList = [
+                                            { name: "Basic Salary", amount: previewData.basicSalary || 0 },
+                                            ...(previewData.earnings || []).map(e => ({ name: e.componentName, amount: e.amount || 0 }))
+                                        ];
+                                        const dList = [
+                                            ...(previewData.deductions || []).map(d => ({ name: d.componentName, amount: d.amount || 0 }))
+                                        ];
+                                        const rowsCount = Math.max(eList.length, dList.length);
+                                        const paired = [];
+                                        for (let i = 0; i < rowsCount; i++) {
+                                            paired.push({
+                                                earning: eList[i] || null,
+                                                deduction: dList[i] || null
+                                            });
+                                        }
+
+                                        return (
+                                            <div className="border border-[#7a8ba8] overflow-hidden rounded-lg text-xs bg-white">
+                                                <table className="w-full border-collapse">
+                                                    <thead>
+                                                        <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-b border-[#7a8ba8]">
+                                                            <th className="py-1.5 px-2 text-left border-r border-[#7a8ba8] uppercase">Earnings</th>
+                                                            <th className="py-1.5 px-2 text-right border-r border-[#7a8ba8] uppercase">Amount</th>
+                                                            <th className="py-1.5 px-2 text-left border-r border-[#7a8ba8] uppercase">Deductions</th>
+                                                            <th className="py-1.5 px-2 text-right uppercase">Amount</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-[#7a8ba8]">
+                                                        {paired.map((row, idx) => (
+                                                            <tr key={idx} className="divide-x divide-[#7a8ba8]">
+                                                                <td className="py-1 px-2 text-slate-700">{row.earning ? row.earning.name : ""}</td>
+                                                                <td className="py-1 px-2 text-right font-medium text-slate-900">{row.earning ? `₹${formatCurrency(row.earning.amount)}` : ""}</td>
+                                                                <td className="py-1 px-2 text-slate-700">{row.deduction ? row.deduction.name : ""}</td>
+                                                                <td className="py-1 px-2 text-right font-medium text-slate-900">{row.deduction ? `₹${formatCurrency(row.deduction.amount)}` : ""}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-t border-[#7a8ba8] divide-x divide-[#7a8ba8]">
+                                                            <td className="py-1.5 px-2 text-left">Gross</td>
+                                                            <td className="py-1.5 px-2 text-right">₹{formatCurrency(previewData.totalEarnings)}</td>
+                                                            <td className="py-1.5 px-2 text-left">Deductions</td>
+                                                            <td className="py-1.5 px-2 text-right">₹{formatCurrency(previewData.totalDeductions)}</td>
+                                                        </tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    <div className="bg-[#35374d] text-white p-3 rounded-lg flex justify-between items-center mt-2">
+                                        <span className="font-bold text-xs uppercase tracking-wider text-indigo-200">Net Payable:</span>
+                                        <span className="font-black text-white text-base">₹{formatCurrency(previewData.netSalary)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -760,50 +788,68 @@ export default function PayslipsPage() {
                             </div>
                         </div>
 
-                        {/* Salary breakdown table grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                            {/* Earnings column */}
-                            <div className="border rounded-xl overflow-hidden">
-                                <div className="bg-slate-50 px-4 py-2 border-b font-bold text-slate-700">Earnings & Allowances</div>
-                                <div className="p-4 space-y-2">
-                                    <div className="flex justify-between items-center text-slate-600">
-                                        <span>Basic Salary:</span>
-                                        <span className="font-bold">{formatCurrency(activePayslip.basicSalary)}</span>
-                                    </div>
-                                    {(activePayslip.earnings || []).map((e, idx) => (
-                                        <div key={idx} className="flex justify-between items-center text-slate-600">
-                                            <span>{e.componentName}:</span>
-                                            <span className="font-bold text-emerald-600">+{formatCurrency(e.amount)}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                        {/* Wage Payslip 4-Column Table Grid */}
+                        {(() => {
+                            const eList = [
+                                { name: "Basic Salary", amount: activePayslip.basicSalary || 0 },
+                                ...(activePayslip.earnings || []).map(e => ({ name: e.componentName, amount: e.amount || 0 }))
+                            ];
+                            const dList = [
+                                ...(activePayslip.deductions || []).map(d => ({ name: d.componentName, amount: d.amount || 0 }))
+                            ];
+                            const rowsCount = Math.max(eList.length, dList.length);
+                            const paired = [];
+                            for (let i = 0; i < rowsCount; i++) {
+                                paired.push({
+                                    earning: eList[i] || null,
+                                    deduction: dList[i] || null
+                                });
+                            }
+                            const gross = eList.reduce((sum, e) => sum + (e.amount || 0), 0);
+                            const totDed = dList.reduce((sum, d) => sum + (d.amount || 0), 0);
 
-                            {/* Deductions column */}
-                            <div className="border rounded-xl overflow-hidden">
-                                <div className="bg-slate-50 px-4 py-2 border-b font-bold text-slate-700">Deductions</div>
-                                <div className="p-4 space-y-2">
-                                    {(activePayslip.deductions || []).map((d, idx) => (
-                                        <div key={idx} className="flex justify-between items-center text-slate-600">
-                                            <span>{d.componentName}:</span>
-                                            <span className="font-bold text-rose-600">-{formatCurrency(d.amount)}</span>
-                                        </div>
-                                    ))}
-                                    {(activePayslip.deductions || []).length === 0 && (
-                                        <div className="text-slate-400 text-xs italic py-2">No deductions applied.</div>
-                                    )}
+                            return (
+                                <div className="border border-[#7a8ba8] overflow-hidden rounded-lg text-xs">
+                                    <table className="w-full border-collapse">
+                                        <thead>
+                                            <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-b border-[#7a8ba8]">
+                                                <th className="py-2 px-3 text-left border-r border-[#7a8ba8] w-4/12 uppercase tracking-wide">EARNINGS</th>
+                                                <th className="py-2 px-3 text-right border-r border-[#7a8ba8] w-2/12 uppercase tracking-wide">AMOUNT</th>
+                                                <th className="py-2 px-3 text-left border-r border-[#7a8ba8] w-4/12 uppercase tracking-wide">DEDUCTIONS</th>
+                                                <th className="py-2 px-3 text-right w-2/12 uppercase tracking-wide">AMOUNT</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[#7a8ba8] bg-white">
+                                            {paired.map((row, idx) => (
+                                                <tr key={idx} className="divide-x divide-[#7a8ba8]">
+                                                    <td className="py-2 px-3 text-slate-800 font-normal">{row.earning ? row.earning.name : ""}</td>
+                                                    <td className="py-2 px-3 text-right font-medium text-slate-900">{row.earning ? `₹${formatCurrency(row.earning.amount)}` : ""}</td>
+                                                    <td className="py-2 px-3 text-slate-800 font-normal">{row.deduction ? row.deduction.name : ""}</td>
+                                                    <td className="py-2 px-3 text-right font-medium text-slate-900">{row.deduction ? `₹${formatCurrency(row.deduction.amount)}` : ""}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-t border-[#7a8ba8] divide-x divide-[#7a8ba8]">
+                                                <td className="py-2 px-3 text-left">Gross Salary</td>
+                                                <td className="py-2 px-3 text-right font-bold">₹{formatCurrency(gross)}</td>
+                                                <td className="py-2 px-3 text-left">Total Deductions</td>
+                                                <td className="py-2 px-3 text-right font-bold">₹{formatCurrency(totDed)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
                                 </div>
-                            </div>
-                        </div>
+                            );
+                        })()}
 
                         {/* Totals row */}
-                        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 flex justify-between items-center">
+                        <div className="bg-[#35374d] text-white rounded-xl p-4 flex justify-between items-center shadow-sm">
                             <div>
-                                <span className="block text-[10px] text-blue-500 font-bold uppercase tracking-wider">NET SALARY PAYABLE</span>
-                                <span className="text-xs text-slate-400 mt-0.5">Calculated based on attendance logs</span>
+                                <span className="block text-[10px] text-indigo-200 font-bold uppercase tracking-wider">NET SALARY PAYABLE</span>
+                                <span className="text-xs text-slate-300 mt-0.5">Calculated based on attendance and duty rules</span>
                             </div>
                             <div className="text-right">
-                                <span className="text-2xl font-black text-premium-blue">{formatCurrency(activePayslip.netSalary)}</span>
+                                <span className="text-2xl font-black text-white">₹{formatCurrency(activePayslip.netSalary)}</span>
                             </div>
                         </div>
 
