@@ -43,10 +43,10 @@ function getUpfrontTier(studentCount) {
             fullLabel: '75% Upfront Commercial Amount',
             multiYearLabel: 'Year 1 Upfront Commercial Amount (75%)',
             rowTitle: 'Upfront Payment (75% Advance)',
-            clausePaymentSchool: '75% upfront upon commencement of each academic year, and the remaining 25% midway through the academic year',
+            clausePaymentSchool: '75% upfront upon commencement of each academic year, and the remaining 25% immediately after platform implementation',
             clausePaymentIdCard: '75% advance before printing commencement, and the remaining 25% upon delivery of cards',
-            footer1Yr: '* Billed in two installments (75% upfront upon commencement + 25% mid-year). Taxes extra.',
-            footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two installments (75% upfront + 25% mid-year) per academic year. Taxes extra.`
+            footer1Yr: '* Billed in two installments (75% upfront upon commencement + 25% immediately after implementation). Taxes extra.',
+            footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two installments (75% upfront + 25% immediately after implementation) per academic year. Taxes extra.`
         };
     } else {
         return {
@@ -56,10 +56,10 @@ function getUpfrontTier(studentCount) {
             fullLabel: '50% Upfront Commercial Amount',
             multiYearLabel: 'Year 1 Upfront Commercial Amount (50%)',
             rowTitle: 'Upfront Payment (50% Advance)',
-            clausePaymentSchool: '50% upfront upon commencement of each academic year, and the remaining 50% midway through the academic year',
+            clausePaymentSchool: '50% upfront upon commencement of each academic year, and the remaining 50% immediately after platform implementation',
             clausePaymentIdCard: '50% advance before printing commencement, and the remaining 50% upon delivery of cards',
-            footer1Yr: '* Billed in two 50% installments (50% upfront upon commencement + 50% mid-year). Taxes extra.',
-            footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two 50% installments per academic year. Taxes extra.`
+            footer1Yr: '* Billed in two 50% installments (50% upfront upon commencement + 50% immediately after implementation). Taxes extra.',
+            footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two 50% installments (50% upfront + 50% immediately after implementation) per academic year. Taxes extra.`
         };
     }
 }

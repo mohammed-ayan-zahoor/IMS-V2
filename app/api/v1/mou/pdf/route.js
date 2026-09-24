@@ -82,10 +82,10 @@ function getUpfrontTier(studentCount) {
             fullLabel: '75% Upfront Commercial Amount',
             multiYearLabel: 'Year 1 Upfront Commercial Amount (75%)',
             rowTitle: 'Upfront Payment (75% Advance)',
-            clausePaymentSchool: '75% upfront upon commencement of each academic year, and the remaining 25% midway through the academic year',
+            clausePaymentSchool: '75% upfront upon commencement of each academic year, and the remaining 25% immediately after platform implementation',
             clausePaymentIdCard: '75% advance before printing commencement, and the remaining 25% upon delivery of cards',
-            footer1Yr: '* Billed in two installments (75% upfront upon commencement + 25% mid-year). Taxes extra.',
-            footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two installments (75% upfront + 25% mid-year) per academic year. Taxes extra.`
+            footer1Yr: '* Billed in two installments (75% upfront upon commencement + 25% immediately after implementation). Taxes extra.',
+            footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two installments (75% upfront + 25% immediately after implementation) per academic year. Taxes extra.`
         };
     } else {
         return {
@@ -95,10 +95,10 @@ function getUpfrontTier(studentCount) {
             fullLabel: '50% Upfront Commercial Amount',
             multiYearLabel: 'Year 1 Upfront Commercial Amount (50%)',
             rowTitle: 'Upfront Payment (50% Advance)',
-            clausePaymentSchool: '50% upfront upon commencement of each academic year, and the remaining 50% midway through the academic year',
+            clausePaymentSchool: '50% upfront upon commencement of each academic year, and the remaining 50% immediately after platform implementation',
             clausePaymentIdCard: '50% advance before printing commencement, and the remaining 50% upon delivery of cards',
-            footer1Yr: '* Billed in two 50% installments (50% upfront upon commencement + 50% mid-year). Taxes extra.',
-            footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two 50% installments per academic year. Taxes extra.`
+            footer1Yr: '* Billed in two 50% installments (50% upfront upon commencement + 50% immediately after implementation). Taxes extra.',
+            footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two 50% installments (50% upfront + 50% immediately after implementation) per academic year. Taxes extra.`
         };
     }
 }
@@ -351,7 +351,8 @@ function generateMouHtml(data) {
     const isIdCardOnly = Boolean(data.isIdCardOnly);
     const totalPrice = sanitizeString(data.totalPrice, 50, '₹0.00');
     const upfrontPrice = sanitizeString(data.upfrontPrice, 50, '₹0.00');
-    const commFooter = sanitizeString(data.commFooter, 250, '* Calculated on agreed student strength. Taxes extra.');
+    const tier = data.tier || getUpfrontTier(studentCount);
+    const commFooter = sanitizeString(data.commFooter, 250, duration > 1 ? tier.footerMultiYr(studentCount * yr1Rate) : tier.footer1Yr);
     const signatureDataUrl = data.signatureDataUrl || '';
 
     const mouSubtitle = isIdCardOnly
@@ -377,13 +378,17 @@ function generateMouHtml(data) {
     let collegeBreakdownHtml = '';
     if (isCollege) {
         collegeBreakdownHtml = `
-            <div style="margin-top:4px;font-size:8.5pt;color:#475569;line-height:1.4;">
+            <div style="margin-top:3px;font-size:8pt;color:#475569;line-height:1.35;">
                 • 1st Year (New Cards): <strong>${yr1Count.toLocaleString('en-IN')}</strong> students @ ₹${yr1Rate}/student<br/>
                 • 2nd Year (Renewals): <strong>${yr2Count.toLocaleString('en-IN')}</strong> students @ ₹${yr2Rate}/student
                 ${isDegreeCollege && yr3Count > 0 ? `<br/>• 3rd Year (Renewals): <strong>${yr3Count.toLocaleString('en-IN')}</strong> students @ ₹${yr2Rate}/student` : ''}
             </div>
         `;
     }
+
+    const schoolSigImgHtml = signatureDataUrl
+        ? `<img src="${signatureDataUrl}" alt="Authorised Signature" />`
+        : '';
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -406,38 +411,24 @@ function generateMouHtml(data) {
       background: #ffffff;
       color: #0f172a;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      font-size: 10pt;
-      line-height: 1.5;
+      font-size: 9.5pt;
+      line-height: 1.45;
     }
     .mou-page {
       width: 210mm;
       min-height: 297mm;
       height: 297mm;
-      padding: 20mm 22mm 20mm 22mm;
+      padding: 12mm 16mm 12mm 16mm;
       position: relative;
       background: #ffffff;
       page-break-after: always;
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      justify-content: space-between;
     }
     .mou-page:last-child {
       page-break-after: avoid;
-    }
-    .mou-watermark {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) rotate(-45deg);
-      font-size: 72pt;
-      font-weight: 900;
-      letter-spacing: 0.15em;
-      color: rgba(148, 163, 184, 0.08);
-      text-transform: uppercase;
-      pointer-events: none;
-      user-select: none;
-      z-index: 0;
-      white-space: nowrap;
     }
     .mou-running-header {
       display: flex;
@@ -447,29 +438,25 @@ function generateMouHtml(data) {
       color: #64748b;
       border-bottom: 1px solid #cbd5e1;
       padding-bottom: 4px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      position: relative;
-      z-index: 1;
     }
     .mou-content {
-      position: relative;
-      z-index: 1;
       flex: 1;
     }
     .mou-letterhead-table {
       width: 100%;
       border-collapse: collapse;
       border-bottom: 1.5pt solid #1e3a8a;
-      margin-bottom: 16px;
+      margin-bottom: 10px;
     }
     .mou-letterhead-table td {
       vertical-align: middle;
-      padding-bottom: 10px;
+      padding-bottom: 8px;
     }
     .lh-logo-cell img {
-      max-height: 48px;
+      max-height: 44px;
       width: auto;
       object-fit: contain;
     }
@@ -477,7 +464,7 @@ function generateMouHtml(data) {
       text-align: right;
     }
     .lh-corp-cell h2 {
-      font-size: 12pt;
+      font-size: 11.5pt;
       font-weight: 700;
       color: #1e3a8a;
       margin: 0 0 2px 0;
@@ -491,25 +478,25 @@ function generateMouHtml(data) {
     }
     .mou-doc-title {
       text-align: center;
-      margin: 10px 0 4px 0;
+      margin: 6px 0 2px 0;
     }
     .mou-doc-title h1 {
-      font-size: 15pt;
+      font-size: 14pt;
       font-weight: 700;
       color: #1e3a8a;
       letter-spacing: 0.03em;
-      margin: 0 0 3px 0;
+      margin: 0 0 2px 0;
     }
     .mou-doc-title .doc-subtitle {
-      font-size: 10pt;
+      font-size: 9.5pt;
       font-style: italic;
       color: #475569;
     }
     .doc-ref-date-row {
       text-align: right;
-      font-size: 9pt;
+      font-size: 8.5pt;
       color: #64748b;
-      margin: 10px 0 14px 0;
+      margin: 6px 0 10px 0;
     }
     .doc-ref-date-row strong {
       color: #0f172a;
@@ -517,13 +504,13 @@ function generateMouHtml(data) {
     .mou-parties-table {
       width: 100%;
       border-collapse: collapse;
-      border: 1px solid #cbd5e1;
-      background: #f8fafc;
-      margin-bottom: 16px;
+      border-top: 1.5pt solid #0f172a;
+      border-bottom: 1.5pt solid #0f172a;
+      margin-bottom: 12px;
     }
     .mou-parties-table td {
       width: 50%;
-      padding: 10px 14px;
+      padding: 8px 12px;
       vertical-align: top;
       border-right: 1px solid #e2e8f0;
     }
@@ -531,15 +518,15 @@ function generateMouHtml(data) {
       border-right: none;
     }
     .party-cell-title {
-      font-size: 8.5pt;
+      font-size: 8pt;
       font-weight: 700;
       color: #1e3a8a;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .party-cell-name {
-      font-size: 10.5pt;
+      font-size: 10pt;
       font-weight: 700;
       color: #0f172a;
       margin-bottom: 2px;
@@ -550,67 +537,104 @@ function generateMouHtml(data) {
       line-height: 1.35;
     }
     .mou-section {
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
     .mou-section h3 {
-      font-size: 11pt;
+      font-size: 10pt;
       font-weight: 700;
       color: #1e3a8a;
-      margin: 0 0 6px 0;
+      margin: 0 0 4px 0;
     }
     .mou-section p {
-      font-size: 9.5pt;
-      line-height: 1.5;
+      font-size: 9pt;
+      line-height: 1.45;
       color: #1e293b;
-      margin: 0 0 6px 0;
+      margin: 0 0 4px 0;
       text-align: justify;
     }
     .mou-section ul {
       padding-left: 18px;
-      margin: 0 0 6px 0;
+      margin: 0 0 4px 0;
     }
     .mou-section ul li {
-      font-size: 9pt;
-      line-height: 1.45;
+      font-size: 8.8pt;
+      line-height: 1.4;
       color: #1e293b;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .mou-commercial-table {
       width: 100%;
       border-collapse: collapse;
-      border: 1px solid #cbd5e1;
-      margin: 10px 0 12px 0;
+      border-top: 1.5pt solid #0f172a;
+      border-bottom: 1.5pt solid #0f172a;
+      margin: 6px 0 8px 0;
     }
     .mou-commercial-table td {
-      padding: 7px 10px;
-      font-size: 9pt;
+      padding: 5px 8px;
+      font-size: 8.8pt;
       border: 1px solid #e2e8f0;
       vertical-align: middle;
     }
     .mou-commercial-table td.comm-td-label {
-      width: 42%;
-      background: #f1f5f9;
-      font-weight: 700;
+      width: 40%;
+      background: #fafafa;
+      font-weight: 600;
       color: #1e293b;
     }
     .mou-commercial-table td.comm-td-val {
-      width: 58%;
+      width: 60%;
       color: #0f172a;
     }
     .comm-val-strong {
       font-weight: 700;
       color: #1e3a8a;
-      font-size: 10pt;
+      font-size: 9.5pt;
     }
     .comm-val-upfront {
       font-weight: 700;
       color: #059669;
-      font-size: 10pt;
+      font-size: 9.5pt;
+    }
+    .mou-page-sig-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid #cbd5e1;
+    }
+    .sig-footer-col {
+      width: 46%;
+    }
+    .sig-footer-col.sig-footer-right {
+      text-align: right;
+    }
+    .sig-footer-img-wrap {
+      height: 32px;
+      display: flex;
+      align-items: flex-end;
+    }
+    .sig-footer-col.sig-footer-right .sig-footer-img-wrap {
+      justify-content: flex-end;
+    }
+    .sig-footer-img-wrap img {
+      max-height: 30px;
+      max-width: 130px;
+      object-fit: contain;
+    }
+    .sig-footer-line {
+      border-bottom: 1px solid #0f172a;
+      margin: 2px 0 3px 0;
+    }
+    .sig-footer-text {
+      font-size: 7.5pt;
+      color: #475569;
+      line-height: 1.25;
     }
     .mou-signatures-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 16px;
+      margin-top: 12px;
       page-break-inside: avoid;
     }
     .mou-signatures-table td {
@@ -622,31 +646,30 @@ function generateMouHtml(data) {
       padding: 0 0 0 14px;
     }
     .sig-party-title {
-      font-size: 9pt;
+      font-size: 8.5pt;
       font-weight: 700;
       color: #1e3a8a;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
-    .sig-box-preview {
-      height: 90px;
-      border: 1px dashed #cbd5e1;
-      background: #f8fafc;
+    .sig-direct-wrap {
+      height: 52px;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      overflow: hidden;
-      margin-bottom: 6px;
+      align-items: flex-end;
+      justify-content: flex-start;
+      margin-bottom: 2px;
     }
-    .sig-box-preview img {
-      max-height: 80px;
-      max-width: 90%;
+    .sig-direct-img {
+      max-height: 48px;
+      max-width: 180px;
       object-fit: contain;
     }
+    .sig-direct-placeholder {
+      height: 40px;
+    }
     .sig-line-rule {
-      border-bottom: 1px solid #0f172a;
+      border-bottom: 1.5pt solid #0f172a;
       height: 1px;
-      margin: 4px 0 6px 0;
+      margin: 2px 0 5px 0;
     }
     .sig-meta-text p {
       font-size: 8.5pt;
@@ -655,12 +678,12 @@ function generateMouHtml(data) {
       margin: 0 0 2px 0;
     }
     .mou-doc-footer-note {
-      font-size: 8pt;
+      font-size: 7.5pt;
       color: #94a3b8;
       text-align: center;
       border-top: 1px solid #f1f5f9;
-      padding-top: 10px;
-      margin-top: 16px;
+      padding-top: 6px;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -668,7 +691,6 @@ function generateMouHtml(data) {
 
   <!-- Page 1 -->
   <div class="mou-page">
-    <div class="mou-watermark">CONFIDENTIAL</div>
     <div class="mou-running-header">
       <span>Official Memorandum of Understanding</span>
       <span>MOU Agreement with <strong>${schoolName}</strong></span>
@@ -757,11 +779,34 @@ function generateMouHtml(data) {
         <p>${clause2Sla}</p>
       </div>
     </div>
+
+    <!-- Page 1 Signature Footer -->
+    <div class="mou-page-sig-footer">
+      <div class="sig-footer-col">
+        <div class="sig-footer-img-wrap">
+          ${schoolSigImgHtml}
+        </div>
+        <div class="sig-footer-line"></div>
+        <div class="sig-footer-text">
+          <span><strong>${principalName}</strong> (${designation})</span><br/>
+          <span>For ${schoolName}</span>
+        </div>
+      </div>
+      <div class="sig-footer-col sig-footer-right">
+        <div class="sig-footer-img-wrap">
+          <img src="/assets/sign.png" alt="Quantech Signatory" />
+        </div>
+        <div class="sig-footer-line"></div>
+        <div class="sig-footer-text">
+          <span><strong>Authorised Representative</strong></span><br/>
+          <span>For Quantech Infosystem LLP.</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Page 2 -->
   <div class="mou-page">
-    <div class="mou-watermark">CONFIDENTIAL</div>
     <div class="mou-running-header">
       <span>Official Memorandum of Understanding</span>
       <span>MOU Agreement with <strong>${schoolName}</strong></span>
@@ -784,7 +829,7 @@ function generateMouHtml(data) {
         <ul>
           <li>Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.</li>
           <li>Provide accurate and complete student data for onboarding within 14 days of agreement execution.</li>
-          <li>Ensure timely payment of subscription fees: <strong>${data.tier?.clausePaymentSchool || 'upfront advance upon commencement'}</strong> upon invoice issuance by the Provider.</li>
+          <li>Ensure timely payment of subscription fees: <strong>${tier.clausePaymentSchool || 'upfront advance upon commencement'}</strong> upon invoice issuance by the Provider.</li>
           <li>Not share, sub-license, or resell access to the Quantech Platform to any third party.</li>
           <li>Report technical issues through the designated support channel promptly.</li>
         </ul>
@@ -795,11 +840,34 @@ function generateMouHtml(data) {
         <p>Both Parties agree to maintain strict confidentiality of all information exchanged under this MOU, including student data, pricing, and platform configurations. Student data shall be used solely for the purpose of providing the agreed services and shall not be shared with any third party without prior written consent.</p>
       </div>
     </div>
+
+    <!-- Page 2 Signature Footer -->
+    <div class="mou-page-sig-footer">
+      <div class="sig-footer-col">
+        <div class="sig-footer-img-wrap">
+          ${schoolSigImgHtml}
+        </div>
+        <div class="sig-footer-line"></div>
+        <div class="sig-footer-text">
+          <span><strong>${principalName}</strong> (${designation})</span><br/>
+          <span>For ${schoolName}</span>
+        </div>
+      </div>
+      <div class="sig-footer-col sig-footer-right">
+        <div class="sig-footer-img-wrap">
+          <img src="/assets/sign.png" alt="Quantech Signatory" />
+        </div>
+        <div class="sig-footer-line"></div>
+        <div class="sig-footer-text">
+          <span><strong>Authorised Representative</strong></span><br/>
+          <span>For Quantech Infosystem LLP.</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Page 3 -->
   <div class="mou-page">
-    <div class="mou-watermark">CONFIDENTIAL</div>
     <div class="mou-running-header">
       <span>Official Memorandum of Understanding</span>
       <span>MOU Agreement with <strong>${schoolName}</strong></span>
@@ -830,8 +898,8 @@ function generateMouHtml(data) {
         <tr>
           <td>
             <div class="sig-party-title">For and on behalf of Institution (Party B):</div>
-            <div class="sig-box-preview">
-              ${signatureDataUrl ? `<img src="${signatureDataUrl}" alt="Authorised Signature" />` : `<span style="font-size:9pt;color:#94a3b8;font-style:italic;">Authorised Signatory</span>`}
+            <div class="sig-direct-wrap">
+              ${signatureDataUrl ? `<img src="${signatureDataUrl}" alt="Authorised Signature" class="sig-direct-img" />` : `<div class="sig-direct-placeholder"></div>`}
             </div>
             <div class="sig-line-rule"></div>
             <div class="sig-meta-text">
@@ -844,8 +912,8 @@ function generateMouHtml(data) {
           </td>
           <td>
             <div class="sig-party-title">For and on behalf of Provider (Party A):</div>
-            <div class="sig-box-preview">
-              <img src="/assets/sign.png" alt="Quantech Authorised Signatory" />
+            <div class="sig-direct-wrap">
+              <img src="/assets/sign.png" alt="Quantech Authorised Signatory" class="sig-direct-img" />
             </div>
             <div class="sig-line-rule"></div>
             <div class="sig-meta-text">
@@ -953,8 +1021,8 @@ export async function POST(req) {
             }
         }
 
-        // Mode B: Resilient Puppeteer HTML renderer (runs if LibreOffice is missing or docx failed)
-        const html = (body.html && typeof body.html === 'string') ? body.html : generateMouHtml(body);
+        // Mode B: Clean, consistent Puppeteer HTML renderer
+        const html = generateMouHtml(body);
         const pdfBuffer = await renderHtmlWithPuppeteer(html);
         return new Response(pdfBuffer, {
             status: 200,

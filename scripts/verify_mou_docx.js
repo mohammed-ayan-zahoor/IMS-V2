@@ -79,7 +79,7 @@ async function runVerification() {
         upfrontPrice: '₹37,612.50',
         upfrontPriceLabel: '75% Upfront Commercial Amount',
         upfrontRowTitle: '75% Upfront Commercial Amount',
-        commFooter: '* Billed in two installments (75% upfront upon commencement + 25% mid-year). Taxes extra.',
+        commFooter: '* Billed in two installments (75% upfront upon commencement + 25% immediately after implementation). Taxes extra.',
         clause1Purpose: 'The purpose of this MOU is to set forth the terms under which the Provider shall grant the School access to the Quantech Platform — a cloud-based software platform for managing academics, fees, attendance, hostel, transport, and administrative operations.',
         clause2Intro: 'The Institution hereby confirms its intent to onboard the following students onto the Quantech Platform for the academic year 2026–27:',
         clause2Sla: 'Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond 850 students during the agreement period shall be subject to a revised quote.',
@@ -94,7 +94,7 @@ async function runVerification() {
         clause4Items: [
             { text: 'Appoint a designated Quantech Platform Coordinator responsible for internal rollout and communication.' },
             { text: 'Provide accurate and complete student data for onboarding within 14 days of agreement execution.' },
-            { text: 'Ensure timely payment of subscription fees, billed annually: 75% upfront upon commencement of each academic year, and the remaining 25% midway through the academic year upon invoice issuance by the Provider.' },
+            { text: 'Ensure timely payment of subscription fees, billed annually: 75% upfront upon commencement of each academic year, and the remaining 25% immediately after platform implementation upon invoice issuance by the Provider.' },
             { text: 'Not share, sub-license, or resell access to the Quantech Platform to any third party.' },
             { text: 'Report technical issues through the designated support channel promptly.' }
         ],
@@ -132,7 +132,7 @@ async function runVerification() {
         upfrontPrice: '₹47,000.00',
         upfrontPriceLabel: 'Year 1 Upfront Commercial Amount (50%)',
         upfrontRowTitle: 'Year 1 Upfront Commercial Amount (50%)',
-        commFooter: '* Billed annually at ₹94,000/year in two 50% installments per academic year. Taxes extra.',
+        commFooter: '* Billed annually at ₹94,000/year in two 50% installments (50% upfront + 50% immediately after implementation) per academic year. Taxes extra.',
         clause1Purpose: 'The purpose of this MOU is to set forth the terms under which the Provider shall design, manufacture, and supply Student Smart ID Cards & Branded Lanyards to the Institution. This agreement covers physical ID card provision and student identity services exclusively, and does not include ERP software platform access.',
         clause2Intro: 'The Institution hereby confirms its order for Student Smart ID Cards & Branded Lanyards for the following student strength for the academic year 2026–27:',
         clause2Sla: 'ID card manufacturing, lanyard branding, and delivery schedules shall be calculated based on the above student strength. Any additional student ID cards required beyond 3,200 students during the agreement period shall be billed at the agreed rate of ₹45 per card.',

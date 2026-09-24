@@ -763,12 +763,15 @@ body {
   background: var(--surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sheet);
-  padding: 20mm 25.4mm 25.4mm 25.4mm; /* Top padding reduced slightly to account for running header */
+  padding: 14mm 18mm 14mm 18mm;
   margin-bottom: 24px;
   position: relative;
   overflow: hidden;
   min-height: 297mm;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .mou-running-header {
   display: flex;
@@ -778,32 +781,12 @@ body {
   color: #64748b;
   border-bottom: 1px solid #cbd5e1;
   padding-bottom: 5px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   font-family: var(--font-doc);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   position: relative;
   z-index: 2;
-}
-.mou-watermark {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-45deg);
-  font-family: var(--font-doc);
-  font-size: 76pt;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  color: rgba(148, 163, 184, 0.09);
-  text-transform: uppercase;
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-  white-space: nowrap;
-}
-.mou-page > *:not(.mou-watermark) {
-  position: relative;
-  z-index: 1;
 }
 
 /* Letterhead matching Word Master Template */
@@ -811,15 +794,15 @@ body {
   width: 100%;
   border-collapse: collapse;
   border-bottom: 1.5pt solid #1e3a8a;
-  padding-bottom: 12px;
-  margin-bottom: 20px;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
 }
 .mou-letterhead-table td {
   vertical-align: middle;
-  padding: 0 0 10px 0;
+  padding: 0 0 8px 0;
 }
 .lh-logo-cell img {
-  max-height: 52px;
+  max-height: 48px;
   width: auto;
   object-fit: contain;
 }
@@ -828,14 +811,14 @@ body {
   font-family: var(--font-doc);
 }
 .lh-corp-cell h2 {
-  font-size: 13pt;
+  font-size: 12pt;
   font-weight: 700;
   color: #1e3a8a;
   margin-bottom: 2px;
   letter-spacing: 0.02em;
 }
 .lh-corp-cell p {
-  font-size: 9pt;
+  font-size: 8.5pt;
   color: #475569;
   line-height: 1.35;
   margin: 0;
@@ -844,27 +827,27 @@ body {
 /* Document Title Block */
 .mou-doc-title {
   text-align: center;
-  margin-top: 14px;
+  margin-top: 10px;
   margin-bottom: 4px;
 }
 .mou-doc-title h1 {
-  font-size: 17pt;
+  font-size: 15pt;
   font-weight: 700;
   color: #1e3a8a;
   letter-spacing: 0.04em;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 .mou-doc-title .doc-subtitle {
-  font-size: 11pt;
+  font-size: 10pt;
   font-style: italic;
   color: #475569;
 }
 .doc-ref-date-row {
   text-align: right;
-  font-size: 10pt;
+  font-size: 9pt;
   color: #64748b;
-  margin-top: 14px;
-  margin-bottom: 18px;
+  margin-top: 10px;
+  margin-bottom: 14px;
 }
 .doc-ref-date-row strong {
   color: #0f172a;
@@ -874,13 +857,13 @@ body {
 .mou-parties-table {
   width: 100%;
   border-collapse: collapse;
-  border: 1px solid var(--border-subtle);
-  background: #f8fafc;
-  margin-bottom: 22px;
+  border-top: 1.5pt solid #0f172a;
+  border-bottom: 1.5pt solid #0f172a;
+  margin-bottom: 16px;
 }
 .mou-parties-table td {
   width: 50%;
-  padding: 12px 16px;
+  padding: 10px 14px;
   vertical-align: top;
   border-right: 1px solid #e2e8f0;
 }
@@ -888,7 +871,7 @@ body {
   border-right: none;
 }
 .party-cell-title {
-  font-size: 9.5pt;
+  font-size: 8.5pt;
   font-weight: 700;
   color: #1e3a8a;
   text-transform: uppercase;
@@ -896,62 +879,63 @@ body {
   margin-bottom: 4px;
 }
 .party-cell-name {
-  font-size: 11pt;
+  font-size: 10.5pt;
   font-weight: 700;
   color: #0f172a;
   margin-bottom: 2px;
 }
 .party-cell-detail {
-  font-size: 9.5pt;
+  font-size: 9pt;
   color: #475569;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 /* Section Headings & Body */
 .mou-section {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 .mou-section h3 {
-  font-size: 12pt;
+  font-size: 11pt;
   font-weight: 700;
   color: #1e3a8a;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .mou-section p {
-  font-size: 10.5pt;
-  line-height: 1.55;
+  font-size: 9.5pt;
+  line-height: 1.5;
   color: #1e293b;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   text-align: justify;
 }
 .mou-section ul {
   padding-left: 20px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .mou-section ul li {
-  font-size: 10.5pt;
-  line-height: 1.5;
+  font-size: 9.5pt;
+  line-height: 1.45;
   color: #1e293b;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 /* Commercial Table matching Word Template */
 .mou-commercial-table {
   width: 100%;
   border-collapse: collapse;
-  border: 1px solid var(--border-subtle);
-  margin: 12px 0 16px 0;
+  border-top: 1.5pt solid #0f172a;
+  border-bottom: 1.5pt solid #0f172a;
+  margin: 10px 0 12px 0;
 }
 .mou-commercial-table td {
-  padding: 9px 12px;
-  font-size: 10pt;
+  padding: 7px 10px;
+  font-size: 9.5pt;
   border: 1px solid #e2e8f0;
   vertical-align: middle;
 }
 .mou-commercial-table td.comm-td-label {
   width: 42%;
-  background: #f1f5f9;
-  font-weight: 700;
+  background: #fafafa;
+  font-weight: 600;
   color: #1e293b;
 }
 .mou-commercial-table td.comm-td-val {
@@ -961,19 +945,57 @@ body {
 .comm-val-strong {
   font-weight: 700;
   color: #1e3a8a;
-  font-size: 11pt;
+  font-size: 10pt;
 }
 .comm-val-upfront {
   font-weight: 700;
   color: #059669;
-  font-size: 11pt;
+  font-size: 10pt;
+}
+
+/* Page Signatures Footer (All Pages) */
+.mou-page-sig-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #cbd5e1;
+}
+.sig-footer-col {
+  width: 46%;
+}
+.sig-footer-col.sig-footer-right {
+  text-align: right;
+}
+.sig-footer-img-wrap {
+  height: 34px;
+  display: flex;
+  align-items: flex-end;
+}
+.sig-footer-col.sig-footer-right .sig-footer-img-wrap {
+  justify-content: flex-end;
+}
+.sig-footer-img-wrap img {
+  max-height: 32px;
+  max-width: 130px;
+  object-fit: contain;
+}
+.sig-footer-line {
+  border-bottom: 1px solid #0f172a;
+  margin: 2px 0 4px 0;
+}
+.sig-footer-text {
+  font-size: 8pt;
+  color: #475569;
+  line-height: 1.3;
 }
 
 /* Signatures Table matching Word Template */
 .mou-signatures-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 24px;
+  margin-top: 16px;
   page-break-inside: avoid;
   break-inside: avoid;
 }
@@ -986,34 +1008,33 @@ body {
   padding: 0 0 0 16px;
 }
 .sig-party-title {
-  font-size: 10pt;
+  font-size: 9pt;
   font-weight: 700;
   color: #1e3a8a;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
-.sig-box-preview {
-  height: 110px;
-  border: 1px dashed var(--border-subtle);
-  background: #f8fafc;
+.sig-direct-wrap {
+  height: 56px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  margin-bottom: 8px;
+  align-items: flex-end;
+  justify-content: flex-start;
+  margin-bottom: 2px;
 }
-.sig-box-preview img {
-  max-height: 100%;
-  max-width: 100%;
+.sig-direct-img {
+  max-height: 52px;
+  max-width: 180px;
   object-fit: contain;
 }
+.sig-direct-placeholder {
+  height: 44px;
+}
 .sig-line-rule {
-  border-bottom: 1px solid #0f172a;
-  height: 2px;
-  margin: 6px 0 8px 0;
+  border-bottom: 1.5pt solid #0f172a;
+  height: 1px;
+  margin: 2px 0 6px 0;
 }
 .sig-meta-text p {
-  font-size: 9.5pt;
+  font-size: 9pt;
   line-height: 1.35;
   color: #334155;
   margin-bottom: 2px;
@@ -1022,12 +1043,13 @@ body {
 /* Document Footer */
 .mou-doc-footer-note {
   font-family: var(--font-doc);
-  font-size: 8.5pt;
+  font-size: 8pt;
   color: #94a3b8;
   text-align: center;
   border-top: 1px solid #f1f5f9;
-  padding-top: 12px;
-  margin-top: 24px;
+  padding-top: 8px;
+  margin-top: 16px;
+}
 }
 
 /* Edit Step Buttons on Review Document */
@@ -1783,7 +1805,6 @@ body.is-exporting .mou-signatures-table td:last-child {
             
             <!-- Page 1 -->
             <div class="mou-page" id="mou-page-1">
-              <div class="mou-watermark" aria-hidden="true">CONFIDENTIAL</div>
               <div class="mou-running-header">
                 <span>Official Memorandum of Understanding</span>
                 <span>MOU Agreement with <strong class="d-school-running">[ School Name ]</strong></span>
@@ -1885,11 +1906,32 @@ body.is-exporting .mou-signatures-table td:last-child {
 
                 <p id="d-clause2-sla">Licensing, data storage allocation, and support SLAs shall be calculated based on the above enrollment strength. Any increase beyond <span id="d-students-plus">—</span> students during the agreement period shall be subject to a revised quote.</p>
               </div>
+
+              <!-- Page 1 Signature Footer -->
+              <div class="mou-page-sig-footer">
+                <div class="sig-footer-col">
+                  <div class="sig-footer-img-wrap" id="docSigPage1"></div>
+                  <div class="sig-footer-line"></div>
+                  <div class="sig-footer-text">
+                    <span><strong class="d-principal-running">[ Authorised Signatory ]</strong> (<span class="d-desig-running">[ Designation ]</span>)</span><br/>
+                    <span>For <span class="d-school-running">[ School Name ]</span></span>
+                  </div>
+                </div>
+                <div class="sig-footer-col sig-footer-right">
+                  <div class="sig-footer-img-wrap">
+                    <img src="/assets/sign.png" alt="Quantech Signatory" />
+                  </div>
+                  <div class="sig-footer-line"></div>
+                  <div class="sig-footer-text">
+                    <span><strong>Authorised Representative</strong></span><br/>
+                    <span>For Quantech Infosystem LLP.</span>
+                  </div>
+                </div>
+              </div>
             </div><!-- end Page 1 -->
 
             <!-- Page 2 -->
             <div class="mou-page" id="mou-page-2">
-              <div class="mou-watermark" aria-hidden="true">CONFIDENTIAL</div>
               <div class="mou-running-header">
                 <span>Official Memorandum of Understanding</span>
                 <span>MOU Agreement with <strong class="d-school-running">[ School Name ]</strong></span>
@@ -1920,11 +1962,32 @@ body.is-exporting .mou-signatures-table td:last-child {
                 <h3>5. Confidentiality</h3>
                 <p>Both Parties agree to maintain strict confidentiality of all information exchanged under this MOU, including student data, pricing, and platform configurations. Student data shall be used solely for the purpose of providing the agreed services and shall not be shared with any third party without prior written consent.</p>
               </div>
+
+              <!-- Page 2 Signature Footer -->
+              <div class="mou-page-sig-footer">
+                <div class="sig-footer-col">
+                  <div class="sig-footer-img-wrap" id="docSigPage2"></div>
+                  <div class="sig-footer-line"></div>
+                  <div class="sig-footer-text">
+                    <span><strong class="d-principal-running">[ Authorised Signatory ]</strong> (<span class="d-desig-running">[ Designation ]</span>)</span><br/>
+                    <span>For <span class="d-school-running">[ School Name ]</span></span>
+                  </div>
+                </div>
+                <div class="sig-footer-col sig-footer-right">
+                  <div class="sig-footer-img-wrap">
+                    <img src="/assets/sign.png" alt="Quantech Signatory" />
+                  </div>
+                  <div class="sig-footer-line"></div>
+                  <div class="sig-footer-text">
+                    <span><strong>Authorised Representative</strong></span><br/>
+                    <span>For Quantech Infosystem LLP.</span>
+                  </div>
+                </div>
+              </div>
             </div><!-- end Page 2 -->
 
             <!-- Page 3 -->
             <div class="mou-page" id="mou-page-3">
-              <div class="mou-watermark" aria-hidden="true">CONFIDENTIAL</div>
               <div class="mou-running-header">
                 <span>Official Memorandum of Understanding</span>
                 <span>MOU Agreement with <strong class="d-school-running">[ School Name ]</strong></span>
@@ -1954,8 +2017,8 @@ body.is-exporting .mou-signatures-table td:last-child {
                 <tr>
                   <td>
                     <div class="sig-party-title">For and on behalf of Institution (Party B):</div>
-                    <div class="sig-box-preview" id="docSigReviewBox">
-                      <span id="docSigPendingText" style="font-size:10pt;color:#94a3b8;font-style:italic;">[ Signature will appear here in Step 5 ]</span>
+                    <div class="sig-direct-wrap" id="docSigReviewBox">
+                      <div class="sig-direct-placeholder"></div>
                     </div>
                     <div class="sig-line-rule"></div>
                     <div class="sig-meta-text">
@@ -1963,21 +2026,21 @@ body.is-exporting .mou-signatures-table td:last-child {
                       <p id="d-designation">[ Designation ]</p>
                       <p id="d-school3">[ School Name ]</p>
                       <p id="d-udise-sig">UDISE Code: —</p>
-                      <p style="color:#64748b;margin-top:4px;">Date: <span id="sig-date"></span></p>
+                      <p style="color:#64748b;margin-top:2px;">Date: <span id="sig-date"></span></p>
                     </div>
                   </td>
                   <td>
                     <div class="sig-party-title">For and on behalf of Provider (Party A):</div>
-                    <div class="sig-box-preview">
-                      <img src="/assets/sign.png" alt="Quantech Authorised Signatory"/>
+                    <div class="sig-direct-wrap">
+                      <img src="/assets/sign.png" alt="Quantech Authorised Signatory" class="sig-direct-img"/>
                     </div>
                     <div class="sig-line-rule"></div>
                     <div class="sig-meta-text">
                       <p><strong>Authorised Representative</strong></p>
                       <p>Director / CEO</p>
                       <p>Quantech Infosystem LLP.</p>
-                      <p style="color:#94a3b8;font-size:9pt;">For office use only</p>
-                      <p style="color:#64748b;margin-top:4px;">Date: <span id="doc-date2"></span></p>
+                      <p style="color:#94a3b8;font-size:8pt;">For office use only</p>
+                      <p style="color:#64748b;margin-top:2px;">Date: <span id="doc-date2"></span></p>
                     </div>
                   </td>
                 </tr>
@@ -2462,11 +2525,11 @@ function getUpfrontTier(studentCount) {
       fullLabel: '75% Upfront Commercial Amount',
       multiYearLabel: 'Year 1 Upfront Commercial Amount (75%)',
       rowTitle: 'Upfront Payment (75% Advance)',
-      clausePaymentSchool: '75% upfront upon commencement of each academic year, and the remaining 25% midway through the academic year',
+      clausePaymentSchool: '75% upfront upon commencement of each academic year, and the remaining 25% immediately after platform implementation',
       clausePaymentIdCard: '75% advance before printing commencement, and the remaining 25% upon delivery of cards',
-      footer1Yr: '* Billed in two installments (75% upfront upon commencement + 25% mid-year). Taxes extra.',
-      footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two installments (75% upfront + 25% mid-year) per academic year. Taxes extra.`,
-      railNote: '* Billed in two installments (75% upfront + 25% mid-year). Taxes extra.'
+      footer1Yr: '* Billed in two installments (75% upfront upon commencement + 25% immediately after implementation). Taxes extra.',
+      footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two installments (75% upfront + 25% immediately after implementation) per academic year. Taxes extra.`,
+      railNote: '* Billed in two installments (75% upfront + 25% immediately after implementation). Taxes extra.'
     };
   } else {
     return {
@@ -2476,10 +2539,10 @@ function getUpfrontTier(studentCount) {
       fullLabel: '50% Upfront Commercial Amount',
       multiYearLabel: 'Year 1 Upfront Commercial Amount (50%)',
       rowTitle: 'Upfront Payment (50% Advance)',
-      clausePaymentSchool: '50% upfront upon commencement of each academic year, and the remaining 50% midway through the academic year',
+      clausePaymentSchool: '50% upfront upon commencement of each academic year, and the remaining 50% immediately after platform implementation',
       clausePaymentIdCard: '50% advance before printing commencement, and the remaining 50% upon delivery of cards',
-      footer1Yr: '* Billed in two 50% installments (50% upfront upon commencement + 50% mid-year). Taxes extra.',
-      footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two 50% installments per academic year. Taxes extra.`,
+      footer1Yr: '* Billed in two 50% installments (50% upfront upon commencement + 50% immediately after implementation). Taxes extra.',
+      footerMultiYr: (yearly) => `* Billed annually at ₹${yearly.toLocaleString('en-IN')}/year in two 50% installments (50% upfront + 50% immediately after implementation) per academic year. Taxes extra.`,
       railNote: '* Billed in two 50% installments. Taxes extra.'
     };
   }
@@ -2512,6 +2575,12 @@ function updateDoc() {
   document.getElementById('d-duration').textContent = durationWords[durationVal] || 'one (1) academic year';
   document.getElementById('d-principal').textContent = principal;
   document.getElementById('d-designation').textContent = designation;
+  document.querySelectorAll('.d-principal-running').forEach(el => {
+    el.textContent = principal;
+  });
+  document.querySelectorAll('.d-desig-running').forEach(el => {
+    el.textContent = designation;
+  });
 
   // Rail values
   document.getElementById('rail-school').textContent = school;
@@ -2857,12 +2926,17 @@ function handleSigUpload(e) {
 
 function updateDocumentSignaturePreview() {
   const box = document.getElementById('docSigReviewBox');
-  if (!box) return;
+  const p1 = document.getElementById('docSigPage1');
+  const p2 = document.getElementById('docSigPage2');
   if (hasSig) {
     const dataUrl = canvas.toDataURL('image/png');
-    box.innerHTML = `<img src="${dataUrl}" alt="Authorised Signature" style="max-height:100%;max-width:100%;object-fit:contain;"/>`;
+    if (box) box.innerHTML = `<img src="${dataUrl}" alt="Authorised Signature" class="sig-direct-img"/>`;
+    if (p1) p1.innerHTML = `<img src="${dataUrl}" alt="Authorised Signature"/>`;
+    if (p2) p2.innerHTML = `<img src="${dataUrl}" alt="Authorised Signature"/>`;
   } else {
-    box.innerHTML = `<span id="docSigPendingText" style="font-size:10pt;color:#94a3b8;font-style:italic;">[ Signature will appear here in Step 5 ]</span>`;
+    if (box) box.innerHTML = `<div class="sig-direct-placeholder"></div>`;
+    if (p1) p1.innerHTML = ``;
+    if (p2) p2.innerHTML = ``;
   }
 }
 

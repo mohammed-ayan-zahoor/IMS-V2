@@ -44,11 +44,11 @@ async function testTier(studentCount, expectedPct, expectedAdvance) {
             throw new Error(`Clause 4 failed to include 100% advance text!`);
         }
     } else if (studentCount <= 1000) {
-        if (!docXml.includes('75% upfront upon commencement of each academic year, and the remaining 25% midway')) {
+        if (!docXml.includes('75% upfront upon commencement of each academic year, and the remaining 25% immediately after platform implementation')) {
             throw new Error(`Clause 4 failed to include 75% advance text!`);
         }
     } else {
-        if (!docXml.includes('50% upfront upon commencement of each academic year, and the remaining 50% midway')) {
+        if (!docXml.includes('50% upfront upon commencement of each academic year, and the remaining 50% immediately after platform implementation')) {
             throw new Error(`Clause 4 failed to include 50% advance text!`);
         }
     }
