@@ -145,13 +145,31 @@ export async function GET(req) {
                     const contentType = qrRes.headers.get('content-type') || '';
                     if (contentType.includes('application/json')) {
                         const json = await qrRes.json();
-                        qrData = json.qr || json.data || json.image || json.base64 || null;
-                        if (qrData) break;
+                        let raw = json.qr || json.data || json.image || json.base64 || json.code || json.raw || (typeof json === 'string' ? json : null);
+                        if (raw) {
+                            if (typeof raw === 'string' && (raw.startsWith('data:image/') || raw.startsWith('http://') || raw.startsWith('https://'))) {
+                                qrData = raw;
+                            } else if (typeof raw === 'string' && raw.length > 20) {
+                                // Raw pairing string -> render as QR code image URL
+                                qrData = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(raw)}`;
+                            }
+                            break;
+                        }
                     } else if (contentType.includes('image/')) {
                         const buffer = await qrRes.arrayBuffer();
                         const base64 = Buffer.from(buffer).toString('base64');
                         qrData = `data:${contentType};base64,${base64}`;
                         break;
+                    } else {
+                        const text = await qrRes.text();
+                        if (text && text.length > 10) {
+                            if (text.startsWith('data:image/')) {
+                                qrData = text;
+                            } else {
+                                qrData = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(text)}`;
+                            }
+                            break;
+                        }
                     }
                 }
             } catch {
