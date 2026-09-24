@@ -84,7 +84,13 @@ export function WebsiteThemeProvider({ children, initialTheme = 'default' }) {
 export function useWebsiteTheme() {
     const context = useContext(WebsiteThemeContext);
     if (!context) {
-        throw new Error('useWebsiteTheme must be used within WebsiteThemeProvider');
+        return {
+            theme: 'default',
+            colors: PRESET_THEMES.default,
+            updateTheme: () => {},
+            updateCustomColors: () => {},
+            availableThemes: Object.keys(PRESET_THEMES)
+        };
     }
     return context;
 }

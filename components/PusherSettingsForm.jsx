@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from 'react';
 import { AlertCircle, CheckCircle, Lock, Eye, EyeOff, Loader, MessageSquare, Save, Zap } from 'lucide-react';
 import Card, { CardHeader } from '@/components/ui/Card';

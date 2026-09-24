@@ -98,7 +98,14 @@ export function AcademicSessionProvider({ children }) {
 export const useAcademicSession = () => {
     const context = useContext(AcademicSessionContext);
     if (!context) {
-        throw new Error("useAcademicSession must be used within an AcademicSessionProvider");
+        return {
+            sessions: [],
+            selectedSessionId: null,
+            selectedSession: null,
+            changeSession: () => {},
+            loading: false,
+            refreshSessions: () => {}
+        };
     }
     return context;
 };

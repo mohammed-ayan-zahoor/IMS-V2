@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle, CheckCircle2, Lock, Eye, EyeOff, Loader, MessageSquare, Save, Settings, PhoneCall, Key, Send, Loader2, QrCode, RefreshCw, ExternalLink } from 'lucide-react';
 import Card, { CardHeader } from '@/components/ui/Card';

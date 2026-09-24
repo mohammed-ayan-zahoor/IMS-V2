@@ -282,7 +282,7 @@ export default function SettingsPage() {
                                         <input
                                             required
                                             type="text"
-                                            value={institute.name}
+                                            value={institute.name || ""}
                                             onChange={e => setInstitute({ ...institute, name: e.target.value })}
                                             className="w-full pl-10 pr-3.5 py-2 text-xs font-medium text-[#101828] bg-white border border-[#D0D5DD] rounded-lg outline-none focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 transition-all placeholder:text-[#98A2B3]"
                                             placeholder="e.g. Azhka Institute of Technology"
@@ -331,7 +331,7 @@ export default function SettingsPage() {
                                         <input
                                             required
                                             type="email"
-                                            value={institute.contactEmail}
+                                            value={institute.contactEmail || ""}
                                             onChange={e => setInstitute({ ...institute, contactEmail: e.target.value })}
                                             className="w-full pl-10 pr-3.5 py-2 text-xs font-medium text-[#101828] bg-white border border-[#D0D5DD] rounded-lg outline-none focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 transition-all placeholder:text-[#98A2B3]"
                                             placeholder="admin@institute.com"
