@@ -127,67 +127,42 @@ export async function GET(req) {
             });
         }
 
-        // 2. Fetch live QR Code
-        const candidateQrEndpoints = [
-            `${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}/qr`,
-            `${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}/screenshot`,
-            `${baseUrl}/api/getQr`,
-            `${baseUrl}/getQr`,
-            `${baseUrl}/qr`
-        ];
-
+        // 2. Fetch live QR Code from OpenWA session endpoint
+        const qrEndpoint = `${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}/qr`;
         let qrData = null;
 
-        for (const qrUrl of candidateQrEndpoints) {
-            try {
-                const qrRes = await fetch(qrUrl, { headers, cache: 'no-store' });
-                if (qrRes.ok) {
-                    const contentType = qrRes.headers.get('content-type') || '';
-                    if (contentType.includes('application/json')) {
-                        const json = await qrRes.json();
-                        let raw = json.qr || json.data || json.image || json.base64 || json.code || json.raw;
-                        if (!raw && typeof json === 'string') raw = json;
+        try {
+            const qrRes = await fetch(qrEndpoint, { headers, cache: 'no-store' });
+            if (qrRes.ok) {
+                const contentType = qrRes.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const json = await qrRes.json();
+                    let raw = json?.qrCode || json?.qr || json?.data?.qrCode || json?.data?.qr || (typeof json?.data === 'string' ? json.data : null) || json?.image || json?.base64;
+                    if (!raw && typeof json === 'string') raw = json;
 
-                        if (raw && typeof raw === 'string' && raw.trim()) {
-                            const trimmed = raw.trim();
-                            if (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                    if (raw && typeof raw === 'string' && raw.trim()) {
+                        const trimmed = raw.trim();
+                        if (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                            qrData = trimmed;
+                        } else if (trimmed.startsWith('iVBORw0KGgo') || trimmed.startsWith('/9j/') || trimmed.length > 500) {
+                            qrData = `data:image/png;base64,${trimmed}`;
+                        } else if (trimmed.startsWith('1@') || trimmed.startsWith('2@') || trimmed.includes(',')) {
+                            // WhatsApp pairing code format
+                            try {
+                                qrData = await QRCode.toDataURL(trimmed, { width: 300, margin: 2 });
+                            } catch {
                                 qrData = trimmed;
-                            } else if (trimmed.startsWith('iVBORw0KGgo') || trimmed.length > 500) {
-                                qrData = `data:image/png;base64,${trimmed}`;
-                            } else {
-                                // Raw WhatsApp pairing code string -> render to standard data URI
-                                try {
-                                    qrData = await QRCode.toDataURL(trimmed, { width: 300, margin: 2 });
-                                } catch {
-                                    qrData = trimmed;
-                                }
                             }
-                            break;
-                        }
-                    } else if (contentType.includes('image/')) {
-                        const buffer = await qrRes.arrayBuffer();
-                        const base64 = Buffer.from(buffer).toString('base64');
-                        qrData = `data:${contentType};base64,${base64}`;
-                        break;
-                    } else {
-                        const text = (await qrRes.text()).trim();
-                        if (text && text.length > 5) {
-                            if (text.startsWith('data:image/') || text.startsWith('http://') || text.startsWith('https://')) {
-                                qrData = text;
-                            } else {
-                                try {
-                                    qrData = await QRCode.toDataURL(text, { width: 300, margin: 2 });
-                                } catch {
-                                    qrData = text;
-                                }
-                            }
-                            break;
                         }
                     }
+                } else if (contentType.includes('image/')) {
+                    const buffer = await qrRes.arrayBuffer();
+                    const base64 = Buffer.from(buffer).toString('base64');
+                    qrData = `data:${contentType};base64,${base64}`;
                 }
-            } catch {
-                // Try next endpoint
             }
+        } catch (qrErr) {
+            console.error('[OPENWA_QR_FETCH_ERROR]', qrErr.message);
         }
 
         return NextResponse.json({
