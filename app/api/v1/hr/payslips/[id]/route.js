@@ -39,7 +39,7 @@ export async function GET(req, { params }) {
                     select: 'name'
                 }
             })
-            .populate('institute', 'name code address contact email logo settings')
+            .populate('institute', 'name code address contact contactEmail contactPhone email logo branding settings')
             .populate('generatedBy', 'profile role');
 
         if (!payslip) {

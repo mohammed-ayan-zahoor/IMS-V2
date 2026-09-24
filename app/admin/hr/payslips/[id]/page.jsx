@@ -184,6 +184,7 @@ export default function PayslipReceiptPage() {
 
     const designation = staff.hrDetails?.designation?.name || (staff.role === 'instructor' ? 'Faculty / Teacher' : 'Staff');
     const institute = payslip.institute || {};
+    const instituteLogo = institute.branding?.logo || institute.logo;
     
     // Dates calculation
     const yearVal = parseInt(payslip.month ? payslip.year : new Date().getFullYear());
@@ -283,17 +284,28 @@ export default function PayslipReceiptPage() {
                     </div>
 
                     <div className="p-8 md:p-10 space-y-6">
-                        {/* 2. INSTITUTE / COMPANY DETAILS (Top Left) */}
-                        <div className="space-y-1 text-xs">
-                            <h2 className="text-base font-black text-slate-900 uppercase tracking-tight">
-                                {institute.name || "ABC VENTURES INC"}
-                            </h2>
-                            <p className="text-slate-600 font-medium">
-                                {formatAddress(institute.address)}
-                            </p>
-                            <p className="text-slate-600 font-medium">
-                                Contact: {institute.contactPhone || institute.contact || "(312) 555-0199"} | {institute.contactEmail || institute.email || "hr@abcventures.com"}
-                            </p>
+                        {/* 2. INSTITUTE / COMPANY DETAILS & LOGO */}
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-1 text-xs">
+                                <h2 className="text-base font-black text-slate-900 uppercase tracking-tight">
+                                    {institute.name || "ABC VENTURES INC"}
+                                </h2>
+                                <p className="text-slate-600 font-medium">
+                                    {formatAddress(institute.address)}
+                                </p>
+                                <p className="text-slate-600 font-medium">
+                                    Contact: {institute.contactPhone || institute.contact || "(312) 555-0199"} | {institute.contactEmail || institute.email || "hr@abcventures.com"}
+                                </p>
+                            </div>
+                            {instituteLogo && (
+                                <div className="shrink-0 flex items-center justify-end">
+                                    <img
+                                        src={instituteLogo}
+                                        alt={institute.name || "Institute Logo"}
+                                        className="h-14 w-auto max-w-[150px] object-contain"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* 3. DOCUMENT TITLE: Payslip for the Month of [Month Year] */}
