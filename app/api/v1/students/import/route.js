@@ -269,6 +269,10 @@ export async function POST(req) {
             return NextResponse.json({ error: "No target class/section selected" }, { status: 400 });
         }
 
+        // Pre-fetch target batch details for clean preview metadata
+        const BatchModel = (await import("@/models/Batch")).default;
+        const targetBatchDoc = await BatchModel.findById(globalTargetBatchId).populate('course').lean();
+
         // Parse file buffer
         console.log("[IMPORT_DEBUG] 7. Reading file arrayBuffer");
         const bytes = await file.arrayBuffer();
@@ -551,7 +555,7 @@ export async function POST(req) {
 
             // Use the global targetBatchId provided by the user in the UI
             let targetBatchId = globalTargetBatchId;
-            let batchStatus = "Assigned Manually";
+            let batchStatus = targetBatchDoc ? `${targetBatchDoc.name}${targetBatchDoc.course?.name ? ` (${targetBatchDoc.course.name})` : ''}` : "Assigned Manually";
 
             if (isPreview) {
                 previewRows.push({
@@ -563,7 +567,7 @@ export async function POST(req) {
                     admissionNo: enrollmentNumber || "Auto-generated",
                     rollNo: rollNo || "",
                     photoNo: photoNo || "",
-                    className: rawClass || "N/A",
+                    className: rawClass || targetBatchDoc?.course?.name || "N/A",
                     phone: phone || "N/A",
                     gender: gender || "Not Specified",
                     batchStatus,

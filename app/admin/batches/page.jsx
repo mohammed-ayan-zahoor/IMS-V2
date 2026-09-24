@@ -116,8 +116,9 @@ export default function BatchesPage() {
         try {
             setLoading(true);
             const instQuery = selectedInstitute ? `&instituteId=${selectedInstitute}` : "";
+            const sessionQuery = (!isVocational && selectedSessionId) ? `&sessionId=${selectedSessionId}` : "";
             const fetches = [
-                fetch(`/api/v1/batches?_t=${Date.now()}${instQuery}`),
+                fetch(`/api/v1/batches?_t=${Date.now()}${instQuery}${sessionQuery}`),
                 fetch(`/api/v1/courses?_t=${Date.now()}${instQuery}`)
             ];
             if (isVocational) fetches.push(fetch("/api/v1/course-bundles"));
@@ -320,7 +321,14 @@ export default function BatchesPage() {
             String(batch.course) === String(selectedCourseFilter)
         );
 
-        return matchesSearch && matchesType && matchesCourse;
+        // Session filter
+        const matchesSession = isVocational || !selectedSessionId || (
+            (batch.session?._id && String(batch.session._id) === String(selectedSessionId)) ||
+            String(batch.session) === String(selectedSessionId) ||
+            !batch.session
+        );
+
+        return matchesSearch && matchesType && matchesCourse && matchesSession;
     });
 
     const collegeFilteredCourses = courses.filter(course => {
@@ -333,17 +341,37 @@ export default function BatchesPage() {
             const matchesCourse = course.name?.toLowerCase().includes(q) || course.code?.toLowerCase().includes(q);
             const matchesBatch = batches.some(b => {
                 const isThisCourse = (b.course?._id && String(b.course._id) === String(course._id)) || String(b.course) === String(course._id);
-                return isThisCourse && b.name?.toLowerCase().includes(q);
+                const matchesSession = isVocational || !selectedSessionId || (
+                    (b.session?._id && String(b.session._id) === String(selectedSessionId)) ||
+                    String(b.session) === String(selectedSessionId) ||
+                    !b.session
+                );
+                return isThisCourse && matchesSession && b.name?.toLowerCase().includes(q);
             });
             if (!matchesCourse && !matchesBatch) return false;
         }
         return true;
     });
 
-    const totalCollegeBatches = batches.filter(b => !!b.course).length;
+    const totalCollegeBatches = batches.filter(b => {
+        const matchesSession = isVocational || !selectedSessionId || (
+            (b.session?._id && String(b.session._id) === String(selectedSessionId)) ||
+            String(b.session) === String(selectedSessionId) ||
+            !b.session
+        );
+        return !!b.course && matchesSession;
+    }).length;
 
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
-    const standaloneBatches = batches.filter(b => !b.course && !b.courseBundle);
+    const standaloneBatches = batches.filter(b => {
+        const isStandalone = !b.course && !b.courseBundle;
+        const matchesSession = isVocational || !selectedSessionId || (
+            (b.session?._id && String(b.session._id) === String(selectedSessionId)) ||
+            String(b.session) === String(selectedSessionId) ||
+            !b.session
+        );
+        return isStandalone && matchesSession;
+    });
 
     const renderSectionsTable = (batchList) => (
         <div className="overflow-x-auto">
@@ -528,7 +556,15 @@ export default function BatchesPage() {
                     ) : (
                         <div className="space-y-3">
                             {collegeFilteredCourses.map(course => {
-                                const courseBatches = batches.filter(b => (b.course?._id && String(b.course._id) === String(course._id)) || String(b.course) === String(course._id));
+                                const courseBatches = batches.filter(b => {
+                                    const isThisCourse = (b.course?._id && String(b.course._id) === String(course._id)) || String(b.course) === String(course._id);
+                                    const matchesSession = isVocational || !selectedSessionId || (
+                                        (b.session?._id && String(b.session._id) === String(selectedSessionId)) ||
+                                        String(b.session) === String(selectedSessionId) ||
+                                        !b.session
+                                    );
+                                    return isThisCourse && matchesSession;
+                                });
                                 const isExpanded = expandedCourses[course._id] !== undefined ? expandedCourses[course._id] : (collegeFilteredCourses.length === 1);
                                 const totalSemesters = course.collegeConfig?.totalSemesters || (course.duration?.value ? Math.round(course.duration.value / 6) : 8);
                                 const currentSem = Math.min(activeSemesters[course._id] || 1, totalSemesters);

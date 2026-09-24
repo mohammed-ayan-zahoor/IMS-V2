@@ -1105,7 +1105,15 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                          }));
                                      }}
                                      placeholder={isSchool ? "Select section…" : "Select batch…"}
-                                     options={batches.map(b => ({ label: b.name, value: b._id }))}
+                                     options={batches
+                                         .filter(b => !selectedSessionId || (
+                                             (b.session?._id && String(b.session._id) === String(selectedSessionId)) ||
+                                             String(b.session) === String(selectedSessionId) ||
+                                             !b.session
+                                         ))
+                                         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+                                         .map(b => ({ label: b.name, value: b._id }))
+                                     }
                                  />
                              </div>
 
@@ -2314,7 +2322,12 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                             options={[
                                                 { label: "Select...", value: "" },
                                                 ...batches
-                                                    .filter(b => b.course === importCourseId || b.course?._id === importCourseId)
+                                                    .filter(b => {
+                                                        const matchesCourse = b.course === importCourseId || b.course?._id === importCourseId;
+                                                        const matchesSession = !selectedSessionId || (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
+                                                        return matchesCourse && matchesSession;
+                                                    })
+                                                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
                                                     .map(b => ({ label: b.name, value: b._id }))
                                             ]}
                                             disabled={!importCourseId}
@@ -2636,7 +2649,12 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                             options={[
                                                 { label: "Select...", value: "" },
                                                 ...batches
-                                                    .filter(b => b.course === photoCourseId || b.course?._id === photoCourseId)
+                                                    .filter(b => {
+                                                        const matchesCourse = b.course === photoCourseId || b.course?._id === photoCourseId;
+                                                        const matchesSession = !selectedSessionId || (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
+                                                        return matchesCourse && matchesSession;
+                                                    })
+                                                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
                                                     .map(b => ({ label: b.name, value: b._id }))
                                             ]}
                                             disabled={!photoCourseId}
