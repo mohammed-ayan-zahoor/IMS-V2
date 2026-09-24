@@ -25,8 +25,10 @@ export default function AttendanceReportPage() {
     const { data: session } = useSession();
     const { selectedSessionId } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
     
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
     const [reportData, setReportData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -40,21 +42,27 @@ export default function AttendanceReportPage() {
 
     // Fetch Courses on mount
     useEffect(() => {
-        const fetchCourses = async () => {
+        const fetchInitial = async () => {
             try {
-                const res = await fetch("/api/v1/courses?active=true");
-                if (!res.ok) {
-                    console.log("Failed to fetch courses:", res.status);
-                    return;
+                const fetches = [fetch("/api/v1/courses?active=true")];
+                if (isVocational) {
+                    fetches.push(fetch("/api/v1/course-bundles"));
                 }
-                const data = await res.json();
-                if (data.courses) setCourses(data.courses);
+                const results = await Promise.all(fetches);
+                if (results[0].ok) {
+                    const data = await results[0].json();
+                    if (data.courses) setCourses(data.courses);
+                }
+                if (isVocational && results[1] && results[1].ok) {
+                    const bData = await results[1].json();
+                    setCourseBundles(bData.courseBundles || bData.bundles || (Array.isArray(bData) ? bData : []));
+                }
             } catch (error) {
-                console.error("Failed to fetch courses", error);
+                console.error("Failed to fetch courses/bundles", error);
             }
         };
-        fetchCourses();
-    }, []);
+        fetchInitial();
+    }, [isVocational]);
 
     // Fetch Batches when Course changes
     useEffect(() => {
@@ -166,7 +174,15 @@ export default function AttendanceReportPage() {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <Select
                             label={isSchool ? "Class" : "Course"}
-                            options={courses.map(c => ({ label: c.name, value: c._id }))}
+                            options={[
+                                { label: isSchool ? "All Classes" : "All Courses", value: "" },
+                                ...(isVocational && courseBundles.filter(b => b.isActive !== false).length > 0 ? [
+                                    { label: "── 🎁 PACKAGES ──", value: "hdr_bundles", disabled: true },
+                                    ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `🎁 ${b.title}`, value: b._id })),
+                                    { label: "── COURSES ──", value: "hdr_courses", disabled: true },
+                                ] : []),
+                                ...courses.map(c => ({ label: c.name, value: c._id }))
+                            ]}
                             value={selectedCourse}
                             onChange={(val) => setSelectedCourse(val)}
                             placeholder={isSchool ? "All Classes" : "All Courses"}

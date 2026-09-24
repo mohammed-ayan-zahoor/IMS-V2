@@ -50,6 +50,7 @@ const initialFormState = () => ({
 
 export default function AdminCalendarPage() {
     const { data: session } = useSession();
+    const isVocational = session?.user?.institute?.instituteType === 'VOCATIONAL';
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
     const toast = useToast();
     const confirm = useConfirm();
@@ -57,6 +58,7 @@ export default function AdminCalendarPage() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
     
     // View Settings
@@ -109,19 +111,29 @@ export default function AdminCalendarPage() {
             const coursesUrl = selectedInstitute ? `/api/v1/courses?instituteId=${selectedInstitute}` : "/api/v1/courses";
             const batchesUrl = selectedInstitute ? `/api/v1/batches?instituteId=${selectedInstitute}` : "/api/v1/batches";
 
-            const [eRes, cRes, bRes] = await Promise.all([
+            const fetches = [
                 fetch(eventUrl),
                 fetch(coursesUrl),
                 fetch(batchesUrl)
-            ]);
-            const eData = await eRes.json();
-            const cData = await cRes.json();
-            const bData = await bRes.json();
+            ];
+            if (isVocational) {
+                const bundlesUrl = selectedInstitute ? `/api/v1/course-bundles?instituteId=${selectedInstitute}` : "/api/v1/course-bundles";
+                fetches.push(fetch(bundlesUrl));
+            }
+
+            const results = await Promise.all(fetches);
+            const eData = await results[0].json();
+            const cData = await results[1].json();
+            const bData = await results[2].json();
             
             const fetchedEvents = eData.events || [];
             setEvents(fetchedEvents);
             setCourses(cData.courses || []);
             setBatches(bData.batches || []);
+            if (isVocational && results[3] && results[3].ok) {
+                const bndData = await results[3].json();
+                setCourseBundles(bndData.courseBundles || bndData.bundles || (Array.isArray(bndData) ? bndData : []));
+            }
         } catch (error) {
             console.error("Failed to load calendar data:", error);
             setEvents([]);
@@ -132,7 +144,7 @@ export default function AdminCalendarPage() {
 
     useEffect(() => {
         fetchInitialData();
-    }, [selectedInstitute]);
+    }, [selectedInstitute, isVocational]);
 
     const handleImportSubmit = async () => {
         if (!importJson.trim()) {
@@ -853,7 +865,10 @@ export default function AdminCalendarPage() {
                             <div className="space-y-1">
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Select Courses</label>
                                 <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-lg">
-                                    {courses.map(course => {
+                                    {[
+                                        ...courses,
+                                        ...(isVocational ? courseBundles.map(b => ({ ...b, name: `🎁 ${b.name}` })) : [])
+                                    ].map(course => {
                                         const isSelected = formData.targetIds.includes(course._id);
                                         return (
                                             <button

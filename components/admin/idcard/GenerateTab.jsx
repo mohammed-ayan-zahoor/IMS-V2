@@ -85,12 +85,22 @@ export default function GenerateTab() {
         return () => clearTimeout(timer);
     }, [filter, searchQuery, page, courseId, batchId]);
 
+    const [courseBundles, setCourseBundles] = useState([]);
+
     const fetchCourses = async () => {
         try {
-            const res = await fetch("/api/v1/courses");
-            if (res.ok) {
-                const data = await res.json();
+            const fetches = [fetch("/api/v1/courses")];
+            if (instituteType === 'VOCATIONAL') {
+                fetches.push(fetch("/api/v1/course-bundles"));
+            }
+            const results = await Promise.all(fetches);
+            if (results[0].ok) {
+                const data = await results[0].json();
                 setCourses(data.courses || (Array.isArray(data) ? data : []));
+            }
+            if (results[1] && results[1].ok) {
+                const bndData = await results[1].json();
+                setCourseBundles(bndData.courseBundles || bndData.bundles || (Array.isArray(bndData) ? bndData : []));
             }
         } catch (error) {
             console.error("Failed to load courses", error);
@@ -319,6 +329,13 @@ export default function GenerateTab() {
                                 {courses.map(c => (
                                     <option key={c._id} value={c._id}>{c.name}</option>
                                 ))}
+                                {instituteType === 'VOCATIONAL' && courseBundles.length > 0 && (
+                                    <optgroup label="🎁 PACKAGES">
+                                        {courseBundles.map(b => (
+                                            <option key={b._id} value={b._id}>🎁 {b.name}</option>
+                                        ))}
+                                    </optgroup>
+                                )}
                             </select>
                         </div>
 

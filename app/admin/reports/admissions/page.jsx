@@ -47,10 +47,10 @@ export default function AdmissionReportsPage() {
     const { data: session } = useSession();
     const router = useRouter();
 
-    // State Management
     const [loading, setLoading] = useState(false);
     const [reportType, setReportType] = useState('monthly');
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [selectedCourse, setSelectedCourse] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('');
     const [hasCheckedVocational, setHasCheckedVocational] = useState(false);
@@ -95,15 +95,20 @@ export default function AdmissionReportsPage() {
     const fetchCourses = async () => {
         try {
             if (!instituteId) return;
-            const res = await fetch(`/api/v1/courses?instituteId=${instituteId}`);
-            if (!res.ok) {
-                console.error('Failed to fetch courses:', res.statusText);
-                return;
+            const [cRes, bRes] = await Promise.all([
+                fetch(`/api/v1/courses?instituteId=${instituteId}`),
+                fetch(`/api/v1/course-bundles?instituteId=${instituteId}`)
+            ]);
+            if (cRes.ok) {
+                const data = await cRes.json();
+                if (data.courses) setCourses(data.courses);
             }
-            const data = await res.json();
-            if (data.courses) setCourses(data.courses);
+            if (bRes.ok) {
+                const bData = await bRes.json();
+                setCourseBundles(bData.courseBundles || bData.bundles || (Array.isArray(bData) ? bData : []));
+            }
         } catch (error) {
-            console.error('Failed to fetch courses:', error);
+            console.error('Failed to fetch courses/bundles:', error);
         }
     };
 
@@ -634,14 +639,16 @@ export default function AdmissionReportsPage() {
                                 value={selectedCourse}
                                 onChange={e => setSelectedCourse(e.target.value)}
                                 placeholder="All Courses"
-                            >
-                                <option value="">All Courses</option>
-                                {courses.map(course => (
-                                    <option key={course._id} value={course._id}>
-                                        {course.name}
-                                    </option>
-                                ))}
-                            </Select>
+                                options={[
+                                    { label: "All Courses", value: "" },
+                                    ...(courseBundles.filter(b => b.isActive !== false).length > 0 ? [
+                                        { label: "── 🎁 PACKAGES ──", value: "hdr_bundles", disabled: true },
+                                        ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `🎁 ${b.title}`, value: b._id })),
+                                        { label: "── COURSES ──", value: "hdr_courses", disabled: true },
+                                    ] : []),
+                                    ...courses.map(c => ({ label: c.name, value: c._id }))
+                                ]}
+                            />
                         </div>
 
                         <div>

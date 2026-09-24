@@ -59,7 +59,12 @@ export async function GET(req) {
                 institute: instituteId,
                 deletedAt: null
             };
-            if (courseId) batchQuery.course = courseId;
+            if (courseId) {
+                batchQuery.$or = [
+                    { course: courseId },
+                    { courseBundle: courseId }
+                ];
+            }
             if (sessionId) batchQuery.session = sessionId;
 
             const courseBatchIds = await Batch.find(batchQuery).distinct('_id');

@@ -18,6 +18,8 @@ const MaterialSchema = new Schema({
     },
     courses: [{ type: Schema.Types.ObjectId, ref: 'Course' }], // Array of courses (backwards compatible with single course)
     course: { type: Schema.Types.ObjectId, ref: 'Course', index: true }, // Kept for backwards compatibility
+    courseBundles: [{ type: Schema.Types.ObjectId, ref: 'CourseBundle' }], // Array of course bundles
+    courseBundle: { type: Schema.Types.ObjectId, ref: 'CourseBundle', index: true }, // Single bundle for backwards compatibility
     batches: [{ type: Schema.Types.ObjectId, ref: 'Batch' }], // Array of batches across all courses
     visibleToStudents: { type: Boolean, default: true, index: true },
     

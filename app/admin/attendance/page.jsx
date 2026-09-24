@@ -33,9 +33,11 @@ export default function AttendanceMarkingPage() {
     const { data: session } = useSession();
     const { selectedSessionId } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
     // Selection State
     const [batches, setBatches] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [selectedCourse, setSelectedCourse] = useState("");
     const [selectedBatch, setSelectedBatch] = useState("");
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -63,8 +65,11 @@ export default function AttendanceMarkingPage() {
     useEffect(() => {
         fetchBatches();
         fetchCourses();
+        if (isVocational) {
+            fetchCourseBundles();
+        }
         fetchInstituteSettings();
-    }, []);
+    }, [isVocational]);
 
     const fetchInstituteSettings = async () => {
         try {
@@ -146,6 +151,18 @@ export default function AttendanceMarkingPage() {
             setCourses(courseList);
         } catch (error) {
             console.error("Failed to fetch courses", error);
+        }
+    };
+
+    const fetchCourseBundles = async () => {
+        try {
+            const res = await fetch("/api/v1/course-bundles");
+            if (res.ok) {
+                const data = await res.json();
+                setCourseBundles(data.courseBundles || data.bundles || (Array.isArray(data) ? data : []));
+            }
+        } catch (error) {
+            console.error("Failed to fetch course bundles", error);
         }
     };
 
@@ -331,6 +348,11 @@ export default function AttendanceMarkingPage() {
                             placeholder={`-- Choose ${isSchool ? "Class" : "Course"} --`}
                             options={[
                                 { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
+                                ...(isVocational && courseBundles.filter(b => b.isActive !== false).length > 0 ? [
+                                    { label: "── 🎁 PACKAGES ──", value: "hdr_bundles", disabled: true },
+                                    ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `🎁 ${b.title}`, value: b._id })),
+                                    { label: "── COURSES ──", value: "hdr_courses", disabled: true },
+                                ] : []),
                                 ...courses.map(c => ({ label: c.name, value: c._id }))
                             ]}
                         />
@@ -349,9 +371,10 @@ export default function AttendanceMarkingPage() {
                                         const currentSessionStr = String(selectedSessionId || '');
                                         const matchesSession = !isSchool || !selectedSessionId || !batchSessionStr || batchSessionStr === currentSessionStr;
                                         
-                                        // 2. Course/Class Cascading
+                                        // 2. Course/Class or CourseBundle Cascading
                                         const batchCourseId = String(b.course?._id || b.course || '');
-                                        const matchesCourse = !selectedCourse || batchCourseId === String(selectedCourse);
+                                        const batchBundleId = String(b.courseBundle?._id || b.courseBundle || '');
+                                        const matchesCourse = !selectedCourse || batchCourseId === String(selectedCourse) || batchBundleId === String(selectedCourse);
                                         
                                         return matchesSession && matchesCourse;
                                     })

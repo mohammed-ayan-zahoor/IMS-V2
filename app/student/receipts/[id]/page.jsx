@@ -8,7 +8,8 @@ import {
     Download, 
     ChevronLeft, 
     ShieldCheck, 
-    CheckCircle2
+    CheckCircle2,
+    MessageCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/contexts/ToastContext";
@@ -281,6 +282,19 @@ export default function StudentReceiptPage({ params }) {
                             </>
                         )}
                     </button>
+
+                    <a
+                        href={`https://wa.me/?text=${encodeURIComponent(
+                            `Official Fee Receipt: ${receiptNo} for ${studentName} (${courseName} - ${batchName}). Paid Amount: ₹${(fee.paidAmount || 0).toLocaleString('en-IN')}. Institute: ${instituteName}.`
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+                        title="Share via WhatsApp"
+                    >
+                        <MessageCircle size={13} />
+                        Share on WhatsApp
+                    </a>
 
                     <button 
                         disabled={isGeneratingPdf || isDownloadingPdf}

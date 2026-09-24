@@ -39,6 +39,27 @@ class ApiEndpoints {
   static const String conversations = '/chat/conversations';
   static const String messages = '/chat/messages';
 
+  // Instructor Endpoints (shared /api/v1 routes)
+  static const String dashboardStats = '/dashboard/stats';
+  static const String instructorBatches = '/batches';
+  static const String instructorCourses = '/courses';
+  static const String instructorSubjects = '/subjects';
+  static const String batchAttendance = '/attendance/batch';
+  static const String batchAttendanceSingle = '/attendance/batch/single';
+  static const String instructorMaterials = '/materials';
+  static const String instructorNotices = '/notices';
+  static const String instructorEvents = '/events';
+  static const String leaveTypes = '/hr/leave-types';
+  static const String leaveRequests = '/hr/leave-requests';
+  static String cancelLeaveRequest(String id) => '/hr/leave-requests/$id';
+  static const String instructorExams = '/exams';
+  static String examGrading(String examId) => '/exams/$examId/grade';
+  static String assignmentSubmissions(String materialId) => '/assignments/$materialId/submissions';
+  static const String offlineExams = '/offline-exams';
+  static String offlineExamResults(String id) => '/offline-exams/$id/results';
+  static const String questions = '/questions';
+  static const String syllabusProgress = '/syllabus-progress';
+
   // App Auto-Update
   static const String appVersion = '/app/version';
   static const String appDownload = '$host/api/v1/app/download';

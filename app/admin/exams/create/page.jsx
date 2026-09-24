@@ -17,9 +17,11 @@ export default function CreateExamPage() {
     const toast = useToast();
     const { data: session } = useSession();
     const isCollege = session?.user?.institute?.type === 'COLLEGE';
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL' || session?.user?.institute?.instituteType === 'VOCATIONAL';
 
     const [loading, setLoading] = useState(false);
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]); // All batches
     const [filteredBatches, setFilteredBatches] = useState([]); // Filtered by course & semester
     const [subjects, setSubjects] = useState([]); // All subjects
@@ -44,11 +46,16 @@ export default function CreateExamPage() {
     });
     useEffect(() => {
         fetchDropdowns();
-    }, []);
+    }, [isVocational]);
 
     useEffect(() => {
         if (formData.course) {
-            let courseBatches = batches.filter(b => b.course?._id === formData.course || b.course === formData.course);
+            let courseBatches = batches.filter(b => 
+                b.course?._id === formData.course || 
+                b.course === formData.course ||
+                b.courseBundle?._id === formData.course ||
+                b.courseBundle === formData.course
+            );
             if (isCollege && formData.semester) {
                 courseBatches = courseBatches.filter(b => {
                     if (b.semester) return b.semester === Number(formData.semester);
@@ -101,17 +108,25 @@ export default function CreateExamPage() {
 
     const fetchDropdowns = async () => {
         try {
-            const [cRes, bRes, sRes] = await Promise.all([
+            const fetches = [
                 fetch("/api/v1/courses"),
                 fetch("/api/v1/batches"),
                 fetch("/api/v1/subjects")
-            ]);
-            const cData = await cRes.json();
-            const bData = await bRes.json();
-            const sData = await sRes.json();
+            ];
+            if (isVocational) {
+                fetches.push(fetch("/api/v1/course-bundles"));
+            }
+            const results = await Promise.all(fetches);
+            const cData = await results[0].json();
+            const bData = await results[1].json();
+            const sData = await results[2].json();
             setCourses(cData.courses || []);
             setBatches(bData.batches || []);
             setSubjects(sData.subjects || []);
+            if (isVocational && results[3] && results[3].ok) {
+                const bndData = await results[3].json();
+                setCourseBundles(bndData.courseBundles || bndData.bundles || (Array.isArray(bndData) ? bndData : []));
+            }
         } catch (error) {
             console.error("Failed to fetch dropdowns", error);
         }
@@ -230,7 +245,11 @@ export default function CreateExamPage() {
                                 placeholder="-- Choose Course --"
                                 options={[
                                     { label: "-- Choose Course --", value: "" },
-                                    ...courses.map(c => ({ label: c.name, value: c._id }))
+                                    ...courses.map(c => ({ label: c.name, value: c._id })),
+                                    ...(isVocational && courseBundles.length > 0 ? [
+                                        { label: "── 🎁 PACKAGES ──", value: "", disabled: true },
+                                        ...courseBundles.map(b => ({ label: `🎁 ${b.name}`, value: b._id }))
+                                    ] : [])
                                 ]}
                             />
                         </div>

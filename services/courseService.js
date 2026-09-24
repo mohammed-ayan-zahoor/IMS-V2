@@ -464,6 +464,11 @@ export class BatchService {
                             { session: { $exists: false } }
                         ];
                     }
+                } else if (key === 'course' && safeFilters.course && !safeFilters.courseBundle) {
+                    query.$or = [
+                        { course: safeFilters.course },
+                        { courseBundle: safeFilters.course }
+                    ];
                 } else {
                     query[key] = safeFilters[key];
                 }

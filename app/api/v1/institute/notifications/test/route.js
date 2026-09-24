@@ -25,16 +25,18 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { to, message } = body;
+        const { to, message, type } = body;
 
         if (!to || !message) {
             return NextResponse.json({ error: "Recipient phone 'to' and 'message' are required." }, { status: 400 });
         }
 
-        console.log(`[DIAGNOSTICS] Launching live message test to ${to} for Institute ${scope.instituteId}`);
+        console.log(`[DIAGNOSTICS] Launching live ${type || 'sms'} test to ${to} for Institute ${scope.instituteId}`);
 
         // Call the dynamic Multi-Tenant Notification Broker
-        const testResult = await NotificationService.sendSMS(scope.instituteId, to, message);
+        const testResult = type === 'whatsapp'
+            ? await NotificationService.sendWhatsAppText(scope.instituteId, to, message)
+            : await NotificationService.sendSMS(scope.instituteId, to, message);
 
         // Update lastTestedAt status in database
         await Institute.findByIdAndUpdate(scope.instituteId, {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, Lock, Eye, EyeOff, Loader, MessageSquare, Save, Settings, PhoneCall, Key } from 'lucide-react';
+import { AlertCircle, CheckCircle, Lock, Eye, EyeOff, Loader, MessageSquare, Save, Settings, PhoneCall, Key, Send, Loader2 } from 'lucide-react';
 import Card, { CardHeader } from '@/components/ui/Card';
 
 export default function NotificationSettingsForm() {
@@ -8,9 +8,13 @@ export default function NotificationSettingsForm() {
   const [showMsg91AuthKey, setShowMsg91AuthKey] = useState(false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
   const [showMetaAccessToken, setShowMetaAccessToken] = useState(false);
+  const [showOpenwaApiKey, setShowOpenwaApiKey] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [activeSubTab, setActiveSubTab] = useState('sms'); // 'sms' | 'whatsapp' | 'voice'
+  const [waTestPhone, setWaTestPhone] = useState('');
+  const [waTestStatus, setWaTestStatus] = useState(null); // null | 'sending' | 'ok' | 'err'
+  const [waTestMsg, setWaTestMsg] = useState('');
 
   const [formData, setFormData] = useState({
     // SMS
@@ -25,6 +29,9 @@ export default function NotificationSettingsForm() {
     whatsappProvider: 'mock',
     metaPhoneNumberId: '',
     metaAccessToken: '',
+    openwaServerUrl: '',
+    openwaApiKey: '',
+    openwaSessionId: '',
     // Voice (Platform Master Billed Model)
     voiceCallProvider: 'mock',
     overdueVoiceReminderEnabled: false,
@@ -61,6 +68,9 @@ export default function NotificationSettingsForm() {
           whatsappProvider: notifications.whatsappProvider || 'mock',
           metaPhoneNumberId: notifications.metaPhoneNumberId || '',
           metaAccessToken: notifications.metaAccessToken || '',
+          openwaServerUrl: notifications.openwaServerUrl || '',
+          openwaApiKey: notifications.openwaApiKey || '',
+          openwaSessionId: notifications.openwaSessionId || '',
           voiceCallProvider: notifications.voiceCallProvider || 'mock',
           overdueVoiceReminderEnabled: notifications.overdueVoiceReminderEnabled || false,
           dedicatedCallerId: notifications.dedicatedCallerId || ''
@@ -113,6 +123,34 @@ export default function NotificationSettingsForm() {
       setErrorMessage(`Save failed: ${error.message}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleWaTest = async () => {
+    if (!waTestPhone.trim()) return;
+    setWaTestStatus('sending');
+    setWaTestMsg('');
+    try {
+      const res = await fetch('/api/v1/institute/notifications/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'whatsapp',
+          to: waTestPhone.trim(),
+          message: 'This is a test WhatsApp message from your IMS platform. Configuration is working correctly! ✓'
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setWaTestStatus('ok');
+        setWaTestMsg(`Sent via ${data.testResult?.provider || 'provider'}`);
+      } else {
+        setWaTestStatus('err');
+        setWaTestMsg(data.error || 'Test failed');
+      }
+    } catch (e) {
+      setWaTestStatus('err');
+      setWaTestMsg(e.message);
     }
   };
 
@@ -312,10 +350,72 @@ export default function NotificationSettingsForm() {
                 className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
               >
                 <option value="mock">Console Logger (Mock)</option>
+                <option value="openwa">OpenWA Gateway (Self-Hosted / GitHub)</option>
                 <option value="meta">Meta Cloud API (Official)</option>
                 <option value="twilio">Twilio WhatsApp Sandbox/Number</option>
               </select>
             </div>
+
+            {formData.whatsappProvider === 'openwa' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 border border-slate-100 rounded-xl animate-fade-in">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                    OpenWA Server URL
+                  </label>
+                  <input
+                    type="url"
+                    name="openwaServerUrl"
+                    value={formData.openwaServerUrl}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
+                    placeholder="e.g. http://localhost:2785 or https://wa.yourdomain.com"
+                  />
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    Base URL of your self-hosted OpenWA / @open-wa/wa-automate REST API server instance.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                    API Key / Secret {formData.openwaApiKey === 'openwa_••••••••••••' && <Lock size={12} className="text-slate-400" />}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showOpenwaApiKey ? "text" : "password"}
+                      name="openwaApiKey"
+                      value={formData.openwaApiKey}
+                      onChange={handleInputChange}
+                      className="w-full pl-4 pr-10 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
+                      placeholder={formData.openwaApiKey === 'openwa_••••••••••••' ? '••••••••••••' : 'Enter OpenWA API Key (Optional)'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOpenwaApiKey(!showOpenwaApiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
+                    >
+                      {showOpenwaApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                    Session ID
+                  </label>
+                  <input
+                    type="text"
+                    name="openwaSessionId"
+                    value={formData.openwaSessionId}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
+                    placeholder="default"
+                  />
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    Session identifier configured in your OpenWA multi-session instance.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {formData.whatsappProvider === 'meta' && (
               <div className="grid grid-cols-1 gap-6 p-4 bg-slate-50 border border-slate-100 rounded-xl">
@@ -362,6 +462,39 @@ export default function NotificationSettingsForm() {
                 <p>Ensure Twilio SID, Auth Token, and Twilio Number are configured there. Your Twilio number will be automatically prefixed with <code className="bg-slate-200/60 px-1 py-0.5 rounded">whatsapp:</code> when messaging.</p>
               </div>
             )}
+
+            {/* Test WhatsApp */}
+            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
+              <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Test WhatsApp Connection</h4>
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  value={waTestPhone}
+                  onChange={e => { setWaTestPhone(e.target.value); setWaTestStatus(null); }}
+                  placeholder="+919876543210"
+                  className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={handleWaTest}
+                  disabled={!waTestPhone.trim() || waTestStatus === 'sending'}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {waTestStatus === 'sending'
+                    ? <><Loader2 size={14} className="animate-spin" /> Sending…</>
+                    : <><Send size={14} /> Send Test</>
+                  }
+                </button>
+              </div>
+              {waTestStatus === 'ok' && (
+                <p className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                  ✓ {waTestMsg}
+                </p>
+              )}
+              {waTestStatus === 'err' && (
+                <p className="text-[11px] text-red-600 font-bold">✗ {waTestMsg}</p>
+              )}
+            </div>
           </div>
         )}
 

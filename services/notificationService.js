@@ -227,9 +227,170 @@ export class NotificationService {
                 return { success: true, provider: 'meta', data };
             }
 
+            case 'openwa': {
+                if (!config.openwaServerUrl) {
+                    throw new Error('OpenWA Server URL is not configured.');
+                }
+                const baseUrl = config.openwaServerUrl.replace(/\/+$/, '');
+                const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : '';
+                const sessionId = config.openwaSessionId || 'default';
+                const cleanPhone = to.replace(/\D/g, '');
+                const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
+
+                const renderedText = `[${templateName}] ${variables.join(' | ')}`;
+
+                // Standard OpenWA REST endpoint
+                const url = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/messages/send-text`;
+                const headers = { 'Content-Type': 'application/json' };
+                if (apiKey) {
+                    headers['X-API-Key'] = apiKey;
+                    headers['api_key'] = apiKey;
+                }
+
+                let response = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ chatId, text: renderedText })
+                });
+
+                // Fallback for legacy OpenWA endpoints
+                if (!response.ok && response.status === 404) {
+                    const fallbackUrl = `${baseUrl}/api/sendText`;
+                    response = await fetch(fallbackUrl, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ to: chatId, content: renderedText, pass: apiKey })
+                    });
+                }
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.message || data.error || `OpenWA send failed (${response.status})`);
+                }
+
+                return { success: true, provider: 'openwa', data };
+            }
+
             case 'mock':
             default: {
                 console.log(`\n========================================\n[MOCK WHATSAPP TEMPLATE] SUCCESS\nTo: ${to}\nTemplate: "${templateName}"\nLanguage: "${languageCode}"\nVariables: [${variables.join(', ')}]\n========================================\n`);
+                return { success: true, provider: 'mock', messageId: 'mock-wa-' + Date.now() };
+            }
+        }
+    }
+
+    /**
+     * Send a free-form WhatsApp text message (bulk broadcast, receipts, etc.)
+     * Meta Cloud API only supports pre-approved templates for business-initiated messages —
+     * callers should show a warning banner in the UI before using provider 'meta'.
+     * @param {string} instituteId
+     * @param {string} to - recipient phone with country code, e.g. +919876543210
+     * @param {string} body - free-form message text
+     */
+    static async sendWhatsAppText(instituteId, to, body) {
+        if (!instituteId) throw new Error('Institute context is required.');
+
+        const inst = await Institute.findById(instituteId).select('notifications');
+        if (!inst?.notifications) throw new Error('School notification settings are not configured.');
+
+        const config = inst.notifications;
+        const provider = config.whatsappProvider || 'mock';
+
+        console.log(`[WA TEXT] Sending free-form WhatsApp to ${to} via "${provider}"`);
+
+        switch (provider) {
+            case 'openwa': {
+                if (!config.openwaServerUrl) {
+                    throw new Error('OpenWA Server URL is not configured in Settings.');
+                }
+                const baseUrl = config.openwaServerUrl.replace(/\/+$/, '');
+                const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : '';
+                const sessionId = config.openwaSessionId || 'default';
+                const cleanPhone = to.replace(/\D/g, '');
+                const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
+
+                const url = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/messages/send-text`;
+                const headers = { 'Content-Type': 'application/json' };
+                if (apiKey) {
+                    headers['X-API-Key'] = apiKey;
+                    headers['api_key'] = apiKey;
+                }
+
+                let response = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ chatId, text: body })
+                });
+
+                // Fallback for legacy OpenWA endpoints
+                if (!response.ok && response.status === 404) {
+                    const fallbackUrl = `${baseUrl}/api/sendText`;
+                    response = await fetch(fallbackUrl, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ to: chatId, content: body, pass: apiKey })
+                    });
+                }
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.message || data.error || `OpenWA dispatch failed (${response.status})`);
+                }
+
+                return { success: true, provider: 'openwa', data };
+            }
+
+            case 'twilio': {
+                if (!config.twilioSid || !config.twilioToken || !config.twilioNumber) {
+                    throw new Error('Twilio WhatsApp credentials are incomplete.');
+                }
+                const sid = decryptSecret(config.twilioSid);
+                const token = decryptSecret(config.twilioToken);
+                const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
+                const formattedTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
+                const formattedFrom = config.twilioNumber.startsWith('whatsapp:')
+                    ? config.twilioNumber
+                    : `whatsapp:${config.twilioNumber}`;
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({ From: formattedFrom, To: formattedTo, Body: body })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Twilio WhatsApp send failed.');
+                return { success: true, provider: 'twilio', sid: data.sid };
+            }
+
+            case 'meta': {
+                // ponytail: Meta requires pre-approved templates for business-initiated messages.
+                // Free-form text (type:'text') only works within a 24h customer service window.
+                // We attempt it anyway; caller must show a warning banner.
+                if (!config.metaPhoneNumberId || !config.metaAccessToken) {
+                    throw new Error('Meta WhatsApp Cloud credentials are incomplete.');
+                }
+                const accessToken = decryptSecret(config.metaAccessToken);
+                const url = `https://graph.facebook.com/v17.0/${config.metaPhoneNumberId}/messages`;
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messaging_product: 'whatsapp',
+                        to,
+                        type: 'text',
+                        text: { body }
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error?.message || 'Meta WhatsApp send failed.');
+                return { success: true, provider: 'meta', data };
+            }
+
+            case 'mock':
+            default: {
+                console.log(`\n========================================\n[MOCK WHATSAPP TEXT]\nTo: ${to}\nBody: "${body}"\n========================================\n`);
                 return { success: true, provider: 'mock', messageId: 'mock-wa-' + Date.now() };
             }
         }

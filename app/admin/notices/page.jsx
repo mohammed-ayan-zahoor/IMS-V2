@@ -31,12 +31,16 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 import MobileInstructorNotices from "@/components/instructor/MobileInstructorNotices";
 
 export default function AdminNoticesPage() {
+    const { data: session } = useSession();
+    const isVocational = session?.user?.institute?.instituteType === 'VOCATIONAL';
+    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
     const toast = useToast();
     const confirm = useConfirm();
 
     const [notices, setNotices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
     const [search, setSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState("all");
@@ -61,22 +65,30 @@ export default function AdminNoticesPage() {
 
     useEffect(() => {
         fetchInitialData();
-    }, []);
+    }, [isVocational]);
 
     const fetchInitialData = async () => {
         try {
-            const [nRes, cRes, bRes] = await Promise.all([
+            const fetches = [
                 fetch("/api/v1/notices"),
                 fetch("/api/v1/courses"),
                 fetch("/api/v1/batches")
-            ]);
-            const nData = await nRes.json();
-            const cData = await cRes.json();
-            const bData = await bRes.json();
+            ];
+            if (isVocational) {
+                fetches.push(fetch("/api/v1/course-bundles"));
+            }
+            const results = await Promise.all(fetches);
+            const nData = await results[0].json();
+            const cData = await results[1].json();
+            const bData = await results[2].json();
             
             setNotices(nData.notices || []);
             setCourses(cData.courses || []);
             setBatches(bData.batches || []);
+            if (isVocational && results[3] && results[3].ok) {
+                const bndData = await results[3].json();
+                setCourseBundles(bndData.courseBundles || bndData.bundles || (Array.isArray(bndData) ? bndData : []));
+            }
         } catch (error) {
             console.error(error);
         } finally {
@@ -124,9 +136,6 @@ export default function AdminNoticesPage() {
             toast.error("Error deleting notice");
         }
     };
-
-    const { data: session } = useSession();
-    const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
 
     const filteredNotices = notices.filter(n => {
         const matchesSearch = !search || n.title?.toLowerCase().includes(search.toLowerCase()) || n.content?.toLowerCase().includes(search.toLowerCase());
@@ -323,7 +332,10 @@ export default function AdminNoticesPage() {
                                     Select {formData.target.charAt(0).toUpperCase() + formData.target.slice(1)}
                                 </label>
                                 <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg max-h-[140px] overflow-y-auto">
-                                    {(formData.target === 'courses' ? courses : batches).map(item => (
+                                    {(formData.target === 'courses' 
+                                        ? [...courses, ...(isVocational ? courseBundles.map(b => ({ ...b, name: `🎁 ${b.name}` })) : [])] 
+                                        : batches
+                                    ).map(item => (
                                         <label key={item._id} className="flex items-center gap-2 p-1.5 rounded hover:bg-white transition-colors cursor-pointer">
                                             <input 
                                                 type="checkbox"

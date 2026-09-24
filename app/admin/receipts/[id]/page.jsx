@@ -2,8 +2,9 @@
 
 import { useState, useEffect, use } from "react";
 import { format } from "date-fns";
-import { Loader2, Printer } from "lucide-react";
+import { Loader2, Printer, MessageCircle, Send } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { useToast } from "@/contexts/ToastContext";
 
 const formatCurrency = (amount) => {
     return (amount || 0).toLocaleString('en-IN', {
@@ -20,11 +21,13 @@ const calculateBalance = (fee) => {
 
 export default function ReceiptPage({ params }) {
     const { id } = use(params);
+    const toast = useToast();
     const [fee, setFee] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isDualCopy, setIsDualCopy] = useState(false);
     const [previewTemplate, setPreviewTemplate] = useState(null);
+    const [isSendingWa, setIsSendingWa] = useState(false);
 
     useEffect(() => {
         fetchFeeDetails();
@@ -80,6 +83,24 @@ export default function ReceiptPage({ params }) {
         });
     };
 
+    const handleSendWaApi = async () => {
+        try {
+            setIsSendingWa(true);
+            const res = await fetch('/api/v1/messaging/whatsapp/send-receipt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'fee', id: fee._id })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to dispatch via WhatsApp');
+            toast.success(data.message || `Receipt sent via ${data.provider}!`);
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setIsSendingWa(false);
+        }
+    };
+
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-premium-blue" size={32} /></div>;
     }
@@ -122,20 +143,46 @@ export default function ReceiptPage({ params }) {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     {template === 'compact' && (
-                        <label className="flex items-center gap-2 cursor-pointer group">
+                        <label className="flex items-center gap-2 cursor-pointer group mr-2">
                             <input
                                 type="checkbox"
                                 checked={isDualCopy}
                                 onChange={(e) => setIsDualCopy(e.target.checked)}
                                 className="w-4 h-4 rounded border-slate-300 text-premium-blue focus:ring-premium-blue"
                             />
-                            <span className="text-xs font-bold text-slate-600 group-hover:text-premium-blue transition-colors">Print Dual Copy (2 per A4)</span>
+                            <span className="text-xs font-bold text-slate-600 group-hover:text-premium-blue transition-colors">Dual Copy</span>
                         </label>
                     )}
-                    <Button onClick={handlePrint} className="bg-premium-blue hover:bg-premium-blue/90">
-                        <Printer size={18} className="mr-2" />
+                    {(fee?.student?.profile?.phone || fee?.student?.guardianDetails?.phone) && (
+                        <div className="flex items-center gap-2">
+                            <Button 
+                                onClick={handleSendWaApi}
+                                disabled={isSendingWa}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 text-xs font-bold shadow-sm"
+                                title="Send automatically via OpenWA / configured gateway"
+                            >
+                                {isSendingWa ? <Loader2 size={15} className="animate-spin" /> : <Send size={14} />}
+                                Send via WA (API)
+                            </Button>
+                            <a
+                                href={`https://wa.me/${(fee.student?.profile?.phone || fee.student?.guardianDetails?.phone).replace(/\D/g, '')}?text=${encodeURIComponent(
+                                    `Hi ${fee.student?.profile?.firstName || 'Student'}, your fee payment of ${formatCurrency(fee.paidAmount || 0)} for ${fee.batch?.name || 'course'} has been recorded. Receipt Ref: #${fee._id.toString().slice(-8).toUpperCase()}${calculateBalance(fee) > 0 ? `. Balance Due: ${formatCurrency(calculateBalance(fee))}` : ' (Fully Paid)'}. - ${fee.institute?.name || ''}`
+                                )}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Open in WhatsApp Web"
+                            >
+                                <Button variant="outline" className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 flex items-center gap-1 text-xs font-bold">
+                                    <MessageCircle size={14} />
+                                    Web
+                                </Button>
+                            </a>
+                        </div>
+                    )}
+                    <Button onClick={handlePrint} className="bg-premium-blue hover:bg-premium-blue/90 text-xs font-bold">
+                        <Printer size={16} className="mr-1.5" />
                         Print
                     </Button>
                 </div>

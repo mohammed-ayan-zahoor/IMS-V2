@@ -48,8 +48,11 @@ const CompletionTrackingPage = () => {
     pages: 1
   });
 
+  const isVocational = session?.user?.institute?.type === 'VOCATIONAL' || session?.user?.institute?.instituteType === 'VOCATIONAL';
+
   // Filter Data State
   const [courses, setCourses] = useState([]);
+  const [courseBundles, setCourseBundles] = useState([]);
   const [batches, setBatches] = useState([]);
   const [courseLoading, setCourseLoading] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
@@ -65,19 +68,29 @@ const CompletionTrackingPage = () => {
         setCourseLoading(true);
         setBatchLoading(true);
         
-        const [coursesRes, batchesRes] = await Promise.all([
+        const fetches = [
           fetch("/api/v1/courses", { headers: { Accept: "application/json" } }),
           fetch("/api/v1/batches", { headers: { Accept: "application/json" } })
-        ]);
+        ];
+        if (isVocational) {
+          fetches.push(fetch("/api/v1/course-bundles", { headers: { Accept: "application/json" } }));
+        }
 
-        if (coursesRes.ok) {
-          const data = await coursesRes.json();
+        const results = await Promise.all(fetches);
+
+        if (results[0].ok) {
+          const data = await results[0].json();
           setCourses(data.courses || []);
         }
 
-        if (batchesRes.ok) {
-          const data = await batchesRes.json();
+        if (results[1].ok) {
+          const data = await results[1].json();
           setBatches(data.batches || []);
+        }
+
+        if (isVocational && results[2] && results[2].ok) {
+          const data = await results[2].json();
+          setCourseBundles(data.courseBundles || data.bundles || (Array.isArray(data) ? data : []));
         }
       } catch (error) {
         console.error("Error fetching filter data:", error);
@@ -88,7 +101,7 @@ const CompletionTrackingPage = () => {
     };
 
     fetchFilterData();
-  }, []);
+  }, [isVocational]);
 
   // Main fetch students function
   const fetchStudents = useCallback(async (pageNum = 1) => {
@@ -347,10 +360,17 @@ const CompletionTrackingPage = () => {
             />
             <Select
               value={courseId}
-              onChange={(value) => setCourseId(value)}
+              onChange={(value) => {
+                setCourseId(value);
+                setBatchId("");
+              }}
               options={[
                 { value: "", label: "All Courses" },
-                ...(courseLoading ? [] : courses.map(c => ({ label: c.name, value: c._id })))
+                ...(courseLoading ? [] : courses.map(c => ({ label: c.name, value: c._id }))),
+                ...(isVocational && courseBundles.length > 0 ? [
+                  { label: "── 🎁 PACKAGES ──", value: "", disabled: true },
+                  ...courseBundles.map(b => ({ label: `🎁 ${b.name}`, value: b._id }))
+                ] : [])
               ]}
               disabled={courseLoading}
             />
@@ -359,7 +379,9 @@ const CompletionTrackingPage = () => {
               onChange={(value) => setBatchId(value)}
               options={[
                 { value: "", label: "All Batches" },
-                ...(batchLoading ? [] : batches.map(b => ({ label: b.name, value: b._id })))
+                ...(batchLoading ? [] : batches
+                  .filter(b => !courseId || b.course?._id === courseId || b.course === courseId || b.courseBundle?._id === courseId || b.courseBundle === courseId)
+                  .map(b => ({ label: b.name, value: b._id })))
               ]}
               disabled={batchLoading}
             />
@@ -581,7 +603,7 @@ const CompletionTrackingPage = () => {
             You are about to mark <strong>{selectedStudents.size} students</strong> as completed.
           </p>
           <p className="text-slate-600 text-sm">
-            Their batch enrollment statuses will be updated to "completed". If they have no other active batch enrollments, their global status will automatically change to COMPLETED.
+            Their batch enrollment statuses will be updated to &quot;completed&quot;. If they have no other active batch enrollments, their global status will automatically change to COMPLETED.
           </p>
           <p className="text-slate-600 text-sm font-medium">
             Reason: <em>{completionReason}</em>

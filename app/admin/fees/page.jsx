@@ -64,8 +64,11 @@ export default function FeesPage() {
     });
     const [collectors, setCollectors] = useState([]);
 
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
+
     // Filters & Report State
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
     const [selectedCourse, setSelectedCourse] = useState("");
     const [selectedBatch, setSelectedBatch] = useState("");
@@ -91,10 +94,13 @@ export default function FeesPage() {
             fetchStats();
         }
         fetchCourses();
+        if (isVocational) {
+            fetchCourseBundles();
+        }
         const controller = new AbortController();
         fetchCollectors(controller.signal);
         return () => controller.abort();
-    }, [selectedSessionId, currentPage, debouncedSearch]);
+    }, [selectedSessionId, currentPage, debouncedSearch, isVocational]);
 
     useEffect(() => {
         if (selectedCourse) {
@@ -122,6 +128,18 @@ export default function FeesPage() {
             }
         } catch (error) {
             console.error("Failed to fetch courses", error);
+        }
+    };
+
+    const fetchCourseBundles = async () => {
+        try {
+            const res = await fetch("/api/v1/course-bundles");
+            if (res.ok) {
+                const data = await res.json();
+                setCourseBundles(data.courseBundles || data.bundles || (Array.isArray(data) ? data : []));
+            }
+        } catch (error) {
+            console.error("Failed to fetch course bundles", error);
         }
     };
 
@@ -509,6 +527,11 @@ export default function FeesPage() {
                             onChange={(val) => setSelectedCourse(val)}
                             options={[
                                 { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
+                                ...(isVocational && courseBundles.filter(b => b.isActive !== false).length > 0 ? [
+                                    { label: "── 🎁 PACKAGES ──", value: "hdr_bundles", disabled: true },
+                                    ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `🎁 ${b.title}`, value: b._id })),
+                                    { label: "── COURSES ──", value: "hdr_courses", disabled: true },
+                                ] : []),
                                 ...courses.map(c => ({ label: c.name, value: c._id }))
                             ]}
                             placeholder={isSchool ? "Filter Class" : "Filter Course"}

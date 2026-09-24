@@ -71,8 +71,11 @@ const CertificateManagementPage = () => {
     pages: 1
   });
 
+  const isVocational = session?.user?.institute?.type === 'VOCATIONAL' || session?.user?.institute?.instituteType === 'VOCATIONAL' || instituteType === 'VOCATIONAL';
+
   // Filter Data State
   const [courses, setCourses] = useState([]);
+  const [courseBundles, setCourseBundles] = useState([]);
   const [batches, setBatches] = useState([]);
   const [courseLoading, setCourseLoading] = useState(false);
    const [batchLoading, setBatchLoading] = useState(false);
@@ -95,24 +98,29 @@ const CertificateManagementPage = () => {
          setBatchLoading(true);
          setTemplatesLoading(true);
          
-         const [coursesRes, batchesRes, templatesRes] = await Promise.all([
+         const fetches = [
            fetch("/api/v1/courses", { headers: { Accept: "application/json" } }),
            fetch("/api/v1/batches", { headers: { Accept: "application/json" } }),
            fetch("/api/v1/certificate-templates", { headers: { Accept: "application/json" } })
-         ]);
+         ];
+         if (isVocational) {
+           fetches.push(fetch("/api/v1/course-bundles", { headers: { Accept: "application/json" } }));
+         }
 
-         if (coursesRes.ok) {
-           const data = await coursesRes.json();
+         const results = await Promise.all(fetches);
+
+         if (results[0].ok) {
+           const data = await results[0].json();
            setCourses(data.courses || []);
          }
 
-         if (batchesRes.ok) {
-           const data = await batchesRes.json();
+         if (results[1].ok) {
+           const data = await results[1].json();
            setBatches(data.batches || []);
          }
 
-         if (templatesRes.ok) {
-           const data = await templatesRes.json();
+         if (results[2].ok) {
+           const data = await results[2].json();
            setTemplates(data.data || []);
            // Set the default template if available
            const defaultTemplate = data.data?.find(t => t.isDefault);
@@ -121,6 +129,11 @@ const CertificateManagementPage = () => {
            } else if (data.data?.length > 0) {
              setSelectedTemplateId(data.data[0]._id);
            }
+         }
+
+         if (isVocational && results[3] && results[3].ok) {
+           const bndData = await results[3].json();
+           setCourseBundles(bndData.courseBundles || bndData.bundles || (Array.isArray(bndData) ? bndData : []));
          }
        } catch (error) {
          console.error("Error fetching filter data:", error);
@@ -132,7 +145,7 @@ const CertificateManagementPage = () => {
     };
 
     fetchFilterData();
-  }, []);
+  }, [isVocational]);
 
   // Main fetch students function
   const fetchStudents = useCallback(async (pageNum = 1) => {
@@ -465,7 +478,14 @@ const CertificateManagementPage = () => {
                 setCourseId(value);
                 setBatchId(""); // Reset batch when course changes
               }}
-              options={[{ value: "", label: instituteType === 'SCHOOL' ? "All Standards" : "All Courses" }, ...courses.map(c => ({ label: c.name, value: c._id }))]}
+              options={[
+                { value: "", label: instituteType === 'SCHOOL' ? "All Standards" : "All Courses" },
+                ...courses.map(c => ({ label: c.name, value: c._id })),
+                ...(isVocational && courseBundles.length > 0 ? [
+                  { label: "── 🎁 PACKAGES ──", value: "", disabled: true },
+                  ...courseBundles.map(b => ({ label: `🎁 ${b.name}`, value: b._id }))
+                ] : [])
+              ]}
               disabled={courseLoading}
             />
             <Select
@@ -474,7 +494,7 @@ const CertificateManagementPage = () => {
               options={[
                 { value: "", label: instituteType === 'SCHOOL' ? "All Sections" : "All Batches" }, 
                 ...batches
-                  .filter(b => !courseId || b.course?._id === courseId || b.course === courseId)
+                  .filter(b => !courseId || b.course?._id === courseId || b.course === courseId || b.courseBundle?._id === courseId || b.courseBundle === courseId)
                   .map(b => ({ label: b.name, value: b._id }))
               ]}
               disabled={batchLoading}

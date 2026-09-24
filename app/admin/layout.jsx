@@ -279,6 +279,7 @@ export default function AdminLayout({ children }) {
                 { label: "Website Results", icon: Award, href: "/admin/website/results" },
                 { label: "MOU Tracker", icon: FileSignature, href: "/admin/mou-tracker", role: ["super_admin"] },
 
+                { label: "WhatsApp Broadcast", icon: MessageSquare, href: "/admin/utility/whatsapp-broadcast" },
                 { label: "Settings", icon: Settings, href: "/admin/settings" },
             ]
         }

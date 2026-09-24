@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, User, Mail, BookOpen, Layers3, Loader2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -9,8 +10,11 @@ import { useToast } from "@/contexts/ToastContext";
 
 export default function QuickAddModal({ isOpen, onClose }) {
     const toast = useToast();
+    const { data: session } = useSession();
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL' || session?.user?.institute?.instituteType === 'VOCATIONAL';
     const [loading, setLoading] = useState(false);
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
     const [formData, setFormData] = useState({
         firstName: "",
@@ -25,21 +29,29 @@ export default function QuickAddModal({ isOpen, onClose }) {
         if (isOpen) {
             fetchInitialData();
         }
-    }, [isOpen]);
+    }, [isOpen, isVocational]);
 
     const fetchInitialData = async () => {
         try {
-            const [coursesRes, batchesRes] = await Promise.all([
+            const fetches = [
                 fetch("/api/v1/courses"),
                 fetch("/api/v1/batches")
-            ]);
-            if (coursesRes.ok) {
-                const data = await coursesRes.json();
+            ];
+            if (isVocational) {
+                fetches.push(fetch("/api/v1/course-bundles"));
+            }
+            const results = await Promise.all(fetches);
+            if (results[0].ok) {
+                const data = await results[0].json();
                 setCourses(data.courses || []);
             }
-            if (batchesRes.ok) {
-                const data = await batchesRes.json();
+            if (results[1].ok) {
+                const data = await results[1].json();
                 setBatches(data.batches || []);
+            }
+            if (isVocational && results[2] && results[2].ok) {
+                const bndData = await results[2].json();
+                setCourseBundles(bndData.courseBundles || bndData.bundles || (Array.isArray(bndData) ? bndData : []));
             }
         } catch (error) {
             console.error("Fetch error:", error);
@@ -145,10 +157,16 @@ export default function QuickAddModal({ isOpen, onClose }) {
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Course Allocation</label>
                             <Select 
                                 value={formData.courseId}
-                                onChange={(val) => setFormData({...formData, courseId: val})}
+                                onChange={(val) => setFormData({...formData, courseId: val, batchId: ""})}
                                 placeholder="Select Course"
                                 buttonClassName="bg-slate-50 border-none py-3 rounded-xl"
-                                options={courses.map(c => ({ label: c.name, value: c._id }))}
+                                options={[
+                                    ...courses.map(c => ({ label: c.name, value: c._id })),
+                                    ...(isVocational && courseBundles.length > 0 ? [
+                                        { label: "── 🎁 PACKAGES ──", value: "", disabled: true },
+                                        ...courseBundles.map(b => ({ label: `🎁 ${b.name}`, value: b._id }))
+                                    ] : [])
+                                ]}
                             />
                         </div>
                         <div className="space-y-1.5">
@@ -158,7 +176,9 @@ export default function QuickAddModal({ isOpen, onClose }) {
                                 onChange={(val) => setFormData({...formData, batchId: val})}
                                 placeholder="Select Batch"
                                 buttonClassName="bg-slate-50 border-none py-3 rounded-xl"
-                                options={batches.filter(b => b.course?._id === formData.courseId || !formData.courseId).map(b => ({ label: b.name, value: b._id }))}
+                                options={batches
+                                    .filter(b => !formData.courseId || b.course?._id === formData.courseId || b.course === formData.courseId || b.courseBundle?._id === formData.courseId || b.courseBundle === formData.courseId)
+                                    .map(b => ({ label: b.name, value: b._id }))}
                             />
                         </div>
                     </div>

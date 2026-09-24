@@ -64,9 +64,10 @@ export async function GET(req) {
         }
 
         // 1. Find Student's Batches & Courses
-        const studentBatches = await Batch.find(batchQuery).select("course _id").lean();
+        const studentBatches = await Batch.find(batchQuery).select("course courseBundle _id").lean();
 
-        const enrolledCourseIds = studentBatches.map(b => b.course);
+        const enrolledCourseIds = studentBatches.map(b => b.course).filter(Boolean);
+        const enrolledBundleIds = studentBatches.map(b => b.courseBundle).filter(Boolean);
         const enrolledBatchIds = studentBatches.map(b => b._id.toString());
         const enrolledBatchObjIds = studentBatches.map(b => new mongoose.Types.ObjectId(b._id));
         const allBatchIdentifiers = [...enrolledBatchIds, ...enrolledBatchObjIds];
@@ -92,7 +93,10 @@ export async function GET(req) {
             visibleToStudents: true,
             $or: [
                 { course: { $in: enrolledCourseIds } },
-                { courses: { $in: enrolledCourseIds } }
+                { courses: { $in: enrolledCourseIds } },
+                { courseBundle: { $in: enrolledBundleIds } },
+                { courseBundles: { $in: enrolledBundleIds } },
+                { batches: { $in: allBatchIdentifiers } }
             ],
             $and: [
                 {
@@ -109,14 +113,20 @@ export async function GET(req) {
         const batchId = searchParams.get("batchId");
 
         if (courseId) {
-            // Verify student is enrolled in this course (by checking if it's in their enrolled batches' courses)
-            if (!enrolledCourseIds.map(id => id.toString()).includes(courseId)) {
+            // Verify student is enrolled in this course or bundle
+            const allEnrolledIds = [
+                ...enrolledCourseIds.map(id => id.toString()),
+                ...enrolledBundleIds.map(id => id.toString())
+            ];
+            if (!allEnrolledIds.includes(courseId)) {
                 return NextResponse.json({ materials: [], pagination: { page, limit, totalCount: 0, totalPages: 0 } });
             }
             const courseObjId = mongoose.Types.ObjectId.isValid(courseId) ? new mongoose.Types.ObjectId(courseId) : courseId;
             query.$or = [
                 { course: courseObjId },
-                { courses: courseObjId }
+                { courses: courseObjId },
+                { courseBundle: courseObjId },
+                { courseBundles: courseObjId }
             ];
         }
 
@@ -159,6 +169,8 @@ export async function GET(req) {
         const [materials, totalCount] = await Promise.all([
             Material.find(query)
                 .populate("course", "name")
+                .populate("courseBundle", "title")
+                .populate("courseBundles", "title")
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)

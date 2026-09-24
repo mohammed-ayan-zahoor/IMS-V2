@@ -36,7 +36,7 @@ export async function GET(req) {
             // Verify student enrollment if courseId is provided
             if (courseId) {
                 const enrollment = await Batch.findOne({
-                    course: courseId,
+                    $or: [{ course: courseId }, { courseBundle: courseId }],
                     "enrolledStudents": {
                         $elemMatch: {
                             student: session.user.id,
@@ -79,81 +79,50 @@ export async function GET(req) {
             ];
         }
 
-        if (courseId) query.course = courseId;
+        if (courseId) {
+            query.$or = [
+                { course: courseId },
+                { courses: courseId },
+                { courseBundle: courseId },
+                { courseBundles: courseId }
+            ];
+        }
         if (batchId) {
             if (session.user.role === 'student') {
                 // For students, ensure batchId is in their enrolled batches
                 if (!courseId) {
-                    // If no courseId was provided, batchIds from line 55 already restricts access
-                    // Further narrow down to the specific batch if it's in their list
-                    // We must use $eq to strictly match the requested batch, AND keep the $in check from line 55 implicitly
-                    // actually line 55 sets query.batches = { $in: batchIds }. 
-                    // We need to intersecting them.
-                    // The simplest way is to overwrite query.batches but VALIDATE first.
-
-                    // We need the list of batchIds from line 52 to be accessible here. 
-                    // However, line 52 is inside the 'else' block of 'if (courseId)'. 
-                    // So if courseId is NOT provided, we have batchIds calculated.
-                    // If courseId IS provided, we haven't calculated batchIds yet (we did strict course check).
-
-                    // Wait, logic at 24-57 handles "Global Visibility Scope".
-                    // If courseId is passed -> we validated course enrollment.
-                    // If not passed -> we got 'batchIds' and set query.batches = { $in: batchIds }.
-
-                    // Now we are refining with a SPECIFIC batchId request.
-
-                    // Case A: No CourseId
-                    // batchIds variable is available locally? No, it's inside block 43-56.
-                    // That block sets query.batches.
-                    // If I overwrite query.batches = batchId, I lose the security restriction IF validation isn't done.
-                    // But if I validate that `batchId` is in my allowed list, I can set it.
-
-                    // To do this cleanly without re-querying, I should probably rely on the query structure construction.
-                    // OR, using the user's provided snippet logic which queries DB if needed.
-
-                    // Let's use the provided logic which is robust:
-
-                    if (!courseId) {
-                        // We are in the "Global" branch (lines 43-56 executed).
-                        // 'query.batches' is already `{ $in: [...] }`.
-                        // We want to intersect that with `batchId`.
-                        // MongoDB doesn't support simple "intersection" in assignment easily without $and.
-                        // But we can just use $and or simply check if batchId is valid for this user.
-
-                        // Re-verifying enrollment for this specific batch is safest and follows the provided snippet's pattern.
-                        const batchEnrollment = await Batch.findOne({
-                            _id: batchId,
-                            "enrolledStudents": {
-                                $elemMatch: {
-                                    student: session.user.id,
-                                    status: "active"
-                                }
+                    // Re-verifying enrollment for this specific batch is safest
+                    const batchEnrollment = await Batch.findOne({
+                        _id: batchId,
+                        "enrolledStudents": {
+                            $elemMatch: {
+                                student: session.user.id,
+                                status: "active"
                             }
-                        });
-
-                        if (!batchEnrollment) {
-                            return NextResponse.json({ error: "Not enrolled in this batch" }, { status: 403 });
                         }
-                        query.batches = batchId;
+                    });
 
-                    } else {
-                        // Case B: CourseId Provided
-                        // We verified course enrollment, but NOT batch enrollment (we might be in the course but not this batch).
-                        const batchEnrollment = await Batch.findOne({
-                            _id: batchId,
-                            course: courseId,
-                            "enrolledStudents": {
-                                $elemMatch: {
-                                    student: session.user.id,
-                                    status: "active"
-                                }
-                            }
-                        });
-                        if (!batchEnrollment) {
-                            return NextResponse.json({ error: "Not enrolled in this batch" }, { status: 403 });
-                        }
-                        query.batches = batchId;
+                    if (!batchEnrollment) {
+                        return NextResponse.json({ error: "Not enrolled in this batch" }, { status: 403 });
                     }
+                    query.batches = batchId;
+
+                } else {
+                    // Case B: CourseId Provided
+                    const batchEnrollment = await Batch.findOne({
+                        _id: batchId,
+                        $or: [{ course: courseId }, { courseBundle: courseId }],
+                        "enrolledStudents": {
+                            $elemMatch: {
+                                student: session.user.id,
+                                status: "active"
+                            }
+                        }
+                    });
+                    if (!batchEnrollment) {
+                        return NextResponse.json({ error: "Not enrolled in this batch" }, { status: 403 });
+                    }
+                    query.batches = batchId;
                 }
             } else {
                 // Non-students can filter by any batch
@@ -167,6 +136,8 @@ export async function GET(req) {
         const materials = await Material.find(query)
             .populate('course', 'name')
             .populate('courses', 'name')
+            .populate('courseBundle', 'title')
+            .populate('courseBundles', 'title')
             .populate('batches', 'name')
             .populate('uploadedBy', 'profile.firstName profile.lastName')
             .sort({ createdAt: -1 });
@@ -189,10 +160,11 @@ export async function POST(req) {
         await connectDB();
         const body = await req.json();
 
-        // Validate basic fields - support both single course and multiple courses
-        const courses = body.courses || (body.course ? [body.course] : null);
-        if (!body.title || !body.file?.url || !courses || courses.length === 0) {
-            return NextResponse.json({ error: "Missing required fields: title, file.url, and at least one course" }, { status: 400 });
+        // Validate basic fields - support both single course/bundle and multiple courses/bundles
+        const courses = body.courses || (body.course ? [body.course] : []);
+        const courseBundles = body.courseBundles || (body.courseBundle ? [body.courseBundle] : []);
+        if (!body.title || !body.file?.url || (courses.length === 0 && courseBundles.length === 0)) {
+            return NextResponse.json({ error: "Missing required fields: title, file.url, and at least one course or package" }, { status: 400 });
         }
 
         // Prevent mass assignment by picking allowed fields
@@ -208,7 +180,9 @@ export async function POST(req) {
                 size: body.file.size
             },
             courses: courses, // Array of course IDs
-            course: courses[0], // Keep first course for backwards compatibility
+            course: courses[0] || null, // Keep first course for backwards compatibility
+            courseBundles: courseBundles, // Array of bundle IDs
+            courseBundle: courseBundles[0] || null, // Single bundle for backwards compatibility
             batches: body.batches || [], // Array of IDs
             visibleToStudents: !!body.visibleToStudents,
             tags: Array.isArray(body.tags) ? body.tags : [],

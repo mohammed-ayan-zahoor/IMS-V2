@@ -50,7 +50,10 @@ async function sendNoticePushNotifications(notice, instituteId) {
             targetStudentIds = Array.from(studentIdSet);
         } else if (notice.target === 'courses' && Array.isArray(notice.targetIds) && notice.targetIds.length > 0) {
             const batches = await Batch.find({
-                course: { $in: notice.targetIds },
+                $or: [
+                    { course: { $in: notice.targetIds } },
+                    { courseBundle: { $in: notice.targetIds } }
+                ],
                 institute: instituteId
             }).select('enrolledStudents');
             const studentIdSet = new Set();

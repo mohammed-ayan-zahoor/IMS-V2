@@ -166,9 +166,12 @@ const InstituteSchema = new Schema({
         twilioNumber: String,
         
         // WhatsApp Credentials (encrypted)
-        whatsappProvider: { type: String, enum: ['mock', 'twilio', 'meta'], default: 'mock' },
+        whatsappProvider: { type: String, enum: ['mock', 'twilio', 'meta', 'openwa'], default: 'mock' },
         metaPhoneNumberId: String,
         metaAccessToken: String,
+        openwaServerUrl: String,
+        openwaApiKey: String,
+        openwaSessionId: String,
 
         // Voice Call Configurations (Master/Platform Billed Model)
         voiceCallProvider: { type: String, enum: ['mock', 'exotel', 'twilio'], default: 'mock' },

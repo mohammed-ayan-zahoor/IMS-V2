@@ -45,6 +45,9 @@ export async function GET(req) {
         if (notifications.metaAccessToken) {
             notifications.metaAccessToken = 'meta_••••••••••••';
         }
+        if (notifications.openwaApiKey) {
+            notifications.openwaApiKey = 'openwa_••••••••••••';
+        }
 
         return NextResponse.json({ success: true, notifications });
     } catch (error) {
@@ -122,6 +125,15 @@ export async function POST(req) {
         }
         if (body.metaAccessToken && body.metaAccessToken !== 'meta_••••••••••••') {
             institute.notifications.metaAccessToken = encryptSecret(body.metaAccessToken.trim());
+        }
+        if (body.openwaServerUrl !== undefined) {
+            institute.notifications.openwaServerUrl = body.openwaServerUrl.trim();
+        }
+        if (body.openwaApiKey && body.openwaApiKey !== 'openwa_••••••••••••') {
+            institute.notifications.openwaApiKey = encryptSecret(body.openwaApiKey.trim());
+        }
+        if (body.openwaSessionId !== undefined) {
+            institute.notifications.openwaSessionId = body.openwaSessionId.trim();
         }
 
         // 5. Voice Call Settings

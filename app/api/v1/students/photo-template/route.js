@@ -60,14 +60,24 @@ export async function GET(req) {
                     };
                 });
         } else if (courseId) {
-            const courseDoc = await Course.findById(courseId).select('name code').lean();
+            let courseDoc = await Course.findById(courseId).select('name code').lean();
+            if (!courseDoc) {
+                const CourseBundle = (await import("@/models/CourseBundle")).default;
+                courseDoc = await CourseBundle.findById(courseId).select('name code').lean();
+            }
             if (!courseDoc) {
                 return NextResponse.json({ error: "Class/Course not found" }, { status: 404 });
             }
             sheetTitle = `${courseDoc.name}`.replace(/[^a-zA-Z0-9_-]/g, "_");
 
-            // Find all active students enrolled in batches of this course
-            const batches = await Batch.find({ course: courseId, deletedAt: null })
+            // Find all active students enrolled in batches of this course or bundle
+            const batches = await Batch.find({
+                $or: [
+                    { course: courseId },
+                    { courseBundle: courseId }
+                ],
+                deletedAt: null
+            })
                 .populate({
                     path: 'enrolledStudents.student',
                     select: 'profile.firstName profile.lastName profile.avatar enrollmentNumber metadata.studentDetails.rollNo metadata.studentDetails.grNumber'

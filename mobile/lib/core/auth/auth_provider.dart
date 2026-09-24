@@ -15,12 +15,29 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? get user => _user;
   String? get errorMessage => _errorMessage;
 
+  String get role => _user?['role']?.toString().toLowerCase() ?? '';
+  bool get isInstructor => role == 'instructor';
+  bool get isStudent => role == 'student';
+
+  bool hasPermission(String permission) {
+    final perms = _user?['permissions'];
+    if (perms is List) {
+      return perms.map((p) => p.toString()).contains(permission);
+    }
+    return false;
+  }
+
   String get userName {
     final u = _user;
-    if (u == null) return 'Student';
+    final defaultRoleName = isInstructor ? 'Instructor' : 'Student';
+    if (u == null) return defaultRoleName;
     // 1. Direct name / displayName / fullName
     final directName = (u['name'] ?? u['displayName'] ?? u['fullName'])?.toString().trim() ?? '';
-    if (directName.isNotEmpty && directName.toLowerCase() != 'student') return directName;
+    if (directName.isNotEmpty &&
+        directName.toLowerCase() != 'student' &&
+        directName.toLowerCase() != 'instructor') {
+      return directName;
+    }
 
     // 2. Profile firstName / lastName
     final profile = u['profile'];
@@ -28,7 +45,11 @@ class AuthProvider extends ChangeNotifier {
       final first = profile['firstName']?.toString().trim() ?? '';
       final last = profile['lastName']?.toString().trim() ?? '';
       final full = ('$first $last').trim();
-      if (full.isNotEmpty && full.toLowerCase() != 'student') return full;
+      if (full.isNotEmpty &&
+          full.toLowerCase() != 'student' &&
+          full.toLowerCase() != 'instructor') {
+        return full;
+      }
       if (first.isNotEmpty) return first;
     }
 
@@ -39,7 +60,7 @@ class AuthProvider extends ChangeNotifier {
       final handle = email.split('@')[0];
       return handle[0].toUpperCase() + handle.substring(1);
     }
-    return 'Student';
+    return defaultRoleName;
   }
 
   String get userFirstName {

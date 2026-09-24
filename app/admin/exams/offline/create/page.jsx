@@ -7,16 +7,20 @@ import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
+import { useSession } from "next-auth/react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
 
 export default function CreateOfflineExamPage() {
     const router = useRouter();
     const toast = useToast();
+    const { data: session } = useSession();
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL' || session?.user?.institute?.instituteType === 'VOCATIONAL';
     const [loading, setLoading] = useState(false);
     
     // Dropdown Data
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
     const [sessions, setSessions] = useState([]);
     const [gradingScales, setGradingScales] = useState([]);
@@ -42,12 +46,12 @@ export default function CreateOfflineExamPage() {
 
     useEffect(() => {
         fetchDropdowns();
-    }, []);
+    }, [isVocational]);
 
     useEffect(() => {
         if (formData.course) {
             const courseBatches = batches.filter(b => 
-                (b.course?._id === formData.course || b.course === formData.course) &&
+                (b.course?._id === formData.course || b.course === formData.course || b.courseBundle?._id === formData.course || b.courseBundle === formData.course) &&
                 (!formData.session || !b.session || b.session?._id === formData.session || b.session === formData.session)
             );
             setFilteredBatches(courseBatches);
@@ -67,22 +71,30 @@ export default function CreateOfflineExamPage() {
 
     const fetchDropdowns = async () => {
         try {
-            const [cRes, bRes, sRes, sessRes, scaleRes] = await Promise.all([
+            const fetches = [
                 fetch("/api/v1/courses"),
                 fetch("/api/v1/batches"),
                 fetch("/api/v1/subjects"),
                 fetch("/api/v1/sessions"),
                 fetch("/api/v1/grading-scales")
-            ]);
-            const cData = await cRes.json();
-            const bData = await bRes.json();
-            const sData = await sRes.json();
-            const sessData = await sessRes.json();
-            const scaleData = await scaleRes.json();
+            ];
+            if (isVocational) {
+                fetches.push(fetch("/api/v1/course-bundles"));
+            }
+            const results = await Promise.all(fetches);
+            const cData = await results[0].json();
+            const bData = await results[1].json();
+            const sData = await results[2].json();
+            const sessData = await results[3].json();
+            const scaleData = await results[4].json();
             
             setCourses(cData.courses || []);
             setBatches(bData.batches || []);
             setSubjects(sData.subjects || []);
+            if (isVocational && results[5] && results[5].ok) {
+                const bndData = await results[5].json();
+                setCourseBundles(bndData.courseBundles || bndData.bundles || (Array.isArray(bndData) ? bndData : []));
+            }
             
             const activeSession = sessData.sessions?.find(s => s.isActive === true);
             setSessions(sessData.sessions || []);
@@ -239,7 +251,14 @@ export default function CreateOfflineExamPage() {
                             <Select
                                 value={formData.course}
                                 onChange={(val) => setFormData({ ...formData, course: val, batches: [] })}
-                                options={[{ label: "-- Select Class --", value: "" }, ...courses.map(c => ({ label: c.name, value: c._id }))]}
+                                options={[
+                                    { label: "-- Select Class --", value: "" },
+                                    ...courses.map(c => ({ label: c.name, value: c._id })),
+                                    ...(isVocational && courseBundles.length > 0 ? [
+                                        { label: "── 🎁 PACKAGES ──", value: "", disabled: true },
+                                        ...courseBundles.map(b => ({ label: `🎁 ${b.name}`, value: b._id }))
+                                    ] : [])
+                                ]}
                             />
                         </div>
                     </div>
@@ -344,7 +363,7 @@ export default function CreateOfflineExamPage() {
                         ))}
                         {formData.subjects.length === 0 && (
                             <p className="text-sm text-slate-500 italic text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                                No subjects added. Click "Add Subject" to configure the exam structure.
+                                No subjects added. Click &quot;Add Subject&quot; to configure the exam structure.
                             </p>
                         )}
                     </div>

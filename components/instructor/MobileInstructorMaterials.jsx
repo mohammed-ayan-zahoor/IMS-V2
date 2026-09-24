@@ -14,9 +14,11 @@ export default function MobileInstructorMaterials() {
     const toast = useToast();
     const { data: session } = useSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
 
     const [materials, setMaterials] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -35,18 +37,26 @@ export default function MobileInstructorMaterials() {
 
     const fetchInitialData = useCallback(async () => {
         try {
-            const [cRes, bRes] = await Promise.all([
+            const fetches = [
                 fetch("/api/v1/courses"),
                 fetch("/api/v1/batches")
-            ]);
-            const cData = await cRes.json();
-            const bData = await bRes.json();
+            ];
+            if (isVocational) {
+                fetches.push(fetch("/api/v1/course-bundles"));
+            }
+            const results = await Promise.all(fetches);
+            const cData = await results[0].json();
+            const bData = await results[1].json();
             setCourses(cData.courses || []);
             setBatches(bData.batches || []);
+            if (isVocational && results[2] && results[2].ok) {
+                const bundleData = await results[2].json();
+                setCourseBundles(bundleData.courseBundles || bundleData.bundles || (Array.isArray(bundleData) ? bundleData : []));
+            }
         } catch (e) {
             console.error("Failed to fetch courses/batches", e);
         }
-    }, []);
+    }, [isVocational]);
 
     const fetchMaterials = useCallback(async () => {
         try {
@@ -85,11 +95,16 @@ export default function MobileInstructorMaterials() {
 
         try {
             setUploading(true);
+            const selectedBundleIds = formData.courses.filter(id => courseBundles.some(b => b._id === id));
+            const selectedCourseIds = formData.courses.filter(id => !selectedBundleIds.includes(id));
+
             const payload = {
                 title: formData.title.trim(),
                 description: formData.description?.trim(),
-                courses: formData.courses,
-                course: formData.courses[0],
+                courses: selectedCourseIds,
+                course: selectedCourseIds[0] || null,
+                courseBundles: selectedBundleIds,
+                courseBundle: selectedBundleIds[0] || null,
                 batches: formData.batches,
                 category: formData.category || "lecture",
                 visibleToStudents: true,
@@ -139,7 +154,8 @@ export default function MobileInstructorMaterials() {
     const filteredBatches = batches.filter(b => {
         if (formData.courses.length === 0) return false;
         const bCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
-        return formData.courses.some(cid => String(bCourseId) === String(cid));
+        const bBundleId = typeof b.courseBundle === 'object' ? b.courseBundle?._id : b.courseBundle;
+        return formData.courses.some(cid => String(bCourseId) === String(cid) || String(bBundleId) === String(cid));
     });
 
     return (
@@ -193,8 +209,13 @@ export default function MobileInstructorMaterials() {
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h3 className="text-xs font-bold text-slate-900 leading-snug">{m.title}</h3>
-                                    {((m.courses && m.courses.length > 0) || m.course) && (
+                                    {((m.courses && m.courses.length > 0) || m.course || (m.courseBundles && m.courseBundles.length > 0) || m.courseBundle) && (
                                         <div className="flex flex-wrap gap-1 mt-1">
+                                            {(m.courseBundles && m.courseBundles.length > 0 ? m.courseBundles : [m.courseBundle]).filter(Boolean).map(b => (
+                                                <span key={typeof b === 'object' ? b._id : b} className="text-[9px] font-bold uppercase bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">
+                                                    🎁 {typeof b === 'object' ? (b.title || b.name) : 'Package'}
+                                                </span>
+                                            ))}
                                             {(m.courses && m.courses.length > 0 ? m.courses : [m.course]).filter(Boolean).map(c => (
                                                 <span key={typeof c === 'object' ? c._id : c} className="text-[9px] font-bold uppercase bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
                                                     {typeof c === 'object' ? c.name : (isSchool ? 'Class' : 'Course')}
@@ -269,7 +290,8 @@ export default function MobileInstructorMaterials() {
                             const selectedCourseId = val;
                             const validBatches = batches.filter(b => {
                                 const bCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
-                                return String(bCourseId) === String(selectedCourseId);
+                                const bBundleId = typeof b.courseBundle === 'object' ? b.courseBundle?._id : b.courseBundle;
+                                return String(bCourseId) === String(selectedCourseId) || String(bBundleId) === String(selectedCourseId);
                             }).map(b => (typeof b._id === 'object' ? b._id.toString() : b._id));
 
                             setFormData(prev => ({
@@ -278,10 +300,17 @@ export default function MobileInstructorMaterials() {
                                 batches: prev.batches.filter(id => validBatches.includes(typeof id === 'object' ? id.toString() : id))
                             }));
                         }}
-                        options={courses.map(c => ({
-                            label: c.name + (c.code ? ` (${c.code})` : ""),
-                            value: c._id
-                        }))}
+                        options={[
+                            ...(isVocational && courseBundles.filter(b => b.isActive !== false).length > 0 ? [
+                                { label: "── 🎁 PACKAGES ──", value: "hdr_bundles", disabled: true },
+                                ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `🎁 ${b.title}` + (b.code ? ` (${b.code})` : ""), value: b._id })),
+                                { label: "── COURSES ──", value: "hdr_courses", disabled: true },
+                            ] : []),
+                            ...courses.map(c => ({
+                                label: c.name + (c.code ? ` (${c.code})` : ""),
+                                value: c._id
+                            }))
+                        ]}
                     />
 
                     <Select

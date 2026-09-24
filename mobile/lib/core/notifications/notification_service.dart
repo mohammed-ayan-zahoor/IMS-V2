@@ -17,6 +17,7 @@ import 'package:student_app/features/notifications/presentation/screens/notifica
 import 'package:provider/provider.dart';
 import 'package:student_app/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:student_app/features/dashboard/presentation/screens/app_shell.dart';
+import 'package:student_app/features/instructor/leaves/presentation/screens/instructor_leaves_screen.dart';
 import 'package:student_app/main.dart';
 
 @pragma('vm:entry-point')
@@ -214,6 +215,12 @@ class NotificationService {
       case 'fee':
       case 'fee_payment':
         navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const FeesScreen()));
+        break;
+      case 'leave_request':
+      case 'leave_approved':
+      case 'leave_rejected':
+      case 'leave':
+        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const InstructorLeavesScreen()));
         break;
       case 'notice':
         navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NoticesScreen()));

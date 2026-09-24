@@ -24,10 +24,12 @@ export default function MaterialsPage() {
     const confirm = useConfirm();
     const { data: session } = useSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
 
     const [materials, setMaterials] = useState([]);
     const [loading, setLoading] = useState(true);
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
 
     // Filters
@@ -61,18 +63,26 @@ export default function MaterialsPage() {
 
     const fetchInitialData = useCallback(async () => {
         try {
-            const [cRes, bRes] = await Promise.all([
+            const fetches = [
                 fetch("/api/v1/courses"),
                 fetch("/api/v1/batches")
-            ]);
-            const cData = await cRes.json();
-            const bData = await bRes.json();
+            ];
+            if (isVocational) {
+                fetches.push(fetch("/api/v1/course-bundles"));
+            }
+            const results = await Promise.all(fetches);
+            const cData = await results[0].json();
+            const bData = await results[1].json();
             setCourses(cData.courses || []);
             setBatches(bData.batches || []);
+            if (isVocational && results[2] && results[2].ok) {
+                const bundleData = await results[2].json();
+                setCourseBundles(bundleData.courseBundles || bundleData.bundles || (Array.isArray(bundleData) ? bundleData : []));
+            }
         } catch (error) {
             console.error("Init data failed", error);
         }
-    }, []);
+    }, [isVocational]);
 
     useEffect(() => {
         fetchInitialData();
@@ -119,11 +129,16 @@ export default function MaterialsPage() {
         setSaving(true);
 
         try {
+            const selectedBundleIds = formData.courses.filter(id => courseBundles.some(b => b._id === id));
+            const selectedCourseIds = formData.courses.filter(id => !selectedBundleIds.includes(id));
+
             const payload = {
                 title: formData.title.trim(),
                 description: formData.description?.trim(),
-                courses: formData.courses,
-                course: formData.courses[0],
+                courses: selectedCourseIds,
+                course: selectedCourseIds[0] || null,
+                courseBundles: selectedBundleIds,
+                courseBundle: selectedBundleIds[0] || null,
                 batches: formData.batches,
                 category: formData.category,
                 visibleToStudents: formData.visibleToStudents,
@@ -191,11 +206,16 @@ export default function MaterialsPage() {
 
     const handleEdit = (mat) => {
         setEditingId(mat._id);
+        const initialCourses = [
+            ...(mat.courseBundles?.length > 0 ? mat.courseBundles.map(b => (typeof b === 'object' ? b._id : b)) : (mat.courseBundle ? [typeof mat.courseBundle === 'object' ? mat.courseBundle._id : mat.courseBundle] : [])),
+            ...(mat.courses?.length > 0 ? mat.courses.map(c => (typeof c === 'object' ? c._id : c)) : (mat.course ? [typeof mat.course === 'object' ? mat.course._id : mat.course] : []))
+        ];
+
         setFormData({
             title: mat.title,
             description: mat.description || "",
-            courses: mat.courses?.length > 0 ? mat.courses.map(c => (typeof c === 'object' ? c._id : c)) : (mat.course ? [typeof mat.course === 'object' ? mat.course._id : mat.course] : []),
-            batches: mat.batches.map(b => b._id || b),
+            courses: initialCourses,
+            batches: (mat.batches || []).map(b => b._id || b),
             category: mat.category,
             fileUrl: mat.file?.url || "",
             fileId: mat.file?.fileId || "",
@@ -233,17 +253,19 @@ export default function MaterialsPage() {
 
     const filteredBatches = batches.filter(b => {
         if (formData.courses.length === 0) return false;
-        const batchCourseId = typeof b.course === 'object' ? b.course._id : b.course;
+        const batchCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
+        const batchBundleId = typeof b.courseBundle === 'object' ? b.courseBundle?._id : b.courseBundle;
         return formData.courses.some(courseId => {
-            const courseIdStr = typeof courseId === 'object' ? courseId._id : courseId;
-            return String(batchCourseId) === String(courseIdStr);
+            const courseIdStr = typeof courseId === 'object' ? courseId?._id : courseId;
+            return String(batchCourseId) === String(courseIdStr) || String(batchBundleId) === String(courseIdStr);
         });
     });
 
     const handleCoursesChange = (selectedCourseIds) => {
         const validBatches = batches.filter(b => {
             const batchCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
-            return selectedCourseIds.some(cid => String(batchCourseId) === String(cid));
+            const batchBundleId = typeof b.courseBundle === 'object' ? b.courseBundle?._id : b.courseBundle;
+            return selectedCourseIds.some(cid => String(batchCourseId) === String(cid) || String(batchBundleId) === String(cid));
         }).map(b => (typeof b._id === 'object' ? b._id.toString() : b._id));
 
         setFormData(prev => ({
@@ -253,10 +275,17 @@ export default function MaterialsPage() {
         }));
     };
 
-    const courseOptions = courses.map(c => ({
-        label: c.name + (c.code ? ` (${c.code})` : ""),
-        value: c._id
-    }));
+    const courseOptions = [
+        ...(isVocational && courseBundles.filter(b => b.isActive !== false).length > 0 ? [
+            { label: "── 🎁 PACKAGES ──", value: "hdr_bundles", disabled: true },
+            ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `🎁 ${b.title}` + (b.code ? ` (${b.code})` : ""), value: b._id })),
+            { label: "── COURSES ──", value: "hdr_courses", disabled: true },
+        ] : []),
+        ...courses.map(c => ({
+            label: c.name + (c.code ? ` (${c.code})` : ""),
+            value: c._id
+        }))
+    ];
 
     const batchOptions = filteredBatches.map(b => ({
         label: b.name,
@@ -327,6 +356,11 @@ export default function MaterialsPage() {
                                 placeholder={`All ${isSchool ? "Classes" : "Courses"}`}
                                 options={[
                                     { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
+                                    ...(isVocational && courseBundles.filter(b => b.isActive !== false).length > 0 ? [
+                                        { label: "── 🎁 PACKAGES ──", value: "hdr_bundles", disabled: true },
+                                        ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `🎁 ${b.title}`, value: b._id })),
+                                        { label: "── COURSES ──", value: "hdr_courses", disabled: true },
+                                    ] : []),
                                     ...courses.map(c => ({ label: c.name, value: c._id }))
                                 ]}
                             />
@@ -362,7 +396,7 @@ export default function MaterialsPage() {
                                     <div>
                                         {/* YouTube Thumbnail Preview */}
                                         {ytThumbnail && (
-                                            <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-3 bg-slate-950 border border-slate-200 group/adminthumb">
+                                             <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-3 bg-slate-950 border border-slate-200 group/adminthumb">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img 
                                                     src={ytThumbnail}
@@ -395,9 +429,14 @@ export default function MaterialsPage() {
 
                                         <h3 className="font-bold text-slate-900 text-sm mb-1.5 line-clamp-1" title={mat.title}>{mat.title}</h3>
                                         
-                                        {/* Assigned Courses & Batches Tags */}
-                                        {((mat.courses && mat.courses.length > 0) || mat.course) && (
+                                        {/* Assigned Courses, Bundles & Batches Tags */}
+                                        {((mat.courses && mat.courses.length > 0) || mat.course || (mat.courseBundles && mat.courseBundles.length > 0) || mat.courseBundle) && (
                                             <div className="flex flex-wrap gap-1 mb-2">
+                                                {(mat.courseBundles && mat.courseBundles.length > 0 ? mat.courseBundles : [mat.courseBundle]).filter(Boolean).map(b => (
+                                                    <span key={typeof b === 'object' ? b._id : b} className="text-[10px] font-semibold bg-amber-50 text-amber-700 px-2 py-0.5 rounded">
+                                                        🎁 {typeof b === 'object' ? (b.title || b.name) : 'Package'}
+                                                    </span>
+                                                ))}
                                                 {(mat.courses && mat.courses.length > 0 ? mat.courses : [mat.course]).filter(Boolean).map(c => (
                                                     <span key={typeof c === 'object' ? c._id : c} className="text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
                                                         {typeof c === 'object' ? c.name : (isSchool ? 'Class' : 'Course')}

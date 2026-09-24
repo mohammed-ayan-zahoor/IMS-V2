@@ -525,7 +525,10 @@ export class FeeService {
         
         if (filters.batch) query.batch = new mongoose.Types.ObjectId(filters.batch);
         if (filters.course) {
-            const batchLookup = { course: filters.course, deletedAt: null };
+            const batchLookup = { 
+                $or: [{ course: filters.course }, { courseBundle: filters.course }], 
+                deletedAt: null 
+            };
             if (filters.institute) batchLookup.institute = filters.institute;
             const batchIds = await Batch.find(batchLookup).distinct('_id');
             query.batch = { $in: batchIds };
@@ -604,7 +607,10 @@ export class FeeService {
         if (filters.batch) query.batch = new mongoose.Types.ObjectId(filters.batch);
         
         if (filters.course) {
-            const batchLookup = { course: filters.course, deletedAt: null };
+            const batchLookup = { 
+                $or: [{ course: filters.course }, { courseBundle: filters.course }], 
+                deletedAt: null 
+            };
             if (filters.institute) batchLookup.institute = filters.institute;
             const batchIds = await Batch.find(batchLookup).distinct('_id');
             query.batch = { $in: batchIds };
@@ -681,14 +687,20 @@ export class FeeService {
 
         // 3. Find batches matching the course/institute/session filter
         const batchQuery = { deletedAt: null };
-        if (filters.course) batchQuery.course = filters.course;
+        if (filters.course) {
+            batchQuery.$or = [
+                { course: filters.course },
+                { courseBundle: filters.course }
+            ];
+        }
         if (filters.batch) batchQuery._id = filters.batch;
         if (filters.institute) batchQuery.institute = filters.institute;
         if (filters.session) batchQuery.session = filters.session;
 
         const batches = await Batch.find(batchQuery)
-            .select('enrolledStudents name course')
-            .populate('course', 'fees.amount');
+            .select('enrolledStudents name course courseBundle')
+            .populate('course', 'fees.amount')
+            .populate('courseBundle', 'bundlePrice');
 
         // 4. Collect all active enrolled student IDs across matching batches
         const studentBatchMap = {}; // studentId -> { batchId, batchName }
@@ -699,7 +711,7 @@ export class FeeService {
                     studentBatchMap[sid] = {
                         batchId: batch._id,
                         batchName: batch.name,
-                        batchFee: batch.course?.fees?.amount || 0
+                        batchFee: batch.course?.fees?.amount || batch.courseBundle?.bundlePrice || 0
                     };
                 }
             }

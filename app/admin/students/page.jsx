@@ -2756,6 +2756,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                                     <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
                                                         <tr>
                                                             <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase w-20">Roll No</th>
+                                                            <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase w-20">Photo No</th>
                                                             <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Student Name</th>
                                                             <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Admission / ID</th>
                                                             <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Current Photo</th>
@@ -2769,6 +2770,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                                             return (
                                                                 <tr key={s.studentId} className="hover:bg-slate-50/50 transition-colors">
                                                                     <td className="px-3 py-2 text-xs font-mono font-bold text-slate-700">{s.rollNo || "-"}</td>
+                                                                    <td className="px-3 py-2 text-xs font-mono font-bold text-blue-600">{s.photoNo || "-"}</td>
                                                                     <td className="px-3 py-2 text-xs font-bold text-slate-900">{s.studentName}</td>
                                                                     <td className="px-3 py-2 text-xs font-mono text-slate-500">{s.admissionNo || "-"}</td>
                                                                     <td className="px-3 py-2">

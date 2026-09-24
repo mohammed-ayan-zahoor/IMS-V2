@@ -2,10 +2,11 @@
 
 import { useState, useEffect, use } from "react";
 import { format } from "date-fns";
-import { Loader2, Printer, ArrowLeft } from "lucide-react";
+import { Loader2, Printer, ArrowLeft, MessageCircle, Send } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
+import { useToast } from "@/contexts/ToastContext";
 
 const formatCurrency = (amount) => {
     return (amount || 0).toLocaleString('en-IN', {
@@ -92,6 +93,8 @@ export default function MouReceiptPage({ params }) {
     const [submission, setSubmission] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isSendingWa, setIsSendingWa] = useState(false);
+    const toast = useToast();
 
     // Client-side authentication role protection redirect
     useEffect(() => {
@@ -133,6 +136,24 @@ export default function MouReceiptPage({ params }) {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSendWaApi = async () => {
+        try {
+            setIsSendingWa(true);
+            const res = await fetch('/api/v1/messaging/whatsapp/send-receipt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'mou', id: submission._id })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to dispatch via WhatsApp');
+            toast.success(data.message || `MOU receipt sent via ${data.provider}!`);
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setIsSendingWa(false);
         }
     };
 
@@ -220,7 +241,31 @@ export default function MouReceiptPage({ params }) {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                    {submission.contactPhone && (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                onClick={handleSendWaApi}
+                                disabled={isSendingWa}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-xs font-bold shadow-sm flex items-center gap-1.5"
+                                title="Send automatically via OpenWA / configured gateway"
+                            >
+                                {isSendingWa ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                                Send via WA (API)
+                            </Button>
+                            <a
+                                href={`https://wa.me/${submission.contactPhone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi, please find your payment receipt for MOU Ref: ${formattedRefNo}. Receipt No: ${receiptNo}.`)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Open in WhatsApp Web"
+                            >
+                                <Button variant="outline" className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1">
+                                    <MessageCircle size={14} />
+                                    Web
+                                </Button>
+                            </a>
+                        </div>
+                    )}
                     <Button onClick={handlePrint} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 py-2 text-xs font-bold shadow-sm flex items-center gap-2">
                         <Printer size={16} />
                         Print Receipt

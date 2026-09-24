@@ -28,10 +28,12 @@ export async function GET(req) {
                 }
             },
             deletedAt: null
-        }).select("course _id");
+        }).select("course courseBundle _id");
 
-        const enrolledCourseIds = studentBatches.map(b => b.course);
+        const enrolledCourseIds = studentBatches.map(b => b.course).filter(Boolean);
+        const enrolledBundleIds = studentBatches.map(b => b.courseBundle).filter(Boolean);
         const enrolledBatchIds = studentBatches.map(b => b._id);
+        const allCourseTargetIds = [...enrolledCourseIds, ...enrolledBundleIds];
 
         // 2. Build Query
         const query = {
@@ -45,7 +47,7 @@ export async function GET(req) {
                 },
                 { 
                     target: 'courses', 
-                    targetIds: { $in: enrolledCourseIds } 
+                    targetIds: { $in: allCourseTargetIds } 
                 }
             ]
         };

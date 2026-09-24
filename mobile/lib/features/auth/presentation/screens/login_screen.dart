@@ -5,6 +5,9 @@ import 'package:student_app/features/dashboard/presentation/screens/dashboard_sc
 
 import 'package:provider/provider.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
+import 'package:student_app/core/localization/language_picker_sheet.dart';
+import 'package:student_app/core/localization/locale_provider.dart';
+import 'package:student_app/l10n/app_localizations.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -216,6 +219,57 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   border: Border.all(
                                     color: const Color(0xFF86A0CD).withValues(alpha: 0.08),
                                     width: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Language Selector Pill
+                            Positioned(
+                              top: mediaQuery.padding.top + 8,
+                              right: 16,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => LanguagePickerSheet.show(context),
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(alpha: 0.25),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.language_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Consumer<LocaleProvider>(
+                                          builder: (context, lp, _) {
+                                            final current = LocaleProvider.supportedLanguages.firstWhere(
+                                              (l) => l.code == lp.currentLocale.languageCode,
+                                              orElse: () => LocaleProvider.supportedLanguages.first,
+                                            );
+                                            return Text(
+                                              current.nativeName,
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),

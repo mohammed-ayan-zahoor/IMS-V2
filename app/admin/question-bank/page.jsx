@@ -13,6 +13,8 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
 import BulkImportModal from "@/components/admin/questions/BulkImportModal";
 
+import { useSession } from "next-auth/react";
+
 const stripHtml = (html) => {
     if (typeof window === 'undefined') return (html ?? '').replace(/<[^>]+>/g, '');
     const div = document.createElement("div");
@@ -31,6 +33,8 @@ const TYPE_LABELS = {
 export default function QuestionBankPage() {
     const toast = useToast();
     const confirm = useConfirm();
+    const { data: session } = useSession();
+    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
 
     const [questions, setQuestions] = useState([]);
     const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -42,6 +46,7 @@ export default function QuestionBankPage() {
     const [pageLimit, setPageLimit] = useState(20);
 
     const [courses, setCourses] = useState([]);
+    const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
     const [filteredBatches, setFilteredBatches] = useState([]);
     const [chapterOptions, setChapterOptions] = useState([]);
@@ -51,7 +56,7 @@ export default function QuestionBankPage() {
         difficulty: "", type: "", status: "", search: ""
     });
 
-    useEffect(() => { fetchDropdowns(); }, []);
+    useEffect(() => { fetchDropdowns(); }, [isVocational]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -63,7 +68,10 @@ export default function QuestionBankPage() {
     // Cascade: course → batches
     useEffect(() => {
         if (filters.course) {
-            setFilteredBatches(batches.filter(b => String(b.course?._id || b.course) === String(filters.course)));
+            setFilteredBatches(batches.filter(b => 
+                String(b.course?._id || b.course) === String(filters.course) ||
+                String(b.courseBundle?._id || b.courseBundle) === String(filters.course)
+            ));
         } else {
             setFilteredBatches([]);
         }
@@ -82,11 +90,17 @@ export default function QuestionBankPage() {
 
     const fetchDropdowns = async () => {
         try {
-            const [cRes, bRes] = await Promise.all([fetch("/api/v1/courses"), fetch("/api/v1/batches")]);
-            const cData = await cRes.json();
-            const bData = await bRes.json();
+            const fetches = [fetch("/api/v1/courses"), fetch("/api/v1/batches")];
+            if (isVocational) fetches.push(fetch("/api/v1/course-bundles"));
+            const results = await Promise.all(fetches);
+            const cData = await results[0].json();
+            const bData = await results[1].json();
             setCourses(cData.courses || []);
             setBatches(bData.batches || []);
+            if (isVocational && results[2] && results[2].ok) {
+                const bndData = await results[2].json();
+                setCourseBundles(bndData.courseBundles || bndData.bundles || (Array.isArray(bndData) ? bndData : []));
+            }
         } catch (e) { console.error("Failed to fetch dropdowns", e); }
     };
 
@@ -160,7 +174,14 @@ export default function QuestionBankPage() {
     };
 
     // Option arrays
-    const courseOptions = [{ label: "All Courses", value: "" }, ...courses.map(c => ({ label: c.name, value: c._id }))];
+    const courseOptions = [
+        { label: "All Courses", value: "" },
+        ...courses.map(c => ({ label: c.name, value: c._id })),
+        ...(isVocational && courseBundles.length > 0 ? [
+            { label: "── 🎁 PACKAGES ──", value: "", disabled: true },
+            ...courseBundles.map(b => ({ label: `🎁 ${b.name}`, value: b._id }))
+        ] : [])
+    ];
     const batchOptions  = [{ label: "All Batches", value: "" }, ...filteredBatches.map(b => ({ label: b.name, value: b._id }))];
     const chapterSelectOptions = [{ label: "All Chapters", value: "" }, ...chapterOptions.map(c => ({ label: c, value: c }))];
     const difficultyOptions = [
