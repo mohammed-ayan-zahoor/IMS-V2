@@ -17,7 +17,8 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = await params;
+        const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+        const id = resolvedParams?.id;
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return NextResponse.json({ error: "Invalid payslip ID" }, { status: 400 });
         }
@@ -59,7 +60,8 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = await params;
+        const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+        const id = resolvedParams?.id;
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return NextResponse.json({ error: "Invalid payslip ID" }, { status: 400 });
         }
@@ -106,7 +108,8 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { id } = await params;
+        const resolvedParams = await (params instanceof Promise ? params : Promise.resolve(params));
+        const id = resolvedParams?.id;
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return NextResponse.json({ error: "Invalid payslip ID" }, { status: 400 });
         }

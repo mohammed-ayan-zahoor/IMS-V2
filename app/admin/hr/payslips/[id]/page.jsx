@@ -1,23 +1,24 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Printer, ArrowLeft, MessageCircle, Send } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
 
 const formatCurrency = (amount) => {
-    return (amount || 0).toLocaleString('en-IN', {
+    return (Number(amount) || 0).toLocaleString('en-IN', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
 };
 
 const numberToWords = (num) => {
-    if (num === 0 || !num) return "Zero Rupees and Zero Paise";
+    const val = Number(num);
+    if (!val || isNaN(val) || val === 0) return "Zero Rupees and Zero Paise";
 
-    const parts = Number(num).toFixed(2).split('.');
+    const parts = val.toFixed(2).split('.');
     let wholePart = parseInt(parts[0], 10);
     let decimalPart = parseInt(parts[1], 10);
 
@@ -35,7 +36,7 @@ const numberToWords = (num) => {
         if (n < 1000) {
             const hundreds = Math.floor(n / 100);
             const remaining = n % 100;
-            return a[hundreds] + ' Hundred' + (remaining !== 0 ? ' ' + convert(remaining) : '');
+            return a[hundreds] + ' Hundred' + (remaining !== 0 ? ' and ' + convert(remaining) : '');
         }
         return '';
     };
@@ -74,12 +75,13 @@ const getMonthName = (m) => {
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
     ];
-    return months[parseInt(m) - 1] || m;
+    const idx = parseInt(m) - 1;
+    return months[idx] || (m ? String(m) : '');
 };
 
-export default function PayslipReceiptPage({ params }) {
-    const { id } = use(params);
-    const { data: session, status: sessionStatus } = useSession();
+export default function PayslipReceiptPage() {
+    const params = useParams();
+    const id = params?.id;
     const router = useRouter();
     const toast = useToast();
 
@@ -89,24 +91,32 @@ export default function PayslipReceiptPage({ params }) {
     const [isSendingWa, setIsSendingWa] = useState(false);
 
     useEffect(() => {
-        if (sessionStatus === "authenticated") {
-            fetchPayslipDetails();
+        if (id) {
+            fetchPayslipDetails(id);
         }
-    }, [id, sessionStatus]);
+    }, [id]);
 
-    const fetchPayslipDetails = async () => {
+    const fetchPayslipDetails = async (targetId) => {
         try {
+            setLoading(true);
             setError(null);
-            const res = await fetch(`/api/v1/hr/payslips/${id}`);
+            const res = await fetch(`/api/v1/hr/payslips/${targetId}`);
             if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || "Failed to fetch payslip details");
+                let errMsg = "Failed to fetch payslip details";
+                try {
+                    const data = await res.json();
+                    errMsg = data.error || errMsg;
+                } catch (e) {}
+                throw new Error(errMsg);
             }
             const data = await res.json();
+            if (!data.payslip) {
+                throw new Error("Payslip record not found");
+            }
             setPayslip(data.payslip);
         } catch (err) {
             console.error("fetchPayslipDetails error:", err);
-            setError(err.message);
+            setError(err.message || "Error loading payslip");
         } finally {
             setLoading(false);
         }
@@ -117,6 +127,7 @@ export default function PayslipReceiptPage({ params }) {
     };
 
     const handleSendWaApi = async () => {
+        if (!payslip?._id) return;
         try {
             setIsSendingWa(true);
             const res = await fetch('/api/v1/messaging/whatsapp/send-receipt', {
@@ -128,13 +139,13 @@ export default function PayslipReceiptPage({ params }) {
             if (!res.ok) throw new Error(data.error || 'Failed to dispatch via WhatsApp');
             toast.success(data.message || `Payslip sent via ${data.provider}!`);
         } catch (err) {
-            toast.error(err.message);
+            toast.error(err.message || "Failed to send WhatsApp message");
         } finally {
             setIsSendingWa(false);
         }
     };
 
-    if (sessionStatus === "loading" || loading) {
+    if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-100">
                 <Loader2 className="animate-spin text-indigo-600" size={32} />
@@ -165,33 +176,30 @@ export default function PayslipReceiptPage({ params }) {
     const institute = payslip.institute || {};
     
     // Dates calculation
-    const monthIndex = parseInt(payslip.month) - 1;
-    const yearVal = parseInt(payslip.year);
-    const lastDayOfMonth = new Date(yearVal, payslip.month, 0).getDate();
-    const payPeriodStr = `${getMonthName(payslip.month)} 01 - ${lastDayOfMonth}, ${yearVal}`;
+    const yearVal = parseInt(payslip.month ? payslip.year : new Date().getFullYear());
+    const monthNum = parseInt(payslip.month || "1");
+    const lastDayOfMonth = new Date(yearVal, monthNum, 0).getDate();
+    const payPeriodStr = `${getMonthName(monthNum)} 01 - ${lastDayOfMonth}, ${yearVal}`;
     const payDateStr = payslip.paymentDate 
         ? new Date(payslip.paymentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        : new Date(payslip.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        : (payslip.createdAt ? new Date(payslip.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-');
 
     const joiningDateStr = staff.hrDetails?.joiningDate 
         ? new Date(staff.hrDetails.joiningDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : '-';
 
-    const accountRef = staff.enrollmentNumber || staff.username || `EMP-${payslip._id.toString().slice(-6).toUpperCase()}`;
+    const accountRef = staff.enrollmentNumber || staff.username || (payslip._id ? `EMP-${payslip._id.toString().slice(-6).toUpperCase()}` : 'EMP-001');
 
     // Earnings & Deductions list preparation
-    // Left side: Basic Salary, followed by all earnings
     const earningsList = [
         { name: "Basic Salary", amount: payslip.basicSalary || 0 },
         ...(payslip.earnings || []).map(e => ({ name: e.componentName, amount: e.amount || 0 }))
     ];
 
-    // Right side: All deductions
     const deductionsList = [
         ...(payslip.deductions || []).map(d => ({ name: d.componentName, amount: d.amount || 0 }))
     ];
 
-    // Pair both sides to equal row length for clean tabular alignment
     const maxRows = Math.max(earningsList.length, deductionsList.length);
     const pairedRows = [];
     for (let i = 0; i < maxRows; i++) {
@@ -201,9 +209,9 @@ export default function PayslipReceiptPage({ params }) {
         });
     }
 
-    const grossSalary = earningsList.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const totalDeductions = deductionsList.reduce((sum, d) => sum + (d.amount || 0), 0);
-    const netSalary = payslip.netSalary;
+    const grossSalary = earningsList.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const totalDeductions = deductionsList.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+    const netSalary = Number(payslip.netSalary) || 0;
     const netSalaryWords = numberToWords(netSalary);
     const staffPhone = staff.phone || staff.profile?.phone;
 
@@ -220,7 +228,7 @@ export default function PayslipReceiptPage({ params }) {
                         <ArrowLeft size={18} />
                     </button>
                     <div>
-                        <h1 className="text-sm font-black text-slate-800 leading-none">Wage Payslip Template</h1>
+                        <h1 className="text-sm font-black text-slate-800 leading-none">Wage Payslip Document</h1>
                         <p className="text-[11px] text-slate-500 font-medium mt-1">Official Document Print View</p>
                     </div>
                 </div>
