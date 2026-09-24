@@ -716,7 +716,7 @@ export default function NotificationSettingsForm() {
             ) : qrData ? (
               <div className="p-2 bg-white rounded-xl shadow-sm">
                 <img
-                  src={qrData.startsWith('data:') ? qrData : `data:image/png;base64,${qrData}`}
+                  src={qrData.startsWith('http') || qrData.startsWith('data:') ? qrData : `data:image/png;base64,${qrData}`}
                   alt="WhatsApp QR Code"
                   className="w-56 h-56 object-contain"
                 />

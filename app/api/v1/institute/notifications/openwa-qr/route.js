@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Institute from '@/models/Institute';
 import { decryptSecret } from '@/lib/crypto';
+import QRCode from 'qrcode';
 
 /**
  * @route   GET /api/v1/institute/notifications/openwa-qr
@@ -28,7 +29,7 @@ export async function GET(req) {
         // Fallback to platform-level server URL and API Key
         const baseUrl = (config.openwaServerUrl || process.env.OPENWA_SERVER_URL || 'http://localhost:2785').replace(/\/+$/, '');
         const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : (process.env.OPENWA_API_KEY || '');
-        const sessionId = config.openwaSessionId || (inst?.code ? `inst_${inst.code.toLowerCase()}` : `inst_${instituteId}`);
+        const sessionName = inst?.code ? `inst_${inst.code.toLowerCase()}` : `inst_${instituteId}`;
 
         const headers = { 'Content-Type': 'application/json' };
         if (apiKey) {
@@ -37,7 +38,6 @@ export async function GET(req) {
         }
 
         // Resolve or create OpenWA Session by UUID
-        const sessionName = inst?.code ? `inst_${inst.code.toLowerCase()}` : `inst_${instituteId}`;
         let activeSessionId = config.openwaSessionId;
 
         // Check list of existing sessions in OpenWA
@@ -92,11 +92,11 @@ export async function GET(req) {
             if (sessionCheckRes.ok) {
                 const sessData = await sessionCheckRes.json().catch(() => ({}));
                 const state = (sessData.status || sessData.state || '').toLowerCase();
-                if (state === 'ready' || state === 'connected' || state === 'authenticated') {
+                if (state === 'ready' || state === 'connected' || state === 'authenticated' || state === 'working') {
                     isConnected = true;
                     connectionStatus = 'CONNECTED';
-                    phone = sessData.phone || sessData.me || sessData.user || null;
-                } else if (state === 'created' || state === 'stopped' || state === 'disconnected') {
+                    phone = sessData.phone || sessData.me?.id || sessData.me?.user || sessData.user || null;
+                } else if (state === 'created' || state === 'stopped' || state === 'disconnected' || state === 'failed') {
                     // Start the session
                     await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}/start`, {
                         method: 'POST',
@@ -145,13 +145,22 @@ export async function GET(req) {
                     const contentType = qrRes.headers.get('content-type') || '';
                     if (contentType.includes('application/json')) {
                         const json = await qrRes.json();
-                        let raw = json.qr || json.data || json.image || json.base64 || json.code || json.raw || (typeof json === 'string' ? json : null);
-                        if (raw) {
-                            if (typeof raw === 'string' && (raw.startsWith('data:image/') || raw.startsWith('http://') || raw.startsWith('https://'))) {
-                                qrData = raw;
-                            } else if (typeof raw === 'string' && raw.length > 20) {
-                                // Raw pairing string -> render as QR code image URL
-                                qrData = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(raw)}`;
+                        let raw = json.qr || json.data || json.image || json.base64 || json.code || json.raw;
+                        if (!raw && typeof json === 'string') raw = json;
+
+                        if (raw && typeof raw === 'string' && raw.trim()) {
+                            const trimmed = raw.trim();
+                            if (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                                qrData = trimmed;
+                            } else if (trimmed.startsWith('iVBORw0KGgo') || trimmed.length > 500) {
+                                qrData = `data:image/png;base64,${trimmed}`;
+                            } else {
+                                // Raw WhatsApp pairing code string -> render to standard data URI
+                                try {
+                                    qrData = await QRCode.toDataURL(trimmed, { width: 300, margin: 2 });
+                                } catch {
+                                    qrData = trimmed;
+                                }
                             }
                             break;
                         }
@@ -161,12 +170,16 @@ export async function GET(req) {
                         qrData = `data:${contentType};base64,${base64}`;
                         break;
                     } else {
-                        const text = await qrRes.text();
-                        if (text && text.length > 10) {
-                            if (text.startsWith('data:image/')) {
+                        const text = (await qrRes.text()).trim();
+                        if (text && text.length > 5) {
+                            if (text.startsWith('data:image/') || text.startsWith('http://') || text.startsWith('https://')) {
                                 qrData = text;
                             } else {
-                                qrData = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(text)}`;
+                                try {
+                                    qrData = await QRCode.toDataURL(text, { width: 300, margin: 2 });
+                                } catch {
+                                    qrData = text;
+                                }
                             }
                             break;
                         }
