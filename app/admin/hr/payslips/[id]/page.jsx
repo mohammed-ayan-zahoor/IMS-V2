@@ -70,6 +70,16 @@ const numberToWords = (num) => {
     return result;
 };
 
+const formatAddress = (addr) => {
+    if (!addr) return "Main Campus, Education Directorate Hub";
+    if (typeof addr === 'string') return addr;
+    if (typeof addr === 'object') {
+        const parts = [addr.street, addr.city, addr.state, addr.pincode, addr.country].filter(Boolean);
+        return parts.length > 0 ? parts.join(', ') : "Main Campus, Education Directorate Hub";
+    }
+    return "Main Campus, Education Directorate Hub";
+};
+
 const getMonthName = (m) => {
     const months = [
         "January", "February", "March", "April", "May", "June",
@@ -279,10 +289,10 @@ export default function PayslipReceiptPage() {
                                 {institute.name || "ABC VENTURES INC"}
                             </h2>
                             <p className="text-slate-600 font-medium">
-                                {institute.address || "123 Retail Plaza, Suite 400, Chicago, IL 60601, USA"}
+                                {formatAddress(institute.address)}
                             </p>
                             <p className="text-slate-600 font-medium">
-                                Contact: {institute.contact || "(312) 555-0199"} | {institute.email || "hr@abcventures.com"}
+                                Contact: {institute.contactPhone || institute.contact || "(312) 555-0199"} | {institute.contactEmail || institute.email || "hr@abcventures.com"}
                             </p>
                         </div>
 
