@@ -38,6 +38,24 @@ export class StudentService {
                 throw new Error('Institute context required for student creation');
             }
 
+            // Security Check: Verify institute status and subscription plan expiration
+            const InstituteModel = (await import('@/models/Institute')).default;
+            const instDoc = await InstituteModel.findById(institute).select('status subscription limits isActive deletedAt');
+            if (!instDoc || instDoc.deletedAt || instDoc.isActive === false) {
+                throw new Error('Invalid or inactive institute');
+            }
+            if (['suspended', 'inactive'].includes(instDoc.status)) {
+                throw new Error(`Institute account is currently ${instDoc.status}. Please contact support.`);
+            }
+            if (instDoc.subscription) {
+                if (instDoc.subscription.isActive === false) {
+                    throw new Error('Institute subscription is inactive. Please renew your subscription plan.');
+                }
+                if (instDoc.subscription.endDate && new Date() > new Date(instDoc.subscription.endDate)) {
+                    throw new Error('Institute subscription plan has expired. Please renew your plan to add new students.');
+                }
+            }
+
             // Check if active user exists (ignore soft deleted) within Institute
             const existingUser = await User.findOne({
                 email: email?.toLowerCase(),
@@ -600,13 +618,33 @@ export class StudentService {
             }
 
             // Check cross-institute access if instituteId is provided
-            // Check cross-institute access if instituteId is provided
+            const targetInstId = instituteId || student.institute;
             if (instituteId) {
                 if (!student.institute) {
                     throw new Error("Student has no institute assigned");
                 }
                 if (student.institute.toString() !== instituteId.toString()) {
                     throw new Error("Student does not belong to this institute");
+                }
+            }
+
+            // Security Check: Verify institute status and subscription plan expiration
+            const InstituteModel = (await import('@/models/Institute')).default;
+            const instDoc = await InstituteModel.findById(targetInstId).session(session).select('status subscription isActive deletedAt');
+            if (instDoc) {
+                if (instDoc.deletedAt || instDoc.isActive === false) {
+                    throw new Error('Invalid or inactive institute');
+                }
+                if (['suspended', 'inactive'].includes(instDoc.status)) {
+                    throw new Error(`Institute account is currently ${instDoc.status}. Please contact support.`);
+                }
+                if (instDoc.subscription) {
+                    if (instDoc.subscription.isActive === false) {
+                        throw new Error('Institute subscription is inactive. Please renew your subscription plan.');
+                    }
+                    if (instDoc.subscription.endDate && new Date() > new Date(instDoc.subscription.endDate)) {
+                        throw new Error('Institute subscription plan has expired. Please renew your plan to enroll students.');
+                    }
                 }
             }
 

@@ -222,6 +222,26 @@ export async function POST(req) {
             return NextResponse.json({ error: "Institute must be specified for super_admin" }, { status: 400 });
         }
 
+        // Security Check: Verify institute status and subscription plan expiration
+        const InstituteModel = (await import("@/models/Institute")).default;
+        const subCheckInst = await InstituteModel.findById(scope.instituteId).select('status subscription limits isActive deletedAt');
+        if (!subCheckInst || subCheckInst.deletedAt || subCheckInst.isActive === false) {
+            return NextResponse.json({ error: "Institute not found or inactive" }, { status: 404 });
+        }
+        if (!scope.isSuperAdmin) {
+            if (['suspended', 'inactive'].includes(subCheckInst.status)) {
+                return NextResponse.json({ error: `Institute account is currently ${subCheckInst.status}. Please contact support.` }, { status: 403 });
+            }
+            if (subCheckInst.subscription) {
+                if (subCheckInst.subscription.isActive === false) {
+                    return NextResponse.json({ error: "Institute subscription is inactive. Please renew your plan." }, { status: 403 });
+                }
+                if (subCheckInst.subscription.endDate && new Date() > new Date(subCheckInst.subscription.endDate)) {
+                    return NextResponse.json({ error: "Institute subscription plan has expired. Please renew your plan to import students." }, { status: 403 });
+                }
+            }
+        }
+
         const { searchParams } = new URL(req.url);
         const isPreview = searchParams.get("preview") === "true";
         console.log(`[IMPORT_DEBUG] 4. isPreview: ${isPreview}`);

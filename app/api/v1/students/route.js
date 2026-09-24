@@ -144,12 +144,28 @@ export async function POST(req) {
         let instituteType = null;
 
         try {
-            // Get institute type to know if session isolation applies
-            const inst = await Institute.findById(targetInstituteId).select('type settings limits');
-            if (!inst) {
-                return NextResponse.json({ error: "Institute not found" }, { status: 404 });
+            // Get institute details to verify status, subscription plan, and limits
+            const inst = await Institute.findById(targetInstituteId).select('type settings limits status subscription isActive deletedAt');
+            if (!inst || inst.deletedAt || inst.isActive === false) {
+                return NextResponse.json({ error: "Institute not found or inactive" }, { status: 404 });
             }
             instituteType = inst.type;
+
+            // Enforce Institute Account Status & Subscription Expiration Check
+            if (!scope.isSuperAdmin) {
+                if (['suspended', 'inactive'].includes(inst.status)) {
+                    return NextResponse.json({ error: `Institute account is currently ${inst.status}. Please contact support.` }, { status: 403 });
+                }
+
+                if (inst.subscription) {
+                    if (inst.subscription.isActive === false) {
+                        return NextResponse.json({ error: "Institute subscription is inactive. Please renew your subscription plan." }, { status: 403 });
+                    }
+                    if (inst.subscription.endDate && new Date() > new Date(inst.subscription.endDate)) {
+                        return NextResponse.json({ error: "Institute subscription plan has expired. Please renew your plan to add new students." }, { status: 403 });
+                    }
+                }
+            }
 
             // Enforce student limit check
             const maxStudents = inst.limits?.maxStudents || 0;
@@ -157,7 +173,7 @@ export async function POST(req) {
                 const User = (await import("@/models/User")).default;
                 const currentStudentCount = await User.countDocuments({ institute: targetInstituteId, role: 'student', deletedAt: null });
                 if (currentStudentCount >= maxStudents) {
-                    return NextResponse.json({ error: "Token is over, please contact us for the increase" }, { status: 403 });
+                    return NextResponse.json({ error: "Student limit reached for this institute plan. Please contact support to upgrade." }, { status: 403 });
                 }
             }
 
