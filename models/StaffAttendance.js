@@ -24,6 +24,34 @@ const StaffAttendanceSchema = new Schema({
         enum: ['present', 'absent', 'half_day', 'on_leave', 'holiday'],
         required: true
     },
+    checkInTime: {
+        type: String,
+        trim: true
+    },
+    checkOutTime: {
+        type: String,
+        trim: true
+    },
+    lateMinutes: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    earlyDepartureMinutes: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    overtimeMinutes: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    midDayOutMinutes: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
     remarks: {
         type: String,
         trim: true

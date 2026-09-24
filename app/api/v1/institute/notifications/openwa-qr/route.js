@@ -22,20 +22,15 @@ export async function GET(req) {
             return NextResponse.json({ error: 'No institute context found.' }, { status: 400 });
         }
 
-        const inst = await Institute.findById(instituteId).select('notifications');
-        const config = inst?.notifications;
+        const inst = await Institute.findById(instituteId).select('notifications code name');
+        const config = inst?.notifications || {};
 
-        if (!config?.openwaServerUrl) {
-            return NextResponse.json({ 
-                error: 'OpenWA Server URL is not configured. Please enter your OpenWA Server URL first and save.' 
-            }, { status: 400 });
-        }
+        // Fallback to platform-level server URL and API Key
+        const baseUrl = (config.openwaServerUrl || process.env.OPENWA_SERVER_URL || 'http://localhost:2785').replace(/\/+$/, '');
+        const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : (process.env.OPENWA_API_KEY || '');
+        const sessionId = config.openwaSessionId || (inst?.code ? `inst_${inst.code.toLowerCase()}` : `inst_${instituteId}`);
 
-        const baseUrl = config.openwaServerUrl.replace(/\/+$/, '');
-        const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : '';
-        const sessionId = config.openwaSessionId || 'default';
-
-        const headers = {};
+        const headers = { 'Content-Type': 'application/json' };
         if (apiKey) {
             headers['X-API-Key'] = apiKey;
             headers['api_key'] = apiKey;
@@ -44,14 +39,23 @@ export async function GET(req) {
         // 1. Check if already connected / logged in
         let isConnected = false;
         let connectionStatus = 'DISCONNECTED';
+        let phone = null;
 
         try {
             const statusUrl = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/status`;
             const statusRes = await fetch(statusUrl, { headers, cache: 'no-store' });
             if (statusRes.ok) {
                 const statusData = await statusRes.json().catch(() => ({}));
-                isConnected = statusData.connected || statusData.state === 'CONNECTED' || statusData.status === 'CONNECTED';
+                isConnected = statusData.connected || statusData.state === 'CONNECTED' || statusData.status === 'ready' || statusData.status === 'CONNECTED';
                 connectionStatus = statusData.state || statusData.status || (isConnected ? 'CONNECTED' : 'DISCONNECTED');
+                phone = statusData.phone || statusData.me || statusData.user || null;
+            } else if (statusRes.status === 404) {
+                // Try initializing the session
+                await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/start`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ sessionId })
+                }).catch(() => {});
             }
         } catch {
             // Fallback status check
@@ -62,6 +66,8 @@ export async function GET(req) {
                 success: true,
                 connected: true,
                 status: connectionStatus,
+                phone: phone,
+                sessionId: sessionId,
                 message: 'WhatsApp is connected and logged in!'
             });
         }
@@ -112,5 +118,48 @@ export async function GET(req) {
         return NextResponse.json({ 
             error: error.message || 'Failed to connect to OpenWA server. Ensure your OpenWA service is running.' 
         }, { status: 500 });
+    }
+}
+
+/**
+ * @route   POST /api/v1/institute/notifications/openwa-qr
+ * @desc    Disconnect / Logout active OpenWA session
+ */
+export async function POST(req) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.role || !['admin', 'super_admin'].includes(session.user.role)) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        await connectDB();
+        const instituteId = session.user.institute?.id || session.user.instituteId;
+        if (!instituteId) {
+            return NextResponse.json({ error: 'No institute context found.' }, { status: 400 });
+        }
+
+        const inst = await Institute.findById(instituteId).select('notifications code');
+        const config = inst?.notifications || {};
+
+        const baseUrl = (config.openwaServerUrl || process.env.OPENWA_SERVER_URL || 'http://localhost:2785').replace(/\/+$/, '');
+        const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : (process.env.OPENWA_API_KEY || '');
+        const sessionId = config.openwaSessionId || (inst?.code ? `inst_${inst.code.toLowerCase()}` : `inst_${instituteId}`);
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (apiKey) {
+            headers['X-API-Key'] = apiKey;
+            headers['api_key'] = apiKey;
+        }
+
+        // Call OpenWA logout & stop
+        await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/logout`, { method: 'POST', headers }).catch(() => {});
+        await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/stop`, { method: 'POST', headers }).catch(() => {});
+
+        return NextResponse.json({
+            success: true,
+            message: 'WhatsApp session disconnected successfully.'
+        });
+    } catch (err) {
+        return NextResponse.json({ error: err.message || 'Failed to disconnect session' }, { status: 500 });
     }
 }

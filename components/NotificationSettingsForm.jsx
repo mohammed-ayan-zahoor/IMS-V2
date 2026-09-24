@@ -1,30 +1,65 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, CheckCircle2, Lock, Eye, EyeOff, Loader, MessageSquare, Save, Settings, PhoneCall, Key, Send, Loader2, QrCode, RefreshCw, ExternalLink } from 'lucide-react';
-import Card, { CardHeader } from '@/components/ui/Card';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  AlertCircle, 
+  CheckCircle2, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  Loader2, 
+  MessageSquare, 
+  Save, 
+  PhoneCall, 
+  Send, 
+  QrCode, 
+  RefreshCw, 
+  Power, 
+  Globe, 
+  Smartphone,
+  ChevronDown,
+  ChevronUp,
+  Sparkles
+} from 'lucide-react';
 import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
 
 export default function NotificationSettingsForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Visibility toggles for secrets
   const [showMsg91AuthKey, setShowMsg91AuthKey] = useState(false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
   const [showMetaAccessToken, setShowMetaAccessToken] = useState(false);
-  const [showOpenwaApiKey, setShowOpenwaApiKey] = useState(false);
+
+  // Section collapse states
+  const [metaExpanded, setMetaExpanded] = useState(false);
+  const [smsExpanded, setSmsExpanded] = useState(false);
+  const [twilioExpanded, setTwilioExpanded] = useState(false);
+
+  // Messages
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [activeSubTab, setActiveSubTab] = useState('sms'); // 'sms' | 'whatsapp' | 'voice'
+
+  // Test WhatsApp State
   const [waTestPhone, setWaTestPhone] = useState('');
   const [waTestStatus, setWaTestStatus] = useState(null); // null | 'sending' | 'ok' | 'err'
   const [waTestMsg, setWaTestMsg] = useState('');
 
-  // OpenWA QR Modal State
+  // WhatsApp Web QR Modal & Live Connection State
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrData, setQrData] = useState(null);
   const [qrError, setQrError] = useState('');
-  const [qrStatus, setQrStatus] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState({
+    connected: false,
+    phone: null,
+    status: 'UNKNOWN'
+  });
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const qrPollRef = useRef(null);
 
   const [formData, setFormData] = useState({
     // SMS
@@ -36,31 +71,30 @@ export default function NotificationSettingsForm() {
     twilioToken: '',
     twilioNumber: '',
     // WhatsApp
-    whatsappProvider: 'mock',
+    whatsappProvider: 'openwa',
     metaPhoneNumberId: '',
     metaAccessToken: '',
     openwaServerUrl: '',
     openwaApiKey: '',
     openwaSessionId: '',
-    // Voice (Platform Master Billed Model)
+    // Voice
     voiceCallProvider: 'mock',
     overdueVoiceReminderEnabled: false,
     dedicatedCallerId: ''
   });
 
-  // Fetch current settings
   useEffect(() => {
     fetchSettings();
+    checkOpenWaStatus();
+    return () => {
+      if (qrPollRef.current) clearInterval(qrPollRef.current);
+    };
   }, []);
 
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/v1/institute/notifications/settings', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
+      const response = await fetch('/api/v1/institute/notifications/settings');
       if (!response.ok) throw new Error('Failed to fetch settings');
 
       const data = await response.json();
@@ -75,7 +109,7 @@ export default function NotificationSettingsForm() {
           twilioSid: notifications.twilioSid || '',
           twilioToken: notifications.twilioToken || '',
           twilioNumber: notifications.twilioNumber || '',
-          whatsappProvider: notifications.whatsappProvider || 'mock',
+          whatsappProvider: notifications.whatsappProvider || 'openwa',
           metaPhoneNumberId: notifications.metaPhoneNumberId || '',
           metaAccessToken: notifications.metaAccessToken || '',
           openwaServerUrl: notifications.openwaServerUrl || '',
@@ -85,30 +119,51 @@ export default function NotificationSettingsForm() {
           overdueVoiceReminderEnabled: notifications.overdueVoiceReminderEnabled || false,
           dedicatedCallerId: notifications.dedicatedCallerId || ''
         });
+
+        // Expand sections if they already have credentials configured
+        if (notifications.metaPhoneNumberId || notifications.metaAccessToken) {
+          setMetaExpanded(true);
+        }
+        if (notifications.msg91AuthKey || notifications.msg91SenderId) {
+          setSmsExpanded(true);
+        }
+        if (notifications.twilioSid || notifications.twilioToken) {
+          setTwilioExpanded(true);
+        }
       }
     } catch (error) {
       setErrorMessage('Failed to load notification configurations');
-      console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkOpenWaStatus = async () => {
+    try {
+      const res = await fetch('/api/v1/institute/notifications/openwa-qr');
+      if (res.ok) {
+        const data = await res.json();
+        setConnectionStatus({
+          connected: !!data.connected,
+          phone: data.phone || null,
+          status: data.status || (data.connected ? 'CONNECTED' : 'DISCONNECTED')
+        });
+      }
+    } catch {
+      // Ignore background status errors
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     const newValue = type === 'checkbox' ? checked : value;
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: newValue
-    }));
-
+    setFormData(prev => ({ ...prev, [name]: newValue }));
     setSuccessMessage('');
     setErrorMessage('');
   };
 
   const handleSave = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     try {
       setSaving(true);
       setErrorMessage('');
@@ -121,10 +176,8 @@ export default function NotificationSettingsForm() {
       });
 
       const data = await response.json();
-
       if (response.ok && data.success) {
         setSuccessMessage('✓ Configurations saved and encrypted successfully.');
-        // Refresh to fetch masked placeholders
         fetchSettings();
       } else {
         setErrorMessage(data.error || 'Failed to save settings.');
@@ -164,117 +217,336 @@ export default function NotificationSettingsForm() {
     }
   };
 
+  // Open QR modal & poll
   const handleOpenQrModal = async () => {
     setQrModalOpen(true);
-    fetchQrCode();
-  };
-
-  const fetchQrCode = async () => {
     setQrLoading(true);
     setQrError('');
+    setQrData(null);
+    fetchLiveQr();
+
+    if (qrPollRef.current) clearInterval(qrPollRef.current);
+    qrPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch('/api/v1/institute/notifications/openwa-qr');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.connected) {
+            setConnectionStatus({
+              connected: true,
+              phone: data.phone || null,
+              status: 'CONNECTED'
+            });
+            clearInterval(qrPollRef.current);
+            setTimeout(() => {
+              setQrModalOpen(false);
+            }, 1200);
+          } else if (data.qr) {
+            setQrData(data.qr);
+          }
+        }
+      } catch {
+        // Continue polling
+      }
+    }, 3000);
+  };
+
+  const fetchLiveQr = async () => {
     try {
+      setQrLoading(true);
+      setQrError('');
       const res = await fetch('/api/v1/institute/notifications/openwa-qr');
       const data = await res.json();
-      if (res.ok && data.success) {
+
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch QR');
+
+      if (data.connected) {
+        setConnectionStatus({
+          connected: true,
+          phone: data.phone,
+          status: 'CONNECTED'
+        });
+        setQrModalOpen(false);
+      } else if (data.qr) {
         setQrData(data.qr);
-        setQrStatus(data.connected ? 'CONNECTED' : (data.qr ? 'WAITING_FOR_SCAN' : data.status || 'DISCONNECTED'));
       } else {
-        setQrError(data.error || 'Failed to fetch QR code');
-        setQrStatus('ERROR');
+        setQrError('Waiting for QR code generation from OpenWA engine... Please retry in a few seconds.');
       }
-    } catch (e) {
-      setQrError(e.message);
-      setQrStatus('ERROR');
+    } catch (err) {
+      setQrError(err.message || 'Unable to connect to OpenWA server. Please ensure the server is active.');
     } finally {
       setQrLoading(false);
     }
   };
 
+  const handleDisconnect = async () => {
+    if (!confirm('Are you sure you want to unlink this WhatsApp number from your institute?')) return;
+    try {
+      setDisconnecting(true);
+      const res = await fetch('/api/v1/institute/notifications/openwa-qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' })
+      });
+      if (res.ok) {
+        setConnectionStatus({ connected: false, phone: null, status: 'DISCONNECTED' });
+      }
+    } catch {
+      // Disconnect error
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  const handleCloseQrModal = () => {
+    setQrModalOpen(false);
+    if (qrPollRef.current) clearInterval(qrPollRef.current);
+    checkOpenWaStatus();
+  };
+
   if (loading) {
     return (
-      <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center min-h-[300px]">
-        <Loader className="animate-spin text-premium-blue mr-2" />
-        <span className="text-sm text-slate-500 font-bold">Loading configurations...</span>
+      <div className="p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
+        <Loader2 className="animate-spin text-[#444CE7] mb-3" size={28} />
+        <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Loading notification configurations...</span>
       </div>
     );
   }
 
   return (
-    <Card className="border border-slate-100 shadow-sm overflow-hidden">
-      <div className="p-6 bg-slate-50/50 border-b border-slate-100">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-sm shrink-0">
-              <Settings size={20} />
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Notifications Alert / Banner */}
+      {successMessage && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-3 text-xs font-bold animate-in fade-in">
+          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+      {errorMessage && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-center gap-3 text-xs font-bold animate-in fade-in">
+          <AlertCircle size={18} className="text-rose-600 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* CHANNEL 1: WhatsApp Web (Instant QR Link) */}
+      <div className="bg-white border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+        <div className="p-6 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border-b border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <MessageSquare size={24} />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Notification Settings</h3>
-              <p className="text-[11px] text-slate-400 font-bold mt-0.5">Configure custom SMS, WhatsApp gateway integrations and automated calls</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-black text-slate-900">WhatsApp Web (Instant QR Link)</h3>
+                <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
+                  Recommended
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                Zero-template restrictions. Send automated fee receipts, MOU receipts, and announcements directly from your institute's phone number.
+              </p>
+            </div>
+          </div>
+
+          {/* Connection Status Badge */}
+          <div className="shrink-0 flex items-center gap-2">
+            <div className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 border ${
+              connectionStatus.connected 
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
+                : 'bg-slate-100 text-slate-600 border-slate-200'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${connectionStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              {connectionStatus.connected 
+                ? `Connected ${connectionStatus.phone ? `(${connectionStatus.phone})` : ''}` 
+                : 'Not Linked'
+              }
             </div>
           </div>
         </div>
 
-        {/* Sub Navigation */}
-        <div className="flex space-x-1 mt-6 border-b border-slate-200/60">
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('sms')}
-            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
-              activeSubTab === 'sms'
-                ? 'border-premium-blue text-premium-blue'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            SMS Configuration
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('whatsapp')}
-            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
-              activeSubTab === 'whatsapp'
-                ? 'border-premium-blue text-premium-blue'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            WhatsApp Credentials
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('voice')}
-            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
-              activeSubTab === 'voice'
-                ? 'border-premium-blue text-premium-blue'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            Voice Call Reminders
-          </button>
+        {/* WhatsApp Actions & Controls */}
+        <div className="p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="text-xs text-slate-600 font-medium leading-relaxed max-w-lg">
+              {connectionStatus.connected ? (
+                <span>
+                  🟢 <strong>Active:</strong> Your WhatsApp account is linked and ready. Outgoing messages will be sent directly through this phone.
+                </span>
+              ) : (
+                <span>
+                  Link your institute's WhatsApp phone in 10 seconds. Click below to generate your QR code, then scan it with WhatsApp.
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              {connectionStatus.connected ? (
+                <Button
+                  type="button"
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl px-4 py-2 text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  {disconnecting ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
+                  Disconnect Device
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleOpenQrModal}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-5 py-2.5 text-xs font-black flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+                >
+                  <QrCode size={16} />
+                  Scan QR Code & Link WhatsApp
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Test WhatsApp Field */}
+          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <span className="text-xs font-bold text-slate-700">Test Live Delivery:</span>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <input
+                type="tel"
+                value={waTestPhone}
+                onChange={e => { setWaTestPhone(e.target.value); setWaTestStatus(null); }}
+                placeholder="+919876543210"
+                className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none font-medium w-48"
+              />
+              <button
+                type="button"
+                onClick={handleWaTest}
+                disabled={!waTestPhone.trim() || waTestStatus === 'sending'}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                {waTestStatus === 'sending' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                Send Test
+              </button>
+            </div>
+          </div>
+          {waTestStatus === 'ok' && (
+            <p className="text-[11px] text-emerald-700 font-bold">✓ {waTestMsg}</p>
+          )}
+          {waTestStatus === 'err' && (
+            <p className="text-[11px] text-rose-600 font-bold">✗ {waTestMsg}</p>
+          )}
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="p-6 space-y-6">
-        {/* SMS Sub Tab */}
-        {activeSubTab === 'sms' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="space-y-2">
-              <label className="text-xs font-black text-slate-700 uppercase tracking-wider">SMS Provider</label>
-              <select
-                name="smsProvider"
-                value={formData.smsProvider}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-              >
-                <option value="mock">Console Logger (Mock)</option>
-                <option value="msg91">MSG91 Gateway</option>
-                <option value="twilio">Twilio SMS</option>
-              </select>
+      {/* CHANNEL 2: Meta WhatsApp Cloud API (Official) */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <button
+          type="button"
+          onClick={() => setMetaExpanded(!metaExpanded)}
+          className="w-full p-6 text-left flex items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+              <Globe size={22} />
             </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-slate-900">Meta WhatsApp Cloud API (Official BSP)</h3>
+                {(formData.metaPhoneNumberId || formData.metaAccessToken) && (
+                  <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 text-blue-800 rounded-full">Configured</span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Official Cloud API credentials for verified Meta Business Manager accounts.
+              </p>
+            </div>
+          </div>
+          <div className="text-slate-400">
+            {metaExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </div>
+        </button>
 
-            {formData.smsProvider === 'msg91' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 border border-slate-100 rounded-xl">
-                <div className="space-y-2 md:col-span-2">
+        {metaExpanded && (
+          <div className="p-6 border-t border-slate-100 bg-slate-50/40 space-y-4 animate-in fade-in duration-150">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-700 uppercase tracking-wider">Meta Phone Number ID</label>
+                <input
+                  type="text"
+                  name="metaPhoneNumberId"
+                  value={formData.metaPhoneNumberId}
+                  onChange={handleInputChange}
+                  className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 outline-none font-medium bg-white"
+                  placeholder="e.g. 10672849382103"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                  Meta Permanent Access Token {formData.metaAccessToken === 'meta_••••••••••••' && <Lock size={12} className="text-slate-400" />}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showMetaAccessToken ? "text" : "password"}
+                    name="metaAccessToken"
+                    value={formData.metaAccessToken}
+                    onChange={handleInputChange}
+                    className="w-full pl-3.5 pr-9 py-2 text-xs rounded-lg border border-slate-200 focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 outline-none font-medium bg-white"
+                    placeholder={formData.metaAccessToken === 'meta_••••••••••••' ? '••••••••••••' : 'EAAG...'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMetaAccessToken(!showMetaAccessToken)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
+                  >
+                    {showMetaAccessToken ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium">
+              Note: Meta requires pre-approved template IDs for outbound business broadcasts.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* CHANNEL 3: SMS Gateways (MSG91 & Twilio) */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <button
+          type="button"
+          onClick={() => setSmsExpanded(!smsExpanded)}
+          className="w-full p-6 text-left flex items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+              <Smartphone size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-slate-900">SMS Gateway Configuration (MSG91 / Twilio)</h3>
+                {(formData.msg91AuthKey || formData.twilioSid) && (
+                  <span className="px-2 py-0.5 text-[9px] font-bold bg-indigo-100 text-indigo-800 rounded-full">Configured</span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Send transactional SMS, student OTPs, and attendance alerts directly to mobile numbers.
+              </p>
+            </div>
+          </div>
+          <div className="text-slate-400">
+            {smsExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </div>
+        </button>
+
+        {smsExpanded && (
+          <div className="p-6 border-t border-slate-100 bg-slate-50/40 space-y-6 animate-in fade-in duration-150">
+            {/* MSG91 Section */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <span>MSG91 Provider</span>
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
                   <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                    MSG91 Auth Key {formData.msg91AuthKey === 'msg91_••••••••••••' && <Lock size={12} className="text-slate-400" />}
+                    Auth Key {formData.msg91AuthKey === 'msg91_••••••••••••' && <Lock size={12} className="text-slate-400" />}
                   </label>
                   <div className="relative">
                     <input
@@ -282,7 +554,7 @@ export default function NotificationSettingsForm() {
                       name="msg91AuthKey"
                       value={formData.msg91AuthKey}
                       onChange={handleInputChange}
-                      className="w-full pl-4 pr-10 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
+                      className="w-full pl-3.5 pr-9 py-2 text-xs rounded-lg border border-slate-200 focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 outline-none font-medium bg-white"
                       placeholder={formData.msg91AuthKey === 'msg91_••••••••••••' ? '••••••••••••' : 'Enter MSG91 Auth Key'}
                     />
                     <button
@@ -290,52 +562,57 @@ export default function NotificationSettingsForm() {
                       onClick={() => setShowMsg91AuthKey(!showMsg91AuthKey)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
                     >
-                      {showMsg91AuthKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showMsg91AuthKey ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">MSG91 Sender ID</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">Sender ID (6 Chars)</label>
                   <input
                     type="text"
                     name="msg91SenderId"
                     value={formData.msg91SenderId}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
+                    maxLength={6}
+                    className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 outline-none font-medium bg-white uppercase"
                     placeholder="e.g. QTECHP"
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="text-xs font-black text-slate-700 uppercase tracking-wider">Flow Template ID (Optional)</label>
                   <input
                     type="text"
                     name="msg91TemplateId"
                     value={formData.msg91TemplateId}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-                    placeholder="MSG91 Flow ID"
+                    className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 outline-none font-medium bg-white"
+                    placeholder="e.g. 642e128919..."
                   />
                 </div>
               </div>
-            )}
+            </div>
 
-            {formData.smsProvider === 'twilio' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 border border-slate-100 rounded-xl">
-                <div className="space-y-2">
+            {/* Twilio Section */}
+            <div className="pt-4 border-t border-slate-200 space-y-3">
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <span>Twilio SMS & Virtual Number</span>
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
                   <label className="text-xs font-black text-slate-700 uppercase tracking-wider">Twilio Account SID</label>
                   <input
                     type="text"
                     name="twilioSid"
                     value={formData.twilioSid}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-                    placeholder={formData.twilioSid === 'sid_••••••••••••' ? '••••••••••••' : 'Enter Twilio SID'}
+                    className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 outline-none font-medium bg-white"
+                    placeholder="AC..."
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
                     Twilio Auth Token {formData.twilioToken === 'twilio_••••••••••••' && <Lock size={12} className="text-slate-400" />}
                   </label>
@@ -345,390 +622,137 @@ export default function NotificationSettingsForm() {
                       name="twilioToken"
                       value={formData.twilioToken}
                       onChange={handleInputChange}
-                      className="w-full pl-4 pr-10 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-                      placeholder={formData.twilioToken === 'twilio_••••••••••••' ? '••••••••••••' : 'Enter Twilio Auth Token'}
+                      className="w-full pl-3.5 pr-9 py-2 text-xs rounded-lg border border-slate-200 focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 outline-none font-medium bg-white"
+                      placeholder={formData.twilioToken === 'twilio_••••••••••••' ? '••••••••••••' : 'Auth Token'}
                     />
                     <button
                       type="button"
                       onClick={() => setShowTwilioToken(!showTwilioToken)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
                     >
-                      {showTwilioToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showTwilioToken ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">Twilio Virtual Phone Number</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">Twilio Phone Number</label>
                   <input
                     type="text"
                     name="twilioNumber"
                     value={formData.twilioNumber}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-                    placeholder="e.g. +1877234567"
+                    className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 outline-none font-medium bg-white"
+                    placeholder="+1877234567"
                   />
                 </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* WhatsApp Sub Tab */}
-        {activeSubTab === 'whatsapp' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="space-y-2">
-              <label className="text-xs font-black text-slate-700 uppercase tracking-wider">WhatsApp Provider</label>
-              <select
-                name="whatsappProvider"
-                value={formData.whatsappProvider}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-              >
-                <option value="mock">Console Logger (Mock)</option>
-                <option value="openwa">OpenWA Gateway (Self-Hosted / GitHub)</option>
-                <option value="meta">Meta Cloud API (Official)</option>
-                <option value="twilio">Twilio WhatsApp Sandbox/Number</option>
-              </select>
-            </div>
-
-            {formData.whatsappProvider === 'openwa' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 border border-slate-100 rounded-xl animate-fade-in">
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                    OpenWA Server URL
-                  </label>
-                  <input
-                    type="url"
-                    name="openwaServerUrl"
-                    value={formData.openwaServerUrl}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-                    placeholder="e.g. http://localhost:2785 or https://wa.yourdomain.com"
-                  />
-                  <p className="text-[10px] text-slate-400 font-semibold">
-                    Base URL of your self-hosted OpenWA / @open-wa/wa-automate REST API server instance.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                    API Key / Secret {formData.openwaApiKey === 'openwa_••••••••••••' && <Lock size={12} className="text-slate-400" />}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showOpenwaApiKey ? "text" : "password"}
-                      name="openwaApiKey"
-                      value={formData.openwaApiKey}
-                      onChange={handleInputChange}
-                      className="w-full pl-4 pr-10 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-                      placeholder={formData.openwaApiKey === 'openwa_••••••••••••' ? '••••••••••••' : 'Enter OpenWA API Key (Optional)'}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowOpenwaApiKey(!showOpenwaApiKey)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
-                    >
-                      {showOpenwaApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                    Session ID
-                  </label>
-                  <input
-                    type="text"
-                    name="openwaSessionId"
-                    value={formData.openwaSessionId}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-                    placeholder="default"
-                  />
-                  <p className="text-[10px] text-slate-400 font-semibold">
-                    Session identifier configured in your OpenWA multi-session instance.
-                  </p>
-                </div>
-
-                <div className="md:col-span-2 pt-3 border-t border-slate-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">WhatsApp Web Session Connection</p>
-                    <p className="text-[11px] text-slate-500 font-medium">Scan the QR code from your mobile WhatsApp app to link this institute.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleOpenQrModal}
-                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition-all shrink-0"
-                  >
-                    <QrCode size={15} />
-                    Scan QR Code & Connect
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {formData.whatsappProvider === 'meta' && (
-              <div className="grid grid-cols-1 gap-6 p-4 bg-slate-50 border border-slate-100 rounded-xl">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">Meta Phone Number ID</label>
-                  <input
-                    type="text"
-                    name="metaPhoneNumberId"
-                    value={formData.metaPhoneNumberId}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-                    placeholder="e.g. 10672849382103"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                    Meta Access Token {formData.metaAccessToken === 'meta_••••••••••••' && <Lock size={12} className="text-slate-400" />}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showMetaAccessToken ? "text" : "password"}
-                      name="metaAccessToken"
-                      value={formData.metaAccessToken}
-                      onChange={handleInputChange}
-                      className="w-full pl-4 pr-10 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-                      placeholder={formData.metaAccessToken === 'meta_••••••••••••' ? '••••••••••••' : 'Meta Permanent Access Token'}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowMetaAccessToken(!showMetaAccessToken)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
-                    >
-                      {showMetaAccessToken ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {formData.whatsappProvider === 'twilio' && (
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-2 text-xs font-bold text-slate-500 leading-relaxed">
-                <p>Twilio WhatsApp operates using the Twilio credentials configured in the **SMS Configuration** tab.</p>
-                <p>Ensure Twilio SID, Auth Token, and Twilio Number are configured there. Your Twilio number will be automatically prefixed with <code className="bg-slate-200/60 px-1 py-0.5 rounded">whatsapp:</code> when messaging.</p>
-              </div>
-            )}
-
-            {/* Test WhatsApp */}
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
-              <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Test WhatsApp Connection</h4>
-              <div className="flex gap-2">
-                <input
-                  type="tel"
-                  value={waTestPhone}
-                  onChange={e => { setWaTestPhone(e.target.value); setWaTestStatus(null); }}
-                  placeholder="+919876543210"
-                  className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none font-medium"
-                />
-                <button
-                  type="button"
-                  onClick={handleWaTest}
-                  disabled={!waTestPhone.trim() || waTestStatus === 'sending'}
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {waTestStatus === 'sending'
-                    ? <><Loader2 size={14} className="animate-spin" /> Sending…</>
-                    : <><Send size={14} /> Send Test</>
-                  }
-                </button>
-              </div>
-              {waTestStatus === 'ok' && (
-                <p className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
-                  ✓ {waTestMsg}
-                </p>
-              )}
-              {waTestStatus === 'err' && (
-                <p className="text-[11px] text-red-600 font-bold">✗ {waTestMsg}</p>
-              )}
             </div>
           </div>
         )}
+      </div>
 
-        {/* Voice Reminders Sub Tab */}
-        {activeSubTab === 'voice' && (
-          <div className="space-y-6 animate-fade-in">
-            {/* Premium Feature Alert */}
-            <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3">
-              <PhoneCall className="text-amber-600 shrink-0 mt-0.5" size={18} />
-              <div>
-                <h4 className="text-xs font-black text-amber-800 uppercase tracking-wider">Premium Automated Call Reminders</h4>
-                <p className="text-[11px] text-amber-600 font-bold mt-1 leading-relaxed">
-                  Enabling automated voice reminders will upgrade your institute&apos;s platform subscription billing rate to **69 INR per student / year** instead of the standard 59 INR. All call expenses and verification overheads are managed by the platform.
-                </p>
-              </div>
+      {/* CHANNEL 4: Automated Voice Call Reminders (Coming Soon) */}
+      <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 opacity-75 relative overflow-hidden">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 border border-purple-200">
+              <PhoneCall size={22} />
             </div>
-
-            {/* Toggle Switch */}
-            <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50">
-              <div>
-                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Enable Voice Call Reminders</h4>
-                <p className="text-[10px] text-slate-400 font-bold mt-0.5">Automatically trigger outbound call reminders to students on the day they cross overdue.</p>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-sm font-black text-slate-800">Automated Voice Call Reminders</h3>
+                <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 rounded-full border border-purple-200 flex items-center gap-1">
+                  <Sparkles size={11} /> Coming Soon
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() => handleInputChange({
-                  target: {
-                    name: 'overdueVoiceReminderEnabled',
-                    type: 'checkbox',
-                    checked: !formData.overdueVoiceReminderEnabled
-                  }
-                })}
-                className={`relative w-12 h-6 rounded-full transition-all duration-200 shrink-0 outline-none focus:ring-2 focus:ring-premium-blue/20 ${formData.overdueVoiceReminderEnabled ? "bg-emerald-500" : "bg-slate-200"}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${formData.overdueVoiceReminderEnabled ? "translate-x-6" : "translate-x-0"}`} />
-              </button>
+              <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
+                AI-powered outbound voice call reminders to parents on the exact day fees cross overdue status.
+              </p>
             </div>
-
-            {formData.overdueVoiceReminderEnabled && (
-              <div className="grid grid-cols-1 gap-6 p-4 bg-slate-50 border border-slate-100 rounded-xl">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">Dedicated Caller ID (Optional)</label>
-                  <input
-                    type="text"
-                    name="dedicatedCallerId"
-                    value={formData.dedicatedCallerId}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all font-medium"
-                    placeholder="e.g. 08047284917"
-                  />
-                  <p className="text-[10px] text-slate-400 font-semibold mt-1">
-                    Enter your verified Exophone virtual number if you have rented a dedicated outbound line. Leave blank to use the shared platform Caller ID.
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
-        )}
-
-        {/* Messaging blocks */}
-        {successMessage && (
-          <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-xl flex items-center gap-2 text-xs font-bold animate-fade-in">
-            <CheckCircle size={16} className="text-emerald-600" />
-            <span>{successMessage}</span>
-          </div>
-        )}
-
-        {errorMessage && (
-          <div className="p-4 bg-rose-50 border border-rose-100 text-rose-800 rounded-xl flex items-start gap-2 text-xs font-bold animate-fade-in">
-            <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
-
-        {/* Action Panel */}
-        <div className="flex justify-end pt-4 border-t border-slate-100">
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-6 py-2 text-sm font-bold bg-premium-blue hover:bg-premium-blue-hover active:bg-premium-blue-active text-white rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <>
-                <Loader className="animate-spin text-white" size={16} />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save size={16} />
-                Save Config
-              </>
-            )}
-          </button>
         </div>
-      </form>
+      </div>
 
-      {/* OpenWA QR Code Scanner Modal */}
+      {/* Floating / Sticky Save Footer */}
+      <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-[#444CE7] hover:bg-[#3538CD] text-white font-bold rounded-xl px-7 py-2.5 text-xs shadow-sm flex items-center gap-2 cursor-pointer transition-all"
+        >
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          Save Notification Settings
+        </Button>
+      </div>
+
+      {/* QR Code Connection Modal */}
       <Modal
         isOpen={qrModalOpen}
-        onClose={() => setQrModalOpen(false)}
-        title="WhatsApp Login (OpenWA)"
-        className="max-w-md"
+        onClose={handleCloseQrModal}
+        title="Connect WhatsApp Web"
       >
-        <div className="space-y-5 p-2">
-          {qrLoading ? (
-            <div className="py-12 text-center flex flex-col items-center justify-center gap-3">
-              <Loader className="animate-spin text-emerald-600" size={36} />
-              <p className="text-xs text-slate-500 font-bold">Connecting to OpenWA server and fetching QR code...</p>
-            </div>
-          ) : qrStatus === 'CONNECTED' ? (
-            <div className="py-8 text-center flex flex-col items-center justify-center gap-3 bg-emerald-50/60 rounded-xl border border-emerald-100 p-6">
-              <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                <CheckCircle2 size={32} />
+        <div className="p-6 space-y-6 text-center">
+          <div className="space-y-1">
+            <h3 className="text-base font-black text-slate-900">Scan to Link Institute WhatsApp</h3>
+            <p className="text-xs text-slate-500">
+              Open WhatsApp on your phone → Settings / 3-dots → <strong>Linked Devices</strong> → <strong>Link a Device</strong>
+            </p>
+          </div>
+
+          {/* QR Display Area */}
+          <div className="w-64 h-64 mx-auto bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center relative overflow-hidden shadow-inner">
+            {qrLoading ? (
+              <div className="flex flex-col items-center gap-2 text-slate-400">
+                <Loader2 size={32} className="animate-spin text-emerald-600" />
+                <span className="text-[11px] font-bold">Connecting to WhatsApp...</span>
               </div>
-              <div>
-                <h4 className="text-base font-black text-slate-800">WhatsApp is Connected!</h4>
-                <p className="text-xs text-slate-500 font-medium mt-1">
-                  Your WhatsApp Web session is currently active and ready to dispatch announcements and receipts.
-                </p>
+            ) : qrError ? (
+              <div className="p-4 text-xs font-bold text-rose-600">
+                {qrError}
               </div>
-              <button
-                type="button"
-                onClick={fetchQrCode}
-                className="mt-2 px-4 py-2 bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
-              >
-                <RefreshCw size={14} /> Refresh Status
-              </button>
-            </div>
-          ) : qrData ? (
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="p-3 bg-white rounded-2xl border-2 border-emerald-500 shadow-md">
+            ) : qrData ? (
+              <div className="p-2 bg-white rounded-xl shadow-sm">
                 <img
-                  src={qrData}
+                  src={qrData.startsWith('data:') ? qrData : `data:image/png;base64,${qrData}`}
                   alt="WhatsApp QR Code"
-                  className="w-64 h-64 object-contain rounded-lg"
+                  className="w-56 h-56 object-contain"
                 />
               </div>
-              <div className="space-y-1.5 text-left bg-slate-50 p-4 rounded-xl border border-slate-200 w-full text-xs">
-                <p className="font-bold text-slate-800">How to scan & link:</p>
-                <ol className="list-decimal list-inside space-y-1 text-slate-600 font-medium">
-                  <li>Open <strong>WhatsApp</strong> on your phone.</li>
-                  <li>Tap <strong>Settings / ⋮ Menu</strong> → <strong>Linked Devices</strong>.</li>
-                  <li>Tap <strong>Link a Device</strong> and point your camera at the QR code above.</li>
-                </ol>
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-slate-400">
+                <Loader2 size={32} className="animate-spin text-emerald-600" />
+                <span className="text-[11px] font-bold">Generating QR Code...</span>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={fetchQrCode}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
-                >
-                  <RefreshCw size={14} /> Refresh QR
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="py-6 text-center space-y-4">
-              <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl text-left">
-                <div className="flex items-start gap-2 text-rose-700 text-xs font-bold">
-                  <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                  <span>{qrError || "Could not reach OpenWA Server."}</span>
-                </div>
-                <div className="mt-3 text-[11px] text-slate-600 space-y-1.5 bg-white p-3 rounded-lg border border-rose-100">
-                  <p className="font-bold text-slate-700">Quick Start OpenWA on your server:</p>
-                  <code className="block bg-slate-900 text-emerald-400 p-2 rounded font-mono text-[11px]">
-                    npx @open-wa/wa-automate --port 2785 --session-id {formData.openwaSessionId || 'default'}
-                  </code>
-                  <p className="text-[10px] text-slate-500">
-                    Make sure the URL in settings is set to <span className="font-mono text-slate-700">{formData.openwaServerUrl || 'http://localhost:2785'}</span> and saved.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={fetchQrCode}
-                className="px-4 py-2 bg-premium-blue hover:bg-premium-blue-hover text-white rounded-lg text-xs font-bold inline-flex items-center gap-2 shadow-sm transition-all"
-              >
-                <RefreshCw size={14} /> Retry Connection
-              </button>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* Live Status indicator */}
+          <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            Waiting for scan... (Auto-refreshes every 3 seconds)
+          </div>
+
+          <div className="flex justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={fetchLiveQr}
+              disabled={qrLoading}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+            >
+              <RefreshCw size={13} className={qrLoading ? "animate-spin" : ""} />
+              Refresh QR Code
+            </button>
+            <button
+              type="button"
+              onClick={handleCloseQrModal}
+              className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </Modal>
-    </Card>
+    </div>
   );
 }

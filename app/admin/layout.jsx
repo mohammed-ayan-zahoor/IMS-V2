@@ -56,7 +56,8 @@ import {
     Mail,
     Boxes,
     Package,
-    Monitor
+    Monitor,
+    SlidersHorizontal
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
@@ -251,7 +252,8 @@ export default function AdminLayout({ children }) {
                 { label: "Leave Types", icon: CalendarDays, href: "/admin/hr/leave-types", role: ["admin", "super_admin"] },
                 { label: "Staff Attendance", icon: UserCheck, href: "/admin/hr/attendance", role: ["admin", "super_admin"] },
                 { label: "Payslip Generator", icon: FileSpreadsheet, href: "/admin/hr/payslips", role: ["admin", "super_admin"] },
-                { label: "Permissions & Leaves", icon: CalendarDays, href: "/admin/hr/leave-requests" }
+                { label: "Permissions & Leaves", icon: CalendarDays, href: "/admin/hr/leave-requests" },
+                { label: "HR Settings", icon: SlidersHorizontal, href: "/admin/hr/settings", role: ["admin", "super_admin"] }
             ]
         },
         {

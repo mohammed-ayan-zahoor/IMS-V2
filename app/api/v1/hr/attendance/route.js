@@ -52,7 +52,13 @@ export async function GET(req) {
                     staff: member,
                     status: record ? record.status : 'present', // default to present if not marked
                     remarks: record ? record.remarks : '',
-                    attendanceId: record ? record._id : null
+                    attendanceId: record ? record._id : null,
+                    checkInTime: record ? record.checkInTime : '',
+                    checkOutTime: record ? record.checkOutTime : '',
+                    lateMinutes: record ? (record.lateMinutes || 0) : 0,
+                    earlyDepartureMinutes: record ? (record.earlyDepartureMinutes || 0) : 0,
+                    overtimeMinutes: record ? (record.overtimeMinutes || 0) : 0,
+                    midDayOutMinutes: record ? (record.midDayOutMinutes || 0) : 0
                 };
             });
 
@@ -90,7 +96,7 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { date, records } = body; // date: yyyy-mm-dd, records: [{ staffId, status, remarks }]
+        const { date, records } = body; // date: yyyy-mm-dd, records: [{ staffId, status, remarks, checkInTime, checkOutTime, lateMinutes, earlyDepartureMinutes, overtimeMinutes, midDayOutMinutes }]
 
         if (!date || !Array.isArray(records)) {
             return NextResponse.json({ error: "Date and records array are required" }, { status: 400 });
@@ -101,23 +107,34 @@ export async function POST(req) {
 
         await connectDB();
 
-        const bulkOperations = records.map(rec => ({
-            updateOne: {
-                filter: {
-                    institute: instituteId,
-                    date: queryDate,
-                    staff: rec.staffId
-                },
-                update: {
-                    $set: {
-                        status: rec.status,
-                        remarks: rec.remarks || "",
-                        markedBy: session.user.id
-                    }
-                },
-                upsert: true
-            }
-        }));
+        const bulkOperations = records.map(rec => {
+            const updateFields = {
+                status: rec.status,
+                remarks: rec.remarks || "",
+                markedBy: session.user.id
+            };
+
+            if (rec.checkInTime !== undefined) updateFields.checkInTime = rec.checkInTime;
+            if (rec.checkOutTime !== undefined) updateFields.checkOutTime = rec.checkOutTime;
+            if (rec.lateMinutes !== undefined) updateFields.lateMinutes = Number(rec.lateMinutes) || 0;
+            if (rec.earlyDepartureMinutes !== undefined) updateFields.earlyDepartureMinutes = Number(rec.earlyDepartureMinutes) || 0;
+            if (rec.overtimeMinutes !== undefined) updateFields.overtimeMinutes = Number(rec.overtimeMinutes) || 0;
+            if (rec.midDayOutMinutes !== undefined) updateFields.midDayOutMinutes = Number(rec.midDayOutMinutes) || 0;
+
+            return {
+                updateOne: {
+                    filter: {
+                        institute: instituteId,
+                        date: queryDate,
+                        staff: rec.staffId
+                    },
+                    update: {
+                        $set: updateFields
+                    },
+                    upsert: true
+                }
+            };
+        });
 
         await StaffAttendance.bulkWrite(bulkOperations);
 

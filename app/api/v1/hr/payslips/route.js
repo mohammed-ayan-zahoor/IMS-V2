@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import Payslip from "@/models/Payslip";
 import User from "@/models/User";
 import StaffAttendance from "@/models/StaffAttendance";
+import HRSettings from "@/models/HRSettings";
 import { createAuditLog } from "@/services/auditService";
 
 export async function GET(req) {
@@ -108,11 +109,64 @@ export async function POST(req) {
             else if (log.status === 'holiday') attendanceSummary.holiday++;
         });
 
+        // Fetch HR settings for timing rules & deduction/OT rates
+        const hrSettings = await HRSettings.findOne({ institute: instituteId }) || {
+            shiftStart: "09:00",
+            shiftEnd: "18:00",
+            checkInGraceMins: 15,
+            checkOutGraceMins: 10,
+            deductionRatePerHour: 100,
+            midDayOutEnabled: true,
+            overtimeEnabled: true,
+            overtimeBufferMins: 30,
+            overtimeRatePerHour: 150
+        };
+
+        // Compute timing penalties and overtime across monthly attendance logs
+        let totalLateHours = 0;
+        let totalEarlyHours = 0;
+        let totalMidDayHours = 0;
+        let totalOvertimeHours = 0;
+
+        attendanceLogs.forEach(log => {
+            // Late check-in penalty: exceeding grace period rounds up to next full hour
+            if (log.lateMinutes && log.lateMinutes > (hrSettings.checkInGraceMins || 0)) {
+                totalLateHours += Math.ceil(log.lateMinutes / 60);
+            }
+
+            // Early check-out penalty: leaving earlier than grace window rounds up to next full hour
+            if (log.earlyDepartureMinutes && log.earlyDepartureMinutes > (hrSettings.checkOutGraceMins || 0)) {
+                totalEarlyHours += Math.ceil(log.earlyDepartureMinutes / 60);
+            }
+
+            // Mid-day out-pass penalty: if enabled, rounds up to next full hour
+            if (hrSettings.midDayOutEnabled && log.midDayOutMinutes && log.midDayOutMinutes > 0) {
+                totalMidDayHours += Math.ceil(log.midDayOutMinutes / 60);
+            }
+
+            // Overtime earning: if enabled and past unpaid buffer, full hours counted
+            if (hrSettings.overtimeEnabled && log.overtimeMinutes && log.overtimeMinutes > (hrSettings.overtimeBufferMins || 0)) {
+                const effectiveOtMinutes = log.overtimeMinutes - (hrSettings.overtimeBufferMins || 0);
+                const otHours = Math.floor(effectiveOtMinutes / 60);
+                if (otHours > 0) {
+                    totalOvertimeHours += otHours;
+                }
+            }
+        });
+
         // Compute salary calculations
         const earnings = (staffMember.hrDetails?.earnings || []).map(e => ({
             componentName: e.component?.name || "Earning Component",
             amount: e.amount || 0
         }));
+
+        if (totalOvertimeHours > 0 && hrSettings.overtimeRatePerHour > 0) {
+            const overtimeAmount = totalOvertimeHours * hrSettings.overtimeRatePerHour;
+            earnings.push({
+                componentName: `Overtime (${totalOvertimeHours} hrs @ ₹${hrSettings.overtimeRatePerHour}/hr)`,
+                amount: overtimeAmount
+            });
+        }
 
         const configuredDeductions = (staffMember.hrDetails?.deductions || []).map(d => ({
             componentName: d.component?.name || "Deduction Component",
@@ -128,6 +182,20 @@ export async function POST(req) {
             deductions.push({
                 componentName: `Attendance Deduction (${attendanceSummary.absent}d Abs, ${attendanceSummary.halfDay}d Half)`,
                 amount: absentDeductionAmount
+            });
+        }
+
+        const totalTimingDeductionHours = totalLateHours + totalEarlyHours + totalMidDayHours;
+        if (totalTimingDeductionHours > 0 && hrSettings.deductionRatePerHour > 0) {
+            const timingDeductionAmount = totalTimingDeductionHours * hrSettings.deductionRatePerHour;
+            const detailsList = [];
+            if (totalLateHours > 0) detailsList.push(`Late: ${totalLateHours}h`);
+            if (totalEarlyHours > 0) detailsList.push(`Early: ${totalEarlyHours}h`);
+            if (totalMidDayHours > 0) detailsList.push(`Out-pass: ${totalMidDayHours}h`);
+
+            deductions.push({
+                componentName: `Timing & Penalty Deduction (${detailsList.join(', ')} @ ₹${hrSettings.deductionRatePerHour}/hr)`,
+                amount: timingDeductionAmount
             });
         }
 

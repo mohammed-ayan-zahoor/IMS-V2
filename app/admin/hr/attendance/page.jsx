@@ -116,7 +116,13 @@ export default function StaffAttendancePage() {
                 .map(rec => ({
                     staffId: rec.staff._id,
                     status: rec.status,
-                    remarks: rec.remarks || ""
+                    remarks: rec.remarks || "",
+                    checkInTime: rec.checkInTime || "",
+                    checkOutTime: rec.checkOutTime || "",
+                    lateMinutes: rec.lateMinutes || 0,
+                    earlyDepartureMinutes: rec.earlyDepartureMinutes || 0,
+                    overtimeMinutes: rec.overtimeMinutes || 0,
+                    midDayOutMinutes: rec.midDayOutMinutes || 0
                 }));
 
             const res = await fetch("/api/v1/hr/attendance", {
