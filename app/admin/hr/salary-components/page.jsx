@@ -9,6 +9,7 @@ import Modal from "@/components/ui/Modal";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { cn } from "@/lib/utils";
 
 const typeOptions = [
     { value: "earning", label: "Earning" },

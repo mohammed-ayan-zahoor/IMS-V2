@@ -3,6 +3,7 @@
 import React from 'react';
 import { BookOpen, Users, Award, ShieldCheck, Zap, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { cn } from "@/lib/utils";
 
 const iconMap = {
     'book': BookOpen,
