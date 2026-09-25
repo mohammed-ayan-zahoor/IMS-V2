@@ -3,15 +3,22 @@
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
-export default function Modal({ isOpen, onClose, title, children, className = "" }) {
-    const [mounted, setMounted] = useState(false);
+const sizeMap = {
+    sm: "max-w-md",
+    md: "max-w-lg",
+    lg: "max-w-2xl",
+    xl: "max-w-4xl",
+    "2xl": "max-w-5xl",
+    "3xl": "max-w-6xl",
+    full: "max-w-[95vw]"
+};
 
-    useEffect(() => {
-        setMounted(true);
-        return () => setMounted(false);
-    }, []);
+const emptySubscribe = () => () => {};
+
+export default function Modal({ isOpen, onClose, title, children, size = "md", className = "" }) {
+    const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
     useEffect(() => {
         if (isOpen) {
@@ -54,7 +61,7 @@ export default function Modal({ isOpen, onClose, title, children, className = ""
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="modal-title"
-                        className={`bg-white w-full rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-slate-100 overflow-hidden relative flex flex-col ${className || 'max-w-lg'}`}
+                        className={`bg-white w-full rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-slate-100 overflow-hidden relative flex flex-col ${className?.split(' ').some(c => c.startsWith('max-w-')) ? '' : (sizeMap[size] || sizeMap.md)} ${className}`.trim()}
                         style={{ maxHeight: '90vh' }}
                     >
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center flex-shrink-0">

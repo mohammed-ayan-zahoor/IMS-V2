@@ -703,7 +703,8 @@ export default function PayslipsPage() {
                 isOpen={isCreateOpen}
                 onClose={() => { setIsCreateOpen(false); setSelectedStaffId(""); setBaseSalaryData(null); setMonthlyAdjustments([]); }}
                 title="Generate New Payslip"
-                size="lg"
+                size="2xl"
+                className="max-w-5xl"
             >
                 <form onSubmit={handleCreatePayslip} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -745,101 +746,83 @@ export default function PayslipsPage() {
                         </div>
                     ) : previewData ? (
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-2">Salary Details Preview</h4>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                                <div>
-                                    <p className="text-xs font-semibold text-slate-400 uppercase">Monthly Attendance Summary</p>
-                                    <div className="grid grid-cols-5 gap-1.5 mt-2">
-                                        <div className="bg-white p-2 rounded-lg text-center border border-slate-100">
-                                            <span className="block text-[10px] font-bold text-slate-400">Present</span>
-                                            <span className="block text-sm font-black text-emerald-600 mt-0.5">{previewData.attendanceSummary.present || 0}d</span>
-                                        </div>
-                                        <div className="bg-white p-2 rounded-lg text-center border border-slate-100">
-                                            <span className="block text-[10px] font-bold text-slate-400">Absent</span>
-                                            <span className="block text-sm font-black text-rose-600 mt-0.5">{previewData.attendanceSummary.absent || 0}d</span>
-                                        </div>
-                                        <div className="bg-white p-2 rounded-lg text-center border border-slate-100">
-                                            <span className="block text-[10px] font-bold text-slate-400">Half Day</span>
-                                            <span className="block text-sm font-black text-amber-500 mt-0.5">{previewData.attendanceSummary.halfDay || 0}d</span>
-                                        </div>
-                                        <div className="bg-white p-2 rounded-lg text-center border border-slate-100">
-                                            <span className="block text-[10px] font-bold text-slate-400">Leave</span>
-                                            <span className="block text-sm font-black text-purple-600 mt-0.5">{previewData.attendanceSummary.onLeave || 0}d</span>
-                                        </div>
-                                        <div className="bg-white p-2 rounded-lg text-center border border-slate-100">
-                                            <span className="block text-[10px] font-bold text-slate-400">Holiday</span>
-                                            <span className="block text-sm font-black text-slate-700 mt-0.5">{previewData.attendanceSummary.holiday || 0}d</span>
-                                        </div>
-                                    </div>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Salary Details & Attendance Preview</h4>
+                                <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                                    <span className="font-semibold text-slate-600 mr-1">Attendance:</span>
+                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-bold text-[11px]">{previewData.attendanceSummary.present || 0}d Present</span>
+                                    <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full font-bold text-[11px]">{previewData.attendanceSummary.absent || 0}d Absent</span>
+                                    <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full font-bold text-[11px]">{previewData.attendanceSummary.halfDay || 0}d Half</span>
+                                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full font-bold text-[11px]">{previewData.attendanceSummary.onLeave || 0}d Leave</span>
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-full font-bold text-[11px]">{previewData.attendanceSummary.holiday || 0}d Holiday</span>
                                 </div>
+                            </div>
 
-                                <div className="space-y-2">
-                                    {(() => {
-                                        const otherEarnings = (previewData.earnings || []).filter(e => {
-                                            const n = (e.componentName || '').trim().toLowerCase();
-                                            return n !== 'basic salary' && n !== 'basic';
-                                        });
-                                        const eList = [
-                                            { name: "Basic Salary", amount: previewData.basicSalary || 0 },
-                                            ...otherEarnings.map(e => ({ name: e.componentName, amount: e.amount || 0 }))
-                                        ];
-                                        const seenDed = new Set();
-                                        const dList = [];
-                                        (previewData.deductions || []).forEach(d => {
-                                            const norm = (d.componentName || '').trim().toLowerCase();
-                                            if (!seenDed.has(norm)) {
-                                                seenDed.add(norm);
-                                                dList.push({ name: d.componentName, amount: d.amount || 0 });
-                                            }
-                                        });
-                                        const rowsCount = Math.max(eList.length, dList.length);
-                                        const paired = [];
-                                        for (let i = 0; i < rowsCount; i++) {
-                                            paired.push({
-                                                earning: eList[i] || null,
-                                                deduction: dList[i] || null
-                                            });
+                            <div className="space-y-3">
+                                {(() => {
+                                    const otherEarnings = (previewData.earnings || []).filter(e => {
+                                        const n = (e.componentName || '').trim().toLowerCase();
+                                        return n !== 'basic salary' && n !== 'basic';
+                                    });
+                                    const eList = [
+                                        { name: "Basic Salary", amount: previewData.basicSalary || 0 },
+                                        ...otherEarnings.map(e => ({ name: e.componentName, amount: e.amount || 0 }))
+                                    ];
+                                    const seenDed = new Set();
+                                    const dList = [];
+                                    (previewData.deductions || []).forEach(d => {
+                                        const norm = (d.componentName || '').trim().toLowerCase();
+                                        if (!seenDed.has(norm)) {
+                                            seenDed.add(norm);
+                                            dList.push({ name: d.componentName, amount: d.amount || 0 });
                                         }
+                                    });
+                                    const rowsCount = Math.max(eList.length, dList.length);
+                                    const paired = [];
+                                    for (let i = 0; i < rowsCount; i++) {
+                                        paired.push({
+                                            earning: eList[i] || null,
+                                            deduction: dList[i] || null
+                                        });
+                                    }
 
-                                        return (
-                                            <div className="border border-[#7a8ba8] overflow-hidden rounded-lg text-xs bg-white">
-                                                <table className="w-full border-collapse">
-                                                    <thead>
-                                                        <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-b border-[#7a8ba8]">
-                                                            <th className="py-1.5 px-2 text-left border-r border-[#7a8ba8] uppercase">Earnings</th>
-                                                            <th className="py-1.5 px-2 text-right border-r border-[#7a8ba8] uppercase">Amount</th>
-                                                            <th className="py-1.5 px-2 text-left border-r border-[#7a8ba8] uppercase">Deductions</th>
-                                                            <th className="py-1.5 px-2 text-right uppercase">Amount</th>
+                                    return (
+                                        <div className="border border-[#7a8ba8] overflow-hidden rounded-xl text-xs bg-white shadow-xs">
+                                            <table className="w-full border-collapse">
+                                                <thead>
+                                                    <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-b border-[#7a8ba8]">
+                                                        <th className="py-2.5 px-3 text-left border-r border-[#7a8ba8] uppercase w-5/12">Earnings</th>
+                                                        <th className="py-2.5 px-3 text-right border-r border-[#7a8ba8] uppercase w-2/12">Amount</th>
+                                                        <th className="py-2.5 px-3 text-left border-r border-[#7a8ba8] uppercase w-4/12">Deductions</th>
+                                                        <th className="py-2.5 px-3 text-right uppercase w-2/12">Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-[#7a8ba8]">
+                                                    {paired.map((row, idx) => (
+                                                        <tr key={idx} className="divide-x divide-[#7a8ba8] hover:bg-slate-50/50">
+                                                            <td className="py-2 px-3 text-slate-700">{row.earning ? row.earning.name : ""}</td>
+                                                            <td className="py-2 px-3 text-right font-semibold text-slate-900">{row.earning ? `₹${formatCurrency(row.earning.amount)}` : ""}</td>
+                                                            <td className="py-2 px-3 text-slate-700">{row.deduction ? row.deduction.name : ""}</td>
+                                                            <td className="py-2 px-3 text-right font-semibold text-slate-900">{row.deduction ? `₹${formatCurrency(row.deduction.amount)}` : ""}</td>
                                                         </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-[#7a8ba8]">
-                                                        {paired.map((row, idx) => (
-                                                            <tr key={idx} className="divide-x divide-[#7a8ba8]">
-                                                                <td className="py-1 px-2 text-slate-700">{row.earning ? row.earning.name : ""}</td>
-                                                                <td className="py-1 px-2 text-right font-medium text-slate-900">{row.earning ? `₹${formatCurrency(row.earning.amount)}` : ""}</td>
-                                                                <td className="py-1 px-2 text-slate-700">{row.deduction ? row.deduction.name : ""}</td>
-                                                                <td className="py-1 px-2 text-right font-medium text-slate-900">{row.deduction ? `₹${formatCurrency(row.deduction.amount)}` : ""}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                    <tfoot>
-                                                        <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-t border-[#7a8ba8] divide-x divide-[#7a8ba8]">
-                                                            <td className="py-1.5 px-2 text-left">Gross</td>
-                                                            <td className="py-1.5 px-2 text-right">₹{formatCurrency(previewData.totalEarnings)}</td>
-                                                            <td className="py-1.5 px-2 text-left">Deductions</td>
-                                                            <td className="py-1.5 px-2 text-right">₹{formatCurrency(previewData.totalDeductions)}</td>
-                                                        </tr>
-                                                    </tfoot>
-                                                </table>
-                                            </div>
-                                        );
-                                    })()}
+                                                    ))}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-t border-[#7a8ba8] divide-x divide-[#7a8ba8]">
+                                                        <td className="py-2 px-3 text-left font-extrabold">Gross Earnings</td>
+                                                        <td className="py-2 px-3 text-right font-extrabold">₹{formatCurrency(previewData.totalEarnings)}</td>
+                                                        <td className="py-2 px-3 text-left font-extrabold">Total Deductions</td>
+                                                        <td className="py-2 px-3 text-right font-extrabold text-rose-700">₹{formatCurrency(previewData.totalDeductions)}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    );
+                                })()}
 
-                                    <div className="bg-[#35374d] text-white p-3 rounded-lg flex justify-between items-center mt-2">
-                                        <span className="font-bold text-xs uppercase tracking-wider text-indigo-200">Net Payable:</span>
-                                        <span className="font-black text-white text-base">₹{formatCurrency(previewData.netSalary)}</span>
-                                    </div>
+                                <div className="bg-[#35374d] text-white p-3.5 rounded-xl flex justify-between items-center mt-2 shadow-sm">
+                                    <span className="font-bold text-xs uppercase tracking-wider text-indigo-200">Net Payable:</span>
+                                    <span className="font-black text-white text-lg">₹{formatCurrency(previewData.netSalary)}</span>
                                 </div>
                             </div>
                         </div>
@@ -1069,7 +1052,8 @@ export default function PayslipsPage() {
                     isOpen={isPrintOpen}
                     onClose={() => setIsPrintOpen(false)}
                     title="Salary Payslip Printable Receipt"
-                    size="lg"
+                    size="2xl"
+                    className="max-w-5xl"
                 >
                     <div className="p-6 bg-white border border-slate-300 rounded-xl space-y-6" id="printable-payslip">
                         {/* Payslip Header */}
