@@ -359,16 +359,40 @@ async function runDatabaseIntegrationSuite() {
             assert.strictEqual(staffWithoutPhoto.profile.avatar, null, "Avatar should be null after removal");
         });
 
-        // 5.5 Clean up test data
-        await runAsyncTest("5.5 Clean up test artifacts from database", async () => {
+        // 5.5 Test SalaryComponent recurrence ('recurring' vs 'variable')
+        const variableCompId = new mongoose.Types.ObjectId();
+        await runAsyncTest("5.5 Create variable SalaryComponent (e.g. Performance Penalty) with recurrence: 'variable'", async () => {
+            const varDoc = {
+                _id: variableCompId,
+                institute: instituteId,
+                name: `Performance Penalty ${Date.now()}`,
+                type: "deduction",
+                calculationType: "flat",
+                recurrence: "variable",
+                defaultValue: 0,
+                isActive: true,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+
+            await db.collection('salarycomponents').insertOne(varDoc);
+            const foundVar = await db.collection('salarycomponents').findOne({ _id: variableCompId });
+            assert.strictEqual(foundVar.recurrence, "variable", "Component should have recurrence: 'variable'");
+        });
+
+        // 5.6 Clean up test data
+        await runAsyncTest("5.6 Clean up test artifacts from database", async () => {
             await db.collection('users').deleteOne({ _id: testStaffId });
             await db.collection('salarycomponents').deleteOne({ _id: testCompId });
+            await db.collection('salarycomponents').deleteOne({ _id: variableCompId });
 
             const checkStaff = await db.collection('users').findOne({ _id: testStaffId });
             const checkComp = await db.collection('salarycomponents').findOne({ _id: testCompId });
+            const checkVar = await db.collection('salarycomponents').findOne({ _id: variableCompId });
 
             assert.strictEqual(checkStaff, null, "Staff document was not cleaned up");
             assert.strictEqual(checkComp, null, "SalaryComponent document was not cleaned up");
+            assert.strictEqual(checkVar, null, "Variable component was not cleaned up");
         });
 
         await mongoose.disconnect();

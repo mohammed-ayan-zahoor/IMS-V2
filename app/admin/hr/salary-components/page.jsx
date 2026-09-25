@@ -26,6 +26,10 @@ export default function SalaryComponentsPage() {
     const [formData, setFormData] = useState({
         name: "",
         type: "earning",
+        calculationType: "flat",
+        percentageBasis: "basic",
+        defaultValue: 0,
+        recurrence: "recurring",
         description: ""
     });
 
@@ -66,6 +70,10 @@ export default function SalaryComponentsPage() {
                 body: JSON.stringify({
                     name: formData.name.trim(),
                     type: formData.type,
+                    calculationType: formData.calculationType || 'flat',
+                    percentageBasis: formData.percentageBasis || 'basic',
+                    defaultValue: Number(formData.defaultValue) || 0,
+                    recurrence: formData.recurrence || 'recurring',
                     description: formData.description.trim()
                 })
             });
@@ -73,7 +81,15 @@ export default function SalaryComponentsPage() {
             if (res.ok) {
                 toast.success("Salary component added successfully");
                 setIsModalOpen(false);
-                setFormData({ name: "", type: activeTab, description: "" });
+                setFormData({
+                    name: "",
+                    type: activeTab,
+                    calculationType: "flat",
+                    percentageBasis: "basic",
+                    defaultValue: 0,
+                    recurrence: "recurring",
+                    description: ""
+                });
                 fetchComponents();
             } else {
                 toast.error(data.error || "Failed to add salary component");
@@ -224,9 +240,19 @@ export default function SalaryComponentsPage() {
                             </div>
 
                             <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                                <span className={`text-[10px] font-bold uppercase tracking-wider ${comp.type === 'earning' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                    {comp.type}
-                                </span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${comp.type === 'earning' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {comp.type}
+                                    </span>
+                                    <span className={cn(
+                                        "text-[9px] font-bold px-1.5 py-0.5 rounded",
+                                        comp.recurrence === 'variable'
+                                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                            : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                    )}>
+                                        {comp.recurrence === 'variable' ? "Variable / Ad-hoc" : "Monthly Recurring"}
+                                    </span>
+                                </div>
                                 <span className={cn(
                                     "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded",
                                     comp.isActive !== false ? "bg-emerald-50 text-emerald-700" : "bg-slate-200 text-slate-600"
@@ -270,6 +296,39 @@ export default function SalaryComponentsPage() {
                         required
                         autoFocus
                     />
+
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Frequency / Nature *</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, recurrence: 'recurring' })}
+                                className={cn(
+                                    "p-2.5 rounded-lg border text-left transition-all",
+                                    (formData.recurrence || 'recurring') === 'recurring'
+                                        ? "border-indigo-600 bg-indigo-50/50 text-indigo-950 font-bold"
+                                        : "border-slate-200 hover:border-slate-300 text-slate-600"
+                                )}
+                            >
+                                <p className="text-xs font-bold">Monthly Recurring</p>
+                                <p className="text-[10px] text-slate-500 mt-0.5 font-normal">Fixed salary contract (PF, ESI, PT, HRA)</p>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, recurrence: 'variable' })}
+                                className={cn(
+                                    "p-2.5 rounded-lg border text-left transition-all",
+                                    formData.recurrence === 'variable'
+                                        ? "border-amber-600 bg-amber-50/50 text-amber-950 font-bold"
+                                        : "border-slate-200 hover:border-slate-300 text-slate-600"
+                                )}
+                            >
+                                <p className="text-xs font-bold">Variable / One-Off</p>
+                                <p className="text-[10px] text-slate-500 mt-0.5 font-normal">Per-month payslip cuts/bonuses (Fines, Advance)</p>
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                         <Select
                             label="Component Type"

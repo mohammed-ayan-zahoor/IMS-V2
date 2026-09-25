@@ -41,7 +41,7 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { name, type, description, calculationType, percentageBasis, defaultValue, isActive } = body;
+        const { name, type, description, calculationType, percentageBasis, defaultValue, recurrence, isActive } = body;
 
         if (!name || typeof name !== 'string' || name.trim().length === 0) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -60,6 +60,7 @@ export async function POST(req) {
             calculationType: calculationType || 'flat',
             percentageBasis: percentageBasis || 'basic',
             defaultValue: Number(defaultValue) || 0,
+            recurrence: recurrence === 'variable' ? 'variable' : 'recurring',
             isActive: isActive !== undefined ? !!isActive : true
         });
 

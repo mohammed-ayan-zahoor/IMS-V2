@@ -98,6 +98,9 @@ export async function PATCH(req, { params }) {
         if (body.calculationType) component.calculationType = body.calculationType;
         if (body.percentageBasis) component.percentageBasis = body.percentageBasis;
         if (body.defaultValue !== undefined) component.defaultValue = Number(body.defaultValue) || 0;
+        if (body.recurrence && ['recurring', 'variable'].includes(body.recurrence)) {
+            component.recurrence = body.recurrence;
+        }
 
         await component.save();
 

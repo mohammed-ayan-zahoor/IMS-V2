@@ -104,7 +104,7 @@ export default function StaffProfilePage({ params }) {
             const basic = Number(staffData?.hrDetails?.basicSalary || 0);
             setBasicSalaryInput(basic);
 
-            const activeEarnings = (data.availableComponents || []).filter(c => c.type === "earning");
+            const activeEarnings = (data.availableComponents || []).filter(c => c.type === "earning" && c.recurrence !== "variable");
             const assignedEarningsMap = new Map();
             (staffData?.hrDetails?.earnings || []).forEach(e => {
                 const compId = e.component?._id || e.component;
@@ -135,7 +135,7 @@ export default function StaffProfilePage({ params }) {
             setEarningsStructure(earningsList);
 
             // Set up Deductions Structure
-            const activeDeductions = (data.availableComponents || []).filter(c => c.type === "deduction");
+            const activeDeductions = (data.availableComponents || []).filter(c => c.type === "deduction" && c.recurrence !== "variable");
             const assignedDeductionsMap = new Map();
             (staffData?.hrDetails?.deductions || []).forEach(d => {
                 const compId = d.component?._id || d.component;
@@ -1044,8 +1044,13 @@ export default function StaffProfilePage({ params }) {
                         <div className="space-y-6 pt-5">
                             <div className="bg-amber-50 dark:bg-amber-950/30 p-3.5 rounded-xl border border-amber-200 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
                                 <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                                <div>
-                                    <strong>Private School / Exemption Policy:</strong> If your institution or this specific staff member is exempt from Professional Tax or EPF/ESI, uncheck the component below. Only checked deductions will be deducted during monthly payroll.
+                                <div className="space-y-1">
+                                    <p>
+                                        <strong>Statutory / Monthly Recurring Deductions:</strong> Only fixed monthly contract rules (EPF, ESI, Professional Tax, TDS) appear here. If your institution or this staff member is exempt, uncheck the box.
+                                    </p>
+                                    <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
+                                        💡 <em>Variable monthly deductions (Attendance LWP, Late-in penalties, Performance cuts, Advance recovery) are calculated or applied per-month directly when generating payslips.</em>
+                                    </p>
                                 </div>
                             </div>
 

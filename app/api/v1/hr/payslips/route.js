@@ -174,7 +174,8 @@ export async function POST(req) {
         const earningComponentsMaster = instituteComponents.filter(c => 
             c.type === 'earning' && 
             c.name.trim().toLowerCase() !== 'basic salary' && 
-            c.name.trim().toLowerCase() !== 'basic'
+            c.name.trim().toLowerCase() !== 'basic' &&
+            c.recurrence !== 'variable'
         );
         
         earningComponentsMaster.forEach(comp => {
@@ -244,7 +245,7 @@ export async function POST(req) {
 
         // 2. Build Deductions list: All active deduction components in master + Absence + Timing penalties (even if 0)
         const deductions = [];
-        const deductionComponentsMaster = instituteComponents.filter(c => c.type === 'deduction');
+        const deductionComponentsMaster = instituteComponents.filter(c => c.type === 'deduction' && c.recurrence !== 'variable');
         
         deductionComponentsMaster.forEach(comp => {
             let amount = staffDeductionsMap.get(comp._id.toString()) ?? staffDeductionsMap.get(comp.name.toLowerCase().trim());
@@ -335,6 +336,31 @@ export async function POST(req) {
             componentName: timingDesc,
             amount: timingDeductionAmount
         });
+
+        // 3. Include any monthly variable adjustments (e.g. Performance Penalties, Fines, Advances, or Bonuses)
+        if (Array.isArray(body.customEarnings)) {
+            body.customEarnings.forEach(ce => {
+                const amt = parseFloat(ce.amount);
+                if (ce.componentName && amt > 0) {
+                    earnings.push({
+                        componentName: ce.componentName.trim(),
+                        amount: Math.round(amt * 100) / 100
+                    });
+                }
+            });
+        }
+
+        if (Array.isArray(body.customDeductions)) {
+            body.customDeductions.forEach(cd => {
+                const amt = parseFloat(cd.amount);
+                if (cd.componentName && amt > 0) {
+                    deductions.push({
+                        componentName: cd.componentName.trim(),
+                        amount: Math.round(amt * 100) / 100
+                    });
+                }
+            });
+        }
 
         const totalEarnings = basicSalary + earnings.reduce((sum, e) => sum + e.amount, 0);
         const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);

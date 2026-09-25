@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { FileSpreadsheet, Plus, Trash2, Loader2, Landmark, CheckCircle, Printer, X, Download, User, Calendar, Receipt, DollarSign } from "lucide-react";
+import { FileSpreadsheet, Plus, Trash2, Loader2, Landmark, CheckCircle, Printer, X, Download, User, Calendar, Receipt, DollarSign, Coins } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Select from "@/components/ui/Select";
@@ -58,6 +58,7 @@ export default function PayslipsPage() {
     const [notes, setNotes] = useState("");
     const [paymentStatus, setPaymentStatus] = useState("unpaid");
     const [paymentMode, setPaymentMode] = useState("Cash");
+    const [monthlyAdjustments, setMonthlyAdjustments] = useState([]);
     
     // Detail overlay / Actions targets
     const [activePayslip, setActivePayslip] = useState(null);
@@ -251,7 +252,8 @@ export default function PayslipsPage() {
                 const earningComponents = salaryComponents.filter(c => 
                     c.type === 'earning' && 
                     c.name.trim().toLowerCase() !== 'basic salary' && 
-                    c.name.trim().toLowerCase() !== 'basic'
+                    c.name.trim().toLowerCase() !== 'basic' &&
+                    c.recurrence !== 'variable'
                 );
 
                 earningComponents.forEach(c => {
@@ -288,7 +290,7 @@ export default function PayslipsPage() {
                     if (d.component?.name) assignedDeductionsMap.set(d.component.name.toLowerCase().trim(), d.amount || 0);
                 });
 
-                const deductionComponents = salaryComponents.filter(c => c.type === 'deduction');
+                const deductionComponents = salaryComponents.filter(c => c.type === 'deduction' && c.recurrence !== 'variable');
                 deductionComponents.forEach(c => {
                     const amt = assignedDeductionsMap.get(c._id.toString()) ?? assignedDeductionsMap.get(c.name.toLowerCase().trim()) ?? 0;
                     deductions.push({
@@ -330,13 +332,31 @@ export default function PayslipsPage() {
 
                 const detailsList = [];
                 if (totalLateHours > 0) detailsList.push(`Late: ${totalLateHours}h`);
-                if (totalEarlyHours > 0) detailsList.push(`Early: ${totalEarlyHours}h`);
+                if (totalEarlyHours > 0) detailsList.push(`Early-exit: ${totalEarlyHours}h`);
                 if (totalMidDayHours > 0) detailsList.push(`Out-pass: ${totalMidDayHours}h`);
                 deductions.push({
                     componentName: detailsList.length > 0 
                         ? `Timing Penalties (${detailsList.join(', ')} @ ₹${hrSettings.deductionRatePerHour}/hr)` 
                         : "Timing & Late Penalties (0 hrs)",
                     amount: timingDeduction
+                });
+
+                // Include monthly variable adjustments in preview
+                monthlyAdjustments.forEach(adj => {
+                    const amt = parseFloat(adj.amount) || 0;
+                    if (amt > 0) {
+                        if (adj.type === 'earning') {
+                            earnings.push({
+                                componentName: adj.name || "Performance Bonus",
+                                amount: amt
+                            });
+                        } else {
+                            deductions.push({
+                                componentName: adj.name || "Performance Fine / Penalty",
+                                amount: amt
+                            });
+                        }
+                    }
                 });
 
                 const totalEarnings = basicSalary + earnings.reduce((sum, e) => sum + e.amount, 0);
@@ -370,7 +390,7 @@ export default function PayslipsPage() {
 
         fetchPreviewDetails();
         return () => controller.abort();
-    }, [selectedStaffId, createMonth, createYear, isCreateOpen, staffList, toast]);
+    }, [selectedStaffId, createMonth, createYear, isCreateOpen, staffList, monthlyAdjustments, toast]);
 
     const handleCreatePayslip = async (e) => {
         e.preventDefault();
@@ -378,6 +398,13 @@ export default function PayslipsPage() {
             toast.error("Please select a staff member");
             return;
         }
+
+        const customEarnings = monthlyAdjustments
+            .filter(a => a.type === 'earning' && parseFloat(a.amount) > 0)
+            .map(a => ({ componentName: a.name, amount: parseFloat(a.amount) }));
+        const customDeductions = monthlyAdjustments
+            .filter(a => a.type === 'deduction' && parseFloat(a.amount) > 0)
+            .map(a => ({ componentName: a.name, amount: parseFloat(a.amount) }));
 
         try {
             const res = await fetch("/api/v1/hr/payslips", {
@@ -389,7 +416,9 @@ export default function PayslipsPage() {
                     year: parseInt(createYear),
                     paymentStatus,
                     paymentMode,
-                    notes
+                    notes,
+                    customEarnings,
+                    customDeductions
                 })
             });
 
@@ -399,6 +428,7 @@ export default function PayslipsPage() {
                 setIsCreateOpen(false);
                 setSelectedStaffId("");
                 setNotes("");
+                setMonthlyAdjustments([]);
                 fetchPayslips(filterMonth, filterYear);
             } else {
                 toast.error(data.error || "Failed to generate payslip");
@@ -612,7 +642,7 @@ export default function PayslipsPage() {
             {/* GENERATE PAYSLIP MODAL */}
             <Modal
                 isOpen={isCreateOpen}
-                onClose={() => { setIsCreateOpen(false); setSelectedStaffId(""); setPreviewData(null); }}
+                onClose={() => { setIsCreateOpen(false); setSelectedStaffId(""); setPreviewData(null); setMonthlyAdjustments([]); }}
                 title="Generate New Payslip"
                 size="lg"
             >
@@ -757,6 +787,112 @@ export default function PayslipsPage() {
                     ) : selectedStaffId ? (
                         <div className="text-center py-6 text-slate-400 text-sm">Select staff to preview details.</div>
                     ) : null}
+
+                    {/* Monthly Variable Adjustments (Performance Cuts, Fines, Advances, Bonuses) */}
+                    {previewData && (
+                        <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-2.5 gap-2">
+                                <div>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                                        <Coins size={14} className="text-amber-600" />
+                                        Monthly Variable Adjustments & Performance Cuts
+                                    </h4>
+                                    <p className="text-[11px] text-slate-400">
+                                        Add one-off performance fines, disciplinary cuts, advance recovery, or bonuses for this month only.
+                                    </p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setMonthlyAdjustments(prev => [
+                                            ...prev,
+                                            {
+                                                id: Date.now().toString(),
+                                                type: "deduction",
+                                                name: "Performance Fine / Penalty",
+                                                amount: 0
+                                            }
+                                        ]);
+                                    }}
+                                    className="text-xs flex items-center gap-1 self-start sm:self-auto"
+                                >
+                                    <Plus size={13} />
+                                    Add Adjustment
+                                </Button>
+                            </div>
+
+                            {monthlyAdjustments.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic text-center py-2">
+                                    No variable performance adjustments added. Standard salary & attendance rules apply.
+                                </p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {monthlyAdjustments.map((adj, index) => (
+                                        <div key={adj.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                                            <div className="w-full sm:w-36 shrink-0">
+                                                <select
+                                                    value={adj.type}
+                                                    onChange={(e) => {
+                                                        const newType = e.target.value;
+                                                        setMonthlyAdjustments(prev => prev.map((item, idx) => idx === index ? {
+                                                            ...item,
+                                                            type: newType,
+                                                            name: newType === 'deduction' ? "Performance Fine / Penalty" : "Performance Bonus"
+                                                        } : item));
+                                                    }}
+                                                    className="w-full text-xs font-bold border border-slate-200 rounded-lg p-1.5 bg-white text-slate-800"
+                                                >
+                                                    <option value="deduction">Cut / Deduction (-)</option>
+                                                    <option value="earning">Bonus / Earning (+)</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="flex-1 min-w-0">
+                                                <input
+                                                    type="text"
+                                                    value={adj.name}
+                                                    placeholder="Reason (e.g. Late shift penalty, Cash advance)"
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setMonthlyAdjustments(prev => prev.map((item, idx) => idx === index ? { ...item, name: val } : item));
+                                                    }}
+                                                    className="w-full text-xs border border-slate-200 rounded-lg p-1.5 bg-white text-slate-900 placeholder:text-slate-400"
+                                                />
+                                            </div>
+
+                                            <div className="w-full sm:w-28 shrink-0 relative">
+                                                <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-semibold">₹</span>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={adj.amount || ""}
+                                                    placeholder="Amount"
+                                                    onChange={(e) => {
+                                                        const amt = parseFloat(e.target.value) || 0;
+                                                        setMonthlyAdjustments(prev => prev.map((item, idx) => idx === index ? { ...item, amount: amt } : item));
+                                                    }}
+                                                    className="w-full text-xs font-bold border border-slate-200 rounded-lg py-1.5 pl-6 pr-2 bg-white text-slate-900"
+                                                />
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setMonthlyAdjustments(prev => prev.filter((_, idx) => idx !== index));
+                                                }}
+                                                className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors self-end sm:self-auto shrink-0"
+                                                title="Remove adjustment"
+                                            >
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {previewData && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

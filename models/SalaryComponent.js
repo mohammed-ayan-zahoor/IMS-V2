@@ -36,6 +36,11 @@ const SalaryComponentSchema = new Schema({
         type: Number,
         default: 0
     },
+    recurrence: {
+        type: String,
+        enum: ['recurring', 'variable'],
+        default: 'recurring'
+    },
     isActive: {
         type: Boolean,
         default: true
