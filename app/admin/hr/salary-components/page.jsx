@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Coins, Plus, Trash2, Loader2, FolderOpen, TrendingUp, TrendingDown, Info } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -17,6 +18,8 @@ const typeOptions = [
 ];
 
 export default function SalaryComponentsPage() {
+    const { data: session } = useSession();
+    const instituteId = session?.user?.institute?.id;
     const toast = useToast();
     const confirm = useConfirm();
     const [components, setComponents] = useState([]);
@@ -55,7 +58,7 @@ export default function SalaryComponentsPage() {
         const controller = new AbortController();
         fetchComponents(controller.signal);
         return () => controller.abort();
-    }, [fetchComponents]);
+    }, [fetchComponents, instituteId]);
 
     const handleAdd = async (e) => {
         e.preventDefault();

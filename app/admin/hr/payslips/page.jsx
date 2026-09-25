@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { FileSpreadsheet, Plus, Trash2, Loader2, Landmark, CheckCircle, Printer, X, Download, User, Calendar, Receipt, DollarSign, Coins, Info, Sparkles } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -35,6 +36,8 @@ const paymentModeOptions = [
 ];
 
 export default function PayslipsPage() {
+    const { data: session } = useSession();
+    const instituteId = session?.user?.institute?.id;
     const toast = useToast();
     const confirm = useConfirm();
     const searchParams = useSearchParams();
@@ -163,7 +166,7 @@ export default function PayslipsPage() {
         fetchStaffList(controller.signal);
         fetchSalaryComponents(controller.signal);
         return () => controller.abort();
-    }, [filterMonth, filterYear, fetchPayslips, fetchStaffList, fetchSalaryComponents]);
+    }, [filterMonth, filterYear, fetchPayslips, fetchStaffList, fetchSalaryComponents, instituteId]);
 
     // Live preview generator whenever staff, month, or year changes
     useEffect(() => {

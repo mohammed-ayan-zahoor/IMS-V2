@@ -71,6 +71,7 @@ export default function InstituteSwitcher({ isCollapsed = false }) {
 
             toast.success(`Switched to ${newActiveInstitute.name}`);
             setIsOpen(false);
+            window.location.reload();
         } catch (error) {
             toast.error(error.message);
         } finally {
