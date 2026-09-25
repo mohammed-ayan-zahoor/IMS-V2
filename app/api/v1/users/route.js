@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
@@ -116,8 +117,34 @@ export async function POST(req) {
 
         const body = await req.json();
 
-        if (!body.email || !body.password || !body.firstName || !body.lastName || !body.role) {
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        if (!body.firstName || !body.lastName || !body.role) {
+            return NextResponse.json({ error: "First name, last name, and role are required" }, { status: 400 });
+        }
+
+        const allowedRoles = ["student", "admin", "instructor", "staff", "super_admin"];
+        const requestedRole = body.role?.toLowerCase() || 'student';
+
+        if (!allowedRoles.includes(requestedRole)) {
+            return NextResponse.json({ error: "Invalid role provided" }, { status: 400 });
+        }
+
+        const allowLogin = body.allowLogin !== undefined ? !!body.allowLogin : (requestedRole !== 'staff');
+
+        let userEmail = body.email ? body.email.toLowerCase().trim() : '';
+        let userPassword = body.password;
+
+        if (!allowLogin) {
+            if (!userEmail) {
+                const uniquePart = crypto.randomBytes(4).toString('hex');
+                userEmail = `staff.${Date.now()}.${uniquePart}@ims.internal`;
+            }
+            if (!userPassword) {
+                userPassword = crypto.randomBytes(32).toString('hex');
+            }
+        } else {
+            if (!userEmail || !userPassword) {
+                return NextResponse.json({ error: "Email and password are required for login-enabled accounts" }, { status: 400 });
+            }
         }
 
         let targetInstituteId = scope.instituteId;
@@ -127,13 +154,6 @@ export async function POST(req) {
 
         if (!targetInstituteId) {
             return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
-        }
-
-        const allowedRoles = ["student", "admin", "instructor", "staff", "super_admin"];
-        const requestedRole = body.role?.toLowerCase() || 'student';
-
-        if (!allowedRoles.includes(requestedRole)) {
-            return NextResponse.json({ error: "Invalid role provided" }, { status: 400 });
         }
 
         if (requestedRole === 'super_admin' && scope.user.role !== 'super_admin') {
@@ -155,8 +175,7 @@ export async function POST(req) {
             }
         }
 
-        const normalizedEmail = body.email.toLowerCase().trim();
-        let user = await User.findOne({ email: normalizedEmail, deletedAt: null });
+        let user = await User.findOne({ email: userEmail, deletedAt: null });
 
         if (user) {
             const existingMembership = await Membership.findOne({
@@ -176,11 +195,12 @@ export async function POST(req) {
                 isActive: true
             });
         } else {
-            const passwordHash = await bcrypt.hash(body.password, 10);
+            const passwordHash = await bcrypt.hash(userPassword, 10);
             const userPayload = {
-                email: normalizedEmail,
+                email: userEmail,
                 passwordHash,
                 role: requestedRole,
+                allowLogin: !!allowLogin,
                 profile: {
                     firstName: body.firstName,
                     lastName: body.lastName,
@@ -190,6 +210,10 @@ export async function POST(req) {
                 isActive: true,
                 activeSession: body.activeSession || null
             };
+
+            if (!userPayload.enrollmentNumber && ['staff', 'instructor'].includes(requestedRole)) {
+                userPayload.enrollmentNumber = `EMP-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+            }
 
             if (requestedRole === 'instructor') {
                 const batches = Array.isArray(body.assignedBatches) ? body.assignedBatches : [];

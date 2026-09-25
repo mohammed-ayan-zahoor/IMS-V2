@@ -8,7 +8,7 @@ import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { User, Shield, UserCog, Mail, Phone, Plus, Search, Trash2, Lock, Camera } from "lucide-react";
+import { User, Shield, UserCog, Mail, Phone, Plus, Search, Trash2, Lock, Camera, KeyRound, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import Select from "@/components/ui/Select";
@@ -58,6 +58,7 @@ export default function UserManagementPage() {
         phone: "",
         password: "",
         role: "student",
+        allowLogin: true,
         assignedBatches: [], // Multi-select IDs
         assignedCourses: [], // Multi-select IDs
         activeSession: "",
@@ -226,7 +227,7 @@ export default function UserManagementPage() {
 
     const resetForm = () => setFormData({
         firstName: "", lastName: "", email: "", phone: "",
-        password: "", role: "student",
+        password: "", role: "student", allowLogin: true,
         assignedBatches: [], assignedCourses: [],
         activeSession: "", designation: "", basicSalary: "",
         permissions: []
@@ -240,6 +241,7 @@ export default function UserManagementPage() {
             phone: user.profile?.phone || "",
             password: "",
             role: user.role || "student",
+            allowLogin: user.allowLogin !== false,
             assignedBatches: user.assignments?.batches?.map(b => typeof b === 'object' ? b._id : b) || [],
             assignedCourses: user.assignments?.courses?.map(c => typeof c === 'object' ? c._id : c) || [],
             activeSession: user.activeSession || "",
@@ -267,6 +269,10 @@ export default function UserManagementPage() {
             const url = isEditing ? `/api/v1/users/${editingUserId}` : "/api/v1/users";
             const method = isEditing ? "PATCH" : "POST";
             const payload = { ...formData };
+            if (!payload.allowLogin && payload.role === 'staff') {
+                if (!payload.email?.trim()) delete payload.email;
+                if (!payload.password) delete payload.password;
+            }
             if (isEditing && !payload.password) {
                 delete payload.password; // Don't send empty password
             }
@@ -462,6 +468,11 @@ export default function UserManagementPage() {
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1 items-start">
                                                 <RoleBadge role={user.role} />
+                                                {user.allowLogin === false && (
+                                                    <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                                        Payroll Only
+                                                    </span>
+                                                )}
                                                 {user.hrDetails?.designation && (
                                                     <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                                                         {typeof user.hrDetails.designation === 'object' ? user.hrDetails.designation.name : 'Staff'}
@@ -476,7 +487,11 @@ export default function UserManagementPage() {
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-600">
                                             <div className="flex flex-col gap-1">
-                                                <span className="flex items-center gap-2"><Mail size={12} className="text-slate-400" /> {user.email}</span>
+                                                {user.email?.endsWith('@ims.internal') ? (
+                                                    <span className="text-[11px] text-slate-400 italic">No portal login</span>
+                                                ) : (
+                                                    <span className="flex items-center gap-2"><Mail size={12} className="text-slate-400" /> {user.email}</span>
+                                                )}
                                                 {user.profile?.phone && <span className="flex items-center gap-2"><Phone size={12} className="text-slate-400" /> {user.profile.phone}</span>}
                                             </div>
                                         </td>
@@ -539,23 +554,21 @@ export default function UserManagementPage() {
                         <Input label="Last Name" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} required />
                     </div>
 
-                    {/* Row 2: Email + Phone */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                        <Input label="Email" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required />
-                        <Input label="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
-                    </div>
-
-                    {/* Row 3: Role + Session */}
+                    {/* Row 2: Role + Session */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <Select
                             label="Role"
                             value={formData.role}
-                            onChange={val => setFormData({ ...formData, role: val })}
+                            onChange={val => setFormData(prev => ({
+                                ...prev,
+                                role: val,
+                                allowLogin: val !== 'staff'
+                            }))}
                             options={[
                                 { label: "Student", value: "student" },
                                 { label: "Admin", value: "admin" },
                                 { label: "Instructor / Teacher", value: "instructor" },
-                                { label: "Staff", value: "staff" }
+                                { label: "Support Staff (Maid, Driver, Peon, Helper)", value: "staff" }
                             ]}
                         />
                         <div>
@@ -573,6 +586,55 @@ export default function UserManagementPage() {
                             />
                             <p className="text-[10px] text-slate-400 font-medium px-1 mt-1 italic">Default academic year for this user.</p>
                         </div>
+                    </div>
+
+                    {/* Support Staff: Enable Portal Login Toggle */}
+                    {formData.role === 'staff' && (
+                        <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200 mb-4">
+                            <div className="space-y-0.5">
+                                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                    <KeyRound size={13} className="text-indigo-600" />
+                                    Enable Portal Login & Credentials
+                                </span>
+                                <p className="text-[11px] text-slate-500">
+                                    Keep OFF for support staff (maids, sweepers, drivers) who only need payroll and attendance records. No email or password needed.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={formData.allowLogin}
+                                onClick={() => setFormData(prev => ({ ...prev, allowLogin: !prev.allowLogin }))}
+                                className={cn(
+                                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                                    formData.allowLogin ? "bg-indigo-600" : "bg-slate-300"
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                                        formData.allowLogin ? "translate-x-5" : "translate-x-0"
+                                    )}
+                                />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Row 3: Email + Phone */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        {formData.role === 'staff' && !formData.allowLogin ? (
+                            <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex flex-col justify-center">
+                                <span className="font-bold flex items-center gap-1">
+                                    <CheckCircle2 size={13} className="text-amber-600" /> No Email Required
+                                </span>
+                                <span className="text-[11px] text-amber-700 mt-0.5">
+                                    Internal employee ID generated automatically for payroll & attendance.
+                                </span>
+                            </div>
+                        ) : (
+                            <Input label="Email" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required={formData.role !== 'staff' || formData.allowLogin} />
+                        )}
+                        <Input label="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
                     </div>
 
                     {/* HR Fields: Designation + Salary (instructor/staff only) */}
@@ -598,7 +660,7 @@ export default function UserManagementPage() {
                     )}
 
                     {/* Staff / Instructor Access Assignments */}
-                    {['instructor', 'staff'].includes(formData.role) && (
+                    {(formData.role === 'instructor' || (formData.role === 'staff' && formData.allowLogin)) && (
                         <div className="mb-4 p-5 bg-blue-50/40 rounded-2xl border border-blue-100 ring-1 ring-blue-100/50">
                             <div className="flex items-center gap-2 mb-3">
                                 <Shield className="text-premium-blue" size={16} />
@@ -682,8 +744,8 @@ export default function UserManagementPage() {
                         </div>
                     )}
 
-                    {/* Password full-width (Create mode only) */}
-                    {!isEditing && (
+                    {/* Password full-width (Create mode only, not needed for non-login staff) */}
+                    {!isEditing && (formData.role !== 'staff' || formData.allowLogin) && (
                         <div className="mb-6">
                             <Input label="Password" type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} required />
                         </div>
