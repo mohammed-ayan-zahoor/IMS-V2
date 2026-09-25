@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Coins, Plus, Trash2, Loader2, FolderOpen, TrendingUp, TrendingDown } from "lucide-react";
+import { Coins, Plus, Trash2, Loader2, FolderOpen, TrendingUp, TrendingDown, Info } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -65,16 +65,17 @@ export default function SalaryComponentsPage() {
         }
         setSaving(true);
         try {
+            const isVariable = formData.recurrence === 'variable';
             const res = await fetch("/api/v1/hr/salary-components", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     name: formData.name.trim(),
                     type: formData.type,
-                    calculationType: formData.calculationType || 'flat',
-                    percentageBasis: formData.percentageBasis || 'basic',
-                    defaultValue: Number(formData.defaultValue) || 0,
-                    recurrence: formData.recurrence || 'recurring',
+                    calculationType: isVariable ? 'flat' : (formData.calculationType || 'flat'),
+                    percentageBasis: isVariable ? 'basic' : (formData.percentageBasis || 'basic'),
+                    defaultValue: isVariable ? 0 : (Number(formData.defaultValue) || 0),
+                    recurrence: isVariable ? 'variable' : 'recurring',
                     description: formData.description.trim()
                 })
             });
@@ -234,9 +235,11 @@ export default function SalaryComponentsPage() {
                             <div className="mt-3 py-1 px-2.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px] font-semibold text-slate-700">
                                 <span>Rule:</span>
                                 <span className="font-bold text-slate-900">
-                                    {comp.calculationType === 'percentage'
-                                        ? `${comp.defaultValue || 0}% of ${comp.percentageBasis || 'basic'}`
-                                        : comp.defaultValue > 0 ? `₹${comp.defaultValue} Flat` : 'Variable / Custom'}
+                                    {comp.recurrence === 'variable'
+                                        ? 'Per-Month Dynamic Amount'
+                                        : comp.calculationType === 'percentage'
+                                            ? `${comp.defaultValue || 0}% of ${comp.percentageBasis || 'basic'}`
+                                            : comp.defaultValue > 0 ? `₹${comp.defaultValue} Flat` : 'Fixed / Custom'}
                                 </span>
                             </div>
 
@@ -316,7 +319,7 @@ export default function SalaryComponentsPage() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setFormData({ ...formData, recurrence: 'variable' })}
+                                onClick={() => setFormData({ ...formData, recurrence: 'variable', defaultValue: 0, calculationType: 'flat' })}
                                 className={cn(
                                     "p-2.5 rounded-lg border text-left transition-all",
                                     formData.recurrence === 'variable'
@@ -330,55 +333,78 @@ export default function SalaryComponentsPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <Select
-                            label="Component Type"
-                            options={typeOptions}
-                            value={formData.type}
-                            onChange={(val) => setFormData({ ...formData, type: val })}
-                            required
-                        />
-                        <Select
-                            label="Calculation Type"
-                            options={[
-                                { value: "flat", label: "Fixed / Flat (₹)" },
-                                { value: "percentage", label: "Percentage (%)" }
-                            ]}
-                            value={formData.calculationType || "flat"}
-                            onChange={(val) => setFormData({ ...formData, calculationType: val })}
-                        />
-                    </div>
-
-                    {formData.calculationType === 'percentage' && (
-                        <div className="grid grid-cols-2 gap-3">
+                    {formData.recurrence === 'variable' ? (
+                        <div className="space-y-3">
                             <Select
-                                label="Percentage Applied On"
-                                options={[
-                                    { value: "basic", label: "Basic Salary" },
-                                    { value: "gross", label: "Gross Salary" }
-                                ]}
-                                value={formData.percentageBasis || "basic"}
-                                onChange={(val) => setFormData({ ...formData, percentageBasis: val })}
+                                label="Component Type *"
+                                options={typeOptions}
+                                value={formData.type}
+                                onChange={(val) => setFormData({ ...formData, type: val })}
+                                required
                             />
-                            <Input
-                                label="Default Percentage (%)"
-                                type="number"
-                                step="0.01"
-                                placeholder="e.g. 12 or 0.75"
-                                value={formData.defaultValue || ""}
-                                onChange={(e) => setFormData({ ...formData, defaultValue: parseFloat(e.target.value) || 0 })}
-                            />
+                            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200/80 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+                                <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-semibold">No fixed amount required for variable components.</p>
+                                    <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">
+                                        Because this is variable, the amount will be entered dynamically whenever you apply this fine, bonus, or adjustment during a monthly payslip run.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                    )}
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Select
+                                    label="Component Type *"
+                                    options={typeOptions}
+                                    value={formData.type}
+                                    onChange={(val) => setFormData({ ...formData, type: val })}
+                                    required
+                                />
+                                <Select
+                                    label="Calculation Type"
+                                    options={[
+                                        { value: "flat", label: "Fixed / Flat (₹)" },
+                                        { value: "percentage", label: "Percentage (%)" }
+                                    ]}
+                                    value={formData.calculationType || "flat"}
+                                    onChange={(val) => setFormData({ ...formData, calculationType: val })}
+                                />
+                            </div>
 
-                    {formData.calculationType === 'flat' && (
-                        <Input
-                            label="Default Flat Amount (₹)"
-                            type="number"
-                            placeholder="e.g. 200 (or 0 for custom per staff)"
-                            value={formData.defaultValue || ""}
-                            onChange={(e) => setFormData({ ...formData, defaultValue: parseFloat(e.target.value) || 0 })}
-                        />
+                            {formData.calculationType === 'percentage' && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Select
+                                        label="Percentage Applied On"
+                                        options={[
+                                            { value: "basic", label: "Basic Salary" },
+                                            { value: "gross", label: "Gross Salary" }
+                                        ]}
+                                        value={formData.percentageBasis || "basic"}
+                                        onChange={(val) => setFormData({ ...formData, percentageBasis: val })}
+                                    />
+                                    <Input
+                                        label="Default Percentage (%)"
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="e.g. 12 or 0.75"
+                                        value={formData.defaultValue || ""}
+                                        onChange={(e) => setFormData({ ...formData, defaultValue: parseFloat(e.target.value) || 0 })}
+                                    />
+                                </div>
+                            )}
+
+                            {formData.calculationType === 'flat' && (
+                                <Input
+                                    label="Default Flat Amount (₹)"
+                                    type="number"
+                                    placeholder="e.g. 200 (or 0 for custom per staff)"
+                                    value={formData.defaultValue || ""}
+                                    onChange={(e) => setFormData({ ...formData, defaultValue: parseFloat(e.target.value) || 0 })}
+                                />
+                            )}
+                        </>
                     )}
 
                     <div className="space-y-1">
