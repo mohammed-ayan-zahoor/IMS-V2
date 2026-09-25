@@ -298,11 +298,11 @@ export default function PayslipReceiptPage() {
                                 </p>
                             </div>
                             {instituteLogo && (
-                                <div className="shrink-0 flex items-center justify-end">
+                                <div className="shrink-0 flex items-center justify-end pl-4">
                                     <img
                                         src={instituteLogo}
                                         alt={institute.name || "Institute Logo"}
-                                        className="h-14 w-auto max-w-[150px] object-contain"
+                                        className="h-20 md:h-24 w-auto max-w-[200px] object-contain"
                                     />
                                 </div>
                             )}
@@ -446,11 +446,11 @@ export default function PayslipReceiptPage() {
 
                 {/* 9. BOTTOM FULL-WIDTH BANNER */}
                 <div className="bg-[#b8c7e6] text-slate-900 py-3 px-8 text-xs font-bold flex justify-between items-center border-t border-[#9bb2d9]">
-                    <span className="tracking-tight">
+                    <span className="tracking-tight font-bold text-slate-900 max-w-[88%]">
                         TOTAL NET PAYABLE: &nbsp; ₹{formatCurrency(netSalary)} &nbsp; ({netSalaryWords})
                     </span>
-                    <span className="text-slate-500 font-black text-sm uppercase opacity-40">
-                        {institute.name?.charAt(0) || "T"}
+                    <span className="text-slate-700 font-black text-2xl md:text-3xl uppercase leading-none select-none tracking-tighter opacity-70">
+                        {institute.name?.charAt(0) || "Q"}
                     </span>
                 </div>
             </div>
