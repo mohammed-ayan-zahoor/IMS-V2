@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { FileSpreadsheet, Plus, Trash2, Loader2, Landmark, CheckCircle, Printer, X, Download, User, Calendar, Receipt, DollarSign, Coins } from "lucide-react";
+import { FileSpreadsheet, Plus, Trash2, Loader2, Landmark, CheckCircle, Printer, X, Download, User, Calendar, Receipt, DollarSign, Coins, Info, Sparkles } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Select from "@/components/ui/Select";
@@ -10,6 +10,7 @@ import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { cn } from "@/lib/utils";
 
 const months = [
     { value: "1", label: "January" },
@@ -40,6 +41,8 @@ export default function PayslipsPage() {
     const [loading, setLoading] = useState(true);
     const [payslips, setPayslips] = useState([]);
     const [staffList, setStaffList] = useState([]);
+    const [salaryComponents, setSalaryComponents] = useState([]);
+    const [baseSalaryData, setBaseSalaryData] = useState(null);
     
     // Filter State
     const today = new Date();
@@ -66,7 +69,30 @@ export default function PayslipsPage() {
     
     // Calculated staff stats for preview
     const [previewLoading, setPreviewLoading] = useState(false);
-    const [previewData, setPreviewData] = useState(null);
+
+    // Active variable components that should be prompted dynamically every month
+    const variableComponents = useMemo(() => {
+        return salaryComponents.filter(c => c.recurrence === 'variable' && c.isActive);
+    }, [salaryComponents]);
+
+    // Automatically prompt active variable components for the selected staff member
+    useEffect(() => {
+        if (!selectedStaffId) {
+            setMonthlyAdjustments([]);
+            return;
+        }
+        setMonthlyAdjustments(
+            variableComponents.map(comp => ({
+                id: comp._id,
+                componentId: comp._id,
+                type: comp.type,
+                name: comp.name,
+                description: comp.description || "",
+                amount: 0,
+                isCustom: false
+            }))
+        );
+    }, [selectedStaffId, variableComponents]);
 
     // Auto-select staff from query parameter if present
     useEffect(() => {
@@ -117,17 +143,32 @@ export default function PayslipsPage() {
         }
     }, []);
 
+    const fetchSalaryComponents = useCallback(async (signal) => {
+        try {
+            const res = await fetch("/api/v1/hr/salary-components", { signal });
+            if (res.ok) {
+                const data = await res.json();
+                setSalaryComponents(data.salaryComponents || []);
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error("Failed to load salary components", error);
+            }
+        }
+    }, []);
+
     useEffect(() => {
         const controller = new AbortController();
         fetchPayslips(filterMonth, filterYear, controller.signal);
         fetchStaffList(controller.signal);
+        fetchSalaryComponents(controller.signal);
         return () => controller.abort();
-    }, [filterMonth, filterYear, fetchPayslips, fetchStaffList]);
+    }, [filterMonth, filterYear, fetchPayslips, fetchStaffList, fetchSalaryComponents]);
 
     // Live preview generator whenever staff, month, or year changes
     useEffect(() => {
         if (!selectedStaffId || !isCreateOpen) {
-            setPreviewData(null);
+            setBaseSalaryData(null);
             return;
         }
 
@@ -341,40 +382,15 @@ export default function PayslipsPage() {
                     amount: timingDeduction
                 });
 
-                // Include monthly variable adjustments in preview
-                monthlyAdjustments.forEach(adj => {
-                    const amt = parseFloat(adj.amount) || 0;
-                    if (amt > 0) {
-                        if (adj.type === 'earning') {
-                            earnings.push({
-                                componentName: adj.name || "Performance Bonus",
-                                amount: amt
-                            });
-                        } else {
-                            deductions.push({
-                                componentName: adj.name || "Performance Fine / Penalty",
-                                amount: amt
-                            });
-                        }
-                    }
-                });
-
-                const totalEarnings = basicSalary + earnings.reduce((sum, e) => sum + e.amount, 0);
-                const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-                const netSalary = Math.max(0, totalEarnings - totalDeductions);
-
-                setPreviewData({
+                setBaseSalaryData({
                     fullName: staffDetail.fullName,
                     role: staffDetail.role,
                     basicSalary,
                     attendanceSummary: summary,
                     absentDeduction,
                     timingDeduction,
-                    earnings,
-                    deductions,
-                    totalEarnings,
-                    totalDeductions,
-                    netSalary
+                    baseEarnings: earnings,
+                    baseDeductions: deductions
                 });
             } catch (err) {
                 if (err.name !== 'AbortError') {
@@ -390,7 +406,46 @@ export default function PayslipsPage() {
 
         fetchPreviewDetails();
         return () => controller.abort();
-    }, [selectedStaffId, createMonth, createYear, isCreateOpen, staffList, monthlyAdjustments, toast]);
+    }, [selectedStaffId, createMonth, createYear, isCreateOpen, staffList, salaryComponents, toast]);
+
+    // Live preview data combining base salary calculation + prompted variable adjustments
+    const previewData = useMemo(() => {
+        if (!baseSalaryData) return null;
+
+        const earnings = [...baseSalaryData.baseEarnings];
+        const deductions = [...baseSalaryData.baseDeductions];
+
+        // Include monthly variable adjustments in preview
+        monthlyAdjustments.forEach(adj => {
+            const amt = parseFloat(adj.amount) || 0;
+            if (amt > 0) {
+                if (adj.type === 'earning') {
+                    earnings.push({
+                        componentName: adj.name || "Performance Bonus",
+                        amount: amt
+                    });
+                } else {
+                    deductions.push({
+                        componentName: adj.name || "Performance Fine / Penalty",
+                        amount: amt
+                    });
+                }
+            }
+        });
+
+        const totalEarnings = baseSalaryData.basicSalary + earnings.reduce((sum, e) => sum + e.amount, 0);
+        const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
+        const netSalary = Math.max(0, totalEarnings - totalDeductions);
+
+        return {
+            ...baseSalaryData,
+            earnings,
+            deductions,
+            totalEarnings,
+            totalDeductions,
+            netSalary
+        };
+    }, [baseSalaryData, monthlyAdjustments]);
 
     const handleCreatePayslip = async (e) => {
         e.preventDefault();
@@ -428,6 +483,7 @@ export default function PayslipsPage() {
                 setIsCreateOpen(false);
                 setSelectedStaffId("");
                 setNotes("");
+                setBaseSalaryData(null);
                 setMonthlyAdjustments([]);
                 fetchPayslips(filterMonth, filterYear);
             } else {
@@ -642,7 +698,7 @@ export default function PayslipsPage() {
             {/* GENERATE PAYSLIP MODAL */}
             <Modal
                 isOpen={isCreateOpen}
-                onClose={() => { setIsCreateOpen(false); setSelectedStaffId(""); setPreviewData(null); setMonthlyAdjustments([]); }}
+                onClose={() => { setIsCreateOpen(false); setSelectedStaffId(""); setBaseSalaryData(null); setMonthlyAdjustments([]); }}
                 title="Generate New Payslip"
                 size="lg"
             >
@@ -788,111 +844,183 @@ export default function PayslipsPage() {
                         <div className="text-center py-6 text-slate-400 text-sm">Select staff to preview details.</div>
                     ) : null}
 
-                    {/* Monthly Variable Adjustments (Performance Cuts, Fines, Advances, Bonuses) */}
-                    {previewData && (
-                        <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-2.5 gap-2">
-                                <div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                                        <Coins size={14} className="text-amber-600" />
-                                        Monthly Variable Adjustments & Performance Cuts
-                                    </h4>
-                                    <p className="text-[11px] text-slate-400">
-                                        Add one-off performance fines, disciplinary cuts, advance recovery, or bonuses for this month only.
-                                    </p>
+                    {/* Monthly Variable Adjustments (Prompted Variable Master Components + Custom Adjustments) */}
+                    {previewData && (() => {
+                        const variableAdjustments = monthlyAdjustments.filter(a => !a.isCustom);
+                        const customAdjustments = monthlyAdjustments.filter(a => a.isCustom);
+
+                        return (
+                            <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-2.5 gap-2">
+                                    <div>
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                                            <Coins size={14} className="text-amber-600" />
+                                            Monthly Variable Adjustments & Deductions
+                                        </h4>
+                                        <p className="text-[11px] text-slate-400">
+                                            Prompted variable components for {getMonthName(createMonth)} {createYear}. Enter amount for this employee, or leave ₹0 if none.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setMonthlyAdjustments(prev => [
+                                                ...prev,
+                                                {
+                                                    id: Date.now().toString(),
+                                                    type: "deduction",
+                                                    name: "One-Off Penalty / Fine",
+                                                    amount: 0,
+                                                    isCustom: true
+                                                }
+                                            ]);
+                                        }}
+                                        className="text-xs flex items-center gap-1 self-start sm:self-auto"
+                                    >
+                                        <Plus size={13} />
+                                        Add Other One-Off
+                                    </Button>
                                 </div>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                        setMonthlyAdjustments(prev => [
-                                            ...prev,
-                                            {
-                                                id: Date.now().toString(),
-                                                type: "deduction",
-                                                name: "Performance Fine / Penalty",
-                                                amount: 0
-                                            }
-                                        ]);
-                                    }}
-                                    className="text-xs flex items-center gap-1 self-start sm:self-auto"
-                                >
-                                    <Plus size={13} />
-                                    Add Adjustment
-                                </Button>
-                            </div>
 
-                            {monthlyAdjustments.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic text-center py-2">
-                                    No variable performance adjustments added. Standard salary & attendance rules apply.
-                                </p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {monthlyAdjustments.map((adj, index) => (
-                                        <div key={adj.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                                            <div className="w-full sm:w-36 shrink-0">
-                                                <select
-                                                    value={adj.type}
-                                                    onChange={(e) => {
-                                                        const newType = e.target.value;
-                                                        setMonthlyAdjustments(prev => prev.map((item, idx) => idx === index ? {
-                                                            ...item,
-                                                            type: newType,
-                                                            name: newType === 'deduction' ? "Performance Fine / Penalty" : "Performance Bonus"
-                                                        } : item));
-                                                    }}
-                                                    className="w-full text-xs font-bold border border-slate-200 rounded-lg p-1.5 bg-white text-slate-800"
-                                                >
-                                                    <option value="deduction">Cut / Deduction (-)</option>
-                                                    <option value="earning">Bonus / Earning (+)</option>
-                                                </select>
-                                            </div>
-
-                                            <div className="flex-1 min-w-0">
-                                                <input
-                                                    type="text"
-                                                    value={adj.name}
-                                                    placeholder="Reason (e.g. Late shift penalty, Cash advance)"
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        setMonthlyAdjustments(prev => prev.map((item, idx) => idx === index ? { ...item, name: val } : item));
-                                                    }}
-                                                    className="w-full text-xs border border-slate-200 rounded-lg p-1.5 bg-white text-slate-900 placeholder:text-slate-400"
-                                                />
-                                            </div>
-
-                                            <div className="w-full sm:w-28 shrink-0 relative">
-                                                <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-semibold">₹</span>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    value={adj.amount || ""}
-                                                    placeholder="Amount"
-                                                    onChange={(e) => {
-                                                        const amt = parseFloat(e.target.value) || 0;
-                                                        setMonthlyAdjustments(prev => prev.map((item, idx) => idx === index ? { ...item, amount: amt } : item));
-                                                    }}
-                                                    className="w-full text-xs font-bold border border-slate-200 rounded-lg py-1.5 pl-6 pr-2 bg-white text-slate-900"
-                                                />
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setMonthlyAdjustments(prev => prev.filter((_, idx) => idx !== index));
-                                                }}
-                                                className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors self-end sm:self-auto shrink-0"
-                                                title="Remove adjustment"
-                                            >
-                                                <Trash2 size={15} />
-                                            </button>
+                                {/* Prompted master variable components */}
+                                {variableAdjustments.length > 0 ? (
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                                            <Sparkles size={13} className="text-amber-500" />
+                                            <span>Configured Variable Components (Prompted for this month)</span>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                            {variableAdjustments.map((adj) => {
+                                                const isDeduction = adj.type === 'deduction';
+                                                return (
+                                                    <div
+                                                        key={adj.id}
+                                                        className="p-3 bg-slate-50/80 hover:bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3 transition-colors"
+                                                    >
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-bold text-slate-800 truncate">
+                                                                    {adj.name}
+                                                                </span>
+                                                                <span className={cn(
+                                                                    "text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0",
+                                                                    isDeduction
+                                                                        ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                                                        : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                                )}>
+                                                                    {isDeduction ? "Deduction (-)" : "Bonus (+)"}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+                                                                {adj.description || (isDeduction ? "Enter penalty or cut for this month" : "Enter bonus for this month")}
+                                                            </p>
+                                                        </div>
+                                                        <div className="w-28 shrink-0 relative">
+                                                            <span className="absolute left-2.5 top-2 text-xs text-slate-400 font-semibold">₹</span>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                placeholder="0"
+                                                                value={adj.amount > 0 ? adj.amount : ""}
+                                                                onChange={(e) => {
+                                                                    const val = Math.max(0, parseFloat(e.target.value) || 0);
+                                                                    setMonthlyAdjustments(prev => prev.map(item => item.id === adj.id ? { ...item, amount: val } : item));
+                                                                }}
+                                                                className="w-full text-xs font-bold border border-slate-200 rounded-lg py-1.5 pl-6 pr-2 bg-white text-slate-900 focus:ring-2 focus:ring-amber-400 focus:outline-none text-right"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/60 text-xs text-amber-800 flex items-start gap-2">
+                                        <Info size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                                        <div>
+                                            <span className="font-semibold">No variable components configured yet.</span>
+                                            <p className="text-[11px] text-amber-700/80 mt-0.5">
+                                                Configure standard variable deductions (like Performance Penalties or Damage Fines) in <a href="/admin/hr/salary-components" target="_blank" className="underline font-bold text-amber-900">Earnings & Deductions</a> to have them prompted here automatically.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Custom Ad-Hoc Adjustments */}
+                                {customAdjustments.length > 0 && (
+                                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                                        <div className="text-xs font-semibold text-slate-600">
+                                            Additional One-Off Adjustments
+                                        </div>
+                                        <div className="space-y-2">
+                                            {customAdjustments.map((adj) => (
+                                                <div key={adj.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                                                    <div className="w-full sm:w-36 shrink-0">
+                                                        <select
+                                                            value={adj.type}
+                                                            onChange={(e) => {
+                                                                const newType = e.target.value;
+                                                                setMonthlyAdjustments(prev => prev.map(item => item.id === adj.id ? {
+                                                                    ...item,
+                                                                    type: newType,
+                                                                    name: newType === 'deduction' ? "Performance Fine / Penalty" : "Performance Bonus"
+                                                                } : item));
+                                                            }}
+                                                            className="w-full text-xs font-bold border border-slate-200 rounded-lg p-1.5 bg-white text-slate-800"
+                                                        >
+                                                            <option value="deduction">Cut / Deduction (-)</option>
+                                                            <option value="earning">Bonus / Earning (+)</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        <input
+                                                            type="text"
+                                                            value={adj.name}
+                                                            placeholder="Reason (e.g. Late shift penalty, Cash advance)"
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                setMonthlyAdjustments(prev => prev.map(item => item.id === adj.id ? { ...item, name: val } : item));
+                                                            }}
+                                                            className="w-full text-xs border border-slate-200 rounded-lg p-1.5 bg-white text-slate-900 placeholder:text-slate-400"
+                                                        />
+                                                    </div>
+
+                                                    <div className="w-full sm:w-28 shrink-0 relative">
+                                                        <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-semibold">₹</span>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={adj.amount > 0 ? adj.amount : ""}
+                                                            placeholder="0"
+                                                            onChange={(e) => {
+                                                                const amt = Math.max(0, parseFloat(e.target.value) || 0);
+                                                                setMonthlyAdjustments(prev => prev.map(item => item.id === adj.id ? { ...item, amount: amt } : item));
+                                                            }}
+                                                            className="w-full text-xs font-bold border border-slate-200 rounded-lg py-1.5 pl-6 pr-2 bg-white text-slate-900 text-right"
+                                                        />
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setMonthlyAdjustments(prev => prev.filter(item => item.id !== adj.id));
+                                                        }}
+                                                        className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors self-end sm:self-auto shrink-0"
+                                                        title="Remove adjustment"
+                                                    >
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     {previewData && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -924,7 +1052,7 @@ export default function PayslipsPage() {
                     />
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
-                        <Button type="button" variant="ghost" onClick={() => { setIsCreateOpen(false); setSelectedStaffId(""); setPreviewData(null); }}>Cancel</Button>
+                        <Button type="button" variant="ghost" onClick={() => { setIsCreateOpen(false); setSelectedStaffId(""); setBaseSalaryData(null); }}>Cancel</Button>
                         <Button type="submit" disabled={!selectedStaffId || previewLoading}>
                             Generate Payslip
                         </Button>

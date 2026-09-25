@@ -170,6 +170,32 @@ runTest("3.2 Net Salary = Gross Salary - Active Deductions & Taxes", () => {
     assert.strictEqual(estNetSalary, 23246);
 });
 
+runTest("3.3 Monthly variable adjustments: positive amount applies to payslip; zero amount excluded", () => {
+    const baseNet = 23246;
+    const promptedAdjustments = [
+        { name: "Performance Penalty", type: "deduction", amount: 750, isCustom: false },
+        { name: "Damage Fine", type: "deduction", amount: 0, isCustom: false }, // left blank / 0
+        { name: "Spot Performance Bonus", type: "earning", amount: 1000, isCustom: false }
+    ];
+
+    const appliedDeductions = promptedAdjustments
+        .filter(a => a.type === 'deduction' && a.amount > 0)
+        .map(a => ({ componentName: a.name, amount: a.amount }));
+
+    const appliedEarnings = promptedAdjustments
+        .filter(a => a.type === 'earning' && a.amount > 0)
+        .map(a => ({ componentName: a.name, amount: a.amount }));
+
+    assert.strictEqual(appliedDeductions.length, 1);
+    assert.strictEqual(appliedDeductions[0].componentName, "Performance Penalty");
+    assert.strictEqual(appliedDeductions[0].amount, 750);
+    assert.strictEqual(appliedEarnings.length, 1);
+    assert.strictEqual(appliedEarnings[0].amount, 1000);
+
+    const finalNet = baseNet + 1000 - 750;
+    assert.strictEqual(finalNet, 23496);
+});
+
 // -------------------------------------------------------------
 // SUITE 4: ATTENDANCE TIMING RULES & DEDUCTION CALCULATION
 // -------------------------------------------------------------
