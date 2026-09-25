@@ -460,6 +460,15 @@ export default function PayslipReceiptPage() {
                             </div>
                         </div>
 
+                        {payslip.paymentStatus === 'paid' && (
+                            <div className="border border-slate-200 bg-slate-50/80 p-2.5 rounded text-[11px] grid grid-cols-2 md:grid-cols-4 gap-2 text-slate-700">
+                                <div><span className="text-slate-500 font-normal">Payment Status:</span> <strong className="text-emerald-700">PAID</strong></div>
+                                <div><span className="text-slate-500 font-normal">Disbursed From:</span> <strong className="text-slate-800">{payslip.disbursedFromAccount?.name || 'General Account'}</strong></div>
+                                <div><span className="text-slate-500 font-normal">Payment Mode:</span> <strong className="text-slate-800">{payslip.paymentMode || 'Cash'}</strong></div>
+                                <div><span className="text-slate-500 font-normal">Ref / UTR:</span> <strong className="font-mono text-slate-800">{payslip.paymentReference || '—'}</strong></div>
+                            </div>
+                        )}
+
                         <hr className="border-slate-300 my-4" />
 
                         {/* 8. SIGNATURES */}

@@ -59,6 +59,18 @@ const PayslipSchema = new Schema({
         type: String,
         enum: ['Cash', 'Bank Transfer', 'UPI', 'Cheque']
     },
+    disbursedFromAccount: {
+        type: Schema.Types.ObjectId,
+        ref: 'Collector'
+    },
+    paymentReference: {
+        type: String,
+        trim: true
+    },
+    expense: {
+        type: Schema.Types.ObjectId,
+        ref: 'Expense'
+    },
     notes: {
         type: String,
         trim: true

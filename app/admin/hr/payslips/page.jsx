@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { FileSpreadsheet, Plus, Trash2, Loader2, Landmark, CheckCircle, Printer, X, Download, User, Calendar, Receipt, DollarSign, Coins, Info, Sparkles } from "lucide-react";
+import { FileSpreadsheet, Plus, Trash2, Loader2, Landmark, CheckCircle, Printer, X, Download, User, Calendar, Receipt, DollarSign, Coins, Info, Sparkles, Check, ShieldCheck } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Select from "@/components/ui/Select";
@@ -68,7 +68,13 @@ export default function PayslipsPage() {
     
     // Detail overlay / Actions targets
     const [activePayslip, setActivePayslip] = useState(null);
-    const [payMode, setPayMode] = useState("Cash");
+    const [payMode, setPayMode] = useState("Bank Transfer");
+    const [payAccount, setPayAccount] = useState("");
+    const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
+    const [payReference, setPayReference] = useState("");
+    const [payNotes, setPayNotes] = useState("");
+    const [paying, setPaying] = useState(false);
+    const [accounts, setAccounts] = useState([]);
     
     // Calculated staff stats for preview
     const [previewLoading, setPreviewLoading] = useState(false);
@@ -160,13 +166,43 @@ export default function PayslipsPage() {
         }
     }, []);
 
+    const fetchAccounts = useCallback(async (signal) => {
+        try {
+            const res = await fetch("/api/v1/collectors", { signal });
+            if (res.ok) {
+                const data = await res.json();
+                setAccounts((data.collectors || []).filter(c => c.isActive !== false));
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error("Failed to load accounts", error);
+            }
+        }
+    }, []);
+
     useEffect(() => {
         const controller = new AbortController();
         fetchPayslips(filterMonth, filterYear, controller.signal);
         fetchStaffList(controller.signal);
         fetchSalaryComponents(controller.signal);
+        fetchAccounts(controller.signal);
         return () => controller.abort();
-    }, [filterMonth, filterYear, fetchPayslips, fetchStaffList, fetchSalaryComponents, instituteId]);
+    }, [filterMonth, filterYear, fetchPayslips, fetchStaffList, fetchSalaryComponents, fetchAccounts, instituteId]);
+
+    const accountOptions = useMemo(() => {
+        return [
+            { value: "", label: "Select Disbursing Account..." },
+            ...accounts.map(acc => {
+                const typeLabel = acc.accountType === 'Bank' ? 'Bank' : 'Cash / Person';
+                const balLabel = acc.currentBalance !== undefined ? ` • Bal: ₹${formatCurrency(acc.currentBalance)}` : '';
+                const accNum = acc.accountNumber ? ` (${acc.accountNumber})` : '';
+                return {
+                    value: acc._id,
+                    label: `${acc.name}${accNum} [${typeLabel}]${balLabel}`
+                };
+            })
+        ];
+    }, [accounts]);
 
     // Live preview generator whenever staff, month, or year changes
     useEffect(() => {
@@ -501,25 +537,38 @@ export default function PayslipsPage() {
         e.preventDefault();
         if (!activePayslip) return;
 
+        if (!payAccount) {
+            toast.error("Please select a disbursing account from Accounts Master");
+            return;
+        }
+
+        setPaying(true);
         try {
             const res = await fetch(`/api/v1/hr/payslips/${activePayslip._id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     paymentStatus: "paid",
-                    paymentMode: payMode
+                    paymentMode: payMode,
+                    disbursedFromAccount: payAccount,
+                    paymentDate: payDate,
+                    paymentReference: payReference,
+                    notes: payNotes || activePayslip.notes
                 })
             });
 
             if (res.ok) {
-                toast.success("Salary status marked as Paid");
+                toast.success("Salary payment recorded and posted to Daily Ledger");
                 setIsPayOpen(false);
                 fetchPayslips(filterMonth, filterYear);
             } else {
-                toast.error("Failed to update payment status");
+                const data = await res.json().catch(() => ({}));
+                toast.error(data.error || "Failed to update payment status");
             }
         } catch (error) {
-            toast.error("Error updating status");
+            toast.error("Error updating payment status");
+        } finally {
+            setPaying(false);
         }
     };
 
@@ -640,9 +689,17 @@ export default function PayslipsPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 {p.paymentStatus === 'paid' ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">
-                                                        Paid via {p.paymentMode}
-                                                    </span>
+                                                    <div className="space-y-0.5">
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">
+                                                            <Check size={12} />
+                                                            Paid via {p.paymentMode}
+                                                        </span>
+                                                        {p.disbursedFromAccount?.name && (
+                                                            <span className="block text-[10px] text-slate-500 font-medium truncate max-w-[140px]" title={p.disbursedFromAccount.name}>
+                                                                A/C: {p.disbursedFromAccount.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 ) : (
                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700">
                                                         Unpaid
@@ -654,7 +711,15 @@ export default function PayslipsPage() {
                                                     {p.paymentStatus === 'unpaid' && (
                                                         <Button
                                                             size="sm"
-                                                            onClick={() => { setActivePayslip(p); setIsPayOpen(true); }}
+                                                            onClick={() => {
+                                                                setActivePayslip(p);
+                                                                setPayMode(p.paymentMode || "Bank Transfer");
+                                                                setPayAccount(p.disbursedFromAccount?._id || (accounts[0]?._id || ""));
+                                                                setPayDate(new Date().toISOString().split('T')[0]);
+                                                                setPayReference(p.paymentReference || "");
+                                                                setPayNotes("");
+                                                                setIsPayOpen(true);
+                                                            }}
                                                             className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-2.5 py-1.5"
                                                         >
                                                             Mark Paid
@@ -1186,6 +1251,38 @@ export default function PayslipsPage() {
                             </div>
                         </div>
 
+                        {/* Payment & Ledger status card */}
+                        {activePayslip.paymentStatus === 'paid' && (
+                            <div className="bg-emerald-50/70 border border-emerald-200/90 rounded-xl p-4 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                                        <CheckCircle size={15} className="text-emerald-600" />
+                                        Disbursed & Posted to Daily Ledger
+                                    </span>
+                                    <span className="text-[11px] font-semibold text-emerald-700">
+                                        {activePayslip.paymentDate ? new Date(activePayslip.paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Paid'}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+                                    <div>
+                                        <span className="block text-[10px] text-slate-500 uppercase font-medium">Disbursed From Account</span>
+                                        <span className="font-bold text-slate-800">
+                                            {activePayslip.disbursedFromAccount?.name || 'General Counter'}
+                                            {activePayslip.disbursedFromAccount?.accountNumber ? ` (${activePayslip.disbursedFromAccount.accountNumber})` : ''}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-[10px] text-slate-500 uppercase font-medium">Payment Mode</span>
+                                        <span className="font-semibold text-slate-800">{activePayslip.paymentMode || 'Cash'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-[10px] text-slate-500 uppercase font-medium">Reference / UTR</span>
+                                        <span className="font-mono text-slate-700 text-[11px]">{activePayslip.paymentReference || '—'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Notes section */}
                         {activePayslip.notes && (
                             <div className="bg-slate-50 p-4 rounded-lg text-xs font-semibold text-slate-600 border">
@@ -1236,23 +1333,97 @@ export default function PayslipsPage() {
                 <Modal
                     isOpen={isPayOpen}
                     onClose={() => setIsPayOpen(false)}
-                    title="Mark Payslip status as Paid"
+                    title="Disburse Payroll & Post to Daily Ledger"
                 >
                     <form onSubmit={handleMarkAsPaid} className="space-y-4">
-                        <p className="text-sm font-semibold text-slate-600">
-                            Confirm marking payroll payment of <span className="font-bold text-premium-blue">{formatCurrency(activePayslip.netSalary)}</span> for {getMonthName(activePayslip.month)} {activePayslip.year} as Paid?
-                        </p>
+                        <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between">
+                            <div>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Net Salary Payable</span>
+                                <span className="text-xs font-semibold text-slate-700">
+                                    {activePayslip.staff?.profile?.firstName} {activePayslip.staff?.profile?.lastName} • {getMonthName(activePayslip.month)} {activePayslip.year}
+                                </span>
+                            </div>
+                            <span className="text-lg font-black text-slate-900">
+                                ₹{formatCurrency(activePayslip.netSalary)}
+                            </span>
+                        </div>
+
                         <Select
-                            label="Select Payment Mode"
-                            options={paymentModeOptions}
-                            value={payMode}
-                            onChange={(val) => setPayMode(val)}
+                            label="Disbursing Account (Accounts Master) *"
+                            options={accountOptions}
+                            value={payAccount}
+                            onChange={(val) => setPayAccount(val)}
+                            placeholder="Choose Bank or Cash Account..."
+                            searchable={true}
                             required
                         />
-                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
-                            <Button type="button" variant="ghost" onClick={() => setIsPayOpen(false)}>Cancel</Button>
-                            <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                                Confirm Payment
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <Select
+                                label="Payment Mode *"
+                                options={paymentModeOptions}
+                                value={payMode}
+                                onChange={(val) => setPayMode(val)}
+                                required
+                            />
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Disbursement Date *
+                                </label>
+                                <input
+                                    type="date"
+                                    value={payDate}
+                                    onChange={(e) => setPayDate(e.target.value)}
+                                    required
+                                    className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                Transaction Ref / UTR / Cheque # (Optional)
+                            </label>
+                            <input
+                                type="text"
+                                value={payReference}
+                                onChange={(e) => setPayReference(e.target.value)}
+                                placeholder="e.g. UTR-9823412431 or CHQ-00123"
+                                className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                Disbursement Notes / Remarks (Optional)
+                            </label>
+                            <textarea
+                                rows={2}
+                                value={payNotes}
+                                onChange={(e) => setPayNotes(e.target.value)}
+                                placeholder="Additional notes for day book ledger..."
+                                className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
+                            />
+                        </div>
+
+                        <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-3 text-[11px] text-blue-800 flex items-start gap-2">
+                            <ShieldCheck size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                            <span>
+                                Posting payment will automatically record an outflow entry under <strong>Faculty & Staff Payroll</strong> in the Daily Ledger and debit the selected account balance.
+                            </span>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                            <Button type="button" variant="ghost" onClick={() => setIsPayOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={paying || !payAccount}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
+                            >
+                                {paying ? <Loader2 size={14} className="animate-spin" /> : null}
+                                Confirm & Post to Ledger
                             </Button>
                         </div>
                     </form>

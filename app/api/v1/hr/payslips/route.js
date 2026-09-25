@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Payslip from "@/models/Payslip";
 import User from "@/models/User";
+import Collector from "@/models/Collector";
 import StaffAttendance from "@/models/StaffAttendance";
 import HRSettings from "@/models/HRSettings";
 import SalaryComponent from "@/models/SalaryComponent";
@@ -35,6 +36,7 @@ export async function GET(req) {
         await connectDB();
         const payslips = await Payslip.find({ institute: instituteId, month, year })
             .populate('staff', 'profile role hrDetails')
+            .populate('disbursedFromAccount', 'name accountType accountNumber')
             .sort({ createdAt: -1 });
 
         return NextResponse.json({ payslips });
