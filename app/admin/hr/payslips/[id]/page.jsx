@@ -201,15 +201,27 @@ export default function PayslipReceiptPage() {
 
     const accountRef = staff.enrollmentNumber || staff.username || (payslip._id ? `EMP-${payslip._id.toString().slice(-6).toUpperCase()}` : 'EMP-001');
 
-    // Earnings & Deductions list preparation
+    // Earnings & Deductions list preparation (filter out duplicate Basic Salary)
+    const otherEarnings = (payslip.earnings || []).filter(e => {
+        const n = (e.componentName || '').trim().toLowerCase();
+        return n !== 'basic salary' && n !== 'basic';
+    });
+
     const earningsList = [
         { name: "Basic Salary", amount: payslip.basicSalary || 0 },
-        ...(payslip.earnings || []).map(e => ({ name: e.componentName, amount: e.amount || 0 }))
+        ...otherEarnings.map(e => ({ name: e.componentName, amount: e.amount || 0 }))
     ];
 
-    const deductionsList = [
-        ...(payslip.deductions || []).map(d => ({ name: d.componentName, amount: d.amount || 0 }))
-    ];
+    // Deduplicate deductions by normalized name if any duplicate exists
+    const seenDeductions = new Set();
+    const deductionsList = [];
+    (payslip.deductions || []).forEach(d => {
+        const norm = (d.componentName || '').trim().toLowerCase();
+        if (!seenDeductions.has(norm)) {
+            seenDeductions.add(norm);
+            deductionsList.push({ name: d.componentName, amount: d.amount || 0 });
+        }
+    });
 
     const maxRows = Math.max(earningsList.length, deductionsList.length);
     const pairedRows = [];

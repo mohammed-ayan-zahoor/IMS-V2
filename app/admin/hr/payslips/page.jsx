@@ -233,8 +233,13 @@ export default function PayslipsPage() {
                     if (e.component?.name) assignedEarningsMap.set(e.component.name.toLowerCase().trim(), e.amount || 0);
                 });
 
-                const defaultEarningNames = ["House Rent Allowance", "Conveyance Allowance", "Special Allowance", "Other Allowance"];
-                salaryComponents.filter(c => c.type === 'earning').forEach(c => {
+                const earningComponents = salaryComponents.filter(c => 
+                    c.type === 'earning' && 
+                    c.name.trim().toLowerCase() !== 'basic salary' && 
+                    c.name.trim().toLowerCase() !== 'basic'
+                );
+
+                earningComponents.forEach(c => {
                     const amt = assignedEarningsMap.get(c._id.toString()) ?? assignedEarningsMap.get(c.name.toLowerCase().trim()) ?? 0;
                     earnings.push({
                         componentName: c.name,
@@ -242,15 +247,16 @@ export default function PayslipsPage() {
                     });
                 });
 
-                defaultEarningNames.forEach(name => {
-                    if (!earnings.some(e => e.componentName.toLowerCase() === name.toLowerCase())) {
+                if (earningComponents.length === 0) {
+                    const defaultEarningNames = ["House Rent Allowance", "Conveyance Allowance", "Special Allowance", "Other Allowance"];
+                    defaultEarningNames.forEach(name => {
                         const amt = assignedEarningsMap.get(name.toLowerCase().trim()) ?? 0;
                         earnings.push({
                             componentName: name,
                             amount: amt
                         });
-                    }
-                });
+                    });
+                }
 
                 earnings.push({
                     componentName: totalOvertimeHours > 0 
@@ -261,14 +267,14 @@ export default function PayslipsPage() {
 
                 // Build all deductions (master + custom + absence + timing) even if 0
                 const deductions = [];
-                const defaultDeductionNames = ["Federal Income Tax (TDS)", "FICA / Provident Fund (PF)", "Health Insurance (ESI)"];
                 const assignedDeductionsMap = new Map();
                 (staffDetail.hrDetails?.deductions || []).forEach(d => {
                     if (d.component?._id) assignedDeductionsMap.set(d.component._id.toString(), d.amount || 0);
                     if (d.component?.name) assignedDeductionsMap.set(d.component.name.toLowerCase().trim(), d.amount || 0);
                 });
 
-                salaryComponents.filter(c => c.type === 'deduction').forEach(c => {
+                const deductionComponents = salaryComponents.filter(c => c.type === 'deduction');
+                deductionComponents.forEach(c => {
                     const amt = assignedDeductionsMap.get(c._id.toString()) ?? assignedDeductionsMap.get(c.name.toLowerCase().trim()) ?? 0;
                     deductions.push({
                         componentName: c.name,
@@ -276,15 +282,16 @@ export default function PayslipsPage() {
                     });
                 });
 
-                defaultDeductionNames.forEach(name => {
-                    if (!deductions.some(d => d.componentName.toLowerCase() === name.toLowerCase())) {
+                if (deductionComponents.length === 0) {
+                    const defaultDeductionNames = ["Federal Income Tax (TDS)", "FICA / Provident Fund (PF)", "Health Insurance (ESI)"];
+                    defaultDeductionNames.forEach(name => {
                         const amt = assignedDeductionsMap.get(name.toLowerCase().trim()) ?? 0;
                         deductions.push({
                             componentName: name,
                             amount: amt
                         });
-                    }
-                });
+                    });
+                }
 
                 const markedTotal = (summary.present || 0) + 
                                     (summary.absent || 0) + 
@@ -665,13 +672,23 @@ export default function PayslipsPage() {
 
                                 <div className="space-y-2">
                                     {(() => {
+                                        const otherEarnings = (previewData.earnings || []).filter(e => {
+                                            const n = (e.componentName || '').trim().toLowerCase();
+                                            return n !== 'basic salary' && n !== 'basic';
+                                        });
                                         const eList = [
                                             { name: "Basic Salary", amount: previewData.basicSalary || 0 },
-                                            ...(previewData.earnings || []).map(e => ({ name: e.componentName, amount: e.amount || 0 }))
+                                            ...otherEarnings.map(e => ({ name: e.componentName, amount: e.amount || 0 }))
                                         ];
-                                        const dList = [
-                                            ...(previewData.deductions || []).map(d => ({ name: d.componentName, amount: d.amount || 0 }))
-                                        ];
+                                        const seenDed = new Set();
+                                        const dList = [];
+                                        (previewData.deductions || []).forEach(d => {
+                                            const norm = (d.componentName || '').trim().toLowerCase();
+                                            if (!seenDed.has(norm)) {
+                                                seenDed.add(norm);
+                                                dList.push({ name: d.componentName, amount: d.amount || 0 });
+                                            }
+                                        });
                                         const rowsCount = Math.max(eList.length, dList.length);
                                         const paired = [];
                                         for (let i = 0; i < rowsCount; i++) {
