@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, use, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
@@ -38,7 +38,9 @@ import {
     Unlock,
     Info,
     Printer,
-    BadgeCheck
+    BadgeCheck,
+    Camera,
+    Upload
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -73,6 +75,9 @@ export default function StaffProfilePage({ params }) {
     // Edit Profile Modal
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
     const [profileForm, setProfileForm] = useState({});
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const fileInputRef = useRef(null);
+    const modalFileInputRef = useRef(null);
 
     // Salary Structure State
     const [basicSalaryInput, setBasicSalaryInput] = useState(0);
@@ -164,6 +169,7 @@ export default function StaffProfilePage({ params }) {
             setProfileForm({
                 firstName: staffData?.profile?.firstName || "",
                 lastName: staffData?.profile?.lastName || "",
+                avatar: staffData?.profile?.avatar || null,
                 phone: staffData?.profile?.phone || "",
                 gender: staffData?.profile?.gender || "",
                 bloodGroup: staffData?.profile?.bloodGroup || "",
@@ -306,6 +312,107 @@ export default function StaffProfilePage({ params }) {
         }
     };
 
+    // Handle Photo Upload
+    const handlePhotoUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            toast.error("Please upload an image file (JPG, PNG, WebP)");
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Photo size exceeds 5MB limit");
+            return;
+        }
+
+        setUploadingPhoto(true);
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("fileType", "image");
+
+        try {
+            const uploadRes = await fetch("/api/v1/upload", {
+                method: "POST",
+                body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (!uploadRes.ok) throw new Error(uploadData.error || "Failed to upload photo");
+
+            const imageUrl = uploadData.url;
+
+            // Immediately persist to staff profile
+            const patchRes = await fetch(`/api/v1/hr/staff/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ avatar: imageUrl })
+            });
+            const patchData = await patchRes.json();
+            if (!patchRes.ok) throw new Error(patchData.error || "Failed to update profile photo");
+
+            setStaff(prev => ({
+                ...prev,
+                profile: {
+                    ...prev?.profile,
+                    avatar: imageUrl
+                }
+            }));
+            setProfileForm(prev => ({
+                ...prev,
+                avatar: imageUrl
+            }));
+            toast.success("Profile photo updated successfully!");
+        } catch (err) {
+            console.error("Photo upload error:", err);
+            toast.error(err.message || "Failed to upload photo");
+        } finally {
+            setUploadingPhoto(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            if (modalFileInputRef.current) modalFileInputRef.current.value = "";
+        }
+    };
+
+    // Handle Photo Removal
+    const handleRemovePhoto = async (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        const ok = await confirm({
+            title: "Remove Photo",
+            message: "Are you sure you want to remove this staff profile photo?",
+            confirmText: "Remove",
+            variant: "danger"
+        });
+        if (!ok) return;
+
+        setUploadingPhoto(true);
+        try {
+            const patchRes = await fetch(`/api/v1/hr/staff/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ avatar: null })
+            });
+            const patchData = await patchRes.json();
+            if (!patchRes.ok) throw new Error(patchData.error || "Failed to remove photo");
+
+            setStaff(prev => ({
+                ...prev,
+                profile: {
+                    ...prev?.profile,
+                    avatar: null
+                }
+            }));
+            setProfileForm(prev => ({
+                ...prev,
+                avatar: null
+            }));
+            toast.success("Profile photo removed successfully");
+        } catch (err) {
+            toast.error(err.message || "Failed to remove photo");
+        } finally {
+            setUploadingPhoto(false);
+        }
+    };
+
     // Save Profile & Banking Changes
     const handleSaveProfile = async (e) => {
         e.preventDefault();
@@ -323,6 +430,7 @@ export default function StaffProfilePage({ params }) {
                 qualification: profileForm.qualification.trim(),
                 joiningDate: profileForm.joiningDate || null,
                 allowLogin: !!profileForm.allowLogin,
+                ...(profileForm.avatar !== undefined ? { avatar: profileForm.avatar } : {}),
                 panNumber: profileForm.panNumber.trim(),
                 uanNumber: profileForm.uanNumber.trim(),
                 esiNumber: profileForm.esiNumber.trim(),
@@ -435,8 +543,71 @@ export default function StaffProfilePage({ params }) {
             <Card className="p-6 bg-gradient-to-r from-white to-slate-50/50 dark:from-gray-900 dark:to-gray-900/50">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl shadow-sm shrink-0">
-                            {staff.profile?.firstName?.[0]?.toUpperCase() || "S"}
+                        {/* Interactive Avatar with Photo Upload */}
+                        <div className="relative group shrink-0">
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                className="hidden"
+                                onChange={handlePhotoUpload}
+                                disabled={uploadingPhoto}
+                            />
+                            {staff.profile?.avatar ? (
+                                <img
+                                    src={staff.profile.avatar}
+                                    alt={fullName}
+                                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white dark:border-gray-800 shadow-md ring-1 ring-gray-200 dark:ring-gray-700"
+                                />
+                            ) : (
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl shadow-md shrink-0">
+                                    {staff.profile?.firstName?.[0]?.toUpperCase() || "S"}
+                                </div>
+                            )}
+
+                            {/* Hover Camera Overlay */}
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploadingPhoto}
+                                title={staff.profile?.avatar ? "Change staff photo" : "Upload staff photo"}
+                                aria-label="Upload staff photo"
+                                className="absolute inset-0 bg-black/40 text-white rounded-2xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity backdrop-blur-[1px] cursor-pointer"
+                            >
+                                {uploadingPhoto ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <>
+                                        <Camera className="w-5 h-5" />
+                                        <span className="text-[10px] font-semibold">Change</span>
+                                    </>
+                                )}
+                            </button>
+
+                            {/* Camera quick-action badge at bottom right */}
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploadingPhoto}
+                                title="Upload Photo"
+                                aria-label="Upload Photo"
+                                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md border-2 border-white dark:border-gray-900 transition-transform active:scale-95 cursor-pointer"
+                            >
+                                <Camera className="w-3 h-3" />
+                            </button>
+
+                            {/* Quick remove button if avatar exists */}
+                            {staff.profile?.avatar && !uploadingPhoto && (
+                                <button
+                                    type="button"
+                                    onClick={handleRemovePhoto}
+                                    title="Remove photo"
+                                    aria-label="Remove photo"
+                                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-600 hover:bg-red-700 text-white items-center justify-center shadow-md border-2 border-white dark:border-gray-900 transition-opacity hidden group-hover:flex cursor-pointer"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            )}
                         </div>
                         <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
@@ -1194,6 +1365,66 @@ export default function StaffProfilePage({ params }) {
                 maxWidth="max-w-2xl"
             >
                 <form onSubmit={handleSaveProfile} className="space-y-5">
+                    {/* Photo Upload in Edit Modal */}
+                    <div className="flex items-center gap-4 p-3.5 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-200/80 dark:border-gray-700/80">
+                        <input
+                            ref={modalFileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            onChange={handlePhotoUpload}
+                            disabled={uploadingPhoto}
+                        />
+                        <div className="relative shrink-0">
+                            {staff.profile?.avatar ? (
+                                <img
+                                    src={staff.profile.avatar}
+                                    alt={fullName}
+                                    className="w-14 h-14 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shadow-xs"
+                                />
+                            ) : (
+                                <div className="w-14 h-14 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-xs">
+                                    {staff.profile?.firstName?.[0]?.toUpperCase() || "S"}
+                                </div>
+                            )}
+                            {uploadingPhoto && (
+                                <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center text-white">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-gray-900 dark:text-white">Staff Photo</p>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400">JPG, PNG, or WebP (max 5MB). Shown on payslips and directory.</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={uploadingPhoto}
+                                onClick={() => modalFileInputRef.current?.click()}
+                                className="text-xs flex items-center gap-1.5"
+                            >
+                                <Upload className="w-3.5 h-3.5" />
+                                {staff.profile?.avatar ? "Change Photo" : "Upload Photo"}
+                            </Button>
+                            {staff.profile?.avatar && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={uploadingPhoto}
+                                    onClick={handleRemovePhoto}
+                                    className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                    title="Remove photo"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">First Name *</label>

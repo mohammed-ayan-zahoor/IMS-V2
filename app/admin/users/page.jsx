@@ -456,9 +456,17 @@ export default function UserManagementPage() {
                                     <tr key={user._id} className="hover:bg-slate-50/30 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
-                                                    {user.profile?.firstName?.[0] || "U"}
-                                                </div>
+                                                {user.profile?.avatar ? (
+                                                    <img
+                                                        src={user.profile.avatar}
+                                                        alt={`${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`}
+                                                        className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-200"
+                                                    />
+                                                ) : (
+                                                    <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
+                                                        {user.profile?.firstName?.[0] || "U"}
+                                                    </div>
+                                                )}
                                                 <div>
                                                     <p className="text-sm font-bold text-slate-900">{user.profile?.firstName} {user.profile?.lastName}</p>
                                                     <p className="text-[11px] text-slate-400 font-mono">{user.enrollmentNumber || user._id.slice(-6)}</p>

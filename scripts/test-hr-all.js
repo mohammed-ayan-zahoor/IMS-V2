@@ -338,8 +338,29 @@ async function runDatabaseIntegrationSuite() {
             assert.strictEqual(updatedStaff.hrDetails.deductions.length, 1);
         });
 
-        // 5.4 Clean up test data
-        await runAsyncTest("5.4 Clean up test artifacts from database", async () => {
+        // 5.4 Test staff profile photo (avatar) update and removal
+        await runAsyncTest("5.4 Update and remove staff profile photo (avatar)", async () => {
+            const samplePhotoUrl = "https://res.cloudinary.com/demo/image/upload/sample.jpg";
+            await db.collection('users').updateOne(
+                { _id: testStaffId },
+                { $set: { "profile.avatar": samplePhotoUrl, updatedAt: new Date() } }
+            );
+
+            const staffWithPhoto = await db.collection('users').findOne({ _id: testStaffId });
+            assert.strictEqual(staffWithPhoto.profile.avatar, samplePhotoUrl, "Avatar URL should match saved photo");
+
+            // Test avatar removal
+            await db.collection('users').updateOne(
+                { _id: testStaffId },
+                { $set: { "profile.avatar": null, updatedAt: new Date() } }
+            );
+
+            const staffWithoutPhoto = await db.collection('users').findOne({ _id: testStaffId });
+            assert.strictEqual(staffWithoutPhoto.profile.avatar, null, "Avatar should be null after removal");
+        });
+
+        // 5.5 Clean up test data
+        await runAsyncTest("5.5 Clean up test artifacts from database", async () => {
             await db.collection('users').deleteOne({ _id: testStaffId });
             await db.collection('salarycomponents').deleteOne({ _id: testCompId });
 

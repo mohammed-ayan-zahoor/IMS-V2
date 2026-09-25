@@ -483,9 +483,17 @@ export default function StaffDirectoryPage() {
                                         <tr key={member._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-xs">
-                                                        {member.profile?.firstName?.[0]?.toUpperCase() || "S"}
-                                                    </div>
+                                                    {member.profile?.avatar ? (
+                                                        <img
+                                                            src={member.profile.avatar}
+                                                            alt={fullName}
+                                                            className="w-10 h-10 rounded-full object-cover shrink-0 shadow-xs border border-gray-200 dark:border-gray-700"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-xs">
+                                                            {member.profile?.firstName?.[0]?.toUpperCase() || "S"}
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                                                             {fullName}
