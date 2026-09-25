@@ -787,32 +787,32 @@ export default function PayslipsPage() {
                                     }
 
                                     return (
-                                        <div className="border border-[#7a8ba8] overflow-hidden rounded-xl text-xs bg-white shadow-xs">
+                                        <div className="border border-slate-200 overflow-hidden rounded-xl text-xs bg-white shadow-xs">
                                             <table className="w-full border-collapse">
                                                 <thead>
-                                                    <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-b border-[#7a8ba8]">
-                                                        <th className="py-2.5 px-3 text-left border-r border-[#7a8ba8] uppercase w-5/12">Earnings</th>
-                                                        <th className="py-2.5 px-3 text-right border-r border-[#7a8ba8] uppercase w-2/12">Amount</th>
-                                                        <th className="py-2.5 px-3 text-left border-r border-[#7a8ba8] uppercase w-4/12">Deductions</th>
-                                                        <th className="py-2.5 px-3 text-right uppercase w-2/12">Amount</th>
+                                                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                                        <th className="py-2.5 px-3 text-left border-r border-slate-200 uppercase w-5/12 tracking-wider text-[11px] text-slate-600">Earnings</th>
+                                                        <th className="py-2.5 px-3 text-right border-r border-slate-200 uppercase w-2/12 tracking-wider text-[11px] text-slate-600">Amount</th>
+                                                        <th className="py-2.5 px-3 text-left border-r border-slate-200 uppercase w-4/12 tracking-wider text-[11px] text-slate-600">Deductions</th>
+                                                        <th className="py-2.5 px-3 text-right uppercase w-2/12 tracking-wider text-[11px] text-slate-600">Amount</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-[#7a8ba8]">
+                                                <tbody className="divide-y divide-slate-100">
                                                     {paired.map((row, idx) => (
-                                                        <tr key={idx} className="divide-x divide-[#7a8ba8] hover:bg-slate-50/50">
-                                                            <td className="py-2 px-3 text-slate-700">{row.earning ? row.earning.name : ""}</td>
+                                                        <tr key={idx} className="divide-x divide-slate-100 hover:bg-slate-50/60 transition-colors">
+                                                            <td className="py-2 px-3 text-slate-700 font-medium">{row.earning ? row.earning.name : ""}</td>
                                                             <td className="py-2 px-3 text-right font-semibold text-slate-900">{row.earning ? `₹${formatCurrency(row.earning.amount)}` : ""}</td>
-                                                            <td className="py-2 px-3 text-slate-700">{row.deduction ? row.deduction.name : ""}</td>
+                                                            <td className="py-2 px-3 text-slate-700 font-medium">{row.deduction ? row.deduction.name : ""}</td>
                                                             <td className="py-2 px-3 text-right font-semibold text-slate-900">{row.deduction ? `₹${formatCurrency(row.deduction.amount)}` : ""}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                                 <tfoot>
-                                                    <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-t border-[#7a8ba8] divide-x divide-[#7a8ba8]">
+                                                    <tr className="bg-slate-100/80 text-slate-800 font-bold border-t border-slate-200 divide-x divide-slate-200">
                                                         <td className="py-2 px-3 text-left font-extrabold">Gross Earnings</td>
-                                                        <td className="py-2 px-3 text-right font-extrabold">₹{formatCurrency(previewData.totalEarnings)}</td>
+                                                        <td className="py-2 px-3 text-right font-extrabold text-slate-900">₹{formatCurrency(previewData.totalEarnings)}</td>
                                                         <td className="py-2 px-3 text-left font-extrabold">Total Deductions</td>
-                                                        <td className="py-2 px-3 text-right font-extrabold text-rose-700">₹{formatCurrency(previewData.totalDeductions)}</td>
+                                                        <td className="py-2 px-3 text-right font-extrabold text-rose-600">₹{formatCurrency(previewData.totalDeductions)}</td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
@@ -820,8 +820,8 @@ export default function PayslipsPage() {
                                     );
                                 })()}
 
-                                <div className="bg-[#35374d] text-white p-3.5 rounded-xl flex justify-between items-center mt-2 shadow-sm">
-                                    <span className="font-bold text-xs uppercase tracking-wider text-indigo-200">Net Payable:</span>
+                                <div className="bg-slate-900 text-white p-3.5 rounded-xl flex justify-between items-center mt-3 shadow-xs">
+                                    <span className="font-bold text-xs uppercase tracking-wider text-slate-300">Net Payable:</span>
                                     <span className="font-black text-white text-lg">₹{formatCurrency(previewData.netSalary)}</span>
                                 </div>
                             </div>
@@ -1142,32 +1142,32 @@ export default function PayslipsPage() {
                             const totDed = dList.reduce((sum, d) => sum + (d.amount || 0), 0);
 
                             return (
-                                <div className="border border-[#7a8ba8] overflow-hidden rounded-lg text-xs">
+                                <div className="border border-slate-200 overflow-hidden rounded-xl text-xs bg-white shadow-xs">
                                     <table className="w-full border-collapse">
                                         <thead>
-                                            <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-b border-[#7a8ba8]">
-                                                <th className="py-2 px-3 text-left border-r border-[#7a8ba8] w-4/12 uppercase tracking-wide">EARNINGS</th>
-                                                <th className="py-2 px-3 text-right border-r border-[#7a8ba8] w-2/12 uppercase tracking-wide">AMOUNT</th>
-                                                <th className="py-2 px-3 text-left border-r border-[#7a8ba8] w-4/12 uppercase tracking-wide">DEDUCTIONS</th>
-                                                <th className="py-2 px-3 text-right w-2/12 uppercase tracking-wide">AMOUNT</th>
+                                            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                                <th className="py-2.5 px-3 text-left border-r border-slate-200 w-4/12 uppercase tracking-wider text-[11px] text-slate-600">EARNINGS</th>
+                                                <th className="py-2.5 px-3 text-right border-r border-slate-200 w-2/12 uppercase tracking-wider text-[11px] text-slate-600">AMOUNT</th>
+                                                <th className="py-2.5 px-3 text-left border-r border-slate-200 w-4/12 uppercase tracking-wider text-[11px] text-slate-600">DEDUCTIONS</th>
+                                                <th className="py-2.5 px-3 text-right w-2/12 uppercase tracking-wider text-[11px] text-slate-600">AMOUNT</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-[#7a8ba8] bg-white">
+                                        <tbody className="divide-y divide-slate-100 bg-white">
                                             {paired.map((row, idx) => (
-                                                <tr key={idx} className="divide-x divide-[#7a8ba8]">
-                                                    <td className="py-2 px-3 text-slate-800 font-normal">{row.earning ? row.earning.name : ""}</td>
-                                                    <td className="py-2 px-3 text-right font-medium text-slate-900">{row.earning ? `₹${formatCurrency(row.earning.amount)}` : ""}</td>
-                                                    <td className="py-2 px-3 text-slate-800 font-normal">{row.deduction ? row.deduction.name : ""}</td>
-                                                    <td className="py-2 px-3 text-right font-medium text-slate-900">{row.deduction ? `₹${formatCurrency(row.deduction.amount)}` : ""}</td>
+                                                <tr key={idx} className="divide-x divide-slate-100 hover:bg-slate-50/60 transition-colors">
+                                                    <td className="py-2 px-3 text-slate-700 font-medium">{row.earning ? row.earning.name : ""}</td>
+                                                    <td className="py-2 px-3 text-right font-semibold text-slate-900">{row.earning ? `₹${formatCurrency(row.earning.amount)}` : ""}</td>
+                                                    <td className="py-2 px-3 text-slate-700 font-medium">{row.deduction ? row.deduction.name : ""}</td>
+                                                    <td className="py-2 px-3 text-right font-semibold text-slate-900">{row.deduction ? `₹${formatCurrency(row.deduction.amount)}` : ""}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                         <tfoot>
-                                            <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-t border-[#7a8ba8] divide-x divide-[#7a8ba8]">
-                                                <td className="py-2 px-3 text-left">Gross Salary</td>
-                                                <td className="py-2 px-3 text-right font-bold">₹{formatCurrency(gross)}</td>
-                                                <td className="py-2 px-3 text-left">Total Deductions</td>
-                                                <td className="py-2 px-3 text-right font-bold">₹{formatCurrency(totDed)}</td>
+                                            <tr className="bg-slate-100/80 text-slate-800 font-bold border-t border-slate-200 divide-x divide-slate-200">
+                                                <td className="py-2 px-3 text-left font-extrabold">Gross Salary</td>
+                                                <td className="py-2 px-3 text-right font-extrabold text-slate-900">₹{formatCurrency(gross)}</td>
+                                                <td className="py-2 px-3 text-left font-extrabold">Total Deductions</td>
+                                                <td className="py-2 px-3 text-right font-extrabold text-rose-600">₹{formatCurrency(totDed)}</td>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -1176,10 +1176,10 @@ export default function PayslipsPage() {
                         })()}
 
                         {/* Totals row */}
-                        <div className="bg-[#35374d] text-white rounded-xl p-4 flex justify-between items-center shadow-sm">
+                        <div className="bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center shadow-xs">
                             <div>
-                                <span className="block text-[10px] text-indigo-200 font-bold uppercase tracking-wider">NET SALARY PAYABLE</span>
-                                <span className="text-xs text-slate-300 mt-0.5">Calculated based on attendance and duty rules</span>
+                                <span className="block text-[10px] text-slate-300 font-bold uppercase tracking-wider">NET SALARY PAYABLE</span>
+                                <span className="text-xs text-slate-400 mt-0.5">Calculated based on attendance and duty rules</span>
                             </div>
                             <div className="text-right">
                                 <span className="text-2xl font-black text-white">₹{formatCurrency(activePayslip.netSalary)}</span>

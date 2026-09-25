@@ -280,18 +280,18 @@ export default function PayslipReceiptPage() {
                         </div>
                     )}
 
-                    <Button onClick={handlePrint} className="bg-[#35374d] hover:bg-[#252636] text-white rounded-xl px-5 py-2 text-xs font-bold shadow-sm flex items-center gap-2 cursor-pointer">
+                    <Button onClick={handlePrint} className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-5 py-2 text-xs font-bold shadow-xs flex items-center gap-2 cursor-pointer">
                         <Printer size={16} />
                         Print Document
                     </Button>
                 </div>
             </div>
 
-            {/* EXACT DOCUMENT TEMPLATE FROM Wage_Payslip_Template.docx */}
+            {/* EXACT DOCUMENT TEMPLATE */}
             <div className="print-area max-w-[820px] mx-auto bg-white shadow-xl print:shadow-none border border-slate-300 print:border-none min-h-[1100px] flex flex-col justify-between">
                 <div>
                     {/* 1. TOP BANNER: W A G E   P A Y S L I P */}
-                    <div className="bg-[#35374d] text-white py-4 px-8 tracking-[0.25em] font-medium text-xs uppercase text-left">
+                    <div className="bg-slate-900 text-white py-4 px-8 tracking-[0.25em] font-bold text-xs uppercase text-left">
                         W A G E &nbsp; P A Y S L I P
                     </div>
 
@@ -336,7 +336,7 @@ export default function PayslipReceiptPage() {
                                         <span className="text-[9px] uppercase font-bold text-slate-400">Photo</span>
                                     </div>
                                 )}
-                                <span className="mt-1 text-[10px] font-black tracking-wider text-slate-800 bg-[#b8c7e6]/50 px-2 py-0.5 rounded border border-[#9bb2d9]">
+                                <span className="mt-1 text-[10px] font-bold tracking-wider text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                     {accountRef}
                                 </span>
                             </div>
@@ -383,12 +383,12 @@ export default function PayslipReceiptPage() {
                             </div>
 
                             {/* Right: Employee Net Pay Box */}
-                            <div className="md:col-span-5 border border-[#9bb2d9] rounded-sm overflow-hidden bg-white shadow-xs">
-                                <div className="bg-[#b8c7e6] text-slate-900 font-bold text-xs py-2 px-4 text-center uppercase tracking-wide">
+                            <div className="md:col-span-5 border border-slate-200 rounded-lg overflow-hidden bg-white shadow-xs">
+                                <div className="bg-slate-100 text-slate-800 font-bold text-xs py-2 px-4 text-center uppercase tracking-wider border-b border-slate-200">
                                     Employee Net Pay
                                 </div>
-                                <div className="py-6 px-4 text-center">
-                                    <span className="text-3xl md:text-4xl font-extrabold text-[#1a1c29] tracking-tight">
+                                <div className="py-6 px-4 text-center bg-slate-50/40">
+                                    <span className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
                                         ₹{formatCurrency(netSalary)}
                                     </span>
                                 </div>
@@ -397,7 +397,7 @@ export default function PayslipReceiptPage() {
 
                         {/* 5. ATTENDANCE SUMMARY STRIP */}
                         {payslip.attendanceSummary && (
-                            <div className="border border-[#b8c7e6] bg-[#f4f7fc] p-2.5 rounded text-[11px] grid grid-cols-5 gap-2 text-center font-medium text-slate-700">
+                            <div className="border border-slate-200 bg-slate-50 p-2.5 rounded-lg text-[11px] grid grid-cols-5 gap-2 text-center font-medium text-slate-700">
                                 <div><span className="text-slate-500 font-normal">Present:</span> <strong>{payslip.attendanceSummary.present || 0}d</strong></div>
                                 <div><span className="text-slate-500 font-normal">Absent:</span> <strong className="text-rose-600">{payslip.attendanceSummary.absent || 0}d</strong></div>
                                 <div><span className="text-slate-500 font-normal">Half Day:</span> <strong>{payslip.attendanceSummary.halfDay || 0}d</strong></div>
@@ -407,44 +407,44 @@ export default function PayslipReceiptPage() {
                         )}
 
                         {/* 6. MAIN TABLE: EARNINGS & DEDUCTIONS SIDE-BY-SIDE (ALL ITEMS LISTED EVEN IF 0) */}
-                        <div className="border border-[#7a8ba8] overflow-hidden text-xs">
+                        <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
                             <table className="w-full border-collapse">
                                 <thead>
-                                    <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-b border-[#7a8ba8]">
-                                        <th className="py-2 px-3 text-left border-r border-[#7a8ba8] w-4/12 uppercase tracking-wide">EARNINGS</th>
-                                        <th className="py-2 px-3 text-right border-r border-[#7a8ba8] w-2/12 uppercase tracking-wide">AMOUNT</th>
-                                        <th className="py-2 px-3 text-left border-r border-[#7a8ba8] w-4/12 uppercase tracking-wide">DEDUCTIONS</th>
-                                        <th className="py-2 px-3 text-right w-2/12 uppercase tracking-wide">AMOUNT</th>
+                                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                        <th className="py-2.5 px-3 text-left border-r border-slate-200 w-4/12 uppercase tracking-wider text-[11px] text-slate-600">EARNINGS</th>
+                                        <th className="py-2.5 px-3 text-right border-r border-slate-200 w-2/12 uppercase tracking-wider text-[11px] text-slate-600">AMOUNT</th>
+                                        <th className="py-2.5 px-3 text-left border-r border-slate-200 w-4/12 uppercase tracking-wider text-[11px] text-slate-600">DEDUCTIONS</th>
+                                        <th className="py-2.5 px-3 text-right w-2/12 uppercase tracking-wider text-[11px] text-slate-600">AMOUNT</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-[#7a8ba8] bg-white">
+                                <tbody className="divide-y divide-slate-100 bg-white">
                                     {pairedRows.map((row, idx) => (
-                                        <tr key={idx} className="divide-x divide-[#7a8ba8]">
+                                        <tr key={idx} className="divide-x divide-slate-100">
                                             {/* Earning Name */}
-                                            <td className="py-2 px-3 text-slate-800 font-normal">
+                                            <td className="py-2 px-3 text-slate-700 font-medium">
                                                 {row.earning ? row.earning.name : ""}
                                             </td>
                                             {/* Earning Amount */}
-                                            <td className="py-2 px-3 text-right font-medium text-slate-900">
+                                            <td className="py-2 px-3 text-right font-semibold text-slate-900">
                                                 {row.earning ? `₹${formatCurrency(row.earning.amount)}` : ""}
                                             </td>
                                             {/* Deduction Name */}
-                                            <td className="py-2 px-3 text-slate-800 font-normal">
+                                            <td className="py-2 px-3 text-slate-700 font-medium">
                                                 {row.deduction ? row.deduction.name : ""}
                                             </td>
                                             {/* Deduction Amount */}
-                                            <td className="py-2 px-3 text-right font-medium text-slate-900">
+                                            <td className="py-2 px-3 text-right font-semibold text-slate-900">
                                                 {row.deduction ? `₹${formatCurrency(row.deduction.amount)}` : ""}
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                                 <tfoot>
-                                    <tr className="bg-[#b8c7e6] text-slate-900 font-bold border-t border-[#7a8ba8] divide-x divide-[#7a8ba8]">
-                                        <td className="py-2.5 px-3 text-left">Gross Salary</td>
-                                        <td className="py-2.5 px-3 text-right font-bold">₹{formatCurrency(grossSalary)}</td>
-                                        <td className="py-2.5 px-3 text-left">Total Deductions</td>
-                                        <td className="py-2.5 px-3 text-right font-bold">₹{formatCurrency(totalDeductions)}</td>
+                                    <tr className="bg-slate-100/80 text-slate-800 font-bold border-t border-slate-200 divide-x divide-slate-200">
+                                        <td className="py-2.5 px-3 text-left font-extrabold">Gross Salary</td>
+                                        <td className="py-2.5 px-3 text-right font-extrabold text-slate-900">₹{formatCurrency(grossSalary)}</td>
+                                        <td className="py-2.5 px-3 text-left font-extrabold">Total Deductions</td>
+                                        <td className="py-2.5 px-3 text-right font-extrabold text-rose-600">₹{formatCurrency(totalDeductions)}</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -479,11 +479,11 @@ export default function PayslipReceiptPage() {
                 </div>
 
                 {/* 9. BOTTOM FULL-WIDTH BANNER */}
-                <div className="bg-[#b8c7e6] text-slate-900 py-3 px-8 text-xs font-bold flex justify-between items-center border-t border-[#9bb2d9]">
+                <div className="bg-slate-100 text-slate-900 py-3 px-8 text-xs font-bold flex justify-between items-center border-t border-slate-200">
                     <span className="tracking-tight font-bold text-slate-900 max-w-[88%]">
                         TOTAL NET PAYABLE: &nbsp; ₹{formatCurrency(netSalary)} &nbsp; ({netSalaryWords})
                     </span>
-                    <span className="text-slate-700 font-black text-2xl md:text-3xl uppercase leading-none select-none tracking-tighter opacity-70">
+                    <span className="text-slate-400 font-black text-2xl md:text-3xl uppercase leading-none select-none tracking-tighter opacity-40">
                         {institute.name?.charAt(0) || "Q"}
                     </span>
                 </div>
