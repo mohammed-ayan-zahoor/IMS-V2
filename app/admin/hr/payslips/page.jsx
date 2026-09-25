@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { FileSpreadsheet, Plus, Trash2, Loader2, Landmark, CheckCircle, Printer, X, Download, User, Calendar, Receipt, DollarSign } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -35,6 +36,7 @@ const paymentModeOptions = [
 export default function PayslipsPage() {
     const toast = useToast();
     const confirm = useConfirm();
+    const searchParams = useSearchParams();
     const [loading, setLoading] = useState(true);
     const [payslips, setPayslips] = useState([]);
     const [staffList, setStaffList] = useState([]);
@@ -65,6 +67,15 @@ export default function PayslipsPage() {
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewData, setPreviewData] = useState(null);
 
+    // Auto-select staff from query parameter if present
+    useEffect(() => {
+        const staffParam = searchParams.get('staff');
+        if (staffParam) {
+            setSelectedStaffId(staffParam);
+            setIsCreateOpen(true);
+        }
+    }, [searchParams]);
+
     const years = useMemo(() => {
         const currentYear = new Date().getFullYear();
         return Array.from({ length: 5 }, (_, idx) => {
@@ -93,11 +104,10 @@ export default function PayslipsPage() {
 
     const fetchStaffList = useCallback(async (signal) => {
         try {
-            const res = await fetch("/api/v1/users", { signal });
+            const res = await fetch("/api/v1/hr/staff", { signal });
             if (res.ok) {
                 const data = await res.json();
-                const staffOnly = (data.users || []).filter(u => ['instructor', 'staff'].includes(u.role));
-                setStaffList(staffOnly);
+                setStaffList(data.staffMembers || []);
             }
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -126,9 +136,14 @@ export default function PayslipsPage() {
             setPreviewLoading(true);
             try {
                 // Fetch staff basic details + dynamic elements
-                const staffRes = await fetch(`/api/v1/users`, { signal: controller.signal });
-                const staffData = await staffRes.json();
-                const staffDetail = (staffData.users || []).find(u => u._id === selectedStaffId);
+                let staffDetail = staffList.find(u => u._id === selectedStaffId);
+                if (!staffDetail) {
+                    const staffRes = await fetch(`/api/v1/hr/staff/${selectedStaffId}`, { signal: controller.signal });
+                    if (staffRes.ok) {
+                        const sData = await staffRes.json();
+                        staffDetail = sData.staff;
+                    }
+                }
                 
                 if (!staffDetail) throw new Error("Staff details not found");
 
@@ -355,7 +370,7 @@ export default function PayslipsPage() {
 
         fetchPreviewDetails();
         return () => controller.abort();
-    }, [selectedStaffId, createMonth, createYear, isCreateOpen, toast]);
+    }, [selectedStaffId, createMonth, createYear, isCreateOpen, staffList, toast]);
 
     const handleCreatePayslip = async (e) => {
         e.preventDefault();
@@ -606,7 +621,7 @@ export default function PayslipsPage() {
                         <div className="md:col-span-1">
                             <Select
                                 label="Staff Member / Teacher"
-                                options={staffList.map(s => ({ value: s._id, label: s.fullName }))}
+                                options={staffList.map(s => ({ value: s._id, label: s.fullName || `${s.profile?.firstName || ""} ${s.profile?.lastName || ""}`.trim() || s.email }))}
                                 value={selectedStaffId}
                                 onChange={(val) => setSelectedStaffId(val)}
                                 placeholder="Select staff"

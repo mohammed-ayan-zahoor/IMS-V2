@@ -39,6 +39,20 @@ export default function HRSettingsPage() {
         overtimeRatePerHour: 150
     });
 
+    const [componentsList, setComponentsList] = useState([]);
+
+    const fetchComponents = useCallback(async () => {
+        try {
+            const res = await fetch("/api/v1/hr/salary-components");
+            if (res.ok) {
+                const data = await res.json();
+                setComponentsList(data.salaryComponents || []);
+            }
+        } catch (error) {
+            console.error("Failed to load salary components:", error);
+        }
+    }, []);
+
     const fetchSettings = useCallback(async (signal) => {
         try {
             const res = await fetch("/api/v1/hr/settings", {
@@ -71,8 +85,30 @@ export default function HRSettingsPage() {
     useEffect(() => {
         const controller = new AbortController();
         fetchSettings(controller.signal);
+        fetchComponents();
         return () => controller.abort();
-    }, [fetchSettings]);
+    }, [fetchSettings, fetchComponents]);
+
+    const handleToggleComponent = async (id, currentActive) => {
+        const nextActive = !currentActive;
+        // Optimistic update
+        setComponentsList(prev => prev.map(c => c._id === id ? { ...c, isActive: nextActive } : c));
+        try {
+            const res = await fetch(`/api/v1/hr/salary-components/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isActive: nextActive })
+            });
+            if (!res.ok) {
+                throw new Error("Failed to update status");
+            }
+            toast.success(`Component ${nextActive ? "activated" : "deactivated"}`);
+        } catch (err) {
+            // Revert
+            setComponentsList(prev => prev.map(c => c._id === id ? { ...c, isActive: currentActive } : c));
+            toast.error("Failed to update component status");
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -407,6 +443,85 @@ export default function HRSettingsPage() {
                                         <span className="font-semibold">Overtime Calculation Flow:</span> For a {formData.shiftEnd} shift end with a {formData.overtimeBufferMins}-minute buffer, overtime starts counting from {formData.overtimeBufferMins} minutes past shift end. Only full completed hours are credited into the monthly payslip earnings.
                                     </div>
                                 </div>
+                            </div>
+                        )}
+                    </div>
+                </Card>
+
+                {/* 5. Salary Components & Statutory Deductions Switchboard */}
+                <Card className="p-6">
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-purple-50 dark:bg-purple-900/40 rounded-lg text-purple-600 dark:text-purple-400">
+                                <Coins className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Statutory Taxes & Salary Components Switchboard</h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Instantly enable or disable taxes (Professional Tax, EPF, ESI, TDS) and allowances for your institute
+                                </p>
+                            </div>
+                        </div>
+                        <a
+                            href="/admin/hr/salary-components"
+                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                        >
+                            Full Master Config →
+                        </a>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-200/80 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2">
+                            <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                            <span>
+                                <strong>Multi-Tenant Rule:</strong> Private or exempt institutions can toggle off Professional Tax, EPF, or ESI. When disabled, these components will not apply to any employee or payslip.
+                            </span>
+                        </div>
+
+                        {componentsList.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+                                {componentsList.map((comp) => (
+                                    <div
+                                        key={comp._id}
+                                        className={cn(
+                                            "flex items-center justify-between p-3 rounded-xl border transition-all",
+                                            comp.isActive !== false
+                                                ? "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-xs"
+                                                : "bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-60"
+                                        )}
+                                    >
+                                        <div className="flex flex-col pr-2">
+                                            <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                                {comp.name}
+                                            </span>
+                                            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">
+                                                {comp.type} • {comp.calculationType === 'percentage' ? `${comp.defaultValue || 0}% of ${comp.percentageBasis || 'basic'}` : (comp.defaultValue > 0 ? `₹${comp.defaultValue}` : 'Custom')}
+                                            </span>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={comp.isActive !== false}
+                                            onClick={() => handleToggleComponent(comp._id, comp.isActive !== false)}
+                                            className={cn(
+                                                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                                                comp.isActive !== false ? "bg-emerald-600" : "bg-gray-300 dark:bg-gray-700"
+                                            )}
+                                        >
+                                            <span
+                                                className={cn(
+                                                    "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                                                    comp.isActive !== false ? "translate-x-4" : "translate-x-0"
+                                                )}
+                                            />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-6 text-xs text-slate-400">
+                                Loading salary components...
                             </div>
                         )}
                     </div>

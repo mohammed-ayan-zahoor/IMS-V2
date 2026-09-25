@@ -178,7 +178,16 @@ export async function POST(req) {
         );
         
         earningComponentsMaster.forEach(comp => {
-            const amount = staffEarningsMap.get(comp._id.toString()) ?? staffEarningsMap.get(comp.name.toLowerCase().trim()) ?? 0;
+            let amount = staffEarningsMap.get(comp._id.toString()) ?? staffEarningsMap.get(comp.name.toLowerCase().trim());
+            if (amount === undefined || amount === null) {
+                if (comp.calculationType === 'percentage' && comp.defaultValue > 0) {
+                    amount = (basicSalary * comp.defaultValue) / 100;
+                } else if (comp.calculationType === 'flat' && comp.defaultValue > 0) {
+                    amount = comp.defaultValue;
+                } else {
+                    amount = 0;
+                }
+            }
             earnings.push({
                 componentName: comp.name,
                 amount: Math.round(amount * 100) / 100
@@ -223,6 +232,9 @@ export async function POST(req) {
             amount: overtimeAmount
         });
 
+        // Pre-compute gross salary for percentage-of-gross deductions (like ESI)
+        const currentGrossSalary = basicSalary + earnings.reduce((sum, e) => sum + e.amount, 0);
+
         // Map assigned staff deductions by component ID/Name
         const staffDeductionsMap = new Map();
         (staffMember.hrDetails?.deductions || []).forEach(d => {
@@ -235,7 +247,17 @@ export async function POST(req) {
         const deductionComponentsMaster = instituteComponents.filter(c => c.type === 'deduction');
         
         deductionComponentsMaster.forEach(comp => {
-            const amount = staffDeductionsMap.get(comp._id.toString()) ?? staffDeductionsMap.get(comp.name.toLowerCase().trim()) ?? 0;
+            let amount = staffDeductionsMap.get(comp._id.toString()) ?? staffDeductionsMap.get(comp.name.toLowerCase().trim());
+            if (amount === undefined || amount === null) {
+                if (comp.calculationType === 'percentage' && comp.defaultValue > 0) {
+                    const base = comp.percentageBasis === 'gross' ? currentGrossSalary : basicSalary;
+                    amount = (base * comp.defaultValue) / 100;
+                } else if (comp.calculationType === 'flat' && comp.defaultValue > 0) {
+                    amount = comp.defaultValue;
+                } else {
+                    amount = 0;
+                }
+            }
             deductions.push({
                 componentName: comp.name,
                 amount: Math.round(amount * 100) / 100

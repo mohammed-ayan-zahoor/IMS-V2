@@ -27,6 +27,11 @@ const UserSchema = new Schema({
         required: true,
         index: true
     },
+    allowLogin: {
+        type: Boolean,
+        default: true,
+        index: true
+    },
     faceDescriptor: {
         type: [Number],
         select: false // Do not include in general user queries
@@ -256,7 +261,17 @@ const UserSchema = new Schema({
             leaveType: { type: Schema.Types.ObjectId, ref: 'LeaveType' },
             allowedDays: { type: Number, default: 0 },
             takenDays: { type: Number, default: 0 }
-        }]
+        }],
+        panNumber: { type: String, trim: true },
+        uanNumber: { type: String, trim: true },
+        esiNumber: { type: String, trim: true },
+        bankDetails: {
+            accountName: { type: String, trim: true },
+            accountNumber: { type: String, trim: true },
+            bankName: { type: String, trim: true },
+            ifscCode: { type: String, trim: true },
+            branch: { type: String, trim: true }
+        }
     }
 }, {
     timestamps: true,

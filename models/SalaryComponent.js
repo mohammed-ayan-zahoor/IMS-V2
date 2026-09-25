@@ -22,6 +22,20 @@ const SalaryComponentSchema = new Schema({
         type: String,
         trim: true
     },
+    calculationType: {
+        type: String,
+        enum: ['flat', 'percentage'],
+        default: 'flat'
+    },
+    percentageBasis: {
+        type: String,
+        enum: ['basic', 'gross'],
+        default: 'basic'
+    },
+    defaultValue: {
+        type: Number,
+        default: 0
+    },
     isActive: {
         type: Boolean,
         default: true

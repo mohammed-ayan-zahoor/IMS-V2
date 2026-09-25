@@ -106,6 +106,24 @@ export default function SalaryComponentsPage() {
         }
     };
 
+    const handleToggleActive = async (id, currentStatus) => {
+        try {
+            const res = await fetch(`/api/v1/hr/salary-components/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isActive: !currentStatus })
+            });
+            if (res.ok) {
+                toast.success(`Component ${!currentStatus ? 'activated' : 'deactivated'}`);
+                fetchComponents();
+            } else {
+                toast.error("Failed to update component status");
+            }
+        } catch (e) {
+            toast.error("Network error while toggling component");
+        }
+    };
+
     const filteredComponents = components.filter(c => c.type === activeTab);
 
     return (
@@ -116,9 +134,9 @@ export default function SalaryComponentsPage() {
                         <Coins className="text-slate-800" size={22} />
                         Earnings & Deductions Master
                     </h1>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">Configure salary components for payroll calculations.</p>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">Configure statutory and custom salary components, toggles, and calculation rules.</p>
                 </div>
-                <Button onClick={() => { setFormData({ name: "", type: activeTab, description: "" }); setIsModalOpen(true); }} className="flex items-center gap-2">
+                <Button onClick={() => { setFormData({ name: "", type: activeTab, description: "", calculationType: "flat", percentageBasis: "basic", defaultValue: 0 }); setIsModalOpen(true); }} className="flex items-center gap-2">
                     <Plus size={16} />
                     Add Component
                 </Button>
@@ -136,7 +154,7 @@ export default function SalaryComponentsPage() {
                     }`}
                 >
                     <TrendingUp size={15} className="text-emerald-600" />
-                    Earnings
+                    Earnings ({components.filter(c => c.type === 'earning').length})
                 </button>
                 <button
                     type="button"
@@ -148,7 +166,7 @@ export default function SalaryComponentsPage() {
                     }`}
                 >
                     <TrendingDown size={15} className="text-rose-600" />
-                    Deductions
+                    Deductions & Taxes ({components.filter(c => c.type === 'deduction').length})
                 </button>
             </div>
 
@@ -160,7 +178,10 @@ export default function SalaryComponentsPage() {
             ) : filteredComponents.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {filteredComponents.map((comp) => (
-                        <Card key={comp._id} className="group relative flex flex-col p-5 bg-white border border-slate-200/80 hover:border-slate-300 transition-colors">
+                        <Card key={comp._id} className={cn(
+                            "group relative flex flex-col p-5 bg-white border transition-all rounded-xl",
+                            comp.isActive !== false ? "border-slate-200/90 shadow-xs" : "border-slate-200 bg-slate-50/60 opacity-60"
+                        )}>
                             <div className="flex items-start justify-between mb-3">
                                 <div className={`p-2 rounded-lg flex items-center justify-center ${
                                     comp.type === 'earning'
@@ -169,22 +190,49 @@ export default function SalaryComponentsPage() {
                                 }`}>
                                     {comp.type === 'earning' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDelete(comp._id, comp.name, comp.type)}
-                                    className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors rounded"
-                                    title="Remove Component"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <label className="relative inline-flex items-center cursor-pointer" title={comp.isActive !== false ? "Active across institute" : "Inactive / Skipped"}>
+                                        <input
+                                            type="checkbox"
+                                            checked={comp.isActive !== false}
+                                            onChange={() => handleToggleActive(comp._id, comp.isActive !== false)}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDelete(comp._id, comp.name, comp.type)}
+                                        className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors rounded"
+                                        title="Remove Component"
+                                    >
+                                        <Trash2 size={15} />
+                                    </button>
+                                </div>
                             </div>
+
                             <span className="font-bold text-slate-900 text-sm mb-1">{comp.name}</span>
-                            <span className="text-xs text-slate-500 font-normal line-clamp-2 min-h-[32px]">{comp.description || "No description provided"}</span>
-                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                            <span className="text-xs text-slate-500 font-normal line-clamp-2 min-h-[32px]">{comp.description || "Configured salary rule"}</span>
+                            
+                            <div className="mt-3 py-1 px-2.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px] font-semibold text-slate-700">
+                                <span>Rule:</span>
+                                <span className="font-bold text-slate-900">
+                                    {comp.calculationType === 'percentage'
+                                        ? `${comp.defaultValue || 0}% of ${comp.percentageBasis || 'basic'}`
+                                        : comp.defaultValue > 0 ? `₹${comp.defaultValue} Flat` : 'Variable / Custom'}
+                                </span>
+                            </div>
+
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
                                 <span className={`text-[10px] font-bold uppercase tracking-wider ${comp.type === 'earning' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                     {comp.type}
                                 </span>
-                                <span className="text-[10px] font-bold text-slate-400">ACTIVE</span>
+                                <span className={cn(
+                                    "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded",
+                                    comp.isActive !== false ? "bg-emerald-50 text-emerald-700" : "bg-slate-200 text-slate-600"
+                                )}>
+                                    {comp.isActive !== false ? "Active" : "Disabled"}
+                                </span>
                             </div>
                         </Card>
                     ))}
@@ -216,24 +264,68 @@ export default function SalaryComponentsPage() {
                 <form onSubmit={handleAdd} className="space-y-4">
                     <Input
                         label="Component Name *"
-                        placeholder="e.g. HRA, Provident Fund, Tax Deduction"
+                        placeholder="e.g. HRA, Provident Fund, Professional Tax"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         required
                         autoFocus
                     />
-                    <Select
-                        label="Component Type"
-                        options={typeOptions}
-                        value={formData.type}
-                        onChange={(val) => setFormData({ ...formData, type: val })}
-                        required
-                    />
+                    <div className="grid grid-cols-2 gap-3">
+                        <Select
+                            label="Component Type"
+                            options={typeOptions}
+                            value={formData.type}
+                            onChange={(val) => setFormData({ ...formData, type: val })}
+                            required
+                        />
+                        <Select
+                            label="Calculation Type"
+                            options={[
+                                { value: "flat", label: "Fixed / Flat (₹)" },
+                                { value: "percentage", label: "Percentage (%)" }
+                            ]}
+                            value={formData.calculationType || "flat"}
+                            onChange={(val) => setFormData({ ...formData, calculationType: val })}
+                        />
+                    </div>
+
+                    {formData.calculationType === 'percentage' && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <Select
+                                label="Percentage Applied On"
+                                options={[
+                                    { value: "basic", label: "Basic Salary" },
+                                    { value: "gross", label: "Gross Salary" }
+                                ]}
+                                value={formData.percentageBasis || "basic"}
+                                onChange={(val) => setFormData({ ...formData, percentageBasis: val })}
+                            />
+                            <Input
+                                label="Default Percentage (%)"
+                                type="number"
+                                step="0.01"
+                                placeholder="e.g. 12 or 0.75"
+                                value={formData.defaultValue || ""}
+                                onChange={(e) => setFormData({ ...formData, defaultValue: parseFloat(e.target.value) || 0 })}
+                            />
+                        </div>
+                    )}
+
+                    {formData.calculationType === 'flat' && (
+                        <Input
+                            label="Default Flat Amount (₹)"
+                            type="number"
+                            placeholder="e.g. 200 (or 0 for custom per staff)"
+                            value={formData.defaultValue || ""}
+                            onChange={(e) => setFormData({ ...formData, defaultValue: parseFloat(e.target.value) || 0 })}
+                        />
+                    )}
+
                     <div className="space-y-1">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Description</label>
                         <textarea
                             className="w-full bg-white border border-slate-200 rounded-lg p-3 outline-none focus:border-slate-400 text-xs font-medium text-slate-900 placeholder:text-slate-400 resize-none"
-                            rows={3}
+                            rows={2}
                             placeholder="Add brief details about the component..."
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}

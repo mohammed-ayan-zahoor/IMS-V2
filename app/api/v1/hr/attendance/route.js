@@ -29,10 +29,10 @@ export async function GET(req) {
             const queryDate = new Date(dateStr);
             queryDate.setHours(0, 0, 0, 0);
 
-            // Fetch all staff members (role: instructor or staff)
+            // Fetch all staff members (role: admin, instructor, staff)
             const staffList = await User.find({
                 institute: instituteId,
-                role: { $in: ['instructor', 'staff'] },
+                role: { $in: ['admin', 'instructor', 'staff'] },
                 deletedAt: null
             })
             .populate('hrDetails.designation', 'name')

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Printer, ArrowLeft, MessageCircle, Send } from "lucide-react";
+import { Loader2, Printer, ArrowLeft, MessageCircle, Send, User } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Button from "@/components/ui/Button";
@@ -296,28 +296,50 @@ export default function PayslipReceiptPage() {
                     </div>
 
                     <div className="p-8 md:p-10 space-y-6">
-                        {/* 2. INSTITUTE / COMPANY DETAILS & LOGO */}
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="space-y-1 text-xs">
-                                <h2 className="text-base font-black text-slate-900 uppercase tracking-tight">
-                                    {institute.name || "ABC VENTURES INC"}
-                                </h2>
-                                <p className="text-slate-600 font-medium">
-                                    {formatAddress(institute.address)}
-                                </p>
-                                <p className="text-slate-600 font-medium">
-                                    Contact: {institute.contactPhone || institute.contact || "(312) 555-0199"} | {institute.contactEmail || institute.email || "hr@abcventures.com"}
-                                </p>
-                            </div>
-                            {instituteLogo && (
-                                <div className="shrink-0 flex items-center justify-end pl-4">
-                                    <img
-                                        src={instituteLogo}
-                                        alt={institute.name || "Institute Logo"}
-                                        className="h-20 md:h-24 w-auto max-w-[200px] object-contain"
-                                    />
+                        {/* 2. INSTITUTE / COMPANY DETAILS & LOGO (Left) and EMPLOYEE PHOTO & ID (Right) */}
+                        <div className="flex items-start justify-between gap-6 border-b border-slate-200/80 pb-5">
+                            {/* Left: Logo & Institute Info */}
+                            <div className="flex items-start gap-4">
+                                {instituteLogo && (
+                                    <div className="shrink-0 flex items-center">
+                                        <img
+                                            src={instituteLogo}
+                                            alt={institute.name || "Institute Logo"}
+                                            className="h-20 md:h-22 w-auto max-w-[140px] object-contain"
+                                        />
+                                    </div>
+                                )}
+                                <div className="space-y-1 text-xs">
+                                    <h2 className="text-base font-black text-slate-900 uppercase tracking-tight">
+                                        {institute.name || "ABC VENTURES INC"}
+                                    </h2>
+                                    <p className="text-slate-600 font-medium">
+                                        {formatAddress(institute.address)}
+                                    </p>
+                                    <p className="text-slate-600 font-medium">
+                                        Contact: {institute.contactPhone || institute.contact || "(312) 555-0199"} | {institute.contactEmail || institute.email || "hr@abcventures.com"}
+                                    </p>
                                 </div>
-                            )}
+                            </div>
+
+                            {/* Right: Candidate / Employee Photo and ID */}
+                            <div className="shrink-0 flex flex-col items-center">
+                                {staff.profile?.avatar ? (
+                                    <img
+                                        src={staff.profile.avatar}
+                                        alt={staffName}
+                                        className="w-20 h-24 object-cover rounded border border-slate-300 shadow-xs bg-slate-50"
+                                    />
+                                ) : (
+                                    <div className="w-20 h-24 rounded border border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-400">
+                                        <User size={26} className="text-slate-400 mb-0.5" />
+                                        <span className="text-[9px] uppercase font-bold text-slate-400">Photo</span>
+                                    </div>
+                                )}
+                                <span className="mt-1 text-[10px] font-black tracking-wider text-slate-800 bg-[#b8c7e6]/50 px-2 py-0.5 rounded border border-[#9bb2d9]">
+                                    {accountRef}
+                                </span>
+                            </div>
                         </div>
 
                         {/* 3. DOCUMENT TITLE: Payslip for the Month of [Month Year] */}

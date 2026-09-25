@@ -41,7 +41,7 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { name, type, description } = body;
+        const { name, type, description, calculationType, percentageBasis, defaultValue, isActive } = body;
 
         if (!name || typeof name !== 'string' || name.trim().length === 0) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -56,7 +56,11 @@ export async function POST(req) {
             institute: instituteId,
             name: name.trim(),
             type,
-            description: description?.trim()
+            description: description?.trim(),
+            calculationType: calculationType || 'flat',
+            percentageBasis: percentageBasis || 'basic',
+            defaultValue: Number(defaultValue) || 0,
+            isActive: isActive !== undefined ? !!isActive : true
         });
 
         try {

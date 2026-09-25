@@ -66,3 +66,56 @@ export async function DELETE(req, { params }) {
         return NextResponse.json({ error: "Failed to delete salary component" }, { status: 500 });
     }
 }
+
+export async function PATCH(req, { params }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !['admin', 'super_admin'].includes(session.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = await params;
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return NextResponse.json({ error: "Invalid component ID" }, { status: 400 });
+        }
+
+        const instituteId = session?.user?.institute?.id;
+        if (!instituteId) {
+            return NextResponse.json({ error: "Institute not found" }, { status: 400 });
+        }
+
+        const body = await req.json();
+        await connectDB();
+
+        const component = await SalaryComponent.findOne({ _id: id, institute: instituteId, deletedAt: null });
+        if (!component) {
+            return NextResponse.json({ error: "Component not found" }, { status: 404 });
+        }
+
+        if (body.isActive !== undefined) component.isActive = !!body.isActive;
+        if (body.name && typeof body.name === 'string') component.name = body.name.trim();
+        if (body.description !== undefined) component.description = body.description.trim();
+        if (body.calculationType) component.calculationType = body.calculationType;
+        if (body.percentageBasis) component.percentageBasis = body.percentageBasis;
+        if (body.defaultValue !== undefined) component.defaultValue = Number(body.defaultValue) || 0;
+
+        await component.save();
+
+        try {
+            await createAuditLog({
+                actor: session.user.id,
+                action: 'hr.component.update',
+                resource: { type: 'SalaryComponent', id: component._id },
+                institute: instituteId,
+                details: { name: component.name, isActive: component.isActive }
+            });
+        } catch (auditError) {
+            console.error('Audit log failed:', auditError);
+        }
+
+        return NextResponse.json({ salaryComponent: component });
+    } catch (error) {
+        console.error("Error updating salary component:", error);
+        return NextResponse.json({ error: "Failed to update salary component" }, { status: 500 });
+    }
+}
