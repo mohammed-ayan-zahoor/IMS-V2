@@ -400,6 +400,21 @@ export default function StaffAttendancePage() {
                                                                 Out: {rec.checkOutTime}
                                                             </span>
                                                         )}
+                                                        {rec.lateMinutes > 0 && (
+                                                            <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 rounded" title="Late arrival minutes">
+                                                                Late {rec.lateMinutes}m
+                                                            </span>
+                                                        )}
+                                                        {rec.earlyDepartureMinutes > 0 && (
+                                                            <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 rounded" title="Left early by this many minutes">
+                                                                Early -{rec.earlyDepartureMinutes}m
+                                                            </span>
+                                                        )}
+                                                        {rec.overtimeMinutes > 0 && (
+                                                            <span className="text-[9px] font-bold text-violet-700 bg-violet-50 border border-violet-200 px-1 rounded" title="Overtime worked">
+                                                                OT +{rec.overtimeMinutes}m
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </td>
