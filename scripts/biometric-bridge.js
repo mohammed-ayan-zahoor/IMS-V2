@@ -1,60 +1,62 @@
 /**
- * Secureye S-B100CB Biometric LAN Sync Bridge
- * -------------------------------------------
- * This background script runs on any PC/server connected to the college LAN.
- * It connects to the Secureye device over TCP/IP, reads punch logs,
- * and pushes them to IMS-V2 staff attendance API.
+ * IMS-V2 Biometric Bridge
+ * -----------------------
+ * Run this on ANY PC/laptop connected to the school LAN.
+ * It connects to the ZKTeco/eSSL device, grabs attendance punches,
+ * and sends them to the IMS-V2 server automatically.
  *
- * Usage:
+ * SETUP (one time):
+ *   npm install zkteco-js        ← run once in the IMS-V2 project folder
+ *
+ * RUN:
  *   node scripts/biometric-bridge.js
- *   node scripts/biometric-bridge.js --test       (Test network & device connection)
- *   node scripts/biometric-bridge.js --simulate   (Send a test punch to IMS-V2)
+ *
+ * Or with custom values:
+ *   DEVICE_IP=192.168.1.224 IMS_API_KEY=your_key node scripts/biometric-bridge.js
+ *
+ * FLAGS:
+ *   --test       Test device + server reachability, then exit
+ *   --simulate   Send a fake punch to the server (for testing without device)
  */
 
-const fs = require('fs');
 const path = require('path');
-const net = require('net');
+const fs   = require('fs');
 
-// Config from environment or defaults
+// ── Configuration ─────────────────────────────────────────────────────────────
 const CONFIG = {
-    DEVICE_IP: process.env.DEVICE_IP || '192.168.1.201',
-    DEVICE_PORT: parseInt(process.env.DEVICE_PORT || '4370', 10),
-    IMS_API_URL: process.env.IMS_API_URL || 'http://localhost:3000/api/v1/hr/attendance/biometric',
-    IMS_API_KEY: process.env.IMS_API_KEY || 'bio_test_key',
-    POLL_INTERVAL_SEC: parseInt(process.env.POLL_INTERVAL_SEC || '30', 10),
-    STATE_FILE: path.join(__dirname, '.biometric_sync_state.json')
+    DEVICE_IP:          process.env.DEVICE_IP          || '192.168.1.224',
+    DEVICE_PORT:        parseInt(process.env.DEVICE_PORT || '4370', 10),
+    IMS_API_URL:        process.env.IMS_API_URL        || 'https://imsportal.3ftech.in/api/v1/hr/attendance/biometric',
+    IMS_API_KEY:        process.env.IMS_API_KEY        || '',            // REQUIRED — copy from HR Settings page
+    RECONNECT_DELAY_MS: 10_000,                                          // retry after 10s on disconnect
+    STATE_FILE:         path.join(__dirname, '.biometric_state.json')
 };
 
 function log(msg) {
-    console.log(`[${new Date().toLocaleTimeString()}] [BiometricBridge] ${msg}`);
+    const t = new Date().toLocaleTimeString('en-IN', { hour12: true });
+    console.log(`[${t}] ${msg}`);
 }
 
+// ── Persist last-synced timestamp so we don't re-push old records on restart ──
 function loadState() {
     try {
-        if (fs.existsSync(CONFIG.STATE_FILE)) {
+        if (fs.existsSync(CONFIG.STATE_FILE))
             return JSON.parse(fs.readFileSync(CONFIG.STATE_FILE, 'utf8'));
-        }
-    } catch (err) {
-        log(`Warning reading state file: ${err.message}`);
-    }
-    return { lastSyncedAt: null, syncedPunchCount: 0 };
+    } catch (_) {}
+    return { lastSyncedAt: null };
 }
 
 function saveState(state) {
-    try {
-        fs.writeFileSync(CONFIG.STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
-    } catch (err) {
-        log(`Warning saving state file: ${err.message}`);
-    }
+    try { fs.writeFileSync(CONFIG.STATE_FILE, JSON.stringify(state, null, 2)); }
+    catch (_) {}
 }
 
-// Push punch logs to IMS-V2 API
-async function pushPunchesToIMS(punches) {
-    if (!punches || !punches.length) return { success: true, processed: 0 };
-
+// ── Push punches to IMS-V2 ────────────────────────────────────────────────────
+async function pushToIMS(punches) {
+    if (!punches.length) return;
+    log(`→ Sending ${punches.length} punch(es) to IMS-V2...`);
     try {
-        log(`Pushing ${punches.length} punch log(s) to IMS-V2...`);
-        const response = await fetch(CONFIG.IMS_API_URL, {
+        const res = await fetch(CONFIG.IMS_API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -62,124 +64,156 @@ async function pushPunchesToIMS(punches) {
             },
             body: JSON.stringify({ punches })
         });
-
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error || `HTTP ${response.status}`);
-        }
-
-        log(`Successfully pushed! Server response: ${data.message || 'OK'}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        log(`✓ Server: ${data.message} (matched: ${data.results?.matched ?? '?'}, unmatched: ${data.results?.unmatched?.length ?? 0})`);
         return data;
-    } catch (error) {
-        log(`Failed to push punches to IMS-V2: ${error.message}`);
-        throw error;
+    } catch (err) {
+        log(`✗ Push failed: ${err.message}`);
+        throw err;
     }
 }
 
-// Test TCP Socket Connectivity to Secureye Device
-function testDeviceConnection() {
-    return new Promise((resolve) => {
-        log(`Testing TCP connection to Secureye S-B100CB at ${CONFIG.DEVICE_IP}:${CONFIG.DEVICE_PORT}...`);
-        const socket = new net.Socket();
-        socket.setTimeout(4000);
-
-        socket.connect(CONFIG.DEVICE_PORT, CONFIG.DEVICE_IP, () => {
-            log(`SUCCESS: Connected to Secureye machine at ${CONFIG.DEVICE_IP}:${CONFIG.DEVICE_PORT}!`);
-            socket.destroy();
-            resolve(true);
-        });
-
-        socket.on('error', (err) => {
-            log(`Device connection error: ${err.message}`);
-            socket.destroy();
-            resolve(false);
-        });
-
-        socket.on('timeout', () => {
-            log(`Device connection timed out (Device at ${CONFIG.DEVICE_IP}:${CONFIG.DEVICE_PORT} is not reachable)`);
-            socket.destroy();
-            resolve(false);
-        });
-    });
+// ── Normalize ZK log entry to our punch format ────────────────────────────────
+function normalizePunch(entry) {
+    // zkteco-js returns: { deviceUserId, recordTime, ... }
+    return {
+        biometricId: String(entry.deviceUserId).trim(),
+        timestamp:   entry.recordTime instanceof Date
+                        ? entry.recordTime.toISOString()
+                        : new Date(entry.recordTime).toISOString(),
+        deviceId: CONFIG.DEVICE_IP
+    };
 }
 
-// CLI Execution
+// ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
     const args = process.argv.slice(2);
 
+    // ── --simulate: send a fake punch for testing ────────────────────────────
     if (args.includes('--simulate')) {
-        const testId = args[1] || '101';
-        log(`Simulating punch for Biometric ID: ${testId}...`);
-        await pushPunchesToIMS([
-            {
-                biometricId: testId,
-                timestamp: new Date().toISOString(),
-                deviceId: 'SIMULATOR-Secureye-S-B100CB'
-            }
-        ]);
+        if (!CONFIG.IMS_API_KEY) { log('Set IMS_API_KEY first.'); process.exit(1); }
+        const biometricId = args.find(a => /^\d+$/.test(a)) || '101';
+        log(`Simulating punch for Biometric ID: ${biometricId}`);
+        await pushToIMS([{ biometricId, timestamp: new Date().toISOString(), deviceId: 'SIMULATOR' }]);
         return;
     }
 
+    // ── --test: check reachability then exit ─────────────────────────────────
     if (args.includes('--test')) {
-        log('--- Diagnostic Test ---');
-        log(`IMS API Target: ${CONFIG.IMS_API_URL}`);
-        log(`Biometric API Key: ${CONFIG.IMS_API_KEY.slice(0, 8)}...`);
+        log('--- Diagnostics ---');
+        log(`Device:  ${CONFIG.DEVICE_IP}:${CONFIG.DEVICE_PORT}`);
+        log(`Server:  ${CONFIG.IMS_API_URL}`);
+        log(`API Key: ${CONFIG.IMS_API_KEY ? CONFIG.IMS_API_KEY.slice(0, 12) + '...' : '⚠ NOT SET'}`);
 
-        // Test API Endpoint
         try {
-            const apiRes = await fetch(CONFIG.IMS_API_URL);
-            const apiData = await apiRes.json();
-            log(`IMS-V2 API Endpoint Health: ${apiData.status || 'OK'}`);
+            const res = await fetch(CONFIG.IMS_API_URL);
+            const d   = await res.json();
+            log(`Server status: ${d.status || 'OK'}`);
         } catch (e) {
-            log(`IMS-V2 API Endpoint Unreachable: ${e.message}`);
+            log(`Server unreachable: ${e.message}`);
         }
 
-        // Test Device Connection
-        const deviceOk = await testDeviceConnection();
-        if (deviceOk) {
-            log('Device is reachable on the local network!');
-        } else {
-            log('Device is NOT currently reachable. (Expected if testing from home without device on LAN).');
-        }
+        const net = require('net');
+        await new Promise(resolve => {
+            const s = new net.Socket();
+            s.setTimeout(4000);
+            s.connect(CONFIG.DEVICE_PORT, CONFIG.DEVICE_IP, () => {
+                log(`Device reachable at ${CONFIG.DEVICE_IP}:${CONFIG.DEVICE_PORT} ✓`);
+                s.destroy(); resolve();
+            });
+            s.on('error', e => { log(`Device NOT reachable: ${e.message}`); s.destroy(); resolve(); });
+            s.on('timeout', () => { log(`Device connection timed out`); s.destroy(); resolve(); });
+        });
         return;
     }
 
-    log(`Starting Secureye S-B100CB Sync Daemon...`);
-    log(`Device Target: ${CONFIG.DEVICE_IP}:${CONFIG.DEVICE_PORT}`);
-    log(`IMS API URL: ${CONFIG.IMS_API_URL}`);
-    log(`Poll Interval: Every ${CONFIG.POLL_INTERVAL_SEC}s`);
+    // ── Validate API key before starting ─────────────────────────────────────
+    if (!CONFIG.IMS_API_KEY) {
+        log('');
+        log('ERROR: IMS_API_KEY is not set!');
+        log('Get it from: IMS Portal → HR Settings → Biometric Hardware Integration');
+        log('Then run:  IMS_API_KEY=your_key node scripts/biometric-bridge.js');
+        log('');
+        process.exit(1);
+    }
 
-    const state = loadState();
-    log(`Sync initialized. Last synced timestamp: ${state.lastSyncedAt || 'None'}`);
+    log('IMS-V2 Biometric Bridge starting...');
+    log(`Device: ${CONFIG.DEVICE_IP}:${CONFIG.DEVICE_PORT}`);
+    log(`Server: ${CONFIG.IMS_API_URL}`);
 
-    // Main sync loop
-    async function syncLoop() {
+    // Dynamically require zkteco-js (must be installed)
+    let ZKLib;
+    try {
+        ZKLib = require('zkteco-js');
+    } catch (_) {
+        log('');
+        log('ERROR: zkteco-js is not installed.');
+        log('Run this once:  npm install zkteco-js');
+        log('Then re-run the bridge.');
+        log('');
+        process.exit(1);
+    }
+
+    // ── Connection loop — reconnects automatically on drop ───────────────────
+    async function connect() {
+        const zk = new ZKLib(CONFIG.DEVICE_IP, CONFIG.DEVICE_PORT, 5200, 5000);
+        const state = loadState();
+
         try {
-            const isReachable = await testDeviceConnection();
-            if (isReachable) {
-                // When connected, pull logs and push to IMS
-                log('Device active. Polling punch logs...');
-                // Save state timestamp
+            await zk.createSocket();
+            log('Connected to device ✓');
+
+            // 1. Pull historical logs (only ones after last sync)
+            log('Fetching stored punch logs...');
+            const { data: logs } = await zk.getAttendances();
+            const lastSynced = state.lastSyncedAt ? new Date(state.lastSyncedAt) : new Date(0);
+
+            const newLogs = (logs || []).filter(e => {
+                const t = e.recordTime instanceof Date ? e.recordTime : new Date(e.recordTime);
+                return t > lastSynced;
+            });
+
+            if (newLogs.length > 0) {
+                log(`Found ${newLogs.length} new stored punch(es) since last sync.`);
+                await pushToIMS(newLogs.map(normalizePunch));
                 state.lastSyncedAt = new Date().toISOString();
                 saveState(state);
+            } else {
+                log('No new stored punches since last sync.');
             }
+
+            // 2. Stream real-time punches as they happen
+            log('Listening for live punches...');
+            await zk.getRealTimeLogs(async (data) => {
+                if (!data?.userId) return;
+                log(`Live punch detected: Biometric ID ${data.userId}`);
+                const punch = {
+                    biometricId: String(data.userId).trim(),
+                    timestamp:   new Date().toISOString(),
+                    deviceId:    CONFIG.DEVICE_IP
+                };
+                try {
+                    await pushToIMS([punch]);
+                    state.lastSyncedAt = new Date().toISOString();
+                    saveState(state);
+                } catch (_) {
+                    // push failure logged inside pushToIMS; keep listening
+                }
+            });
+
         } catch (err) {
-            log(`Sync error: ${err.message}`);
+            log(`Connection error: ${err.message}`);
+            try { await zk.disconnect(); } catch (_) {}
+            log(`Retrying in ${CONFIG.RECONNECT_DELAY_MS / 1000}s...`);
+            setTimeout(connect, CONFIG.RECONNECT_DELAY_MS);
         }
-        setTimeout(syncLoop, CONFIG.POLL_INTERVAL_SEC * 1000);
     }
 
-    syncLoop();
+    connect();
 }
 
-if (require.main === module) {
-    main().catch(err => {
-        console.error('Fatal error:', err);
-    });
-}
-
-module.exports = {
-    pushPunchesToIMS,
-    testDeviceConnection,
-    CONFIG
-};
+main().catch(err => {
+    console.error('Fatal:', err.message);
+    process.exit(1);
+});
