@@ -14,7 +14,11 @@ import {
     Info,
     Coins,
     Timer,
-    CalendarClock
+    CalendarClock,
+    Fingerprint,
+    Copy,
+    Check,
+    RefreshCw
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -27,6 +31,10 @@ export default function HRSettingsPage() {
     const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [copiedKey, setCopiedKey] = useState(false);
+    const [copiedUrl, setCopiedUrl] = useState(false);
+    const [regeneratingKey, setRegeneratingKey] = useState(false);
+    const [biometricApiKey, setBiometricApiKey] = useState("");
     const [formData, setFormData] = useState({
         shiftStart: "09:00",
         shiftEnd: "18:00",
@@ -72,6 +80,7 @@ export default function HRSettingsPage() {
                     overtimeBufferMins: data.settings.overtimeBufferMins ?? 30,
                     overtimeRatePerHour: data.settings.overtimeRatePerHour ?? 150
                 });
+                setBiometricApiKey(data.settings.biometricApiKey || "");
             }
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -81,6 +90,26 @@ export default function HRSettingsPage() {
             setLoading(false);
         }
     }, [toast]);
+
+    const handleRegenerateBiometricKey = async () => {
+        if (!window.confirm("Regenerating this API key will immediately disconnect any active biometric sync scripts until updated with the new key. Proceed?")) return;
+        setRegeneratingKey(true);
+        try {
+            const res = await fetch("/api/v1/hr/settings", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ regenerateBiometricApiKey: true })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to regenerate API key");
+            setBiometricApiKey(data.settings?.biometricApiKey || "");
+            toast.success("New Biometric API Key generated!");
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setRegeneratingKey(false);
+        }
+    };
 
     useEffect(() => {
         const controller = new AbortController();
@@ -524,6 +553,130 @@ export default function HRSettingsPage() {
                                 Loading salary components...
                             </div>
                         )}
+                    </div>
+                </Card>
+
+                {/* 6. Biometric Hardware Integration Card */}
+                <Card className="p-6">
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/40 rounded-lg text-emerald-600 dark:text-emerald-400">
+                                <Fingerprint className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Biometric Device Integration (Fingerprint & Face)</h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Connect physical biometric hardware (Secureye, eSSL, ZKTeco, Realtime) to auto-sync staff attendance
+                                </p>
+                            </div>
+                        </div>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Webhook Active
+                        </span>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Webhook Endpoint */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                    Biometric Cloud Webhook URL
+                                </label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        readOnly
+                                        value={typeof window !== 'undefined' ? `${window.location.origin}/api/v1/hr/attendance/biometric` : "https://imsportal.3ftech.in/api/v1/hr/attendance/biometric"}
+                                        className="font-mono text-xs bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            const url = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/hr/attendance/biometric` : "https://imsportal.3ftech.in/api/v1/hr/attendance/biometric";
+                                            navigator.clipboard.writeText(url);
+                                            setCopiedUrl(true);
+                                            setTimeout(() => setCopiedUrl(false), 2000);
+                                            toast.success("Webhook URL copied to clipboard");
+                                        }}
+                                        className="shrink-0 bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
+                                    >
+                                        {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+                                        {copiedUrl ? "Copied" : "Copy"}
+                                    </Button>
+                                </div>
+                                <p className="text-[11px] text-gray-400 mt-1">
+                                    Configure this URL in your device ADMS / Cloud Server settings.
+                                </p>
+                            </div>
+
+                            {/* Biometric Secret Key */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                    Institute Biometric API Key (`x-biometric-key`)
+                                </label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        readOnly
+                                        value={biometricApiKey || "Loading..."}
+                                        className="font-mono text-xs bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            if (!biometricApiKey) return;
+                                            navigator.clipboard.writeText(biometricApiKey);
+                                            setCopiedKey(true);
+                                            setTimeout(() => setCopiedKey(false), 2000);
+                                            toast.success("Biometric API Key copied to clipboard");
+                                        }}
+                                        className="shrink-0 bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
+                                    >
+                                        {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+                                        {copiedKey ? "Copied" : "Copy"}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={regeneratingKey}
+                                        onClick={handleRegenerateBiometricKey}
+                                        className="shrink-0 bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
+                                        title="Regenerate Key"
+                                    >
+                                        <RefreshCw className={cn("w-3.5 h-3.5 text-slate-500", regeneratingKey && "animate-spin")} />
+                                    </Button>
+                                </div>
+                                <p className="text-[11px] text-gray-400 mt-1">
+                                    Secret token authenticating punch logs pushed from your hardware.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Quick Setup Instructions */}
+                        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <Info className="w-4 h-4 text-indigo-600" />
+                                How Biometric Attendance Works
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-slate-600 dark:text-slate-400">
+                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700">
+                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">1. Map Staff Device ID</span>
+                                    In <strong>Staff Directory</strong>, edit each staff member and set their <strong>Biometric Machine User ID</strong> (e.g. <code>101</code>) to match their ID on the machine.
+                                </div>
+                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700">
+                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">2. Direct Cloud or LAN Bridge</span>
+                                    Devices with ADMS push directly via HTTPS. Or run the lightweight LAN bridge script on your school network (<code>node scripts/biometric-bridge.js</code>).
+                                </div>
+                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700">
+                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">3. Automated Shifts & Payroll</span>
+                                    1st punch = Check-in; last punch = Check-out. Evaluated automatically against each staff member&apos;s department shift and grace window.
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </Card>
 
