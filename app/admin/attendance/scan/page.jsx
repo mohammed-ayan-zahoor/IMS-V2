@@ -23,7 +23,11 @@ function ScannerPage() {
     const faceapiRef = useRef(null);
     const faceMatcherRef = useRef(null);
     const animFrameRef = useRef(null);
-    const isProcessingRef = useRef(false);
+    // ponytail: per-user cooldown map instead of global lock.
+    // Global lock drops legit scans when two people scan within 1.5s of each other.
+    // Industry standard (ZKTeco / HikVision) uses 30-min per-user dedup window server-side;
+    // we mirror it client-side to avoid redundant API hits.
+    const lastScanTimeRef = useRef({}); // { [userId]: Date }
     const html5QrCodeRef = useRef(null);
 
     const [cameraReady, setCameraReady] = useState(false);
@@ -386,12 +390,15 @@ function ScannerPage() {
             if (userSlots.has(slot) && currentStatus !== "absent") return;
         }
 
-        if (isProcessingRef.current) return;
-        isProcessingRef.current = true;
+        // Per-user cooldown: ignore re-scan of the SAME user within 30 seconds
+        // (prevents camera catching the same face twice in rapid succession)
+        const now = new Date();
+        const lastScan = lastScanTimeRef.current[user.id];
+        if (lastScan && (now - lastScan) < 30_000) return;
+        lastScanTimeRef.current[user.id] = now;
 
         try {
             if (isStaff) {
-                const now = new Date();
                 const time24 = format(now, "HH:mm");
                 const curMins = now.getHours() * 60 + now.getMinutes();
 
@@ -413,6 +420,13 @@ function ScannerPage() {
                 const checkInGrace = shift.checkInGraceMins ?? 15;
                 const checkOutGrace = shift.checkOutGraceMins ?? 10;
 
+                // Out-of-hours check: warn if scan is >2h before shift start or >2h after shift end
+                // We record it anyway (emergencies / guard shifts), but add a flag in remarks.
+                const twoHours = 120;
+                const outsideHours =
+                    curMins < shiftStartMins - twoHours ||
+                    curMins > shiftEndMins + twoHours;
+
                 const record = {
                     staffId: user.id,
                     status: "present"
@@ -428,7 +442,11 @@ function ScannerPage() {
                         lateMinutes = curMins - shiftStartMins;
                     }
                     record.lateMinutes = lateMinutes;
-                    record.remarks = `Auto check-in via ${method}${lateMinutes > 0 ? ` (Late: ${lateMinutes}m)` : ""}`;
+                    record.remarks = [
+                        `Auto check-in via ${method}`,
+                        lateMinutes > 0 ? `(Late: ${lateMinutes}m)` : "",
+                        outsideHours ? "[Outside shift hours]" : ""
+                    ].filter(Boolean).join(" ");
                 } else {
                     record.checkOutTime = time24;
                     if (curMins < shiftEndMins - checkOutGrace) {
@@ -439,7 +457,12 @@ function ScannerPage() {
                     }
                     record.earlyDepartureMinutes = earlyDepartureMinutes;
                     record.overtimeMinutes = overtimeMinutes;
-                    record.remarks = `Auto check-out via ${method}${earlyDepartureMinutes > 0 ? ` (Early: ${earlyDepartureMinutes}m)` : ""}${overtimeMinutes > 0 ? ` (OT: ${overtimeMinutes}m)` : ""}`;
+                    record.remarks = [
+                        `Auto check-out via ${method}`,
+                        earlyDepartureMinutes > 0 ? `(Early: ${earlyDepartureMinutes}m)` : "",
+                        overtimeMinutes > 0 ? `(OT: ${overtimeMinutes}m)` : "",
+                        outsideHours ? "[Outside shift hours]" : ""
+                    ].filter(Boolean).join(" ");
                 }
 
                 const postRes = await fetch("/api/v1/hr/attendance", {
@@ -454,18 +477,32 @@ function ScannerPage() {
                     const errData = await postRes.json();
                     throw new Error(errData.error || "Save failed");
                 }
+
+                // Store timing data in status map so sidebar badges can render it
+                setAttendanceStatusMap(prev => ({
+                    ...prev,
+                    [user.id]: {
+                        status: "present",
+                        method: `${method} (${slot === "checkout" ? "Check-Out" : "Check-In"})`,
+                        time: format(now, "hh:mm a"),
+                        slot,
+                        lateMinutes,
+                        earlyDepartureMinutes,
+                        overtimeMinutes,
+                        outsideHours
+                    }
+                }));
+
             } else {
                 const targetBatchId = user.batchId || batchId;
                 if (!targetBatchId || targetBatchId === "all") {
                     toast.error(`${user.name} is not enrolled in any active class/batch.`);
-                    isProcessingRef.current = false;
                     return;
                 }
 
                 // Determine if late check-in based on working hours + grace period
                 let status = "present";
                 if (slot === "checkin" && attSettings.workingHoursStart) {
-                    const now = new Date();
                     const curMin = now.getHours() * 60 + now.getMinutes();
                     const [h, m] = attSettings.workingHoursStart.split(":").map(Number);
                     const startMin = (h || 0) * 60 + (m || 0);
@@ -498,17 +535,17 @@ function ScannerPage() {
                     const errData = await postRes.json();
                     throw new Error(errData.error || "Save failed");
                 }
-            }
 
-            setAttendanceStatusMap(prev => ({
-                ...prev,
-                [user.id]: {
-                    status: "present",
-                    method: `${method} (${slot === "checkout" ? "Check-Out" : "Check-In"})`,
-                    time: format(new Date(), "hh:mm a"),
-                    slot
-                }
-            }));
+                setAttendanceStatusMap(prev => ({
+                    ...prev,
+                    [user.id]: {
+                        status: "present",
+                        method: `${method} (${slot === "checkout" ? "Check-Out" : "Check-In"})`,
+                        time: format(now, "hh:mm a"),
+                        slot
+                    }
+                }));
+            }
 
             setMarkedSlotsMap(prev => {
                 const updated = { ...prev };
@@ -527,7 +564,7 @@ function ScannerPage() {
                 id: user.id,
                 name: user.name,
                 method: `${method} (${slot === "checkout" ? "Check-Out" : "Check-In"}${periodTag}${deptTag})`,
-                time: format(new Date(), "hh:mm a"),
+                time: format(now, "hh:mm a"),
                 avatar: user.avatar,
                 enrollmentNumber: user.enrollmentNumber || ""
             };
@@ -536,8 +573,6 @@ function ScannerPage() {
             toast.success(`✓ ${user.name} marked ${slot === "checkout" ? "Check-Out" : "Check-In"}${periodTag}${deptTag}`);
         } catch (err) {
             toast.error("Mark failed: " + err.message);
-        } finally {
-            setTimeout(() => { isProcessingRef.current = false; }, 1500);
         }
     }, [markedSlotsMap, batchId, date, isStaff, getCurrentSlot, attSettings, timetableSlots, selectedPeriodId, attendanceStatusMap]);
     handleRecognizedRef.current = handleRecognized;
@@ -969,12 +1004,32 @@ function ScannerPage() {
                                             </div>
                                         )}
 
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5">
+                                         <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
                                                 <p className="font-bold text-slate-800 text-xs truncate">{u.name}</p>
                                                 {status === "late" && (
                                                     <span className="text-[9px] font-black uppercase px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
                                                         Late
+                                                    </span>
+                                                )}
+                                                {isStaff && record?.lateMinutes > 0 && (
+                                                    <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 rounded">
+                                                        Late {record.lateMinutes}m
+                                                    </span>
+                                                )}
+                                                {isStaff && record?.earlyDepartureMinutes > 0 && (
+                                                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 rounded">
+                                                        Early -{record.earlyDepartureMinutes}m
+                                                    </span>
+                                                )}
+                                                {isStaff && record?.overtimeMinutes > 0 && (
+                                                    <span className="text-[9px] font-bold text-violet-700 bg-violet-50 border border-violet-200 px-1 rounded">
+                                                        OT +{record.overtimeMinutes}m
+                                                    </span>
+                                                )}
+                                                {isStaff && record?.outsideHours && (
+                                                    <span className="text-[9px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-1 rounded" title="Scan recorded outside normal shift hours">
+                                                        ⚠ Off-hours
                                                     </span>
                                                 )}
                                             </div>
