@@ -34,7 +34,7 @@
   "searchStudentHint": "Search student by name or roll...",
   "searchBatchesHint": "Search batches or courses...",
   "searchMaterialsHint": "Search study materials...",
-  "uploadNotes": "Upload Notes",
+  "uploadNotes": "Upload Material",
   "uploadMaterial": "Upload Material",
   "materialTitle": "Material Title",
   "fileUrl": "File / Drive URL",

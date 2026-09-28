@@ -144,9 +144,59 @@ export async function POST(req) {
                     recipientRole: "admin",
                     title: "New Out-Pass / Permission Request",
                     message: `${requesterName} requested permission for ${recipientName} (${durationHours})`,
-                    type: "LEAVE_REQUEST",
+                    type: "PERMISSION",
+                    metadata: {
+                        gatePassId: gatePass._id.toString(),
+                        departureTime,
+                        expectedReturnTime,
+                        durationHours
+                    },
                     link: "/admin/hr/leave-requests"
                 });
+
+                // Dispatch push notification to institute admins
+                try {
+                    const User = (await import("@/models/User")).default;
+                    const adminUsers = await User.find({
+                        institute: instituteId,
+                        role: { $in: ['admin', 'super_admin'] },
+                        deletedAt: null
+                    }).select('_id');
+                    const adminIds = adminUsers.map(a => a._id.toString());
+                    if (adminIds.length > 0) {
+                        const { getBeamsInstance } = await import("@/lib/pusher");
+                        const beamsClient = await getBeamsInstance(instituteId);
+                        if (beamsClient) {
+                            const adminPayload = {
+                                apns: {
+                                    aps: {
+                                        alert: { title: "New Out-Pass Request", body: `${requesterName} requested out-pass (${durationHours})` },
+                                        sound: "default"
+                                    }
+                                },
+                                fcm: {
+                                    notification: {
+                                        title: "New Out-Pass Request",
+                                        body: `${requesterName} requested out-pass (${durationHours})`,
+                                        channel_id: "high_importance_channel",
+                                        sound: "default"
+                                    },
+                                    data: {
+                                        title: "New Out-Pass Request",
+                                        body: `${requesterName} requested out-pass (${durationHours})`,
+                                        type: "permission",
+                                        gatePassId: gatePass._id.toString(),
+                                        instituteId: instituteId.toString()
+                                    },
+                                    priority: "high"
+                                }
+                            };
+                            await beamsClient.publishToUsers(adminIds, adminPayload);
+                        }
+                    }
+                } catch (adminPushErr) {
+                    console.error("[Permission Apply Push] Error notifying admins:", adminPushErr);
+                }
             } catch (nErr) {
                 console.error("Failed to create permission notification", nErr);
             }

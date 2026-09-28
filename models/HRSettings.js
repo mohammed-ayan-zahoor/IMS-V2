@@ -57,6 +57,12 @@ const HRSettingsSchema = new Schema({
         type: Number,
         default: 150,
         min: 0
+    },
+    // Biometric Hardware Integration
+    biometricApiKey: {
+        type: String,
+        trim: true,
+        index: true
     }
 }, { timestamps: true });
 

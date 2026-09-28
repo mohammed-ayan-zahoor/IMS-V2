@@ -8,6 +8,7 @@ import User from "@/models/User";
 import Membership from "@/models/Membership";
 import AuditLog from "@/models/AuditLog";
 import Designation from "@/models/Designation";
+import Department from "@/models/Department";
 import bcrypt from "bcryptjs";
 import { getInstituteScope, addInstituteFilter } from "@/middleware/instituteScope";
 import { getClientIp } from "@/lib/ip-helper";
@@ -78,6 +79,7 @@ export async function GET(req) {
         }
 
         const users = await User.find(query)
+            .populate('department', 'name code shiftTimings')
             .populate('hrDetails.designation', 'name')
             .select("-passwordHash")
             .sort({ createdAt: -1 });
@@ -220,6 +222,10 @@ export async function POST(req) {
                 const courses = Array.isArray(body.assignedCourses) ? body.assignedCourses : [];
                 userPayload.assignments = { batches, courses };
                 userPayload.permissions = Array.isArray(body.permissions) ? body.permissions : [];
+            }
+
+            if (body.department && mongoose.Types.ObjectId.isValid(body.department)) {
+                userPayload.department = new mongoose.Types.ObjectId(body.department);
             }
 
             if (['instructor', 'staff'].includes(requestedRole)) {

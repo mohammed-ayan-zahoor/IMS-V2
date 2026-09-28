@@ -33,6 +33,7 @@ class InstructorAttendanceProvider extends ChangeNotifier {
   int get presentCount => _attendanceMap.values.where((s) => s == 'present').length;
   int get absentCount => _attendanceMap.values.where((s) => s == 'absent').length;
   int get lateCount => _attendanceMap.values.where((s) => s == 'late').length;
+  int get holidayCount => _attendanceMap.values.where((s) => s == 'holiday').length;
 
   InstructorAttendanceProvider({String? initialBatchId}) {
     loadInitialData(initialBatchId: initialBatchId);
@@ -114,6 +115,13 @@ class InstructorAttendanceProvider extends ChangeNotifier {
   void markAllPresent() {
     for (var student in _students) {
       _attendanceMap[student.id] = 'present';
+    }
+    notifyListeners();
+  }
+
+  void markAllHoliday() {
+    for (var student in _students) {
+      _attendanceMap[student.id] = 'holiday';
     }
     notifyListeners();
   }

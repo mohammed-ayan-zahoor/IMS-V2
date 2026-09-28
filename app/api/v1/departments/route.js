@@ -114,6 +114,14 @@ export async function POST(req) {
             hodId = new mongoose.Types.ObjectId(body.hod);
         }
 
+        const shiftTimingsPayload = body.shiftTimings ? {
+            useCustomShift: Boolean(body.shiftTimings.useCustomShift),
+            shiftStart: body.shiftTimings.shiftStart || "09:00",
+            shiftEnd: body.shiftTimings.shiftEnd || "18:00",
+            checkInGraceMins: Number(body.shiftTimings.checkInGraceMins) >= 0 ? Number(body.shiftTimings.checkInGraceMins) : 15,
+            checkOutGraceMins: Number(body.shiftTimings.checkOutGraceMins) >= 0 ? Number(body.shiftTimings.checkOutGraceMins) : 10
+        } : undefined;
+
         const newDepartment = await Department.create({
             institute: instituteId,
             name: body.name.trim(),
@@ -124,6 +132,7 @@ export async function POST(req) {
             contactEmail: body.contactEmail?.trim()?.toLowerCase() || "",
             contactPhone: body.contactPhone?.trim() || "",
             isActive: body.isActive !== false,
+            shiftTimings: shiftTimingsPayload,
             createdBy: new mongoose.Types.ObjectId(session.user.id)
         });
 

@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import Batch from "@/models/Batch";
+import HRSettings from "@/models/HRSettings";
+import Department from "@/models/Department";
 
 export async function GET(req) {
     try {
@@ -21,13 +23,14 @@ export async function GET(req) {
         let users = [];
 
         if (isStaff) {
-            // Fetch instructors & staff with faceDescriptor
+            // Fetch instructors & staff with faceDescriptor and department
             users = await User.find({
                 role: { $in: ["instructor", "staff", "admin"] },
                 institute: instituteId,
                 deletedAt: null
             })
-                .select("+faceDescriptor profile enrollmentNumber email role")
+                .populate("department", "name code shiftTimings")
+                .select("+faceDescriptor profile enrollmentNumber email role department")
                 .lean();
         } else if (batchId && batchId !== "all") {
             // Fetch students belonging to the batch
@@ -73,17 +76,52 @@ export async function GET(req) {
             });
         }
 
+        // If staff, fetch HR settings for fallback institute shift timings
+        let hrSettings = null;
+        if (isStaff) {
+            hrSettings = await HRSettings.findOne({ institute: instituteId }).lean();
+        }
+
         // Map to lightweight descriptors list
-        const descriptors = users.map(u => ({
-            id: u._id.toString(),
-            name: `${u.profile?.firstName || ""} ${u.profile?.lastName || ""}`.trim() || u.email,
-            enrollmentNumber: u.enrollmentNumber || "",
-            email: u.email,
-            role: u.role,
-            avatar: u.profile?.avatar || null,
-            batchId: u.batchId || (batchId && batchId !== "all" ? batchId : null),
-            faceDescriptor: u.faceDescriptor && u.faceDescriptor.length > 0 ? Array.from(u.faceDescriptor) : null
-        }));
+        const descriptors = users.map(u => {
+            let effectiveShift = null;
+            if (isStaff) {
+                const deptShift = u.department?.shiftTimings;
+                const hasCustomDeptShift = Boolean(deptShift?.useCustomShift);
+                effectiveShift = hasCustomDeptShift ? {
+                    isDepartmentShift: true,
+                    departmentName: u.department.name,
+                    shiftStart: deptShift.shiftStart || "09:00",
+                    shiftEnd: deptShift.shiftEnd || "18:00",
+                    checkInGraceMins: deptShift.checkInGraceMins ?? 15,
+                    checkOutGraceMins: deptShift.checkOutGraceMins ?? 10
+                } : {
+                    isDepartmentShift: false,
+                    departmentName: u.department?.name || null,
+                    shiftStart: hrSettings?.shiftStart || "09:00",
+                    shiftEnd: hrSettings?.shiftEnd || "18:00",
+                    checkInGraceMins: hrSettings?.checkInGraceMins ?? 15,
+                    checkOutGraceMins: hrSettings?.checkOutGraceMins ?? 10
+                };
+            }
+
+            return {
+                id: u._id.toString(),
+                name: `${u.profile?.firstName || ""} ${u.profile?.lastName || ""}`.trim() || u.email,
+                enrollmentNumber: u.enrollmentNumber || "",
+                email: u.email,
+                role: u.role,
+                department: u.department ? {
+                    id: u.department._id?.toString(),
+                    name: u.department.name,
+                    code: u.department.code
+                } : null,
+                effectiveShift,
+                avatar: u.profile?.avatar || null,
+                batchId: u.batchId || (batchId && batchId !== "all" ? batchId : null),
+                faceDescriptor: u.faceDescriptor && u.faceDescriptor.length > 0 ? Array.from(u.faceDescriptor) : null
+            };
+        });
 
         return NextResponse.json({ descriptors });
     } catch (error) {

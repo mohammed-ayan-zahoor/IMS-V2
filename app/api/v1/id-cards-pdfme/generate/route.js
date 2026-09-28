@@ -462,7 +462,9 @@ export async function POST(req) {
             studentQuery.activeSessions = sessionId;
         }
 
-        const students = await User.find(studentQuery).lean();
+        const students = await User.find(studentQuery)
+            .select('+aadharNumber +apaarId +penNumber +fatherAadhar +motherAadhar')
+            .lean();
         if (students.length === 0) {
             return NextResponse.json(
                 { error: "No matching active students found for this session/institute" },

@@ -14,7 +14,8 @@ import {
     Mail, 
     Phone, 
     Calendar,
-    Users
+    Users,
+    Clock
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -50,7 +51,14 @@ export default function DepartmentsPage() {
         establishedYear: "",
         contactEmail: "",
         contactPhone: "",
-        isActive: true
+        isActive: true,
+        shiftTimings: {
+            useCustomShift: false,
+            shiftStart: "09:00",
+            shiftEnd: "18:00",
+            checkInGraceMins: 15,
+            checkOutGraceMins: 10
+        }
     });
 
     const fetchDepartments = useCallback(async (signal) => {
@@ -87,7 +95,14 @@ export default function DepartmentsPage() {
             establishedYear: new Date().getFullYear().toString(),
             contactEmail: "",
             contactPhone: "",
-            isActive: true
+            isActive: true,
+            shiftTimings: {
+                useCustomShift: false,
+                shiftStart: "09:00",
+                shiftEnd: "18:00",
+                checkInGraceMins: 15,
+                checkOutGraceMins: 10
+            }
         });
         setIsModalOpen(true);
     };
@@ -102,7 +117,14 @@ export default function DepartmentsPage() {
             establishedYear: dept.establishedYear?.toString() || "",
             contactEmail: dept.contactEmail || "",
             contactPhone: dept.contactPhone || "",
-            isActive: dept.isActive !== false
+            isActive: dept.isActive !== false,
+            shiftTimings: {
+                useCustomShift: dept.shiftTimings?.useCustomShift || false,
+                shiftStart: dept.shiftTimings?.shiftStart || "09:00",
+                shiftEnd: dept.shiftTimings?.shiftEnd || "18:00",
+                checkInGraceMins: dept.shiftTimings?.checkInGraceMins ?? 15,
+                checkOutGraceMins: dept.shiftTimings?.checkOutGraceMins ?? 10
+            }
         });
         setIsModalOpen(true);
     };
@@ -181,32 +203,10 @@ export default function DepartmentsPage() {
         const total = departments.length;
         const withHod = departments.filter(d => d.hod).length;
         const totalCourses = departments.reduce((acc, d) => acc + (d.courseCount || 0), 0);
-        return { total, withHod, totalCourses };
+        const totalStaff = departments.reduce((acc, d) => acc + (d.facultyCount || 0), 0);
+        const customShifts = departments.filter(d => d.shiftTimings?.useCustomShift).length;
+        return { total, withHod, totalCourses, totalStaff, customShifts };
     }, [departments]);
-
-    if (session && !isCollege && !isSuperAdmin) {
-        return (
-            <div className="p-6 max-w-4xl mx-auto py-16 text-center">
-                <Card className="p-10 border-slate-200 shadow-xs">
-                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
-                        <Building2 size={24} />
-                    </div>
-                    <h2 className="text-xl font-bold text-slate-900">Academic Departments</h2>
-                    <p className="text-slate-600 max-w-md mx-auto mt-2 text-sm leading-relaxed">
-                        Academic departments and faculties are designed for Degree Colleges and Universities.
-                        In your institution model, academic classes and sections are organized directly under Courses.
-                    </p>
-                    <div className="mt-6 flex justify-center gap-3">
-                        <Link href="/admin/courses">
-                            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                                View Classes (Courses)
-                            </Button>
-                        </Link>
-                    </div>
-                </Card>
-            </div>
-        );
-    }
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -215,14 +215,16 @@ export default function DepartmentsPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
                         <Building2 className="text-blue-600" size={26} />
-                        Academic Departments
+                        {isCollege ? "Academic Departments & Shifts" : "Staff Departments & Shifts"}
                     </h1>
                     <p className="text-sm text-slate-500 mt-1">
-                        Manage academic faculties, assign Heads of Department (HODs), and organize degree programs.
+                        {isCollege
+                            ? "Manage academic faculties, assign Heads of Department (HODs), and configure faculty shifts."
+                            : "Organize staff into functional departments (Teaching, Admin, Transport, Security) and configure login & logout shift timings."}
                     </p>
                 </div>
                 <Button 
-                    onClick={openAddModal}
+                    onClick={openAddModal} 
                     className="flex items-center gap-2 shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                     <Plus size={16} />
@@ -243,20 +245,44 @@ export default function DepartmentsPage() {
                 </Card>
                 <Card className="p-4 border-slate-200">
                     <div className="flex items-center gap-3">
-                        <UserCheck className="text-emerald-600" size={22} />
-                        <div>
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Assigned HODs</p>
-                            <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.withHod} <span className="text-xs text-slate-400 font-normal">/ {stats.total}</span></p>
-                        </div>
+                        {isCollege ? (
+                            <>
+                                <UserCheck className="text-emerald-600" size={22} />
+                                <div>
+                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Assigned HODs</p>
+                                    <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.withHod} <span className="text-xs text-slate-400 font-normal">/ {stats.total}</span></p>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <Users className="text-emerald-600" size={22} />
+                                <div>
+                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Assigned Staff</p>
+                                    <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.totalStaff}</p>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </Card>
                 <Card className="p-4 border-slate-200">
                     <div className="flex items-center gap-3">
-                        <BookOpen className="text-indigo-600" size={22} />
-                        <div>
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Department Programs</p>
-                            <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.totalCourses}</p>
-                        </div>
+                        {isCollege ? (
+                            <>
+                                <BookOpen className="text-indigo-600" size={22} />
+                                <div>
+                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Department Programs</p>
+                                    <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.totalCourses}</p>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <Clock className="text-indigo-600" size={22} />
+                                <div>
+                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Custom Shift Hours</p>
+                                    <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.customShifts}</p>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </Card>
             </div>
@@ -352,44 +378,75 @@ export default function DepartmentsPage() {
                                         </p>
                                     )}
 
-                                    {/* HOD Profile Section */}
-                                    <div className="mt-4 pt-3.5 border-t border-slate-100">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                            Head of Department (HOD)
-                                        </p>
-                                        {hodName ? (
-                                            <div className="flex items-center gap-2.5 mt-1.5">
-                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
-                                                    {dept.hod.profile?.firstName?.[0] || 'H'}
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-xs font-semibold text-slate-800 truncate">
-                                                        {hodName}
-                                                    </p>
-                                                    <p className="text-[11px] text-slate-500 truncate flex items-center gap-1">
-                                                        <Mail size={10} />
-                                                        {dept.hod.email}
-                                                    </p>
-                                                </div>
-                                            </div>
+                                    {/* Shift Timings Badge */}
+                                    <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700">
+                                        <Clock size={13} className={dept.shiftTimings?.useCustomShift ? "text-indigo-600" : "text-slate-400"} />
+                                        {dept.shiftTimings?.useCustomShift ? (
+                                            <span>
+                                                Shift: <span className="font-bold text-slate-900">{dept.shiftTimings.shiftStart} - {dept.shiftTimings.shiftEnd}</span>
+                                                <span className="text-[10px] text-slate-500 ml-1">({dept.shiftTimings.checkInGraceMins ?? 15}m grace)</span>
+                                            </span>
                                         ) : (
-                                            <p className="text-xs text-slate-400 italic mt-1.5">
-                                                No HOD assigned
-                                            </p>
+                                            <span className="text-slate-500 font-normal">
+                                                Shift: <span className="font-medium text-slate-700">Institute Default</span>
+                                            </span>
                                         )}
                                     </div>
+
+                                    {/* HOD Profile Section (Colleges only) */}
+                                    {isCollege && (
+                                        <div className="mt-4 pt-3.5 border-t border-slate-100">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                Head of Department (HOD)
+                                            </p>
+                                            {hodName ? (
+                                                <div className="flex items-center gap-2.5 mt-1.5">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+                                                        {dept.hod.profile?.firstName?.[0] || 'H'}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-xs font-semibold text-slate-800 truncate">
+                                                            {hodName}
+                                                        </p>
+                                                        <p className="text-[11px] text-slate-500 truncate flex items-center gap-1">
+                                                            <Mail size={10} />
+                                                            {dept.hod.email}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-400 italic mt-1.5">
+                                                    No HOD assigned
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Bottom Metrics Footer */}
                                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                                    <span className="flex items-center gap-1.5 font-medium">
-                                        <GraduationCap size={14} className="text-slate-400" />
-                                        {dept.courseCount || 0} Programs
-                                    </span>
-                                    <span className="flex items-center gap-1.5 font-medium">
-                                        <Users size={14} className="text-slate-400" />
-                                        {dept.facultyCount || 0} Faculty
-                                    </span>
+                                    {isCollege ? (
+                                        <>
+                                            <span className="flex items-center gap-1.5 font-medium">
+                                                <GraduationCap size={14} className="text-slate-400" />
+                                                {dept.courseCount || 0} Programs
+                                            </span>
+                                            <span className="flex items-center gap-1.5 font-medium">
+                                                <Users size={14} className="text-slate-400" />
+                                                {dept.facultyCount || 0} Faculty
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                                                <Users size={14} className="text-slate-400" />
+                                                {dept.facultyCount || 0} Staff Members
+                                            </span>
+                                            <span className="text-[11px] text-slate-400">
+                                                {dept.shiftTimings?.useCustomShift ? "Custom Shift" : "Default Shift"}
+                                            </span>
+                                        </>
+                                    )}
                                 </div>
                             </Card>
                         );
@@ -401,7 +458,7 @@ export default function DepartmentsPage() {
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title={editingDepartment ? "Edit Department" : "Add Academic Department"}
+                title={editingDepartment ? "Edit Department" : (isCollege ? "Add Academic Department" : "Add Staff Department")}
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -429,31 +486,33 @@ export default function DepartmentsPage() {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            Assign Head of Department (HOD)
-                        </label>
-                        <select
-                            value={formData.hod}
-                            onChange={(e) => setFormData({ ...formData, hod: e.target.value })}
-                            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="">-- Select Faculty / Instructor --</option>
-                            {instructors.map((inst) => {
-                                const name = inst.profile 
-                                    ? `${inst.profile.firstName} ${inst.profile.lastName}`.trim() 
-                                    : inst.email;
-                                return (
-                                    <option key={inst._id} value={inst._id}>
-                                        {name} ({inst.email})
-                                    </option>
-                                );
-                            })}
-                        </select>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                            Eligible instructors and staff registered in this institute.
-                        </p>
-                    </div>
+                    {isCollege && (
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                Assign Head of Department (HOD)
+                            </label>
+                            <select
+                                value={formData.hod}
+                                onChange={(e) => setFormData({ ...formData, hod: e.target.value })}
+                                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="">-- Select Faculty / Instructor --</option>
+                                {instructors.map((inst) => {
+                                    const name = inst.profile 
+                                        ? `${inst.profile.firstName} ${inst.profile.lastName}`.trim() 
+                                        : inst.email;
+                                    return (
+                                        <option key={inst._id} value={inst._id}>
+                                            {name} ({inst.email})
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                            <p className="text-[11px] text-slate-400 mt-1">
+                                Eligible instructors and staff registered in this institute.
+                            </p>
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -468,39 +527,133 @@ export default function DepartmentsPage() {
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Est. Year
-                            </label>
-                            <Input
-                                type="number"
-                                placeholder="e.g. 2012"
-                                value={formData.establishedYear}
-                                onChange={(e) => setFormData({ ...formData, establishedYear: e.target.value })}
-                            />
+                    {isCollege && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Est. Year
+                                </label>
+                                <Input
+                                    type="number"
+                                    placeholder="e.g. 2012"
+                                    value={formData.establishedYear}
+                                    onChange={(e) => setFormData({ ...formData, establishedYear: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Contact Email
+                                </label>
+                                <Input
+                                    type="email"
+                                    placeholder="dept@college.edu"
+                                    value={formData.contactEmail}
+                                    onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Phone / Ext
+                                </label>
+                                <Input
+                                    placeholder="Ext 401"
+                                    value={formData.contactPhone}
+                                    onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Contact Email
+                    )}
+
+                    {/* Shift Timings Section */}
+                    <div className="pt-3 border-t border-slate-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="text-xs font-semibold text-slate-800 flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.shiftTimings?.useCustomShift || false}
+                                    onChange={(e) => setFormData({
+                                        ...formData,
+                                        shiftTimings: {
+                                            ...(formData.shiftTimings || {}),
+                                            useCustomShift: e.target.checked
+                                        }
+                                    })}
+                                    className="w-4 h-4 rounded text-blue-600 focus:ring-0"
+                                />
+                                <span>Department Shift Timings</span>
                             </label>
-                            <Input
-                                type="email"
-                                placeholder="dept@college.edu"
-                                value={formData.contactEmail}
-                                onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                            />
+                            <span className="text-[11px] text-slate-400">
+                                {formData.shiftTimings?.useCustomShift ? "Custom shift active" : "Inherits institute default shift"}
+                            </span>
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Phone / Ext
-                            </label>
-                            <Input
-                                placeholder="Ext 401"
-                                value={formData.contactPhone}
-                                onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                            />
-                        </div>
+
+                        {formData.shiftTimings?.useCustomShift && (
+                            <div className="space-y-3 mt-2 p-3.5 bg-slate-50/80 rounded-lg border border-slate-200">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                                            Login / Shift Start *
+                                        </label>
+                                        <Input
+                                            type="time"
+                                            value={formData.shiftTimings?.shiftStart || "09:00"}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                shiftTimings: { ...formData.shiftTimings, shiftStart: e.target.value }
+                                            })}
+                                            required={formData.shiftTimings?.useCustomShift}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                                            Logout / Shift End *
+                                        </label>
+                                        <Input
+                                            type="time"
+                                            value={formData.shiftTimings?.shiftEnd || "18:00"}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                shiftTimings: { ...formData.shiftTimings, shiftEnd: e.target.value }
+                                            })}
+                                            required={formData.shiftTimings?.useCustomShift}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                                            Check-In Grace (Minutes)
+                                        </label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={formData.shiftTimings?.checkInGraceMins ?? 15}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                shiftTimings: { ...formData.shiftTimings, checkInGraceMins: parseInt(e.target.value) || 0 }
+                                            })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                                            Check-Out Grace (Minutes)
+                                        </label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={formData.shiftTimings?.checkOutGraceMins ?? 10}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                shiftTimings: { ...formData.shiftTimings, checkOutGraceMins: parseInt(e.target.value) || 0 }
+                                            })}
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-slate-500">
+                                    Staff assigned to this department will follow these login and logout shift timings for attendance and biometric scanning.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">

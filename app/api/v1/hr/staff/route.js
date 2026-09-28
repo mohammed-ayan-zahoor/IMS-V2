@@ -25,6 +25,7 @@ export async function GET(req) {
         const { searchParams } = new URL(req.url);
         const roleFilter = searchParams.get('role'); // 'all', 'instructor', 'admin', 'staff'
         const designationFilter = searchParams.get('designation');
+        const departmentFilter = searchParams.get('department');
         const search = searchParams.get('search')?.trim();
 
         await connectDB();
@@ -43,6 +44,10 @@ export async function GET(req) {
             query['hrDetails.designation'] = designationFilter;
         }
 
+        if (departmentFilter && mongoose.Types.ObjectId.isValid(departmentFilter)) {
+            query.department = new mongoose.Types.ObjectId(departmentFilter);
+        }
+
         if (search) {
             query.$or = [
                 { 'profile.firstName': { $regex: search, $options: 'i' } },
@@ -54,6 +59,7 @@ export async function GET(req) {
         }
 
         const staffMembers = await User.find(query)
+            .populate('department', 'name code shiftTimings')
             .populate('hrDetails.designation', 'name')
             .populate('hrDetails.earnings.component', 'name type')
             .populate('hrDetails.deductions.component', 'name type')
@@ -100,6 +106,7 @@ export async function POST(req) {
             password,
             role,
             designation,
+            department,
             qualification,
             joiningDate,
             basicSalary,
@@ -111,7 +118,8 @@ export async function POST(req) {
             panNumber,
             uanNumber,
             esiNumber,
-            bankDetails
+            bankDetails,
+            biometricId
         } = body;
 
         if (!firstName || !firstName.trim()) {
@@ -162,6 +170,7 @@ export async function POST(req) {
             passwordHash,
             role: assignedRole,
             allowLogin: !!allowLogin,
+            department: (department && mongoose.Types.ObjectId.isValid(department)) ? new mongoose.Types.ObjectId(department) : null,
             enrollmentNumber: empCode,
             isActive: true,
             profile: {
@@ -179,6 +188,7 @@ export async function POST(req) {
                 } : undefined
             },
             hrDetails: {
+                biometricId: biometricId?.trim() || undefined,
                 designation: designation && mongoose.Types.ObjectId.isValid(designation) ? designation : undefined,
                 qualification: qualification?.trim() || "",
                 joiningDate: joiningDate ? new Date(joiningDate) : new Date(),

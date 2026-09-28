@@ -124,7 +124,7 @@ class _ExamGradingScreenState extends State<ExamGradingScreen> {
                       },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF002045),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                 ),
                 child: isSaving
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -169,11 +169,11 @@ class _ExamGradingScreenState extends State<ExamGradingScreen> {
                     final qMarks = q['marks']?.toString() ?? '1';
 
                     return Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFF1F5F9)),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFFC4C6CF)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,7 +185,7 @@ class _ExamGradingScreenState extends State<ExamGradingScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFEFF6FF),
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text('Q${index + 1} ($qMarks marks)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
                               ),
@@ -208,7 +208,31 @@ class _ExamGradingScreenState extends State<ExamGradingScreen> {
                           const SizedBox(height: 6),
                           ...answers.map((ans) {
                             final student = ans['student'] ?? {};
-                            final studentName = student['profile']?['firstName'] ?? student['name'] ?? 'Student';
+                            String studentName = 'Student';
+                            final directName = (student['name'] ?? student['fullName'])?.toString().trim();
+                            if (directName != null && directName.isNotEmpty && directName.toLowerCase() != 'student') {
+                              studentName = directName;
+                            } else if (student['profile'] is Map) {
+                              final first = student['profile']['firstName']?.toString().trim() ?? '';
+                              final last = student['profile']['lastName']?.toString().trim() ?? '';
+                              final full = '$first $last'.trim();
+                              if (full.isNotEmpty) studentName = full;
+                            } else if (student['user'] is Map) {
+                              final u = student['user'];
+                              final uName = (u['name'] ?? u['fullName'])?.toString().trim();
+                              if (uName != null && uName.isNotEmpty) {
+                                studentName = uName;
+                              }
+                            }
+                            if (studentName == 'Student') {
+                              final email = (student['email'] ?? student['user']?['email'])?.toString().trim();
+                              if (email != null && email.contains('@')) {
+                                final prefix = email.split('@').first.replaceAll('.', ' ').replaceAll('_', ' ');
+                                if (prefix.trim().isNotEmpty) {
+                                  studentName = prefix.split(' ').where((w) => w.isNotEmpty).map((w) => '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
+                                }
+                              }
+                            }
                             final answerText = ans['answer']?.toString() ?? '(No answer)';
                             final marksAwarded = ans['marksAwarded'];
                             final isGraded = marksAwarded != null;
@@ -218,8 +242,8 @@ class _ExamGradingScreenState extends State<ExamGradingScreen> {
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFFC4C6CF)),
                               ),
                               child: Row(
                                 children: [
@@ -247,7 +271,7 @@ class _ExamGradingScreenState extends State<ExamGradingScreen> {
                                       backgroundColor: isGraded ? const Color(0xFF10B981) : const Color(0xFF002045),
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                       elevation: 0,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                                     ),
                                     child: Text(
                                       isGraded ? 'Score: $marksAwarded' : 'Grade',

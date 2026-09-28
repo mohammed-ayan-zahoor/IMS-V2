@@ -40,19 +40,30 @@ class InstructorExamsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadOfflineExams({bool refresh = false}) async {
-    if (_offlineExams.isNotEmpty && !refresh) return;
+  String? _offlineSessionId;
+  String? get offlineSessionId => _offlineSessionId;
+
+  Future<void> loadOfflineExams({bool refresh = false, String? sessionId}) async {
+    final bool sessionChanged = sessionId != null && sessionId != _offlineSessionId;
+    if (sessionId != null) {
+      _offlineSessionId = sessionId;
+    }
+    if (_offlineExams.isNotEmpty && !refresh && !sessionChanged) return;
 
     _isLoading = true;
     notifyListeners();
 
     try {
-      _offlineExams = await _repository.fetchOfflineExams();
+      _offlineExams = await _repository.fetchOfflineExams(sessionId: _offlineSessionId);
     } catch (_) {
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<List<OnlineExamSubmissionItem>> fetchOnlineSubmissions(String examId) {
+    return _repository.fetchExamSubmissions(examId);
   }
 
   Future<List<OfflineStudentResultEntry>> fetchOfflineResults({
@@ -79,16 +90,69 @@ class InstructorExamsProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> loadQuestions({String? search}) async {
+  String _searchQuery = '';
+  String _selectedDifficulty = 'ALL';
+  String _selectedType = 'ALL';
+  String? _selectedCourseId;
+
+  String get searchQuery => _searchQuery;
+  String get selectedDifficulty => _selectedDifficulty;
+  String get selectedType => _selectedType;
+  String? get selectedCourseId => _selectedCourseId;
+
+  Future<void> loadQuestions({
+    String? search,
+    String? courseId,
+    String? batchId,
+    String? difficulty,
+    String? type,
+  }) async {
+    if (search != null) _searchQuery = search;
+    if (difficulty != null) _selectedDifficulty = difficulty;
+    if (type != null) _selectedType = type;
+    if (courseId != null) _selectedCourseId = courseId.isEmpty ? null : courseId;
+
     _isLoading = true;
     notifyListeners();
 
     try {
-      _questions = await _repository.fetchQuestions(search: search);
+      _questions = await _repository.fetchQuestions(
+        search: _searchQuery,
+        courseId: _selectedCourseId,
+        batchId: batchId,
+        difficulty: _selectedDifficulty,
+        type: _selectedType,
+      );
     } catch (_) {
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<bool> createQuestion(Map<String, dynamic> data) async {
+    final success = await _repository.createQuestion(data);
+    if (success) {
+      await loadQuestions();
+    }
+    return success;
+  }
+
+  Future<Map<String, dynamic>> bulkImportQuestions({
+    required List<Map<String, dynamic>> questions,
+    required String courseId,
+    String? batchId,
+    String? subjectId,
+  }) async {
+    final result = await _repository.bulkImportQuestions(
+      questions: questions,
+      courseId: courseId,
+      batchId: batchId,
+      subjectId: subjectId,
+    );
+    if (result['success'] == true) {
+      await loadQuestions();
+    }
+    return result;
   }
 }

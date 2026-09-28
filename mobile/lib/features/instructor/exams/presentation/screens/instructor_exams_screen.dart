@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:student_app/features/instructor/exams/presentation/providers/instructor_exams_provider.dart';
 import 'package:student_app/features/instructor/exams/presentation/screens/exam_grading_screen.dart';
 import 'package:student_app/features/instructor/exams/presentation/screens/offline_exams_screen.dart';
+import 'package:student_app/features/instructor/exams/presentation/screens/online_exam_results_screen.dart';
 import 'package:student_app/features/instructor/exams/presentation/screens/question_bank_screen.dart';
 import 'package:student_app/l10n/app_localizations.dart';
 
@@ -76,9 +77,10 @@ class InstructorExamsScreen extends StatelessWidget {
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
               ),
               style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF002045),
                 side: const BorderSide(color: Color(0xFF002045)),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               ),
             ),
           ),
@@ -113,18 +115,11 @@ class InstructorExamsScreen extends StatelessWidget {
                       final statusBg = _getStatusBg(exam.status);
 
                       return Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFF1F5F9)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFFC4C6CF)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,7 +133,7 @@ class InstructorExamsScreen extends StatelessWidget {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.w700,
                                       color: Color(0xFF0F172A),
                                     ),
@@ -148,7 +143,7 @@ class InstructorExamsScreen extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: statusBg,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
                                     exam.status.toUpperCase(),
@@ -164,9 +159,9 @@ class InstructorExamsScreen extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               '${exam.courseName ?? 'General'} • ${exam.subjectName ?? 'Subject'}',
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 10),
                             Row(
                               children: [
                                 Row(
@@ -186,35 +181,58 @@ class InstructorExamsScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             const Divider(height: 1, color: Color(0xFFF1F5F9)),
                             const SizedBox(height: 10),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ExamGradingScreen(
-                                        examId: exam.id,
-                                        examTitle: exam.title,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => OnlineExamResultsScreen(exam: exam),
                                       ),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.grade_outlined, size: 16, color: Colors.white),
-                                label: Text(
-                                  l10n?.gradeSubmissions ?? 'Grade Submissions',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.analytics_outlined, size: 15, color: Color(0xFF002045)),
+                                  label: const Text(
+                                    'View Results',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF002045)),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: Color(0xFFC4C6CF)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                  ),
                                 ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF002045),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                const SizedBox(width: 8),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ExamGradingScreen(
+                                          examId: exam.id,
+                                          examTitle: exam.title,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.grade_outlined, size: 15, color: Colors.white),
+                                  label: Text(
+                                    l10n?.gradeSubmissions ?? 'Grade Answers',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF002045),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ],
                         ),

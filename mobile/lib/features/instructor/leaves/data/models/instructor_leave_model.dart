@@ -55,4 +55,8 @@ class InstructorLeaveRequestItem {
       adminComment: json['adminComment']?.toString(),
     );
   }
+
+  bool get isPending => status == 'PENDING';
+  DateTime? get parsedStartDate => DateTime.tryParse(startDate);
+  DateTime? get parsedEndDate => DateTime.tryParse(endDate);
 }

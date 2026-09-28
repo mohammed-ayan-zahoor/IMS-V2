@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:student_app/core/constants/api_endpoints.dart';
 import 'package:student_app/core/network/api_client.dart';
 import 'package:student_app/features/instructor/dashboard/data/models/instructor_dashboard_model.dart';
@@ -40,7 +41,7 @@ class InstructorDashboardRepository {
     }
   }
 
-  Future<bool> publishNotice({
+  Future<String?> publishNotice({
     required String title,
     required String content,
     required String category,
@@ -51,14 +52,23 @@ class InstructorDashboardRepository {
         data: {
           'title': title,
           'content': content,
+          'type': category.toLowerCase() == 'urgent' ? 'urgent' : (category.toLowerCase() == 'exam' ? 'event' : 'info'),
           'category': category.toUpperCase(),
           'target': 'all',
           'targetRole': 'ALL',
         },
       );
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (_) {
-      return false;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return null; // success
+      }
+      return response.data?['error']?.toString() ?? 'Failed with status ${response.statusCode}';
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        return 'Unauthorized: Your teacher account does not have "manage_notices" permission.';
+      }
+      return e.response?.data?['error']?.toString() ?? e.message ?? 'Failed to publish notice';
+    } catch (e) {
+      return e.toString();
     }
   }
 }

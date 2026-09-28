@@ -86,7 +86,9 @@ export async function GET(req, { params }) {
             query.institute = instituteId;
         }
 
-        const student = await User.findOne(query).lean();
+        const student = await User.findOne(query)
+            .select('+aadharNumber +apaarId +penNumber +fatherAadhar +motherAadhar')
+            .lean();
 
         if (!student) {
             return NextResponse.json({ error: "Student not found" }, { status: 404 });

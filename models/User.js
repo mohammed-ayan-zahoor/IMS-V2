@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import './Counter.js'; // Ensure schema is registered
 import './Designation.js'; // Ensure schema is registered for populate
+import './Department.js'; // Ensure schema is registered for populate
 import { encrypt, decrypt } from '../lib/crypto.js';
 const { Schema } = mongoose;
 const UserSchema = new Schema({
@@ -96,16 +97,19 @@ const UserSchema = new Schema({
     studentIdUdise: String,
     aadharNumber: {
         type: String,
+        select: false,
         set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
         get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
     },
     apaarId: {
         type: String,
+        select: false,
         set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
         get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
     },
     penNumber: {
         type: String,
+        select: false,
         set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
         get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
     },
@@ -114,6 +118,7 @@ const UserSchema = new Schema({
     fatherPhone: String,
     fatherAadhar: {
         type: String,
+        select: false,
         set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
         get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
     },
@@ -121,6 +126,7 @@ const UserSchema = new Schema({
     motherPhone: String,
     motherAadhar: {
         type: String,
+        select: false,
         set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
         get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
     },
@@ -238,6 +244,10 @@ const UserSchema = new Schema({
         ref: 'Session'
     }],
     hrDetails: {
+        biometricId: {
+            type: String,
+            trim: true
+        },
         designation: {
             type: Schema.Types.ObjectId,
             ref: 'Designation',
@@ -284,7 +294,7 @@ const UserSchema = new Schema({
 // Email is now globally unique for non-deleted users (deletedAt === null)
 UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
 // Enrollment remains scoped by institute and required for students (where enrollmentNumber exists)
-UserSchema.index({ institute: 1, enrollmentNumber: 1 }, { unique: true, partialFilterExpression: { deletedAt: null, enrollmentNumber: { $exists: true } } });
+UserSchema.index({ institute: 1, enrollmentNumber: 1 }, { unique: true, partialFilterExpression: { deletedAt: null, enrollmentNumber: { $exists: true, $ne: "" } } });
 // PERFORMANCE OPTIMIZATION: Targeted Compound Indexes
 // Support strict session isolation for Schools (Primary View)
 UserSchema.index({ institute: 1, activeSession: 1, role: 1 });
@@ -295,8 +305,7 @@ UserSchema.index({ institute: 1, role: 1, deletedAt: 1, status: 1 });
 // Support historical session lookups via multikey index
 UserSchema.index({ institute: 1, activeSessions: 1, role: 1, deletedAt: 1 }); 
 
-// Support lifecycle management and status-based filtering
-UserSchema.index({ role: 1, status: 1, deletedAt: 1 });
+UserSchema.index({ institute: 1, 'hrDetails.biometricId': 1 });
 // Virtual for full name
 UserSchema.virtual('fullName').get(function () {
     if (!this.profile || !this.profile.firstName) {

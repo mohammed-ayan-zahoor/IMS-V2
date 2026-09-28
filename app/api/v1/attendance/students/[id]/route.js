@@ -24,30 +24,45 @@ export async function GET(req, { params }) {
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
+        const Batch = mongoose.models.Batch || (await import("@/models/Batch")).default;
+
+        // Collect all possible IDs: the student User ID + any batch enrollment subdoc IDs
+        const studentBatches = await Batch.find({ "enrolledStudents.student": id }).select("enrolledStudents");
+        const targetIds = [id];
+        studentBatches.forEach(b => {
+            (b.enrolledStudents || []).forEach(e => {
+                if (e.student && e.student.toString() === id.toString()) {
+                    targetIds.push(e._id.toString());
+                }
+            });
+        });
+
         // Build query
         const query = {
             date: { $gte: startDate, $lte: endDate },
-            "records.student": id
+            "records.student": { $in: targetIds }
         };
 
-        // If session is provided, we need to filter by batches belonging to that session
+        // If session is provided, filter by batches belonging to that session or unassigned session
         if (sessionId) {
-            // Find all batches for this session
-            const Batch = mongoose.models.Batch || (await import("@/models/Batch")).default;
-            const sessionBatches = await Batch.find({ session: sessionId }).select("_id");
+            const sessionBatches = await Batch.find({
+                $or: [{ session: sessionId }, { session: null }, { session: { $exists: false } }]
+            }).select("_id");
             const batchIds = sessionBatches.map(b => b._id);
             query.batch = { $in: batchIds };
         }
 
         // Find attendance records for this student in this range
         const attendanceRecords = await Attendance.find(query)
-            .select("date batch records.$")
+            .select("date batch records")
             .populate("batch", "name session")
             .sort({ date: 1 });
 
         // Transform data for frontend
         const attendance = attendanceRecords.map(doc => {
-            const record = doc.records[0]; // records.$ returns exactly one matching element
+            const record = (doc.records || []).find(r =>
+                r.student && targetIds.includes(r.student.toString())
+            );
             return {
                 _id: doc._id,
                 date: doc.date,

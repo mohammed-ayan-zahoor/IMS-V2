@@ -248,6 +248,7 @@ export default function AdminLayout({ children }) {
             role: ["admin", "super_admin", "instructor", "staff"],
             items: [
                 { label: "Staff Directory", icon: Users, href: "/admin/hr/staff", role: ["admin", "super_admin"] },
+                { label: "Departments & Shifts", icon: Building2, href: "/admin/departments", role: ["admin", "super_admin"] },
                 { label: "Designations", icon: Briefcase, href: "/admin/hr/designations", role: ["admin", "super_admin"] },
                 { label: "Earnings & Deductions", icon: Coins, href: "/admin/hr/salary-components", role: ["admin", "super_admin"] },
                 { label: "Leave Types", icon: CalendarDays, href: "/admin/hr/leave-types", role: ["admin", "super_admin"] },

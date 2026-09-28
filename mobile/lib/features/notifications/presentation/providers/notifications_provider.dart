@@ -7,8 +7,10 @@ import 'package:student_app/features/notifications/data/models/app_notification_
 class NotificationsProvider extends ChangeNotifier {
   static const String _boxName = 'app_notifications_box';
   static const String _notificationsKey = 'notifications_list';
+  static const String _dismissedKey = 'dismissed_notification_ids';
 
   List<AppNotificationModel> _notifications = [];
+  Set<String> _dismissedIds = {};
   bool _isLoading = false;
   String _selectedCategory = 'all';
 
@@ -42,17 +44,23 @@ class NotificationsProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // 1. Load cached local notifications from Hive storage immediately
+    // 1. Load cached local notifications and dismissed IDs from Hive storage immediately
     try {
       if (!Hive.isBoxOpen(_boxName)) {
         await Hive.openBox(_boxName);
       }
       final box = Hive.box(_boxName);
-      final rawList = box.get(_notificationsKey);
 
+      final rawDismissed = box.get(_dismissedKey);
+      if (rawDismissed != null && rawDismissed is List) {
+        _dismissedIds = Set<String>.from(rawDismissed.map((e) => e.toString()));
+      }
+
+      final rawList = box.get(_notificationsKey);
       if (rawList != null && rawList is List) {
         _notifications = rawList
             .map((item) => AppNotificationModel.fromMap(Map<String, dynamic>.from(item is String ? json.decode(item) : item)))
+            .where((item) => !_dismissedIds.contains(item.id))
             .toList();
         _notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       }
@@ -74,7 +82,8 @@ class NotificationsProvider extends ChangeNotifier {
         final existingIds = _notifications.map((n) => n.id).toSet();
         bool hasNew = false;
         for (final serverNotif in serverList) {
-          if (!existingIds.contains(serverNotif.id)) {
+          // Do not repopulate if previously dismissed or cleared by the user
+          if (!_dismissedIds.contains(serverNotif.id) && !existingIds.contains(serverNotif.id)) {
             _notifications.add(serverNotif);
             existingIds.add(serverNotif.id);
             hasNew = true;
@@ -118,6 +127,11 @@ class NotificationsProvider extends ChangeNotifier {
       _notifications[index] = _notifications[index].copyWith(isRead: true);
       notifyListeners();
       await _saveToStorage();
+      try {
+        await ApiClient().dio.patch('/notifications', data: {'notificationId': id});
+      } catch (e) {
+        debugPrint('[NotificationsProvider] API mark read error: $e');
+      }
     }
   }
 
@@ -132,19 +146,38 @@ class NotificationsProvider extends ChangeNotifier {
     if (hasChanges) {
       notifyListeners();
       await _saveToStorage();
+      try {
+        await ApiClient().dio.post('/notifications/read-all');
+      } catch (e) {
+        debugPrint('[NotificationsProvider] API mark all read error: $e');
+      }
     }
   }
 
   Future<void> deleteNotification(String id) async {
+    _dismissedIds.add(id);
     _notifications.removeWhere((n) => n.id == id);
     notifyListeners();
     await _saveToStorage();
+    try {
+      await ApiClient().dio.delete('/notifications', queryParameters: {'id': id});
+    } catch (e) {
+      debugPrint('[NotificationsProvider] API notification delete error: $e');
+    }
   }
 
   Future<void> clearAll() async {
+    for (final notif in _notifications) {
+      _dismissedIds.add(notif.id);
+    }
     _notifications.clear();
     notifyListeners();
     await _saveToStorage();
+    try {
+      await ApiClient().dio.delete('/notifications');
+    } catch (e) {
+      debugPrint('[NotificationsProvider] API notification clearAll error: $e');
+    }
   }
 
   Future<void> _saveToStorage() async {
@@ -155,6 +188,10 @@ class NotificationsProvider extends ChangeNotifier {
       final box = Hive.box(_boxName);
       final serializedList = _notifications.map((n) => n.toMap()).toList();
       await box.put(_notificationsKey, serializedList);
+      final dismissedList = _dismissedIds.length > 500
+          ? _dismissedIds.toList().sublist(_dismissedIds.length - 500)
+          : _dismissedIds.toList();
+      await box.put(_dismissedKey, dismissedList);
     } catch (e) {
       debugPrint('[NotificationsProvider] Error saving notifications to storage: $e');
     }

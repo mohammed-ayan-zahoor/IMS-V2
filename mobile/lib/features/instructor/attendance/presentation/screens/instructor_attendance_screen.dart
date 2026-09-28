@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:student_app/features/instructor/attendance/presentation/providers/instructor_attendance_provider.dart';
@@ -69,7 +70,11 @@ class _InstructorAttendanceScreenState extends State<InstructorAttendanceScreen>
         elevation: 0,
         title: Text(
           l10n?.markAttendance ?? 'Mark Attendance',
-          style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontSize: 17),
+          style: GoogleFonts.hankenGrotesk(
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF002045),
+            fontSize: 18,
+          ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
@@ -77,34 +82,47 @@ class _InstructorAttendanceScreenState extends State<InstructorAttendanceScreen>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              border: Border(bottom: BorderSide(color: Color(0xFFC4C6CF))),
             ),
             child: Row(
               children: [
-                // Batch Dropdown
+                // Batch/Class Dropdown with Class & Section
                 Expanded(
                   flex: 3,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                      color: const Color(0xFFEFF4FF),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFFC4C6CF)),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: provider.selectedBatchId,
                         isExpanded: true,
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: Color(0xFF475569)),
-                        hint: const Text('Select Batch', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                        dropdownColor: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                        elevation: 3,
+                        icon: const Icon(Icons.arrow_drop_down_rounded, size: 24, color: Color(0xFF002045)),
+                        hint: Text(
+                          'Select Class & Batch',
+                          style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF545F72)),
+                        ),
                         items: batches.map((b) {
+                          final label = b.courseName.isNotEmpty
+                              ? '${b.courseName} (Sec ${b.name})'
+                              : 'Section ${b.name}';
                           return DropdownMenuItem<String>(
                             value: b.id,
                             child: Text(
-                              b.name,
+                              label,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                              style: GoogleFonts.inter(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0D1C2E),
+                              ),
                             ),
                           );
                         }).toList(),
@@ -123,25 +141,29 @@ class _InstructorAttendanceScreenState extends State<InstructorAttendanceScreen>
                   flex: 2,
                   child: InkWell(
                     onTap: () => _pickDate(context),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(4),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                        color: const Color(0xFFEFF4FF),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFFC4C6CF)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF2563EB)),
+                          const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF002045)),
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
                               formattedDate,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF002045),
+                              ),
                             ),
                           ),
                         ],
@@ -165,7 +187,7 @@ class _InstructorAttendanceScreenState extends State<InstructorAttendanceScreen>
                       const SizedBox(height: 12),
                       Text(
                         l10n?.emptyState ?? 'No batches assigned to you.',
-                        style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: const Color(0xFF545F72)),
                       ),
                     ],
                   ),
@@ -174,16 +196,10 @@ class _InstructorAttendanceScreenState extends State<InstructorAttendanceScreen>
       bottomNavigationBar: provider.students.isNotEmpty
           ? SafeArea(
               child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(
                   color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 10,
-                      offset: const Offset(0, -3),
-                    ),
-                  ],
+                  border: Border(top: BorderSide(color: Color(0xFFC4C6CF))),
                 ),
                 child: ElevatedButton(
                   onPressed: provider.isSaving
@@ -193,9 +209,12 @@ class _InstructorAttendanceScreenState extends State<InstructorAttendanceScreen>
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(success
-                                    ? 'Attendance saved successfully!'
-                                    : 'Failed to save attendance. Try again.'),
+                                content: Text(
+                                  success
+                                      ? 'Attendance saved successfully!'
+                                      : 'Failed to save attendance. Try again.',
+                                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                                ),
                                 backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFBA1A1A),
                               ),
                             );
@@ -203,19 +222,19 @@ class _InstructorAttendanceScreenState extends State<InstructorAttendanceScreen>
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF002045),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                     elevation: 0,
                   ),
                   child: provider.isSaving
                       ? const SizedBox(
-                          width: 20,
-                          height: 20,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : Text(
                           '${l10n?.saveAttendance ?? 'Save Attendance'} (${provider.presentCount}/${provider.totalCount})',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white),
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                 ),
               ),

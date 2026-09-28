@@ -87,6 +87,13 @@ export async function PATCH(req, { params }) {
             }
         }
 
+        // Handle Department Update
+        if (body.department !== undefined) {
+            user.department = (body.department && mongoose.Types.ObjectId.isValid(body.department))
+                ? new mongoose.Types.ObjectId(body.department)
+                : null;
+        }
+
         // Handle Permissions Update
         if (body.permissions !== undefined) {
             if (Array.isArray(body.permissions)) {

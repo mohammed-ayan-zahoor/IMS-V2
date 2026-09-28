@@ -71,6 +71,7 @@ export default function StaffProfilePage({ params }) {
     const [payslips, setPayslips] = useState([]);
     const [availableComponents, setAvailableComponents] = useState([]);
     const [designations, setDesignations] = useState([]);
+    const [departments, setDepartments] = useState([]);
 
     // Edit Profile Modal
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -176,6 +177,7 @@ export default function StaffProfilePage({ params }) {
                 dob: staffData?.profile?.dateOfBirth ? staffData.profile.dateOfBirth.split("T")[0] : "",
                 role: staffData?.role || "staff",
                 designation: staffData?.hrDetails?.designation?._id || staffData?.hrDetails?.designation || "",
+                department: staffData?.department?._id || staffData?.department || "",
                 qualification: staffData?.hrDetails?.qualification || "",
                 joiningDate: staffData?.hrDetails?.joiningDate ? staffData.hrDetails.joiningDate.split("T")[0] : "",
                 allowLogin: staffData?.allowLogin !== false,
@@ -214,12 +216,25 @@ export default function StaffProfilePage({ params }) {
         }
     }, []);
 
+    const fetchDepartments = useCallback(async () => {
+        try {
+            const res = await fetch("/api/v1/departments");
+            if (res.ok) {
+                const data = await res.json();
+                setDepartments(data.departments || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch departments:", error);
+        }
+    }, []);
+
     useEffect(() => {
         const controller = new AbortController();
         fetchProfile(controller.signal);
         fetchDesignations();
+        fetchDepartments();
         return () => controller.abort();
-    }, [fetchProfile, fetchDesignations]);
+    }, [fetchProfile, fetchDesignations, fetchDepartments]);
 
     // Recalculate percentage based items when Basic changes
     const handleBasicSalaryChange = (newBasic) => {
@@ -427,6 +442,7 @@ export default function StaffProfilePage({ params }) {
                 dob: profileForm.dob || null,
                 role: profileForm.role,
                 designation: profileForm.designation || null,
+                department: profileForm.department || null,
                 qualification: profileForm.qualification.trim(),
                 joiningDate: profileForm.joiningDate || null,
                 allowLogin: !!profileForm.allowLogin,
@@ -466,6 +482,39 @@ export default function StaffProfilePage({ params }) {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleOpenEditProfile = () => {
+        if (staff) {
+            setProfileForm({
+                firstName: staff.profile?.firstName || "",
+                lastName: staff.profile?.lastName || "",
+                avatar: staff.profile?.avatar || null,
+                phone: staff.profile?.phone || "",
+                gender: staff.profile?.gender || "",
+                bloodGroup: staff.profile?.bloodGroup || "",
+                dob: staff.profile?.dateOfBirth ? staff.profile.dateOfBirth.split("T")[0] : "",
+                role: staff.role || "staff",
+                designation: staff.hrDetails?.designation?._id || staff.hrDetails?.designation || "",
+                department: staff.department?._id || staff.department || "",
+                qualification: staff.hrDetails?.qualification || "",
+                joiningDate: staff.hrDetails?.joiningDate ? staff.hrDetails.joiningDate.split("T")[0] : "",
+                allowLogin: staff.allowLogin !== false,
+                panNumber: staff.hrDetails?.panNumber || "",
+                uanNumber: staff.hrDetails?.uanNumber || "",
+                esiNumber: staff.hrDetails?.esiNumber || "",
+                bankName: staff.hrDetails?.bankDetails?.bankName || "",
+                accountName: staff.hrDetails?.bankDetails?.accountName || "",
+                accountNumber: staff.hrDetails?.bankDetails?.accountNumber || "",
+                ifscCode: staff.hrDetails?.bankDetails?.ifscCode || "",
+                branch: staff.hrDetails?.bankDetails?.branch || "",
+                street: staff.profile?.address?.street || "",
+                city: staff.profile?.address?.city || "",
+                state: staff.profile?.address?.state || "",
+                pincode: staff.profile?.address?.pincode || ""
+            });
+        }
+        setIsEditProfileOpen(true);
     };
 
     if (loading) {
@@ -524,7 +573,7 @@ export default function StaffProfilePage({ params }) {
                 <div className="flex items-center gap-2">
                     <Button
                         variant="secondary"
-                        onClick={() => setIsEditProfileOpen(true)}
+                        onClick={handleOpenEditProfile}
                         className="text-xs flex items-center gap-1.5"
                     >
                         <Edit3 className="w-3.5 h-3.5" />
@@ -633,6 +682,26 @@ export default function StaffProfilePage({ params }) {
                                 <Briefcase className="w-3.5 h-3.5 text-gray-400" />
                                 {designationName} {staff.hrDetails?.qualification && `• ${staff.hrDetails.qualification}`}
                             </p>
+
+                            {staff.department && (
+                                <div className="flex items-center gap-2 pt-0.5">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                        <Building2 className="w-3.5 h-3.5" />
+                                        {staff.department.name}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                        <Clock className="w-3 h-3 text-slate-400" />
+                                        {staff.department.shiftTimings?.useCustomShift ? (
+                                            <span>
+                                                Shift: <strong className="font-semibold text-slate-900 dark:text-white">{staff.department.shiftTimings.shiftStart} - {staff.department.shiftTimings.shiftEnd}</strong>
+                                                <span className="text-[10px] text-slate-400 ml-1">({staff.department.shiftTimings.checkInGraceMins ?? 15}m grace)</span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-500">Institute Default Shift</span>
+                                        )}
+                                    </span>
+                                </div>
+                            )}
 
                             <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400 pt-1">
                                 {staff.profile?.phone && (
@@ -758,7 +827,7 @@ export default function StaffProfilePage({ params }) {
                                 Personal & Employment Details
                             </h2>
                             <button
-                                onClick={() => setIsEditProfileOpen(true)}
+                                onClick={handleOpenEditProfile}
                                 className="text-xs text-indigo-600 hover:underline"
                             >
                                 Edit
@@ -830,7 +899,7 @@ export default function StaffProfilePage({ params }) {
                                 Bank Details & Statutory IDs
                             </h2>
                             <button
-                                onClick={() => setIsEditProfileOpen(true)}
+                                onClick={handleOpenEditProfile}
                                 className="text-xs text-indigo-600 hover:underline"
                             >
                                 Edit
@@ -1470,6 +1539,22 @@ export default function StaffProfilePage({ params }) {
                                 <option value="">Select Designation...</option>
                                 {designations.map((d) => (
                                     <option key={d._id} value={d._id}>{d.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Department / Shift Group</label>
+                            <select
+                                value={profileForm.department || ""}
+                                onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value })}
+                                className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                            >
+                                <option value="">Select Department...</option>
+                                {departments.map((d) => (
+                                    <option key={d._id} value={d._id}>
+                                        {d.name} {d.shiftTimings?.useCustomShift ? `(${d.shiftTimings.shiftStart} - ${d.shiftTimings.shiftEnd})` : ""}
+                                    </option>
                                 ))}
                             </select>
                         </div>

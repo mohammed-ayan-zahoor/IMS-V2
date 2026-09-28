@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:student_app/features/instructor/batches/presentation/providers/instructor_batches_provider.dart';
 import 'package:student_app/features/instructor/exams/data/models/offline_exam_model.dart';
 import 'package:student_app/features/instructor/exams/presentation/providers/instructor_exams_provider.dart';
 
@@ -19,6 +20,7 @@ class OfflineMarksEntryScreen extends StatefulWidget {
 
 class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
   String? _selectedBatchId;
+  List<OfflineExamBatchRef> _availableBatches = [];
   bool _isLoading = true;
   bool _isSaving = false;
   List<OfflineStudentResultEntry> _results = [];
@@ -31,7 +33,66 @@ class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
     } else if (widget.exam.batches.isNotEmpty) {
       _selectedBatchId = widget.exam.batches.first.id;
     }
-    _loadResults();
+
+    _initBatches();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final batchesProvider = context.read<InstructorBatchesProvider>();
+      if (batchesProvider.batches.isEmpty) {
+        await batchesProvider.loadBatches();
+      }
+      if (mounted) {
+        setState(() {
+          _initBatches();
+        });
+        if (_selectedBatchId != null) {
+          _loadResults();
+        } else {
+          setState(() => _isLoading = false);
+        }
+      }
+    });
+
+    if (_selectedBatchId != null) {
+      _loadResults();
+    }
+  }
+
+  void _initBatches() {
+    final batchesProvider = context.read<InstructorBatchesProvider>();
+    final instructorBatches = batchesProvider.batches;
+
+    List<OfflineExamBatchRef> list = [];
+
+    if (widget.exam.batches.isNotEmpty) {
+      for (var b in widget.exam.batches) {
+        String bName = b.name;
+        if (bName == 'Batch' || bName.isEmpty) {
+          final matched = instructorBatches.where((ib) => ib.id == b.id).firstOrNull;
+          if (matched != null) bName = matched.name;
+        }
+        list.add(b.copyWith(name: bName));
+      }
+    } else {
+      // In OfflineExam schema: if batches is empty, exam applies to all batches of the course
+      for (var ib in instructorBatches) {
+        final matchesCourse = widget.exam.courseName == null ||
+            ib.courseName.toLowerCase() == widget.exam.courseName!.toLowerCase();
+        if (matchesCourse) {
+          list.add(OfflineExamBatchRef(id: ib.id, name: ib.name));
+        }
+      }
+      if (list.isEmpty && instructorBatches.isNotEmpty) {
+        for (var ib in instructorBatches) {
+          list.add(OfflineExamBatchRef(id: ib.id, name: ib.name));
+        }
+      }
+    }
+
+    _availableBatches = list;
+    if (_selectedBatchId == null && _availableBatches.isNotEmpty) {
+      _selectedBatchId = _availableBatches.first.id;
+    }
   }
 
   Future<void> _loadResults() async {
@@ -81,7 +142,6 @@ class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
   @override
   Widget build(BuildContext context) {
     final exam = widget.exam;
-    final batches = exam.batches;
     final subjects = exam.subjects;
 
     return Scaffold(
@@ -89,9 +149,25 @@ class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text(
-          'Marks: ${exam.title}',
-          style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontSize: 16),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Marks: ${exam.title}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontSize: 16),
+            ),
+            if (exam.courseName != null)
+              Text(
+                exam.courseName!,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+              ),
+          ],
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
@@ -99,7 +175,7 @@ class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              border: Border(bottom: BorderSide(color: Color(0xFFC4C6CF))),
             ),
             child: Row(
               children: [
@@ -113,15 +189,18 @@ class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFFC4C6CF)),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: _selectedBatchId,
+                        value: _availableBatches.any((b) => b.id == _selectedBatchId) ? _selectedBatchId : null,
                         isExpanded: true,
-                        hint: const Text('Select Batch', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-                        items: batches.map((b) {
+                        hint: Text(
+                          _availableBatches.isEmpty ? 'No batches available' : 'Select Batch',
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                        ),
+                        items: _availableBatches.map((b) {
                           return DropdownMenuItem<String>(
                             value: b.id,
                             child: Text(
@@ -147,190 +226,218 @@ class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF002045)))
-          : _results.isEmpty
+          : _availableBatches.isEmpty
               ? const Center(
-                  child: Text('No students found in this batch', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Text(
+                      'No batches assigned or found for this exam.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
-                  itemCount: _results.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final studentResult = _results[index];
-
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFF1F5F9)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+              : _results.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.people_outline_rounded, size: 40, color: Color(0xFF94A3B8)),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'No active students found in this batch',
+                            style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600, fontSize: 13),
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: _loadResults,
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Retry Loading', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF002045),
+                              side: const BorderSide(color: Color(0xFFC4C6CF)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            ),
                           ),
                         ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor: const Color(0xFFEFF6FF),
-                                child: Text(
-                                  studentResult.studentName.isNotEmpty ? studentResult.studentName[0].toUpperCase() : 'S',
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2563EB)),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      studentResult.studentName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-                                    ),
-                                    if (studentResult.rollNumber != null)
-                                      Text(
-                                        'Roll: ${studentResult.rollNumber}',
-                                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+                      itemCount: _results.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final studentResult = _results[index];
+
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: const Color(0xFFC4C6CF)),
                           ),
-                          const SizedBox(height: 12),
-                          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                          const SizedBox(height: 10),
-
-                          // Subjects marks rows
-                          ...subjects.map((subj) {
-                            final markEntry = studentResult.subjectMarks[subj.id] ??
-                                OfflineStudentSubjectMark(subjectId: subj.id);
-                            studentResult.subjectMarks[subj.id] = markEntry;
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
+                                  CircleAvatar(
+                                    radius: 15,
+                                    backgroundColor: const Color(0xFFEFF6FF),
+                                    child: Text(
+                                      studentResult.studentName.isNotEmpty ? studentResult.studentName[0].toUpperCase() : 'S',
+                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF2563EB)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          subj.name,
+                                          studentResult.studentName,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                                         ),
-                                        Text(
-                                          'Max: ${subj.maxMarks} • Pass: ${subj.passMarks}',
-                                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                        ),
+                                        if (studentResult.rollNumber != null || studentResult.enrollmentNumber != null)
+                                          Text(
+                                            [
+                                              if (studentResult.rollNumber != null) 'Roll: ${studentResult.rollNumber}',
+                                              if (studentResult.enrollmentNumber != null) 'Enroll: ${studentResult.enrollmentNumber}',
+                                            ].join(' • '),
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                          ),
                                       ],
                                     ),
                                   ),
-                                  Row(
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                              const SizedBox(height: 8),
+
+                              // Subjects marks rows
+                              ...subjects.map((subj) {
+                                final markEntry = studentResult.subjectMarks[subj.id] ??
+                                    OfflineStudentSubjectMark(subjectId: subj.id);
+                                studentResult.subjectMarks[subj.id] = markEntry;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: const Color(0xFFC4C6CF)),
+                                  ),
+                                  child: Row(
                                     children: [
-                                      // Absent checkbox
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              subj.name,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                            ),
+                                            Text(
+                                              'Max: ${subj.maxMarks} • Pass: ${subj.passMarks}',
+                                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                       Row(
                                         children: [
-                                          Checkbox(
-                                            value: markEntry.isAbsent,
-                                            activeColor: const Color(0xFFEF4444),
-                                            onChanged: (val) {
-                                              setState(() {
-                                                markEntry.isAbsent = val == true;
-                                                if (markEntry.isAbsent) {
-                                                  markEntry.obtainedMarks = 0;
-                                                }
-                                              });
-                                            },
+                                          // Absent checkbox
+                                          Row(
+                                            children: [
+                                              Checkbox(
+                                                value: markEntry.isAbsent,
+                                                activeColor: const Color(0xFFEF4444),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+                                                onChanged: (val) {
+                                                  setState(() {
+                                                    markEntry.isAbsent = val == true;
+                                                    if (markEntry.isAbsent) {
+                                                      markEntry.obtainedMarks = 0;
+                                                    }
+                                                  });
+                                                },
+                                              ),
+                                              const Text('Ab', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFEF4444))),
+                                            ],
                                           ),
-                                          const Text('Ab', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFEF4444))),
-                                        ],
-                                      ),
-                                      const SizedBox(width: 8),
-                                      // Marks input
-                                      SizedBox(
-                                        width: 60,
-                                        height: 38,
-                                        child: TextFormField(
-                                          enabled: !markEntry.isAbsent,
-                                          initialValue: markEntry.obtainedMarks?.toString() ?? '',
-                                          keyboardType: TextInputType.number,
-                                          textAlign: TextAlign.center,
-                                          decoration: InputDecoration(
-                                            hintText: 'Marks',
-                                            hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                                            filled: true,
-                                            fillColor: markEntry.isAbsent ? const Color(0xFFE2E8F0) : Colors.white,
-                                            contentPadding: EdgeInsets.zero,
-                                            border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                                          const SizedBox(width: 8),
+                                          // Marks input
+                                          SizedBox(
+                                            width: 60,
+                                            height: 36,
+                                            child: TextFormField(
+                                              enabled: !markEntry.isAbsent,
+                                              initialValue: markEntry.obtainedMarks?.toString() ?? '',
+                                              keyboardType: TextInputType.number,
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                              decoration: InputDecoration(
+                                                hintText: 'Marks',
+                                                hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                                filled: true,
+                                                fillColor: markEntry.isAbsent ? const Color(0xFFE2E8F0) : Colors.white,
+                                                contentPadding: EdgeInsets.zero,
+                                                border: OutlineInputBorder(
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  borderSide: const BorderSide(color: Color(0xFFC4C6CF)),
+                                                ),
+                                                enabledBorder: OutlineInputBorder(
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  borderSide: const BorderSide(color: Color(0xFFC4C6CF)),
+                                                ),
+                                              ),
+                                              onChanged: (val) {
+                                                markEntry.obtainedMarks = int.tryParse(val.trim());
+                                              },
                                             ),
                                           ),
-                                          onChanged: (val) {
-                                            markEntry.obtainedMarks = int.tryParse(val.trim());
-                                          },
-                                        ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                                );
+                              }),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
       bottomNavigationBar: _results.isNotEmpty
           ? SafeArea(
               child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(
                   color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 10,
-                      offset: const Offset(0, -3),
-                    ),
-                  ],
+                  border: Border(top: BorderSide(color: Color(0xFFC4C6CF))),
                 ),
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _saveMarks,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF002045),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                     elevation: 0,
                   ),
                   child: _isSaving
                       ? const SizedBox(
-                          width: 20,
-                          height: 20,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : const Text(
                           'Save Marks',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white),
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
                         ),
                 ),
               ),

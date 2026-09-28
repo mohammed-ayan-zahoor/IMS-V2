@@ -4,7 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import StaffAttendance from "@/models/StaffAttendance";
 import User from "@/models/User";
+import HRSettings from "@/models/HRSettings";
+import Department from "@/models/Department";
 import { createAuditLog } from "@/services/auditService";
+import mongoose from "mongoose";
 
 export async function GET(req) {
     try {
@@ -21,6 +24,7 @@ export async function GET(req) {
         const { searchParams } = new URL(req.url);
         const dateStr = searchParams.get('date');
         const staffId = searchParams.get('staff');
+        const departmentId = searchParams.get('department');
 
         await connectDB();
 
@@ -29,27 +33,55 @@ export async function GET(req) {
             const queryDate = new Date(dateStr);
             queryDate.setHours(0, 0, 0, 0);
 
-            // Fetch all staff members (role: admin, instructor, staff)
-            const staffList = await User.find({
+            const staffQuery = {
                 institute: instituteId,
                 role: { $in: ['admin', 'instructor', 'staff'] },
                 deletedAt: null
-            })
-            .populate('hrDetails.designation', 'name')
-            .select('profile role hrDetails faceEnrolledAt')
-            .sort({ "profile.firstName": 1 });
+            };
 
-            // Fetch attendance records marked for this date
-            const attendanceRecords = await StaffAttendance.find({
-                institute: instituteId,
-                date: queryDate
-            });
+            if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {
+                staffQuery.department = new mongoose.Types.ObjectId(departmentId);
+            }
 
-            // Map records together
+            // Fetch default institute HR settings for fallback shift timings
+            const [hrSettings, staffList, attendanceRecords] = await Promise.all([
+                HRSettings.findOne({ institute: instituteId }).lean(),
+                User.find(staffQuery)
+                    .populate('department', 'name code shiftTimings')
+                    .populate('hrDetails.designation', 'name')
+                    .select('profile role hrDetails department faceEnrolledAt')
+                    .sort({ "profile.firstName": 1 }),
+                StaffAttendance.find({
+                    institute: instituteId,
+                    date: queryDate
+                })
+            ]);
+
+            // Map records together with resolved effectiveShift
             const data = staffList.map(member => {
                 const record = attendanceRecords.find(r => r.staff.toString() === member._id.toString());
+                const deptShift = member.department?.shiftTimings;
+                const hasCustomDeptShift = Boolean(deptShift?.useCustomShift);
+
+                const effectiveShift = hasCustomDeptShift ? {
+                    isDepartmentShift: true,
+                    departmentName: member.department.name,
+                    shiftStart: deptShift.shiftStart || "09:00",
+                    shiftEnd: deptShift.shiftEnd || "18:00",
+                    checkInGraceMins: deptShift.checkInGraceMins ?? 15,
+                    checkOutGraceMins: deptShift.checkOutGraceMins ?? 10
+                } : {
+                    isDepartmentShift: false,
+                    departmentName: member.department?.name || null,
+                    shiftStart: hrSettings?.shiftStart || "09:00",
+                    shiftEnd: hrSettings?.shiftEnd || "18:00",
+                    checkInGraceMins: hrSettings?.checkInGraceMins ?? 15,
+                    checkOutGraceMins: hrSettings?.checkOutGraceMins ?? 10
+                };
+
                 return {
                     staff: member,
+                    effectiveShift,
                     status: record ? record.status : 'present', // default to present if not marked
                     remarks: record ? record.remarks : '',
                     attendanceId: record ? record._id : null,
@@ -58,7 +90,8 @@ export async function GET(req) {
                     lateMinutes: record ? (record.lateMinutes || 0) : 0,
                     earlyDepartureMinutes: record ? (record.earlyDepartureMinutes || 0) : 0,
                     overtimeMinutes: record ? (record.overtimeMinutes || 0) : 0,
-                    midDayOutMinutes: record ? (record.midDayOutMinutes || 0) : 0
+                    midDayOutMinutes: record ? (record.midDayOutMinutes || 0) : 0,
+                    source: record ? (record.source || 'manual') : null
                 };
             });
 
@@ -120,6 +153,7 @@ export async function POST(req) {
             if (rec.earlyDepartureMinutes !== undefined) updateFields.earlyDepartureMinutes = Number(rec.earlyDepartureMinutes) || 0;
             if (rec.overtimeMinutes !== undefined) updateFields.overtimeMinutes = Number(rec.overtimeMinutes) || 0;
             if (rec.midDayOutMinutes !== undefined) updateFields.midDayOutMinutes = Number(rec.midDayOutMinutes) || 0;
+            if (rec.source !== undefined) updateFields.source = rec.source;
 
             return {
                 updateOne: {

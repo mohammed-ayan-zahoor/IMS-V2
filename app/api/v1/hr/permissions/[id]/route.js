@@ -56,6 +56,88 @@ export async function PATCH(req, { params }) {
             gatePass.approvedBy = session.user.id;
             gatePass.approvedAt = new Date();
             if (adminComment !== undefined) gatePass.adminComment = adminComment;
+
+            // Trigger Notification and Pusher Beams push notification to applicant
+            try {
+                const targetUserId = gatePass.user?.toString() || gatePass.requestedBy?.toString();
+                if (targetUserId) {
+                    const Notification = (await import("@/models/Notification")).default;
+                    const notifTitle = `Out-Pass Permission ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`;
+                    const notifBody = `Your out-pass permission (${gatePass.durationHours || 'short leave'}) has been ${status.toLowerCase()}.${gatePass.adminComment ? ` Note: ${gatePass.adminComment}` : ''}`;
+
+                    await Notification.create({
+                        institute: instituteId,
+                        recipient: targetUserId,
+                        recipientRole: gatePass.recipientType === 'student' ? 'student' : 'instructor',
+                        title: notifTitle,
+                        message: notifBody,
+                        type: "PERMISSION",
+                        metadata: {
+                            gatePassId: gatePass._id.toString(),
+                            status: status,
+                            category: gatePass.category,
+                            departureTime: gatePass.departureTime,
+                            expectedReturnTime: gatePass.expectedReturnTime
+                        },
+                        link: "/leaves"
+                    });
+
+                    const { getBeamsInstance, getPusherInstance } = await import("@/lib/pusher");
+                    const beamsClient = await getBeamsInstance(instituteId);
+                    if (beamsClient) {
+                        const payload = {
+                            apns: {
+                                aps: {
+                                    alert: { title: notifTitle, body: notifBody },
+                                    sound: "default"
+                                }
+                            },
+                            fcm: {
+                                notification: {
+                                    title: notifTitle,
+                                    body: notifBody,
+                                    channel_id: "high_importance_channel",
+                                    sound: "default"
+                                },
+                                data: {
+                                    title: notifTitle,
+                                    body: notifBody,
+                                    type: "permission",
+                                    status: status,
+                                    gatePassId: gatePass._id.toString(),
+                                    instituteId: instituteId.toString()
+                                },
+                                priority: "high"
+                            },
+                            web: {
+                                notification: {
+                                    title: notifTitle,
+                                    body: notifBody,
+                                    deep_link: `${process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in"}/leaves`
+                                }
+                            }
+                        };
+                        const pushRes = await beamsClient.publishToUsers([targetUserId], payload);
+                        console.log(`[Permission Push] Dispatched push notification for user ${targetUserId}:`, pushRes);
+                    }
+
+                    try {
+                        const pusher = await getPusherInstance(instituteId);
+                        if (pusher) {
+                            await pusher.trigger(`user-${targetUserId}`, 'permission-status-updated', {
+                                gatePassId: gatePass._id.toString(),
+                                status: status,
+                                title: notifTitle,
+                                message: notifBody
+                            });
+                        }
+                    } catch (chErr) {
+                        console.error("[Permission Push] Pusher channel trigger error:", chErr);
+                    }
+                }
+            } catch (notifErr) {
+                console.error("[Permission Push] Error creating notification or push:", notifErr);
+            }
         } else if (['DEPARTED', 'COMPLETED'].includes(status)) {
             // Marking exit or return (by admin, staff, or gatekeeper)
             if (!isAdmin && role !== 'staff') {

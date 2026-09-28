@@ -54,10 +54,14 @@ class ApiEndpoints {
   static String cancelLeaveRequest(String id) => '/hr/leave-requests/$id';
   static const String instructorExams = '/exams';
   static String examGrading(String examId) => '/exams/$examId/grade';
+  static String examSubmissions(String examId) => '/exams/$examId/submissions';
   static String assignmentSubmissions(String materialId) => '/assignments/$materialId/submissions';
   static const String offlineExams = '/offline-exams';
   static String offlineExamResults(String id) => '/offline-exams/$id/results';
   static const String questions = '/questions';
+  static const String questionsImport = '/questions/import';
+  static const String hrPermissions = '/hr/permissions';
+  static String cancelPermission(String id) => '/hr/permissions/$id';
   static const String syllabusProgress = '/syllabus-progress';
 
   // App Auto-Update

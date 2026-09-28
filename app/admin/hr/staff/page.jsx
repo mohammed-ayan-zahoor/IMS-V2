@@ -15,6 +15,7 @@ import {
     Coins, 
     Eye, 
     Trash2, 
+    Edit3,
     CheckCircle2, 
     AlertCircle, 
     KeyRound, 
@@ -23,7 +24,8 @@ import {
     BadgeCheck,
     CreditCard,
     FileSpreadsheet,
-    Loader2
+    Loader2,
+    Fingerprint
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -44,17 +46,35 @@ export default function StaffDirectoryPage() {
     const [staffList, setStaffList] = useState([]);
     const [counts, setCounts] = useState({ all: 0, instructor: 0, admin: 0, staff: 0 });
     const [designations, setDesignations] = useState([]);
+    const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Filters
     const [roleFilter, setRoleFilter] = useState("all");
     const [designationFilter, setDesignationFilter] = useState("");
+    const [departmentFilter, setDepartmentFilter] = useState("");
     const [search, setSearch] = useState("");
 
     // Modal state
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingStaff, setEditingStaff] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [showBankingSection, setShowBankingSection] = useState(false);
+
+    const [editFormData, setEditFormData] = useState({
+        firstName: "",
+        lastName: "",
+        phone: "",
+        role: "staff",
+        designation: "",
+        department: "",
+        qualification: "",
+        joiningDate: "",
+        basicSalary: "",
+        allowLogin: false,
+        biometricId: ""
+    });
 
     // Add Staff Form
     const initialFormState = {
@@ -63,6 +83,7 @@ export default function StaffDirectoryPage() {
         phone: "",
         role: "staff", // default to staff/support
         designation: "",
+        department: "",
         qualification: "",
         joiningDate: new Date().toISOString().split("T")[0],
         basicSalary: "",
@@ -76,7 +97,8 @@ export default function StaffDirectoryPage() {
         accountName: "",
         accountNumber: "",
         ifscCode: "",
-        branch: ""
+        branch: "",
+        biometricId: ""
     };
 
     const [formData, setFormData] = useState(initialFormState);
@@ -93,12 +115,25 @@ export default function StaffDirectoryPage() {
         }
     }, []);
 
+    const fetchDepartments = useCallback(async () => {
+        try {
+            const res = await fetch("/api/v1/departments");
+            if (res.ok) {
+                const data = await res.json();
+                setDepartments(data.departments || []);
+            }
+        } catch (error) {
+            console.error("Failed to load departments:", error);
+        }
+    }, []);
+
     const fetchStaff = useCallback(async (signal) => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
             if (roleFilter !== "all") params.append("role", roleFilter);
             if (designationFilter) params.append("designation", designationFilter);
+            if (departmentFilter) params.append("department", departmentFilter);
             if (search.trim()) params.append("search", search.trim());
 
             const res = await fetch(`/api/v1/hr/staff?${params.toString()}`, {
@@ -115,11 +150,12 @@ export default function StaffDirectoryPage() {
         } finally {
             setLoading(false);
         }
-    }, [roleFilter, designationFilter, search, toast]);
+    }, [roleFilter, designationFilter, departmentFilter, search, toast]);
 
     useEffect(() => {
         fetchDesignations();
-    }, [fetchDesignations]);
+        fetchDepartments();
+    }, [fetchDesignations, fetchDepartments]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -184,10 +220,12 @@ export default function StaffDirectoryPage() {
                 phone: formData.phone.trim(),
                 role: formData.role,
                 designation: formData.designation || undefined,
+                department: formData.department || undefined,
                 qualification: formData.qualification.trim(),
                 joiningDate: formData.joiningDate,
                 basicSalary: parseFloat(formData.basicSalary) || 0,
                 allowLogin: !!formData.allowLogin,
+                biometricId: formData.biometricId?.trim() || undefined,
                 email: formData.allowLogin ? formData.email.trim() : undefined,
                 password: formData.allowLogin ? formData.password : undefined,
                 panNumber: formData.panNumber.trim(),
@@ -218,6 +256,63 @@ export default function StaffDirectoryPage() {
             fetchStaff();
         } catch (error) {
             toast.error(error.message || "Failed to add staff member");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleOpenEditModal = (member) => {
+        setEditingStaff(member);
+        setEditFormData({
+            firstName: member.profile?.firstName || "",
+            lastName: member.profile?.lastName || "",
+            phone: member.profile?.phone || "",
+            role: member.role || "staff",
+            designation: member.hrDetails?.designation?._id || member.hrDetails?.designation || "",
+            department: member.department?._id || member.department || "",
+            qualification: member.hrDetails?.qualification || "",
+            joiningDate: member.hrDetails?.joiningDate ? member.hrDetails.joiningDate.split("T")[0] : "",
+            basicSalary: member.hrDetails?.basicSalary ?? "",
+            allowLogin: member.allowLogin !== false,
+            biometricId: member.hrDetails?.biometricId || ""
+        });
+        setIsEditModalOpen(true);
+    };
+
+    const handleEditStaffSubmit = async (e) => {
+        e.preventDefault();
+        if (!editingStaff?._id) return;
+        setSubmitting(true);
+        try {
+            const payload = {
+                firstName: editFormData.firstName.trim(),
+                lastName: editFormData.lastName.trim(),
+                phone: editFormData.phone.trim(),
+                role: editFormData.role,
+                designation: editFormData.designation || null,
+                department: editFormData.department || null,
+                qualification: editFormData.qualification.trim(),
+                joiningDate: editFormData.joiningDate || null,
+                basicSalary: parseFloat(editFormData.basicSalary) || 0,
+                allowLogin: !!editFormData.allowLogin,
+                biometricId: editFormData.biometricId?.trim() || null
+            };
+
+            const res = await fetch(`/api/v1/hr/staff/${editingStaff._id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to update staff member");
+
+            toast.success("Staff member updated successfully");
+            setIsEditModalOpen(false);
+            setEditingStaff(null);
+            fetchStaff();
+        } catch (error) {
+            toast.error(error.message || "Failed to update staff member");
         } finally {
             setSubmitting(false);
         }
@@ -430,11 +525,22 @@ export default function StaffDirectoryPage() {
                         <select
                             value={designationFilter}
                             onChange={(e) => setDesignationFilter(e.target.value)}
-                            className="w-full sm:w-48 text-xs border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full sm:w-44 text-xs border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                             <option value="">All Designations</option>
                             {designations.map((d) => (
                                 <option key={d._id} value={d._id}>{d.name}</option>
+                            ))}
+                        </select>
+
+                        <select
+                            value={departmentFilter}
+                            onChange={(e) => setDepartmentFilter(e.target.value)}
+                            className="w-full sm:w-44 text-xs border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                            <option value="">All Departments</option>
+                            {departments.map((dept) => (
+                                <option key={dept._id} value={dept._id}>{dept.name}</option>
                             ))}
                         </select>
                     </div>
@@ -512,7 +618,19 @@ export default function StaffDirectoryPage() {
 
                                             <td className="px-6 py-4">
                                                 <div className="space-y-1">
-                                                    <div>{getRoleBadge(member.role)}</div>
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        {getRoleBadge(member.role)}
+                                                        {member.department && (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                                                {member.department.name}
+                                                            </span>
+                                                        )}
+                                                        {member.hrDetails?.biometricId && (
+                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border border-violet-200 dark:border-violet-800" title="Biometric Device Punch ID">
+                                                                <Fingerprint className="w-2.5 h-2.5 text-violet-600" /> {member.hrDetails.biometricId}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
                                                         {designationName}
                                                     </p>
@@ -562,7 +680,17 @@ export default function StaffDirectoryPage() {
                                             </td>
 
                                             <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        onClick={() => handleOpenEditModal(member)}
+                                                        className="flex items-center gap-1 text-xs px-2.5 py-1.5 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
+                                                        title="Edit Staff Member & Department"
+                                                    >
+                                                        <Edit3 className="w-3.5 h-3.5" />
+                                                        Edit
+                                                    </Button>
                                                     <Link href={`/admin/hr/staff/${member._id}`}>
                                                         <Button
                                                             size="sm"
@@ -659,6 +787,24 @@ export default function StaffDirectoryPage() {
 
                         <div>
                             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Department / Shift Group
+                            </label>
+                            <select
+                                value={formData.department}
+                                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="">Select Department...</option>
+                                {departments.map((d) => (
+                                    <option key={d._id} value={d._id}>
+                                        {d.name} {d.shiftTimings?.useCustomShift ? `(${d.shiftTimings.shiftStart} - ${d.shiftTimings.shiftEnd})` : ""}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                                 Phone Number
                             </label>
                             <Input
@@ -700,6 +846,18 @@ export default function StaffDirectoryPage() {
                                 placeholder="e.g. B.Ed, M.Sc, 10th Pass"
                                 value={formData.qualification}
                                 onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+                                <Fingerprint className="w-3.5 h-3.5 text-violet-600" />
+                                Biometric / Punch ID
+                            </label>
+                            <Input
+                                placeholder="e.g. 101"
+                                value={formData.biometricId}
+                                onChange={(e) => setFormData({ ...formData, biometricId: e.target.value })}
                             />
                         </div>
                     </div>
@@ -867,6 +1025,208 @@ export default function StaffDirectoryPage() {
                         >
                             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                             Create Staff Member
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Edit Staff Member Modal */}
+            <Modal
+                isOpen={isEditModalOpen}
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    setEditingStaff(null);
+                }}
+                title={editingStaff ? `Edit Staff: ${editingStaff.profile?.firstName} ${editingStaff.profile?.lastName || ""}` : "Edit Staff Member"}
+                size="lg"
+            >
+                <form onSubmit={handleEditStaffSubmit} className="space-y-4">
+                    {/* Basic Info */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                First Name <span className="text-rose-500">*</span>
+                            </label>
+                            <Input
+                                placeholder="e.g. Ramesh"
+                                value={editFormData.firstName}
+                                onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Last Name
+                            </label>
+                            <Input
+                                placeholder="e.g. Kumar"
+                                value={editFormData.lastName}
+                                onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Role / Category <span className="text-rose-500">*</span>
+                            </label>
+                            <select
+                                value={editFormData.role}
+                                onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                                className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                required
+                            >
+                                <option value="staff">Support Staff (Maid, Driver, Peon, Helper)</option>
+                                <option value="instructor">Teaching Faculty / Teacher</option>
+                                <option value="admin">Administrator / Office Staff</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Designation
+                            </label>
+                            <select
+                                value={editFormData.designation}
+                                onChange={(e) => setEditFormData({ ...editFormData, designation: e.target.value })}
+                                className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="">Select Designation...</option>
+                                {designations.map((d) => (
+                                    <option key={d._id} value={d._id}>{d.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Department / Shift Group
+                            </label>
+                            <select
+                                value={editFormData.department}
+                                onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
+                                className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="">Select Department...</option>
+                                {departments.map((d) => (
+                                    <option key={d._id} value={d._id}>
+                                        {d.name} {d.shiftTimings?.useCustomShift ? `(${d.shiftTimings.shiftStart} - ${d.shiftTimings.shiftEnd})` : ""}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Phone Number
+                            </label>
+                            <Input
+                                placeholder="e.g. 9876543210"
+                                value={editFormData.phone}
+                                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Date of Joining
+                            </label>
+                            <Input
+                                type="date"
+                                value={editFormData.joiningDate}
+                                onChange={(e) => setEditFormData({ ...editFormData, joiningDate: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Basic Monthly Salary (₹)
+                            </label>
+                            <Input
+                                type="number"
+                                min="0"
+                                placeholder="e.g. 15000"
+                                value={editFormData.basicSalary}
+                                onChange={(e) => setEditFormData({ ...editFormData, basicSalary: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Qualification
+                            </label>
+                            <Input
+                                placeholder="e.g. B.Ed, M.Sc, 10th Pass"
+                                value={editFormData.qualification}
+                                onChange={(e) => setEditFormData({ ...editFormData, qualification: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+                                <Fingerprint className="w-3.5 h-3.5 text-violet-600" />
+                                Biometric / Punch ID
+                            </label>
+                            <Input
+                                placeholder="e.g. 101"
+                                value={editFormData.biometricId}
+                                onChange={(e) => setEditFormData({ ...editFormData, biometricId: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Portal Login Credentials Section */}
+                    <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <label className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                    <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+                                    Portal Login Access
+                                </label>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                    Allow this staff member to log in to the portal using their registered email.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={editFormData.allowLogin}
+                                onClick={() => setEditFormData({ ...editFormData, allowLogin: !editFormData.allowLogin })}
+                                className={cn(
+                                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                                    editFormData.allowLogin ? "bg-indigo-600" : "bg-gray-300 dark:bg-gray-700"
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                                        editFormData.allowLogin ? "translate-x-5" : "translate-x-0"
+                                    )}
+                                />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Modal Actions */}
+                    <div className="flex justify-end gap-3 pt-3 border-t border-gray-200 dark:border-gray-800">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => {
+                                setIsEditModalOpen(false);
+                                setEditingStaff(null);
+                            }}
+                            disabled={submitting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={submitting}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
+                        >
+                            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                            Save Changes
                         </Button>
                     </div>
                 </form>

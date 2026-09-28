@@ -62,6 +62,7 @@ export default function UserManagementPage() {
         assignedBatches: [], // Multi-select IDs
         assignedCourses: [], // Multi-select IDs
         activeSession: "",
+        department: "",
         designation: "",
         basicSalary: "",
         permissions: []
@@ -82,6 +83,7 @@ export default function UserManagementPage() {
     }, [activeTab]);
 
     const [designations, setDesignations] = useState([]);
+    const [departments, setDepartments] = useState([]);
 
     const fetchDesignations = async () => {
         try {
@@ -95,9 +97,22 @@ export default function UserManagementPage() {
         }
     };
 
+    const fetchDepartments = async () => {
+        try {
+            const res = await fetch("/api/v1/departments");
+            if (res.ok) {
+                const data = await res.json();
+                setDepartments(data.departments || []);
+            }
+        } catch (e) {
+            console.error("Failed to load departments", e);
+        }
+    };
+
     useEffect(() => {
         fetchUsers();
         fetchDesignations();
+        fetchDepartments();
     }, []);
 
     const fetchUsers = async () => {
@@ -229,7 +244,7 @@ export default function UserManagementPage() {
         firstName: "", lastName: "", email: "", phone: "",
         password: "", role: "student", allowLogin: true,
         assignedBatches: [], assignedCourses: [],
-        activeSession: "", designation: "", basicSalary: "",
+        activeSession: "", department: "", designation: "", basicSalary: "",
         permissions: []
     });
 
@@ -245,6 +260,7 @@ export default function UserManagementPage() {
             assignedBatches: user.assignments?.batches?.map(b => typeof b === 'object' ? b._id : b) || [],
             assignedCourses: user.assignments?.courses?.map(c => typeof c === 'object' ? c._id : c) || [],
             activeSession: user.activeSession || "",
+            department: user.department?._id || user.department || "",
             designation: user.hrDetails?.designation?._id || user.hrDetails?.designation || "",
             basicSalary: user.hrDetails?.basicSalary || "",
             permissions: user.permissions || []
@@ -476,6 +492,11 @@ export default function UserManagementPage() {
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1 items-start">
                                                 <RoleBadge role={user.role} />
+                                                {user.department && (
+                                                    <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-blue-200">
+                                                        {typeof user.department === 'object' ? user.department.name : 'Dept'}
+                                                    </span>
+                                                )}
                                                 {user.allowLogin === false && (
                                                     <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                                                         Payroll Only
@@ -645,9 +666,21 @@ export default function UserManagementPage() {
                         <Input label="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
                     </div>
 
-                    {/* HR Fields: Designation + Salary (instructor/staff only) */}
-                    {['instructor', 'staff'].includes(formData.role) && (
-                        <div className="grid grid-cols-2 gap-4 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    {/* HR Fields: Department, Designation + Salary (admin/instructor/staff) */}
+                    {['instructor', 'staff', 'admin'].includes(formData.role) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <Select
+                                label="Department / Shift Group"
+                                value={formData.department}
+                                onChange={val => setFormData({ ...formData, department: val })}
+                                options={[
+                                    { label: "No Department (Default Shift)", value: "" },
+                                    ...departments.map(d => ({
+                                        label: `${d.name}${d.shiftTimings?.useCustomShift ? ` (${d.shiftTimings.shiftStart}-${d.shiftTimings.shiftEnd})` : ''}`,
+                                        value: d._id
+                                    }))
+                                ]}
+                            />
                             <Select
                                 label="Designation"
                                 value={formData.designation}

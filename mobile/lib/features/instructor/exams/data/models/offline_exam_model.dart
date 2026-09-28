@@ -45,10 +45,23 @@ class OfflineExamBatchRef {
 
   OfflineExamBatchRef({required this.id, required this.name});
 
-  factory OfflineExamBatchRef.fromJson(Map<String, dynamic> json) {
+  OfflineExamBatchRef copyWith({String? id, String? name}) {
     return OfflineExamBatchRef(
-      id: (json['_id'] ?? json['id'] ?? '').toString(),
-      name: (json['name'] ?? 'Batch').toString(),
+      id: id ?? this.id,
+      name: name ?? this.name,
+    );
+  }
+
+  factory OfflineExamBatchRef.fromJson(dynamic json) {
+    if (json is Map) {
+      return OfflineExamBatchRef(
+        id: (json['_id'] ?? json['id'] ?? '').toString(),
+        name: (json['name'] ?? 'Batch').toString(),
+      );
+    }
+    return OfflineExamBatchRef(
+      id: json?.toString() ?? '',
+      name: 'Batch',
     );
   }
 }
@@ -57,7 +70,9 @@ class OfflineExamItem {
   final String id;
   final String title;
   final String? courseName;
+  final String? courseId;
   final String? sessionName;
+  final String? sessionId;
   final String status;
   final List<OfflineExamSubject> subjects;
   final List<OfflineExamBatchRef> batches;
@@ -67,7 +82,9 @@ class OfflineExamItem {
     required this.id,
     required this.title,
     this.courseName,
+    this.courseId,
     this.sessionName,
+    this.sessionId,
     required this.status,
     required this.subjects,
     required this.batches,
@@ -76,13 +93,21 @@ class OfflineExamItem {
 
   factory OfflineExamItem.fromJson(Map<String, dynamic> json) {
     String? course;
+    String? courseId;
     if (json['course'] is Map) {
       course = json['course']['name']?.toString();
+      courseId = (json['course']['_id'] ?? json['course']['id'])?.toString();
+    } else if (json['course'] != null) {
+      courseId = json['course'].toString();
     }
 
     String? session;
+    String? sessionId;
     if (json['session'] is Map) {
       session = json['session']['name']?.toString();
+      sessionId = (json['session']['_id'] ?? json['session']['id'])?.toString();
+    } else if (json['session'] != null) {
+      sessionId = json['session'].toString();
     }
 
     List<OfflineExamSubject> subjs = [];
@@ -95,17 +120,22 @@ class OfflineExamItem {
 
     List<OfflineExamBatchRef> bts = [];
     if (json['batches'] is List) {
-      bts = (json['batches'] as List)
-          .whereType<Map<String, dynamic>>()
-          .map((b) => OfflineExamBatchRef.fromJson(b))
-          .toList();
+      for (var b in json['batches']) {
+        if (b is Map<String, dynamic>) {
+          bts.add(OfflineExamBatchRef.fromJson(b));
+        } else if (b != null && b.toString().isNotEmpty) {
+          bts.add(OfflineExamBatchRef(id: b.toString(), name: 'Batch'));
+        }
+      }
     }
 
     return OfflineExamItem(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       title: (json['title'] ?? 'Offline Exam').toString(),
       courseName: course,
+      courseId: courseId,
       sessionName: session,
+      sessionId: sessionId,
       status: (json['status'] ?? 'draft').toString(),
       subjects: subjs,
       batches: bts,
@@ -161,11 +191,43 @@ class OfflineStudentResultEntry {
     Map<String, dynamic> json,
     List<OfflineExamSubject> subjects,
   ) {
-    final st = json['student'] ?? {};
-    final id = (st['_id'] ?? st['id'] ?? '').toString();
-    final name = (st['name'] ?? 'Student').toString();
-    final roll = st['rollNumber']?.toString();
-    final enroll = st['enrollmentNumber']?.toString();
+    final st = (json['student'] is Map) ? json['student'] : json;
+    final id = (st['_id'] ?? st['id'] ?? st['studentId'] ?? json['studentId'] ?? '').toString();
+    
+    String name = 'Student';
+    final direct = (st['name'] ?? st['fullName'] ?? json['name'] ?? json['fullName'])?.toString().trim();
+    if (direct != null && direct.isNotEmpty && direct.toLowerCase() != 'student') {
+      name = direct;
+    } else if (st['profile'] is Map) {
+      final first = st['profile']['firstName']?.toString().trim() ?? '';
+      final last = st['profile']['lastName']?.toString().trim() ?? '';
+      final full = '$first $last'.trim();
+      if (full.isNotEmpty) name = full;
+    } else if (st['user'] is Map) {
+      final u = st['user'];
+      final uName = (u['name'] ?? u['fullName'])?.toString().trim();
+      if (uName != null && uName.isNotEmpty) {
+        name = uName;
+      } else if (u['profile'] is Map) {
+        final first = u['profile']['firstName']?.toString().trim() ?? '';
+        final last = u['profile']['lastName']?.toString().trim() ?? '';
+        final full = '$first $last'.trim();
+        if (full.isNotEmpty) name = full;
+      }
+    }
+
+    if (name == 'Student') {
+      final email = (st['email'] ?? st['user']?['email'])?.toString().trim();
+      if (email != null && email.contains('@')) {
+        final prefix = email.split('@').first.replaceAll('.', ' ').replaceAll('_', ' ');
+        if (prefix.trim().isNotEmpty) {
+          name = prefix.split(' ').where((w) => w.isNotEmpty).map((w) => '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
+        }
+      }
+    }
+
+    final roll = (st['rollNumber'] ?? json['rollNumber'])?.toString();
+    final enroll = (st['enrollmentNumber'] ?? json['enrollmentNumber'])?.toString();
 
     final marksMap = <String, OfflineStudentSubjectMark>{};
 

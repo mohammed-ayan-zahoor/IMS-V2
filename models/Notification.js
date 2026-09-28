@@ -18,6 +18,11 @@ const NotificationSchema = new mongoose.Schema(
             ref: "User",
             index: true
         },
+        dismissedBy: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            index: true
+        }],
         title: {
             type: String,
             required: true,
@@ -30,7 +35,7 @@ const NotificationSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ["LEAVE_REQUEST", "ADMISSION", "ENQUIRY", "COMPLAINT", "SYSTEM", "NOTICE", "ATTENDANCE", "FEE_DUE", "FEE_PAYMENT", "TIMELINE", "CHAT"],
+            enum: ["LEAVE_REQUEST", "LEAVE_STATUS", "PERMISSION", "ADMISSION", "ENQUIRY", "COMPLAINT", "SYSTEM", "NOTICE", "ATTENDANCE", "FEE_DUE", "FEE_PAYMENT", "TIMELINE", "CHAT"],
             default: "SYSTEM"
         },
         link: {

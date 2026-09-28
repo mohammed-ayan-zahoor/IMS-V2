@@ -101,6 +101,17 @@ export async function PUT(req, { params }) {
         if (body.contactPhone !== undefined) currentDept.contactPhone = body.contactPhone.trim();
         if (body.isActive !== undefined) currentDept.isActive = Boolean(body.isActive);
 
+        // Handle Shift Timings update
+        if (body.shiftTimings !== undefined) {
+            currentDept.shiftTimings = {
+                useCustomShift: Boolean(body.shiftTimings.useCustomShift),
+                shiftStart: body.shiftTimings.shiftStart || currentDept.shiftTimings?.shiftStart || "09:00",
+                shiftEnd: body.shiftTimings.shiftEnd || currentDept.shiftTimings?.shiftEnd || "18:00",
+                checkInGraceMins: Number(body.shiftTimings.checkInGraceMins) >= 0 ? Number(body.shiftTimings.checkInGraceMins) : 15,
+                checkOutGraceMins: Number(body.shiftTimings.checkOutGraceMins) >= 0 ? Number(body.shiftTimings.checkOutGraceMins) : 10
+            };
+        }
+
         // Handle HOD assignment change
         if (body.hod !== undefined) {
             const oldHodId = currentDept.hod;

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import HRSettings from "@/models/HRSettings";
 import { createAuditLog } from "@/services/auditService";
+import crypto from "crypto";
 
 export async function GET(req) {
     try {
@@ -32,8 +33,12 @@ export async function GET(req) {
                 midDayOutEnabled: true,
                 overtimeEnabled: true,
                 overtimeBufferMins: 30,
-                overtimeRatePerHour: 150
+                overtimeRatePerHour: 150,
+                biometricApiKey: `bio_${crypto.randomBytes(16).toString('hex')}`
             });
+        } else if (!settings.biometricApiKey) {
+            settings.biometricApiKey = `bio_${crypto.randomBytes(16).toString('hex')}`;
+            await settings.save();
         }
 
         return NextResponse.json({ settings });
@@ -65,7 +70,8 @@ export async function PATCH(req) {
             'midDayOutEnabled',
             'overtimeEnabled',
             'overtimeBufferMins',
-            'overtimeRatePerHour'
+            'overtimeRatePerHour',
+            'biometricApiKey'
         ];
 
         const updateData = {};
@@ -73,6 +79,10 @@ export async function PATCH(req) {
             if (body[field] !== undefined) {
                 updateData[field] = body[field];
             }
+        }
+
+        if (body.regenerateBiometricApiKey) {
+            updateData.biometricApiKey = `bio_${crypto.randomBytes(16).toString('hex')}`;
         }
 
         await connectDB();

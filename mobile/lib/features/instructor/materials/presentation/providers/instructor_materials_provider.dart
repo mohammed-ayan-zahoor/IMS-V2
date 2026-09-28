@@ -41,12 +41,30 @@ class InstructorMaterialsProvider extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>?> uploadFile({
+    required String filePath,
+    required String fileName,
+    String fileType = 'document',
+  }) async {
+    return _repository.uploadFile(
+      filePath: filePath,
+      fileName: fileName,
+      fileType: fileType,
+    );
+  }
+
   Future<bool> uploadMaterial({
     required String title,
     required String courseId,
     String? batchId,
     required String fileUrl,
     String? description,
+    String type = 'document',
+    String category = 'lecture',
+    bool allowSubmissions = false,
+    int? totalMarks,
+    DateTime? dueDate,
+    int? fileSize,
   }) async {
     final success = await _repository.uploadMaterial(
       title: title,
@@ -54,6 +72,12 @@ class InstructorMaterialsProvider extends ChangeNotifier {
       batchId: batchId,
       fileUrl: fileUrl,
       description: description,
+      type: type,
+      category: category,
+      allowSubmissions: allowSubmissions,
+      totalMarks: totalMarks,
+      dueDate: dueDate,
+      fileSize: fileSize,
     );
     if (success) {
       loadMaterials(refresh: true);

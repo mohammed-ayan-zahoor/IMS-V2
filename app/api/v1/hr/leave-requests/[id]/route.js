@@ -96,6 +96,84 @@ export async function PATCH(req, { params }) {
                     );
                 }
             }
+
+            // Trigger Notification and Pusher Beams push notification to applicant
+            try {
+                const Notification = (await import("@/models/Notification")).default;
+                const notifTitle = `Leave Request ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`;
+                const notifBody = `Your leave request has been ${status.toLowerCase()}.${leave.adminComment ? ` Remark: ${leave.adminComment}` : ''}`;
+
+                await Notification.create({
+                    institute: instituteId,
+                    recipient: leave.user,
+                    recipientRole: "instructor",
+                    title: notifTitle,
+                    message: notifBody,
+                    type: "LEAVE_STATUS",
+                    metadata: {
+                        leaveId: leave._id.toString(),
+                        status: status,
+                        startDate: leave.startDate,
+                        endDate: leave.endDate
+                    },
+                    link: "/leaves"
+                });
+
+                const { getBeamsInstance, getPusherInstance } = await import("@/lib/pusher");
+                const beamsClient = await getBeamsInstance(instituteId);
+                if (beamsClient && leave.user) {
+                    const payload = {
+                        apns: {
+                            aps: {
+                                alert: { title: notifTitle, body: notifBody },
+                                sound: "default"
+                            }
+                        },
+                        fcm: {
+                            notification: {
+                                title: notifTitle,
+                                body: notifBody,
+                                channel_id: "high_importance_channel",
+                                sound: "default"
+                            },
+                            data: {
+                                title: notifTitle,
+                                body: notifBody,
+                                type: "leave",
+                                status: status,
+                                leaveId: leave._id.toString(),
+                                instituteId: instituteId.toString()
+                            },
+                            priority: "high"
+                        },
+                        web: {
+                            notification: {
+                                title: notifTitle,
+                                body: notifBody,
+                                deep_link: `${process.env.NEXT_PUBLIC_APP_URL || "https://imsportal.3ftech.in"}/leaves`
+                            }
+                        }
+                    };
+                    const pushRes = await beamsClient.publishToUsers([leave.user.toString()], payload);
+                    console.log(`[Leave Push] Dispatched push notification for user ${leave.user}:`, pushRes);
+                }
+
+                try {
+                    const pusher = await getPusherInstance(instituteId);
+                    if (pusher && leave.user) {
+                        await pusher.trigger(`user-${leave.user.toString()}`, 'leave-status-updated', {
+                            leaveId: leave._id.toString(),
+                            status: status,
+                            title: notifTitle,
+                            message: notifBody
+                        });
+                    }
+                } catch (chErr) {
+                    console.error("[Leave Push] Pusher channel trigger error:", chErr);
+                }
+            } catch (notifErr) {
+                console.error("[Leave Push] Error creating notification or push:", notifErr);
+            }
         } else {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }

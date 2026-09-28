@@ -112,6 +112,50 @@ export async function POST(req) {
                 type: "LEAVE_REQUEST",
                 link: "/admin/hr/leave-requests"
             });
+
+            // Dispatch push notification to institute admins
+            try {
+                const User = (await import("@/models/User")).default;
+                const adminUsers = await User.find({
+                    institute: instituteId,
+                    role: { $in: ['admin', 'super_admin'] },
+                    deletedAt: null
+                }).select('_id');
+                const adminIds = adminUsers.map(a => a._id.toString());
+                if (adminIds.length > 0) {
+                    const { getBeamsInstance } = await import("@/lib/pusher");
+                    const beamsClient = await getBeamsInstance(instituteId);
+                    if (beamsClient) {
+                        const adminPayload = {
+                            apns: {
+                                aps: {
+                                    alert: { title: "New Leave Application", body: `${applicantName} submitted a ${lType.name} application` },
+                                    sound: "default"
+                                }
+                            },
+                            fcm: {
+                                notification: {
+                                    title: "New Leave Application",
+                                    body: `${applicantName} submitted a ${lType.name} application`,
+                                    channel_id: "high_importance_channel",
+                                    sound: "default"
+                                },
+                                data: {
+                                    title: "New Leave Application",
+                                    body: `${applicantName} submitted a ${lType.name} application`,
+                                    type: "leave_request",
+                                    leaveId: request._id.toString(),
+                                    instituteId: instituteId.toString()
+                                },
+                                priority: "high"
+                            }
+                        };
+                        await beamsClient.publishToUsers(adminIds, adminPayload);
+                    }
+                }
+            } catch (adminPushErr) {
+                console.error("[Leave Apply Push] Error notifying admins:", adminPushErr);
+            }
         } catch (nErr) {
             console.error("Failed to create leave notification", nErr);
         }

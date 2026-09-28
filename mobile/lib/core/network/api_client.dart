@@ -272,4 +272,35 @@ class ApiClient {
       _log('[Auth] Error saving session: $e');
     }
   }
+
+  Future<Map<String, dynamic>?> uploadFile({
+    required String filePath,
+    required String fileName,
+    String fileType = 'document',
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'fileType': fileType,
+        'file': await MultipartFile.fromFile(filePath, filename: fileName),
+      });
+
+      final res = await _dio.post(
+        '/upload',
+        data: formData,
+        options: Options(
+          headers: {'Accept': 'application/json'},
+          contentType: 'multipart/form-data',
+        ),
+      );
+
+      if (res.statusCode == 200 && res.data != null) {
+        if (res.data is Map) {
+          return Map<String, dynamic>.from(res.data);
+        }
+      }
+    } catch (e) {
+      _log('[Upload] Exception: $e');
+    }
+    return null;
+  }
 }

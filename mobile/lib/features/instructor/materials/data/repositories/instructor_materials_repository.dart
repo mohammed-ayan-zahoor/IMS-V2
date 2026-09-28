@@ -50,12 +50,30 @@ class InstructorMaterialsRepository {
     }
   }
 
+  Future<Map<String, dynamic>?> uploadFile({
+    required String filePath,
+    required String fileName,
+    String fileType = 'document',
+  }) async {
+    return _apiClient.uploadFile(
+      filePath: filePath,
+      fileName: fileName,
+      fileType: fileType,
+    );
+  }
+
   Future<bool> uploadMaterial({
     required String title,
     required String courseId,
     String? batchId,
     required String fileUrl,
     String? description,
+    String type = 'document',
+    String category = 'lecture',
+    bool allowSubmissions = false,
+    int? totalMarks,
+    DateTime? dueDate,
+    int? fileSize,
   }) async {
     try {
       final body = {
@@ -64,12 +82,17 @@ class InstructorMaterialsRepository {
         'courses': [courseId],
         'course': courseId,
         'batches': batchId != null && batchId.isNotEmpty ? [batchId] : [],
-        'category': 'lecture',
+        'category': category,
+        'type': type,
         'visibleToStudents': true,
+        'allowSubmissions': allowSubmissions,
+        'totalMarks': ?totalMarks,
+        if (dueDate != null) 'dueDate': dueDate.toIso8601String(),
         'file': {
           'url': fileUrl,
-          'type': 'other',
+          'type': type,
           'originalName': title,
+          'size': ?fileSize,
         },
       };
 

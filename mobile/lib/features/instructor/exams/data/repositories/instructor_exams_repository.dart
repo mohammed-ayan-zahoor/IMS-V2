@@ -24,12 +24,31 @@ class InstructorExamsRepository {
     }
   }
 
-  Future<List<QuestionBankItem>> fetchQuestions({String? search}) async {
+  Future<List<QuestionBankItem>> fetchQuestions({
+    String? search,
+    String? courseId,
+    String? batchId,
+    String? difficulty,
+    String? type,
+  }) async {
     try {
       final Map<String, dynamic> query = {'limit': 50};
       if (search != null && search.isNotEmpty) {
         query['search'] = search;
       }
+      if (courseId != null && courseId.isNotEmpty) {
+        query['course'] = courseId;
+      }
+      if (batchId != null && batchId.isNotEmpty) {
+        query['batch'] = batchId;
+      }
+      if (difficulty != null && difficulty.isNotEmpty && difficulty != 'ALL') {
+        query['difficulty'] = difficulty.toLowerCase();
+      }
+      if (type != null && type.isNotEmpty && type != 'ALL') {
+        query['type'] = type.toLowerCase();
+      }
+
       final res = await _apiClient.get(ApiEndpoints.questions, queryParameters: query);
       if (res.statusCode == 200 && res.data != null) {
         final list = res.data['questions'] ?? res.data;
@@ -43,6 +62,48 @@ class InstructorExamsRepository {
       return [];
     } catch (_) {
       return [];
+    }
+  }
+
+  Future<bool> createQuestion(Map<String, dynamic> data) async {
+    try {
+      final res = await _apiClient.post(ApiEndpoints.questions, data: data);
+      return res.statusCode == 200 || res.statusCode == 201;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> bulkImportQuestions({
+    required List<Map<String, dynamic>> questions,
+    required String courseId,
+    String? batchId,
+    String? subjectId,
+  }) async {
+    try {
+      final body = {
+        'questions': questions,
+        'courseId': courseId,
+        if (batchId != null && batchId.isNotEmpty) 'batchId': batchId,
+        if (subjectId != null && subjectId.isNotEmpty) 'subjectId': subjectId,
+      };
+      final res = await _apiClient.post(ApiEndpoints.questionsImport, data: body);
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        return {
+          'success': true,
+          'imported': res.data['imported'] ?? questions.length,
+          'message': res.data['message'] ?? 'Questions imported successfully',
+        };
+      }
+      return {
+        'success': false,
+        'message': res.data?['error'] ?? 'Failed to import questions',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Network error importing questions',
+      };
     }
   }
 
@@ -81,9 +142,37 @@ class InstructorExamsRepository {
     }
   }
 
-  Future<List<OfflineExamItem>> fetchOfflineExams() async {
+  Future<List<OnlineExamSubmissionItem>> fetchExamSubmissions(String examId) async {
     try {
-      final res = await _apiClient.get(ApiEndpoints.offlineExams);
+      final res = await _apiClient.get(ApiEndpoints.examSubmissions(examId));
+      if (res.statusCode == 200 && res.data != null) {
+        final list = res.data['submissions'] ?? res.data;
+        if (list is List) {
+          return list
+              .whereType<Map<String, dynamic>>()
+              .map((s) => OnlineExamSubmissionItem.fromJson(s))
+              .toList();
+        }
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<OfflineExamItem>> fetchOfflineExams({String? sessionId, String? status}) async {
+    try {
+      final Map<String, dynamic> query = {};
+      if (sessionId != null && sessionId.isNotEmpty) {
+        query['session'] = sessionId;
+      }
+      if (status != null && status.isNotEmpty) {
+        query['status'] = status;
+      }
+      final res = await _apiClient.get(
+        ApiEndpoints.offlineExams,
+        queryParameters: query.isNotEmpty ? query : null,
+      );
       if (res.statusCode == 200 && res.data != null) {
         final list = res.data['exams'] ?? res.data;
         if (list is List) {

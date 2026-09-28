@@ -28,6 +28,7 @@ dependencies:
   pusher_beams: ^1.1.2
   flutter_local_notifications: ^17.0.0
   flutter_svg: ^2.0.10+1
+  file_picker: ^8.0.7
 
 dev_dependencies:
   flutter_test:

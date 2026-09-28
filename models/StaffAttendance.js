@@ -56,10 +56,15 @@ const StaffAttendanceSchema = new Schema({
         type: String,
         trim: true
     },
+    source: {
+        type: String,
+        enum: ['manual', 'biometric', 'face_scan'],
+        default: 'manual'
+    },
     markedBy: {
         type: Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: false
     }
 }, { timestamps: true });
 

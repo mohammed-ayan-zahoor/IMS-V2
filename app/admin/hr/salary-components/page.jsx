@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { Coins, Plus, Trash2, Loader2, FolderOpen, TrendingUp, TrendingDown, Info } from "lucide-react";
+import { Coins, Plus, Pencil, Trash2, Loader2, FolderOpen, TrendingUp, TrendingDown, Info } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -25,6 +25,7 @@ export default function SalaryComponentsPage() {
     const [components, setComponents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingComponent, setEditingComponent] = useState(null);
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState("earning"); // 'earning' or 'deduction'
     const [formData, setFormData] = useState({
@@ -60,7 +61,35 @@ export default function SalaryComponentsPage() {
         return () => controller.abort();
     }, [fetchComponents, instituteId]);
 
-    const handleAdd = async (e) => {
+    const handleOpenAdd = () => {
+        setEditingComponent(null);
+        setFormData({
+            name: "",
+            type: activeTab,
+            calculationType: "flat",
+            percentageBasis: "basic",
+            defaultValue: 0,
+            recurrence: "recurring",
+            description: ""
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleOpenEdit = (comp) => {
+        setEditingComponent(comp);
+        setFormData({
+            name: comp.name || "",
+            type: comp.type || "earning",
+            calculationType: comp.calculationType || "flat",
+            percentageBasis: comp.percentageBasis || "basic",
+            defaultValue: comp.defaultValue ?? 0,
+            recurrence: comp.recurrence || "recurring",
+            description: comp.description || ""
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.name.trim()) {
             toast.error("Please enter a component name");
@@ -69,23 +98,31 @@ export default function SalaryComponentsPage() {
         setSaving(true);
         try {
             const isVariable = formData.recurrence === 'variable';
-            const res = await fetch("/api/v1/hr/salary-components", {
-                method: "POST",
+            const payload = {
+                name: formData.name.trim(),
+                type: formData.type,
+                calculationType: isVariable ? 'flat' : (formData.calculationType || 'flat'),
+                percentageBasis: isVariable ? 'basic' : (formData.percentageBasis || 'basic'),
+                defaultValue: isVariable ? 0 : (Number(formData.defaultValue) || 0),
+                recurrence: isVariable ? 'variable' : 'recurring',
+                description: formData.description.trim()
+            };
+
+            const url = editingComponent 
+                ? `/api/v1/hr/salary-components/${editingComponent._id}`
+                : "/api/v1/hr/salary-components";
+            const method = editingComponent ? "PATCH" : "POST";
+
+            const res = await fetch(url, {
+                method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: formData.name.trim(),
-                    type: formData.type,
-                    calculationType: isVariable ? 'flat' : (formData.calculationType || 'flat'),
-                    percentageBasis: isVariable ? 'basic' : (formData.percentageBasis || 'basic'),
-                    defaultValue: isVariable ? 0 : (Number(formData.defaultValue) || 0),
-                    recurrence: isVariable ? 'variable' : 'recurring',
-                    description: formData.description.trim()
-                })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (res.ok) {
-                toast.success("Salary component added successfully");
+                toast.success(editingComponent ? "Salary component updated successfully" : "Salary component added successfully");
                 setIsModalOpen(false);
+                setEditingComponent(null);
                 setFormData({
                     name: "",
                     type: activeTab,
@@ -97,10 +134,10 @@ export default function SalaryComponentsPage() {
                 });
                 fetchComponents();
             } else {
-                toast.error(data.error || "Failed to add salary component");
+                toast.error(data.error || (editingComponent ? "Failed to update salary component" : "Failed to add salary component"));
             }
         } catch (error) {
-            toast.error("Network error while adding salary component");
+            toast.error("Network error while saving salary component");
         } finally {
             setSaving(false);
         }
@@ -157,7 +194,7 @@ export default function SalaryComponentsPage() {
                     </h1>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">Configure statutory and custom salary components, toggles, and calculation rules.</p>
                 </div>
-                <Button onClick={() => { setFormData({ name: "", type: activeTab, description: "", calculationType: "flat", percentageBasis: "basic", defaultValue: 0 }); setIsModalOpen(true); }} className="flex items-center gap-2">
+                <Button onClick={handleOpenAdd} className="flex items-center gap-2">
                     <Plus size={16} />
                     Add Component
                 </Button>
@@ -211,8 +248,8 @@ export default function SalaryComponentsPage() {
                                 }`}>
                                     {comp.type === 'earning' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <label className="relative inline-flex items-center cursor-pointer" title={comp.isActive !== false ? "Active across institute" : "Inactive / Skipped"}>
+                                <div className="flex items-center gap-1.5">
+                                    <label className="relative inline-flex items-center cursor-pointer mr-0.5" title={comp.isActive !== false ? "Active across institute" : "Inactive / Skipped"}>
                                         <input
                                             type="checkbox"
                                             checked={comp.isActive !== false}
@@ -223,8 +260,16 @@ export default function SalaryComponentsPage() {
                                     </label>
                                     <button
                                         type="button"
+                                        onClick={() => handleOpenEdit(comp)}
+                                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors rounded"
+                                        title="Edit Component"
+                                    >
+                                        <Pencil size={15} />
+                                    </button>
+                                    <button
+                                        type="button"
                                         onClick={() => handleDelete(comp._id, comp.name, comp.type)}
-                                        className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors rounded"
+                                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors rounded"
                                         title="Remove Component"
                                     >
                                         <Trash2 size={15} />
@@ -282,7 +327,7 @@ export default function SalaryComponentsPage() {
                             : "Configure deduction heads like Provident Fund (PF), Professional Tax (PT), Income Tax."
                         }
                     </p>
-                    <Button variant="outline" className="mt-4" onClick={() => setIsModalOpen(true)}>
+                    <Button variant="outline" className="mt-4" onClick={handleOpenAdd}>
                         Add Your First Component
                     </Button>
                 </div>
@@ -290,11 +335,11 @@ export default function SalaryComponentsPage() {
 
             <Modal
                 isOpen={isModalOpen}
-                onClose={() => { setIsModalOpen(false); }}
-                title="Add New Salary Component"
+                onClose={() => { setIsModalOpen(false); setEditingComponent(null); }}
+                title={editingComponent ? `Edit ${editingComponent.type === 'earning' ? 'Earning' : 'Deduction'} Component` : "Add New Salary Component"}
                 className="max-w-md"
             >
-                <form onSubmit={handleAdd} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
                     <Input
                         label="Component Name *"
                         placeholder="e.g. HRA, Provident Fund, Professional Tax"
@@ -421,9 +466,9 @@ export default function SalaryComponentsPage() {
                         />
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                        <Button type="button" variant="outline" onClick={() => { setIsModalOpen(false); }}>Cancel</Button>
+                        <Button type="button" variant="outline" onClick={() => { setIsModalOpen(false); setEditingComponent(null); }}>Cancel</Button>
                         <Button type="submit" disabled={saving || !formData.name.trim()}>
-                            {saving ? "Adding..." : "Add Component"}
+                            {saving ? (editingComponent ? "Updating..." : "Adding...") : (editingComponent ? "Save Changes" : "Add Component")}
                         </Button>
                     </div>
                 </form>

@@ -183,17 +183,24 @@ function ScannerPage() {
                     const data = await res.json();
                     const list = [];
                     const ids = new Set();
+                    const slotsMap = {};
                     const statusMap = {};
                     (data.records || []).forEach(r => {
-                        if (r.status) {
+                        if (r.attendanceId && r.status) {
                             const staffMember = r.staff;
                             if (staffMember) {
                                 const sId = staffMember._id.toString();
                                 const isAbs = r.status === "absent";
+                                if (!slotsMap[sId]) slotsMap[sId] = new Set();
+                                if (r.checkInTime) slotsMap[sId].add("checkin");
+                                if (r.checkOutTime) slotsMap[sId].add("checkout");
+
+                                const displayTime = r.checkOutTime ? r.checkOutTime : (r.checkInTime ? r.checkInTime : (r.updatedAt ? format(new Date(r.updatedAt), "hh:mm a") : "08:00 AM"));
                                 statusMap[sId] = {
                                     status: r.status,
                                     method: r.remarks?.includes("via") ? r.remarks.split("via")[1].trim() : (isAbs ? "Manual" : "Saved"),
-                                    time: r.updatedAt ? format(new Date(r.updatedAt), "hh:mm a") : "08:00 AM"
+                                    time: displayTime,
+                                    slot: r.checkOutTime ? "checkout" : (r.checkInTime ? "checkin" : "checkin")
                                 };
                                 if (!isAbs) {
                                     ids.add(sId);
@@ -201,7 +208,7 @@ function ScannerPage() {
                                         id: sId,
                                         name: `${staffMember.profile?.firstName || ""} ${staffMember.profile?.lastName || ""}`.trim() || staffMember.email,
                                         method: r.remarks?.includes("via") ? r.remarks.split("via")[1].trim() : "Saved",
-                                        time: r.updatedAt ? format(new Date(r.updatedAt), "hh:mm a") : "08:00 AM",
+                                        time: displayTime,
                                         avatar: staffMember.profile?.avatar || null,
                                         enrollmentNumber: ""
                                     });
@@ -211,6 +218,7 @@ function ScannerPage() {
                     });
                     if (active) {
                         setMarkedIds(ids);
+                        setMarkedSlotsMap(slotsMap);
                         setAttendanceStatusMap(statusMap);
                         setMarkedUsersList(list);
                     }
@@ -364,24 +372,82 @@ function ScannerPage() {
 
     // ── Mark attendance ────────────────────────────────────────────────────
     const handleRecognized = useCallback(async (user, method) => {
-        const slot = getCurrentSlot();
         const userSlots = markedSlotsMap[user.id] || new Set();
         const currentStatus = attendanceStatusMap[user.id]?.status;
-        if (isProcessingRef.current || (userSlots.has(slot) && currentStatus !== "absent")) return;
+
+        let slot;
+        if (isStaff) {
+            if (userSlots.has("checkin") && userSlots.has("checkout")) {
+                if (currentStatus !== "absent") return;
+            }
+            slot = userSlots.has("checkin") ? "checkout" : "checkin";
+        } else {
+            slot = getCurrentSlot();
+            if (userSlots.has(slot) && currentStatus !== "absent") return;
+        }
+
+        if (isProcessingRef.current) return;
         isProcessingRef.current = true;
 
         try {
             if (isStaff) {
+                const now = new Date();
+                const time24 = format(now, "HH:mm");
+                const curMins = now.getHours() * 60 + now.getMinutes();
+
+                const parseMins = (t) => {
+                    if (!t) return 0;
+                    const [h, m] = t.split(":").map(Number);
+                    return (h || 0) * 60 + (m || 0);
+                };
+
+                const shift = user.effectiveShift || {
+                    shiftStart: "09:00",
+                    shiftEnd: "18:00",
+                    checkInGraceMins: 15,
+                    checkOutGraceMins: 10
+                };
+
+                const shiftStartMins = parseMins(shift.shiftStart || "09:00");
+                const shiftEndMins = parseMins(shift.shiftEnd || "18:00");
+                const checkInGrace = shift.checkInGraceMins ?? 15;
+                const checkOutGrace = shift.checkOutGraceMins ?? 10;
+
+                const record = {
+                    staffId: user.id,
+                    status: "present"
+                };
+
+                let lateMinutes = 0;
+                let earlyDepartureMinutes = 0;
+                let overtimeMinutes = 0;
+
+                if (slot === "checkin") {
+                    record.checkInTime = time24;
+                    if (curMins > shiftStartMins + checkInGrace) {
+                        lateMinutes = curMins - shiftStartMins;
+                    }
+                    record.lateMinutes = lateMinutes;
+                    record.remarks = `Auto check-in via ${method}${lateMinutes > 0 ? ` (Late: ${lateMinutes}m)` : ""}`;
+                } else {
+                    record.checkOutTime = time24;
+                    if (curMins < shiftEndMins - checkOutGrace) {
+                        earlyDepartureMinutes = shiftEndMins - curMins;
+                    }
+                    if (curMins > shiftEndMins) {
+                        overtimeMinutes = curMins - shiftEndMins;
+                    }
+                    record.earlyDepartureMinutes = earlyDepartureMinutes;
+                    record.overtimeMinutes = overtimeMinutes;
+                    record.remarks = `Auto check-out via ${method}${earlyDepartureMinutes > 0 ? ` (Early: ${earlyDepartureMinutes}m)` : ""}${overtimeMinutes > 0 ? ` (OT: ${overtimeMinutes}m)` : ""}`;
+                }
+
                 const postRes = await fetch("/api/v1/hr/attendance", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         date,
-                        records: [{
-                            staffId: user.id,
-                            status: "present",
-                            remarks: `Auto-marked via ${method}`
-                        }]
+                        records: [record]
                     })
                 });
                 if (!postRes.ok) {
@@ -454,19 +520,20 @@ function ScannerPage() {
             setMarkedIds(prev => new Set([...prev, user.id]));
 
             const activePeriod = timetableSlots.find(s => s._id === selectedPeriodId);
-            const periodTag = activePeriod ? ` - ${activePeriod.name}` : "";
+            const periodTag = !isStaff && activePeriod ? ` - ${activePeriod.name}` : "";
+            const deptTag = isStaff && user.effectiveShift?.departmentName ? ` [${user.effectiveShift.departmentName}]` : "";
 
             const newRecord = {
                 id: user.id,
                 name: user.name,
-                method: `${method} (${slot === "checkout" ? "Check-Out" : "Check-In"}${periodTag})`,
+                method: `${method} (${slot === "checkout" ? "Check-Out" : "Check-In"}${periodTag}${deptTag})`,
                 time: format(new Date(), "hh:mm a"),
                 avatar: user.avatar,
                 enrollmentNumber: user.enrollmentNumber || ""
             };
             setMarkedUsersList(prev => [newRecord, ...prev]);
             setLastMarked(newRecord);
-            toast.success(`✓ ${user.name} marked ${slot === "checkout" ? "Check-Out" : "Check-In"}${periodTag}`);
+            toast.success(`✓ ${user.name} marked ${slot === "checkout" ? "Check-Out" : "Check-In"}${periodTag}${deptTag}`);
         } catch (err) {
             toast.error("Mark failed: " + err.message);
         } finally {
@@ -913,6 +980,11 @@ function ScannerPage() {
                                             </div>
                                             <p className="text-slate-400 text-[10px] truncate">
                                                 {u.enrollmentNumber ? `ID: ${u.enrollmentNumber} · ` : ''}
+                                                {isStaff && u.effectiveShift ? (
+                                                    <span className="text-slate-500 font-medium">
+                                                        {u.effectiveShift.departmentName ? `${u.effectiveShift.departmentName} (${u.effectiveShift.shiftStart}-${u.effectiveShift.shiftEnd}) · ` : `Shift (${u.effectiveShift.shiftStart}-${u.effectiveShift.shiftEnd}) · `}
+                                                    </span>
+                                                ) : null}
                                                 {record ? `${record.method || 'Marked'} (${record.time})` : 'Awaiting recognition'}
                                             </p>
                                         </div>

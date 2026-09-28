@@ -181,15 +181,39 @@ export async function GET(req) {
 
         const periodIdFilter = searchParams.get("periodId");
 
+        // Helper to resolve any historical records that saved enrollment subdoc ID
+        let subdocToStudentObj = {};
+        if (batchId !== "all") {
+            try {
+                const batchDoc = await Batch.findById(batchId)
+                    .populate("enrolledStudents.student", "profile.firstName profile.lastName profile.avatar enrollmentNumber email role");
+                if (batchDoc?.enrolledStudents) {
+                    batchDoc.enrolledStudents.forEach(e => {
+                        if (e._id && e.student) {
+                            subdocToStudentObj[e._id.toString()] = e.student;
+                        }
+                    });
+                }
+            } catch (_) {}
+        }
+
         const records = [];
         attendanceDocs.forEach(doc => {
             (doc.records || []).forEach(r => {
-                if (r.student) {
+                let studentObj = r.student;
+                if (!studentObj || typeof studentObj !== 'object') {
+                    const rawId = (r.student || '').toString();
+                    if (subdocToStudentObj[rawId]) {
+                        studentObj = subdocToStudentObj[rawId];
+                    }
+                }
+
+                if (studentObj) {
                     if (periodIdFilter && r.periodId?.toString() !== periodIdFilter) {
                         return;
                     }
                     records.push({
-                        student: r.student,
+                        student: studentObj,
                         status: r.status,
                         slot: r.slot || "checkin",
                         markedAt: r.markedAt || doc.updatedAt || doc.createdAt,
@@ -226,23 +250,37 @@ export async function POST(req) {
             return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
         }
 
-        const batchDoc = await Batch.findById(batchId).select('institute');
+        const batchDoc = await Batch.findById(batchId).select('institute enrolledStudents');
         if (!batchDoc || !batchDoc.institute) {
             return NextResponse.json({ error: "Batch not found or has no institute" }, { status: 404 });
         }
 
+        const subdocToStudentMap = {};
+        if (Array.isArray(batchDoc.enrolledStudents)) {
+            batchDoc.enrolledStudents.forEach(e => {
+                if (e._id && e.student) {
+                    subdocToStudentMap[e._id.toString()] = e.student.toString();
+                }
+            });
+        }
+
         const targetDate = parseISO(date);
 
-        const recordSchema = records.map(r => ({
-            student: r.studentId,
-            status: r.status,
-            slot: r.slot || "checkin",
-            markedAt: r.markedAt ? new Date(r.markedAt) : new Date(),
-            method: r.method || "manual",
-            periodId: r.periodId || null,
-            periodName: r.periodName || "",
-            remarks: r.remarks || ""
-        }));
+        const recordSchema = records.map(r => {
+            const rawId = (r.studentId || r.student || '').toString();
+            const resolvedStudentId = subdocToStudentMap[rawId] || rawId;
+
+            return {
+                student: resolvedStudentId,
+                status: r.status,
+                slot: r.slot || "checkin",
+                markedAt: r.markedAt ? new Date(r.markedAt) : new Date(),
+                method: r.method || "manual",
+                periodId: r.periodId || null,
+                periodName: r.periodName || "",
+                remarks: r.remarks || ""
+            };
+        });
 
         await Attendance.findOneAndUpdate(
             {

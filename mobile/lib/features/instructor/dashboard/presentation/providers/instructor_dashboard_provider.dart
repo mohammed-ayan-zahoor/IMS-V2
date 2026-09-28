@@ -40,20 +40,20 @@ class InstructorDashboardProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> publishNotice({
+  Future<String?> publishNotice({
     required String title,
     required String content,
     required String category,
   }) async {
-    final success = await _repository.publishNotice(
+    final error = await _repository.publishNotice(
       title: title,
       content: content,
       category: category,
     );
-    if (success) {
+    if (error == null) {
       // Reload dashboard to update notice count
       loadDashboard(refresh: true);
     }
-    return success;
+    return error;
   }
 }

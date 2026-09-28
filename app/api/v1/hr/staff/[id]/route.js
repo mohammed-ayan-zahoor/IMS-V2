@@ -31,6 +31,7 @@ export async function GET(req, { params }) {
         await connectDB();
 
         const staff = await User.findOne({ _id: id, institute: instituteId, deletedAt: null })
+            .populate('department', 'name code shiftTimings')
             .populate('hrDetails.designation', 'name')
             .populate('hrDetails.earnings.component', 'name type calculationType percentageBasis defaultValue isActive')
             .populate('hrDetails.deductions.component', 'name type calculationType percentageBasis defaultValue isActive')
@@ -139,16 +140,24 @@ export async function PATCH(req, { params }) {
         if (body.dob !== undefined) staff.profile.dateOfBirth = body.dob ? new Date(body.dob) : null;
         if (body.address !== undefined) staff.profile.address = body.address;
 
-        // 2. Role & Login Access
+        // 2. Role & Login Access & Department
         if (body.role && ['admin', 'instructor', 'staff'].includes(body.role)) {
             staff.role = body.role;
         }
         if (body.allowLogin !== undefined) {
             staff.allowLogin = !!body.allowLogin;
         }
+        if (body.department !== undefined) {
+            staff.department = (body.department && mongoose.Types.ObjectId.isValid(body.department))
+                ? new mongoose.Types.ObjectId(body.department)
+                : null;
+        }
 
         // 3. HR details
         if (!staff.hrDetails) staff.hrDetails = {};
+        if (body.biometricId !== undefined) {
+            staff.hrDetails.biometricId = body.biometricId ? body.biometricId.trim() : null;
+        }
         if (body.designation !== undefined) {
             staff.hrDetails.designation = (body.designation && mongoose.Types.ObjectId.isValid(body.designation)) ? body.designation : null;
         }
@@ -205,6 +214,7 @@ export async function PATCH(req, { params }) {
         }
 
         const updatedStaff = await User.findById(id)
+            .populate('department', 'name code shiftTimings')
             .populate('hrDetails.designation', 'name')
             .populate('hrDetails.earnings.component', 'name type calculationType percentageBasis defaultValue isActive')
             .populate('hrDetails.deductions.component', 'name type calculationType percentageBasis defaultValue isActive')

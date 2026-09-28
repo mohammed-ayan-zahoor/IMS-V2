@@ -8,6 +8,7 @@ import Collector from "@/models/Collector";
 import StaffAttendance from "@/models/StaffAttendance";
 import HRSettings from "@/models/HRSettings";
 import SalaryComponent from "@/models/SalaryComponent";
+import Department from "@/models/Department";
 import { createAuditLog } from "@/services/auditService";
 
 export async function GET(req) {
@@ -73,8 +74,9 @@ export async function POST(req) {
             return NextResponse.json({ error: "A payslip for this staff member already exists for the chosen month and year" }, { status: 400 });
         }
 
-        // Fetch staff details
+        // Fetch staff details with department
         const staffMember = await User.findOne({ _id: staffId, institute: instituteId, deletedAt: null })
+            .populate('department')
             .populate('hrDetails.earnings.component')
             .populate('hrDetails.deductions.component');
 
@@ -125,6 +127,16 @@ export async function POST(req) {
             overtimeRatePerHour: 150
         };
 
+        // Department-level shift timing overrides
+        const deptShift = staffMember.department?.shiftTimings;
+        const hasCustomDeptShift = Boolean(deptShift?.useCustomShift);
+        const effectiveCheckInGrace = hasCustomDeptShift
+            ? (deptShift.checkInGraceMins ?? 15)
+            : (hrSettings.checkInGraceMins ?? 15);
+        const effectiveCheckOutGrace = hasCustomDeptShift
+            ? (deptShift.checkOutGraceMins ?? 10)
+            : (hrSettings.checkOutGraceMins ?? 10);
+
         // Compute timing penalties and overtime across monthly attendance logs
         let totalLateHours = 0;
         let totalEarlyHours = 0;
@@ -133,12 +145,12 @@ export async function POST(req) {
 
         attendanceLogs.forEach(log => {
             // Late check-in penalty: exceeding grace period rounds up to next full hour
-            if (log.lateMinutes && log.lateMinutes > (hrSettings.checkInGraceMins || 0)) {
+            if (log.lateMinutes && log.lateMinutes > effectiveCheckInGrace) {
                 totalLateHours += Math.ceil(log.lateMinutes / 60);
             }
 
             // Early check-out penalty: leaving earlier than grace window rounds up to next full hour
-            if (log.earlyDepartureMinutes && log.earlyDepartureMinutes > (hrSettings.checkOutGraceMins || 0)) {
+            if (log.earlyDepartureMinutes && log.earlyDepartureMinutes > effectiveCheckOutGrace) {
                 totalEarlyHours += Math.ceil(log.earlyDepartureMinutes / 60);
             }
 

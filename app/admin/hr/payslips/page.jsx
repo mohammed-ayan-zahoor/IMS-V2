@@ -295,6 +295,16 @@ export default function PayslipsPage() {
                 const unpaidDays = Math.max(0, Math.round((totalDaysInMonth - paidDays) * 10) / 10);
                 const absentDeduction = Math.round(unpaidDays * dailyRate * 100) / 100;
 
+                // Department-level shift timing overrides
+                const deptShift = staffDetail.department?.shiftTimings;
+                const hasCustomDeptShift = Boolean(deptShift?.useCustomShift);
+                const effectiveCheckInGrace = hasCustomDeptShift
+                    ? (deptShift.checkInGraceMins ?? 15)
+                    : (hrSettings.checkInGraceMins ?? 15);
+                const effectiveCheckOutGrace = hasCustomDeptShift
+                    ? (deptShift.checkOutGraceMins ?? 10)
+                    : (hrSettings.checkOutGraceMins ?? 10);
+
                 // Compute timing penalties and OT for preview
                 let totalLateHours = 0;
                 let totalEarlyHours = 0;
@@ -302,10 +312,10 @@ export default function PayslipsPage() {
                 let totalOvertimeHours = 0;
 
                 matchedLogs.forEach(log => {
-                    if (log.lateMinutes && log.lateMinutes > (hrSettings.checkInGraceMins || 0)) {
+                    if (log.lateMinutes && log.lateMinutes > effectiveCheckInGrace) {
                         totalLateHours += Math.ceil(log.lateMinutes / 60);
                     }
-                    if (log.earlyDepartureMinutes && log.earlyDepartureMinutes > (hrSettings.checkOutGraceMins || 0)) {
+                    if (log.earlyDepartureMinutes && log.earlyDepartureMinutes > effectiveCheckOutGrace) {
                         totalEarlyHours += Math.ceil(log.earlyDepartureMinutes / 60);
                     }
                     if (hrSettings.midDayOutEnabled && log.midDayOutMinutes && log.midDayOutMinutes > 0) {

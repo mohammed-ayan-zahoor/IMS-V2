@@ -897,7 +897,7 @@ export class StudentService {
     static async getStudentProfile(studentId, actorId) {
         // 1. Fetch Student Basic Info (Include disabled students so admins can see their profile)
         const student = await User.findOne({ _id: studentId, role: 'student' })
-            .select('-passwordHash -passwordResetToken -passwordResetExpires');
+            .select('-passwordHash -passwordResetToken -passwordResetExpires +aadharNumber +apaarId +penNumber +fatherAadhar +motherAadhar');
 
         if (!student) {
             return null;

@@ -27,19 +27,46 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "Batch ID is required" }, { status: 400 });
         }
 
-        const examId = params.id;
-        const exam = await OfflineExam.findOne({ _id: examId, institute: scope.instituteId, deletedAt: null });
+        const resolvedParams = await params;
+        const examId = resolvedParams?.id || params?.id;
+        const examQuery = { _id: examId, deletedAt: null };
+        if (scope.instituteId) examQuery.institute = scope.instituteId;
+
+        const exam = await OfflineExam.findOne(examQuery);
         if (!exam) return NextResponse.json({ error: "Exam not found" }, { status: 404 });
 
         // Fetch all students in the batch
-        const batch = await Batch.findOne({ _id: batchId, institute: scope.instituteId, deletedAt: null })
+        const batchQuery = { _id: batchId, deletedAt: null };
+        if (scope.instituteId) batchQuery.institute = scope.instituteId;
+
+        const batch = await Batch.findOne(batchQuery)
             .populate('enrolledStudents.student', 'profile.firstName profile.lastName profile.rollNumber enrollmentNumber');
         
         if (!batch) return NextResponse.json({ error: "Batch not found" }, { status: 404 });
 
-        const activeStudents = batch.enrolledStudents
-            .filter(e => ['active', 'completed'].includes(e.status) && e.student)
-            .map(e => e.student);
+        // ponytail: case-insensitive check and treat undefined/null status as active
+        let activeStudents = [];
+        if (batch.enrolledStudents && Array.isArray(batch.enrolledStudents)) {
+            activeStudents = batch.enrolledStudents
+                .filter(e => {
+                    if (!e || !e.student) return false;
+                    const st = (e.status || 'active').toLowerCase();
+                    return ['active', 'completed'].includes(st);
+                })
+                .map(e => e.student);
+        }
+
+        // Fallback: If no students in batch.enrolledStudents, check User model for students assigned to this batch
+        if (activeStudents.length === 0) {
+            activeStudents = await User.find({
+                role: 'student',
+                $or: [
+                    { batch: batchId },
+                    { 'assignments.batches': batchId }
+                ],
+                deletedAt: null
+            }).select('profile.firstName profile.lastName profile.rollNumber enrollmentNumber');
+        }
 
         // Fetch existing results
         const existingResults = await OfflineExamResult.find({
@@ -94,7 +121,8 @@ export async function POST(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const examId = params.id;
+        const resolvedParams = await params;
+        const examId = resolvedParams?.id || params?.id;
         const body = await req.json();
         const { batchId, studentResults } = body; // Array of { studentId, marks, coScholasticRatings, teacherRemarks, isReExam }
 

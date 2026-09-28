@@ -16,7 +16,6 @@ import 'package:student_app/features/timeline/presentation/screens/timeline_scre
 import 'package:student_app/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:student_app/features/notifications/presentation/providers/notifications_provider.dart';
-import 'package:student_app/features/dashboard/presentation/screens/app_shell.dart';
 import 'package:student_app/features/instructor/leaves/presentation/screens/instructor_leaves_screen.dart';
 import 'package:student_app/main.dart';
 
@@ -220,6 +219,9 @@ class NotificationService {
       case 'leave_approved':
       case 'leave_rejected':
       case 'leave':
+      case 'permission':
+      case 'gate_pass':
+      case 'out_pass':
         navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const InstructorLeavesScreen()));
         break;
       case 'notice':

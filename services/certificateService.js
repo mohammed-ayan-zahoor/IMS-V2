@@ -55,7 +55,7 @@ Handlebars.registerHelper('toUpperCase', (str) => {
  */
 export const getHydratedContext = async (studentId, instituteId, options = {}) => {
     const [student, institute] = await Promise.all([
-        User.findById(studentId),
+        User.findById(studentId).select('+aadharNumber +apaarId +penNumber +fatherAadhar +motherAadhar'),
         Institute.findById(instituteId)
     ]);
 

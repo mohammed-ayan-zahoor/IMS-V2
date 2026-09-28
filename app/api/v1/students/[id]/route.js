@@ -132,7 +132,7 @@ export async function PATCH(req, { params }) {
                 id,
                 { $set: updates },
                 { new: true, runValidators: true }
-            ).select("-passwordHash -passwordResetToken -passwordResetExpires");
+            ).select("-passwordHash -passwordResetToken -passwordResetExpires +aadharNumber +apaarId +penNumber +fatherAadhar +motherAadhar");
         }
 
         // specialized transport update

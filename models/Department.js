@@ -49,6 +49,33 @@ const DepartmentSchema = new Schema({
         default: true,
         index: true
     },
+    // Department-specific shift timings (optional override for institute defaults)
+    shiftTimings: {
+        useCustomShift: {
+            type: Boolean,
+            default: false
+        },
+        shiftStart: {
+            type: String,
+            default: '09:00',
+            trim: true
+        },
+        shiftEnd: {
+            type: String,
+            default: '18:00',
+            trim: true
+        },
+        checkInGraceMins: {
+            type: Number,
+            default: 15,
+            min: 0
+        },
+        checkOutGraceMins: {
+            type: Number,
+            default: 10,
+            min: 0
+        }
+    },
     createdBy: {
         type: Schema.Types.ObjectId,
         ref: 'User'

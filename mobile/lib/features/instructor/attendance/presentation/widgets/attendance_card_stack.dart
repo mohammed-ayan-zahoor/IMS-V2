@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:student_app/features/instructor/attendance/presentation/providers/instructor_attendance_provider.dart';
 import 'package:student_app/l10n/app_localizations.dart';
@@ -34,7 +35,7 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
 
     return Column(
       children: [
-        // Tally Bar
+        // Tally Bar (Clean flat Navy)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: const BoxDecoration(
@@ -50,91 +51,115 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
               _buildTallyItem(l10n?.absent ?? 'Absent', '${provider.absentCount}', const Color(0xFFF87171)),
               _buildTallyDivider(),
               _buildTallyItem(l10n?.late ?? 'Late', '${provider.lateCount}', const Color(0xFFFBBF24)),
+              _buildTallyDivider(),
+              _buildTallyItem('Holiday', '${provider.holidayCount}', const Color(0xFFA5B4FC)),
             ],
           ),
         ),
 
-        // Controls bar: Search + Mark All Present
+        // Controls bar: Search + Mark All Present + Mark All Holiday
         Container(
           color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
           child: Column(
             children: [
+              TextField(
+                onChanged: (val) => setState(() => _searchQuery = val),
+                decoration: InputDecoration(
+                  hintText: l10n?.searchStudentHint ?? 'Search student...',
+                  hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF545F72)),
+                  prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF545F72)),
+                  filled: true,
+                  fillColor: const Color(0xFFEFF4FF),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    borderSide: const BorderSide(color: Color(0xFFC4C6CF)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    borderSide: const BorderSide(color: Color(0xFFC4C6CF)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    borderSide: const BorderSide(color: Color(0xFF002045), width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      onChanged: (val) => setState(() => _searchQuery = val),
-                      decoration: InputDecoration(
-                        hintText: l10n?.searchStudentHint ?? 'Search student...',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
+                    child: ElevatedButton.icon(
+                      onPressed: () => provider.markAllPresent(),
+                      icon: const Icon(Icons.done_all_rounded, size: 16, color: Colors.white),
+                      label: Text(
+                        l10n?.markAllPresent ?? 'All Present',
+                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF002045),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => provider.markAllPresent(),
-                    icon: const Icon(Icons.done_all_rounded, size: 16, color: Colors.white),
-                    label: Text(
-                      l10n?.markAllPresent ?? 'All Present',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => provider.markAllHoliday(),
+                      icon: const Icon(Icons.beach_access_outlined, size: 16, color: Color(0xFF6366F1)),
+                      label: Text(
+                        'Mark Holiday',
+                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF6366F1)),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFC7D2FE)),
+                        backgroundColor: const Color(0xFFEEF2FF),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              // Filter Chips
+              const SizedBox(height: 8),
+              // Filter chips row
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _buildFilterChip('ALL', 'All (${provider.totalCount})'),
-                    const SizedBox(width: 8),
+                    _buildFilterChip('ALL', 'All (${students.length})'),
+                    const SizedBox(width: 6),
                     _buildFilterChip('present', '${l10n?.present ?? 'Present'} (${provider.presentCount})'),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     _buildFilterChip('absent', '${l10n?.absent ?? 'Absent'} (${provider.absentCount})'),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     _buildFilterChip('late', '${l10n?.late ?? 'Late'} (${provider.lateCount})'),
+                    const SizedBox(width: 6),
+                    _buildFilterChip('holiday', 'Holiday (${provider.holidayCount})'),
                   ],
                 ),
               ),
             ],
           ),
         ),
+        const Divider(height: 1, color: Color(0xFFC4C6CF)),
 
-        const Divider(height: 1, color: Color(0xFFE2E8F0)),
-
-        // Student Roster Cards
+        // Student Roster List
         Expanded(
           child: filtered.isEmpty
               ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.people_outline, size: 48, color: Color(0xFF94A3B8)),
+                      const Icon(Icons.person_search_outlined, size: 48, color: Color(0xFF545F72)),
                       const SizedBox(height: 8),
                       Text(
                         l10n?.emptyState ?? 'No students found',
-                        style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                        style: GoogleFonts.inter(color: const Color(0xFF545F72), fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
@@ -151,21 +176,16 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(4),
                         border: Border.all(
                           color: currentStatus == 'absent'
                               ? const Color(0xFFFECDD3)
                               : currentStatus == 'late'
                                   ? const Color(0xFFFDE68A)
-                                  : const Color(0xFFE2E8F0),
+                                  : currentStatus == 'holiday'
+                                      ? const Color(0xFFC7D2FE)
+                                      : const Color(0xFFC4C6CF),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
                       child: Column(
                         children: [
@@ -173,13 +193,13 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
                             children: [
                               CircleAvatar(
                                 radius: 18,
-                                backgroundColor: const Color(0xFFEFF6FF),
+                                backgroundColor: const Color(0xFF002045),
                                 child: Text(
                                   student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontWeight: FontWeight.bold,
                                     fontSize: 14,
-                                    color: Color(0xFF2563EB),
+                                    color: Colors.white,
                                   ),
                                 ),
                               ),
@@ -192,18 +212,18 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
                                       student.name,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF0F172A),
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color(0xFF0D1C2E),
                                       ),
                                     ),
                                     if (student.enrollmentNumber.isNotEmpty)
                                       Text(
                                         'Roll: ${student.enrollmentNumber}',
-                                        style: const TextStyle(
+                                        style: GoogleFonts.inter(
                                           fontSize: 11,
-                                          color: Color(0xFF64748B),
+                                          color: const Color(0xFF545F72),
                                         ),
                                       ),
                                   ],
@@ -213,31 +233,39 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
                             ],
                           ),
                           const SizedBox(height: 10),
-                          // 3-button status toggle
+                          // 4-button status toggle with radius 4
                           Row(
                             children: [
                               _buildToggleButton(
                                 label: l10n?.present ?? 'Present',
                                 isSelected: currentStatus == 'present',
-                                activeColor: const Color(0xFF10B981),
-                                activeBg: const Color(0xFFECFDF5),
+                                activeColor: const Color(0xFF16A34A),
+                                activeBg: const Color(0xFFDCFCE7),
                                 onTap: () => provider.setStatus(student.id, 'present'),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               _buildToggleButton(
                                 label: l10n?.absent ?? 'Absent',
                                 isSelected: currentStatus == 'absent',
-                                activeColor: const Color(0xFFEF4444),
-                                activeBg: const Color(0xFFFEF2F2),
+                                activeColor: const Color(0xFFDC2626),
+                                activeBg: const Color(0xFFFEE2E2),
                                 onTap: () => provider.setStatus(student.id, 'absent'),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               _buildToggleButton(
                                 label: l10n?.late ?? 'Late',
                                 isSelected: currentStatus == 'late',
-                                activeColor: const Color(0xFFF59E0B),
-                                activeBg: const Color(0xFFFFFBEB),
+                                activeColor: const Color(0xFFD97706),
+                                activeBg: const Color(0xFFFEF3C7),
                                 onTap: () => provider.setStatus(student.id, 'late'),
+                              ),
+                              const SizedBox(width: 6),
+                              _buildToggleButton(
+                                label: 'Holiday',
+                                isSelected: currentStatus == 'holiday',
+                                activeColor: const Color(0xFF6366F1),
+                                activeBg: const Color(0xFFEEF2FF),
+                                onTap: () => provider.setStatus(student.id, 'holiday'),
                               ),
                             ],
                           ),
@@ -256,16 +284,16 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
       children: [
         Text(
           count,
-          style: TextStyle(
+          style: GoogleFonts.hankenGrotesk(
             color: color,
             fontSize: 16,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF94A3B8),
+          style: GoogleFonts.inter(
+            color: const Color(0xFF94A3B8),
             fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
@@ -286,19 +314,22 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
     final isSelected = _statusFilter == key;
     return InkWell(
       onTap: () => setState(() => _statusFilter = key),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(4),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF002045) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? const Color(0xFF002045) : const Color(0xFFEFF4FF),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF002045) : const Color(0xFFC4C6CF),
+          ),
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? Colors.white : const Color(0xFF475569),
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.white : const Color(0xFF002045),
           ),
         ),
       ),
@@ -321,6 +352,11 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
         fg = const Color(0xFFD97706);
         label = l10n?.late ?? 'Late';
         break;
+      case 'holiday':
+        bg = const Color(0xFFEEF2FF);
+        fg = const Color(0xFF6366F1);
+        label = 'Holiday';
+        break;
       case 'present':
       default:
         bg = const Color(0xFFDCFCE7);
@@ -333,11 +369,11 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg),
+        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: fg),
       ),
     );
   }
@@ -352,24 +388,24 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 7),
           decoration: BoxDecoration(
-            color: isSelected ? activeBg : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(8),
+            color: isSelected ? activeBg : Colors.white,
+            borderRadius: BorderRadius.circular(4),
             border: Border.all(
-              color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+              color: isSelected ? activeColor : const Color(0xFFC4C6CF),
               width: isSelected ? 1.5 : 1,
             ),
           ),
           child: Center(
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                color: isSelected ? activeColor : const Color(0xFF64748B),
+              style: GoogleFonts.inter(
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? activeColor : const Color(0xFF545F72),
               ),
             ),
           ),

@@ -7,6 +7,10 @@ class InstructorMaterialItem {
   final String? batchName;
   final bool allowSubmissions;
   final int? totalMarks;
+  final String? dueDate;
+  final String? type;
+  final String? category;
+  final int? fileSize;
   final String? createdAt;
 
   InstructorMaterialItem({
@@ -18,8 +22,30 @@ class InstructorMaterialItem {
     this.batchName,
     required this.allowSubmissions,
     this.totalMarks,
+    this.dueDate,
+    this.type,
+    this.category,
+    this.fileSize,
     this.createdAt,
   });
+
+  bool get isAssignment => allowSubmissions || category == 'assignment';
+  bool get isVideo =>
+      type == 'video' ||
+      (fileUrl?.contains('youtube.com') == true) ||
+      (fileUrl?.contains('youtu.be') == true);
+  bool get isPdf =>
+      fileUrl?.toLowerCase().endsWith('.pdf') == true || type == 'document';
+
+  String get formattedSize {
+    if (fileSize != null && fileSize! > 0) {
+      if (fileSize! > 1024 * 1024) {
+        return '${(fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB';
+      }
+      return '${(fileSize! / 1024).toStringAsFixed(1)} KB';
+    }
+    return isPdf ? 'PDF' : isVideo ? 'Video' : 'Resource';
+  }
 
   factory InstructorMaterialItem.fromJson(Map<String, dynamic> json) {
     String? course;
@@ -37,8 +63,12 @@ class InstructorMaterialItem {
     }
 
     String? url;
+    int? size;
+    String? fileType;
     if (json['file'] is Map) {
       url = json['file']['url']?.toString();
+      size = int.tryParse(json['file']['size']?.toString() ?? '');
+      fileType = json['file']['type']?.toString();
     } else if (json['url'] != null) {
       url = json['url'].toString();
     }
@@ -52,6 +82,10 @@ class InstructorMaterialItem {
       batchName: batch,
       allowSubmissions: json['allowSubmissions'] == true,
       totalMarks: json['totalMarks'] != null ? int.tryParse(json['totalMarks'].toString()) : null,
+      dueDate: json['dueDate']?.toString(),
+      type: (json['type'] ?? fileType)?.toString(),
+      category: json['category']?.toString(),
+      fileSize: size,
       createdAt: json['createdAt']?.toString(),
     );
   }
@@ -81,17 +115,40 @@ class StudentSubmissionItem {
   factory StudentSubmissionItem.fromJson(Map<String, dynamic> json) {
     String name = 'Student';
     String? roll;
-    if (json['student'] is Map) {
-      final st = json['student'];
-      if (st['profile'] is Map) {
-        final first = st['profile']['firstName']?.toString() ?? '';
-        final last = st['profile']['lastName']?.toString() ?? '';
-        name = '$first $last'.trim();
-      } else if (st['name'] != null) {
-        name = st['name'].toString();
+
+    final st = (json['student'] is Map) ? json['student'] : json;
+    final direct = (st['name'] ?? st['fullName'] ?? json['name'] ?? json['fullName'])?.toString().trim();
+    if (direct != null && direct.isNotEmpty && direct.toLowerCase() != 'student') {
+      name = direct;
+    } else if (st['profile'] is Map) {
+      final first = st['profile']['firstName']?.toString().trim() ?? '';
+      final last = st['profile']['lastName']?.toString().trim() ?? '';
+      final full = '$first $last'.trim();
+      if (full.isNotEmpty) name = full;
+    } else if (st['user'] is Map) {
+      final u = st['user'];
+      final uName = (u['name'] ?? u['fullName'])?.toString().trim();
+      if (uName != null && uName.isNotEmpty) {
+        name = uName;
+      } else if (u['profile'] is Map) {
+        final first = u['profile']['firstName']?.toString().trim() ?? '';
+        final last = u['profile']['lastName']?.toString().trim() ?? '';
+        final full = '$first $last'.trim();
+        if (full.isNotEmpty) name = full;
       }
-      roll = (st['enrollmentNumber'] ?? st['rollNumber'])?.toString();
     }
+
+    if (name == 'Student') {
+      final email = (st['email'] ?? st['user']?['email'])?.toString().trim();
+      if (email != null && email.contains('@')) {
+        final prefix = email.split('@').first.replaceAll('.', ' ').replaceAll('_', ' ');
+        if (prefix.trim().isNotEmpty) {
+          name = prefix.split(' ').where((w) => w.isNotEmpty).map((w) => '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
+        }
+      }
+    }
+
+    roll = (st['enrollmentNumber'] ?? st['rollNumber'] ?? json['enrollmentNumber'] ?? json['rollNumber'])?.toString();
 
     String? url;
     if (json['file'] is Map) {

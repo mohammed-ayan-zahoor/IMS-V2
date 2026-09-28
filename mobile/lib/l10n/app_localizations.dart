@@ -313,7 +313,7 @@ abstract class AppLocalizations {
   /// No description provided for @uploadNotes.
   ///
   /// In en, this message translates to:
-  /// **'Upload Notes'**
+  /// **'Upload Material'**
   String get uploadNotes;
 
   /// No description provided for @uploadMaterial.

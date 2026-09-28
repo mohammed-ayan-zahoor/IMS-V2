@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { UserCheck, Calendar, Search, Loader2, Save, CheckCircle2, XCircle, Clock, Moon, AlertTriangle, ScanLine, Camera } from "lucide-react";
+import { UserCheck, Calendar, Search, Loader2, Save, CheckCircle2, XCircle, Clock, Moon, AlertTriangle, ScanLine, Camera, Fingerprint } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -27,6 +27,8 @@ export default function StaffAttendancePage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [roleFilter, setRoleFilter] = useState("all");
     const [designationFilter, setDesignationFilter] = useState("all");
+    const [departments, setDepartments] = useState([]);
+    const [departmentFilter, setDepartmentFilter] = useState("all");
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
     const [records, setRecords] = useState([]);
     const [originalRecords, setOriginalRecords] = useState([]);
@@ -38,6 +40,14 @@ export default function StaffAttendancePage() {
     const [checkInEnd, setCheckInEnd] = useState("09:30");
     const [checkOutStart, setCheckOutStart] = useState("16:00");
     const [checkOutEnd, setCheckOutEnd] = useState("18:00");
+
+    // Load departments
+    useEffect(() => {
+        fetch("/api/v1/departments")
+            .then(res => res.json())
+            .then(data => setDepartments(data.departments || []))
+            .catch(err => console.error("Failed to load departments in attendance:", err));
+    }, []);
 
     // Load saved timings from localStorage
     useEffect(() => {
@@ -152,13 +162,25 @@ export default function StaffAttendancePage() {
         toast.info(`Marked all staff as ${status.replace('_', ' ')}`);
     };
 
+    const markUnpunchedAbsent = () => {
+        setRecords(prev => prev.map(rec => {
+            if (!rec.checkInTime && (!rec.attendanceId || rec.status === 'present')) {
+                return { ...rec, status: 'absent', remarks: 'Unpunched absence' };
+            }
+            return rec;
+        }));
+        toast.info("Marked unpunched staff as absent");
+    };
+
     // Filters
     const filteredRecords = records.filter(rec => {
         if (!rec.staff) return false;
         const name = `${rec.staff.profile?.firstName || ''} ${rec.staff.profile?.lastName || ''}`.toLowerCase();
         const matchesSearch = name.includes(searchQuery.toLowerCase());
         const matchesRole = roleFilter === "all" || (roleFilter === "instructor" ? rec.staff.role === 'instructor' : rec.staff.role === 'staff');
-        return matchesSearch && matchesRole;
+        const deptId = rec.staff.department?._id || rec.staff.department;
+        const matchesDept = departmentFilter === "all" || (deptId && deptId.toString() === departmentFilter);
+        return matchesSearch && matchesRole && matchesDept;
     });
 
     // Counts
@@ -294,7 +316,7 @@ export default function StaffAttendancePage() {
 
             {/* Filter and Bulk Controls */}
             <div className="bg-white rounded-xl border border-slate-200/80 p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-                <div className="flex items-center gap-3 flex-1 max-w-lg">
+                <div className="flex items-center gap-3 flex-1 max-w-xl">
                     <div className="relative flex-1">
                         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
@@ -305,13 +327,24 @@ export default function StaffAttendancePage() {
                             className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 outline-none focus:border-slate-400 text-xs font-medium"
                         />
                     </div>
+                    <select
+                        value={departmentFilter}
+                        onChange={(e) => setDepartmentFilter(e.target.value)}
+                        className="w-48 text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 outline-none focus:border-slate-400 font-medium shrink-0"
+                    >
+                        <option value="all">All Departments</option>
+                        {departments.map((dept) => (
+                            <option key={dept._id} value={dept._id}>{dept.name}</option>
+                        ))}
+                    </select>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-semibold text-slate-500 mr-1">Mark All As:</span>
                     <button type="button" onClick={() => markAllStatus('present')} className="px-2.5 py-1 rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors">Present</button>
                     <button type="button" onClick={() => markAllStatus('absent')} className="px-2.5 py-1 rounded-md border border-rose-300 bg-rose-50 text-rose-700 text-xs font-semibold hover:bg-rose-100 transition-colors">Absent</button>
                     <button type="button" onClick={() => markAllStatus('holiday')} className="px-2.5 py-1 rounded-md border border-slate-300 bg-slate-50 text-slate-700 text-xs font-semibold hover:bg-slate-100 transition-colors">Holiday</button>
+                    <button type="button" onClick={markUnpunchedAbsent} className="px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition-colors" title="Mark staff who have not punched as Absent">Unpunched → Absent</button>
                 </div>
             </div>
 
@@ -325,6 +358,7 @@ export default function StaffAttendancePage() {
                             <thead>
                                 <tr className="bg-slate-50/50 border-b border-slate-200/80">
                                     <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Staff Member</th>
+                                    <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Department & Shift</th>
                                     <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Designation</th>
                                     <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Role</th>
                                     <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Face Biometrics</th>
@@ -339,10 +373,48 @@ export default function StaffAttendancePage() {
                                         <tr key={rec.staff._id} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-5 py-3.5">
                                                 <div className="flex flex-col">
-                                                    <span className="text-xs font-bold text-slate-900">
-                                                        {rec.staff.profile?.firstName || ''} {rec.staff.profile?.lastName || ''}
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span className="text-xs font-bold text-slate-900">
+                                                            {rec.staff.profile?.firstName || ''} {rec.staff.profile?.lastName || ''}
+                                                        </span>
+                                                        {rec.source === 'biometric' && (
+                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-violet-50 text-violet-700 border border-violet-200" title="Recorded via Thumb Biometric Machine">
+                                                                <Fingerprint size={10} className="text-violet-600" /> Biometric
+                                                            </span>
+                                                        )}
+                                                        {rec.staff.hrDetails?.biometricId && rec.source !== 'biometric' && (
+                                                            <span className="text-[9px] text-slate-400 font-mono" title="Registered Biometric ID">
+                                                                ID: {rec.staff.hrDetails.biometricId}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                        <span className="text-[10px] text-slate-400 font-medium">{rec.staff.email}</span>
+                                                        {rec.checkInTime && (
+                                                            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 rounded">
+                                                                In: {rec.checkInTime}
+                                                            </span>
+                                                        )}
+                                                        {rec.checkOutTime && (
+                                                            <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-1 rounded">
+                                                                Out: {rec.checkOutTime}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-semibold text-slate-800">
+                                                        {rec.staff.department?.name || "General / No Dept"}
                                                     </span>
-                                                    <span className="text-[10px] text-slate-400 font-medium">{rec.staff.email}</span>
+                                                    <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                                                        <Clock size={11} className={rec.effectiveShift?.isDepartmentShift ? "text-indigo-600" : "text-slate-400"} />
+                                                        {rec.effectiveShift ? `${rec.effectiveShift.shiftStart} - ${rec.effectiveShift.shiftEnd}` : "09:00 - 18:00"}
+                                                        {rec.effectiveShift?.isDepartmentShift && (
+                                                            <span className="text-[9px] bg-indigo-50 text-indigo-700 px-1 rounded font-bold">Custom</span>
+                                                        )}
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td className="px-5 py-3.5 text-xs font-semibold text-slate-600">

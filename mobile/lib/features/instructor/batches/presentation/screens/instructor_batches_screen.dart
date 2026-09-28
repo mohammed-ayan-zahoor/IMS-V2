@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:student_app/features/instructor/batches/presentation/providers/instructor_batches_provider.dart';
 import 'package:student_app/l10n/app_localizations.dart';
@@ -30,166 +31,194 @@ class _InstructorBatchesScreenState extends State<InstructorBatchesScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF8F9FF),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
         elevation: 0,
         title: Text(
           l10n?.myBatches ?? 'My Batches',
-          style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontSize: 17),
+          style: GoogleFonts.hankenGrotesk(
+            color: const Color(0xFF002045),
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-            child: TextField(
-              onChanged: (val) => setState(() => _searchQuery = val),
-              decoration: InputDecoration(
-                hintText: l10n?.searchBatchesHint ?? 'Search batches or courses...',
-                hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF64748B)),
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: TextField(
+                onChanged: (val) => setState(() => _searchQuery = val),
+                decoration: InputDecoration(
+                  hintText: l10n?.searchBatchesHint ?? 'Search batches or courses...',
+                  hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF545F72)),
+                  prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF545F72)),
+                  filled: true,
+                  fillColor: const Color(0xFFEFF4FF),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    borderSide: const BorderSide(color: Color(0xFFC4C6CF)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    borderSide: const BorderSide(color: Color(0xFFC4C6CF)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    borderSide: const BorderSide(color: Color(0xFF002045), width: 1.5),
+                  ),
                 ),
               ),
             ),
-          ),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => provider.loadBatches(refresh: true),
-              color: const Color(0xFF002045),
-              child: provider.isLoading && provider.batches.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : filtered.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.groups_outlined, size: 48, color: Color(0xFF94A3B8)),
-                              const SizedBox(height: 10),
-                              Text(
-                                l10n?.emptyState ?? 'No batches found',
-                                style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final batch = filtered[index];
-                            return Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFFF1F5F9)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.02),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
+            const Divider(height: 1, color: Color(0xFFC4C6CF)),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => provider.loadBatches(refresh: true),
+                color: const Color(0xFF002045),
+                child: provider.isLoading && provider.batches.isEmpty
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF002045)))
+                    : filtered.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.groups_outlined, size: 54, color: Color(0xFF545F72)),
+                                const SizedBox(height: 12),
+                                Text(
+                                  l10n?.emptyState ?? 'No batches found',
+                                  style: GoogleFonts.hankenGrotesk(
+                                    color: const Color(0xFF0D1C2E),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFEFF6FF),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: const Icon(Icons.meeting_room_rounded, color: Color(0xFF2563EB), size: 22),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              batch.name,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w700,
-                                                color: Color(0xFF0F172A),
-                                              ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final batch = filtered[index];
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: const Color(0xFFC4C6CF)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Top Row: Class / Course Name (Highlighted) + Section Badge
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            batch.courseName.isNotEmpty ? batch.courseName : 'Class ${batch.name}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.hankenGrotesk(
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.bold,
+                                              color: const Color(0xFF0D1C2E),
                                             ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              batch.courseName,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                color: Color(0xFF64748B),
-                                              ),
-                                            ),
-                                          ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 14),
-                                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.people_outline, size: 16, color: Color(0xFF64748B)),
-                                          const SizedBox(width: 6),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEFF4FF),
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: const Color(0xFFC7D2FE)),
+                                          ),
+                                          child: Text(
+                                            'Section ${batch.name}',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: const Color(0xFF002045),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    // Meta info: Enrolled Students + Timing
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.people_outline, size: 15, color: Color(0xFF545F72)),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          '${batch.studentCount} Students Enrolled',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w500,
+                                            color: const Color(0xFF545F72),
+                                          ),
+                                        ),
+                                        if (batch.timing != null && batch.timing!.isNotEmpty) ...[
+                                          const SizedBox(width: 14),
+                                          const Icon(Icons.schedule, size: 14, color: Color(0xFF545F72)),
+                                          const SizedBox(width: 4),
                                           Text(
-                                            '${batch.studentCount} Students',
-                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                                            batch.timing!,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              color: const Color(0xFF545F72),
+                                            ),
                                           ),
                                         ],
-                                      ),
-                                      ElevatedButton.icon(
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                                    const SizedBox(height: 12),
+                                    // Dedicated, properly-sized and spaced CTA Button
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
                                         onPressed: () {
                                           widget.onTakeAttendance?.call(batch.id);
                                         },
-                                        icon: const Icon(Icons.how_to_reg_rounded, size: 16, color: Colors.white),
+                                        icon: const Icon(Icons.fact_check_outlined, size: 16, color: Colors.white),
                                         label: Text(
-                                          l10n?.markAttendance ?? 'Attendance',
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                                          l10n?.markAttendance ?? 'Mark Attendance',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
                                         ),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: const Color(0xFF002045),
-                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                           elevation: 0,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          padding: const EdgeInsets.symmetric(vertical: 11),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

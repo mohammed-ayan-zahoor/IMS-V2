@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/features/instructor/dashboard/presentation/providers/instructor_dashboard_provider.dart';
 import 'package:student_app/l10n/app_localizations.dart';
 
@@ -49,7 +51,7 @@ class _PostNoticeSheetState extends State<PostNoticeSheet> {
     setState(() => _isSubmitting = true);
 
     final provider = context.read<InstructorDashboardProvider>();
-    final success = await provider.publishNotice(
+    final error = await provider.publishNotice(
       title: title,
       content: message,
       category: _selectedCategory,
@@ -57,7 +59,7 @@ class _PostNoticeSheetState extends State<PostNoticeSheet> {
 
     if (mounted) {
       setState(() => _isSubmitting = false);
-      if (success) {
+      if (error == null) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -67,9 +69,10 @@ class _PostNoticeSheetState extends State<PostNoticeSheet> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to publish notice. Please try again.'),
-            backgroundColor: Color(0xFFBA1A1A),
+          SnackBar(
+            content: Text(error),
+            backgroundColor: const Color(0xFFBA1A1A),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -79,7 +82,9 @@ class _PostNoticeSheetState extends State<PostNoticeSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final auth = context.watch<AuthProvider>();
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final canPublish = auth.hasPermission('manage_notices');
 
     final categories = [
       {'key': 'GENERAL', 'label': l10n?.noticeCategoryGeneral ?? 'General'},
@@ -91,7 +96,7 @@ class _PostNoticeSheetState extends State<PostNoticeSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       padding: EdgeInsets.fromLTRB(20, 14, 20, 24 + bottomInset),
       child: SingleChildScrollView(
@@ -104,7 +109,7 @@ class _PostNoticeSheetState extends State<PostNoticeSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
+                  color: const Color(0xFFC4C6CF),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -112,38 +117,60 @@ class _PostNoticeSheetState extends State<PostNoticeSheet> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.campaign_rounded,
-                    color: Color(0xFFD97706),
-                    size: 24,
-                  ),
+                const Icon(
+                  Icons.campaign,
+                  color: Color(0xFF002045),
+                  size: 24,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     l10n?.postNotice ?? 'Post Notice',
-                    style: const TextStyle(
+                    style: GoogleFonts.hankenGrotesk(
                       fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF0D1C2E),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            if (!canPublish)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.lock_outline, color: Color(0xFFD97706), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Permission Required: Your instructor account currently does not have "manage_notices" assigned. Only administrators or authorized teachers can post notices.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: const Color(0xFF92400E),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             Text(
               l10n?.noticeTitle ?? 'Notice Title',
-              style: const TextStyle(
-                fontSize: 13,
+              style: GoogleFonts.inter(
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF475569),
+                color: const Color(0xFF545F72),
               ),
             ),
             const SizedBox(height: 6),
@@ -151,66 +178,63 @@ class _PostNoticeSheetState extends State<PostNoticeSheet> {
               controller: _titleController,
               decoration: InputDecoration(
                 hintText: 'e.g. Unit Test Schedule Announced',
-                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                hintStyle: GoogleFonts.inter(color: const Color(0xFF545F72).withValues(alpha: 0.6), fontSize: 13),
                 filled: true,
-                fillColor: const Color(0xFFF8FAFC),
+                fillColor: const Color(0xFFEFF4FF),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(color: Color(0xFFC4C6CF)),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(color: Color(0xFFC4C6CF)),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(color: Color(0xFF002045), width: 1.5),
                 ),
               ),
             ),
             const SizedBox(height: 14),
-            const Text(
+            Text(
               'Category',
-              style: TextStyle(
-                fontSize: 13,
+              style: GoogleFonts.inter(
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF475569),
+                color: const Color(0xFF545F72),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: categories.map((cat) {
-                final isSelected = cat['key'] == _selectedCategory;
+                final isSelected = _selectedCategory == cat['key'];
                 return ChoiceChip(
                   label: Text(cat['label']!),
                   selected: isSelected,
-                  selectedColor: const Color(0xFFEFF6FF),
-                  backgroundColor: const Color(0xFFF8FAFC),
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF475569),
-                  ),
-                  side: BorderSide(
-                    color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
-                  ),
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() => _selectedCategory = cat['key']!);
-                    }
+                  onSelected: (val) {
+                    if (val) setState(() => _selectedCategory = cat['key']!);
                   },
+                  selectedColor: const Color(0xFF002045),
+                  backgroundColor: const Color(0xFFEFF4FF),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  labelStyle: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected ? Colors.white : const Color(0xFF002045),
+                  ),
                 );
               }).toList(),
             ),
             const SizedBox(height: 14),
             Text(
-              l10n?.noticeMessage ?? 'Message Content',
-              style: const TextStyle(
-                fontSize: 13,
+              'Notice Content',
+              style: GoogleFonts.inter(
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF475569),
+                color: const Color(0xFF545F72),
               ),
             ),
             const SizedBox(height: 6),
@@ -218,70 +242,53 @@ class _PostNoticeSheetState extends State<PostNoticeSheet> {
               controller: _messageController,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Write announcement details here...',
-                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                hintText: 'Enter full announcement details for students...',
+                hintStyle: GoogleFonts.inter(color: const Color(0xFF545F72).withValues(alpha: 0.6), fontSize: 13),
                 filled: true,
-                fillColor: const Color(0xFFF8FAFC),
+                fillColor: const Color(0xFFEFF4FF),
                 contentPadding: const EdgeInsets.all(14),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(color: Color(0xFFC4C6CF)),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(color: Color(0xFFC4C6CF)),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(color: Color(0xFF002045), width: 1.5),
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    ),
-                    child: Text(
-                      l10n?.cancel ?? 'Cancel',
-                      style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w600),
-                    ),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _isSubmitting ? null : _submitNotice,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF002045),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submitNotice,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF002045),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
-                    ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : Text(
-                            l10n?.publishNotice ?? 'Publish Notice',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : Text(
+                        'Publish Notice',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+              ),
             ),
           ],
         ),

@@ -19,6 +19,16 @@ class InstructorBatchDetail {
     this.room,
   });
 
+  String? get timing {
+    if (startTime != null && startTime!.isNotEmpty) {
+      if (endTime != null && endTime!.isNotEmpty) {
+        return '$startTime - $endTime';
+      }
+      return startTime;
+    }
+    return null;
+  }
+
   factory InstructorBatchDetail.fromJson(Map<String, dynamic> json) {
     String course = 'General Course';
     if (json['course'] is Map) {

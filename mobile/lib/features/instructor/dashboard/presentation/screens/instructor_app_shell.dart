@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:student_app/core/providers/academic_session_provider.dart';
 import 'package:student_app/features/instructor/attendance/presentation/providers/instructor_attendance_provider.dart';
@@ -93,9 +94,9 @@ class _InstructorAppShellState extends State<InstructorAppShell> {
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
           selectedItemColor: const Color(0xFF002045),
-          unselectedItemColor: const Color(0xFF64748B),
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+          unselectedItemColor: const Color(0xFF545F72),
+          selectedLabelStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold),
+          unselectedLabelStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500),
           elevation: 0,
           items: [
             BottomNavigationBarItem(

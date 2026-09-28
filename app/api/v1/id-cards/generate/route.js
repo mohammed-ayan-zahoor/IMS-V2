@@ -118,7 +118,7 @@ export async function POST(req) {
         const students = await User.find({ 
             _id: { $in: studentIds },
             institute: scope.instituteId
-        }).lean();
+        }).select('+aadharNumber +apaarId +penNumber +fatherAadhar +motherAadhar').lean();
 
         if (students.length === 0) {
             return NextResponse.json(

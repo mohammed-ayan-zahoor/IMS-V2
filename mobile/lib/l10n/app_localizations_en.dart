@@ -111,7 +111,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchMaterialsHint => 'Search study materials...';
 
   @override
-  String get uploadNotes => 'Upload Notes';
+  String get uploadNotes => 'Upload Material';
 
   @override
   String get uploadMaterial => 'Upload Material';
