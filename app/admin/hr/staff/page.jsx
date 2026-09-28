@@ -353,7 +353,7 @@ export default function StaffDirectoryPage() {
     };
 
     return (
-        <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-6 w-full">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-5">
                 <div>
@@ -680,24 +680,24 @@ export default function StaffDirectoryPage() {
                                             </td>
 
                                             <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-1.5">
+                                                <div className="flex items-center justify-end gap-2">
                                                     <Button
                                                         size="sm"
-                                                        variant="secondary"
+                                                        variant="outline"
                                                         onClick={() => handleOpenEditModal(member)}
-                                                        className="flex items-center gap-1 text-xs px-2.5 py-1.5 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
+                                                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-xs font-semibold"
                                                         title="Edit Staff Member & Department"
                                                     >
-                                                        <Edit3 className="w-3.5 h-3.5" />
+                                                        <Edit3 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                                                         Edit
                                                     </Button>
                                                     <Link href={`/admin/hr/staff/${member._id}`}>
                                                         <Button
                                                             size="sm"
-                                                            variant="secondary"
-                                                            className="flex items-center gap-1 text-xs px-2.5 py-1.5 border-slate-300 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600"
+                                                            variant="primary"
+                                                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white shadow-xs border border-slate-900"
                                                         >
-                                                            <Eye className="w-3.5 h-3.5" />
+                                                            <Eye className="w-3.5 h-3.5 text-slate-300" />
                                                             Profile & Payroll
                                                         </Button>
                                                     </Link>
