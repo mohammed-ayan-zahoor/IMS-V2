@@ -63,6 +63,12 @@ const HRSettingsSchema = new Schema({
         type: String,
         trim: true,
         index: true
+    },
+    // Device serial number (shown on device screen or sticker) — used for iClock push matching
+    biometricDeviceSerial: {
+        type: String,
+        trim: true,
+        index: true
     }
 }, { timestamps: true });
 

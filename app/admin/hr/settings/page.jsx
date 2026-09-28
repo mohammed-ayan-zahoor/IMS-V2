@@ -578,15 +578,15 @@ export default function HRSettingsPage() {
 
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Webhook Endpoint */}
+                            {/* iClock Direct Push URL — what goes into device menu */}
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                    Biometric Cloud Webhook URL
+                                    Device Server Address <span className="font-normal text-gray-400">(enter this in device menu)</span>
                                 </label>
                                 <div className="flex gap-2">
                                     <Input
                                         readOnly
-                                        value={typeof window !== 'undefined' ? `${window.location.origin}/api/v1/hr/attendance/biometric` : "https://imsportal.3ftech.in/api/v1/hr/attendance/biometric"}
+                                        value="imsportal.3ftech.in"
                                         className="font-mono text-xs bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
                                     />
                                     <Button
@@ -594,27 +594,23 @@ export default function HRSettingsPage() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => {
-                                            const url = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/hr/attendance/biometric` : "https://imsportal.3ftech.in/api/v1/hr/attendance/biometric";
-                                            navigator.clipboard.writeText(url);
-                                            setCopiedUrl(true);
-                                            setTimeout(() => setCopiedUrl(false), 2000);
-                                            toast.success("Webhook URL copied to clipboard");
+                                            navigator.clipboard.writeText("imsportal.3ftech.in");
+                                            toast.success("Server address copied");
                                         }}
                                         className="shrink-0 bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
                                     >
-                                        {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
-                                        {copiedUrl ? "Copied" : "Copy"}
+                                        <Copy className="w-3.5 h-3.5 text-slate-500" /> Copy
                                     </Button>
                                 </div>
                                 <p className="text-[11px] text-gray-400 mt-1">
-                                    Configure this URL in your device ADMS / Cloud Server settings.
+                                    Port: <strong>443</strong> · HTTPS: <strong>ON</strong> · Path: <em>leave blank</em>
                                 </p>
                             </div>
 
                             {/* Biometric Secret Key */}
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                    Institute Biometric API Key (`x-biometric-key`)
+                                    Institute Biometric API Key
                                 </label>
                                 <div className="flex gap-2">
                                     <Input
@@ -651,7 +647,7 @@ export default function HRSettingsPage() {
                                     </Button>
                                 </div>
                                 <p className="text-[11px] text-gray-400 mt-1">
-                                    Secret token authenticating punch logs pushed from your hardware.
+                                    Not needed if using direct device push — only needed for the LAN bridge script.
                                 </p>
                             </div>
                         </div>
@@ -660,20 +656,21 @@ export default function HRSettingsPage() {
                         <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
                             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                                 <Info className="w-4 h-4 text-indigo-600" />
-                                How Biometric Attendance Works
+                                How to Connect the Device (No PC needed)
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-slate-600 dark:text-slate-400">
                                 <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">1. Map Staff Device ID</span>
-                                    In <strong>Staff Directory</strong>, edit each staff member and set their <strong>Biometric Machine User ID</strong> (e.g. <code>101</code>) to match their ID on the machine.
+                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">1. Map Staff Biometric ID</span>
+                                    In <strong>Staff Directory</strong>, edit each staff member and set their <strong>Biometric Machine User ID</strong> (e.g. <code>101</code>) to match the number enrolled on the device.
                                 </div>
                                 <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">2. Direct Cloud or LAN Bridge</span>
-                                    Devices with ADMS push directly via HTTPS. Or run the lightweight LAN bridge script on your school network (<code>node scripts/biometric-bridge.js</code>).
+                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">2. Configure Device Menu</span>
+                                    On the device: <strong>Menu → Comm → Cloud Server</strong><br />
+                                    Set <strong>Server Address</strong> to <code>imsportal.3ftech.in</code>, <strong>Port</strong> to <code>443</code>, <strong>HTTPS ON</strong>. Save and reboot. No PC required.
                                 </div>
                                 <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">3. Automated Shifts & Payroll</span>
-                                    1st punch = Check-in; last punch = Check-out. Evaluated automatically against each staff member&apos;s department shift and grace window.
+                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">3. Auto Shifts &amp; Payroll</span>
+                                    1st punch = Check-in; 2nd punch = Check-out. Late arrival, early departure, and overtime are calculated automatically against each staff member&apos;s department shift.
                                 </div>
                             </div>
                         </div>
