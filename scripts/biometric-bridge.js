@@ -25,7 +25,7 @@ const fs   = require('fs');
 // ── Configuration ─────────────────────────────────────────────────────────────
 const CONFIG = {
     DEVICE_IP:          process.env.DEVICE_IP          || '192.168.1.224',
-    DEVICE_PORT:        parseInt(process.env.DEVICE_PORT || '4370', 10),
+    DEVICE_PORT:        parseInt(process.env.DEVICE_PORT || '5005', 10),
     IMS_API_URL:        process.env.IMS_API_URL        || 'https://imsportal.3ftech.in/api/v1/hr/attendance/biometric',
     IMS_API_KEY:        process.env.IMS_API_KEY        || '',            // REQUIRED — copy from HR Settings page
     RECONNECT_DELAY_MS: 10_000,                                          // retry after 10s on disconnect

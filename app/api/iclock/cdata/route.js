@@ -155,9 +155,18 @@ export async function POST(req) {
                     remarks: lateMinutes > 0 ? `Late check-in via Device (${lateMinutes}m)` : "Check-in via Device"
                 });
             } else {
-                // Subsequent punch = check-out (with 3-min debounce)
+                // Subsequent punch = check-out
                 const lastMins = parseTimeToMinutes(attendance.checkOutTime || attendance.checkInTime);
                 if (Math.abs(punchMins - lastMins) <= 3) continue;
+
+                // Prevent premature check-out during morning arrival window
+                const checkInMinutes = parseTimeToMinutes(attendance.checkInTime);
+                const shiftMidpoint = Math.floor((shiftStartMins + shiftEndMins) / 2);
+                const minutesSinceCheckIn = punchMins - checkInMinutes;
+
+                if (!attendance.checkOutTime && (minutesSinceCheckIn < 30 || (punchMins < shiftMidpoint && minutesSinceCheckIn < 120))) {
+                    continue;
+                }
 
                 attendance.checkOutTime = punchTimeStr;
                 attendance.source = "biometric";

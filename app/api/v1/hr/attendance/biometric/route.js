@@ -179,12 +179,25 @@ export async function POST(req) {
                 results.processed++;
             } else {
                 // Subsequent punch: CHECK-OUT
-                // Cooldown: skip if punched within 3 minutes of previous check-in or checkout
                 const lastTimeStr = attendance.checkOutTime || attendance.checkInTime;
                 const lastMinutes = parseTimeToMinutes(lastTimeStr);
 
+                // 1. Debounce rapid repeat taps (within 3 minutes of any previous punch)
                 if (Math.abs(punchMinutes - lastMinutes) <= 3) {
-                    // Debounce / duplicate tap ignored
+                    results.processed++;
+                    continue;
+                }
+
+                // 2. Prevent premature Check-Out:
+                // If staff has checked in, but this subsequent punch happens within 30 minutes of check-in,
+                // OR happens in the morning before shift midpoint (and less than 2 hours from check-in),
+                // treat it as an arrival confirmation re-tap, NOT a check-out!
+                const checkInMinutes = parseTimeToMinutes(attendance.checkInTime);
+                const shiftMidpoint = Math.floor((shiftStartMinutes + shiftEndMinutes) / 2);
+                const minutesSinceCheckIn = punchMinutes - checkInMinutes;
+
+                if (!attendance.checkOutTime && (minutesSinceCheckIn < 30 || (punchMinutes < shiftMidpoint && minutesSinceCheckIn < 120))) {
+                    // Confirmation re-tap during arrival/morning hours: keep check-in intact
                     results.processed++;
                     continue;
                 }

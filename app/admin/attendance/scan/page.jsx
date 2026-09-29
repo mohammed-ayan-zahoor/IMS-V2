@@ -43,6 +43,7 @@ function ScannerPage() {
     const [markedUsersList, setMarkedUsersList] = useState([]);
     const [lastMarked, setLastMarked] = useState(null);
     const [statusMsg, setStatusMsg] = useState("");
+    const [manualSlot, setManualSlot] = useState(null); // 'checkin' | 'checkout' | null (auto)
 
     const enrolledUsersRef = useRef(enrolledUsers);
     const handleRecognizedRef = useRef(null);
@@ -379,22 +380,27 @@ function ScannerPage() {
         const userSlots = markedSlotsMap[user.id] || new Set();
         const currentStatus = attendanceStatusMap[user.id]?.status;
 
-        let slot;
-        if (isStaff) {
-            if (userSlots.has("checkin") && userSlots.has("checkout")) {
-                if (currentStatus !== "absent") return;
+        const activeSlot = manualSlot || getCurrentSlot();
+
+        // Guard: If user is already marked for this slot today, acknowledge and DO NOT re-mark or flip
+        if (userSlots.has(activeSlot) && currentStatus !== "absent") {
+            const now = new Date();
+            const lastScan = lastScanTimeRef.current[user.id];
+            if (!lastScan || (now - lastScan) > 8000) {
+                lastScanTimeRef.current[user.id] = now;
+                const slotLabel = activeSlot === "checkout" ? "Checked Out" : "Checked In";
+                const recordedTime = attendanceStatusMap[user.id]?.time;
+                toast.info(`✓ ${user.name} is already ${slotLabel}${recordedTime ? ` (${recordedTime})` : ""}`);
             }
-            slot = userSlots.has("checkin") ? "checkout" : "checkin";
-        } else {
-            slot = getCurrentSlot();
-            if (userSlots.has(slot) && currentStatus !== "absent") return;
+            return;
         }
 
-        // Per-user cooldown: ignore re-scan of the SAME user within 30 seconds
-        // (prevents camera catching the same face twice in rapid succession)
+        const slot = activeSlot;
+
+        // Per-user cooldown: ignore rapid re-triggers within 15 seconds
         const now = new Date();
         const lastScan = lastScanTimeRef.current[user.id];
-        if (lastScan && (now - lastScan) < 30_000) return;
+        if (lastScan && (now - lastScan) < 15_000) return;
         lastScanTimeRef.current[user.id] = now;
 
         try {
@@ -574,7 +580,7 @@ function ScannerPage() {
         } catch (err) {
             toast.error("Mark failed: " + err.message);
         }
-    }, [markedSlotsMap, batchId, date, isStaff, getCurrentSlot, attSettings, timetableSlots, selectedPeriodId, attendanceStatusMap]);
+    }, [markedSlotsMap, batchId, date, isStaff, getCurrentSlot, manualSlot, attSettings, timetableSlots, selectedPeriodId, attendanceStatusMap]);
     handleRecognizedRef.current = handleRecognized;
 
     const handleManualMark = async (user, newStatus) => {
@@ -805,13 +811,24 @@ function ScannerPage() {
                         <p className="text-xs text-slate-500">{date}</p>
                     </div>
 
-                    <span className={`text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full border ${
-                        getCurrentSlot() === "checkout"
-                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                            : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    }`}>
-                        ● {getCurrentSlot() === "checkout" ? "Check-Out Mode" : "Check-In Mode"}
-                    </span>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            const current = manualSlot || getCurrentSlot();
+                            const next = current === "checkout" ? "checkin" : "checkout";
+                            setManualSlot(next);
+                            toast.info(`Switched to ${next === "checkout" ? "Check-Out Mode" : "Check-In Mode"}`);
+                        }}
+                        title="Click to toggle Check-In / Check-Out mode"
+                        className={`text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full border cursor-pointer hover:shadow-xs transition-all ${
+                            (manualSlot || getCurrentSlot()) === "checkout"
+                                ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                        }`}
+                    >
+                        ● {(manualSlot || getCurrentSlot()) === "checkout" ? "Check-Out Mode" : "Check-In Mode"}
+                        {manualSlot ? " (Manual)" : " (Auto)"}
+                    </button>
 
                     {attSettings.periodMode === "per_period" && timetableSlots.length > 0 && (
                         <select
