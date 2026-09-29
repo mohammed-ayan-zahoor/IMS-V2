@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { UserCheck, Calendar, Search, Loader2, Save, CheckCircle2, XCircle, Clock, Moon, AlertTriangle, ScanLine, Camera, Fingerprint } from "lucide-react";
+import { UserCheck, Calendar, Search, Loader2, Save, CheckCircle2, XCircle, Clock, Moon, AlertTriangle, ScanLine, Camera, Fingerprint, FileSpreadsheet } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -10,6 +10,7 @@ import { useToast } from "@/contexts/ToastContext";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { cn } from "@/lib/utils";
 import EnrollFaceModal from "@/components/users/EnrollFaceModal";
+import ImportBiometricModal from "@/components/hr/ImportBiometricModal";
 
 const statusOptions = [
     { value: "present", label: "Present" },
@@ -35,6 +36,7 @@ export default function StaffAttendancePage() {
     const [isTimingModalOpen, setIsTimingModalOpen] = useState(false);
     const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
     const [selectedFaceUser, setSelectedFaceUser] = useState(null);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [useTimeRange, setUseTimeRange] = useState(false);
     const [checkInStart, setCheckInStart] = useState("08:00");
     const [checkInEnd, setCheckInEnd] = useState("09:30");
@@ -208,6 +210,15 @@ export default function StaffAttendancePage() {
                         onChange={(e) => setAttendanceDate(e.target.value)}
                         className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-slate-400"
                     />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="bg-white hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 text-slate-700"
+                    >
+                        <FileSpreadsheet size={15} className="mr-1.5 text-emerald-600" />
+                        Import Biometric (Excel)
+                    </Button>
                     <Button
                         type="button"
                         variant="outline"
@@ -522,6 +533,16 @@ export default function StaffAttendancePage() {
                     setSelectedFaceUser(null);
                 }}
                 onSuccess={() => fetchAttendance(attendanceDate)}
+            />
+
+            {/* Import Biometric Excel Modal */}
+            <ImportBiometricModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onSuccess={() => {
+                    fetchAttendance(attendanceDate);
+                    toast.success("Attendance synced from Biometric Excel!");
+                }}
             />
         </div>
     );
