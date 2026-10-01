@@ -396,7 +396,7 @@ export default function AdminDashboard() {
                                                 setBuySlots(1);
                                                 setIsBuyModalOpen(true);
                                             }}
-                                            className="text-[11px] font-bold text-white bg-slate-900 hover:bg-slate-800 px-3 py-1 rounded transition-colors uppercase tracking-wider"
+                                            className="text-[11px] font-bold text-white bg-slate-900 hover:bg-slate-800 active:scale-[0.97] px-3 py-1 rounded transition-[colors,transform] duration-150 uppercase tracking-wider focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-1 outline-none"
                                         >
                                             Buy Slots
                                         </button>
@@ -593,7 +593,7 @@ export default function AdminDashboard() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
                             {/* Admissions List */}
                             <div className="bg-white rounded-lg border border-slate-100 overflow-hidden flex flex-col">
                                 <div className="px-5 py-4 border-b border-slate-100">
@@ -655,7 +655,7 @@ export default function AdminDashboard() {
                                             type="button"
                                             onClick={() => setRankingFilter("top")}
                                             className={cn(
-                                                "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1",
+                                                "px-2.5 py-1 rounded text-xs font-bold transition-[colors,transform] duration-150 flex items-center gap-1 outline-none active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1",
                                                 rankingFilter === "top"
                                                     ? "bg-white text-slate-900 shadow-xs"
                                                     : "text-slate-500 hover:text-slate-700"
@@ -668,7 +668,7 @@ export default function AdminDashboard() {
                                             type="button"
                                             onClick={() => setRankingFilter("least")}
                                             className={cn(
-                                                "px-2.5 py-1 rounded text-xs font-bold transition-all flex items-center gap-1",
+                                                "px-2.5 py-1 rounded text-xs font-bold transition-[colors,transform] duration-150 flex items-center gap-1 outline-none active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1",
                                                 rankingFilter === "least"
                                                     ? "bg-white text-slate-900 shadow-xs"
                                                     : "text-slate-500 hover:text-slate-700"
@@ -679,7 +679,7 @@ export default function AdminDashboard() {
                                         </button>
                                     </div>
                                 </div>
-                                <div className="p-5 space-y-4 flex-1">
+                                <div key={rankingFilter} className="p-5 space-y-4 flex-1 animate-in fade-in duration-200">
                                     {loading ? (
                                          Array(4).fill(0).map((_, i) => (
                                             <div key={i} className="h-10 bg-slate-50 animate-pulse rounded" />

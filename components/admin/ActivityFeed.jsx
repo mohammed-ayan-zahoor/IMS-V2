@@ -271,12 +271,12 @@ export default function ActivityFeed({ className }) {
                             key={index} 
                             onClick={() => handleShortcut(shortcut.label)}
                             className={cn(
-                                "flex items-center gap-2 p-2.5 rounded-lg border border-slate-200/80 bg-white transition-all cursor-pointer hover:border-slate-300 hover:shadow-xs group min-w-0 text-left",
+                                "flex items-center gap-2 p-2.5 rounded-lg border border-slate-200/80 bg-white transition-[colors,transform] duration-150 cursor-pointer [@media(hover:hover)]:hover:border-slate-300 [@media(hover:hover)]:hover:shadow-xs active:scale-[0.97] group min-w-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
                                 shortcut.bg
                             )}
                         >
-                            <shortcut.icon size={15} className={cn("transition-transform group-hover:scale-110 shrink-0", shortcut.color)} />
-                            <span className="text-xs font-semibold text-slate-700 truncate group-hover:text-slate-900">
+                            <shortcut.icon size={15} className={cn("transition-transform duration-150 ease-out [@media(hover:hover)]:group-hover:scale-105 shrink-0", shortcut.color)} />
+                            <span className="text-xs font-semibold text-slate-700 truncate [@media(hover:hover)]:group-hover:text-slate-900">
                                 {shortcut.label}
                             </span>
                         </button>
