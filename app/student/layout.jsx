@@ -171,8 +171,13 @@ export default function StudentLayout({ children }) {
                 <div className="pt-4 pb-10 px-2">
                     <button
                         onClick={async () => {
-                            await signOut({ redirect: false });
-                            window.location.href = "/login";
+                            try {
+                                await signOut({ redirect: false });
+                            } catch (err) {
+                                console.error("SignOut error:", err);
+                            } finally {
+                                window.location.href = "/login";
+                            }
                         }}
                         className="flex items-center gap-2 text-[14px] font-normal text-[#F4586A] hover:text-[#ff7887] transition-colors w-full text-left cursor-pointer"
                     >
@@ -430,8 +435,13 @@ export default function StudentLayout({ children }) {
                             <div className="pt-3 mt-2 border-t border-[#F1F5F9] shrink-0">
                                 <button
                                     onClick={async () => {
-                                        await signOut({ redirect: false });
-                                        window.location.href = "/login";
+                                        try {
+                                            await signOut({ redirect: false });
+                                        } catch (err) {
+                                            console.error("SignOut error:", err);
+                                        } finally {
+                                            window.location.href = "/login";
+                                        }
                                     }}
                                     className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-rose-600 bg-rose-50/70 hover:bg-rose-100/70 font-semibold text-xs tracking-wide uppercase transition-colors cursor-pointer"
                                 >

@@ -110,8 +110,13 @@ export default function SuperAdminLayout({ children }) {
                 icon: <LogoutOutlined />,
                 label: 'Sign Out',
                 onClick: async () => {
-                    await signOut({ redirect: false });
-                    window.location.href = "/login";
+                    try {
+                        await signOut({ redirect: false });
+                    } catch (err) {
+                        console.error("SignOut error:", err);
+                    } finally {
+                        window.location.href = "/login";
+                    }
                 }
             }
         ]

@@ -609,8 +609,13 @@ export default function StudentSettingsPage() {
                     <button
                         type="button"
                         onClick={async () => {
-                            await signOut({ redirect: false });
-                            window.location.href = "/login";
+                            try {
+                                await signOut({ redirect: false });
+                            } catch (err) {
+                                console.error("SignOut error:", err);
+                            } finally {
+                                window.location.href = "/login";
+                            }
                         }}
                         className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-rose-600 bg-rose-50 hover:bg-rose-100 font-semibold text-xs tracking-wider uppercase transition-colors cursor-pointer"
                     >

@@ -126,6 +126,16 @@ export default function AdminLayout({ children }) {
         }
     }, [session?.user?.institute?.id, pathname]);
 
+    const handleSignOut = async () => {
+        try {
+            await signOut({ redirect: false });
+        } catch (err) {
+            console.error("SignOut error:", err);
+        } finally {
+            window.location.href = "/login";
+        }
+    };
+
     const features = liveFeatures || session?.user?.institute?.features || {};
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const isTransportEnabled = !!features.transport;
@@ -558,7 +568,7 @@ export default function AdminLayout({ children }) {
                             <span className={cn(isSidebarCollapsed && "lg:hidden")}>Collapse Sidebar</span>
                         </button>
                         <button
-                            onClick={() => signOut({ callbackUrl: "/login" })}
+                            onClick={handleSignOut}
                             title="Sign Out"
                             className={cn(
                                 "w-full flex items-center justify-center gap-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all",

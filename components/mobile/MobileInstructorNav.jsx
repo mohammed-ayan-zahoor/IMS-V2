@@ -205,7 +205,15 @@ export default function MobileInstructorNav() {
                         {/* Sign Out Button */}
                         <div className="pt-2 border-t border-slate-800">
                             <button
-                                onClick={() => signOut({ callbackUrl: "/login" })}
+                                onClick={async () => {
+                                    try {
+                                        await signOut({ redirect: false });
+                                    } catch (err) {
+                                        console.error("SignOut error:", err);
+                                    } finally {
+                                        window.location.href = "/login";
+                                    }
+                                }}
                                 className="w-full flex items-center justify-center gap-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 p-3 rounded-md text-xs font-bold uppercase tracking-wider transition-colors"
                             >
                                 <LogOut size={15} /> Sign Out
