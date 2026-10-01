@@ -33,8 +33,8 @@ import StudentSearch from "@/components/admin/StudentSearch";
 import InstructorMobileDashboard from "@/components/instructor/InstructorMobileDashboard";
 import ActivityFeed from "@/components/admin/ActivityFeed";
 
-const StatCard = ({ title, value, icon: Icon, trend, trendType = "up", colorClass, iconColorClass }) => (
-    <div className={cn("rounded-lg border p-5 transition-colors", colorClass)}>
+const StatCard = ({ title, value, icon: Icon, trend, trendType = "up", colorClass, iconColorClass, loading, style }) => (
+    <div className={cn("rounded-lg border p-5 transition-colors stat-card-enter", colorClass)} style={style}>
         <div className="flex justify-between items-start mb-3">
             <span className="section-label">{title}</span>
             <div className={iconColorClass}>
@@ -42,22 +42,33 @@ const StatCard = ({ title, value, icon: Icon, trend, trendType = "up", colorClas
             </div>
         </div>
         <div className="flex flex-col gap-1">
-            <h2 className="metric-value text-slate-900">{value}</h2>
-            <div className="flex items-center gap-1.5 mt-2">
-                <span className={cn(
-                    "px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1",
-                    trendType === "up" ? "bg-emerald-50 text-emerald-700" : trendType === "down" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"
-                )}>
-                    {trendType === "up" ? <TrendingUp size={11} /> : trendType === "down" ? <TrendingUp size={11} className="rotate-180" /> : <Clock size={11} />}
-                    {trend}
-                </span>
-                <span className="text-[11px] text-slate-400 font-medium">
-                    {trend.includes('%') ? 'vs last month' : 'summary'}
-                </span>
+            {loading ? (
+                <div className="h-8 w-24 bg-black/[0.07] animate-pulse rounded mt-1" />
+            ) : (
+                <h2 className="metric-value text-slate-900 leading-none">{value}</h2>
+            )}
+            <div className="flex items-center gap-1.5 mt-2 min-h-[22px]">
+                {loading ? (
+                    <div className="h-4 w-16 bg-black/[0.07] animate-pulse rounded" />
+                ) : (
+                    <>
+                        <span className={cn(
+                            "px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1",
+                            trendType === "up" ? "bg-emerald-50 text-emerald-700" : trendType === "down" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"
+                        )}>
+                            {trendType === "up" ? <TrendingUp size={11} /> : trendType === "down" ? <TrendingUp size={11} className="rotate-180" /> : <Clock size={11} />}
+                            {trend}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                            {trend.includes('%') ? 'vs last month' : 'summary'}
+                        </span>
+                    </>
+                )}
             </div>
         </div>
     </div>
 );
+
 
 const getStatusBadge = (status) => {
     const statusConfig = {
@@ -222,97 +233,97 @@ export default function AdminDashboard() {
     const stats = hasAcademicStructure ? [
         { 
             title: "ACTIVE STUDENTS", 
-            value: loading ? "0" : (dashboardData?.counts?.activeStudents || 0).toLocaleString(), 
+            value: (dashboardData?.counts?.activeStudents || 0).toLocaleString(), 
             icon: Users, 
             trend: `${dashboardData?.trends?.student >= 0 ? '+' : ''}${dashboardData?.trends?.student || 0}%`, 
             trendType: (dashboardData?.trends?.student || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-blue-50/70 border-blue-100/70",
+            colorClass: "bg-blue-50/70 border-blue-100",
             iconColorClass: "text-blue-600"
         },
         { 
             title: isSchool ? "CLASSES ENROLLED" : isCollege ? "PROGRAMS ENROLLED" : "COURSES ENROLLED", 
-            value: loading ? "0" : (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(), 
+            value: (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(), 
             icon: BookOpen, 
             trend: `${dashboardData?.trends?.enrollment >= 0 ? '+' : ''}${dashboardData?.trends?.enrollment || 0}%`, 
             trendType: (dashboardData?.trends?.enrollment || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-orange-50/70 border-orange-100/70",
+            colorClass: "bg-orange-50/70 border-orange-100",
             iconColorClass: "text-orange-600"
         },
         { 
             title: "ENQUIRIES", 
-            value: loading ? "0" : (dashboardData?.counts?.enquiries || 0).toLocaleString(), 
+            value: (dashboardData?.counts?.enquiries || 0).toLocaleString(), 
             icon: MessageSquare, 
             trend: `${dashboardData?.trends?.enquiry >= 0 ? '+' : ''}${dashboardData?.trends?.enquiry || 0}%`, 
             trendType: (dashboardData?.trends?.enquiry || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-cyan-50/70 border-cyan-100/70",
+            colorClass: "bg-cyan-50/70 border-cyan-100",
             iconColorClass: "text-cyan-600"
         },
         { 
             title: isCollege ? "FACULTY & STAFF" : "STAFF", 
-            value: loading ? "0" : (dashboardData?.counts?.staff || 0).toLocaleString(), 
+            value: (dashboardData?.counts?.staff || 0).toLocaleString(), 
             icon: Layers3, 
-            trend: "+0%", 
-            trendType: "up",
-            colorClass: "bg-amber-50/70 border-amber-100/70",
+            trend: "Stable", 
+            trendType: "neutral",
+            colorClass: "bg-amber-50/70 border-amber-100",
             iconColorClass: "text-amber-600"
         }
     ] : [
         { 
             title: "ACTIVE STUDENTS", 
-            value: loading ? "0" : (dashboardData?.counts?.activeStudents || 0).toLocaleString(), 
+            value: (dashboardData?.counts?.activeStudents || 0).toLocaleString(), 
             icon: Users, 
             trend: `${dashboardData?.trends?.student >= 0 ? '+' : ''}${dashboardData?.trends?.student || 0}%`, 
             trendType: (dashboardData?.trends?.student || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-blue-50/70 border-blue-100/70",
+            colorClass: "bg-blue-50/70 border-blue-100",
             iconColorClass: "text-blue-600"
         },
         { 
             title: "COMPLETED", 
-            value: loading ? "0" : (dashboardData?.counts?.completedStudents || 0).toLocaleString(), 
+            value: (dashboardData?.counts?.completedStudents || 0).toLocaleString(), 
             icon: Trophy, 
             trend: dashboardData?.counts?.totalStudents > 0 
                 ? `${Math.round((dashboardData.counts.completedStudents / dashboardData.counts.totalStudents) * 100)}%`
                 : "0%",
             trendType: "neutral",
-            colorClass: "bg-teal-50/70 border-teal-100/70",
+            colorClass: "bg-teal-50/70 border-teal-100",
             iconColorClass: "text-teal-600"
         },
         { 
             title: "DROPPED", 
-            value: loading ? "0" : (dashboardData?.counts?.droppedStudents || 0).toLocaleString(), 
+            value: (dashboardData?.counts?.droppedStudents || 0).toLocaleString(), 
             icon: AlertCircle, 
             trend: dashboardData?.counts?.totalStudents > 0 
                 ? `${Math.round((dashboardData.counts.droppedStudents / dashboardData.counts.totalStudents) * 100)}%`
                 : "0%",
             trendType: "neutral",
-            colorClass: "bg-rose-50/70 border-rose-100/70",
+            colorClass: "bg-rose-50/70 border-rose-100",
             iconColorClass: "text-rose-600"
         },
         { 
             title: "ENROLLMENTS", 
-            value: loading ? "0" : (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(), 
+            value: (dashboardData?.counts?.coursesEnrolled || 0).toLocaleString(), 
             icon: BookOpen, 
             trend: `${dashboardData?.trends?.enrollment >= 0 ? '+' : ''}${dashboardData?.trends?.enrollment || 0}%`, 
             trendType: (dashboardData?.trends?.enrollment || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-orange-50/70 border-orange-100/70",
+            colorClass: "bg-orange-50/70 border-orange-100",
             iconColorClass: "text-orange-600"
         },
         { 
             title: "ENQUIRIES", 
-            value: loading ? "0" : (dashboardData?.counts?.enquiries || 0).toLocaleString(), 
+            value: (dashboardData?.counts?.enquiries || 0).toLocaleString(), 
             icon: MessageSquare, 
             trend: `${dashboardData?.trends?.enquiry >= 0 ? '+' : ''}${dashboardData?.trends?.enquiry || 0}%`, 
             trendType: (dashboardData?.trends?.enquiry || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-cyan-50/70 border-cyan-100/70",
+            colorClass: "bg-cyan-50/70 border-cyan-100",
             iconColorClass: "text-cyan-600"
         },
         { 
             title: "STAFF", 
-            value: loading ? "0" : (dashboardData?.counts?.staff || 0).toLocaleString(), 
+            value: (dashboardData?.counts?.staff || 0).toLocaleString(), 
             icon: Layers3, 
-            trend: "+0%", 
-            trendType: "up",
-            colorClass: "bg-amber-50/70 border-amber-100/70",
+            trend: "Stable", 
+            trendType: "neutral",
+            colorClass: "bg-amber-50/70 border-amber-100",
             iconColorClass: "text-amber-600"
         }
     ];
@@ -531,8 +542,8 @@ export default function AdminDashboard() {
                     "grid gap-4",
                     hasAcademicStructure ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
                 )}>
-                    {stats.map((stat) => (
-                        <StatCard key={stat.title} {...stat} />
+                    {stats.map((stat, index) => (
+                        <StatCard key={stat.title} {...stat} loading={loading} style={{ '--index': index }} />
                     ))}
                 </div>
 
