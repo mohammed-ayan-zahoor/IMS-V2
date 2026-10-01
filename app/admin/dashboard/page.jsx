@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 import { useToast } from "@/contexts/ToastContext";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import StudentSearch from "@/components/admin/StudentSearch";
 import InstructorMobileDashboard from "@/components/instructor/InstructorMobileDashboard";
@@ -89,6 +89,7 @@ export default function AdminDashboard() {
     const [purchasing, setPurchasing] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [rankingFilter, setRankingFilter] = useState("top"); // "top" | "least"
+    const reduceMotion = useReducedMotion();
 
     useEffect(() => {
         setMounted(true);
@@ -414,13 +415,15 @@ export default function AdminDashboard() {
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.15, ease: 'easeOut' }}
                                     onClick={() => !purchasing && setIsBuyModalOpen(false)}
                                     className="fixed inset-0 bg-slate-900/50"
                                 />
                                 <motion.div
-                                    initial={{ scale: 0.95, opacity: 0, y: 15 }}
-                                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                                    exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                                    initial={{ opacity: 0, transform: reduceMotion ? 'none' : 'scale(0.95) translateY(12px)' }}
+                                    animate={{ opacity: 1, transform: 'scale(1) translateY(0px)' }}
+                                    exit={{ opacity: 0, transform: reduceMotion ? 'none' : 'scale(0.95) translateY(8px)' }}
+                                    transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
                                     className="relative w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-100 p-6 flex flex-col z-[10000]"
                                 >
                                     <header className="flex items-center justify-between mb-5">

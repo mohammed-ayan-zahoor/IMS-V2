@@ -292,3 +292,26 @@ body {
     padding-top: max(1rem, env(safe-area-inset-top));
   }
 }
+
+/* ── Accessibility: Reduced Motion ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  /* Spinners must remain readable (functional, not decorative) */
+  .animate-spin {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
+  }
+  /* Skeleton pulses must remain readable */
+  .animate-pulse {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: infinite !important;
+  }
+  /* Stat card entry animation — drop entirely under reduced motion */
+  .stat-card-enter {
+    animation: none !important;
+  }
+}
