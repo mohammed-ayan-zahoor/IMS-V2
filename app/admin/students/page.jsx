@@ -1718,14 +1718,12 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                     onChange={(e) => setFormData({ ...formData, penNumber: e.target.value })}
                                 />
                             )}
-                            {isSchool && (
-                                <Input
-                                    label="STS / Stats No"
-                                    placeholder="State Student No"
-                                    value={formData.statsNo}
-                                    onChange={(e) => setFormData({ ...formData, statsNo: e.target.value })}
-                                />
-                            )}
+                            <Input
+                                label="STS / Stats No"
+                                placeholder={isCollege ? "10th / School STS Number" : "State Student No"}
+                                value={formData.statsNo}
+                                onChange={(e) => setFormData({ ...formData, statsNo: e.target.value })}
+                            />
                             <Input
                                 label="Aadhar Number"
                                 placeholder="12 Digit"

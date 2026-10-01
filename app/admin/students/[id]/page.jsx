@@ -1678,9 +1678,7 @@ export default function StudentDetailsPage({ params }) {
                                             {isSchool && (
                                                 <InfoRow icon={Tag} label="PEN Number" value={student.penNumber} />
                                             )}
-                                            {isSchool && (
-                                                <InfoRow icon={Hash} label="STS / Stats No" value={student.statsNo} />
-                                            )}
+                                            <InfoRow icon={Hash} label="STS / Stats No" value={student.statsNo} />
                                         </div>
                                     </div>
 
@@ -4134,14 +4132,12 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                                         onChange={(e) => setFormData({ ...formData, penNumber: e.target.value })}
                                     />
                                 )}
-                                {isSchool && (
-                                    <Input
-                                        label="STS / Stats No"
-                                        placeholder="State Student No"
-                                        value={formData.statsNo}
-                                        onChange={(e) => setFormData({ ...formData, statsNo: e.target.value })}
-                                    />
-                                )}
+                                <Input
+                                    label="STS / Stats No"
+                                    placeholder={isCollege ? "10th / School STS Number" : "State Student No"}
+                                    value={formData.statsNo}
+                                    onChange={(e) => setFormData({ ...formData, statsNo: e.target.value })}
+                                />
                             </div>
                         </div>
 
