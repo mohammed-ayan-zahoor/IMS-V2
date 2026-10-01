@@ -371,7 +371,7 @@ export default function AdminLayout({ children }) {
 
     return (
         <div className={cn(
-            "grid grid-cols-1 bg-[#f9fafb] text-[#111827] h-screen w-screen overflow-hidden transition-[grid-template-columns] duration-300",
+            "grid grid-cols-1 bg-[#f9fafb] text-[#111827] h-screen w-screen overflow-hidden",
             isSidebarCollapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[240px_minmax(0,1fr)]"
         )}>
             {/* Mobile Native Shell Nav Bar for Instructors/Staff */}
@@ -384,7 +384,7 @@ export default function AdminLayout({ children }) {
 
             {/* Sidebar */}
             <aside className={cn(
-                "h-screen bg-gradient-to-b from-slate-200 to-slate-100 border-r border-[#f1f5f9] flex flex-col fixed inset-y-0 left-0 z-[90] transition-all duration-300 lg:static lg:translate-x-0 no-print",
+                "h-screen bg-slate-100 border-r border-[#f1f5f9] flex flex-col fixed inset-y-0 left-0 z-[90] transition-[width,transform] duration-300 ease-out lg:static lg:translate-x-0 no-print",
                 isSidebarCollapsed ? "w-60 lg:w-[72px]" : "w-60",
                 isSidebarOpen ? "translate-x-0" : "-translate-x-full"
             )}>
