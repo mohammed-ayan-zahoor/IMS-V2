@@ -394,10 +394,10 @@ export default function AdminDashboard() {
                                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden relative">
                                     <div 
                                         className={cn(
-                                            "h-full rounded-full transition-all duration-500",
+                                            "h-full w-full rounded-full origin-left transition-transform duration-500 ease-out",
                                             (dashboardData.subscription.usedStudents / dashboardData.subscription.maxStudents) >= 0.9 ? "bg-rose-500" : (dashboardData.subscription.usedStudents / dashboardData.subscription.maxStudents) >= 0.75 ? "bg-amber-500" : "bg-blue-600"
                                         )} 
-                                        style={{ width: `${Math.min(100, (dashboardData.subscription.usedStudents / dashboardData.subscription.maxStudents) * 100)}%` }}
+                                        style={{ transform: `scaleX(${Math.min(1, (dashboardData.subscription.usedStudents / dashboardData.subscription.maxStudents))})` }}
                                     />
                                 </div>
                             </div>
@@ -564,11 +564,11 @@ export default function AdminDashboard() {
                                             ) : (
                                                 <>
                                                     <div 
-                                                        className="h-full bg-blue-500 transition-all duration-700" 
+                                                        className="h-full bg-blue-500 transition-[width] duration-700 ease-out" 
                                                         style={{ width: `${dashboardData.counts.totalStudents > 0 ? (dashboardData.counts.maleStudents / dashboardData.counts.totalStudents) * 100 : 50}%` }}
                                                     />
                                                     <div 
-                                                        className="h-full bg-pink-500 transition-all duration-700" 
+                                                        className="h-full bg-pink-500 transition-[width] duration-700 ease-out" 
                                                         style={{ width: `${dashboardData.counts.totalStudents > 0 ? (dashboardData.counts.femaleStudents / dashboardData.counts.totalStudents) * 100 : 50}%` }}
                                                     />
                                                 </>
@@ -707,10 +707,10 @@ export default function AdminDashboard() {
                                                     <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                                                         <div 
                                                             className={cn(
-                                                                "h-full rounded-full transition-all duration-700",
+                                                                "h-full w-full rounded-full origin-left transition-transform duration-500 ease-out",
                                                                 rankingFilter === "least" ? "bg-rose-500" : "bg-slate-800"
                                                             )}
-                                                            style={{ width: `${Math.max(percentage, course.totalStudents > 0 ? 4 : 0)}%` }}
+                                                            style={{ transform: `scaleX(${Math.max(percentage, course.totalStudents > 0 ? 4 : 0) / 100})` }}
                                                         />
                                                     </div>
                                                 </div>
