@@ -44,7 +44,15 @@ const IncomeSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true
-    }
+    },
+    attachments: [{
+        url: { type: String, required: true },
+        filename: { type: String, required: true },
+        originalName: { type: String, default: "" },
+        mimeType: { type: String, default: "image/jpeg" },
+        size: { type: Number, default: 0 },
+        uploadedAt: { type: Date, default: Date.now }
+    }]
 }, { timestamps: true });
 
 IncomeSchema.index({ institute: 1, date: -1 });

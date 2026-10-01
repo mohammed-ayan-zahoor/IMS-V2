@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BarChart3, Calendar, Search, Loader2, ArrowLeft, Download, Lightbulb, CreditCard, Banknote, Landmark, Smartphone } from "lucide-react";
+import { BarChart3, Calendar, Search, Loader2, ArrowLeft, Download, Lightbulb, CreditCard, Banknote, Landmark, Smartphone, Receipt } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import ReceiptViewerModal from "@/components/finance/ReceiptViewerModal";
 import { useToast } from "@/contexts/ToastContext";
 
 export default function ExpenseReportPage() {
@@ -16,6 +17,7 @@ export default function ExpenseReportPage() {
     const [expenseHeads, setExpenseHeads] = useState([]);
     const [expenses, setExpenses] = useState([]);
     const [summary, setSummary] = useState({ totalAmount: 0, totalCount: 0, categoryWise: {} });
+    const [viewerModal, setViewerModal] = useState({ isOpen: false, attachments: [], title: "" });
 
     const getDefaultDates = () => {
         const today = new Date();
@@ -45,7 +47,7 @@ export default function ExpenseReportPage() {
             return;
         }
         
-        const headers = ["Date", "Category", "Description", "Paid To", "Payment Mode", "Paid By", "Amount"];
+        const headers = ["Date", "Category", "Description", "Paid To", "Payment Mode", "Paid By", "Receipts", "Amount"];
         const csvRows = [headers.join(",")];
         
         expenses.forEach(e => {
@@ -56,12 +58,13 @@ export default function ExpenseReportPage() {
                 `"${(e.paidTo || '').replace(/"/g, '""')}"`,
                 `"${(e.paymentMode || '').replace(/"/g, '""')}"`,
                 `"${(e.paidByAccount?.name || '').replace(/"/g, '""')}"`,
+                e.attachments?.length || 0,
                 e.amount
             ];
             csvRows.push(row.join(","));
         });
         
-        csvRows.push(`"GRAND TOTAL",,,,,,${summary.totalAmount}`);
+        csvRows.push(`"GRAND TOTAL",,,,,,,${summary.totalAmount}`);
 
         const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(csvRows.join("\n"));
         const link = document.createElement("a");
@@ -315,6 +318,7 @@ export default function ExpenseReportPage() {
                                         <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50">Description</th>
                                         <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50">Paid To</th>
                                         <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50">Source / Mode</th>
+                                        <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50">Receipts</th>
                                         <th className="text-right px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50">Amount</th>
                                     </tr>
                                 </thead>
@@ -349,6 +353,25 @@ export default function ExpenseReportPage() {
                                                             </span>
                                                         </div>
                                                     </td>
+                                                    <td className="px-5 py-4 whitespace-nowrap">
+                                                        {expense.attachments && expense.attachments.length > 0 ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setViewerModal({
+                                                                    isOpen: true,
+                                                                    attachments: expense.attachments,
+                                                                    title: `Receipts · ${expense.expenseHead?.name || 'Expense'} (${formatCurrency(expense.amount)})`
+                                                                })}
+                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-premium-blue text-xs font-bold transition-all border border-blue-200/60 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
+                                                                title="View attached receipts"
+                                                            >
+                                                                <Receipt size={13} />
+                                                                <span>{expense.attachments.length} {expense.attachments.length === 1 ? 'file' : 'files'}</span>
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-slate-300 text-xs">—</span>
+                                                        )}
+                                                    </td>
                                                     <td className="px-5 py-4 text-sm font-black text-slate-900 text-right whitespace-nowrap group-hover:text-premium-blue transition-colors">
                                                         {formatCurrency(expense.amount)}
                                                     </td>
@@ -357,11 +380,11 @@ export default function ExpenseReportPage() {
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan={6} className="px-5 py-16 text-center">
+                                            <td colSpan={7} className="px-5 py-16 text-center">
                                                 <div className="flex flex-col items-center justify-center gap-3">
                                                     <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center">
                                                         <Search size={28} className="text-slate-300" />
-                                                    </div>
+                                                     </div>
                                                     <p className="text-slate-500 font-medium">No expenses match your filters.</p>
                                                 </div>
                                             </td>
@@ -371,7 +394,7 @@ export default function ExpenseReportPage() {
                                 {expenses.length > 0 && (
                                     <tfoot className="bg-slate-50 sticky bottom-0 z-10 border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                                         <tr>
-                                            <td colSpan={5} className="px-5 py-4 text-sm font-bold text-slate-700 text-right bg-slate-50">Grand Total</td>
+                                            <td colSpan={6} className="px-5 py-4 text-sm font-bold text-slate-700 text-right bg-slate-50">Grand Total</td>
                                             <td className="px-5 py-4 text-sm font-black text-premium-blue text-right bg-slate-50">{formatCurrency(summary.totalAmount)}</td>
                                         </tr>
                                     </tfoot>
@@ -411,6 +434,14 @@ export default function ExpenseReportPage() {
                     </Card>
                 </div>
             )}
+
+            {/* Receipts Lightbox Modal */}
+            <ReceiptViewerModal
+                isOpen={viewerModal.isOpen}
+                onClose={() => setViewerModal(prev => ({ ...prev, isOpen: false }))}
+                attachments={viewerModal.attachments}
+                title={viewerModal.title}
+            />
         </div>
     );
 }

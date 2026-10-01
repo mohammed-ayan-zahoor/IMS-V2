@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { BarChart3, Calendar, Search, Loader2, ArrowLeft, Download, Lightbulb, CreditCard, Banknote, Landmark, Smartphone, Trash2 } from "lucide-react";
+import { BarChart3, Calendar, Search, Loader2, ArrowLeft, Download, Lightbulb, CreditCard, Banknote, Landmark, Smartphone, Trash2, Receipt } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import ReceiptViewerModal from "@/components/finance/ReceiptViewerModal";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
@@ -18,6 +19,7 @@ export default function IncomeReportPage() {
     const [incomeHeads, setIncomeHeads] = useState([]);
     const [incomes, setIncomes] = useState([]);
     const [summary, setSummary] = useState({ totalAmount: 0, totalCount: 0, categoryWise: {} });
+    const [viewerModal, setViewerModal] = useState({ isOpen: false, attachments: [], title: "" });
 
     const getDefaultDates = () => {
         const today = new Date();
@@ -47,7 +49,7 @@ export default function IncomeReportPage() {
             return;
         }
         
-        const headers = ["Date", "Category", "Description", "Received From", "Payment Mode", "Received In Account", "Amount"];
+        const headers = ["Date", "Category", "Description", "Received From", "Payment Mode", "Received In Account", "Receipts", "Amount"];
         const csvRows = [headers.join(",")];
         
         incomes.forEach(e => {
@@ -58,12 +60,13 @@ export default function IncomeReportPage() {
                 `"${(e.receivedFrom || '').replace(/"/g, '""')}"`,
                 `"${(e.paymentMode || '').replace(/"/g, '""')}"`,
                 `"${(e.receivedInAccount?.name || '').replace(/"/g, '""')}"`,
+                e.attachments?.length || 0,
                 e.amount
             ];
             csvRows.push(row.join(","));
         });
         
-        csvRows.push(`"GRAND TOTAL",,,,,,${summary.totalAmount}`);
+        csvRows.push(`"GRAND TOTAL",,,,,,,${summary.totalAmount}`);
 
         const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(csvRows.join("\n"));
         const link = document.createElement("a");
@@ -338,6 +341,7 @@ export default function IncomeReportPage() {
                                         <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50">Description</th>
                                         <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50">Received From</th>
                                         <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50">Destination / Mode</th>
+                                        <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50">Receipts</th>
                                         <th className="text-right px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50">Amount</th>
                                         <th className="w-12 px-5 py-4 bg-slate-50"></th>
                                     </tr>
@@ -345,106 +349,133 @@ export default function IncomeReportPage() {
                                 <tbody className="divide-y divide-slate-100">
                                     {currentIncomes.length > 0 ? (
                                         currentIncomes.map((income) => {
-                                            const modeIcon = income.paymentMode === 'Cash' ? <Banknote size={14} className="inline mr-1" /> : 
-                                                             income.paymentMode === 'Bank Transfer' ? <Landmark size={14} className="inline mr-1" /> : 
-                                                             income.paymentMode === 'UPI' ? <Smartphone size={14} className="inline mr-1" /> : <CreditCard size={14} className="inline mr-1" />;
-                                            return (
-                                                <tr key={income._id} className="group hover:bg-blue-50/40 border-l-2 border-transparent hover:border-premium-blue transition-all cursor-default">
-                                                    <td className="px-5 py-4 text-sm font-medium text-slate-600 whitespace-nowrap">
-                                                        {formatDate(income.date)}
-                                                    </td>
-                                                    <td className="px-5 py-4 whitespace-nowrap">
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-bold group-hover:bg-blue-100 group-hover:text-premium-blue transition-colors">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5 group-hover:bg-premium-blue"></div>
-                                                            {income.incomeHead?.name || 'N/A'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-5 py-4 text-sm text-slate-600 max-w-[200px] truncate">
-                                                        {income.description || <span className="text-slate-300 italic">No notes</span>}
-                                                    </td>
-                                                    <td className="px-5 py-4 text-sm font-medium text-slate-700 whitespace-nowrap">
-                                                        {income.receivedFrom || '-'}
-                                                    </td>
-                                                    <td className="px-5 py-4 whitespace-nowrap">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-bold text-slate-700">{income.receivedInAccount?.name || '-'}</span>
-                                                            <span className="text-xs text-slate-500 flex items-center mt-0.5">
-                                                                {modeIcon} {income.paymentMode}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-5 py-4 text-sm font-black text-slate-900 text-right whitespace-nowrap group-hover:text-premium-blue transition-colors">
-                                                        {formatCurrency(income.amount)}
-                                                    </td>
-                                                    <td className="px-5 py-4 whitespace-nowrap text-right">
-                                                        <button
-                                                            onClick={() => handleDelete(income._id, income.incomeHead?.name || 'Unknown', income.amount)}
-                                                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                            title="Delete Entry"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={7} className="px-5 py-16 text-center">
-                                                <div className="flex flex-col items-center justify-center gap-3">
-                                                    <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center">
-                                                        <Search size={28} className="text-slate-300" />
-                                                    </div>
-                                                    <p className="text-slate-500 font-medium">No incomes match your filters.</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                                {incomes.length > 0 && (
-                                    <tfoot className="bg-slate-50 sticky bottom-0 z-10 border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                                        <tr>
-                                            <td colSpan={5} className="px-5 py-4 text-sm font-bold text-slate-700 text-right bg-slate-50">Grand Total</td>
-                                            <td className="px-5 py-4 text-sm font-black text-premium-blue text-right bg-slate-50">{formatCurrency(summary.totalAmount)}</td>
-                                            <td className="bg-slate-50"></td>
-                                        </tr>
-                                    </tfoot>
-                                )}
-                            </table>
-                        </div>
-                        
-                        {/* Pagination Controls */}
-                        {incomes.length > 0 && (
-                            <div className="bg-white border-t border-slate-200 px-5 py-3 flex items-center justify-between shrink-0">
-                                <p className="text-xs text-slate-500 font-medium">
-                                    Showing <span className="font-bold text-slate-700">{indexOfFirstRow + 1}</span> to <span className="font-bold text-slate-700">{Math.min(indexOfLastRow, incomes.length)}</span> of <span className="font-bold text-slate-700">{incomes.length}</span> entries
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        className="h-8 text-xs font-bold" 
-                                        disabled={currentPage === 1}
-                                        onClick={() => setCurrentPage(p => p - 1)}
-                                    >
-                                        Previous
-                                    </Button>
-                                    <span className="text-xs font-bold text-slate-700 px-3">{currentPage} / {totalPages}</span>
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        className="h-8 text-xs font-bold" 
-                                        disabled={currentPage === totalPages}
-                                        onClick={() => setCurrentPage(p => p + 1)}
-                                    >
-                                        Next
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </Card>
-                </div>
-            )}
-        </div>
-    );
-}
+                                             const modeIcon = income.paymentMode === 'Cash' ? <Banknote size={14} className="inline mr-1" /> : 
+                                                              income.paymentMode === 'Bank Transfer' ? <Landmark size={14} className="inline mr-1" /> : 
+                                                              income.paymentMode === 'UPI' ? <Smartphone size={14} className="inline mr-1" /> : <CreditCard size={14} className="inline mr-1" />;
+                                             return (
+                                                 <tr key={income._id} className="group hover:bg-blue-50/40 border-l-2 border-transparent hover:border-premium-blue transition-all cursor-default">
+                                                     <td className="px-5 py-4 text-sm font-medium text-slate-600 whitespace-nowrap">
+                                                         {formatDate(income.date)}
+                                                     </td>
+                                                     <td className="px-5 py-4 whitespace-nowrap">
+                                                         <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-bold group-hover:bg-blue-100 group-hover:text-premium-blue transition-colors">
+                                                             <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5 group-hover:bg-premium-blue"></div>
+                                                             {income.incomeHead?.name || 'N/A'}
+                                                         </span>
+                                                     </td>
+                                                     <td className="px-5 py-4 text-sm text-slate-600 max-w-[200px] truncate">
+                                                         {income.description || <span className="text-slate-300 italic">No notes</span>}
+                                                     </td>
+                                                     <td className="px-5 py-4 text-sm font-medium text-slate-700 whitespace-nowrap">
+                                                         {income.receivedFrom || '-'}
+                                                     </td>
+                                                     <td className="px-5 py-4 whitespace-nowrap">
+                                                         <div className="flex flex-col">
+                                                             <span className="text-sm font-bold text-slate-700">{income.receivedInAccount?.name || '-'}</span>
+                                                             <span className="text-xs text-slate-500 flex items-center mt-0.5">
+                                                                 {modeIcon} {income.paymentMode}
+                                                             </span>
+                                                         </div>
+                                                     </td>
+                                                     <td className="px-5 py-4 whitespace-nowrap">
+                                                         {income.attachments && income.attachments.length > 0 ? (
+                                                             <button
+                                                                 type="button"
+                                                                 onClick={() => setViewerModal({
+                                                                     isOpen: true,
+                                                                     attachments: income.attachments,
+                                                                     title: `Receipts · ${income.incomeHead?.name || 'Income'} (${formatCurrency(income.amount)})`
+                                                                 })}
+                                                                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-premium-blue text-xs font-bold transition-all border border-blue-200/60 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
+                                                                 title="View attached receipts"
+                                                             >
+                                                                 <Receipt size={13} />
+                                                                 <span>{income.attachments.length} {income.attachments.length === 1 ? 'file' : 'files'}</span>
+                                                             </button>
+                                                         ) : (
+                                                             <span className="text-slate-300 text-xs">—</span>
+                                                         )}
+                                                     </td>
+                                                     <td className="px-5 py-4 text-sm font-black text-slate-900 text-right whitespace-nowrap group-hover:text-premium-blue transition-colors">
+                                                         {formatCurrency(income.amount)}
+                                                     </td>
+                                                     <td className="px-5 py-4 whitespace-nowrap text-right">
+                                                         <button
+                                                             onClick={() => handleDelete(income._id, income.incomeHead?.name || 'Unknown', income.amount)}
+                                                             className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                             title="Delete Entry"
+                                                         >
+                                                             <Trash2 size={16} />
+                                                         </button>
+                                                     </td>
+                                                 </tr>
+                                             );
+                                         })
+                                     ) : (
+                                         <tr>
+                                             <td colSpan={8} className="px-5 py-16 text-center">
+                                                 <div className="flex flex-col items-center justify-center gap-3">
+                                                     <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center">
+                                                         <Search size={28} className="text-slate-300" />
+                                                     </div>
+                                                     <p className="text-slate-500 font-medium">No incomes match your filters.</p>
+                                                 </div>
+                                             </td>
+                                         </tr>
+                                     )}
+                                 </tbody>
+                                 {incomes.length > 0 && (
+                                     <tfoot className="bg-slate-50 sticky bottom-0 z-10 border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                                         <tr>
+                                             <td colSpan={6} className="px-5 py-4 text-sm font-bold text-slate-700 text-right bg-slate-50">Grand Total</td>
+                                             <td className="px-5 py-4 text-sm font-black text-premium-blue text-right bg-slate-50">{formatCurrency(summary.totalAmount)}</td>
+                                             <td className="bg-slate-50"></td>
+                                         </tr>
+                                     </tfoot>
+                                 )}
+                             </table>
+                         </div>
+                         
+                         {/* Pagination Controls */}
+                         {incomes.length > 0 && (
+                             <div className="bg-white border-t border-slate-200 px-5 py-3 flex items-center justify-between shrink-0">
+                                 <p className="text-xs text-slate-500 font-medium">
+                                     Showing <span className="font-bold text-slate-700">{indexOfFirstRow + 1}</span> to <span className="font-bold text-slate-700">{Math.min(indexOfLastRow, incomes.length)}</span> of <span className="font-bold text-slate-700">{incomes.length}</span> entries
+                                 </p>
+                                 <div className="flex items-center gap-2">
+                                     <Button 
+                                         variant="outline" 
+                                         size="sm" 
+                                         className="h-8 text-xs font-bold" 
+                                         disabled={currentPage === 1}
+                                         onClick={() => setCurrentPage(p => p - 1)}
+                                     >
+                                         Previous
+                                     </Button>
+                                     <span className="text-xs font-bold text-slate-700 px-3">{currentPage} / {totalPages}</span>
+                                     <Button 
+                                         variant="outline" 
+                                         size="sm" 
+                                         className="h-8 text-xs font-bold" 
+                                         disabled={currentPage === totalPages}
+                                         onClick={() => setCurrentPage(p => p + 1)}
+                                     >
+                                         Next
+                                     </Button>
+                                 </div>
+                             </div>
+                         )}
+                     </Card>
+                 </div>
+             )}
+
+             {/* Receipts Lightbox Modal */}
+             <ReceiptViewerModal
+                 isOpen={viewerModal.isOpen}
+                 onClose={() => setViewerModal(prev => ({ ...prev, isOpen: false }))}
+                 attachments={viewerModal.attachments}
+                 title={viewerModal.title}
+             />
+         </div>
+     );
+ }

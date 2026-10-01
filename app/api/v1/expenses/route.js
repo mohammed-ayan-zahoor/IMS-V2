@@ -84,7 +84,7 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { date, expenseHead, amount, description, paidTo, paymentMode, paidByAccount } = body;
+        const { date, expenseHead, amount, description, paidTo, paymentMode, paidByAccount, attachments } = body;
 
         if (!date || !expenseHead || !amount) {
             return NextResponse.json({ error: "Date, expense head and amount are required" }, { status: 400 });
@@ -104,6 +104,7 @@ export async function POST(req) {
             paidTo: paidTo?.trim(),
             paymentMode: paymentMode || 'Cash',
             paidByAccount: paidByAccount || null,
+            attachments: Array.isArray(attachments) ? attachments : [],
             entryBy: session.user.id
         });
 

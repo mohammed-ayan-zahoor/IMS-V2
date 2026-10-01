@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import ReceiptUploadZone from "@/components/finance/ReceiptUploadZone";
 import { useToast } from "@/contexts/ToastContext";
 
 const paymentModeOptions = [
@@ -33,7 +34,8 @@ export default function AddExpensePage() {
         description: "",
         paidTo: "",
         paymentMode: "Cash",
-        paidByAccount: ""
+        paidByAccount: "",
+        attachments: []
     });
 
     useEffect(() => {
@@ -90,7 +92,8 @@ export default function AddExpensePage() {
                     description: formData.description,
                     paidTo: formData.paidTo,
                     paymentMode: formData.paymentMode,
-                    paidByAccount: formData.paidByAccount || null
+                    paidByAccount: formData.paidByAccount || null,
+                    attachments: formData.attachments || []
                 })
             });
             const data = await res.json();
@@ -104,7 +107,8 @@ export default function AddExpensePage() {
                     description: "",
                     paidTo: "",
                     paymentMode: "Cash",
-                    paidByAccount: ""
+                    paidByAccount: "",
+                    attachments: []
                 });
             } else {
                 toast.error(data.error || "Failed to record expense");
@@ -246,6 +250,14 @@ export default function AddExpensePage() {
                                 </div>
                             </div>
 
+                            {/* SECTION: Receipts & Invoices */}
+                            <div className="space-y-4">
+                                <ReceiptUploadZone
+                                    attachments={formData.attachments}
+                                    onChange={(newAttachments) => setFormData(prev => ({ ...prev, attachments: newAttachments }))}
+                                />
+                            </div>
+
                             <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
                                 <Button
                                     type="button"
@@ -258,7 +270,8 @@ export default function AddExpensePage() {
                                         description: "",
                                         paidTo: "",
                                         paymentMode: "Cash",
-                                        paidByAccount: ""
+                                        paidByAccount: "",
+                                        attachments: []
                                     })}
                                 >
                                     Reset
@@ -328,6 +341,12 @@ export default function AddExpensePage() {
                                     <div>
                                         <p className="text-xs font-medium text-slate-400">Paid To</p>
                                         <p className="text-sm font-bold text-slate-700">{formData.paidTo}</p>
+                                    </div>
+                                )}
+                                {formData.attachments?.length > 0 && (
+                                    <div>
+                                        <p className="text-xs font-medium text-slate-400">Attachments</p>
+                                        <p className="text-sm font-bold text-slate-700">{formData.attachments.length} receipt{formData.attachments.length > 1 ? 's' : ''} attached</p>
                                     </div>
                                 )}
                             </div>

@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import ReceiptUploadZone from "@/components/finance/ReceiptUploadZone";
 import { useToast } from "@/contexts/ToastContext";
 
 const paymentModeOptions = [
@@ -33,7 +34,8 @@ export default function AddIncomePage() {
         description: "",
         receivedFrom: "",
         paymentMode: "Cash",
-        receivedInAccount: ""
+        receivedInAccount: "",
+        attachments: []
     });
 
     const fetchData = useCallback(async (signal) => {
@@ -90,7 +92,8 @@ export default function AddIncomePage() {
                     description: formData.description,
                     receivedFrom: formData.receivedFrom,
                     paymentMode: formData.paymentMode,
-                    receivedInAccount: formData.receivedInAccount || null
+                    receivedInAccount: formData.receivedInAccount || null,
+                    attachments: formData.attachments || []
                 })
             });
             const data = await res.json();
@@ -104,7 +107,8 @@ export default function AddIncomePage() {
                     description: "",
                     receivedFrom: "",
                     paymentMode: "Cash",
-                    receivedInAccount: ""
+                    receivedInAccount: "",
+                    attachments: []
                 });
             } else {
                 toast.error(data.error || "Failed to record income");
@@ -246,6 +250,14 @@ export default function AddIncomePage() {
                                 </div>
                             </div>
 
+                            {/* SECTION: Receipts & Invoices */}
+                            <div className="space-y-4">
+                                <ReceiptUploadZone
+                                    attachments={formData.attachments}
+                                    onChange={(newAttachments) => setFormData(prev => ({ ...prev, attachments: newAttachments }))}
+                                />
+                            </div>
+
                             <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
                                 <Button
                                     type="button"
@@ -258,7 +270,8 @@ export default function AddIncomePage() {
                                         description: "",
                                         receivedFrom: "",
                                         paymentMode: "Cash",
-                                        receivedInAccount: ""
+                                        receivedInAccount: "",
+                                        attachments: []
                                     })}
                                 >
                                     Reset
@@ -267,7 +280,7 @@ export default function AddIncomePage() {
                                     {saving ? (
                                         <>
                                             <Loader2 size={18} className="animate-spin mr-2" />
-                                            Saving...
+                                             Saving...
                                         </>
                                     ) : (
                                         <>
@@ -328,6 +341,12 @@ export default function AddIncomePage() {
                                     <div>
                                         <p className="text-xs font-medium text-slate-400">Received From</p>
                                         <p className="text-sm font-bold text-slate-700">{formData.receivedFrom}</p>
+                                    </div>
+                                )}
+                                {formData.attachments?.length > 0 && (
+                                    <div>
+                                        <p className="text-xs font-medium text-slate-400">Attachments</p>
+                                        <p className="text-sm font-bold text-slate-700">{formData.attachments.length} receipt{formData.attachments.length > 1 ? 's' : ''} attached</p>
                                     </div>
                                 )}
                             </div>

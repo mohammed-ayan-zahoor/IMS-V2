@@ -49,3 +49,50 @@ export async function DELETE(req, { params }) {
         return NextResponse.json({ error: "Failed to delete income" }, { status: 500 });
     }
 }
+
+export async function PUT(req, { params }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !['admin', 'super_admin'].includes(session.user.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = await params;
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return NextResponse.json({ error: "Invalid income ID" }, { status: 400 });
+        }
+
+        const instituteId = session?.user?.institute?.id;
+        if (!instituteId) {
+            return NextResponse.json({ error: "Institute not found" }, { status: 400 });
+        }
+
+        const body = await req.json();
+        const { date, incomeHead, amount, description, receivedFrom, paymentMode, receivedInAccount, attachments } = body;
+
+        await connectDB();
+        const income = await Income.findOne({ _id: id, institute: instituteId });
+        if (!income) {
+            return NextResponse.json({ error: "Income record not found" }, { status: 404 });
+        }
+
+        if (date) income.date = new Date(date);
+        if (incomeHead) income.incomeHead = incomeHead;
+        if (typeof amount === 'number' && amount > 0) income.amount = amount;
+        if (description !== undefined) income.description = description?.trim();
+        if (receivedFrom !== undefined) income.receivedFrom = receivedFrom?.trim();
+        if (paymentMode) income.paymentMode = paymentMode;
+        if (receivedInAccount !== undefined) income.receivedInAccount = receivedInAccount || null;
+        if (Array.isArray(attachments)) income.attachments = attachments;
+
+        await income.save();
+        await income.populate('incomeHead', 'name');
+        await income.populate('receivedInAccount', 'name accountType');
+
+        return NextResponse.json({ success: true, income });
+    } catch (error) {
+        console.error("Error updating income:", error);
+        return NextResponse.json({ error: "Failed to update income" }, { status: 500 });
+    }
+}
+
