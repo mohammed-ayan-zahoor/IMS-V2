@@ -164,9 +164,11 @@ export async function GET(req, { params }) {
                 studentIdUdise: student.studentIdUdise,
                 penNumber: safeDecrypt(student.penNumber),
                 aadharNumber: safeDecrypt(student.aadharNumber),
+                statsNo: student.statsNo,
 
                 // Qualification & Entrance
                 lastSchoolAttended: student.lastSchoolAttended,
+                previousSchoolMarks: student.previousSchoolMarks,
                 admissionDate: student.admissionDate,
                 admissionStd: student.admissionStd,
                 medium: student.medium,

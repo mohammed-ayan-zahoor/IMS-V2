@@ -468,6 +468,12 @@ function CollegeAdmissionFormView({ data }) {
                     <span className="college-label">APAAR / ABC ID</span>
                     <span className="college-value font-mono">{student.apaarId || "—"}</span>
                 </div>
+                {student.statsNo && (
+                    <div className="college-field">
+                        <span className="college-label">STS / Stats No</span>
+                        <span className="college-value font-mono">{student.statsNo}</span>
+                    </div>
+                )}
             </div>
 
             {/* 2. Student Personal Particulars */}
@@ -518,6 +524,12 @@ function CollegeAdmissionFormView({ data }) {
                         {student.lastSchoolAttended ? `${student.lastSchoolAttended} (10+2 / PUC / Diploma)` : "10+2 / PUC Equivalent Examination"}
                     </span>
                 </div>
+                {student.previousSchoolMarks && (
+                    <div className="college-field">
+                        <span className="college-label">Previous School Marks / %</span>
+                        <span className="college-value font-semibold">{student.previousSchoolMarks}</span>
+                    </div>
+                )}
                 <div className="college-field">
                     <span className="college-label">Medium of Instruction</span>
                     <span className="college-value">{student.medium || "English"}</span>

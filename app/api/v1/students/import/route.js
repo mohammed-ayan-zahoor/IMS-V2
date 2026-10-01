@@ -366,6 +366,8 @@ export async function POST(req) {
         const idxAPAAR = getColIndex(["ApaarID", "APAAR ID", "APAAR"]);
         const idxGRNo = getColIndex(["GRNumber", "GR Number", "GR No", "GR"]);
         const idxUdise = getColIndex(["UdiseID", "UDISE", "Udise ID"]);
+        const idxStatsNo = getColIndex(["StatsNo", "Stats No", "STS No", "STS Number", "STS", "State Student No"]);
+        const idxPreviousSchoolMarks = getColIndex(["PreviousSchoolMarks", "Previous School Marks", "Previous Marks", "Past School Marks", "Last School Marks", "Previous Percentage", "Prior Marks"]);
         const idxNationality = getColIndex(["Nationality"]);
         const idxReligion = getColIndex(["Religion"]);
         const idxEnrollmentNumber = getColIndex(["EnrollmentNumber", "Enrollment Number"]);
@@ -485,6 +487,8 @@ export async function POST(req) {
             const apaarId = getValByColIndex(row, idxAPAAR);
             const grNumber = getValByColIndex(row, idxGRNo);
             const udiseId = getValByColIndex(row, idxUdise);
+            const statsNo = getValByColIndex(row, idxStatsNo);
+            const previousSchoolMarks = getValByColIndex(row, idxPreviousSchoolMarks);
             const nationality = getValByColIndex(row, idxNationality);
             const religion = getValByColIndex(row, idxReligion);
             const emailFromSheet = getValByColIndex(row, idxEmail);
@@ -635,6 +639,9 @@ export async function POST(req) {
                 apaarId,
                 penNumber,
                 udiseId: udiseId || null,
+                studentIdUdise: udiseId || null,
+                statsNo: statsNo || null,
+                previousSchoolMarks: previousSchoolMarks || null,
                 caste: category || null,
                 motherName,
                 motherPhone: motherPhone || null,

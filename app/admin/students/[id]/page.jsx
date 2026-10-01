@@ -45,7 +45,8 @@ import {
     GraduationCap,
     Layers,
     Building,
-    MoreHorizontal
+    MoreHorizontal,
+    Hash
 } from "lucide-react";
 import EnrollFaceModal from "@/components/users/EnrollFaceModal";
 import IDCardQR from "@/components/users/IDCardQR";
@@ -364,6 +365,7 @@ export default function StudentDetailsPage({ params }) {
         aadharNumber: "",
         apaarId: "",
         penNumber: "",
+        statsNo: "",
 
         // Parent fields
         fatherName: "",
@@ -391,6 +393,7 @@ export default function StudentDetailsPage({ params }) {
 
         // School history fields
         lastSchoolAttended: "",
+        previousSchoolMarks: "",
         admissionDate: "",
         admissionStd: "",
         leavingDate: "",
@@ -769,6 +772,7 @@ export default function StudentDetailsPage({ params }) {
                     aadharNumber: data.student.aadharNumber || "",
                     apaarId: data.student.apaarId || "",
                     penNumber: data.student.penNumber || "",
+                    statsNo: data.student.statsNo || "",
                     fatherName: data.student.fatherName || "",
                     fatherPhone: data.student.fatherPhone || "",
                     fatherAadhar: data.student.fatherAadhar || "",
@@ -788,6 +792,7 @@ export default function StudentDetailsPage({ params }) {
                         country: data.student.placeOfBirth?.country || "India"
                     },
                     lastSchoolAttended: data.student.lastSchoolAttended || "",
+                    previousSchoolMarks: data.student.previousSchoolMarks || "",
                     admissionDate: data.student.admissionDate ? format(new Date(data.student.admissionDate), "yyyy-MM-dd") : "",
                     admissionStd: defaultCourseId,
                     leavingDate: data.student.leavingDate ? format(new Date(data.student.leavingDate), "yyyy-MM-dd") : "",
@@ -1673,6 +1678,9 @@ export default function StudentDetailsPage({ params }) {
                                             {isSchool && (
                                                 <InfoRow icon={Tag} label="PEN Number" value={student.penNumber} />
                                             )}
+                                            {isSchool && (
+                                                <InfoRow icon={Hash} label="STS / Stats No" value={student.statsNo} />
+                                            )}
                                         </div>
                                     </div>
 
@@ -1731,6 +1739,7 @@ export default function StudentDetailsPage({ params }) {
                                             <InfoRow icon={BookOpen} label={isCollege ? "Degree / Program" : isSchool ? "Admission Std" : "Course"} value={courses.find(c => c._id === student.admissionStd || c.name === student.admissionStd)?.name || student.admissionStd || batches?.[0]?.course?.name} />
                                             <InfoRow icon={Calendar} label={isCollege ? "Semester / Batch" : "Admitted Batch / Std"} value={student.studyingSinceStandard || (batches?.[0]?.semester ? `Sem ${batches[0].semester} - ${batches[0].name}` : batches?.[0]?.name)} />
                                             <InfoRow icon={History} label={isCollege ? "Previous Institution" : "Last School"} value={student.lastSchoolAttended} />
+                                            <InfoRow icon={Award} label="Previous School Marks" value={student.previousSchoolMarks} />
                                             <InfoRow icon={UserPlus} label="Referred By" value={student.referredBy} />
                                         </div>
                                     </div>
@@ -4125,6 +4134,14 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                                         onChange={(e) => setFormData({ ...formData, penNumber: e.target.value })}
                                     />
                                 )}
+                                {isSchool && (
+                                    <Input
+                                        label="STS / Stats No"
+                                        placeholder="State Student No"
+                                        value={formData.statsNo}
+                                        onChange={(e) => setFormData({ ...formData, statsNo: e.target.value })}
+                                    />
+                                )}
                             </div>
                         </div>
 
@@ -4139,9 +4156,15 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                                     value={formData.lastSchoolAttended}
                                     onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
                                 />
-                                <Input label="Admission Date" type="date" value={formData.admissionDate} onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })} />
+                                <Input
+                                    label="Previous School Marks / %"
+                                    placeholder="e.g. 85% or 480/600"
+                                    value={formData.previousSchoolMarks}
+                                    onChange={(e) => setFormData({ ...formData, previousSchoolMarks: e.target.value })}
+                                />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
+                                <Input label="Admission Date" type="date" value={formData.admissionDate} onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })} />
                                 <Select 
                                     label={isCollege ? "Admitted Degree / Program" : isVocational ? "Course / Trade" : "Admission Std"} 
                                     value={courses.find(c => c._id === formData.admissionStd || c.name === formData.admissionStd)?._id || formData.admissionStd || ""} 
@@ -4151,6 +4174,8 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                                         ...courses.map(c => ({ label: c.code ? `${c.name} (${c.code})` : c.name, value: c._id }))
                                     ]}
                                 />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
                                 <Input
                                     label={isCollege ? "Admitted Semester / Batch" : isVocational ? "Batch / Section" : "Studying Since (Words/Date)"}
                                     placeholder={isCollege ? "e.g. Semester 1" : ""}

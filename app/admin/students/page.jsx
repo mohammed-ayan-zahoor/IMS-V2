@@ -153,6 +153,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
     studentIdUdise: "",
     apaarId: "",
     penNumber: "",
+    statsNo: "",
     fatherName: "",
     fatherPhone: "",
     fatherAadhar: "",
@@ -161,6 +162,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
     motherAadhar: "",
     // Academic History
     lastSchoolAttended: "",
+    previousSchoolMarks: "",
     admissionDate: format(new Date(), "yyyy-MM-dd"),
     admissionStd: "",
     admissionBatch: "",
@@ -1716,6 +1718,14 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                     onChange={(e) => setFormData({ ...formData, penNumber: e.target.value })}
                                 />
                             )}
+                            {isSchool && (
+                                <Input
+                                    label="STS / Stats No"
+                                    placeholder="State Student No"
+                                    value={formData.statsNo}
+                                    onChange={(e) => setFormData({ ...formData, statsNo: e.target.value })}
+                                />
+                            )}
                             <Input
                                 label="Aadhar Number"
                                 placeholder="12 Digit"
@@ -1801,16 +1811,22 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                 />
                             )}
                         </div>
-                        {formData.admissionStd && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {formData.admissionStd && (
                                 <Input
                                     label={isCollege ? "Previous Institution (10+2 / PUC)" : isVocational ? "Previous School / Qualification" : "Last School Attended"}
                                     placeholder={isCollege ? "PUC / CBSE / Diploma Institution" : "Previous School Name"}
                                     value={formData.lastSchoolAttended}
                                     onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
                                 />
-                            </div>
-                        )}
+                            )}
+                            <Input
+                                label="Previous School Marks / %"
+                                placeholder="e.g. 85% or 480/600"
+                                value={formData.previousSchoolMarks}
+                                onChange={(e) => setFormData({ ...formData, previousSchoolMarks: e.target.value })}
+                            />
+                        </div>
                     </div>
 
                     {/* Transport Details (Conditional) */}

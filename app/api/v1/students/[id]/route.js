@@ -104,10 +104,10 @@ export async function PATCH(req, { params }) {
 
         // Add support for advanced metadata fields
         const directFields = [
-            'grNumber', 'studentIdUdise', 'aadharNumber', 'apaarId', 'penNumber',
+            'grNumber', 'studentIdUdise', 'aadharNumber', 'apaarId', 'penNumber', 'statsNo',
             'fatherName', 'fatherPhone', 'fatherAadhar', 'motherName', 'motherPhone', 'motherAadhar',
             'nationality', 'motherTongue', 'religion', 'caste', 'subCaste',
-            'lastSchoolAttended', 'admissionDate', 'admissionStd', 
+            'lastSchoolAttended', 'previousSchoolMarks', 'admissionDate', 'admissionStd', 
             'leavingDate', 'leavingReason', 'studyingSinceStandard',
             'progress', 'conduct', 'remarks', 'placeOfBirth'
         ];

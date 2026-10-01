@@ -90,6 +90,7 @@ export class StudentService {
                 aadharNumber: data.aadharNumber,
                 apaarId: data.apaarId,
                 penNumber: data.penNumber,
+                statsNo: data.statsNo,
                 fatherName: data.fatherName,
                 fatherPhone: data.fatherPhone,
                 fatherAadhar: data.fatherAadhar,
@@ -104,6 +105,7 @@ export class StudentService {
                 subCaste: data.subCaste,
                 placeOfBirth: data.placeOfBirth,
                 lastSchoolAttended: data.lastSchoolAttended,
+                previousSchoolMarks: data.previousSchoolMarks,
                 admissionDate: data.admissionDate,
                 admissionStd: data.admissionStd,
                 leavingDate: data.leavingDate,
@@ -569,7 +571,10 @@ export class StudentService {
         const formattedStudents = students.map(student => {
             const studentObj = student.toObject();
             const sId = student._id.toString();
-            studentObj.name = `${student.profile.firstName} ${student.profile.lastName}`.trim();
+            const firstName = student.profile?.firstName || '';
+            const lastName = student.profile?.lastName || '';
+            studentObj.profile = studentObj.profile || {};
+            studentObj.name = `${firstName} ${lastName}`.trim() || student.email || 'Unnamed Student';
             studentObj.isTemplateIssued = issuedMap.has(sId);
             studentObj.targetCertificateId = issuedMap.get(sId) || null;
             

@@ -113,6 +113,7 @@ const UserSchema = new Schema({
         set: (val) => (val && !val.startsWith('enc:') ? `enc:${encrypt(val)}` : val),
         get: (val) => (val && val.startsWith('enc:') ? decrypt(val.replace(/^enc:/, '')) : val)
     },
+    statsNo: String,
 
     fatherName: String,
     fatherPhone: String,
@@ -146,6 +147,7 @@ const UserSchema = new Schema({
     },
 
     lastSchoolAttended: String,
+    previousSchoolMarks: String,
     admissionDate: Date,
     admissionStd: String,
     medium: String,

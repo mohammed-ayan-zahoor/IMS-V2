@@ -142,9 +142,12 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             apaarId: student.apaarId || 'N/A',
             penNo: student.penNumber || 'N/A',
             penNumber: student.penNumber || 'N/A',
+            statsNo: student.statsNo || 'N/A',
+            stsNo: student.statsNo || 'N/A',
 
             // Academic
             lastSchool: student.lastSchoolAttended || 'N/A',
+            previousSchoolMarks: student.previousSchoolMarks || 'N/A',
             admissionDate: student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-GB') : 'N/A',
             joiningDate: student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-GB') : 'N/A', // Alias
             admissionStd: student.admissionStd || 'N/A',
