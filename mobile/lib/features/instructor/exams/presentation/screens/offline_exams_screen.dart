@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:student_app/core/providers/academic_session_provider.dart';
 import 'package:student_app/features/instructor/exams/data/models/offline_exam_model.dart';
 import 'package:student_app/features/instructor/exams/presentation/providers/instructor_exams_provider.dart';
+import 'package:student_app/features/instructor/exams/presentation/screens/create_offline_exam_screen.dart';
 import 'package:student_app/features/instructor/exams/presentation/screens/offline_marks_entry_screen.dart';
 
 class OfflineExamsScreen extends StatefulWidget {
@@ -657,6 +658,21 @@ class _OfflineExamsScreenState extends State<OfflineExamsScreen> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFF002045),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_circle_outline, size: 20),
+        label: const Text(
+          'Schedule Exam',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreateOfflineExamScreen()),
+          );
+        },
       ),
     );
   }

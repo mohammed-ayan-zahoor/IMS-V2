@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:student_app/features/instructor/exams/presentation/providers/instructor_exams_provider.dart';
+import 'package:student_app/features/instructor/exams/presentation/screens/create_online_exam_screen.dart';
 import 'package:student_app/features/instructor/exams/presentation/screens/exam_grading_screen.dart';
 import 'package:student_app/features/instructor/exams/presentation/screens/offline_exams_screen.dart';
 import 'package:student_app/features/instructor/exams/presentation/screens/online_exam_results_screen.dart';
@@ -239,6 +240,21 @@ class InstructorExamsScreen extends StatelessWidget {
                       );
                     },
                   ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFF002045),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_circle_outline, size: 20),
+        label: const Text(
+          'Create Exam',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreateOnlineExamScreen()),
+          );
+        },
       ),
     );
   }

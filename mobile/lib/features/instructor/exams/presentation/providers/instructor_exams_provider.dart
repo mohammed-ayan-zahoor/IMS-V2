@@ -155,4 +155,34 @@ class InstructorExamsProvider extends ChangeNotifier {
     }
     return result;
   }
+
+  Future<Map<String, dynamic>> createOnlineExam(Map<String, dynamic> data) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final result = await _repository.createOnlineExam(data);
+      if (result['success'] == true) {
+        await loadExams(refresh: true);
+      }
+      return result;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> createOfflineExam(Map<String, dynamic> data) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final result = await _repository.createOfflineExam(data);
+      if (result['success'] == true) {
+        await loadOfflineExams(refresh: true);
+      }
+      return result;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }

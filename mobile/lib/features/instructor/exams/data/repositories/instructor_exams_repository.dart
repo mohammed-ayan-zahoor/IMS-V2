@@ -231,4 +231,48 @@ class InstructorExamsRepository {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>> createOnlineExam(Map<String, dynamic> data) async {
+    try {
+      final res = await _apiClient.post(ApiEndpoints.instructorExams, data: data);
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        return {
+          'success': true,
+          'exam': res.data['exam'] ?? res.data,
+          'message': 'Exam created successfully',
+        };
+      }
+      return {
+        'success': false,
+        'message': res.data?['error'] ?? 'Failed to create exam',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Network error creating exam',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> createOfflineExam(Map<String, dynamic> data) async {
+    try {
+      final res = await _apiClient.post(ApiEndpoints.offlineExams, data: data);
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        return {
+          'success': true,
+          'exam': res.data,
+          'message': 'Offline exam scheduled successfully',
+        };
+      }
+      return {
+        'success': false,
+        'message': res.data?['error'] ?? 'Failed to schedule offline exam',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Network error scheduling offline exam',
+      };
+    }
+  }
 }

@@ -2,6 +2,7 @@ class InstructorBatchDetail {
   final String id;
   final String name;
   final String courseName;
+  final String? courseId;
   final int studentCount;
   final String? academicSession;
   final String? startTime;
@@ -12,6 +13,7 @@ class InstructorBatchDetail {
     required this.id,
     required this.name,
     required this.courseName,
+    this.courseId,
     required this.studentCount,
     this.academicSession,
     this.startTime,
@@ -31,10 +33,17 @@ class InstructorBatchDetail {
 
   factory InstructorBatchDetail.fromJson(Map<String, dynamic> json) {
     String course = 'General Course';
+    String? cId;
     if (json['course'] is Map) {
       course = json['course']['name']?.toString() ?? 'General Course';
+      cId = json['course']['_id']?.toString() ?? json['course']['id']?.toString();
+    } else if (json['course'] is String) {
+      cId = json['course'].toString();
     } else if (json['courseName'] != null) {
       course = json['courseName'].toString();
+    }
+    if (json['courseId'] != null) {
+      cId = json['courseId'].toString();
     }
 
     int count = 0;
@@ -55,6 +64,7 @@ class InstructorBatchDetail {
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       name: (json['name'] ?? 'Section').toString(),
       courseName: course,
+      courseId: cId,
       studentCount: count,
       academicSession: session,
       startTime: json['schedule']?['startTime']?.toString(),
