@@ -8,6 +8,7 @@ import { getInstituteScope } from '@/middleware/instituteScope';
 
 import { Types } from "mongoose";
 import { FeeService } from "@/services/feeService";
+import { checkApproval } from "@/lib/approvalGuard";
 
 export async function GET(req, { params }) {
     try {
@@ -140,6 +141,26 @@ export async function PATCH(req, { params }) {
 
             if (isNaN(discountValue) || discountValue < 0) {
                 return NextResponse.json({ error: "Invalid discount value" }, { status: 400 });
+            }
+
+            // Check if discount update requires Master Admin approval
+            const guard = await checkApproval({
+                session,
+                action: 'discount',
+                resourceType: 'Fee',
+                resourceId: id,
+                payload: { discount: body.discount }
+            });
+
+            if (!guard.proceed) {
+                return NextResponse.json({
+                    pending: true,
+                    alreadyPending: guard.alreadyPending,
+                    requestId: guard.requestId,
+                    message: guard.alreadyPending
+                        ? "A discount request for this student is already pending approval"
+                        : "Discount submitted and sent to Master Admin for approval"
+                }, { status: 202 });
             }
 
             const fee = await FeeService.updateDiscount(id, body.discount, session.user.id);

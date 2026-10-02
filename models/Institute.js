@@ -115,6 +115,11 @@ const InstituteSchema = new Schema({
             rteAndScholarship: { type: Boolean, default: false }
         },
 
+        // Approval Workflow rules (Master Admin gate)
+        approvalRules: {
+            discount: { type: Boolean, default: false }
+        },
+
         // Email settings
         emailNotifications: { type: Boolean, default: true },
         smsNotifications: { type: Boolean, default: false },

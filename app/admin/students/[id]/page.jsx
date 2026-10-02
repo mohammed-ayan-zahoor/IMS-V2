@@ -1174,7 +1174,11 @@ export default function StudentDetailsPage({ params }) {
                 })
             });
 
-            if (res.ok) {
+            if (res.status === 202) {
+                const data = await res.json();
+                setIsDiscountModalOpen(false);
+                toast.info(data.message || "Discount sent to Master Admin for approval.");
+            } else if (res.ok) {
                 setIsDiscountModalOpen(false);
                 fetchStudentDetails();
                 toast.success("Discount applied successfully!");

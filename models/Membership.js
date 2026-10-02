@@ -26,6 +26,10 @@ const MembershipSchema = new Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    isMasterAdmin: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

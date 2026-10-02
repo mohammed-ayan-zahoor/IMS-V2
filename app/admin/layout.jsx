@@ -57,6 +57,8 @@ import {
     Boxes,
     Package,
     Monitor,
+    ShieldCheck,
+    ShieldAlert,
     SlidersHorizontal
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -282,6 +284,8 @@ export default function AdminLayout({ children }) {
             icon: Settings,
             role: ["admin", "super_admin"],
             items: [
+                { label: "Approvals", icon: ShieldCheck, href: "/admin/approvals" },
+                { label: "Master Admin & Rules", icon: ShieldAlert, href: "/admin/settings/master-admin" },
                 { label: "Accounts Master", icon: Building2, href: "/admin/accounts" },
                 { label: "User Management", icon: UserCog, href: "/admin/users" },
                 { label: "Audit Logs", icon: History, href: "/admin/audit-logs" },
