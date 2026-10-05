@@ -431,9 +431,20 @@ class _InstructorSyllabusScreenState extends State<InstructorSyllabusScreen> {
                 final ch = entry.value;
 
                 int chDone = 0;
+                int chTotal = 0;
                 for (final tp in ch.topics) {
-                  if (tp.id != null && progress != null && progress.isItemCompleted(tp.id!)) {
-                    chDone++;
+                  if (tp.subTopics.isNotEmpty) {
+                    for (final st in tp.subTopics) {
+                      chTotal++;
+                      if (st.id != null && progress != null && progress.isItemCompleted(st.id!)) {
+                        chDone++;
+                      }
+                    }
+                  } else {
+                    chTotal++;
+                    if (tp.id != null && progress != null && progress.isItemCompleted(tp.id!)) {
+                      chDone++;
+                    }
                   }
                 }
 
@@ -465,17 +476,17 @@ class _InstructorSyllabusScreenState extends State<InstructorSyllabusScreen> {
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
                             ),
                             Text(
-                              '$chDone of ${ch.topics.length} topics completed',
+                              '$chDone of $chTotal items completed',
                               style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                             ),
                           ],
                         ),
                       ),
-                      if (ch.topics.isNotEmpty && chDone == ch.topics.length)
+                      if (chTotal > 0 && chDone == chTotal)
                         const Icon(Icons.check_circle, size: 18, color: Color(0xFF10B981))
                       else
                         Text(
-                          '${ch.topics.isNotEmpty ? ((chDone / ch.topics.length) * 100).toStringAsFixed(0) : 0}%',
+                          '${chTotal > 0 ? ((chDone / chTotal) * 100).toStringAsFixed(0) : 0}%',
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
                         ),
                     ],

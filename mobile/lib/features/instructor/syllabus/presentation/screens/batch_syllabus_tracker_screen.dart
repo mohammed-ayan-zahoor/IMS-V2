@@ -21,6 +21,7 @@ class BatchSyllabusTrackerScreen extends StatefulWidget {
 
 class _BatchSyllabusTrackerScreenState extends State<BatchSyllabusTrackerScreen> {
   final Set<String> _pendingToggles = {};
+  final Set<String> _collapsedTopicIds = {};
 
   @override
   void initState() {
@@ -37,6 +38,7 @@ class _BatchSyllabusTrackerScreenState extends State<BatchSyllabusTrackerScreen>
     required String itemId,
     required String itemType,
     required String chapterId,
+    String? topicId,
     required String title,
     required bool currentlyCompleted,
   }) {
@@ -48,7 +50,10 @@ class _BatchSyllabusTrackerScreenState extends State<BatchSyllabusTrackerScreen>
         context: context,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: Text('Unmark Topic?', style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold, fontSize: 16)),
+          title: Text(
+            itemType == 'subtopic' ? 'Unmark Subtopic?' : 'Unmark Topic?',
+            style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
           content: Text('Mark "$title" as incomplete for ${widget.batch.name}?'),
           actions: [
             TextButton(
@@ -62,7 +67,13 @@ class _BatchSyllabusTrackerScreenState extends State<BatchSyllabusTrackerScreen>
               ),
               onPressed: () async {
                 Navigator.pop(ctx);
-                _toggleItem(itemId: itemId, itemType: itemType, chapterId: chapterId, notes: null);
+                _toggleItem(
+                  itemId: itemId,
+                  itemType: itemType,
+                  chapterId: chapterId,
+                  topicId: topicId,
+                  notes: null,
+                );
               },
               child: const Text('Unmark'),
             ),
@@ -119,6 +130,7 @@ class _BatchSyllabusTrackerScreenState extends State<BatchSyllabusTrackerScreen>
                 itemId: itemId,
                 itemType: itemType,
                 chapterId: chapterId,
+                topicId: topicId,
                 notes: notes.isNotEmpty ? notes : null,
               );
             },
@@ -133,6 +145,7 @@ class _BatchSyllabusTrackerScreenState extends State<BatchSyllabusTrackerScreen>
     required String itemId,
     required String itemType,
     required String chapterId,
+    String? topicId,
     String? notes,
   }) async {
     setState(() => _pendingToggles.add(itemId));
@@ -142,6 +155,7 @@ class _BatchSyllabusTrackerScreenState extends State<BatchSyllabusTrackerScreen>
       itemId: itemId,
       itemType: itemType,
       chapterId: chapterId,
+      topicId: topicId,
       notes: notes,
     );
 
@@ -296,9 +310,20 @@ class _BatchSyllabusTrackerScreenState extends State<BatchSyllabusTrackerScreen>
                     final chapter = entry.value;
 
                     int chDone = 0;
+                    int chTotal = 0;
                     for (final t in chapter.topics) {
-                      if (t.id != null && progress != null && progress.isItemCompleted(t.id!)) {
-                        chDone++;
+                      if (t.subTopics.isNotEmpty) {
+                        for (final st in t.subTopics) {
+                          chTotal++;
+                          if (st.id != null && progress != null && progress.isItemCompleted(st.id!)) {
+                            chDone++;
+                          }
+                        }
+                      } else {
+                        chTotal++;
+                        if (t.id != null && progress != null && progress.isItemCompleted(t.id!)) {
+                          chDone++;
+                        }
                       }
                     }
 
@@ -323,7 +348,7 @@ class _BatchSyllabusTrackerScreenState extends State<BatchSyllabusTrackerScreen>
                             ),
                           ),
                           subtitle: Text(
-                            '$chDone / ${chapter.topics.length} completed',
+                            '$chDone / $chTotal completed',
                             style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                           ),
                           children: [
@@ -331,75 +356,236 @@ class _BatchSyllabusTrackerScreenState extends State<BatchSyllabusTrackerScreen>
                             ...chapter.topics.asMap().entries.map((tpEntry) {
                               final topic = tpEntry.value;
                               final topicId = topic.id;
-                              final isDone = topicId != null && (progress?.isItemCompleted(topicId) ?? false);
-                              final isPending = topicId != null && _pendingToggles.contains(topicId);
+                              final hasSubTopics = topic.subTopics.isNotEmpty;
 
-                              // Find completion details if any
+                              // Calculate subtopic completions if present
+                              int stDoneCount = 0;
+                              if (hasSubTopics) {
+                                for (final st in topic.subTopics) {
+                                  if (st.id != null && (progress?.isItemCompleted(st.id!) ?? false)) {
+                                    stDoneCount++;
+                                  }
+                                }
+                              }
+
+                              final isTopicDone = hasSubTopics
+                                  ? (stDoneCount == topic.subTopics.length)
+                                  : (topicId != null && (progress?.isItemCompleted(topicId) ?? false));
+                              final isPartial = hasSubTopics && stDoneCount > 0 && stDoneCount < topic.subTopics.length;
+                              final isPending = topicId != null && _pendingToggles.contains(topicId);
+                              final isCollapsed = topicId != null && _collapsedTopicIds.contains(topicId);
+
+                              // Find topic completion record if any
                               final completion = topicId != null ? progress?.findCompletion(topicId) : null;
 
-                              return InkWell(
-                                onTap: topicId == null || isPending
-                                    ? null
-                                    : () {
-                                        _showMarkDialog(
-                                          itemId: topicId,
-                                          itemType: 'topic',
-                                          chapterId: chapter.id ?? '',
-                                          title: topic.title,
-                                          currentlyCompleted: isDone,
-                                        );
-                                      },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                  decoration: const BoxDecoration(
-                                    border: Border(bottom: BorderSide(color: Color(0xFFF8FAFC))),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      if (isPending)
-                                        const Padding(
-                                          padding: EdgeInsets.only(right: 12, top: 2),
-                                          child: SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF002045)),
+                              return Container(
+                                decoration: const BoxDecoration(
+                                  border: Border(bottom: BorderSide(color: Color(0xFFF8FAFC))),
+                                ),
+                                child: Column(
+                                  children: [
+                                    // Topic Row
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          // Checkbox for topic
+                                          InkWell(
+                                            onTap: topicId == null || isPending
+                                                ? null
+                                                : () {
+                                                    _showMarkDialog(
+                                                      itemId: topicId,
+                                                      itemType: 'topic',
+                                                      chapterId: chapter.id ?? '',
+                                                      topicId: topicId,
+                                                      title: topic.title,
+                                                      currentlyCompleted: isTopicDone,
+                                                    );
+                                                  },
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(right: 10),
+                                              child: isPending
+                                                  ? const SizedBox(
+                                                      width: 20,
+                                                      height: 20,
+                                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF002045)),
+                                                    )
+                                                  : Icon(
+                                                      isTopicDone
+                                                          ? Icons.check_box
+                                                          : (isPartial ? Icons.indeterminate_check_box : Icons.check_box_outline_blank),
+                                                      color: isTopicDone
+                                                          ? const Color(0xFF10B981)
+                                                          : (isPartial ? const Color(0xFF002045) : const Color(0xFF94A3B8)),
+                                                      size: 22,
+                                                    ),
+                                            ),
                                           ),
-                                        )
-                                      else
-                                        Padding(
-                                          padding: const EdgeInsets.only(right: 12, top: 2),
-                                          child: Icon(
-                                            isDone ? Icons.check_box : Icons.check_box_outline_blank,
-                                            color: isDone ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                                            size: 22,
-                                          ),
-                                        ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              topic.title,
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w500,
-                                                color: isDone ? const Color(0xFF64748B) : const Color(0xFF0F172A),
-                                                decoration: isDone ? TextDecoration.lineThrough : null,
+
+                                          // Topic Title & Subtopic Badge
+                                          Expanded(
+                                            child: InkWell(
+                                              onTap: hasSubTopics
+                                                  ? () {
+                                                      if (topicId != null) {
+                                                        setState(() {
+                                                          if (isCollapsed) {
+                                                            _collapsedTopicIds.remove(topicId);
+                                                          } else {
+                                                            _collapsedTopicIds.add(topicId);
+                                                          }
+                                                        });
+                                                      }
+                                                    }
+                                                  : (topicId == null || isPending
+                                                      ? null
+                                                      : () {
+                                                          _showMarkDialog(
+                                                            itemId: topicId,
+                                                            itemType: 'topic',
+                                                            chapterId: chapter.id ?? '',
+                                                            title: topic.title,
+                                                            currentlyCompleted: isTopicDone,
+                                                          );
+                                                        }),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          topic.title,
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight: FontWeight.w600,
+                                                            color: isTopicDone ? const Color(0xFF64748B) : const Color(0xFF0F172A),
+                                                            decoration: isTopicDone ? TextDecoration.lineThrough : null,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      if (hasSubTopics) ...[
+                                                        const SizedBox(width: 6),
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                          decoration: BoxDecoration(
+                                                            color: isTopicDone
+                                                                ? const Color(0xFFECFDF5)
+                                                                : const Color(0xFFEFF4FF),
+                                                            borderRadius: BorderRadius.circular(4),
+                                                          ),
+                                                          child: Text(
+                                                            '$stDoneCount/${topic.subTopics.length}',
+                                                            style: TextStyle(
+                                                              fontSize: 10,
+                                                              fontWeight: FontWeight.bold,
+                                                              color: isTopicDone
+                                                                  ? const Color(0xFF059669)
+                                                                  : const Color(0xFF002045),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Icon(
+                                                          isCollapsed
+                                                              ? Icons.keyboard_arrow_down
+                                                              : Icons.keyboard_arrow_up,
+                                                          size: 16,
+                                                          color: const Color(0xFF94A3B8),
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                  if (completion?.notes != null && completion!.notes!.isNotEmpty) ...[
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      'Note: ${completion.notes!}',
+                                                      style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF475569)),
+                                                    ),
+                                                  ],
+                                                ],
                                               ),
                                             ),
-                                            if (completion?.notes != null && completion!.notes!.isNotEmpty) ...[
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Note: ${completion.notes!}',
-                                                style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF475569)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Sub-Topics indented checklist
+                                    if (hasSubTopics && !isCollapsed)
+                                      Container(
+                                        margin: const EdgeInsets.fromLTRB(36, 0, 14, 8),
+                                        padding: const EdgeInsets.only(left: 8),
+                                        decoration: const BoxDecoration(
+                                          border: Border(left: BorderSide(color: Color(0xFFE2E8F0), width: 1.5)),
+                                        ),
+                                        child: Column(
+                                          children: topic.subTopics.map((subTopic) {
+                                            final stId = subTopic.id;
+                                            final isStDone = stId != null && (progress?.isItemCompleted(stId) ?? false);
+                                            final isStPending = stId != null && _pendingToggles.contains(stId);
+                                            final stCompletion = stId != null ? progress?.findCompletion(stId) : null;
+
+                                            return InkWell(
+                                              onTap: stId == null || isStPending
+                                                  ? null
+                                                  : () {
+                                                      _showMarkDialog(
+                                                        itemId: stId,
+                                                        itemType: 'subtopic',
+                                                        chapterId: chapter.id ?? '',
+                                                        topicId: topic.id,
+                                                        title: subTopic.title,
+                                                        currentlyCompleted: isStDone,
+                                                      );
+                                                    },
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+                                                child: Row(
+                                                  children: [
+                                                    if (isStPending)
+                                                      const SizedBox(
+                                                        width: 17,
+                                                        height: 17,
+                                                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF002045)),
+                                                      )
+                                                    else
+                                                      Icon(
+                                                        isStDone ? Icons.check_box : Icons.check_box_outline_blank,
+                                                        color: isStDone ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                                                        size: 17,
+                                                      ),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text(
+                                                            subTopic.title,
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              color: isStDone ? const Color(0xFF64748B) : const Color(0xFF334155),
+                                                              decoration: isStDone ? TextDecoration.lineThrough : null,
+                                                            ),
+                                                          ),
+                                                          if (stCompletion?.notes != null && stCompletion!.notes!.isNotEmpty)
+                                                            Text(
+                                                              'Note: ${stCompletion.notes!}',
+                                                              style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: Color(0xFF64748B)),
+                                                            ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                            ],
-                                          ],
+                                            );
+                                          }).toList(),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
                               );
                             }),

@@ -245,6 +245,124 @@ class _SyllabusBuilderScreenState extends State<SyllabusBuilderScreen> {
     });
   }
 
+  void _addSubTopic(int chapterIndex, int topicIndex) {
+    final controller = TextEditingController();
+    final parentTopic = _chapters[chapterIndex].topics[topicIndex];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text(
+          'Add Sub-Topic',
+          style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Under: ${parentTopic.title}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'e.g., Definitions & Key Concepts',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF002045),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty) {
+                setState(() {
+                  parentTopic.subTopics.add(
+                    SyllabusSubTopic(
+                      id: 'tmp_st_${DateTime.now().millisecondsSinceEpoch}',
+                      title: text,
+                      order: parentTopic.subTopics.length,
+                    ),
+                  );
+                });
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _editSubTopic(int chapterIndex, int topicIndex, int subTopicIndex) {
+    final parentTopic = _chapters[chapterIndex].topics[topicIndex];
+    final subTopic = parentTopic.subTopics[subTopicIndex];
+    final controller = TextEditingController(text: subTopic.title);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text(
+          'Edit Sub-Topic',
+          style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Sub-topic title',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF002045),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty) {
+                setState(() {
+                  subTopic.title = text;
+                });
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteSubTopic(int chapterIndex, int topicIndex, int subTopicIndex) {
+    setState(() {
+      _chapters[chapterIndex].topics[topicIndex].subTopics.removeAt(subTopicIndex);
+    });
+  }
+
   Future<void> _handleSave() async {
     setState(() => _isSaving = true);
     final prov = context.read<InstructorSyllabusProvider>();
@@ -254,6 +372,9 @@ class _SyllabusBuilderScreenState extends State<SyllabusBuilderScreen> {
       _chapters[i].order = i;
       for (int j = 0; j < _chapters[i].topics.length; j++) {
         _chapters[i].topics[j].order = j;
+        for (int k = 0; k < _chapters[i].topics[j].subTopics.length; k++) {
+          _chapters[i].topics[j].subTopics[k].order = k;
+        }
       }
     }
 
@@ -455,26 +576,132 @@ class _SyllabusBuilderScreenState extends State<SyllabusBuilderScreen> {
                             },
                             itemBuilder: (context, tpIdx) {
                               final topic = chapter.topics[tpIdx];
-                              return ListTile(
+                              return Container(
                                 key: ValueKey(topic.id ?? 'tp_${chIdx}_$tpIdx'),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                                dense: true,
-                                leading: const Icon(Icons.drag_indicator, size: 18, color: Color(0xFFCBD5E1)),
-                                title: Text(
-                                  topic.title,
-                                  style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
+                                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
                                 ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
-                                      onPressed: () => _editTopic(chIdx, tpIdx),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.drag_indicator, size: 16, color: Color(0xFFCBD5E1)),
+                                          const SizedBox(width: 4),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                                            ),
+                                            child: Text(
+                                              '${chIdx + 1}.${tpIdx + 1}',
+                                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              topic.title,
+                                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                                            ),
+                                          ),
+                                          InkWell(
+                                            onTap: () => _addSubTopic(chIdx, tpIdx),
+                                            borderRadius: BorderRadius.circular(4),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFEFF4FF),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.add, size: 11, color: Color(0xFF002045)),
+                                                  SizedBox(width: 2),
+                                                  Text(
+                                                    'Subtopic',
+                                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF002045)),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 2),
+                                          IconButton(
+                                            icon: const Icon(Icons.edit_outlined, size: 15, color: Color(0xFF64748B)),
+                                            onPressed: () => _editTopic(chIdx, tpIdx),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                            tooltip: 'Edit Topic',
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.close, size: 15, color: Color(0xFF94A3B8)),
+                                            onPressed: () => _deleteTopic(chIdx, tpIdx),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                            tooltip: 'Delete Topic',
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
-                                      onPressed: () => _deleteTopic(chIdx, tpIdx),
-                                    ),
+                                    if (topic.subTopics.isNotEmpty)
+                                      Container(
+                                        margin: const EdgeInsets.fromLTRB(28, 0, 8, 6),
+                                        padding: const EdgeInsets.only(left: 8, top: 2, bottom: 2),
+                                        decoration: const BoxDecoration(
+                                          border: Border(left: BorderSide(color: Color(0xFFCBD5E1), width: 1.5)),
+                                        ),
+                                        child: Column(
+                                          children: topic.subTopics.asMap().entries.map((stEntry) {
+                                            final stIdx = stEntry.key;
+                                            final subTopic = stEntry.value;
+                                            return Padding(
+                                              padding: const EdgeInsets.symmetric(vertical: 2),
+                                              child: Row(
+                                                children: [
+                                                  Container(
+                                                    width: 4,
+                                                    height: 4,
+                                                    decoration: const BoxDecoration(
+                                                      color: Color(0xFF94A3B8),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      subTopic.title,
+                                                      style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                                                    ),
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.edit_outlined, size: 13, color: Color(0xFF94A3B8)),
+                                                    onPressed: () => _editSubTopic(chIdx, tpIdx, stIdx),
+                                                    padding: EdgeInsets.zero,
+                                                    constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                                                    tooltip: 'Edit Subtopic',
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.close, size: 13, color: Color(0xFFCBD5E1)),
+                                                    onPressed: () => _deleteSubTopic(chIdx, tpIdx, stIdx),
+                                                    padding: EdgeInsets.zero,
+                                                    constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                                                    tooltip: 'Delete Subtopic',
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               );

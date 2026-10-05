@@ -24,7 +24,13 @@ class InstructorSyllabusProvider extends ChangeNotifier {
   int get totalTopicsCount {
     int count = 0;
     for (final ch in _syllabus) {
-      count += ch.topics.length;
+      for (final tp in ch.topics) {
+        if (tp.subTopics.isNotEmpty) {
+          count += tp.subTopics.length;
+        } else {
+          count++;
+        }
+      }
     }
     return count;
   }
@@ -34,8 +40,16 @@ class InstructorSyllabusProvider extends ChangeNotifier {
     int count = 0;
     for (final ch in _syllabus) {
       for (final tp in ch.topics) {
-        if (tp.id != null && _currentProgress!.isItemCompleted(tp.id!)) {
-          count++;
+        if (tp.subTopics.isNotEmpty) {
+          for (final st in tp.subTopics) {
+            if (st.id != null && _currentProgress!.isItemCompleted(st.id!)) {
+              count++;
+            }
+          }
+        } else {
+          if (tp.id != null && _currentProgress!.isItemCompleted(tp.id!)) {
+            count++;
+          }
         }
       }
     }
