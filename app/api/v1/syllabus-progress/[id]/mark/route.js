@@ -71,6 +71,65 @@ export async function POST(req, { params }) {
             itemId, itemType, chapterId, topicId, isCompleted, notes, completedAt
         }, session.user.id);
 
+        // Record AuditLog for Admin UI audit trail
+        try {
+            const AuditLog = (await import('@/models/AuditLog')).default;
+            const Subject = (await import('@/models/Subject')).default;
+            const Batch = (await import('@/models/Batch')).default;
+
+            const [subjectDoc, batchDoc] = await Promise.all([
+                Subject.findById(progressDoc.subject).select('name code syllabus').lean(),
+                Batch.findById(progressDoc.batch).select('name').lean()
+            ]);
+
+            // Find item title from syllabus hierarchy
+            let itemTitle = '';
+            for (const ch of (subjectDoc?.syllabus || [])) {
+                if (String(ch._id) === String(itemId)) {
+                    itemTitle = ch.title;
+                    break;
+                }
+                for (const tp of (ch.topics || [])) {
+                    if (String(tp._id) === String(itemId)) {
+                        itemTitle = `${ch.title} → ${tp.title}`;
+                        break;
+                    }
+                    for (const st of (tp.subTopics || [])) {
+                        if (String(st._id) === String(itemId)) {
+                            itemTitle = `${ch.title} → ${tp.title} → ${st.title}`;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const markDate = completedAt ? new Date(completedAt) : new Date();
+
+            await AuditLog.create({
+                institute: progressDoc.institute || session.user.institute?.id,
+                actor: session.user.id,
+                action: 'syllabus_progress.mark',
+                resource: {
+                    type: 'BatchSyllabusProgress',
+                    id: progressDoc._id
+                },
+                details: {
+                    name: `${isCompleted ? 'Marked' : 'Unmarked'} ${itemType}: ${itemTitle || itemId}`,
+                    status: isCompleted ? 'completed' : 'incomplete',
+                    itemType,
+                    itemTitle: itemTitle || itemId,
+                    batch: batchDoc?.name || 'Batch',
+                    batchId: progressDoc.batch,
+                    subject: subjectDoc?.name || 'Subject',
+                    subjectCode: subjectDoc?.code || '',
+                    date: markDate.toISOString(),
+                    notes: notes || undefined
+                }
+            });
+        } catch (auditErr) {
+            console.error('AuditLog error in syllabus mark:', auditErr);
+        }
+
         return NextResponse.json({ progress: updated });
     } catch (error) {
         console.error('Mark syllabus item error:', error);
