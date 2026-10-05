@@ -30,7 +30,7 @@ export async function POST(req, { params }) {
         const isAdmin = ['admin', 'super_admin'].includes(session.user.role);
 
         if (!isAdmin) {
-            // Must be an instructor AND must be the assigned instructor of this batch
+            // Must be an instructor AND must be assigned to this batch or course
             if (session.user.role !== 'instructor') {
                 return NextResponse.json({ error: 'Only instructors and admins can mark progress' }, { status: 403 });
             }
@@ -38,9 +38,20 @@ export async function POST(req, { params }) {
             const batch = await Batch.findById(progressDoc.batch).lean();
             if (!batch) return NextResponse.json({ error: 'Batch not found' }, { status: 404 });
 
-            const isAssignedInstructor = String(batch.instructor) === String(session.user.id) ||
-                (Array.isArray(session.user.assignments?.batches) && session.user.assignments.batches.includes(String(batch._id))) ||
+            // Fetch instructor's fresh assignments from DB to avoid stale JWT session
+            const User = (await import('@/models/User')).default;
+            const instructorUser = await User.findById(session.user.id).select('assignments').lean();
+
+            const assignedBatches = (instructorUser?.assignments?.batches || session.user.assignments?.batches || []).map(b => String(b));
+            const assignedCourses = (instructorUser?.assignments?.courses || session.user.assignments?.courses || []).map(c => String(c));
+
+            const isAssignedInstructor = 
+                String(batch.instructor) === String(session.user.id) ||
+                assignedBatches.includes(String(batch._id)) ||
+                (batch.course && assignedCourses.includes(String(batch.course))) ||
+                (batch.courseBundle && assignedCourses.includes(String(batch.courseBundle))) ||
                 (Array.isArray(batch.instructors) && batch.instructors.some(instId => String(instId) === String(session.user.id)));
+
             if (!isAssignedInstructor) {
                 return NextResponse.json({ error: 'You are not the assigned instructor for this batch' }, { status: 403 });
             }
