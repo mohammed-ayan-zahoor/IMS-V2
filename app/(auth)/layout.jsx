@@ -45,15 +45,15 @@ function AuthBrandingHeader() {
     return (
         <div className="mb-8 flex flex-col items-center justify-center w-full">
             <div className="flex items-center justify-center gap-4 md:gap-6 py-2 flex-wrap">
-                {/* Left: Quantech Platform Logo (Decreased Size) */}
+                {/* Left: Quantech Platform Logo (Circular Q Icon) */}
                 <div className="flex flex-col items-center group relative">
                     <Image
-                        src="/quantech/Quantech-Logo.png"
-                        alt="Quantech Logo"
-                        width={120}
-                        height={108}
+                        src="/quantech/quantech_logo_navy.png"
+                        alt="Quantech Q Logo"
+                        width={64}
+                        height={58}
                         priority
-                        className="h-14 md:h-16 w-auto object-contain"
+                        className="h-12 md:h-14 w-auto object-contain"
                     />
                     <div className="flex items-center gap-1 mt-1 opacity-40">
                         <Image 
