@@ -111,9 +111,12 @@ class _InstructorSyllabusScreenState extends State<InstructorSyllabusScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          if (selectedSubject != null && _selectedBatch != null) {
-            await sylProv.loadSyllabus(selectedSubject.id);
-            await sylProv.loadProgress(batchId: _selectedBatch!.id, subjectId: selectedSubject.id);
+          if (_selectedBatch != null) {
+            await sylProv.loadSubjects(courseId: _selectedBatch!.courseId);
+            if (sylProv.selectedSubject != null) {
+              await sylProv.loadSyllabus(sylProv.selectedSubject!.id);
+              await sylProv.loadProgress(batchId: _selectedBatch!.id, subjectId: sylProv.selectedSubject!.id);
+            }
           }
         },
         color: const Color(0xFF002045),

@@ -16,8 +16,18 @@ export class SubjectService {
 
         const query = { deletedAt: null };
         if (instituteId) query.institute = instituteId;
-        if (courseId) query.course = courseId;
         if (semester) query.semester = Number(semester);
+
+        if (courseId) {
+            const Course = (await import('@/models/Course')).default;
+            const courseDoc = await Course.findById(courseId).select('subjects').lean();
+            const subjectIdsInCourse = (courseDoc?.subjects || []).filter(Boolean);
+
+            query.$or = [
+                { course: courseId },
+                ...(subjectIdsInCourse.length > 0 ? [{ _id: { $in: subjectIdsInCourse } }] : [])
+            ];
+        }
 
         return Subject.find(query)
             .populate('course', 'name code')
@@ -158,6 +168,12 @@ export class SubjectService {
                 $pull: { subjects: subject._id }
             });
         }
+
+        // Clean up any empty/dangling progress records for this subject
+        try {
+            const BatchSyllabusProgress = (await import('@/models/BatchSyllabusProgress')).default;
+            await BatchSyllabusProgress.deleteMany({ subject: subject._id });
+        } catch (_) {}
 
         createAuditLog({
             actor: actorId,

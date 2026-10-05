@@ -143,8 +143,18 @@ export class SyllabusService {
             }
         }
 
+        const Subject = (await import('@/models/Subject')).default;
+        const directCourseSubjects = batch.course?._id
+            ? await Subject.find({ course: batch.course._id, deletedAt: null }).select('_id semester').lean()
+            : [];
+
+        const allCourseSubjects = [
+            ...(batch.course?.subjects || []),
+            ...directCourseSubjects
+        ];
+
         const validCourseSubjectIds = new Set(
-            (batch.course?.subjects || [])
+            allCourseSubjects
                 .filter(s => {
                     if (!s || s.deletedAt) return false;
                     if (batchSemester) {
