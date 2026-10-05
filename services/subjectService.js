@@ -20,6 +20,7 @@ export class SubjectService {
         if (semester) query.semester = Number(semester);
 
         return Subject.find(query)
+            .populate('course', 'name code')
             .populate('masterSubject')
             .populate('department', 'name code')
             .sort({ semester: 1, name: 1 });

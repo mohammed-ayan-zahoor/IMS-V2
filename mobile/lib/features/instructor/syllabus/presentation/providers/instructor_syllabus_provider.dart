@@ -49,8 +49,13 @@ class InstructorSyllabusProvider extends ChangeNotifier {
 
     try {
       _subjects = await _repository.fetchSubjects(courseId: courseId);
-      if (_subjects.isNotEmpty && _selectedSubject == null) {
-        _selectedSubject = _subjects.first;
+      if (_subjects.isNotEmpty) {
+        if (_selectedSubject == null || !_subjects.any((s) => s.id == _selectedSubject!.id)) {
+          _selectedSubject = _subjects.first;
+        }
+      } else {
+        _selectedSubject = null;
+        _syllabus = [];
       }
     } catch (e) {
       _errorMessage = 'Failed to load subjects';

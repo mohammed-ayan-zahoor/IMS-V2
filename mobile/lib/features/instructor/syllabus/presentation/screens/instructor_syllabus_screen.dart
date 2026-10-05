@@ -23,16 +23,17 @@ class _InstructorSyllabusScreenState extends State<InstructorSyllabusScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final batchesProv = context.read<InstructorBatchesProvider>();
-      if (batchesProv.batches.isEmpty) {
-        batchesProv.loadBatches();
-      }
-
-      final sylProv = context.read<InstructorSyllabusProvider>();
-      sylProv.loadSubjects().then((_) {
-        _syncSelection();
-      });
+      _initLoad();
     });
+  }
+
+  void _initLoad() {
+    final batchesProv = context.read<InstructorBatchesProvider>();
+    if (batchesProv.batches.isEmpty) {
+      batchesProv.loadBatches().then((_) => _syncSelection());
+    } else {
+      _syncSelection();
+    }
   }
 
   void _syncSelection() {
@@ -48,11 +49,13 @@ class _InstructorSyllabusScreenState extends State<InstructorSyllabusScreen> {
     }
 
     final sylProv = context.read<InstructorSyllabusProvider>();
-    if (sylProv.subjects.isNotEmpty) {
-      final sub = sylProv.selectedSubject ?? sylProv.subjects.first;
-      sylProv.setSelectedSubject(sub, batchId: _selectedBatch?.id);
-    }
-    setState(() {});
+    sylProv.loadSubjects(courseId: _selectedBatch?.courseId).then((_) {
+      if (sylProv.subjects.isNotEmpty) {
+        final sub = sylProv.selectedSubject ?? sylProv.subjects.first;
+        sylProv.setSelectedSubject(sub, batchId: _selectedBatch?.id);
+      }
+      setState(() {});
+    });
   }
 
   @override
@@ -155,12 +158,16 @@ class _InstructorSyllabusScreenState extends State<InstructorSyllabusScreen> {
                     }).toList(),
                     onChanged: (val) {
                       if (val != null) {
+                        final newBatch = batches.firstWhere((b) => b.id == val);
                         setState(() {
-                          _selectedBatch = batches.firstWhere((b) => b.id == val);
+                          _selectedBatch = newBatch;
                         });
-                        if (selectedSubject != null) {
-                          sylProv.setSelectedSubject(selectedSubject, batchId: _selectedBatch!.id);
-                        }
+                        sylProv.loadSubjects(courseId: newBatch.courseId).then((_) {
+                          if (sylProv.subjects.isNotEmpty) {
+                            final sub = sylProv.selectedSubject ?? sylProv.subjects.first;
+                            sylProv.setSelectedSubject(sub, batchId: newBatch.id);
+                          }
+                        });
                       }
                     },
                   ),
