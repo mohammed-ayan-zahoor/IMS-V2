@@ -25,18 +25,19 @@ export async function PUT(req, { params }) {
     try {
         const { id } = await params;
         const session = await getServerSession(authOptions);
-        if (!session || !['admin', 'super_admin', 'instructor'].includes(session.user.role)) {
+        if (!session || !['admin', 'super_admin', 'instructor', 'teacher'].includes(session.user.role)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const scope = await getInstituteScope(req);
-        if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
+        const instituteId = scope?.instituteId || session.user.institute?.id || session.user.institute?._id || (typeof session.user.institute === 'string' ? session.user.institute : undefined);
+        if (!instituteId && !scope?.isSuperAdmin) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const { chapters } = await req.json();
         const syllabus = await SyllabusService.updateSyllabus(
-            id, chapters, session.user.id, scope.instituteId
+            id, chapters, session.user.id, instituteId
         );
 
         return NextResponse.json({ syllabus });

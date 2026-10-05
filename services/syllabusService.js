@@ -34,10 +34,16 @@ export class SyllabusService {
         
         // Explicitly cast to ObjectId to ensure query matches
         const sid = mongoose.Types.ObjectId.isValid(subjectId) ? new mongoose.Types.ObjectId(subjectId) : subjectId;
-        const query = { _id: sid, deletedAt: null };
+        const subject = await Subject.findOne({ _id: sid, deletedAt: null });
         
-        if (instituteId && mongoose.Types.ObjectId.isValid(instituteId)) {
-            query.institute = new mongoose.Types.ObjectId(instituteId);
+        if (!subject) {
+            console.error(`Syllabus Update Failed: Subject ${subjectId} not found`);
+            throw new Error('Subject not found');
+        }
+
+        if (instituteId && subject.institute && String(subject.institute) !== String(instituteId)) {
+            console.error(`Tenant mismatch on syllabus update: Subject institute ${subject.institute} vs user institute ${instituteId}`);
+            throw new Error('Access denied: Subject belongs to another institute');
         }
 
         // Normalize order fields from array positions and strip invalid characters
@@ -63,16 +69,8 @@ export class SyllabusService {
                     }))
             }));
 
-        const subject = await Subject.findOneAndUpdate(
-            query,
-            { $set: { syllabus: normalizedChapters } },
-            { new: true, runValidators: true }
-        ).lean();
-
-        if (!subject) {
-            console.error(`Syllabus Update Failed: Subject ${subjectId} not found with query:`, query);
-            throw new Error('Subject not found or access denied');
-        }
+        subject.syllabus = normalizedChapters;
+        await subject.save();
 
         await createAuditLog({
             actor: actorId,
