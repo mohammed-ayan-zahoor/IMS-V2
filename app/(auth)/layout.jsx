@@ -40,60 +40,65 @@ const SLIDES = [
 import { AuthBrandingProvider, useAuthBranding } from "@/components/auth/AuthBrandingContext";
 
 function AuthBrandingHeader() {
-    const { institute, clearInstitute } = useAuthBranding();
+    const { institute } = useAuthBranding();
 
     return (
-        <div className="mb-6 flex flex-col items-center justify-center w-full">
-            {/* Top: Quantech Platform Logo (Large & Clear) */}
-            <div className="flex flex-col items-center mb-5 group relative">
-                <Image
-                    src="/quantech/Quantech-Logo.png"
-                    alt="Quantech Logo"
-                    width={280}
-                    height={80}
-                    priority
-                    className="w-56 md:w-64 h-auto object-contain"
-                />
-                <div className="flex items-center gap-1.5 mt-2 opacity-30">
-                    <Image 
-                        src="/quantech/ims_legacy_logo.png"
-                        alt="IMS Logo"
-                        width={13}
-                        height={13}
-                        className="grayscale"
+        <div className="mb-8 flex flex-col items-center justify-center w-full">
+            <div className="flex items-center justify-center gap-4 md:gap-6 py-2 flex-wrap">
+                {/* Left: Quantech Platform Logo (Decreased Size) */}
+                <div className="flex flex-col items-center group relative">
+                    <Image
+                        src="/quantech/Quantech-Logo.png"
+                        alt="Quantech Logo"
+                        width={120}
+                        height={108}
+                        priority
+                        className="h-14 md:h-16 w-auto object-contain"
                     />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        Previously IMS
-                    </span>
+                    <div className="flex items-center gap-1 mt-1 opacity-40">
+                        <Image 
+                            src="/quantech/ims_legacy_logo.png"
+                            alt="IMS Logo"
+                            width={11}
+                            height={11}
+                            className="grayscale"
+                        />
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+                            Previously IMS
+                        </span>
+                    </div>
                 </div>
-            </div>
 
-            {/* Bottom: Dynamic Institution Branding (Logo Only) */}
-            <AnimatePresence mode="wait">
-                {institute && (
-                    <motion.div
-                        key={institute.code || institute.name}
-                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 4 }}
-                        transition={{ duration: 0.35, ease: "easeOut" }}
-                        className="flex flex-col items-center text-center w-full pt-3 mt-2 border-t border-slate-100"
-                    >
-                        {/* School Crest / Logo Only */}
-                        {institute.logo ? (
-                            <img
-                                src={institute.logo}
-                                alt={institute.name}
-                                className="h-24 md:h-28 w-auto max-w-[240px] object-contain drop-shadow-sm"
-                            />
-                        ) : (
-                            <div className="h-20 w-20 md:h-24 md:w-24 rounded-3xl bg-blue-50 text-blue-600 font-black text-3xl md:text-4xl flex items-center justify-center border border-blue-100/80 shadow-sm">
-                                {institute.name.charAt(0)}
-                            </div>
-                        )}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                {/* Right: Dynamic Institution Branding (Side-by-Side) */}
+                <AnimatePresence mode="wait">
+                    {institute && (
+                        <motion.div
+                            key={institute.code || institute.name}
+                            initial={{ opacity: 0, scale: 0.9, x: -6 }}
+                            animate={{ opacity: 1, scale: 1, x: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, x: -6 }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className="flex items-center gap-4 md:gap-6"
+                        >
+                            {/* Subtle Vertical Divider */}
+                            <div className="h-10 md:h-12 w-px bg-slate-200 shrink-0" />
+
+                            {/* School Crest / Logo */}
+                            {institute.logo ? (
+                                <img
+                                    src={institute.logo}
+                                    alt={institute.name}
+                                    className="h-14 md:h-16 w-auto max-w-[150px] md:max-w-[180px] object-contain drop-shadow-sm"
+                                />
+                            ) : (
+                                <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-blue-50 text-blue-600 font-black text-xl md:text-2xl flex items-center justify-center border border-blue-100/80 shadow-sm">
+                                    {institute.name.charAt(0)}
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
     );
 }

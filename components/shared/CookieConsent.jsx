@@ -7,17 +7,29 @@ export default function CookieConsent() {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        // Prevent showing on server-side render, run check on client mount
-        const consent = sessionStorage.getItem('cookie-consent');
-        if (!consent) {
-            // Delay slightly to prevent render race conditions
-            const timer = setTimeout(() => setIsVisible(true), 1200);
-            return () => clearTimeout(timer);
-        }
+        try {
+            // Check localStorage so consent persists across tabs and browser restarts
+            const consent = localStorage.getItem('cookie-consent') || sessionStorage.getItem('cookie-consent');
+            if (!consent) {
+                // Delay slightly to prevent render race conditions
+                const timer = setTimeout(() => setIsVisible(true), 1200);
+                return () => clearTimeout(timer);
+            }
+        } catch (_) {}
     }, []);
 
     const handleAccept = () => {
-        sessionStorage.setItem('cookie-consent', 'accepted');
+        try {
+            localStorage.setItem('cookie-consent', 'accepted');
+            sessionStorage.setItem('cookie-consent', 'accepted');
+        } catch (_) {}
+        setIsVisible(false);
+    };
+
+    const handleDismiss = () => {
+        try {
+            localStorage.setItem('cookie-consent', 'dismissed');
+        } catch (_) {}
         setIsVisible(false);
     };
 
@@ -67,7 +79,7 @@ export default function CookieConsent() {
                     </div>
                 </div>
                 <button 
-                    onClick={() => setIsVisible(false)}
+                    onClick={handleDismiss}
                     className="text-slate-500 hover:text-slate-300 transition-colors p-1"
                 >
                     <X size={14} />
