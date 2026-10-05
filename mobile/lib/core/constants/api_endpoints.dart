@@ -63,6 +63,9 @@ class ApiEndpoints {
   static const String hrPermissions = '/hr/permissions';
   static String cancelPermission(String id) => '/hr/permissions/$id';
   static const String syllabusProgress = '/syllabus-progress';
+  static const String subjects = '/subjects';
+  static String subjectSyllabus(String subjectId) => '/subjects/$subjectId/syllabus';
+  static String markSyllabusProgress(String progressId) => '/syllabus-progress/$progressId/mark';
 
   // App Auto-Update
   static const String appVersion = '/app/version';

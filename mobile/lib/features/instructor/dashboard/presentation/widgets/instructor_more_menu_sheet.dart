@@ -8,6 +8,7 @@ import 'package:student_app/features/instructor/calendar/presentation/screens/in
 import 'package:student_app/features/instructor/exams/presentation/screens/instructor_exams_screen.dart';
 import 'package:student_app/features/instructor/exams/presentation/screens/offline_exams_screen.dart';
 import 'package:student_app/features/instructor/exams/presentation/screens/question_bank_screen.dart';
+import 'package:student_app/features/instructor/syllabus/presentation/screens/instructor_syllabus_screen.dart';
 import 'package:student_app/features/instructor/leaves/presentation/screens/instructor_leaves_screen.dart';
 import 'package:student_app/features/instructor/materials/presentation/screens/instructor_materials_screen.dart';
 import 'package:student_app/features/instructor/notices/presentation/screens/instructor_notices_screen.dart';
@@ -274,6 +275,11 @@ class InstructorMoreMenuSheet extends StatelessWidget {
                   icon: Icons.edit_note_rounded,
                   label: 'Offline Exams & Marks',
                   onTap: () => _navigate(context, const OfflineExamsScreen()),
+                ),
+                _buildMenuItem(
+                  icon: Icons.auto_stories_outlined,
+                  label: 'Syllabus & Curriculum',
+                  onTap: () => _navigate(context, const InstructorSyllabusScreen()),
                 ),
 
                 _buildSectionHeader('SELF SERVICE & COMMUNICATION'),

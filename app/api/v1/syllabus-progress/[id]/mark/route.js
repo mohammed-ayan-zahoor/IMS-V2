@@ -38,7 +38,9 @@ export async function POST(req, { params }) {
             const batch = await Batch.findById(progressDoc.batch).lean();
             if (!batch) return NextResponse.json({ error: 'Batch not found' }, { status: 404 });
 
-            const isAssignedInstructor = String(batch.instructor) === String(session.user.id);
+            const isAssignedInstructor = String(batch.instructor) === String(session.user.id) ||
+                (Array.isArray(session.user.assignments?.batches) && session.user.assignments.batches.includes(String(batch._id))) ||
+                (Array.isArray(batch.instructors) && batch.instructors.some(instId => String(instId) === String(session.user.id)));
             if (!isAssignedInstructor) {
                 return NextResponse.json({ error: 'You are not the assigned instructor for this batch' }, { status: 403 });
             }

@@ -34,6 +34,7 @@ import 'package:student_app/features/instructor/notices/presentation/providers/i
 import 'package:student_app/features/instructor/calendar/presentation/providers/instructor_calendar_provider.dart';
 import 'package:student_app/features/instructor/leaves/presentation/providers/instructor_leaves_provider.dart';
 import 'package:student_app/features/instructor/exams/presentation/providers/instructor_exams_provider.dart';
+import 'package:student_app/features/instructor/syllabus/presentation/providers/instructor_syllabus_provider.dart';
 
 import 'package:student_app/core/providers/academic_session_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -92,6 +93,7 @@ class MainApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => InstructorCalendarProvider()),
         ChangeNotifierProvider(create: (_) => InstructorLeavesProvider()),
         ChangeNotifierProvider(create: (_) => InstructorExamsProvider()),
+        ChangeNotifierProvider(create: (_) => InstructorSyllabusProvider()),
       ],
       child: Consumer2<AuthProvider, LocaleProvider>(
         builder: (context, auth, localeProvider, _) {

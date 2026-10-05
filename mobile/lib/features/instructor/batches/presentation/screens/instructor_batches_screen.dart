@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:student_app/features/instructor/batches/presentation/providers/instructor_batches_provider.dart';
+import 'package:student_app/features/instructor/syllabus/presentation/screens/instructor_syllabus_screen.dart';
 import 'package:student_app/l10n/app_localizations.dart';
 
 class InstructorBatchesScreen extends StatefulWidget {
@@ -184,31 +185,64 @@ class _InstructorBatchesScreenState extends State<InstructorBatchesScreen> {
                                     const SizedBox(height: 14),
                                     const Divider(height: 1, color: Color(0xFFE2E8F0)),
                                     const SizedBox(height: 12),
-                                    // Dedicated, properly-sized and spaced CTA Button
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton.icon(
-                                        onPressed: () {
-                                          widget.onTakeAttendance?.call(batch.id);
-                                        },
-                                        icon: const Icon(Icons.fact_check_outlined, size: 16, color: Colors.white),
-                                        label: Text(
-                                          l10n?.markAttendance ?? 'Mark Attendance',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: ElevatedButton.icon(
+                                            onPressed: () {
+                                              widget.onTakeAttendance?.call(batch.id);
+                                            },
+                                            icon: const Icon(Icons.fact_check_outlined, size: 15, color: Colors.white),
+                                            label: Text(
+                                              l10n?.markAttendance ?? 'Attendance',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(0xFF002045),
+                                              elevation: 0,
+                                              padding: const EdgeInsets.symmetric(vertical: 10),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF002045),
-                                          elevation: 0,
-                                          padding: const EdgeInsets.symmetric(vertical: 11),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(4),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) => InstructorSyllabusScreen(
+                                                    initialBatchId: batch.id,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            icon: const Icon(Icons.auto_stories_outlined, size: 15, color: Color(0xFF002045)),
+                                            label: Text(
+                                              'Syllabus',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: const Color(0xFF002045),
+                                              ),
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                              padding: const EdgeInsets.symmetric(vertical: 10),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      ),
+                                      ],
                                     ),
                                   ],
                                 ),
