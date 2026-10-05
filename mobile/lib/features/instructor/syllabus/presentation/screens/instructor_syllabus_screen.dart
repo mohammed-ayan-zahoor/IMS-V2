@@ -140,12 +140,17 @@ class _InstructorSyllabusScreenState extends State<InstructorSyllabusScreen> {
 
                   // Batch Dropdown
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
                     value: _selectedBatch?.id,
                     decoration: _buildInputDecoration(label: 'Select Batch / Section'),
                     items: batches.map((b) {
                       return DropdownMenuItem<String>(
                         value: b.id,
-                        child: Text('${b.name} (${b.courseName})', style: const TextStyle(fontSize: 13)),
+                        child: Text(
+                          '${b.name} (${b.courseName})',
+                          style: const TextStyle(fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }).toList(),
                     onChanged: (val) {
@@ -163,12 +168,17 @@ class _InstructorSyllabusScreenState extends State<InstructorSyllabusScreen> {
 
                   // Subject Dropdown
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
                     value: selectedSubject?.id,
                     decoration: _buildInputDecoration(label: 'Select Subject'),
                     items: subjects.map((s) {
                       return DropdownMenuItem<String>(
                         value: s.id,
-                        child: Text('${s.name} (${s.code})', style: const TextStyle(fontSize: 13)),
+                        child: Text(
+                          '${s.name} (${s.code})',
+                          style: const TextStyle(fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }).toList(),
                     onChanged: (val) {
