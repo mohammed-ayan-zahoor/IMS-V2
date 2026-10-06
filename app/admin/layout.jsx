@@ -94,6 +94,16 @@ export default function AdminLayout({ children }) {
     const userMenuRef = useRef(null);
     const { sessions, selectedSessionId, changeSession, loading: sessionsLoading } = useAcademicSession();
 
+    const handleSignOut = async () => {
+        try {
+            await signOut({ redirect: false });
+        } catch (err) {
+            console.error("SignOut error:", err);
+        } finally {
+            window.location.href = "/login";
+        }
+    };
+
     useEffect(() => {
         const handleKeyDown = (e) => {
             // ⌘K / Ctrl+K for Spotlight
@@ -103,9 +113,18 @@ export default function AdminLayout({ children }) {
                 return;
             }
 
-            // Shortcut for Sign Out: Ctrl+L or ⌘L (Command+L / Ctrl+L)
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
+            // Shortcut for Sign Out:
+            // 1. Ctrl+L (control key on Mac/Windows)
+            // 2. ⌘+Shift+L / Ctrl+Shift+L
+            // 3. Alt+L / ⌥L (Option+L on Mac)
+            const isL = e.key.toLowerCase() === "l" || e.code === "KeyL";
+            const isCtrlL = e.ctrlKey && isL;
+            const isCmdShiftL = (e.metaKey || e.ctrlKey) && e.shiftKey && isL;
+            const isAltL = e.altKey && isL;
+
+            if (isCtrlL || isCmdShiftL || isAltL) {
                 e.preventDefault();
+                e.stopPropagation();
                 handleSignOut();
                 return;
             }
@@ -118,11 +137,11 @@ export default function AdminLayout({ children }) {
             }
         };
 
-        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keydown", handleKeyDown, true);
         window.addEventListener("open-spotlight", handleCustomOpen);
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
-            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("keydown", handleKeyDown, true);
             window.removeEventListener("open-spotlight", handleCustomOpen);
             document.removeEventListener("mousedown", handleClickOutside);
         };
@@ -131,7 +150,6 @@ export default function AdminLayout({ children }) {
     useEffect(() => {
         const saved = localStorage.getItem("admin_sidebar_collapsed");
         if (saved !== null) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setIsSidebarCollapsed(saved === "true");
         }
     }, []);
@@ -150,8 +168,6 @@ export default function AdminLayout({ children }) {
         else if (status === "authenticated" && session?.user?.role === "student") router.push("/student/dashboard");
     }, [status, session, router]);
 
-
-
     const [liveFeatures, setLiveFeatures] = useState(null);
 
     useEffect(() => {
@@ -166,16 +182,6 @@ export default function AdminLayout({ children }) {
                 .catch(err => console.error("Failed to load live features in layout", err));
         }
     }, [session?.user?.institute?.id, pathname]);
-
-    const handleSignOut = async () => {
-        try {
-            await signOut({ redirect: false });
-        } catch (err) {
-            console.error("SignOut error:", err);
-        } finally {
-            window.location.href = "/login";
-        }
-    };
 
     const features = liveFeatures || session?.user?.institute?.features || {};
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
