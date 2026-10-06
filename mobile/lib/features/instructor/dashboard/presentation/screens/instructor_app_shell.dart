@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:student_app/core/providers/academic_session_provider.dart';
+import 'package:student_app/core/services/app_update_service.dart';
 import 'package:student_app/features/instructor/attendance/presentation/providers/instructor_attendance_provider.dart';
 import 'package:student_app/features/instructor/attendance/presentation/screens/instructor_attendance_screen.dart';
 import 'package:student_app/features/instructor/batches/presentation/screens/instructor_batches_screen.dart';
@@ -27,6 +28,7 @@ class _InstructorAppShellState extends State<InstructorAppShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AcademicSessionProvider>().loadSessions();
+      AppUpdateService.instance.checkForUpdates(context);
     });
   }
 

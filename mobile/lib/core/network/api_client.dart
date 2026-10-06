@@ -23,13 +23,23 @@ class ApiClient {
       followRedirects: false, // We handle redirects manually for auth
       validateStatus: (status) => status != null && status < 500,
     ));
-    _dio.interceptors.add(CookieManager(_cookieJar));
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         await _restoreSession();
+        // Also explicitly inject cookie header if token exists and not already present
+        final token = await _storage.read(key: 'session_token');
+        final name = await _storage.read(key: 'session_token_name') ?? 'next-auth.session-token';
+        if (token != null && token.isNotEmpty) {
+          final existingCookie = options.headers['cookie']?.toString() ?? '';
+          if (!existingCookie.contains(name)) {
+            final cookieStr = '$name=$token';
+            options.headers['cookie'] = existingCookie.isEmpty ? cookieStr : '$existingCookie; $cookieStr';
+          }
+        }
         return handler.next(options);
       },
     ));
+    _dio.interceptors.add(CookieManager(_cookieJar));
     if (kDebugMode) {
       _dio.interceptors.add(LogInterceptor(
         requestBody: true,
@@ -142,6 +152,9 @@ class ApiClient {
         return false;
       }
 
+      // Immediately save any session cookies returned in the login response
+      await _saveSession(loginRes);
+
       // Step 3: Verify session was created
       _log('[Auth] Step 3: Verifying session');
       final sessionRes = await _dio.get(
@@ -166,7 +179,7 @@ class ApiClient {
 
         if (sessionData != null && sessionData['user'] != null) {
           await _storage.write(key: 'userEmail', value: email);
-          await _saveSession();
+          await _saveSession(sessionRes);
           _log('[Auth] Login SUCCESS');
           return true;
         }
@@ -203,7 +216,7 @@ class ApiClient {
           } catch (_) {}
         }
         if (data != null && data['user'] != null) {
-          await _saveSession();
+          await _saveSession(sessionRes);
           return data;
         }
       }
@@ -248,25 +261,52 @@ class ApiClient {
     }
   }
 
-  Future<void> _saveSession() async {
+  Future<void> _saveSession([Response? response]) async {
     try {
       final hostUri = Uri.parse(ApiEndpoints.host);
       final cookies = await _cookieJar.loadForRequest(hostUri);
+      
+      String? foundToken;
+      String? foundName;
+
       for (final cookie in cookies) {
         if (cookie.name == 'next-auth.session-token' || cookie.name.contains('session-token')) {
-          _log('[Auth] Storing session token securely: ${cookie.name}');
-          await _storage.write(key: 'session_token', value: cookie.value);
-          await _storage.write(key: 'session_token_name', value: cookie.name);
-          // Also save in encryptedSharedPreferences for background isolate compatibility
-          try {
-            const encryptedStorage = FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
-            await encryptedStorage.write(key: 'session_token', value: cookie.value);
-            await encryptedStorage.write(key: 'session_token_name', value: cookie.name);
-          } catch (_) {}
+          foundToken = cookie.value;
+          foundName = cookie.name;
           break;
         }
+      }
+
+      // If not in cookieJar yet, check response set-cookie headers
+      if (foundToken == null && response != null) {
+        final setCookieHeaders = response.headers['set-cookie'] ?? [];
+        for (final raw in setCookieHeaders) {
+          if (raw.contains('session-token=')) {
+            final parts = raw.split(';');
+            for (final part in parts) {
+              final kv = part.trim().split('=');
+              if (kv.length == 2 && kv[0].contains('session-token')) {
+                foundName = kv[0].trim();
+                foundToken = kv[1].trim();
+                break;
+              }
+            }
+          }
+          if (foundToken != null) break;
+        }
+      }
+
+      if (foundToken != null && foundName != null) {
+        _log('[Auth] Storing session token securely: $foundName');
+        await _storage.write(key: 'session_token', value: foundToken);
+        await _storage.write(key: 'session_token_name', value: foundName);
+        try {
+          const encryptedStorage = FlutterSecureStorage(
+            aOptions: AndroidOptions(encryptedSharedPreferences: true),
+          );
+          await encryptedStorage.write(key: 'session_token', value: foundToken);
+          await encryptedStorage.write(key: 'session_token_name', value: foundName);
+        } catch (_) {}
       }
     } catch (e) {
       _log('[Auth] Error saving session: $e');

@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/core/localization/language_picker_sheet.dart';
 import 'package:student_app/core/localization/locale_provider.dart';
-import 'package:student_app/l10n/app_localizations.dart';
+import 'package:student_app/core/services/app_update_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -73,6 +73,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       TweenSequenceItem(tween: Tween(begin: 5.0, end: -5.0), weight: 1),
       TweenSequenceItem(tween: Tween(begin: -5.0, end: 0.0), weight: 1),
     ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeIn));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdateService.instance.checkForUpdates(context);
+    });
   }
 
   @override

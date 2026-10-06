@@ -913,10 +913,10 @@ export default function SettingsPage() {
                                 <div>
                                     <div className="flex items-center gap-2">
                                         <h3 className="text-sm font-semibold text-white">Flutter Student Mobile App (Android APK)</h3>
-                                        <span className="px-2 py-0.5 text-[10px] font-bold bg-[#444CE7] text-white rounded-full">v0.1.0+1</span>
+                                        <span className="px-2 py-0.5 text-[10px] font-bold bg-[#444CE7] text-white rounded-full">v0.1.0+3</span>
                                     </div>
                                     <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                                        Direct release APK build for Android devices (~61.9 MB). Share this URL with students or staff to install the app instantly.
+                                        Direct release APK build for Android devices (~71.4 MB). Share this URL with students or staff to install the app instantly.
                                     </p>
                                 </div>
                             </div>

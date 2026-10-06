@@ -11,7 +11,7 @@ class AppUpdateService {
 
   static const String _lastSeenBuildKey = 'last_seen_app_build_mtime';
   static const String _lastSeenVersionCodeKey = 'last_seen_app_version_code';
-  static const int currentVersionCode = 2;
+  static const int currentVersionCode = 3;
   static bool _hasCheckedThisSession = false;
 
   Future<void> checkForUpdates(BuildContext context, {bool forceCheck = false}) async {
@@ -36,14 +36,21 @@ class AppUpdateService {
       final int localLastModified = storedTimeVal != null ? (int.tryParse(storedTimeVal) ?? 0) : 0;
       final int localVersionCode = storedVersionVal != null ? (int.tryParse(storedVersionVal) ?? 0) : currentVersionCode;
 
+      // First run baseline: if stored mtime is 0, initialize it with current server mtime so future modifications trigger
+      if (localLastModified == 0 && serverVersionCode <= currentVersionCode) {
+        await storage.write(key: _lastSeenBuildKey, value: serverLastModified.toString());
+        await storage.write(key: _lastSeenVersionCodeKey, value: currentVersionCode.toString());
+        return;
+      }
+
       // If user has already acknowledged this server build, do not prompt again!
       if (localVersionCode >= serverVersionCode && localLastModified > 0 && localLastModified >= serverLastModified) {
         return;
       }
 
-      // Check if server version is higher than installed version code AND higher than previously acknowledged code
-      final bool isNewerVersion = serverVersionCode > currentVersionCode && serverVersionCode > localVersionCode;
-      final bool isNewerFile = localLastModified > 0 && serverLastModified > localLastModified;
+      // Check if server version is higher than installed version code OR file was replaced/modified
+      final bool isNewerVersion = serverVersionCode > currentVersionCode;
+      final bool isNewerFile = (localLastModified > 0 && serverLastModified > localLastModified);
 
       if (isNewerVersion || isNewerFile) {
         if (!context.mounted) return;
