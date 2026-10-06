@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     BookOpen,
     Plus,
@@ -14,7 +15,8 @@ import {
     Library,
     PlusCircle,
     ArrowRight,
-    Info
+    Info,
+    X
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -218,10 +220,11 @@ export default function CourseSubjectsPage({ params: paramsPromise }) {
         <div className="space-y-6">
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <button 
                         onClick={() => router.push('/admin/courses')}
-                        className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                        className="p-2 hover:bg-slate-100 rounded-lg active:scale-90 transition-transform text-slate-400 hover:text-slate-600 cursor-pointer"
+                        aria-label="Back to courses"
                     >
                         <ChevronLeft size={20} />
                     </button>
@@ -235,33 +238,35 @@ export default function CourseSubjectsPage({ params: paramsPromise }) {
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                     <Button 
                         variant="outline"
+                        size="sm"
                         onClick={() => router.push('/admin/subjects')}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 active:scale-95 transition-transform"
                     >
-                        <Library size={18} />
+                        <Library size={16} />
                         <span>Manage Library</span>
                     </Button>
                     <Button 
+                        size="sm"
                         onClick={openAssignModal}
-                        className="flex items-center gap-2 shadow-premium"
+                        className="flex items-center gap-2 active:scale-95 transition-transform shadow-xs cursor-pointer"
                     >
-                        <PlusCircle size={18} />
+                        <PlusCircle size={16} />
                         <span>Assign Subjects</span>
                     </Button>
                 </div>
             </div>
 
             {/* Info Alert */}
-            <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex gap-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                    <Info size={20} />
+            <div className="bg-blue-50/60 border border-blue-100/80 rounded-xl p-3.5 flex gap-3.5 items-start">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <Info size={16} />
                 </div>
-                <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-blue-900">Curriculum Strategy</h4>
-                    <p className="text-[12px] text-blue-700/80 leading-relaxed font-medium">
+                <div className="space-y-0.5">
+                    <h4 className="text-xs font-bold text-blue-900">Curriculum Strategy</h4>
+                    <p className="text-[11px] text-blue-700/80 leading-relaxed font-medium">
                         {isCollege 
                             ? "Assign subjects from your master library to specific semesters with credits and course types. Customize the syllabus modules for this degree program."
                             : `First, assign subjects from your global library. Once assigned, you can customize the syllabus specifically for this ${isSchool ? "class" : "course"}.`}
@@ -269,20 +274,20 @@ export default function CourseSubjectsPage({ params: paramsPromise }) {
                 </div>
             </div>
 
-            {/* College Semester Tabs */}
+            {/* College Semester Tabs - Apple Segmented Control */}
             {isCollege && (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin p-1 bg-slate-100/70 rounded-xl w-fit max-w-full">
                     <button
                         onClick={() => setSelectedSemesterTab("ALL")}
-                        className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap active:scale-95 transition-transform flex items-center gap-1.5 cursor-pointer ${
                             selectedSemesterTab === "ALL"
-                                ? "bg-slate-900 text-white shadow-xs"
-                                : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/80"
+                                ? "bg-white text-slate-900 shadow-xs font-bold"
+                                : "text-slate-500 hover:text-slate-800"
                         }`}
                     >
                         <span>All Semesters</span>
                         <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                            selectedSemesterTab === "ALL" ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-500"
+                            selectedSemesterTab === "ALL" ? "bg-slate-100 text-slate-700" : "bg-slate-200/60 text-slate-500"
                         }`}>
                             {subjects.length}
                         </span>
@@ -294,15 +299,15 @@ export default function CourseSubjectsPage({ params: paramsPromise }) {
                             <button
                                 key={sem}
                                 onClick={() => setSelectedSemesterTab(sem)}
-                                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap active:scale-95 transition-transform flex items-center gap-1.5 cursor-pointer ${
                                     isActive
-                                        ? "bg-slate-900 text-white shadow-xs"
-                                        : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/80"
+                                        ? "bg-white text-slate-900 shadow-xs font-bold"
+                                        : "text-slate-500 hover:text-slate-800"
                                 }`}
                             >
                                 <span>Sem {sem}</span>
                                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                                    isActive ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-500"
+                                    isActive ? "bg-slate-100 text-slate-700" : "bg-slate-200/60 text-slate-500"
                                 }`}>
                                     {semSubjects.length}
                                 </span>
@@ -312,132 +317,153 @@ export default function CourseSubjectsPage({ params: paramsPromise }) {
                 </div>
             )}
 
-            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
-                <div className="flex flex-row items-center justify-between p-4 bg-[#F9FAFB] border-b border-slate-100 gap-4">
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div className="flex flex-row items-center justify-between p-3.5 bg-slate-50/50 border-b border-slate-200/70 gap-3">
                     <div className="relative w-full max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
                         <input
                             type="text"
                             placeholder={isCollege ? "Search subjects by name or code..." : "Search assigned subjects..."}
-                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-md text-xs outline-none focus:border-slate-400 transition-colors"
+                            className="w-full pl-9 pr-8 py-1.5 bg-white border border-slate-200/90 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-shadow"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
+                        {search && (
+                            <button
+                                onClick={() => setSearch("")}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 active:scale-90 transition-transform p-0.5 rounded cursor-pointer"
+                                aria-label="Clear search"
+                            >
+                                <X size={13} />
+                            </button>
+                        )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         {isCollege && (
-                            <Badge variant="secondary" className="px-2.5 py-0.5 text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            <Badge variant="secondary" className="px-2.5 py-0.5 text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                                 {displayedCredits} Credits
                             </Badge>
                         )}
-                        <Badge variant="secondary" className="px-2.5 py-0.5 text-xs font-bold bg-slate-100 text-slate-600">
+                        <Badge variant="secondary" className="px-2.5 py-0.5 text-[11px] font-bold bg-slate-100 text-slate-600">
                             {filteredSubjects.length} {filteredSubjects.length === 1 ? "Subject" : "Subjects"}
                         </Badge>
                     </div>
                 </div>
                 <div>
                     {loading ? (
-                        <div className="p-12 flex justify-center"><LoadingSpinner /></div>
+                        <div className="p-16 flex justify-center"><LoadingSpinner /></div>
                     ) : filteredSubjects.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-100">
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Subject</th>
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Code</th>
+                                    <tr className="border-b border-slate-200/70 text-[11px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-50/30">
+                                        <th className="px-5 py-3">Subject</th>
+                                        <th className="px-5 py-3">Code</th>
                                         {isCollege && (
                                             <>
-                                                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Semester</th>
-                                                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Credits</th>
-                                                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Type</th>
+                                                <th className="px-5 py-3">Semester</th>
+                                                <th className="px-5 py-3">Credits</th>
+                                                <th className="px-5 py-3">Type</th>
                                             </>
                                         )}
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">Syllabus Status</th>
-                                        <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                        <th className="px-5 py-3">Syllabus Status</th>
+                                        <th className="px-5 py-3 text-right">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {filteredSubjects.map(subject => (
-                                        <tr key={subject._id} className="group hover:bg-[#F9FAFB] transition-all duration-200">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/50">
-                                                        <BookOpen size={18} />
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredSubjects.map((subject, idx) => (
+                                        <motion.tr 
+                                            key={subject._id} 
+                                            initial={{ opacity: 0, y: 4 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ 
+                                                duration: 0.22, 
+                                                delay: Math.min(idx * 0.025, 0.2), 
+                                                ease: [0.16, 1, 0.3, 1] 
+                                            }}
+                                            className="group hover:bg-slate-50/70 transition-colors"
+                                        >
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-blue-50/80 text-blue-600 flex items-center justify-center border border-blue-100/60 shrink-0">
+                                                        <BookOpen size={15} />
                                                     </div>
                                                     <div>
-                                                        <h3 className="font-bold text-slate-900 text-[14px] leading-tight">{subject.name}</h3>
+                                                        <h3 className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug">{subject.name}</h3>
                                                         <p className="text-[11px] text-slate-500 font-medium mt-0.5">
                                                             {subject.masterSubject ? "From Library" : "Custom Subject"}
                                                         </p>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-5 py-3.5">
                                                 <Badge variant="code">{subject.code}</Badge>
                                             </td>
                                             {isCollege && (
                                                 <>
-                                                    <td className="px-6 py-4">
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">
+                                                    <td className="px-5 py-3.5">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">
                                                             {subject.semester ? `Sem ${subject.semester}` : "—"}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-5 py-3.5">
                                                         <span className="text-xs font-bold text-slate-800">
                                                             {subject.credits !== null && subject.credits !== undefined ? `${subject.credits} Cr` : "—"}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-5 py-3.5">
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600 tracking-wider">
                                                             {subject.subjectType || "THEORY"}
                                                         </span>
                                                     </td>
                                                 </>
                                             )}
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                                         <div 
-                                                            className={`h-full transition-all duration-500 ${subject.syllabus?.length > 0 ? "bg-emerald-500" : "bg-slate-300"}`}
+                                                            className={`h-full transition-all duration-300 ${subject.syllabus?.length > 0 ? "bg-emerald-500" : "bg-slate-300"}`}
                                                             style={{ width: subject.syllabus?.length > 0 ? "100%" : "0%" }}
                                                         />
                                                     </div>
-                                                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-tight">
+                                                    <span className="text-[11px] font-semibold text-slate-500">
                                                         {subject.syllabus?.length > 0 
                                                             ? `${subject.syllabus.length} ${isCollege ? (subject.syllabus.length === 1 ? "Module" : "Modules") : (subject.syllabus.length === 1 ? "Chapter" : "Chapters")}`
                                                             : "Not Started"}
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                            <td className="px-5 py-3.5 text-right">
+                                                <div className="flex items-center justify-end gap-1">
                                                     <Button 
                                                         size="sm"
                                                         variant="ghost"
-                                                        className="h-8 gap-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                                        className="h-7 px-2.5 gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 active:scale-95 transition-transform text-xs"
                                                         onClick={() => router.push(`/admin/subjects/${subject._id}/syllabus`)}
                                                     >
-                                                        <List size={14} />
-                                                        <span>Manage Syllabus</span>
-                                                        <ArrowRight size={12} />
+                                                        <List size={13} />
+                                                        <span>Syllabus</span>
+                                                        <ArrowRight size={11} />
                                                     </Button>
                                                     <button
                                                         onClick={() => setEditingSubject(subject)}
-                                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50/80 rounded-md active:scale-90 transition-transform cursor-pointer"
                                                         title="Edit Subject"
+                                                        aria-label="Edit Subject"
                                                     >
-                                                        <Edit2 size={16} />
+                                                        <Edit2 size={14} />
                                                     </button>
                                                     <button
                                                         onClick={() => setDeletingSubject(subject)}
-                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50/80 rounded-md active:scale-90 transition-transform cursor-pointer"
                                                         title="Remove Subject"
+                                                        aria-label="Remove Subject"
                                                     >
-                                                        <Trash2 size={16} />
+                                                        <Trash2 size={14} />
                                                     </button>
                                                 </div>
                                             </td>
-                                        </tr>
+                                        </motion.tr>
                                     ))}
                                 </tbody>
                             </table>

@@ -13,8 +13,10 @@ import {
     Download,
     Upload,
     FileJson,
-    AlertCircle
+    AlertCircle,
+    X
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
 import Card, { CardContent } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -210,39 +212,59 @@ export default function SubjectsPage() {
     return (
         <div className="space-y-6">
             {/* Page Action Bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                <div className="flex-1 max-w-md">
-                    <Input
-                        placeholder="Search subjects..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        icon={Search}
-                        className="bg-white border-slate-200 shadow-xs"
-                    />
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2.5 flex-1 max-w-md">
+                    <div className="relative flex-1">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            placeholder="Search subjects by name or code..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full h-9 pl-9 pr-8 text-xs bg-white rounded-lg border border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-shadow"
+                        />
+                        {search && (
+                            <button
+                                onClick={() => setSearch("")}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 active:scale-90 transition-transform p-0.5 rounded cursor-pointer"
+                                aria-label="Clear search"
+                            >
+                                <X size={13} />
+                            </button>
+                        )}
+                    </div>
+                    {filteredSubjects.length > 0 && (
+                        <span className="text-[11px] font-semibold text-slate-500 bg-slate-100/80 px-2 py-1 rounded-md shrink-0 border border-slate-200/50">
+                            {filteredSubjects.length} {filteredSubjects.length === 1 ? 'subject' : 'subjects'}
+                        </span>
+                    )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
                     <Button 
                         variant="outline"
                         onClick={() => router.push('/admin/courses')}
-                        className="flex items-center gap-2 text-blue-700 bg-blue-50/60 border-blue-200 hover:bg-blue-100/80"
+                        size="sm"
+                        className="flex items-center gap-1.5 text-blue-700 bg-blue-50/60 border-blue-200/80 hover:bg-blue-100/80 active:scale-95 transition-transform"
                     >
-                        <BookOpen size={16} />
+                        <BookOpen size={14} />
                         <span>Assign to Classes</span>
                     </Button>
                     <Button 
                         variant="outline"
                         onClick={() => setIsImportModalOpen(true)}
-                        className="flex items-center gap-2"
+                        size="sm"
+                        className="flex items-center gap-1.5 active:scale-95 transition-transform"
                     >
-                        <Upload size={16} />
+                        <Upload size={14} />
                         <span className="hidden md:inline">Import / Merge</span>
                     </Button>
                     <Button 
                         variant="outline"
                         onClick={handleExport}
-                        className="flex items-center gap-2"
+                        size="sm"
+                        className="flex items-center gap-1.5 active:scale-95 transition-transform"
                     >
-                        <Download size={16} />
+                        <Download size={14} />
                         <span className="hidden md:inline">Export JSON</span>
                     </Button>
                     <Button 
@@ -251,68 +273,85 @@ export default function SubjectsPage() {
                             setFormData({ name: "", code: "", description: "" });
                             setIsAddModalOpen(true);
                         }} 
-                        size="md" 
-                        className="flex items-center gap-2 px-6 shadow-xs"
+                        size="sm" 
+                        className="flex items-center gap-1.5 px-4 active:scale-95 transition-transform shadow-xs cursor-pointer"
                     >
-                        <Plus size={18} strokeWidth={2.5} />
+                        <Plus size={15} strokeWidth={2.5} />
                         <span>Add Library Subject</span>
                     </Button>
                 </div>
             </div>
 
-            <Card className="overflow-hidden border border-slate-200/80 shadow-none rounded-xl">
+            <Card className="overflow-hidden border border-slate-200/80 shadow-xs rounded-xl bg-white">
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="p-12 flex justify-center"><LoadingSpinner /></div>
+                        <div className="p-16 flex justify-center"><LoadingSpinner /></div>
                     ) : filteredSubjects.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-200/80 bg-white text-xs font-semibold text-slate-400">
-                                        <th className="px-6 py-3.5 uppercase tracking-wider">Subject Name</th>
-                                        <th className="px-6 py-3.5 uppercase tracking-wider">Library Code</th>
-                                        {session?.user?.role !== 'instructor' && <th className="px-6 py-3.5 uppercase tracking-wider text-right">Actions</th>}
+                                    <tr className="border-b border-slate-200/70 bg-slate-50/50 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                                        <th className="px-5 py-3">Subject Name</th>
+                                        <th className="px-5 py-3">Library Code</th>
+                                        {session?.user?.role !== 'instructor' && <th className="px-5 py-3 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredSubjects.map(subject => (
-                                        <tr key={subject._id} className="group hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div>
-                                                    <h3 className="font-semibold text-slate-900 text-sm leading-snug">{subject.name}</h3>
-                                                    {subject.description ? (
-                                                        <p className="text-xs text-slate-500 font-medium mt-0.5">{subject.description}</p>
-                                                    ) : (
-                                                        <p className="text-xs text-slate-400 font-medium mt-0.5">Master Library Subject</p>
-                                                    )}
+                                    {filteredSubjects.map((subject, idx) => (
+                                        <motion.tr 
+                                            key={subject._id} 
+                                            initial={{ opacity: 0, y: 4 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ 
+                                                duration: 0.22, 
+                                                delay: Math.min(idx * 0.025, 0.2), 
+                                                ease: [0.16, 1, 0.3, 1] 
+                                            }}
+                                            className="group hover:bg-slate-50/70 transition-colors"
+                                        >
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-indigo-50/80 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/60 font-semibold text-xs">
+                                                        <BookOpen size={15} />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug">{subject.name}</h3>
+                                                        {subject.description ? (
+                                                            <p className="text-[11px] text-slate-500 font-medium mt-0.5 line-clamp-1">{subject.description}</p>
+                                                        ) : (
+                                                            <p className="text-[11px] text-slate-400 font-medium mt-0.5">Master Library Subject</p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200/80">
+                                            <td className="px-5 py-3.5">
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200/70">
                                                     {subject.code}
                                                 </span>
                                             </td>
                                             {session?.user?.role !== 'instructor' && (
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex items-center justify-end gap-1.5">
+                                                <td className="px-5 py-3.5 text-right">
+                                                    <div className="flex items-center justify-end gap-1">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); openEditModal(subject); }}
-                                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50/80 rounded-lg transition-colors cursor-pointer"
+                                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50/80 rounded-md active:scale-90 transition-transform cursor-pointer"
                                                             title="Edit Library Subject"
+                                                            aria-label="Edit subject"
                                                         >
-                                                            <Edit2 size={15} />
+                                                            <Edit2 size={14} />
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); setDeletingSubject(subject); }}
-                                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50/80 rounded-lg transition-colors cursor-pointer"
+                                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50/80 rounded-md active:scale-90 transition-transform cursor-pointer"
                                                             title="Delete from Library"
+                                                            aria-label="Delete subject"
                                                         >
-                                                            <Trash2 size={15} />
+                                                            <Trash2 size={14} />
                                                         </button>
                                                     </div>
                                                 </td>
                                             )}
-                                        </tr>
+                                        </motion.tr>
                                     ))}
                                 </tbody>
                             </table>

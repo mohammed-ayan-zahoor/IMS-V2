@@ -335,17 +335,21 @@ export default function SyllabusBuilderPage() {
     return (
         <div className="max-w-5xl mx-auto space-y-6 pb-20">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-100">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => router.push("/admin/subjects")} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
+                <div className="flex items-center gap-3">
+                    <button 
+                        onClick={() => router.push("/admin/subjects")} 
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg active:scale-90 transition-transform cursor-pointer"
+                        aria-label="Back to subjects"
+                    >
                         <ArrowLeft size={18} />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Syllabus Builder</h1>
-                        <p className="text-slate-400 mt-1 text-sm font-medium">{subject?.name} • {subject?.code}</p>
+                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Syllabus Builder</h1>
+                        <p className="text-slate-500 mt-0.5 text-xs font-medium">{subject?.name} • <span className="font-mono text-slate-400">{subject?.code}</span></p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <input
                         type="file"
                         accept=".json"
@@ -355,8 +359,8 @@ export default function SyllabusBuilderPage() {
                         disabled={importing}
                     />
                     <label htmlFor="import-syllabus" className="cursor-pointer">
-                        <Button variant="outline" size="sm" as="span" className="flex items-center gap-2 pointer-events-none">
-                            <Upload size={16} />
+                        <Button variant="outline" size="sm" as="span" className="flex items-center gap-1.5 active:scale-95 transition-transform pointer-events-none">
+                            <Upload size={14} />
                             <span>Import</span>
                         </Button>
                     </label>
@@ -369,121 +373,164 @@ export default function SyllabusBuilderPage() {
                         disabled={importing}
                     />
                     <label htmlFor="merge-syllabus" className="cursor-pointer">
-                        <Button variant="outline" size="sm" as="span" className="flex items-center gap-2 pointer-events-none">
-                            <Upload size={16} />
+                        <Button variant="outline" size="sm" as="span" className="flex items-center gap-1.5 active:scale-95 transition-transform pointer-events-none">
+                            <Upload size={14} />
                             <span>Merge</span>
                         </Button>
                     </label>
-                    <Button variant="outline" size="sm" onClick={handleExport} className="flex items-center gap-2">
-                        <Download size={16} />
+                    <Button variant="outline" size="sm" onClick={handleExport} className="flex items-center gap-1.5 active:scale-95 transition-transform">
+                        <Download size={14} />
                         <span>Export</span>
                     </Button>
-                    <Button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-premium-blue hover:bg-premium-blue/90 shadow-md">
-                        <Save size={18} />
+                    <Button onClick={handleSave} disabled={saving} size="sm" className="flex items-center gap-1.5 px-4 shadow-xs active:scale-95 transition-transform cursor-pointer">
+                        <Save size={15} />
                         <span>{saving ? "Saving..." : "Save Syllabus"}</span>
                     </Button>
                 </div>
             </div>
 
             {/* Content Builder Area */}
-            <div className="space-y-6">
+            <div className="space-y-4">
                 <AnimatePresence mode="popLayout">
                     {chapters.length === 0 ? (
-                        <Card className="border-dashed border-2 py-20 text-center">
-                            <BookOpen size={48} className="mx-auto text-slate-200 mb-4" />
-                            <h3 className="text-lg font-bold text-slate-700">Empty Syllabus</h3>
-                            <p className="text-slate-400 text-sm mb-6">Start by adding your first {unitTerm.toLowerCase()} to organize topics.</p>
-                            <Button onClick={addChapter} variant="outline" className="mx-auto flex items-center gap-2">
-                                <Plus size={18} /> Add {unitTerm}
+                        <Card className="border-dashed border-2 border-slate-200 py-16 text-center rounded-xl bg-white">
+                            <BookOpen size={40} className="mx-auto text-slate-300 mb-3" />
+                            <h3 className="text-base font-bold text-slate-800">Empty Syllabus</h3>
+                            <p className="text-slate-400 text-xs mb-5 max-w-sm mx-auto">Start by adding your first {unitTerm.toLowerCase()} to organize topics and modules.</p>
+                            <Button onClick={addChapter} variant="outline" size="sm" className="mx-auto flex items-center gap-1.5 active:scale-95 transition-transform">
+                                <Plus size={16} /> Add {unitTerm}
                             </Button>
                         </Card>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-3.5">
                             {chapters.map((ch, chIdx) => {
                                 const isExpanded = expandedChapters[ch._tmpId] !== false;
                                 return (
-                                    <Card key={ch._tmpId} className="overflow-hidden border-slate-200 shadow-sm transition-all hover:border-slate-300">
-                                        <div className={cn(
-                                            "flex items-center gap-3 px-6 py-4 transition-colors",
-                                            isExpanded ? "bg-slate-50" : "bg-white"
-                                        )}>
-                                            <button onClick={() => setExpandedChapters(p => ({ ...p, [ch._tmpId]: !isExpanded }))} className="text-slate-400 hover:text-slate-600 transition-colors">
-                                                {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                                            </button>
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest w-12 shrink-0">{unitPrefix}{chIdx + 1}</span>
-                                            <input
-                                                type="text"
-                                                value={ch.title}
-                                                onChange={e => updateChapterTitle(ch._tmpId, e.target.value)}
-                                                placeholder={`${unitTerm} Title (e.g. Fundamental Concepts)`}
-                                                className="flex-1 bg-transparent text-sm font-bold text-slate-800 outline-none placeholder:text-slate-300"
-                                            />
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={() => removeChapter(ch._tmpId)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title={`Delete ${unitTerm}`}>
-                                                    <Trash2 size={16} />
+                                    <motion.div
+                                        key={ch._tmpId}
+                                        initial={{ opacity: 0, y: 6 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                                    >
+                                        <Card className="overflow-hidden border border-slate-200/90 shadow-xs rounded-xl bg-white transition-shadow hover:shadow-sm">
+                                            <div className={cn(
+                                                "flex items-center gap-3 px-5 py-3.5 transition-colors cursor-pointer select-none",
+                                                isExpanded ? "bg-slate-50/70 border-b border-slate-100" : "bg-white"
+                                            )}
+                                            onClick={() => setExpandedChapters(p => ({ ...p, [ch._tmpId]: !isExpanded }))}
+                                            >
+                                                <button 
+                                                    type="button"
+                                                    className="text-slate-400 hover:text-slate-600 active:scale-90 transition-transform p-0.5 rounded cursor-pointer"
+                                                    aria-label="Toggle section"
+                                                >
+                                                    <motion.div
+                                                        animate={{ rotate: isExpanded ? 90 : 0 }}
+                                                        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                                                    >
+                                                        <ChevronRight size={16} />
+                                                    </motion.div>
                                                 </button>
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest w-12 shrink-0 font-mono">{unitPrefix}{chIdx + 1}</span>
+                                                <input
+                                                    type="text"
+                                                    value={ch.title}
+                                                    onClick={e => e.stopPropagation()}
+                                                    onChange={e => updateChapterTitle(ch._tmpId, e.target.value)}
+                                                    placeholder={`${unitTerm} Title (e.g. Fundamental Concepts)`}
+                                                    className="flex-1 bg-transparent text-xs sm:text-sm font-bold text-slate-800 outline-none placeholder:text-slate-300 focus:text-blue-700 transition-colors"
+                                                />
+                                                <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                                                    <button 
+                                                        onClick={() => removeChapter(ch._tmpId)} 
+                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50/80 rounded-md active:scale-90 transition-transform cursor-pointer" 
+                                                        title={`Delete ${unitTerm}`}
+                                                        aria-label={`Delete ${unitTerm}`}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        {isExpanded && (
-                                            <div className="px-6 py-4 space-y-4 bg-white">
-                                                {ch.topics?.map((tp, tpIdx) => (
-                                                    <div key={tp._tmpId} className="relative pl-6 py-1 border-l-2 border-slate-100 group">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-focus-within:bg-premium-blue transition-colors" />
-                                                            <span className="text-[10px] font-bold text-slate-300 w-8 shrink-0">{chIdx + 1}.{tpIdx + 1}</span>
-                                                            <input
-                                                                type="text"
-                                                                value={tp.title}
-                                                                onChange={e => updateTopicTitle(ch._tmpId, tp._tmpId, e.target.value)}
-                                                                placeholder="Topic Title (e.g. Basic Definitions)"
-                                                                className="flex-1 text-sm font-semibold text-slate-700 outline-none placeholder:text-slate-200"
-                                                            />
-                                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <button onClick={() => addSubTopic(ch._tmpId, tp._tmpId)} className="p-1.5 text-premium-blue hover:bg-blue-50 rounded text-[10px] font-bold uppercase tracking-wider">
-                                                                    + Subtopic
-                                                                </button>
-                                                                <button onClick={() => removeTopic(ch._tmpId, tp._tmpId)} className="p-1.5 text-slate-300 hover:text-red-500 rounded transition-all">
-                                                                    <Trash2 size={14} />
-                                                                </button>
+                                            {isExpanded && (
+                                                <div className="px-5 py-4 space-y-3.5 bg-white">
+                                                    {ch.topics?.map((tp, tpIdx) => (
+                                                        <div key={tp._tmpId} className="relative pl-5 py-1 border-l-2 border-slate-100 group">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-focus-within:bg-blue-600 transition-colors" />
+                                                                <span className="text-[10px] font-semibold text-slate-400 w-7 shrink-0 font-mono">{chIdx + 1}.{tpIdx + 1}</span>
+                                                                <input
+                                                                    type="text"
+                                                                    value={tp.title}
+                                                                    onChange={e => updateTopicTitle(ch._tmpId, tp._tmpId, e.target.value)}
+                                                                    placeholder="Topic Title (e.g. Basic Definitions)"
+                                                                    className="flex-1 text-xs sm:text-sm font-medium text-slate-700 outline-none placeholder:text-slate-300 focus:text-slate-900"
+                                                                />
+                                                                <div className="flex items-center gap-1">
+                                                                    <button 
+                                                                        onClick={() => addSubTopic(ch._tmpId, tp._tmpId)} 
+                                                                        className="px-2 py-1 text-blue-600 hover:bg-blue-50/80 rounded text-[10px] font-bold uppercase tracking-wider active:scale-95 transition-transform cursor-pointer"
+                                                                    >
+                                                                        + Subtopic
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => removeTopic(ch._tmpId, tp._tmpId)} 
+                                                                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50/80 rounded active:scale-90 transition-transform cursor-pointer"
+                                                                        title="Remove topic"
+                                                                        aria-label="Remove topic"
+                                                                    >
+                                                                        <Trash2 size={13} />
+                                                                    </button>
+                                                                </div>
                                                             </div>
+
+                                                            {/* Sub-topics list */}
+                                                            {tp.subTopics?.length > 0 && (
+                                                                <div className="mt-2 space-y-1 ml-5">
+                                                                    {tp.subTopics.map((st) => (
+                                                                        <div key={st._tmpId} className="flex items-center gap-2.5 py-0.5 group/st">
+                                                                            <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                                                            <input
+                                                                                type="text"
+                                                                                value={st.title}
+                                                                                onChange={e => updateSubTopicTitle(ch._tmpId, tp._tmpId, st._tmpId, e.target.value)}
+                                                                                placeholder="Detailed item..."
+                                                                                className="flex-1 text-xs text-slate-600 outline-none placeholder:text-slate-300 focus:text-slate-900"
+                                                                            />
+                                                                            <button 
+                                                                                onClick={() => removeSubTopic(ch._tmpId, tp._tmpId, st._tmpId)} 
+                                                                                className="p-1 text-slate-400 hover:text-red-500 rounded active:scale-90 transition-transform cursor-pointer"
+                                                                                title="Remove subtopic"
+                                                                                aria-label="Remove subtopic"
+                                                                            >
+                                                                                <Trash2 size={12} />
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </div>
+                                                    ))}
 
-                                                        {/* Sub-topics list */}
-                                                        {tp.subTopics?.length > 0 && (
-                                                            <div className="mt-2 space-y-1 ml-6">
-                                                                {tp.subTopics.map((st, stIdx) => (
-                                                                    <div key={st._tmpId} className="flex items-center gap-3 py-1 group/st">
-                                                                        <div className="w-1 h-1 rounded-full bg-slate-200" />
-                                                                        <input
-                                                                            type="text"
-                                                                            value={st.title}
-                                                                            onChange={e => updateSubTopicTitle(ch._tmpId, tp._tmpId, st._tmpId, e.target.value)}
-                                                                            placeholder="Detailed item..."
-                                                                            className="flex-1 text-xs text-slate-500 outline-none placeholder:text-slate-200"
-                                                                        />
-                                                                        <button onClick={() => removeSubTopic(ch._tmpId, tp._tmpId, st._tmpId)} className="p-1 text-slate-200 hover:text-red-400 opacity-0 group-hover/st:opacity-100 transition-all">
-                                                                            <Trash2 size={12} />
-                                                                        </button>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-
-                                                <button onClick={() => addTopic(ch._tmpId)} className="w-full flex items-center justify-center gap-2 py-3 mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-premium-blue hover:bg-blue-50/50 border border-dashed border-slate-200 rounded-xl transition-all">
-                                                    <Plus size={14} /> Add Topic to {unitTerm} {chIdx + 1}
-                                                </button>
-                                            </div>
-                                        )}
-                                    </Card>
+                                                    <button 
+                                                        onClick={() => addTopic(ch._tmpId)} 
+                                                        className="w-full flex items-center justify-center gap-1.5 py-2.5 mt-2 text-[11px] font-bold tracking-tight text-slate-500 hover:text-blue-600 hover:bg-blue-50/50 border border-dashed border-slate-200/90 rounded-lg active:scale-98 transition-transform cursor-pointer"
+                                                    >
+                                                        <Plus size={13} /> Add Topic to {unitTerm} {chIdx + 1}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </Card>
+                                    </motion.div>
                                 );
                             })}
 
-                            <Button onClick={addChapter} className="w-full py-6 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 rounded-xl shadow-lg mt-8">
-                                <Plus size={20} />
-                                <span className="text-sm font-bold uppercase tracking-widest">Create New {unitTerm}</span>
+                            <Button 
+                                onClick={addChapter} 
+                                className="w-full py-4 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs active:scale-98 transition-transform mt-6 cursor-pointer"
+                            >
+                                <Plus size={16} />
+                                <span className="text-xs font-bold tracking-wide">Create New {unitTerm}</span>
                             </Button>
                         </div>
                     )}
