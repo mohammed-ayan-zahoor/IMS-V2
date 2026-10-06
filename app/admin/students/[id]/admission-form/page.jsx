@@ -385,14 +385,14 @@ function CollegeAdmissionFormView({ data }) {
             <div className="watermark">OFFICIAL ENROLLMENT</div>
 
             {/* Header */}
-            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-2.5 mb-2 gap-4">
-                <div className="flex-1 pr-4 flex items-center gap-4 min-w-0">
+            <div className="flex justify-between items-center border-b-2 border-slate-900 pb-2.5 mb-2 gap-4">
+                <div className="flex-1 pr-4 flex items-center gap-5 min-w-0">
                     {institute?.logo && (
-                        <div className="shrink-0">
-                            <img src={institute.logo} alt="Logo" className="h-16 max-w-[120px] object-contain" />
+                        <div className="shrink-0 flex items-center justify-center">
+                            <img src={institute.logo} alt="Logo" className="h-20 max-w-[140px] object-contain" />
                         </div>
                     )}
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex flex-col justify-center">
                         <h1 className="text-base font-black uppercase tracking-tight text-slate-900 leading-tight">
                             {institute?.name || "College of Higher Education"}
                         </h1>
@@ -637,18 +637,18 @@ function AdmissionFormView({ data }) {
             <div className="watermark">OFFICIAL DOCUMENT</div>
 
             {/* Header */}
-            <div className="flex justify-between items-start border-b border-black pb-4 mb-4 gap-4">
-                <div className="flex-1 flex items-center gap-4 min-w-0">
+            <div className="flex justify-between items-center border-b border-black pb-4 mb-4 gap-4">
+                <div className="flex-1 flex items-center gap-5 min-w-0">
                     {institute?.logo && (
-                        <div className="shrink-0">
-                            <img src={institute.logo} alt="Logo" className="h-20 max-w-[140px] object-contain" />
+                        <div className="shrink-0 flex items-center justify-center">
+                            <img src={institute.logo} alt="Logo" className="h-24 max-w-[160px] object-contain" />
                         </div>
                     )}
-                    <div className="min-w-0">
-                        <h1 className="text-xl font-bold uppercase tracking-tight">{institute?.name || "Institute Name"}</h1>
-                        <div className="text-[10px] leading-relaxed text-gray-700 max-w-md">
+                    <div className="min-w-0 flex flex-col justify-center">
+                        <h1 className="text-xl font-bold uppercase tracking-tight leading-tight">{institute?.name || "Institute Name"}</h1>
+                        <div className="text-[10px] leading-relaxed text-gray-700 max-w-md mt-1">
                             <p>{formatAddr(institute?.address)}</p>
-                            <p>Phone: {institute?.phone || "N/A"} | Email: {institute?.email || "N/A"}</p>
+                            <p className="mt-0.5">Phone: {institute?.phone || "N/A"} | Email: {institute?.email || "N/A"}</p>
                         </div>
                     </div>
                 </div>
