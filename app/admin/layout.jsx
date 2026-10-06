@@ -65,6 +65,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
 import Button from "@/components/ui/Button";
 import StudentSearch from "@/components/admin/StudentSearch";
+import SpotlightSearch from "@/components/shared/SpotlightSearch";
 import ActivityFeed from "@/components/admin/ActivityFeed";
 import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 import { Loader2 } from "lucide-react";
@@ -87,7 +88,25 @@ export default function AdminLayout({ children }) {
     const [expandedGroup, setExpandedGroup] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
     const { sessions, selectedSessionId, changeSession, loading: sessionsLoading } = useAcademicSession();
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+                e.preventDefault();
+                setIsSpotlightOpen((prev) => !prev);
+            }
+        };
+        const handleCustomOpen = () => setIsSpotlightOpen(true);
+
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("open-spotlight", handleCustomOpen);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("open-spotlight", handleCustomOpen);
+        };
+    }, []);
 
     useEffect(() => {
         const saved = localStorage.getItem("admin_sidebar_collapsed");
@@ -672,6 +691,7 @@ export default function AdminLayout({ children }) {
                     </div>
                 </main>
             </div>
+            <SpotlightSearch isOpen={isSpotlightOpen} onClose={() => setIsSpotlightOpen(false)} />
         </div>
     );
 }

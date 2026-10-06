@@ -1,156 +1,26 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Search, Loader2, User, ArrowRight } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { Search } from "lucide-react";
 
 export default function StudentSearch() {
-    const [query, setQuery] = useState("");
-    const [results, setResults] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
-    const router = useRouter();
-    const dropdownRef = useRef(null);
-    const searchAbortRef = useRef(null);
-
-    // Debounced search
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (query.trim()) {
-                fetchResults();
-            } else {
-                setResults([]);
-                setIsOpen(false);
-            }
-        }, 300);
-
-        return () => {
-            clearTimeout(timer);
-        };
-    }, [query]);
-
-    // Handle clicks outside dropdown and cleanup
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-            if (searchAbortRef.current) {
-                searchAbortRef.current.abort();
-            }
-        };
-    }, []);
-
-    const fetchResults = async () => {
-        // Abort previous search
-        if (searchAbortRef.current) {
-            searchAbortRef.current.abort();
-        }
-
-        // Create new controller
-        const controller = new AbortController();
-        searchAbortRef.current = controller;
-
-        setLoading(true);
-        try {
-            const res = await fetch(`/api/v1/students?search=${encodeURIComponent(query)}&limit=5`, {
-                signal: controller.signal
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setResults(data.students || []);
-                setIsOpen(true);
-            }
-        } catch (error) {
-            if (error.name === 'AbortError' || (error instanceof DOMException && error.name === 'AbortError')) {
-                // Ignore abort errors
-                return;
-            }
-            console.error("Search error:", error);
-        } finally {
-            // Only stop loading if this is still the active request
-            if (searchAbortRef.current === controller) {
-                setLoading(false);
-            }
-        }
-    };
-
-    const handleSelect = (studentId) => {
-        router.push(`/admin/students/${studentId}`);
-        setIsOpen(false);
-        setQuery("");
+    const handleOpen = () => {
+        window.dispatchEvent(new CustomEvent("open-spotlight"));
     };
 
     return (
-        <div className="relative w-full max-w-md group" ref={dropdownRef}>
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-premium-blue transition-colors" size={18} />
-                <input
-                    type="text"
-                    role="combobox"
-                    aria-label="Search students"
-                    aria-expanded={isOpen}
-                    aria-controls="student-search-results"
-                    aria-autocomplete="list"
-                    aria-haspopup="listbox"
-                    id="global-student-search"
-                    placeholder="Search students..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onFocus={() => query.trim() && results.length > 0 && setIsOpen(true)}
-                    className="w-full pl-10 pr-10 py-2 bg-[#f3f4f6] border-none rounded-full text-[13px] font-medium placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-premium-blue/10 transition-all"
-                />
-                {loading && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-premium-blue animate-spin" size={18} />
-                )}
+        <button
+            type="button"
+            onClick={handleOpen}
+            className="w-full flex items-center justify-between px-3.5 py-1.5 bg-[#f3f4f6] hover:bg-[#e5e7eb] text-slate-500 rounded-full text-[13px] font-medium transition-colors cursor-pointer group"
+            aria-label="Open Spotlight Search (⌘K)"
+        >
+            <div className="flex items-center gap-2">
+                <Search size={16} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+                <span className="text-slate-400 group-hover:text-slate-600 transition-colors">Search anything...</span>
             </div>
-
-            {/* Dropdown Results */}
-            {isOpen && (
-                <div id="student-search-results" role="listbox" className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                    {results.length > 0 ? (
-                        <div className="py-2">
-                            <div className="px-4 py-2 border-b border-slate-50">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Search Results</span>
-                            </div>
-                            {results.map((student) => (
-                                <button
-                                    key={student._id}
-                                    role="option"
-                                    onClick={() => handleSelect(student._id)}
-                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 text-left transition-colors group/item"
-                                >
-                                    <div className="w-10 h-10 rounded-xl bg-soft-blue flex items-center justify-center text-premium-blue font-bold shrink-0">
-                                        {student.profile?.firstName?.[0] || <User size={18} />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-bold text-slate-900 truncate">
-                                                {student.profile?.firstName} {student.profile?.lastName}
-                                            </p>
-                                            <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full border border-slate-200 uppercase tracking-tighter">
-                                                {student.enrollmentNumber}
-                                            </span>
-                                        </div>
-                                        <p className="text-[11px] text-slate-400 truncate">{student.email}</p>
-                                    </div>
-                                    <ArrowRight size={14} className="text-slate-300 opacity-0 group-hover/item:opacity-100 -translate-x-2 group-hover/item:translate-x-0 transition-all" />
-                                </button>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="px-4 py-8 text-center text-slate-400">
-                            <Search size={24} className="mx-auto mb-2 opacity-20" />
-                            <p className="text-sm font-medium">No students found matching "{query}"</p>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+            <kbd className="hidden sm:inline-flex items-center text-[10px] font-semibold text-slate-400 bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-2xs">
+                ⌘K
+            </kbd>
+        </button>
     );
 }
