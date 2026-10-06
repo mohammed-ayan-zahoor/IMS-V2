@@ -19,12 +19,15 @@ import {
     Bus,
     BookOpen,
     Settings,
-    Sparkles
+    Sparkles,
+    LogOut
 } from "lucide-react";
+import { signOut } from "next-auth/react";
 
 function getSpotlightIcon(iconName) {
     const props = { size: 16, strokeWidth: 1.75, className: "text-slate-600" };
     switch (iconName) {
+        case "log-out": return <LogOut {...props} className="text-red-500" />;
         case "user-plus": return <UserPlus {...props} />;
         case "credit-card": return <CreditCard {...props} />;
         case "calendar-check": return <CalendarCheck {...props} />;
@@ -96,9 +99,19 @@ export default function SpotlightSearch({ isOpen, onClose }) {
     }, [isOpen, query, fetchResults]);
 
     // Commit a result item
-    const commitItem = useCallback((item) => {
+    const commitItem = useCallback(async (item) => {
         if (!item) return;
         onClose();
+        if (item.id === "act-sign-out") {
+            try {
+                await signOut({ redirect: false });
+            } catch (err) {
+                console.error("SignOut error:", err);
+            } finally {
+                window.location.href = "/login";
+            }
+            return;
+        }
         if (item.url) {
             router.push(item.url);
         }

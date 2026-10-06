@@ -53,6 +53,15 @@ const STATIC_ACTIONS = [
         icon: "megaphone",
         url: "/admin/notices",
         keywords: ["notice", "announcement", "circular", "publish"]
+    },
+    {
+        id: "act-sign-out",
+        type: "action",
+        title: "Sign Out",
+        metadata: "Log out of your account · Shortcut ⌥⇧Q",
+        icon: "log-out",
+        url: "/api/auth/signout",
+        keywords: ["logout", "signout", "exit", "leave", "quit", "log out", "sign out"]
     }
 ];
 

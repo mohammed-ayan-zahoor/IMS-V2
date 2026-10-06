@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import MobileInstructorNav from "@/components/mobile/MobileInstructorNav";
 import NotificationBellDropdown from "@/components/notifications/NotificationBellDropdown";
@@ -56,11 +56,12 @@ import {
     Mail,
     Boxes,
     Package,
-    Monitor,
     ShieldCheck,
     ShieldAlert,
-    SlidersHorizontal
+    SlidersHorizontal,
+    User
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import InstituteSwitcher from "@/components/shared/InstituteSwitcher";
 import Button from "@/components/ui/Button";
@@ -89,22 +90,41 @@ export default function AdminLayout({ children }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const userMenuRef = useRef(null);
     const { sessions, selectedSessionId, changeSession, loading: sessionsLoading } = useAcademicSession();
 
     useEffect(() => {
         const handleKeyDown = (e) => {
+            // ⌘K / Ctrl+K for Spotlight
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
                 e.preventDefault();
                 setIsSpotlightOpen((prev) => !prev);
+                return;
+            }
+
+            // Shortcut for Sign Out: ⌥⇧Q (Option+Shift+Q) or Ctrl+Shift+Q
+            if ((e.altKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "q") {
+                e.preventDefault();
+                handleSignOut();
+                return;
             }
         };
         const handleCustomOpen = () => setIsSpotlightOpen(true);
 
+        const handleClickOutside = (e) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+                setIsUserMenuOpen(false);
+            }
+        };
+
         window.addEventListener("keydown", handleKeyDown);
         window.addEventListener("open-spotlight", handleCustomOpen);
+        document.addEventListener("mousedown", handleClickOutside);
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("open-spotlight", handleCustomOpen);
+            document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
 
@@ -592,14 +612,19 @@ export default function AdminLayout({ children }) {
                         </button>
                         <button
                             onClick={handleSignOut}
-                            title="Sign Out"
+                            title="Sign Out (⌥⇧Q)"
                             className={cn(
-                                "w-full flex items-center justify-center gap-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all",
-                                isSidebarCollapsed ? "px-3 py-2 lg:p-2" : "px-3 py-2"
+                                "w-full flex items-center justify-between gap-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 active:scale-95 transition-all cursor-pointer",
+                                isSidebarCollapsed ? "px-3 py-2 lg:p-2 lg:justify-center" : "px-3 py-2"
                             )}
                         >
-                            <LogOut size={14} />
-                            <span className={cn(isSidebarCollapsed && "lg:hidden")}>Sign Out</span>
+                            <div className="flex items-center gap-2">
+                                <LogOut size={14} />
+                                <span className={cn(isSidebarCollapsed && "lg:hidden")}>Sign Out</span>
+                            </div>
+                            <span className={cn("text-[10px] font-mono text-red-400 bg-red-100/60 px-1.5 py-0.5 rounded", isSidebarCollapsed && "lg:hidden")}>
+                                ⌥⇧Q
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -665,12 +690,71 @@ export default function AdminLayout({ children }) {
                         {/* Real-time Notification Bell */}
                         <NotificationBellDropdown />
 
-                        <div className="w-8 h-8 rounded-md bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
-                            <img 
-                                src={`https://ui-avatars.com/api/?name=${session?.user?.name || 'Admin'}&background=0f172a&color=fff&bold=true`} 
-                                alt="Profile" 
-                                className="w-full h-full object-cover"
-                            />
+                        {/* User Profile Dropdown Menu with Sign Out Option */}
+                        <div className="relative" ref={userMenuRef}>
+                            <button
+                                onClick={() => setIsUserMenuOpen(prev => !prev)}
+                                className="w-8 h-8 rounded-md bg-slate-100 border border-slate-200 overflow-hidden shrink-0 active:scale-95 transition-transform hover:ring-2 hover:ring-blue-500/20 cursor-pointer flex items-center justify-center"
+                                title="User Account Menu"
+                                aria-label="User Account Menu"
+                                aria-expanded={isUserMenuOpen}
+                            >
+                                <img 
+                                    src={`https://ui-avatars.com/api/?name=${session?.user?.name || 'Admin'}&background=0f172a&color=fff&bold=true`} 
+                                    alt="Profile" 
+                                    className="w-full h-full object-cover"
+                                />
+                            </button>
+
+                            <AnimatePresence>
+                                {isUserMenuOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                                        transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                                        className="absolute right-0 top-10 w-56 bg-white rounded-xl shadow-xl border border-slate-200/80 py-1.5 z-50 overflow-hidden"
+                                    >
+                                        <div className="px-3 py-2 border-b border-slate-100">
+                                            <p className="text-xs font-bold text-slate-900 truncate">
+                                                {session?.user?.name || "Admin User"}
+                                            </p>
+                                            <p className="text-[10px] text-slate-500 truncate mt-0.5 font-medium">
+                                                {session?.user?.email || (session?.user?.role ? `${session.user.role.toUpperCase()}` : "Administrator")}
+                                            </p>
+                                        </div>
+
+                                        <div className="p-1">
+                                            <Link
+                                                href="/admin/settings"
+                                                onClick={() => setIsUserMenuOpen(false)}
+                                                className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                                            >
+                                                <Settings size={14} className="text-slate-400" />
+                                                <span>Settings</span>
+                                            </Link>
+                                        </div>
+
+                                        <div className="p-1 border-t border-slate-100">
+                                            <button
+                                                onClick={() => {
+                                                    setIsUserMenuOpen(false);
+                                                    handleSignOut();
+                                                }}
+                                                className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg active:scale-95 transition-transform cursor-pointer"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <LogOut size={14} />
+                                                    <span>Sign Out</span>
+                                                </div>
+                                                <span className="text-[10px] font-mono text-red-400 bg-red-100/70 px-1.5 py-0.5 rounded font-bold">
+                                                    ⌥⇧Q
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
                 </header>
