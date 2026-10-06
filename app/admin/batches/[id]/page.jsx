@@ -10,6 +10,7 @@ import {
     User, MessageSquare, CheckCircle2, Circle, FileText, Download,
     Trash2, Plus, Save, AlertTriangle, Edit2, Settings, X, Sparkles, Copy
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
@@ -1559,42 +1560,50 @@ export default function BatchDetailPage() {
     return (
         <div className="space-y-6 max-w-[1400px] mx-auto pb-16">
             {/* Header */}
-            <div className="flex items-start gap-4 pb-4 border-b border-slate-100">
-                <button onClick={() => router.push('/admin/batches')} className="p-2 mt-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
+            <div className="flex items-start gap-3.5 pb-4 border-b border-slate-200/80">
+                <button 
+                    onClick={() => router.push('/admin/batches')} 
+                    className="p-2 mt-0.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg active:scale-90 transition-transform cursor-pointer"
+                    aria-label="Back to batches"
+                >
                     <ArrowLeft size={18} />
                 </button>
                 <div className="flex-1">
                     <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{batch.name}</h1>
-                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                    <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
                         <Badge variant="primary" className="text-[10px] font-mono">{batch.course?.code || batch.course?.name}</Badge>
                         {batchSemester && (
                             <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider bg-slate-50 border-slate-200 text-slate-700">
                                 Sem {batchSemester}
                             </Badge>
                         )}
-                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                            <Calendar size={11} /> {startDate} → {endDate}
+                        <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                            <Calendar size={12} className="text-slate-400" /> {startDate} → {endDate}
                         </span>
-                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                            <Users size={11} /> {batch.activeEnrollmentCount || 0} active students
+                        <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                            <Users size={12} className="text-slate-400" /> {batch.activeEnrollmentCount || 0} active students
                         </span>
                     </div>
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-slate-100">
+            {/* Apple Segmented Control Tabs */}
+            <div className="flex items-center gap-1 p-1 bg-slate-100/80 rounded-xl overflow-x-auto scrollbar-thin w-fit max-w-full border border-slate-200/60">
                 {TABS.map(tab => {
                     const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
                     return (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all ${activeTab === tab.id
-                                ? 'border-premium-blue text-premium-blue'
-                                : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap active:scale-95 transition-transform cursor-pointer ${
+                                isActive
+                                    ? "bg-white text-slate-900 shadow-xs font-bold"
+                                    : "text-slate-500 hover:text-slate-800"
+                            }`}
                         >
-                            <Icon size={15} /> {tab.label}
+                            <Icon size={14} /> 
+                            <span>{tab.label}</span>
                         </button>
                     );
                 })}
