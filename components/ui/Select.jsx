@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import { ChevronDown, Check, Search, X as CloseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
+
+const emptySubscribe = () => () => {};
 
 export default function Select({
     options = [],
@@ -19,6 +21,7 @@ export default function Select({
     name,
     searchable = true
 }) {
+    const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState("");
     const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
@@ -32,28 +35,30 @@ export default function Select({
 
     const selectedOption = options.find(opt => opt.value === value);
 
-    // Close on click outside
+    // Close on click outside and on page scroll
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (containerRef.current && !containerRef.current.contains(event.target)) {
-                // Also check if click is inside the portal-ed list
-                if (listRef.current && listRef.current.contains(event.target)) return;
-                setIsOpen(false);
-                setSearch("");
-            }
-        };
+        if (!isOpen) return;
 
-        const handleScroll = (event) => {
-            // Only close if scrolling outside the dropdown list
+        const initialScrollY = window.scrollY;
+        const initialScrollX = window.scrollX;
+
+        const handleClickOutside = (event) => {
+            if (containerRef.current && containerRef.current.contains(event.target)) return;
             if (listRef.current && listRef.current.contains(event.target)) return;
             setIsOpen(false);
             setSearch("");
         };
 
-        if (isOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
-            window.addEventListener("scroll", handleScroll, true);
-        }
+        const handleScroll = (event) => {
+            if (listRef.current && listRef.current.contains(event.target)) return;
+            if (Math.abs(window.scrollY - initialScrollY) > 10 || Math.abs(window.scrollX - initialScrollX) > 10) {
+                setIsOpen(false);
+                setSearch("");
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        window.addEventListener("scroll", handleScroll, true);
 
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
@@ -67,8 +72,8 @@ export default function Select({
         if (!isOpen && buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();
             setCoords({
-                top: rect.bottom + window.scrollY,
-                left: rect.left + window.scrollX,
+                top: rect.bottom,
+                left: rect.left,
                 width: rect.width
             });
             setSearch("");
@@ -115,75 +120,76 @@ export default function Select({
                     <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-300 ease-out shrink-0", isOpen && "rotate-180")} />
                 </button>
 
-                <AnimatePresence>
-                    {isOpen && typeof document !== "undefined" && createPortal(
-                        <div 
-                            ref={listRef}
-                            className="fixed z-[10000]"
-                            style={{
-                                top: coords.top + 6,
-                                left: coords.left,
-                                width: coords.width
-                            }}
-                        >
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                                transition={{ type: "spring", duration: 0.28, bounce: 0.08 }}
-                                style={{ transformOrigin: "top center" }}
-                                className="bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden ring-1 ring-black/5"
+                {mounted && typeof document !== "undefined" && createPortal(
+                    <AnimatePresence>
+                        {isOpen && (
+                            <div 
+                                ref={listRef}
+                                className="fixed z-[10000]"
+                                style={{
+                                    top: coords.top + 6,
+                                    left: coords.left,
+                                    width: Math.max(coords.width, 140)
+                                }}
                             >
-                            {searchable && (
-                                <div className="px-3 py-2 border-b border-slate-50 bg-slate-50/30 flex items-center gap-2">
-                                    <Search size={14} className="text-slate-400" />
-                                    <input
-                                        autoFocus
-                                        type="text"
-                                        placeholder="Search..."
-                                        className="w-full bg-transparent border-none outline-none text-sm placeholder:text-slate-400"
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                    {search && (
-                                        <button onClick={() => setSearch("")} className="text-slate-400 hover:text-slate-600">
-                                            <CloseIcon size={14} />
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                            <ul className="p-1 space-y-0.5 max-h-60 overflow-y-auto">
-                                {filteredOptions.length > 0 ? filteredOptions.map((option, index) => (
-                                    <li key={`${option.value}-${index}`}>
-                                        <button
-                                            type="button"
-                                            disabled={option.disabled}
-                                            onClick={() => !option.disabled && handleSelect(option.value)}
-                                            className={cn(
-                                                "w-full px-3 py-2 text-sm font-medium rounded-lg text-left flex items-center justify-between transition-colors",
-                                                option.disabled
-                                                    ? "bg-slate-100/70 text-slate-400 font-bold text-[10px] uppercase tracking-widest cursor-default py-1.5"
-                                                    : option.value === value
-                                                        ? "bg-premium-blue/5 text-premium-blue font-bold"
-                                                        : "text-slate-600 hover:bg-slate-50"
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                                    transition={{ type: "spring", duration: 0.28, bounce: 0.08 }}
+                                    style={{ transformOrigin: "top center" }}
+                                    className="bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden ring-1 ring-black/5"
+                                >
+                                    {searchable && (
+                                        <div className="px-3 py-2 border-b border-slate-50 bg-slate-50/30 flex items-center gap-2">
+                                            <Search size={14} className="text-slate-400" />
+                                            <input
+                                                type="text"
+                                                placeholder="Search..."
+                                                className="w-full bg-transparent border-none outline-none text-sm placeholder:text-slate-400"
+                                                value={search}
+                                                onChange={(e) => setSearch(e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                            {search && (
+                                                <button onClick={() => setSearch("")} className="text-slate-400 hover:text-slate-600">
+                                                    <CloseIcon size={14} />
+                                                </button>
                                             )}
-                                        >
-                                            {option.label}
-                                            {option.value === value && !option.disabled && <Check size={14} />}
-                                        </button>
-                                    </li>
-                                )) : (
-                                    <li className="px-3 py-4 text-sm text-slate-400 text-center italic">
-                                        No results found
-                                    </li>
-                                )}
-                            </ul>
-                        </motion.div>
-                    </div>,
+                                        </div>
+                                    )}
+                                    <ul className="p-1 space-y-0.5 max-h-60 overflow-y-auto">
+                                        {filteredOptions.length > 0 ? filteredOptions.map((option, index) => (
+                                            <li key={`${option.value}-${index}`}>
+                                                <button
+                                                    type="button"
+                                                    disabled={option.disabled}
+                                                    onClick={() => !option.disabled && handleSelect(option.value)}
+                                                    className={cn(
+                                                        "w-full px-3 py-2 text-sm font-medium rounded-lg text-left flex items-center justify-between transition-colors",
+                                                        option.disabled
+                                                            ? "bg-slate-100/70 text-slate-400 font-bold text-[10px] uppercase tracking-widest cursor-default py-1.5"
+                                                            : option.value === value
+                                                                ? "bg-premium-blue/5 text-premium-blue font-bold"
+                                                                : "text-slate-600 hover:bg-slate-50"
+                                                    )}
+                                                >
+                                                    {option.label}
+                                                    {option.value === value && !option.disabled && <Check size={14} />}
+                                                </button>
+                                            </li>
+                                        )) : (
+                                            <li className="px-3 py-4 text-sm text-slate-400 text-center italic">
+                                                No results found
+                                            </li>
+                                        )}
+                                    </ul>
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>,
                     document.body
                 )}
-                </AnimatePresence>
             </div>
             {error && <p className="text-[10px] text-red-500 ml-1 font-medium">{error}</p>}
         </div>
