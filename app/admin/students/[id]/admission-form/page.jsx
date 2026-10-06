@@ -385,22 +385,26 @@ function CollegeAdmissionFormView({ data }) {
             <div className="watermark">OFFICIAL ENROLLMENT</div>
 
             {/* Header */}
-            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-2.5 mb-2">
-                <div className="flex-1 pr-4">
+            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-2.5 mb-2 gap-4">
+                <div className="flex-1 pr-4 flex items-center gap-4 min-w-0">
                     {institute?.logo && (
-                        <img src={institute.logo} alt="Logo" className="h-9 mb-1 object-contain" />
+                        <div className="shrink-0">
+                            <img src={institute.logo} alt="Logo" className="h-16 max-w-[120px] object-contain" />
+                        </div>
                     )}
-                    <h1 className="text-base font-black uppercase tracking-tight text-slate-900 leading-tight">
-                        {institute?.name || "College of Higher Education"}
-                    </h1>
-                    {institute?.affiliation && (
-                        <p className="text-[8.5px] font-semibold text-slate-600 uppercase tracking-wide">
-                            {institute.affiliation}
-                        </p>
-                    )}
-                    <div className="text-[9px] leading-tight text-slate-600 mt-1">
-                        <p>{formatAddr(institute?.address)}</p>
-                        <p className="mt-0.5">Phone: {institute?.phone || "N/A"} | Email: {institute?.email || "N/A"}</p>
+                    <div className="min-w-0">
+                        <h1 className="text-base font-black uppercase tracking-tight text-slate-900 leading-tight">
+                            {institute?.name || "College of Higher Education"}
+                        </h1>
+                        {institute?.affiliation && (
+                            <p className="text-[8.5px] font-semibold text-slate-600 uppercase tracking-wide">
+                                {institute.affiliation}
+                            </p>
+                        )}
+                        <div className="text-[9px] leading-tight text-slate-600 mt-1">
+                            <p>{formatAddr(institute?.address)}</p>
+                            <p className="mt-0.5">Phone: {institute?.phone || "N/A"} | Email: {institute?.email || "N/A"}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -633,15 +637,19 @@ function AdmissionFormView({ data }) {
             <div className="watermark">OFFICIAL DOCUMENT</div>
 
             {/* Header */}
-            <div className="flex justify-between items-start border-b border-black pb-4 mb-4">
-                <div className="flex-1">
+            <div className="flex justify-between items-start border-b border-black pb-4 mb-4 gap-4">
+                <div className="flex-1 flex items-center gap-4 min-w-0">
                     {institute?.logo && (
-                        <img src={institute.logo} alt="Logo" className="h-12 mb-2" />
+                        <div className="shrink-0">
+                            <img src={institute.logo} alt="Logo" className="h-20 max-w-[140px] object-contain" />
+                        </div>
                     )}
-                    <h1 className="text-xl font-bold uppercase tracking-tight">{institute?.name || "Institute Name"}</h1>
-                    <div className="text-[10px] leading-relaxed text-gray-700 max-w-md">
-                        <p>{formatAddr(institute?.address)}</p>
-                        <p>Phone: {institute?.phone || "N/A"} | Email: {institute?.email || "N/A"}</p>
+                    <div className="min-w-0">
+                        <h1 className="text-xl font-bold uppercase tracking-tight">{institute?.name || "Institute Name"}</h1>
+                        <div className="text-[10px] leading-relaxed text-gray-700 max-w-md">
+                            <p>{formatAddr(institute?.address)}</p>
+                            <p>Phone: {institute?.phone || "N/A"} | Email: {institute?.email || "N/A"}</p>
+                        </div>
                     </div>
                 </div>
 
