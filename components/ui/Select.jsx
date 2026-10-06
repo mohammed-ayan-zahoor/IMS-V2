@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Check, Search, X as CloseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 
 export default function Select({
@@ -39,6 +39,7 @@ export default function Select({
                 // Also check if click is inside the portal-ed list
                 if (listRef.current && listRef.current.contains(event.target)) return;
                 setIsOpen(false);
+                setSearch("");
             }
         };
 
@@ -46,6 +47,7 @@ export default function Select({
             // Only close if scrolling outside the dropdown list
             if (listRef.current && listRef.current.contains(event.target)) return;
             setIsOpen(false);
+            setSearch("");
         };
 
         if (isOpen) {
@@ -59,10 +61,6 @@ export default function Select({
         };
     }, [isOpen]);
 
-    useEffect(() => {
-        if (!isOpen) setSearch("");
-    }, [isOpen]);
-
     const handleToggle = () => {
         if (disabled) return;
         
@@ -73,12 +71,16 @@ export default function Select({
                 left: rect.left + window.scrollX,
                 width: rect.width
             });
+            setSearch("");
+        } else if (isOpen) {
+            setSearch("");
         }
         setIsOpen(!isOpen);
     };
 
     const handleSelect = (optionValue) => {
         setIsOpen(false);
+        setSearch("");
         if (!onChange) return;
         
         if (typeof onChange === 'function') {
@@ -99,10 +101,10 @@ export default function Select({
                     type="button"
                     onClick={handleToggle}
                     className={cn(
-                        "w-full bg-white border border-slate-200 rounded-md px-3 py-2 outline-none transition-colors text-left flex items-center justify-between gap-2 text-xs font-bold text-slate-800",
+                        "w-full bg-white border border-slate-200 rounded-md px-3 py-2 outline-none transition-[border-color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] text-left flex items-center justify-between gap-2 text-xs font-bold text-slate-800 cursor-pointer",
                         "focus:border-slate-400",
                         error && "border-rose-300",
-                        disabled && "opacity-50 cursor-not-allowed",
+                        disabled && "opacity-50 cursor-not-allowed active:scale-100",
                         !selectedOption && "text-slate-400 font-medium",
                         buttonClassName
                     )}
@@ -110,26 +112,28 @@ export default function Select({
                     <span className="truncate block text-xs font-bold text-slate-800">
                         {selectedOption ? selectedOption.label : placeholder}
                     </span>
-                    <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-200 shrink-0", isOpen && "rotate-180")} />
+                    <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-300 ease-out shrink-0", isOpen && "rotate-180")} />
                 </button>
 
-                {isOpen && typeof document !== "undefined" && createPortal(
-                    <div 
-                        ref={listRef}
-                        className="fixed z-[10000]"
-                        style={{
-                            top: coords.top + 8,
-                            left: coords.left,
-                            width: coords.width
-                        }}
-                    >
-                        <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.1 }}
-                            className="bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden ring-1 ring-black/5"
+                <AnimatePresence>
+                    {isOpen && typeof document !== "undefined" && createPortal(
+                        <div 
+                            ref={listRef}
+                            className="fixed z-[10000]"
+                            style={{
+                                top: coords.top + 6,
+                                left: coords.left,
+                                width: coords.width
+                            }}
                         >
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                                transition={{ type: "spring", duration: 0.28, bounce: 0.08 }}
+                                style={{ transformOrigin: "top center" }}
+                                className="bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden ring-1 ring-black/5"
+                            >
                             {searchable && (
                                 <div className="px-3 py-2 border-b border-slate-50 bg-slate-50/30 flex items-center gap-2">
                                     <Search size={14} className="text-slate-400" />
@@ -179,6 +183,7 @@ export default function Select({
                     </div>,
                     document.body
                 )}
+                </AnimatePresence>
             </div>
             {error && <p className="text-[10px] text-red-500 ml-1 font-medium">{error}</p>}
         </div>

@@ -51,13 +51,15 @@ export default function Modal({ isOpen, onClose, title, children, size = "md", c
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
+                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-slate-900/15"
+                        className="absolute inset-0 bg-slate-900/20"
                     />
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        initial={{ opacity: 0, scale: 0.94, y: 16 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        transition={{ type: "spring", duration: 0.36, bounce: 0.12 }}
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="modal-title"

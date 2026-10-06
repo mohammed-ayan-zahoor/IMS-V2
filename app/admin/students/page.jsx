@@ -1198,10 +1198,10 @@ const getInitialFormData = (selectedSessionId = "") => ({
                      <AnimatePresence>
                          {selectedStudents.size > 0 && (
                              <motion.div
-                                 initial={{ opacity: 0, scale: 0.96, y: -4 }}
+                                 initial={{ opacity: 0, scale: 0.92, y: -6 }}
                                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                                 exit={{ opacity: 0, scale: 0.96, y: -4 }}
-                                 transition={{ type: "spring", bounce: 0, duration: 0.2 }}
+                                 exit={{ opacity: 0, scale: 0.92, y: -6 }}
+                                 transition={{ type: "spring", bounce: 0.18, duration: 0.35 }}
                                  className="flex items-center gap-2"
                              >
                                  <Button 
@@ -1371,213 +1371,245 @@ const getInitialFormData = (selectedSessionId = "") => ({
                     </div>
                 </div>
 
-                <div>
-                    {loading ? (
-                        <LoadingSpinner />
-                    ) : students.length > 0 ? (
-                        <>
-                            <div className="overflow-x-auto min-h-[400px]">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-slate-50/50 border-b border-slate-100">
-                                            <th className="px-5 py-3 w-10">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={selectedStudents.size === students.length && students.length > 0}
-                                                    onChange={toggleAllOnPage}
-                                                    className="w-4 h-4 rounded border-slate-300 text-premium-blue focus:ring-0 active:scale-90 transition-transform cursor-pointer"
-                                                />
-                                            </th>
-                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Student</th>
-                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">{isSchool ? "Class & Section" : "Course & Batch"}</th>
-                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Enrollment ID</th>
-                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Contact</th>
-                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Status</th>
-                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {students.map((student) => (
-                                            <tr 
-                                                key={student._id} 
-                                                className={`group hover:bg-slate-50/70 transition-colors ${selectedStudents.has(student._id) ? 'bg-blue-50/40' : ''}`}
-                                            >
-                                                <td className="px-5 py-3.5">
+                <div className="relative">
+                    <AnimatePresence mode="wait">
+                        {loading ? (
+                            <motion.div
+                                key="loading"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.18, ease: "easeOut" }}
+                                className="py-24 flex items-center justify-center min-h-[400px]"
+                            >
+                                <LoadingSpinner />
+                            </motion.div>
+                        ) : students.length > 0 ? (
+                            <motion.div
+                                key="students-table"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.22, ease: "easeOut" }}
+                            >
+                                <div className="overflow-x-auto min-h-[400px]">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50/50 border-b border-slate-100">
+                                                <th className="px-5 py-3 w-10">
                                                     <input 
                                                         type="checkbox" 
-                                                        checked={selectedStudents.has(student._id)}
-                                                        onChange={() => toggleStudentSelection(student._id)}
+                                                        checked={selectedStudents.size === students.length && students.length > 0}
+                                                        onChange={toggleAllOnPage}
                                                         className="w-4 h-4 rounded border-slate-300 text-premium-blue focus:ring-0 active:scale-90 transition-transform cursor-pointer"
                                                     />
-                                                </td>
-                                                <td className="px-5 py-3.5">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold border border-slate-200/80 overflow-hidden text-xs shrink-0">
-                                                            {student.profile?.avatar ? (
-                                                                <img src={student.profile.avatar} alt={student.profile.firstName} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                student.profile?.firstName?.[0] || student.fullName?.[0] || "S"
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-semibold text-slate-900 capitalize tracking-tight truncate">{student.fullName}</p>
-                                                            <p className="text-[11px] font-medium text-slate-400 break-all truncate">{student.email}</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-5 py-3.5">
-                                                    {student.batches && student.batches.length > 0 ? (
-                                                        <div className="flex flex-col gap-0.5">
-                                                            {student.batches.map((b) => (
-                                                                <span key={b._id} className="text-xs font-medium text-slate-700">
-                                                                    {(b.courseBundle ? b.courseBundle.title : (b.course?.name || "No Class"))} / {b.name}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-xs font-medium text-slate-400">—</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-5 py-3.5">
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100/90 text-slate-600 text-[11px] font-semibold font-mono border border-slate-200/70">
-                                                        {student.enrollmentNumber || "PENDING"}
-                                                    </span>
-                                                </td>
-                                                <td className="px-5 py-3.5">
-                                                    <p className="text-[11px] font-medium text-slate-600">{student.profile?.phone || "—"}</p>
-                                                </td>
-                                                <td className="px-5 py-3.5">
-                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
-                                                        student.isActive 
-                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200/60" 
-                                                            : "bg-rose-50 text-rose-700 border-rose-200/60"
-                                                    }`}>
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${student.isActive ? "bg-emerald-500" : "bg-rose-500"}`} />
-                                                        {student.isActive ? "Active" : "Inactive"}
-                                                    </span>
-                                                </td>
-                                                <td className="px-5 py-3.5 text-right">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        <button
-                                                            disabled={isChatLoading}
-                                                            onClick={async () => {
-                                                                if (isChatLoading) return;
-                                                                setIsChatLoading(true);
-                                                                try {
-                                                                    const res = await fetch("/api/v1/chat/conversations", {
-                                                                        method: "POST",
-                                                                        headers: { "Content-Type": "application/json" },
-                                                                        body: JSON.stringify({ targetUserId: student._id })
-                                                                    });
-                                                                    if (res.ok) {
-                                                                        router.push("/admin/chat");
-                                                                    } else {
-                                                                        toast.error("Failed to start chat");
-                                                                    }
-                                                                } catch (err) {
-                                                                    toast.error("Failed to start chat");
-                                                                } finally {
-                                                                    setIsChatLoading(false);
-                                                                }
-                                                            }}
-                                                            className={`inline-flex p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 active:scale-90 transition-[color,background-color,transform] ${
-                                                                isChatLoading ? 'opacity-50 cursor-not-allowed' : ''
-                                                            }`}
-                                                            title="Message Student"
-                                                        >
-                                                            {isChatLoading ? <LoadingSpinner size="sm" /> : <MessageSquare size={15} strokeWidth={1.8} />}
-                                                        </button>
-                                                        <Link
-                                                            href={`/admin/students/${student._id}`}
-                                                            className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-premium-blue hover:bg-blue-50 active:scale-90 transition-[color,background-color,transform]"
-                                                            title="Edit Student"
-                                                        >
-                                                            <Edit2 size={15} strokeWidth={1.8} />
-                                                        </Link>
-                                                    </div>
-                                                </td>
+                                                </th>
+                                                <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Student</th>
+                                                <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">{isSchool ? "Class & Section" : "Course & Batch"}</th>
+                                                <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Enrollment ID</th>
+                                                <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Contact</th>
+                                                <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Status</th>
+                                                <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase text-right">Actions</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {students.map((student, idx) => (
+                                                <motion.tr 
+                                                    key={student._id} 
+                                                    initial={{ opacity: 0, y: 6 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{
+                                                        duration: 0.28,
+                                                        delay: Math.min(idx * 0.03, 0.22),
+                                                        ease: [0.16, 1, 0.3, 1]
+                                                    }}
+                                                    className={`group hover:bg-slate-50/70 transition-colors ${selectedStudents.has(student._id) ? 'bg-blue-50/40' : ''}`}
+                                                >
+                                                    <td className="px-5 py-3.5">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={selectedStudents.has(student._id)}
+                                                            onChange={() => toggleStudentSelection(student._id)}
+                                                            className="w-4 h-4 rounded border-slate-300 text-premium-blue focus:ring-0 active:scale-90 transition-transform cursor-pointer"
+                                                        />
+                                                    </td>
+                                                    <td className="px-5 py-3.5">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold border border-slate-200/80 overflow-hidden text-xs shrink-0">
+                                                                {student.profile?.avatar ? (
+                                                                    <img src={student.profile.avatar} alt={student.profile.firstName} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    student.profile?.firstName?.[0] || student.fullName?.[0] || "S"
+                                                                )}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-semibold text-slate-900 capitalize tracking-tight truncate">{student.fullName}</p>
+                                                                <p className="text-[11px] font-medium text-slate-400 break-all truncate">{student.email}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-5 py-3.5">
+                                                        {student.batches && student.batches.length > 0 ? (
+                                                            <div className="flex flex-col gap-0.5">
+                                                                {student.batches.map((b) => (
+                                                                    <span key={b._id} className="text-xs font-medium text-slate-700">
+                                                                        {(b.courseBundle ? b.courseBundle.title : (b.course?.name || "No Class"))} / {b.name}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs font-medium text-slate-400">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3.5">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100/90 text-slate-600 text-[11px] font-semibold font-mono border border-slate-200/70">
+                                                            {student.enrollmentNumber || "PENDING"}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-5 py-3.5">
+                                                        <p className="text-[11px] font-medium text-slate-600">{student.profile?.phone || "—"}</p>
+                                                    </td>
+                                                    <td className="px-5 py-3.5">
+                                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
+                                                            student.isActive 
+                                                                ? "bg-emerald-50 text-emerald-700 border-emerald-200/60" 
+                                                                : "bg-rose-50 text-rose-700 border-rose-200/60"
+                                                        }`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${student.isActive ? "bg-emerald-500" : "bg-rose-500"}`} />
+                                                            {student.isActive ? "Active" : "Inactive"}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-5 py-3.5 text-right">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <button
+                                                                disabled={isChatLoading}
+                                                                onClick={async () => {
+                                                                    if (isChatLoading) return;
+                                                                    setIsChatLoading(true);
+                                                                    try {
+                                                                        const res = await fetch("/api/v1/chat/conversations", {
+                                                                            method: "POST",
+                                                                            headers: { "Content-Type": "application/json" },
+                                                                            body: JSON.stringify({ targetUserId: student._id })
+                                                                        });
+                                                                        if (res.ok) {
+                                                                            router.push("/admin/chat");
+                                                                        } else {
+                                                                            toast.error("Failed to start chat");
+                                                                        }
+                                                                    } catch (err) {
+                                                                        toast.error("Failed to start chat");
+                                                                    } finally {
+                                                                        setIsChatLoading(false);
+                                                                    }
+                                                                }}
+                                                                className={`inline-flex p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 active:scale-90 transition-[color,background-color,transform] ${
+                                                                    isChatLoading ? 'opacity-50 cursor-not-allowed' : ''
+                                                                }`}
+                                                                title="Message Student"
+                                                            >
+                                                                {isChatLoading ? <LoadingSpinner size="sm" /> : <MessageSquare size={15} strokeWidth={1.8} />}
+                                                            </button>
+                                                            <Link
+                                                                href={`/admin/students/${student._id}`}
+                                                                className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-premium-blue hover:bg-blue-50 active:scale-90 transition-[color,background-color,transform]"
+                                                                title="Edit Student"
+                                                            >
+                                                                <Edit2 size={15} strokeWidth={1.8} />
+                                                            </Link>
+                                                        </div>
+                                                    </td>
+                                                </motion.tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
 
-                            {/* Pagination */}
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
-                                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
-                                    <div>
-                                        Showing <span className="font-semibold text-slate-700">{Math.min(students.length, pagination.limit)}</span> of <span className="font-semibold text-slate-700">{pagination.total}</span> students
-                                        <span className="mx-2 text-slate-300">|</span>
-                                        Page <span className="font-semibold text-slate-700">{pagination.page}</span> of <span className="font-semibold text-slate-700">{pagination.pages}</span>
+                                {/* Pagination */}
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
+                                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
+                                        <div>
+                                            Showing <span className="font-semibold text-slate-700">{Math.min(students.length, pagination.limit)}</span> of <span className="font-semibold text-slate-700">{pagination.total}</span> students
+                                            <span className="mx-2 text-slate-300">|</span>
+                                            Page <span className="font-semibold text-slate-700">{pagination.page}</span> of <span className="font-semibold text-slate-700">{pagination.pages}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span>Show:</span>
+                                            <select
+                                                value={pagination.limit}
+                                                onChange={(e) => handleLimitChange(Number(e.target.value))}
+                                                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 font-semibold focus:outline-none focus:border-premium-blue cursor-pointer transition-colors"
+                                            >
+                                                <option value={10}>10</option>
+                                                <option value={25}>25</option>
+                                                <option value={50}>50</option>
+                                                <option value={100}>100</option>
+                                                <option value={1000}>All</option>
+                                            </select>
+                                        </div>
                                     </div>
                                     <div className="flex items-center gap-1.5">
-                                        <span>Show:</span>
-                                        <select
-                                            value={pagination.limit}
-                                            onChange={(e) => handleLimitChange(Number(e.target.value))}
-                                            className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 font-semibold focus:outline-none focus:border-premium-blue cursor-pointer transition-colors"
+                                        <button
+                                            onClick={() => handlePageChange(pagination.page - 1)}
+                                            disabled={pagination.page <= 1}
+                                            className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none transition-[background-color,transform]"
                                         >
-                                            <option value={10}>10</option>
-                                            <option value={25}>25</option>
-                                            <option value={50}>50</option>
-                                            <option value={100}>100</option>
-                                            <option value={1000}>All</option>
-                                        </select>
+                                            Previous
+                                        </button>
+
+                                        {/* Page Numbers */}
+                                        <div className="hidden sm:flex items-center gap-1">
+                                            {[...Array(Math.min(5, pagination.pages))].map((_, i) => {
+                                                let p = pagination.page;
+                                                if (pagination.pages <= 5) p = i + 1;
+                                                else if (pagination.page < 3) p = i + 1;
+                                                else if (pagination.page > pagination.pages - 2) p = pagination.pages - 4 + i;
+                                                else p = pagination.page - 2 + i;
+
+                                                return (
+                                                    <button
+                                                        key={p}
+                                                        onClick={() => handlePageChange(p)}
+                                                        className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-semibold active:scale-90 transition-[background-color,color,transform] ${
+                                                            pagination.page === p
+                                                                ? "bg-premium-blue text-white shadow-sm shadow-blue-500/20 font-bold"
+                                                                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                                                        }`}
+                                                    >
+                                                        {p}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <button
+                                            onClick={() => handlePageChange(pagination.page + 1)}
+                                            disabled={pagination.page >= pagination.pages}
+                                            className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none transition-[background-color,transform]"
+                                        >
+                                            Next
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                    <button
-                                        onClick={() => handlePageChange(pagination.page - 1)}
-                                        disabled={pagination.page <= 1}
-                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none transition-[background-color,transform]"
-                                    >
-                                        Previous
-                                    </button>
-
-                                    {/* Page Numbers */}
-                                    <div className="hidden sm:flex items-center gap-1">
-                                        {[...Array(Math.min(5, pagination.pages))].map((_, i) => {
-                                            let p = pagination.page;
-                                            if (pagination.pages <= 5) p = i + 1;
-                                            else if (pagination.page < 3) p = i + 1;
-                                            else if (pagination.page > pagination.pages - 2) p = pagination.pages - 4 + i;
-                                            else p = pagination.page - 2 + i;
-
-                                            return (
-                                                <button
-                                                    key={p}
-                                                    onClick={() => handlePageChange(p)}
-                                                    className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-semibold active:scale-90 transition-[background-color,color,transform] ${
-                                                        pagination.page === p
-                                                            ? "bg-premium-blue text-white shadow-sm shadow-blue-500/20 font-bold"
-                                                            : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                                                    }`}
-                                                >
-                                                    {p}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <button
-                                        onClick={() => handlePageChange(pagination.page + 1)}
-                                        disabled={pagination.page >= pagination.pages}
-                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none transition-[background-color,transform]"
-                                    >
-                                        Next
-                                    </button>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <EmptyState
-                            icon={Users}
-                            title="No students found"
-                            description="Start by adding your first student to the system."
-                            actionLabel="Add Student"
-                            onAction={() => setIsAddModalOpen(true)}
-                        />
-                    )}
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="empty-state"
+                                initial={{ opacity: 0, scale: 0.98 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <EmptyState
+                                    icon={Users}
+                                    title="No students found"
+                                    description="Start by adding your first student to the system."
+                                    actionLabel="Add Student"
+                                    onAction={() => setIsAddModalOpen(true)}
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
