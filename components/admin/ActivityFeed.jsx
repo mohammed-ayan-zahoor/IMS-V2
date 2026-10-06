@@ -11,6 +11,7 @@ import {
     Layers,
     FileText,
     Calendar,
+    CalendarCheck,
     UserCog,
     Megaphone
 } from "lucide-react";
@@ -171,23 +172,23 @@ export default function ActivityFeed({ className }) {
             case 'Add Student':
                 router.push('/admin/students?add=true');
                 break;
-            case 'Msg All':
-                router.push('/admin/chat');
+            case 'Attendance':
+                router.push('/admin/attendance');
                 break;
             case 'Fee Report':
                 router.push('/admin/fees');
                 break;
-            case 'Search':
-                document.getElementById('global-student-search')?.focus();
+            case 'Msg All':
+                router.push('/admin/chat');
                 break;
         }
     };
 
     const shortcuts = [
         { label: 'Add Student', icon: UserPlus, color: 'text-blue-600 hover:text-blue-700', bg: 'hover:bg-blue-50/40' },
-        { label: 'Msg All', icon: MessageSquare, color: 'text-indigo-600 hover:text-indigo-700', bg: 'hover:bg-indigo-50/40' },
+        { label: 'Attendance', icon: CalendarCheck, color: 'text-purple-600 hover:text-purple-700', bg: 'hover:bg-purple-50/40' },
         { label: 'Fee Report', icon: CreditCard, color: 'text-emerald-600 hover:text-emerald-700', bg: 'hover:bg-emerald-50/40' },
-        { label: 'Search', icon: Search, color: 'text-slate-600 hover:text-slate-900', bg: 'hover:bg-slate-50/60' }
+        { label: 'Msg All', icon: MessageSquare, color: 'text-indigo-600 hover:text-indigo-700', bg: 'hover:bg-indigo-50/40' }
     ];
 
     useEffect(() => {
