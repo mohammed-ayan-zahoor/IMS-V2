@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/contexts/ToastContext";
 import { useSession } from "next-auth/react";
@@ -1194,28 +1195,36 @@ const getInitialFormData = (selectedSessionId = "") => ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
-                     {selectedStudents.size > 0 && (
-                         <>
-                             <Button 
-                                 onClick={() => setIsPromotionModalOpen(true)} 
-                                 variant="outline" 
-                                 size="md" 
-                                 className="flex items-center gap-2 px-4 border-blue-200 text-blue-600 hover:bg-blue-50"
+                     <AnimatePresence>
+                         {selectedStudents.size > 0 && (
+                             <motion.div
+                                 initial={{ opacity: 0, scale: 0.96, y: -4 }}
+                                 animate={{ opacity: 1, scale: 1, y: 0 }}
+                                 exit={{ opacity: 0, scale: 0.96, y: -4 }}
+                                 transition={{ type: "spring", bounce: 0, duration: 0.2 }}
+                                 className="flex items-center gap-2"
                              >
-                                 <GraduationCap size={18} strokeWidth={2.5} />
-                                 <span>Promote {selectedStudents.size} Students</span>
-                             </Button>
-                             <Button 
-                                 onClick={() => setIsDeleteModalOpen(true)} 
-                                 variant="primary" 
-                                 size="md" 
-                                 className="flex items-center gap-2 px-6 bg-red-600 hover:bg-red-700 shadow-sm"
-                             >
-                                 <Trash2 size={18} strokeWidth={2.5} />
-                                 <span>Delete {selectedStudents.size} Students</span>
-                             </Button>
-                         </>
-                     )}
+                                 <Button 
+                                     onClick={() => setIsPromotionModalOpen(true)} 
+                                     variant="outline" 
+                                     size="md" 
+                                     className="flex items-center gap-2 px-4 border-blue-200 text-blue-600 hover:bg-blue-50"
+                                 >
+                                     <GraduationCap size={18} strokeWidth={2.5} />
+                                     <span>Promote {selectedStudents.size} Students</span>
+                                 </Button>
+                                 <Button 
+                                     onClick={() => setIsDeleteModalOpen(true)} 
+                                     variant="primary" 
+                                     size="md" 
+                                     className="flex items-center gap-2 px-6 bg-red-600 hover:bg-red-700 shadow-sm"
+                                 >
+                                     <Trash2 size={18} strokeWidth={2.5} />
+                                     <span>Delete {selectedStudents.size} Students</span>
+                                 </Button>
+                             </motion.div>
+                         )}
+                     </AnimatePresence>
                     <Button onClick={() => setIsImportModalOpen(true)} variant="outline" size="md" className="hidden sm:flex items-center gap-2 border-slate-200">
                         <Upload size={16} />
                         <span>Import Students</span>
@@ -1240,21 +1249,40 @@ const getInitialFormData = (selectedSessionId = "") => ({
                 </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-[#F9FAFB] border-b border-slate-100">
-                    <div className="flex flex-wrap items-center gap-3 w-full">
-                        <div className="min-w-[160px] max-w-xs">
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 bg-slate-50/60 border-b border-slate-100">
+                    <div className="flex flex-wrap items-center gap-2.5 w-full">
+                        <div className="relative min-w-[200px] max-w-xs flex-1 sm:flex-initial">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search by name, email, or ID..."
+                                className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-premium-blue focus:ring-1 focus:ring-premium-blue/20 transition-colors"
+                            />
+                            {search && (
+                                <button
+                                    onClick={() => setSearch("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 active:scale-90 transition-transform"
+                                >
+                                    <X size={12} />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="min-w-[150px]">
                             <Select
                                 value={filters.courseId}
                                 onChange={(val) => setFilters({ ...filters, courseId: val, batchId: "" })}
                                 placeholder={isSchool ? "All Classes" : "All Courses"}
                                 className="w-auto"
-                                buttonClassName="w-auto min-w-full bg-white border-slate-200"
+                                buttonClassName="w-auto min-w-full bg-white border-slate-200 text-xs py-1.5"
                                 options={[
                                     { label: isSchool ? "All Classes" : "All Courses", value: "" },
                                     ...(isVocational && courseBundles.filter(b => b.isActive !== false).length > 0 ? [
-                                        { label: "── 🎁 PACKAGES ──", value: "hdr_bundles", disabled: true },
-                                        ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `🎁 ${b.title}`, value: b._id })),
+                                        { label: "── PACKAGES ──", value: "hdr_bundles", disabled: true },
+                                        ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: b.title, value: b._id })),
                                         { label: "── COURSES ──", value: "hdr_courses", disabled: true },
                                     ] : []),
                                     ...courses.map(c => ({ label: c.name, value: c._id }))
@@ -1262,13 +1290,13 @@ const getInitialFormData = (selectedSessionId = "") => ({
                             />
                         </div>
 
-                        <div className="min-w-[160px] max-w-xs">
+                        <div className="min-w-[150px]">
                             <Select
                                 value={filters.batchId}
                                 onChange={(val) => setFilters({ ...filters, batchId: val })}
                                 placeholder={isSchool ? "All Sections" : "All Batches"}
                                 className="w-auto"
-                                buttonClassName="w-auto min-w-full bg-white border-slate-200"
+                                buttonClassName="w-auto min-w-full bg-white border-slate-200 text-xs py-1.5"
                                 options={[
                                     { label: isSchool ? "All Sections" : "All Batches", value: "" },
                                     ...batches
@@ -1285,12 +1313,12 @@ const getInitialFormData = (selectedSessionId = "") => ({
                             />
                         </div>
 
-                        <div className="min-w-[140px]">
+                        <div className="min-w-[130px]">
                             <Select
                                 value={filters.isActive}
                                 onChange={(val) => setFilters({ ...filters, isActive: val })}
                                 placeholder="All Status"
-                                buttonClassName="bg-white border-slate-200"
+                                buttonClassName="bg-white border-slate-200 text-xs py-1.5"
                                 options={[
                                     { label: "All Status", value: "" },
                                     { label: "Active Only", value: "true" },
@@ -1300,13 +1328,13 @@ const getInitialFormData = (selectedSessionId = "") => ({
                         </div>
 
                         {session?.user?.role === 'super_admin' && institutes.length > 0 && (
-                            <div className="min-w-[180px] max-w-xs">
+                            <div className="min-w-[160px] max-w-xs">
                                 <Select
                                     value={filters.instituteId}
                                     onChange={(val) => setFilters({ ...filters, instituteId: val })}
                                     placeholder="All Institutes"
                                     className="w-auto"
-                                    buttonClassName="w-auto min-w-full"
+                                    buttonClassName="w-auto min-w-full text-xs py-1.5"
                                     options={[
                                         { label: "All Institutes", value: "" },
                                         ...institutes.map(i => ({ label: i.name, value: i._id }))
@@ -1315,29 +1343,34 @@ const getInitialFormData = (selectedSessionId = "") => ({
                             </div>
                         )}
 
-                        {(filters.courseId || filters.batchId || filters.instituteId || filters.isActive !== "true") && (<Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setFilters({ batchId: "", courseId: "", instituteId: "", isActive: "true" })}
-                            className="text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-red-500"
-                        >
-                            Reset
-                        </Button>
+                        {(search || filters.courseId || filters.batchId || filters.instituteId || filters.isActive !== "true") && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    setSearch("");
+                                    setFilters({ batchId: "", courseId: "", instituteId: "", isActive: "true" });
+                                }}
+                                className="text-[10px] uppercase font-bold tracking-wider text-slate-400 hover:text-rose-600 active:scale-95 transition-[color,transform]"
+                            >
+                                Reset
+                            </Button>
                         )}
 
-                        <div className="pl-2 border-l border-slate-200">
+                        <div className="ml-auto pl-2 border-l border-slate-200">
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={handlePrint}
-                                className="text-slate-400 hover:text-premium-blue hover:bg-premium-blue/5"
+                                className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-95 transition-[color,background-color,transform]"
                                 title="Print List"
                             >
-                                <Printer size={18} />
+                                <Printer size={16} />
                             </Button>
                         </div>
                     </div>
                 </div>
+
                 <div>
                     {loading ? (
                         <LoadingSpinner />
@@ -1346,55 +1379,58 @@ const getInitialFormData = (selectedSessionId = "") => ({
                             <div className="overflow-x-auto min-h-[400px]">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
-                                        <tr className="bg-white border-y border-slate-100">
-                                            <th className="px-6 py-4 w-10">
+                                        <tr className="bg-slate-50/50 border-b border-slate-100">
+                                            <th className="px-5 py-3 w-10">
                                                 <input 
                                                     type="checkbox" 
                                                     checked={selectedStudents.size === students.length && students.length > 0}
                                                     onChange={toggleAllOnPage}
-                                                    className="w-4 h-4 rounded border-slate-300 text-premium-blue"
+                                                    className="w-4 h-4 rounded border-slate-300 text-premium-blue focus:ring-0 active:scale-90 transition-transform cursor-pointer"
                                                 />
                                             </th>
-                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student</th>
-                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{isSchool ? "Class & Section" : "Course & Batch"}</th>
-                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Enrollment ID</th>
-                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact</th>
-                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
-                                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Student</th>
+                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">{isSchool ? "Class & Section" : "Course & Batch"}</th>
+                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Enrollment ID</th>
+                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Contact</th>
+                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Status</th>
+                                            <th className="px-5 py-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {students.map((student) => (
-                                            <tr key={student._id} className={`group hover:bg-slate-50/50 transition-colors ${selectedStudents.has(student._id) ? 'bg-blue-50/30' : ''}`}>
-                                                <td className="px-6 py-4">
+                                            <tr 
+                                                key={student._id} 
+                                                className={`group hover:bg-slate-50/70 transition-colors ${selectedStudents.has(student._id) ? 'bg-blue-50/40' : ''}`}
+                                            >
+                                                <td className="px-5 py-3.5">
                                                     <input 
                                                         type="checkbox" 
                                                         checked={selectedStudents.has(student._id)}
                                                         onChange={() => toggleStudentSelection(student._id)}
-                                                        className="w-4 h-4 rounded border-slate-300 text-premium-blue"
+                                                        className="w-4 h-4 rounded border-slate-300 text-premium-blue focus:ring-0 active:scale-90 transition-transform cursor-pointer"
                                                     />
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-5 py-3.5">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-premium-blue/10 flex items-center justify-center text-premium-blue font-bold border border-premium-blue/20 overflow-hidden">
+                                                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold border border-slate-200/80 overflow-hidden text-xs shrink-0">
                                                             {student.profile?.avatar ? (
                                                                 <img src={student.profile.avatar} alt={student.profile.firstName} className="w-full h-full object-cover" />
                                                             ) : (
-                                                                student.profile?.firstName?.[0]
+                                                                student.profile?.firstName?.[0] || student.fullName?.[0] || "S"
                                                             )}
                                                         </div>
-                                                        <div>
-                                                            <p className="text-sm font-bold text-slate-900 capitalize">{student.fullName}</p>
-                                                            <p className="text-[11px] font-medium text-slate-400 break-all">{student.email}</p>
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-semibold text-slate-900 capitalize tracking-tight truncate">{student.fullName}</p>
+                                                            <p className="text-[11px] font-medium text-slate-400 break-all truncate">{student.email}</p>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-5 py-3.5">
                                                     {student.batches && student.batches.length > 0 ? (
-                                                        <div className="flex flex-col gap-1">
+                                                        <div className="flex flex-col gap-0.5">
                                                             {student.batches.map((b) => (
-                                                                <span key={b._id} className="text-xs font-bold text-slate-700">
-                                                                    {(b.courseBundle ? `🎁 ${b.courseBundle.title}` : (b.course?.name || "No Class"))} / {b.name}
+                                                                <span key={b._id} className="text-xs font-medium text-slate-700">
+                                                                    {(b.courseBundle ? b.courseBundle.title : (b.course?.name || "No Class"))} / {b.name}
                                                                 </span>
                                                             ))}
                                                         </div>
@@ -1402,54 +1438,63 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                                         <span className="text-xs font-medium text-slate-400">—</span>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-bold font-mono border border-slate-200">
+                                                <td className="px-5 py-3.5">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100/90 text-slate-600 text-[11px] font-semibold font-mono border border-slate-200/70">
                                                         {student.enrollmentNumber || "PENDING"}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <p className="text-[11px] font-bold text-slate-600">{student.profile?.phone || "—"}</p>
+                                                <td className="px-5 py-3.5">
+                                                    <p className="text-[11px] font-medium text-slate-600">{student.profile?.phone || "—"}</p>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <Badge variant={student.isActive ? "success" : "danger"} className="text-[10px] px-2 py-0.5">
+                                                <td className="px-5 py-3.5">
+                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
+                                                        student.isActive 
+                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200/60" 
+                                                            : "bg-rose-50 text-rose-700 border-rose-200/60"
+                                                    }`}>
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${student.isActive ? "bg-emerald-500" : "bg-rose-500"}`} />
                                                         {student.isActive ? "Active" : "Inactive"}
-                                                    </Badge>
+                                                    </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
-                                                    <button
-                                                        disabled={isChatLoading}
-                                                        onClick={async () => {
-                                                            if (isChatLoading) return;
-                                                            setIsChatLoading(true);
-                                                            try {
-                                                                const res = await fetch("/api/v1/chat/conversations", {
-                                                                    method: "POST",
-                                                                    headers: { "Content-Type": "application/json" },
-                                                                    body: JSON.stringify({ targetUserId: student._id })
-                                                                });
-                                                                if (res.ok) {
-                                                                    router.push("/admin/chat");
-                                                                } else {
+                                                <td className="px-5 py-3.5 text-right">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <button
+                                                            disabled={isChatLoading}
+                                                            onClick={async () => {
+                                                                if (isChatLoading) return;
+                                                                setIsChatLoading(true);
+                                                                try {
+                                                                    const res = await fetch("/api/v1/chat/conversations", {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json" },
+                                                                        body: JSON.stringify({ targetUserId: student._id })
+                                                                    });
+                                                                    if (res.ok) {
+                                                                        router.push("/admin/chat");
+                                                                    } else {
+                                                                        toast.error("Failed to start chat");
+                                                                    }
+                                                                } catch (err) {
                                                                     toast.error("Failed to start chat");
+                                                                } finally {
+                                                                    setIsChatLoading(false);
                                                                 }
-                                                            } catch (err) {
-                                                                toast.error("Failed to start chat");
-                                                            } finally {
-                                                                setIsChatLoading(false);
-                                                            }
-                                                        }}
-                                                        className={`inline-flex p-2 rounded-lg transition-all ${isChatLoading ? 'opacity-50 cursor-not-allowed text-slate-300' : 'hover:bg-white text-slate-300 hover:text-green-500 hover:shadow-sm border border-transparent hover:border-slate-100'}`}
-                                                        title="Message Student"
-                                                    >
-                                                        {isChatLoading ? <LoadingSpinner size="sm" /> : <MessageSquare size={16} />}
-                                                    </button>
-                                                    <Link
-                                                        href={`/admin/students/${student._id}`}
-                                                        className="inline-flex p-2 hover:bg-white rounded-lg text-slate-300 hover:text-premium-blue hover:shadow-sm border border-transparent hover:border-slate-100 transition-all"
-                                                        title="Edit Student"
-                                                    >
-                                                        <Edit2 size={16} />
-                                                    </Link>
+                                                            }}
+                                                            className={`inline-flex p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 active:scale-90 transition-[color,background-color,transform] ${
+                                                                isChatLoading ? 'opacity-50 cursor-not-allowed' : ''
+                                                            }`}
+                                                            title="Message Student"
+                                                        >
+                                                            {isChatLoading ? <LoadingSpinner size="sm" /> : <MessageSquare size={15} strokeWidth={1.8} />}
+                                                        </button>
+                                                        <Link
+                                                            href={`/admin/students/${student._id}`}
+                                                            className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-premium-blue hover:bg-blue-50 active:scale-90 transition-[color,background-color,transform]"
+                                                            title="Edit Student"
+                                                        >
+                                                            <Edit2 size={15} strokeWidth={1.8} />
+                                                        </Link>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -1458,19 +1503,19 @@ const getInitialFormData = (selectedSessionId = "") => ({
                             </div>
 
                             {/* Pagination */}
-                            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-                                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 font-medium">
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
+                                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
                                     <div>
-                                        Showing <span className="font-bold text-slate-700">{Math.min(students.length, pagination.limit)}</span> of <span className="font-bold text-slate-700">{pagination.total}</span> students
+                                        Showing <span className="font-semibold text-slate-700">{Math.min(students.length, pagination.limit)}</span> of <span className="font-semibold text-slate-700">{pagination.total}</span> students
                                         <span className="mx-2 text-slate-300">|</span>
-                                        Page <span className="font-bold text-slate-700">{pagination.page}</span> of <span className="font-bold text-slate-700">{pagination.pages}</span>
+                                        Page <span className="font-semibold text-slate-700">{pagination.page}</span> of <span className="font-semibold text-slate-700">{pagination.pages}</span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <span>Show:</span>
                                         <select
                                             value={pagination.limit}
                                             onChange={(e) => handleLimitChange(Number(e.target.value))}
-                                            className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 font-bold focus:outline-none focus:border-premium-blue cursor-pointer transition-all"
+                                            className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 font-semibold focus:outline-none focus:border-premium-blue cursor-pointer transition-colors"
                                         >
                                             <option value={10}>10</option>
                                             <option value={25}>25</option>
@@ -1480,20 +1525,18 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                         </select>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5">
                                     <button
                                         onClick={() => handlePageChange(pagination.page - 1)}
                                         disabled={pagination.page <= 1}
-                                        className="px-3 py-1.5 text-xs font-bold text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none transition-[background-color,transform]"
                                     >
                                         Previous
                                     </button>
 
-                                    {/* Page Numbers - Simplified for now */}
+                                    {/* Page Numbers */}
                                     <div className="hidden sm:flex items-center gap-1">
                                         {[...Array(Math.min(5, pagination.pages))].map((_, i) => {
-                                            // Handle truncated pagination view logic if needed later
-                                            // For now simple range near current page
                                             let p = pagination.page;
                                             if (pagination.pages <= 5) p = i + 1;
                                             else if (pagination.page < 3) p = i + 1;
@@ -1504,21 +1547,22 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                                 <button
                                                     key={p}
                                                     onClick={() => handlePageChange(p)}
-                                                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${pagination.page === p
-                                                        ? "bg-premium-blue text-white shadow-md shadow-blue-500/20"
-                                                        : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
-                                                        }`}
+                                                    className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-semibold active:scale-90 transition-[background-color,color,transform] ${
+                                                        pagination.page === p
+                                                            ? "bg-premium-blue text-white shadow-sm shadow-blue-500/20 font-bold"
+                                                            : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                                                    }`}
                                                 >
                                                     {p}
                                                 </button>
-                                            )
+                                            );
                                         })}
                                     </div>
 
                                     <button
                                         onClick={() => handlePageChange(pagination.page + 1)}
                                         disabled={pagination.page >= pagination.pages}
-                                        className="px-3 py-1.5 text-xs font-bold text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none transition-[background-color,transform]"
                                     >
                                         Next
                                     </button>

@@ -29,7 +29,7 @@ export default function Button({
             type={props.type || "button"}
             disabled={props.disabled || loading}
             className={cn(
-                "inline-flex items-center justify-center rounded-md font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none gap-2",
+                "inline-flex items-center justify-center rounded-md font-bold transition-[color,background-color,border-color,box-shadow,transform] duration-100 ease-out active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100 gap-2 cursor-pointer",
                 fullWidth && "w-full",
                 variants[variant],
                 sizes[size],
