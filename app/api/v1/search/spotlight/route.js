@@ -58,7 +58,7 @@ const STATIC_ACTIONS = [
         id: "act-sign-out",
         type: "action",
         title: "Sign Out",
-        metadata: "Log out of your account · Shortcut ⌥⇧Q",
+        metadata: "Log out of your account · Shortcut Ctrl+L",
         icon: "log-out",
         url: "/api/auth/signout",
         keywords: ["logout", "signout", "exit", "leave", "quit", "log out", "sign out"]

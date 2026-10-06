@@ -103,8 +103,8 @@ export default function AdminLayout({ children }) {
                 return;
             }
 
-            // Shortcut for Sign Out: ⌥⇧Q (Option+Shift+Q) or Ctrl+Shift+Q
-            if ((e.altKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "q") {
+            // Shortcut for Sign Out: Ctrl+L or ⌘L (Command+L / Ctrl+L)
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
                 e.preventDefault();
                 handleSignOut();
                 return;
@@ -612,7 +612,7 @@ export default function AdminLayout({ children }) {
                         </button>
                         <button
                             onClick={handleSignOut}
-                            title="Sign Out (⌥⇧Q)"
+                            title="Sign Out (Ctrl+L)"
                             className={cn(
                                 "w-full flex items-center justify-between gap-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 active:scale-95 transition-all cursor-pointer",
                                 isSidebarCollapsed ? "px-3 py-2 lg:p-2 lg:justify-center" : "px-3 py-2"
@@ -622,8 +622,8 @@ export default function AdminLayout({ children }) {
                                 <LogOut size={14} />
                                 <span className={cn(isSidebarCollapsed && "lg:hidden")}>Sign Out</span>
                             </div>
-                            <span className={cn("text-[10px] font-mono text-red-400 bg-red-100/60 px-1.5 py-0.5 rounded", isSidebarCollapsed && "lg:hidden")}>
-                                ⌥⇧Q
+                            <span className={cn("text-[10px] font-mono text-red-400 bg-red-100/60 px-1.5 py-0.5 rounded font-bold", isSidebarCollapsed && "lg:hidden")}>
+                                Ctrl+L
                             </span>
                         </button>
                     </div>
@@ -748,7 +748,7 @@ export default function AdminLayout({ children }) {
                                                     <span>Sign Out</span>
                                                 </div>
                                                 <span className="text-[10px] font-mono text-red-400 bg-red-100/70 px-1.5 py-0.5 rounded font-bold">
-                                                    ⌥⇧Q
+                                                    Ctrl+L
                                                 </span>
                                             </button>
                                         </div>
