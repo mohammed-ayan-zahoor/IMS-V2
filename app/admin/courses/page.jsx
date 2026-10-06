@@ -15,8 +15,11 @@ import {
     Layers,
     Tag,
     CheckCircle2,
-    XCircle
+    XCircle,
+    X
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -421,40 +424,49 @@ export default function CoursesPage() {
 
     return (
         <div className="space-y-6">
-            {/* Tab Bar for Vocational Institutes */}
-            {isVocational && (
-                <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
-                    <button
-                        onClick={() => setActiveTab("courses")}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
-                            activeTab === "courses"
-                                ? "bg-slate-900 text-white shadow-xs"
-                                : "text-slate-600 hover:bg-slate-100"
-                        }`}
-                    >
-                        <BookOpen size={16} />
-                        <span>Individual Courses</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("bundles")}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
-                            activeTab === "bundles"
-                                ? "bg-blue-600 text-white shadow-xs"
-                                : "text-slate-600 hover:bg-slate-100"
-                        }`}
-                    >
-                        <Layers size={16} />
-                        <span>Course Bundles & Special Offers</span>
-                        <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded-full bg-amber-400 text-amber-950 font-bold">
-                            Offer Packs
-                        </span>
-                    </button>
-                </div>
-            )}
+            {/* Header Action Bar & Segmented Tabs */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+                {isVocational ? (
+                    <div className="inline-flex p-1 bg-slate-100/90 rounded-xl border border-slate-200/60 shadow-2xs">
+                        <button
+                            onClick={() => setActiveTab("courses")}
+                            className={cn(
+                                "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer active:scale-95 transition-[background-color,color,box-shadow,transform] duration-150",
+                                activeTab === "courses"
+                                    ? "bg-white text-slate-900 shadow-xs"
+                                    : "text-slate-600 hover:text-slate-900"
+                            )}
+                        >
+                            <BookOpen size={14} />
+                            <span>Individual Courses</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("bundles")}
+                            className={cn(
+                                "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer active:scale-95 transition-[background-color,color,box-shadow,transform] duration-150",
+                                activeTab === "bundles"
+                                    ? "bg-white text-slate-900 shadow-xs"
+                                    : "text-slate-600 hover:text-slate-900"
+                            )}
+                        >
+                            <Layers size={14} />
+                            <span>Course Bundles & Special Offers</span>
+                            <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded-md bg-amber-100 text-amber-800 font-bold border border-amber-200/60">
+                                Offer Packs
+                            </span>
+                        </button>
+                    </div>
+                ) : (
+                    <div className="space-y-0.5">
+                        <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                            {isSchool ? "Classes & Grades" : "Course Curriculum"}
+                        </h2>
+                        <p className="text-xs text-slate-500 font-medium">
+                            {isSchool ? "Manage academic classes, sections, and subjects" : "Manage active courses, durations, and fee structures"}
+                        </p>
+                    </div>
+                )}
 
-            {/* Page Action Bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                <div /> {/* Spacer */}
                 {session?.user?.role !== 'instructor' && (
                     activeTab === "courses" ? (
                         <Button
@@ -478,9 +490,9 @@ export default function CoursesPage() {
                                 setIsAddModalOpen(true);
                             }}
                             size="md"
-                            className="flex items-center gap-2 px-6 shadow-xs"
+                            className="flex items-center gap-2 px-5 shadow-xs"
                         >
-                            <Plus size={18} strokeWidth={2.5} />
+                            <Plus size={16} strokeWidth={2.5} />
                             <span>Add New {isSchool ? "Class" : "Course"}</span>
                         </Button>
                     ) : (
@@ -491,9 +503,9 @@ export default function CoursesPage() {
                                 setIsAddBundleModalOpen(true);
                             }}
                             size="md"
-                            className="flex items-center gap-2 px-6 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                            className="flex items-center gap-2 px-5 bg-premium-blue hover:bg-blue-700 text-white shadow-xs"
                         >
-                            <Plus size={18} strokeWidth={2.5} />
+                            <Plus size={16} strokeWidth={2.5} />
                             <span>Create Course Bundle Offer</span>
                         </Button>
                     )
@@ -502,16 +514,16 @@ export default function CoursesPage() {
 
             {activeTab === "courses" ? (
                 /* Individual Courses / Classes Table View */
-                <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
-                    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 bg-slate-50/60 border-b border-slate-200/80">
-                        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto flex-1">
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 bg-slate-50/60 border-b border-slate-100">
+                        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto flex-1">
                             {institutes.length > 0 && (
-                                <div className="min-w-[200px]">
+                                <div className="min-w-[180px]">
                                     <Select
                                         value={selectedInstitute}
                                         onChange={(val) => setSelectedInstitute(val)}
                                         placeholder="All Institutes"
-                                        buttonClassName="bg-white border-slate-200"
+                                        buttonClassName="bg-white border-slate-200 text-xs py-1.5"
                                         options={[
                                             { label: "All Institutes", value: "" },
                                             ...institutes.map(i => ({ label: i.name, value: i._id }))
@@ -519,283 +531,365 @@ export default function CoursesPage() {
                                     />
                                 </div>
                             )}
-                            <div className="w-full md:max-w-md">
-                                <Input
+                            <div className="relative w-full md:max-w-sm">
+                                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <input
+                                    type="text"
                                     placeholder={`Search ${isSchool ? "classes" : "courses"}...`}
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    icon={Search}
-                                    className="bg-white border-slate-200 shadow-xs"
+                                    className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-premium-blue focus:ring-1 focus:ring-premium-blue/20 transition-colors"
                                 />
+                                {search && (
+                                    <button
+                                        onClick={() => setSearch("")}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 active:scale-90 transition-transform cursor-pointer"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                )}
                             </div>
                         </div>
-                        <span className="text-xs font-medium text-slate-500 font-mono shrink-0">
+                        <span className="text-[11px] font-semibold text-slate-500 font-mono shrink-0 bg-white px-2.5 py-1 rounded-md border border-slate-200/70 shadow-2xs self-start md:self-auto">
                             {filteredCourses.length} {isSchool ? "Classes" : "Courses"} Total
                         </span>
                     </div>
 
-                    <div>
-                        {loading ? (
-                            <div className="p-12 flex justify-center"><LoadingSpinner /></div>
-                        ) : filteredCourses.length > 0 ? (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="border-b border-slate-200/80 bg-white text-xs font-semibold text-slate-400">
-                                            <th className="px-6 py-3.5 uppercase tracking-wider">{isSchool ? "Class" : "Course"} Detail</th>
-                                            <th className="px-6 py-3.5 uppercase tracking-wider">Code</th>
-                                            <th className="px-6 py-3.5 uppercase tracking-wider">Duration</th>
-                                            {session?.user?.role !== 'instructor' && (
-                                                <th className="px-6 py-3.5 uppercase tracking-wider text-right">Total Fees</th>
-                                            )}
-                                            {session?.user?.role !== 'instructor' && (
-                                                <th className="px-6 py-3.5 uppercase tracking-wider text-right">Actions</th>
-                                            )}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {filteredCourses.map((course) => (
-                                            <tr key={course._id} className="hover:bg-slate-50/50 transition-colors group">
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-start gap-3">
-                                                        {/* Containerless Icon */}
-                                                        <BookOpen size={18} className="text-blue-600 shrink-0 mt-0.5" />
-                                                        <div>
-                                                            <Link href={`/admin/courses/${course._id}`} className="font-semibold text-slate-900 hover:text-blue-600 transition-colors text-sm">
-                                                                {course.name}
-                                                            </Link>
-                                                            {course.description && (
-                                                                <p className="text-xs text-slate-500 line-clamp-1 mt-0.5 leading-relaxed">{course.description}</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200/80">
-                                                            {course.code}
-                                                        </span>
-                                                        {isCollege && course.department && (
-                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-                                                                {course.department.code || course.department.name}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-xs text-slate-600 font-medium">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <Clock size={14} className="text-slate-400" />
-                                                        {isCollege ? (
-                                                            <span>
-                                                                {course.collegeConfig?.totalSemesters || Math.round((course.duration?.value || 48) / 6)} Semesters
-                                                                <span className="text-slate-400 ml-1">({Math.round((course.collegeConfig?.totalSemesters || Math.round((course.duration?.value || 48) / 6)) / 2)} Yrs)</span>
-                                                            </span>
-                                                        ) : (
-                                                            <span>{formatDuration(course.duration?.value, course.duration?.unit)}</span>
-                                                        )}
-                                                    </div>
-                                                </td>
+                    <div className="relative">
+                        <AnimatePresence mode="wait">
+                            {loading ? (
+                                <motion.div
+                                    key="loading"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.18 }}
+                                    className="py-24 flex items-center justify-center min-h-[300px]"
+                                >
+                                    <LoadingSpinner />
+                                </motion.div>
+                            ) : filteredCourses.length > 0 ? (
+                                <motion.div
+                                    key="courses-table"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.22 }}
+                                    className="overflow-x-auto min-h-[300px]"
+                                >
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                <th className="px-5 py-3">{isSchool ? "Class" : "Course"} Detail</th>
+                                                <th className="px-5 py-3">Code</th>
+                                                <th className="px-5 py-3">Duration</th>
                                                 {session?.user?.role !== 'instructor' && (
-                                                    <td className="px-6 py-4 text-right">
-                                                        <div className="flex flex-col items-end">
-                                                            <span className="font-semibold text-slate-900 font-mono text-sm">
-                                                                ₹{course.fees?.amount?.toLocaleString() || 0}
+                                                    <th className="px-5 py-3 text-right">Total Fees</th>
+                                                )}
+                                                {session?.user?.role !== 'instructor' && (
+                                                    <th className="px-5 py-3 text-right">Actions</th>
+                                                )}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {filteredCourses.map((course, idx) => (
+                                                <motion.tr
+                                                    key={course._id}
+                                                    initial={{ opacity: 0, y: 6 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{
+                                                        duration: 0.28,
+                                                        delay: Math.min(idx * 0.035, 0.22),
+                                                        ease: [0.16, 1, 0.3, 1]
+                                                    }}
+                                                    className="hover:bg-slate-50/70 transition-colors group"
+                                                >
+                                                    <td className="px-5 py-3.5">
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-blue-50/80 text-blue-600 border border-blue-100/60 flex items-center justify-center shrink-0 mt-0.5">
+                                                                <BookOpen size={15} />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <Link href={`/admin/courses/${course._id}`} className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors text-sm tracking-tight block truncate">
+                                                                    {course.name}
+                                                                </Link>
+                                                                {course.description && (
+                                                                    <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{course.description}</p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-5 py-3.5">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-slate-100/90 text-slate-600 border border-slate-200/70">
+                                                                {course.code}
                                                             </span>
-                                                            {isCollege && (
-                                                                <span className="text-[11px] text-slate-400 font-medium">
-                                                                    {course.collegeConfig?.billingCycle === 'SEMESTER' ? 'per semester' : 'per year'}
+                                                            {isCollege && course.department && (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                                                                    {course.department.code || course.department.name}
                                                                 </span>
                                                             )}
                                                         </div>
                                                     </td>
-                                                )}
-                                                {session?.user?.role !== 'instructor' && (
-                                                    <td className="px-6 py-4 text-right">
-                                                        <div className="flex items-center justify-end gap-1.5">
-                                                            <Link
-                                                                href={`/admin/courses/${course._id}/subjects`}
-                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50/80 rounded-lg transition-colors border border-transparent hover:border-blue-100"
-                                                                title="Manage & Assign Subjects"
-                                                            >
-                                                                <BookOpen size={14} />
-                                                                <span>Subjects</span>
-                                                            </Link>
-                                                            <button
-                                                                onClick={() => handleEditClick(course)}
-                                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50/80 rounded-lg transition-colors cursor-pointer"
-                                                                title="Edit"
-                                                            >
-                                                                <Edit2 size={15} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setDeletingCourse(course)}
-                                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50/80 rounded-lg transition-colors cursor-pointer"
-                                                                title="Delete"
-                                                            >
-                                                                <Trash2 size={15} />
-                                                            </button>
+                                                    <td className="px-5 py-3.5 text-xs text-slate-600 font-medium">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Clock size={13} className="text-slate-400" />
+                                                            {isCollege ? (
+                                                                <span>
+                                                                    {course.collegeConfig?.totalSemesters || Math.round((course.duration?.value || 48) / 6)} Semesters
+                                                                    <span className="text-slate-400 ml-1">({Math.round((course.collegeConfig?.totalSemesters || Math.round((course.duration?.value || 48) / 6)) / 2)} Yrs)</span>
+                                                                </span>
+                                                            ) : (
+                                                                <span>{formatDuration(course.duration?.value, course.duration?.unit)}</span>
+                                                            )}
                                                         </div>
                                                     </td>
-                                                )}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <EmptyState
-                                icon={Library}
-                                title={`No ${isSchool ? "classes" : "courses"} found`}
-                                description={`Get started by creating your first ${isSchool ? "class" : "course"}.`}
-                            />
-                        )}
+                                                    {session?.user?.role !== 'instructor' && (
+                                                        <td className="px-5 py-3.5 text-right">
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="font-bold text-slate-900 font-mono text-sm">
+                                                                    ₹{course.fees?.amount?.toLocaleString() || 0}
+                                                                </span>
+                                                                {isCollege && (
+                                                                    <span className="text-[10px] text-slate-400 font-medium">
+                                                                        {course.collegeConfig?.billingCycle === 'SEMESTER' ? 'per semester' : 'per year'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    )}
+                                                    {session?.user?.role !== 'instructor' && (
+                                                        <td className="px-5 py-3.5 text-right">
+                                                            <div className="flex items-center justify-end gap-1.5">
+                                                                <Link
+                                                                    href={`/admin/courses/${course._id}/subjects`}
+                                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50/50 hover:bg-blue-50 border border-blue-200/50 rounded-lg active:scale-95 transition-[background-color,border-color,transform]"
+                                                                    title="Manage & Assign Subjects"
+                                                                >
+                                                                    <BookOpen size={13} />
+                                                                    <span>Subjects</span>
+                                                                </Link>
+                                                                <button
+                                                                    onClick={() => handleEditClick(course)}
+                                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 active:scale-90 rounded-lg transition-[color,background-color,transform] cursor-pointer"
+                                                                    title="Edit"
+                                                                >
+                                                                    <Edit2 size={15} strokeWidth={1.8} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setDeletingCourse(course)}
+                                                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-90 rounded-lg transition-[color,background-color,transform] cursor-pointer"
+                                                                    title="Delete"
+                                                                >
+                                                                    <Trash2 size={15} strokeWidth={1.8} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    )}
+                                                </motion.tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="empty"
+                                    initial={{ opacity: 0, scale: 0.98 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                >
+                                    <EmptyState
+                                        icon={Library}
+                                        title={`No ${isSchool ? "classes" : "courses"} found`}
+                                        description={`Get started by creating your first ${isSchool ? "class" : "course"}.`}
+                                    />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
             ) : (
                 /* Course Bundles & Special Offers View (Vocational) */
-                <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
-                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-slate-50/60 border-b border-slate-200/80">
-                        <div className="flex flex-wrap items-center gap-3 w-full">
-                            <div className="flex-1 max-w-md">
-                                <Input
-                                    placeholder="Search course bundles..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    icon={Search}
-                                    className="bg-white border-slate-200 shadow-xs"
-                                />
-                            </div>
-                            <div className="flex-1" />
-                            <Badge variant="secondary" className="bg-blue-50 text-blue-700 font-mono text-[10px]">
-                                {filteredBundles.length} Bundle Offers Total
-                            </Badge>
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 bg-slate-50/60 border-b border-slate-100">
+                        <div className="relative w-full md:max-w-sm">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <input
+                                type="text"
+                                placeholder="Search course bundles..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-premium-blue focus:ring-1 focus:ring-premium-blue/20 transition-colors"
+                            />
+                            {search && (
+                                <button
+                                    onClick={() => setSearch("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 active:scale-90 transition-transform cursor-pointer"
+                                >
+                                    <X size={12} />
+                                </button>
+                            )}
                         </div>
+                        <span className="text-[11px] font-semibold text-blue-700 bg-blue-50/80 border border-blue-200/60 px-2.5 py-1 rounded-md font-mono self-start md:self-auto">
+                            {filteredBundles.length} Bundle Offers Total
+                        </span>
                     </div>
 
                     <div className="p-5">
-                        {loadingBundles ? (
-                            <div className="p-12 flex justify-center"><LoadingSpinner /></div>
-                        ) : filteredBundles.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                                {filteredBundles.map((bundle) => {
-                                    const origPrice = bundle.originalPrice || 0;
-                                    const offerPrice = bundle.bundlePrice || 0;
-                                    const savings = origPrice > offerPrice ? origPrice - offerPrice : 0;
-                                    const discountPercent = origPrice > 0 ? Math.round((savings / origPrice) * 100) : 0;
+                        <AnimatePresence mode="wait">
+                            {loadingBundles ? (
+                                <motion.div
+                                    key="loading-bundles"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="p-12 flex justify-center"
+                                >
+                                    <LoadingSpinner />
+                                </motion.div>
+                            ) : filteredBundles.length > 0 ? (
+                                <motion.div
+                                    key="bundles-grid"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+                                >
+                                    {filteredBundles.map((bundle, idx) => {
+                                        const origPrice = bundle.originalPrice || 0;
+                                        const offerPrice = bundle.bundlePrice || 0;
+                                        const savings = origPrice > offerPrice ? origPrice - offerPrice : 0;
+                                        const discountPercent = origPrice > 0 ? Math.round((savings / origPrice) * 100) : 0;
 
-                                    return (
-                                        <div
-                                            key={bundle._id}
-                                            className={`relative rounded-xl border bg-white p-5 transition-colors hover:border-slate-300 flex flex-col justify-between ${
-                                                !bundle.isActive ? 'opacity-65 border-slate-200' : 'border-slate-200'
-                                            }`}
-                                        >
-                                            <div>
-                                                {/* Header Badge */}
-                                                <div className="flex items-start justify-between gap-2 mb-3">
-                                                    <div>
-                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                                                            {bundle.code}
-                                                        </span>
-                                                        <h3 className="font-bold text-slate-900 text-base mt-1 line-clamp-1">
-                                                            {bundle.title}
-                                                        </h3>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleToggleBundleActive(bundle)}
-                                                        title={bundle.isActive ? "Deactivate Offer" : "Activate Offer"}
-                                                        className={`p-1.5 rounded text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
-                                                            bundle.isActive
-                                                                ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                                        }`}
-                                                    >
-                                                        {bundle.isActive ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                                                        <span>{bundle.isActive ? 'Active' : 'Draft'}</span>
-                                                    </button>
-                                                </div>
-
-                                                {bundle.description && (
-                                                    <p className="text-xs text-slate-500 line-clamp-2 mb-4">
-                                                        {bundle.description}
-                                                    </p>
-                                                )}
-
-                                                {/* Bundled Courses Chips */}
-                                                <div className="mb-4 space-y-1.5">
-                                                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                                                        Includes {bundle.courses?.length || 0} Courses:
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {(bundle.courses || []).map((c) => (
-                                                            <span
-                                                                key={c._id || c}
-                                                                className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded"
-                                                            >
-                                                                <BookOpen size={12} className="text-blue-500" />
-                                                                <span>{c.name || 'Course'}</span>
+                                        return (
+                                            <motion.div
+                                                key={bundle._id}
+                                                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                transition={{
+                                                    duration: 0.28,
+                                                    delay: Math.min(idx * 0.04, 0.24),
+                                                    ease: [0.16, 1, 0.3, 1]
+                                                }}
+                                                className={`relative rounded-xl border bg-white p-5 transition-shadow hover:shadow-sm flex flex-col justify-between ${
+                                                    !bundle.isActive ? 'opacity-70 border-slate-200' : 'border-slate-200/80'
+                                                }`}
+                                            >
+                                                <div>
+                                                    {/* Header Badge */}
+                                                    <div className="flex items-start justify-between gap-2 mb-3">
+                                                        <div>
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                                                                {bundle.code}
                                                             </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Pricing & Offer Savings Banner */}
-                                            <div className="pt-4 border-t border-slate-100 mt-2">
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                                                            Bundle Offer Fee
+                                                            <h3 className="font-bold text-slate-900 text-base mt-1.5 line-clamp-1 tracking-tight">
+                                                                {bundle.title}
+                                                            </h3>
                                                         </div>
-                                                        <div className="flex items-baseline gap-2">
-                                                            <span className="text-xl font-extrabold text-slate-900">
-                                                                ₹{offerPrice.toLocaleString()}
-                                                            </span>
-                                                            {origPrice > offerPrice && (
-                                                                <span className="text-xs text-slate-400 line-through font-medium">
-                                                                    ₹{origPrice.toLocaleString()}
-                                                                </span>
-                                                            )}
-                                                        </div>
+                                                        <button
+                                                            onClick={() => handleToggleBundleActive(bundle)}
+                                                            title={bundle.isActive ? "Deactivate Offer" : "Activate Offer"}
+                                                            className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 active:scale-95 transition-[background-color,color,transform] cursor-pointer ${
+                                                                bundle.isActive
+                                                                    ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                                            }`}
+                                                        >
+                                                            {bundle.isActive ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                                                            <span>{bundle.isActive ? 'Active' : 'Draft'}</span>
+                                                        </button>
                                                     </div>
 
-                                                    {discountPercent > 0 && (
-                                                        <div className="bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs px-2.5 py-1 rounded flex items-center gap-1">
-                                                            <Tag size={12} />
-                                                            <span>SAVE {discountPercent}%</span>
-                                                        </div>
+                                                    {bundle.description && (
+                                                        <p className="text-xs text-slate-500 line-clamp-2 mb-4">
+                                                            {bundle.description}
+                                                        </p>
                                                     )}
+
+                                                    {/* Bundled Courses Chips */}
+                                                    <div className="mb-4 space-y-1.5">
+                                                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                                            Includes {bundle.courses?.length || 0} Courses:
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {(bundle.courses || []).map((c) => (
+                                                                <span
+                                                                    key={c._id || c}
+                                                                    className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-100/80 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200/60"
+                                                                >
+                                                                    <BookOpen size={11} className="text-blue-500" />
+                                                                    <span>{c.name || 'Course'}</span>
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </div>
 
-                                                {/* Action buttons */}
-                                                <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-50">
-                                                    <button
-                                                        onClick={() => handleEditBundleClick(bundle)}
-                                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                                                    >
-                                                        <Edit2 size={13} />
-                                                        <span>Edit</span>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setDeletingBundle(bundle)}
-                                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                                                    >
-                                                        <Trash2 size={13} />
-                                                        <span>Delete</span>
-                                                    </button>
+                                                {/* Pricing & Offer Savings Banner */}
+                                                <div className="pt-4 border-t border-slate-100 mt-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                                                Bundle Offer Fee
+                                                            </div>
+                                                            <div className="flex items-baseline gap-2">
+                                                                <span className="text-xl font-black text-slate-900 font-mono">
+                                                                    ₹{offerPrice.toLocaleString()}
+                                                                </span>
+                                                                {origPrice > offerPrice && (
+                                                                    <span className="text-xs text-slate-400 line-through font-medium font-mono">
+                                                                        ₹{origPrice.toLocaleString()}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {discountPercent > 0 && (
+                                                            <div className="bg-amber-50 text-amber-800 border border-amber-200/80 font-bold text-xs px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                                                <Tag size={12} />
+                                                                <span>SAVE {discountPercent}%</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Action buttons */}
+                                                    <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-50">
+                                                        <button
+                                                            onClick={() => handleEditBundleClick(bundle)}
+                                                            className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg active:scale-95 transition-[color,background-color,transform] flex items-center gap-1.5 cursor-pointer"
+                                                        >
+                                                            <Edit2 size={13} strokeWidth={1.8} />
+                                                            <span>Edit</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setDeletingBundle(bundle)}
+                                                            className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg active:scale-95 transition-[color,background-color,transform] flex items-center gap-1.5 cursor-pointer"
+                                                        >
+                                                            <Trash2 size={13} strokeWidth={1.8} />
+                                                            <span>Delete</span>
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <EmptyState
-                                icon={Library}
-                                title="No course bundle offers created yet"
-                                description="Bundle 2 or more courses together into an attractive discount offer pack for students."
-                            />
-                        )}
+                                            </motion.div>
+                                        );
+                                    })}
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="empty-bundles"
+                                    initial={{ opacity: 0, scale: 0.98 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0 }}
+                                >
+                                    <EmptyState
+                                        icon={Library}
+                                        title="No course bundle offers created yet"
+                                        description="Bundle 2 or more courses together into an attractive discount offer pack for students."
+                                    />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
             )}
