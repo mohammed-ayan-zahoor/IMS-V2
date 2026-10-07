@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { 
-    Link as LinkIcon, Copy, Check, Filter, 
+    Link as LinkIcon, Copy, Check, 
     Search, User, Mail, Phone, Calendar, 
-    Trash2, UserPlus, XCircle, Info, ExternalLink,
-    ChevronDown, Eye, GraduationCap, MapPin, Users
+    UserPlus, XCircle, ExternalLink,
+    Eye, GraduationCap, MapPin, Users, X
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Select from "@/components/ui/Select";
@@ -35,7 +35,6 @@ export default function AdmissionApplicationsPage() {
 
     // Normalize instituteId
     const instituteObj = session?.user?.institute;
-    // session.user.institute is structured as { id, name, code, logo } in lib/auth.js
     const instituteId = typeof instituteObj === 'object' ? (instituteObj?.id || instituteObj?._id) : instituteObj;
 
     // Get the base URL for the admission form
@@ -47,7 +46,7 @@ export default function AdmissionApplicationsPage() {
         if (instituteId) {
             fetchApplications();
         } else if (status === 'unauthenticated') {
-            setLoading(false); // Stop loading if not logged in
+            setLoading(false);
         }
     }, [instituteId, status, statusFilter]);
 
@@ -79,7 +78,7 @@ export default function AdmissionApplicationsPage() {
 
             if (res.ok) {
                 toast.success(`Application ${newStatus} successfully`);
-                fetchApplications(); // Refresh
+                fetchApplications();
                 if (selectedApplication?._id === id) setSelectedApplication(null);
             } else {
                 const data = await res.json();
@@ -150,7 +149,6 @@ export default function AdmissionApplicationsPage() {
             return;
         }
         
-        // Use a more robust copy approach
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(publicFormUrl)
                 .then(() => {
@@ -158,8 +156,7 @@ export default function AdmissionApplicationsPage() {
                     toast.success("Link copied to clipboard!");
                     setTimeout(() => setIsLinkCopied(false), 2000);
                 })
-                .catch((err) => {
-                    console.error("Clipboard write failed", err);
+                .catch(() => {
                     fallbackCopyTextToClipboard(publicFormUrl);
                 });
         } else {
@@ -176,10 +173,10 @@ export default function AdmissionApplicationsPage() {
         try {
             document.execCommand('copy');
             setIsLinkCopied(true);
-            toast.success("Link copied (fallback)!");
+            toast.success("Link copied!");
             setTimeout(() => setIsLinkCopied(false), 2000);
         } catch (err) {
-            toast.error("Could not copy link. Please manually copy it.");
+            toast.error("Could not copy link automatically.");
         }
         document.body.removeChild(textArea);
     };
@@ -193,29 +190,49 @@ export default function AdmissionApplicationsPage() {
     };
 
     const filteredApplications = applications.filter(app => 
-        app.firstName.toLowerCase().includes(search.toLowerCase()) ||
-        app.lastName.toLowerCase().includes(search.toLowerCase()) ||
-        app.email.toLowerCase().includes(search.toLowerCase()) ||
-        app.course?.name.toLowerCase().includes(search.toLowerCase())
+        app.firstName?.toLowerCase().includes(search.toLowerCase()) ||
+        app.lastName?.toLowerCase().includes(search.toLowerCase()) ||
+        app.email?.toLowerCase().includes(search.toLowerCase()) ||
+        app.course?.name?.toLowerCase().includes(search.toLowerCase())
     );
 
     return (
-        <div className="space-y-6">
-            {/* Header with Link Section */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-100">
+        <motion.div 
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-6 max-w-full pb-20"
+        >
+            {/* Header with Title and Status */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Online Enquiry</h1>
-                    <p className="text-slate-400 mt-1 text-sm font-medium">Manage student submissions from the public admission portal.</p>
+                    <div className="flex items-center gap-2.5">
+                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                            Online Enquiry
+                        </h1>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200/60">
+                            Public Portal
+                        </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                        Manage prospective student submissions received via your public link.
+                    </p>
                 </div>
             </div>
 
-            {/* Public Link Panel */}
-            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-5">
+            {/* Public Link Panel - Apple Glass Card */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs transition-shadow hover:shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
-                    <LinkIcon size={16} className="text-slate-500" />
-                    <h2 className="text-sm font-bold text-slate-900">Your Shareable Admission Link</h2>
+                    <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <LinkIcon size={14} />
+                    </div>
+                    <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        Your Shareable Admission Link
+                    </h2>
                 </div>
-                <p className="text-xs text-slate-500 font-medium mb-3">Copy this link and send it to potential students to collect their admission details.</p>
+                <p className="text-xs text-slate-500 font-medium mb-3">
+                    Copy and share this link directly with students or post on social media to collect inquiries.
+                </p>
                 
                 <div className="relative flex items-center max-w-2xl">
                     <input
@@ -223,7 +240,7 @@ export default function AdmissionApplicationsPage() {
                         readOnly
                         value={publicFormUrl}
                         placeholder="Generating link..."
-                        className="w-full bg-white border border-slate-200 rounded-lg pl-3 pr-28 py-2 text-xs font-mono text-slate-600 outline-none select-all focus:border-slate-400"
+                        className="w-full bg-slate-50/70 border border-slate-200 rounded-xl pl-3 pr-28 py-2.5 text-xs font-mono text-slate-700 outline-none select-all focus:border-blue-400 focus:bg-white transition-colors"
                     />
                     <div className="absolute right-1.5 flex items-center gap-1">
                         <button
@@ -231,10 +248,10 @@ export default function AdmissionApplicationsPage() {
                             onClick={copyToClipboard}
                             disabled={!publicFormUrl}
                             className={cn(
-                                "px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50",
+                                "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all duration-150 active:scale-95 cursor-pointer disabled:opacity-50",
                                 isLinkCopied 
-                                    ? "bg-emerald-50 text-emerald-600 border border-emerald-200" 
-                                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                                    ? "bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-2xs" 
+                                    : "bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs"
                             )}
                         >
                             {isLinkCopied ? <Check size={13} /> : <Copy size={13} />}
@@ -245,7 +262,7 @@ export default function AdmissionApplicationsPage() {
                             onClick={handleOpenLink}
                             disabled={!publicFormUrl}
                             title="Open link in new tab"
-                            className="p-1 text-slate-400 hover:text-slate-700 transition-colors disabled:opacity-50"
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors active:scale-95 cursor-pointer disabled:opacity-50"
                         >
                             <ExternalLink size={14} />
                         </button>
@@ -253,35 +270,57 @@ export default function AdmissionApplicationsPage() {
                 </div>
             </div>
 
-            {/* Submissions Table */}
-            <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 bg-slate-50/50 border-b border-slate-200/80">
-                    <div className="flex-1 relative">
+            {/* Submissions Section */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                {/* Search & Segmented Filter Bar */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5 p-4 bg-slate-50/60 border-b border-slate-100">
+                    <div className="flex-1 relative max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                         <input
                             type="text"
-                            placeholder="Search by name, email or course..."
+                            placeholder="Search by name, email, or course..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 outline-none focus:border-slate-400 transition-colors text-xs font-medium"
+                            className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-8 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-xs font-medium"
                         />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        {['pending', 'converted', 'cancelled'].map(status => (
+                        {search && (
                             <button
-                                key={status}
-                                onClick={() => setStatusFilter(status)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
-                                    statusFilter === status 
-                                    ? "bg-slate-900 text-white" 
-                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                                }`}
+                                type="button"
+                                onClick={() => setSearch("")}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
                             >
-                                {status}
+                                <X size={13} />
                             </button>
-                        ))}
+                        )}
+                    </div>
+
+                    {/* Apple Segmented Control */}
+                    <div className="flex items-center p-1 bg-slate-200/60 rounded-xl border border-slate-200/50 shadow-2xs shrink-0 self-start sm:self-auto">
+                        {['pending', 'converted', 'cancelled'].map(status => {
+                            const isSelected = statusFilter === status;
+                            return (
+                                <button
+                                    key={status}
+                                    onClick={() => setStatusFilter(status)}
+                                    className={cn(
+                                        "relative px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all duration-150 cursor-pointer active:scale-95",
+                                        isSelected ? "text-slate-900 font-bold" : "text-slate-600 hover:text-slate-900"
+                                    )}
+                                >
+                                    {isSelected && (
+                                        <motion.span
+                                            layoutId="admissionStatusPill"
+                                            className="absolute inset-0 bg-white rounded-lg shadow-xs border border-slate-200/50"
+                                            transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                                        />
+                                    )}
+                                    <span className="relative z-10">{status}</span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
+
                 <div>
                     {loading ? (
                         <div className="p-20 flex justify-center"><LoadingSpinner /></div>
@@ -289,80 +328,86 @@ export default function AdmissionApplicationsPage() {
                         <div className="overflow-x-auto">
                             <table className="w-full border-collapse">
                                 <thead>
-                                    <tr className="bg-slate-50 border-y border-slate-100">
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-left">Applicant</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-left">Course</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-left">Applied On</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-left">Referred By</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                    <tr className="bg-slate-50/50 border-b border-slate-100">
+                                        <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400 text-left">Applicant</th>
+                                        <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400 text-left">Course</th>
+                                        <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400 text-left">Applied On</th>
+                                        <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400 text-left">Referred By</th>
+                                        <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {filteredApplications.map((app) => (
-                                        <tr key={app._id} className="group hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-4">
+                                        <tr key={app._id} className="group hover:bg-slate-50/80 transition-colors">
+                                            <td className="px-5 py-3.5">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-premium-blue/10 flex items-center justify-center text-premium-blue font-bold text-sm">
-                                                        {app.firstName[0]}{app.lastName[0]}
+                                                    <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100/60 flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                                                        {app.firstName?.[0]}{app.lastName?.[0]}
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-bold text-slate-900">{app.firstName} {app.lastName}</p>
-                                                        <p className="text-[11px] font-medium text-slate-400">{app.email}</p>
+                                                        <p className="text-xs font-bold text-slate-900 leading-tight">
+                                                            {app.firstName} {app.lastName}
+                                                        </p>
+                                                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                                                            {app.email}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-5 py-3.5">
                                                 <div className="space-y-1">
-                                                    <p className="text-sm font-bold text-slate-700">{app.course?.name || "N/A"}</p>
+                                                    <p className="text-xs font-bold text-slate-700">
+                                                        {app.course?.name || "N/A"}
+                                                    </p>
                                                     <div className="flex items-center gap-2">
-                                                        <Badge variant="primary" className="text-[9px]">{app.learningMode}</Badge>
+                                                        <Badge variant="primary" className="text-[9px]">
+                                                            {app.learningMode}
+                                                        </Badge>
                                                         <span className="text-[10px] text-slate-400 font-medium">
                                                             Fee: ₹ {app.course?.fees?.amount?.toLocaleString() || app.course?.fees?.toLocaleString() || "0"}
                                                         </span>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <p className="text-xs font-bold text-slate-600">{format(new Date(app.createdAt), "PP")}</p>
-                                                <p className="text-[10px] font-medium text-slate-400">{format(new Date(app.createdAt), "p")}</p>
+                                            <td className="px-5 py-3.5">
+                                                <p className="text-xs font-semibold text-slate-700">
+                                                    {format(new Date(app.createdAt), "PP")}
+                                                </p>
+                                                <p className="text-[10px] font-medium text-slate-400">
+                                                    {format(new Date(app.createdAt), "p")}
+                                                </p>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-[12px] font-bold text-slate-700">
+                                            <td className="px-5 py-3.5">
+                                                <div className="text-xs font-semibold text-slate-700">
                                                     {app.referredBy || <span className="text-slate-300 italic font-normal">—</span>}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="icon" 
+                                            <td className="px-5 py-3.5 text-right">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <button 
                                                         onClick={() => setSelectedApplication(app)}
-                                                        className="text-slate-400 hover:text-premium-blue"
+                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg active:scale-95 transition-all cursor-pointer"
                                                         title="View Details"
                                                     >
-                                                        <Eye size={18} />
-                                                    </Button>
+                                                        <Eye size={16} />
+                                                    </button>
                                                     {app.status === 'pending' && (
                                                         <>
-                                                            <Button 
-                                                                variant="outline" 
-                                                                size="sm" 
-                                                                className="text-emerald-600 hover:bg-emerald-50 border-emerald-100"
+                                                            <button 
                                                                 onClick={() => handleOpenConvertModal(app)}
+                                                                className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-lg active:scale-95 transition-all cursor-pointer flex items-center gap-1"
                                                             >
-                                                                <UserPlus size={16} className="mr-2" />
-                                                                Convert
-                                                            </Button>
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="icon" 
+                                                                <UserPlus size={14} />
+                                                                <span>Convert</span>
+                                                            </button>
+                                                            <button 
                                                                 onClick={() => handleUpdateStatus(app._id, 'cancelled')}
                                                                 disabled={updating === app._id}
-                                                                className="text-slate-400 hover:text-red-500"
+                                                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg active:scale-95 transition-all cursor-pointer"
                                                                 title="Cancel Application"
                                                             >
-                                                                {updating === app._id ? <LoadingSpinner size="sm"/> : <XCircle size={18} />}
-                                                            </Button>
+                                                                {updating === app._id ? <LoadingSpinner size="sm"/> : <XCircle size={16} />}
+                                                            </button>
                                                         </>
                                                     )}
                                                 </div>
@@ -373,10 +418,26 @@ export default function AdmissionApplicationsPage() {
                             </table>
                         </div>
                     ) : (
-                        <div className="p-20 text-center">
-                            <GraduationCap className="mx-auto text-slate-200 mb-4" size={64} />
-                            <h3 className="text-lg font-bold text-slate-800">No applications found</h3>
-                            <p className="text-slate-400 max-w-xs mx-auto mt-2">Share your admission link to start receiving applications.</p>
+                        <div className="p-16 text-center">
+                            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100/60 flex items-center justify-center mx-auto mb-3.5 shadow-2xs">
+                                <GraduationCap size={28} />
+                            </div>
+                            <h3 className="text-sm font-bold text-slate-800">
+                                No applications found
+                            </h3>
+                            <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1 mb-4">
+                                {search ? "Try searching with different keywords." : "Share your public admission link to start receiving applications."}
+                            </p>
+                            {!search && (
+                                <button
+                                    type="button"
+                                    onClick={copyToClipboard}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs active:scale-95 transition-all cursor-pointer"
+                                >
+                                    <Copy size={13} />
+                                    <span>Copy Admission Link</span>
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -390,129 +451,129 @@ export default function AdmissionApplicationsPage() {
                 maxWidth="2xl"
             >
                 {selectedApplication && (
-                    <div className="space-y-8 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                         {/* Status Ribbon */}
                         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-premium-blue/10 flex items-center justify-center text-premium-blue">
-                                    <User size={24} />
+                             <div className="flex items-center gap-3.5">
+                                <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
+                                    <User size={20} />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black text-slate-900">{selectedApplication.firstName} {selectedApplication.lastName}</h3>
-                                    <p className="text-sm font-medium text-slate-400">ID: {selectedApplication._id}</p>
+                                    <h3 className="text-base font-bold text-slate-900">
+                                        {selectedApplication.firstName} {selectedApplication.lastName}
+                                    </h3>
+                                    <p className="text-xs font-medium text-slate-400">
+                                        ID: {selectedApplication._id}
+                                    </p>
                                 </div>
                              </div>
                              <Badge variant={
                                  selectedApplication.status === 'pending' ? 'warning' : 
                                  selectedApplication.status === 'converted' ? 'success' : 'danger'
-                             } className="px-4 py-1 text-sm">
+                             } className="px-3 py-1 text-xs capitalize font-bold">
                                  {selectedApplication.status}
                              </Badge>
                         </div>
 
                         {/* Info Grid */}
-                        <div className="grid md:grid-cols-2 gap-8">
+                        <div className="grid md:grid-cols-2 gap-6">
                             {/* Contact Info */}
-                            <div className="space-y-4">
-                                <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-premium-blue">
+                            <div className="space-y-3">
+                                <h4 className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-600">
                                     <Mail size={12} /> Contact Information
                                 </h4>
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <Mail size={16} className="text-slate-300" />
-                                        <span className="text-sm font-bold text-slate-700">{selectedApplication.email}</span>
+                                <div className="space-y-2.5 p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                                    <div className="flex items-center gap-2.5">
+                                        <Mail size={14} className="text-slate-400 shrink-0" />
+                                        <span className="text-xs font-semibold text-slate-700 truncate">{selectedApplication.email}</span>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <Phone size={16} className="text-slate-300" />
-                                        <span className="text-sm font-bold text-slate-700">{selectedApplication.phone}</span>
+                                    <div className="flex items-center gap-2.5">
+                                        <Phone size={14} className="text-slate-400 shrink-0" />
+                                        <span className="text-xs font-semibold text-slate-700">{selectedApplication.phone}</span>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <Calendar size={16} className="text-slate-300" />
-                                        <span className="text-sm font-bold text-slate-700">Born: {format(new Date(selectedApplication.dateOfBirth), "PP")}</span>
-                                    </div>
+                                    {selectedApplication.dateOfBirth && (
+                                        <div className="flex items-center gap-2.5">
+                                            <Calendar size={14} className="text-slate-400 shrink-0" />
+                                            <span className="text-xs font-semibold text-slate-700">Born: {format(new Date(selectedApplication.dateOfBirth), "PP")}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Academic Intent */}
-                            <div className="space-y-4">
-                                <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-amber-600">
+                            <div className="space-y-3">
+                                <h4 className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-600">
                                     <GraduationCap size={12} /> Academic Intent
                                 </h4>
-                                <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div className="space-y-2.5 p-3.5 bg-slate-50 rounded-xl border border-slate-100">
                                     <div>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Target Course</p>
-                                        <p className="text-sm font-black text-slate-800">{selectedApplication.course?.name}</p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Target Course</p>
+                                        <p className="text-xs font-bold text-slate-800">{selectedApplication.course?.name || "N/A"}</p>
                                     </div>
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
                                         <div>
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Mode</p>
-                                            <Badge variant="primary">{selectedApplication.learningMode}</Badge>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Mode</p>
+                                            <Badge variant="primary" className="text-[9px]">{selectedApplication.learningMode}</Badge>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Fees</p>
-                                            <p className="text-sm font-black text-premium-blue">₹ {selectedApplication.course?.fees?.amount?.toLocaleString() || selectedApplication.course?.fees?.toLocaleString() || "0"}</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Fees</p>
+                                            <p className="text-xs font-bold text-blue-600">₹ {selectedApplication.course?.fees?.amount?.toLocaleString() || selectedApplication.course?.fees?.toLocaleString() || "0"}</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Guardian Info */}
-                            <div className="space-y-4">
-                                <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">
-                                    <Users size={12} /> Guardian Details
-                                </h4>
-                                <div className="space-y-2">
-                                    <p className="text-sm font-bold text-slate-700">{selectedApplication.guardian.name}</p>
-                                    <p className="text-xs text-slate-500 font-medium capitalize">{selectedApplication.guardian.relation}</p>
-                                    <p className="text-sm font-bold text-slate-700">{selectedApplication.guardian.phone}</p>
+                            {selectedApplication.guardian && (
+                                <div className="space-y-3">
+                                    <h4 className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-500">
+                                        <Users size={12} /> Guardian Details
+                                    </h4>
+                                    <div className="space-y-1 p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                                        <p className="text-xs font-bold text-slate-700">{selectedApplication.guardian.name}</p>
+                                        <p className="text-[11px] text-slate-500 font-medium capitalize">{selectedApplication.guardian.relation}</p>
+                                        <p className="text-xs font-bold text-slate-700 mt-1">{selectedApplication.guardian.phone}</p>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Address Info */}
-                            <div className="space-y-4">
-                                <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">
-                                    <MapPin size={12} /> Permanent Address
-                                </h4>
-                                <div className="text-sm font-medium text-slate-600 leading-relaxed">
-                                    {selectedApplication.address.street}<br />
-                                    {selectedApplication.address.city}, {selectedApplication.address.state} - {selectedApplication.address.pincode}
+                            {selectedApplication.address && (
+                                <div className="space-y-3">
+                                    <h4 className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-500">
+                                        <MapPin size={12} /> Address
+                                    </h4>
+                                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xs font-medium text-slate-600 leading-relaxed">
+                                        {selectedApplication.address.street}<br />
+                                        {selectedApplication.address.city}, {selectedApplication.address.state} - {selectedApplication.address.pincode}
+                                    </div>
                                 </div>
-                            </div>
-
-                            {/* Referral Info */}
-                            <div className="space-y-4">
-                                <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">
-                                    <Users size={12} /> Referral Source
-                                </h4>
-                                <div className="text-sm font-bold text-slate-700">
-                                    {selectedApplication.referredBy || "Self / Not Specified"}
-                                </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Additional Info */}
                         {selectedApplication.notes && (
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Applicant Notes</h4>
-                                <p className="text-sm text-slate-600 italic">"{selectedApplication.notes}"</p>
+                            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Applicant Notes</h4>
+                                <p className="text-xs text-slate-600 italic">&ldquo;{selectedApplication.notes}&rdquo;</p>
                             </div>
                         )}
 
                         {/* Footer Actions */}
-                        <div className="pt-6 border-t border-slate-100 flex gap-3">
+                        <div className="pt-4 border-t border-slate-100 flex gap-2.5">
                             <Button 
-                                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 rounded-xl active:scale-[0.98] transition-all cursor-pointer font-semibold"
                                 onClick={() => handleOpenConvertModal(selectedApplication)}
                             >
-                                <UserPlus size={18} className="mr-2" />
+                                <UserPlus size={16} className="mr-2" />
                                 Start Admission Process
                             </Button>
                             <Button 
                                 variant="outline" 
-                                className="text-red-500 border-red-100 hover:bg-red-50"
+                                className="text-rose-600 border-rose-200 hover:bg-rose-50 rounded-xl active:scale-[0.98] transition-all cursor-pointer font-semibold"
                                 onClick={() => handleUpdateStatus(selectedApplication._id, 'cancelled')}
                             >
-                                <XCircle size={18} className="mr-2" />
+                                <XCircle size={16} className="mr-2" />
                                 Reject Application
                             </Button>
                         </div>
@@ -528,17 +589,17 @@ export default function AdmissionApplicationsPage() {
                 maxWidth="sm"
             >
                 {selectedApplication && (
-                    <div className="space-y-6">
-                        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                            <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1">Confirming Registration</p>
-                            <h4 className="text-sm font-black text-slate-800">
+                    <div className="space-y-5">
+                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Confirming Registration</p>
+                            <h4 className="text-sm font-bold text-slate-800">
                                 {selectedApplication.firstName} {selectedApplication.lastName}
                             </h4>
-                            <p className="text-xs text-slate-500 mt-1">Course: {selectedApplication.course?.name}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">Course: {selectedApplication.course?.name}</p>
                         </div>
 
-                        <div className="space-y-3">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                                 Assign to Batch (Required)
                             </label>
                             {batches.length > 0 ? (
@@ -549,27 +610,27 @@ export default function AdmissionApplicationsPage() {
                                         label: `${b.name} (${b.activeEnrollmentCount || 0}/${b.capacity})`,
                                         value: b._id
                                     }))}
-                                    className="h-12 rounded-xl text-sm"
+                                    className="rounded-xl text-xs"
                                 />
                             ) : (
-                                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-center">
+                                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-center">
                                     <p className="text-xs font-bold text-amber-700">No active batches found for this course.</p>
-                                    <p className="text-[10px] text-amber-600 mt-1 uppercase">Please create a batch first in the Courses section.</p>
+                                    <p className="text-[10px] text-amber-600 mt-1 uppercase font-semibold">Please create a batch first in Courses.</p>
                                 </div>
                             )}
                         </div>
 
-                        <div className="pt-4 flex gap-3">
+                        <div className="pt-3 flex gap-2.5">
                             <Button 
                                 variant="outline" 
-                                className="flex-1"
+                                className="flex-1 rounded-xl active:scale-[0.98] transition-all cursor-pointer"
                                 onClick={() => setIsConvertModalOpen(false)}
                                 disabled={isConverting}
                             >
                                 Cancel
                             </Button>
                             <Button 
-                                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 rounded-xl active:scale-[0.98] transition-all cursor-pointer font-semibold"
                                 onClick={handleConvert}
                                 disabled={isConverting || batches.length === 0}
                             >
@@ -583,6 +644,6 @@ export default function AdmissionApplicationsPage() {
                     </div>
                 )}
             </Modal>
-        </div>
+        </motion.div>
     );
 }

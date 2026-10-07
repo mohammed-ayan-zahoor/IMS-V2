@@ -113,6 +113,13 @@ export default function AdminLayout({ children }) {
                 return;
             }
 
+            // ⌘B / Ctrl+B for Sidebar Collapse/Expand
+            if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === "b" || e.code === "KeyB")) {
+                e.preventDefault();
+                toggleSidebarCollapsed();
+                return;
+            }
+
             // Shortcut for Sign Out:
             // 1. Ctrl+L (control key on Mac/Windows)
             // 2. ⌘+Shift+L / Ctrl+Shift+L
@@ -428,49 +435,57 @@ export default function AdminLayout({ children }) {
 
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
 
+    // Calculate the single, unambiguous active nav link (exact match beats prefix match)
+    const allNavHrefs = menuGroups.flatMap(g => g.items.map(item => {
+        return item.href.startsWith("/admin") && pathname.startsWith("/instructor") 
+            ? item.href.replace("/admin", "/instructor") 
+            : item.href;
+    }));
+    const exactMatchNavHref = allNavHrefs.find(h => pathname === h);
+    const activeNavHref = exactMatchNavHref || allNavHrefs
+        .filter(h => pathname.startsWith(h + "/"))
+        .sort((a, b) => b.length - a.length)[0];
+
     return (
-        <div className={cn(
-            "grid grid-cols-1 bg-[#f9fafb] text-[#111827] h-screen w-screen overflow-hidden",
-            isSidebarCollapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[240px_minmax(0,1fr)]"
-        )}>
+        <div className="flex bg-[#f9fafb] text-[#111827] h-screen w-screen overflow-hidden">
             {/* Mobile Native Shell Nav Bar for Instructors/Staff */}
             {isInstructorOrStaff && <MobileInstructorNav />}
 
             {/* Sidebar Overlay */}
-            {isSidebarOpen && (
-                <div onClick={() => setIsSidebarOpen(false)} className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] no-print" />
-            )}
+            <AnimatePresence>
+                {isSidebarOpen && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={() => setIsSidebarOpen(false)} 
+                        className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-xs z-[80] no-print" 
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Sidebar */}
             <aside className={cn(
-                "h-screen bg-slate-100 border-r border-[#f1f5f9] flex flex-col fixed inset-y-0 left-0 z-[90] transition-[width,transform] duration-300 ease-out lg:static lg:translate-x-0 no-print",
-                isSidebarCollapsed ? "w-60 lg:w-[72px]" : "w-60",
-                isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+                "h-screen bg-slate-100 border-r border-[#f1f5f9] flex flex-col fixed inset-y-0 left-0 z-[90] lg:static no-print shrink-0 overflow-hidden select-none",
+                "transition-[width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                isSidebarCollapsed ? "w-60 lg:w-[72px]" : "w-60 lg:w-[240px]",
+                isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             )}>
                 {/* Logo Area */}
                 <div className={cn(
-                    "border-b border-[#f1f5f9] mb-4 shrink-0 transition-all flex items-center justify-between",
-                    isSidebarCollapsed ? "p-3 lg:px-2 lg:py-4 justify-center" : "p-4 pr-3"
+                    "border-b border-slate-200/80 mb-3 shrink-0 transition-all duration-200 flex items-center",
+                    isSidebarCollapsed ? "p-2.5 justify-center" : "p-3"
                 )}>
-                    <div className="flex-1 min-w-0">
+                    <div className="w-full min-w-0">
                         <InstituteSwitcher isCollapsed={isSidebarCollapsed} />
                     </div>
-                    {!isSidebarCollapsed && (
-                        <button
-                            onClick={toggleSidebarCollapsed}
-                            className="hidden lg:flex items-center justify-center p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 rounded-lg transition-colors ml-1 shrink-0"
-                            title="Collapse sidebar"
-                            aria-label="Collapse sidebar"
-                        >
-                            <PanelLeftClose size={18} />
-                        </button>
-                    )}
                 </div>
 
                 {/* Navigation */}
                 <nav className={cn(
                     "flex-1 overflow-y-auto space-y-4 py-2 min-h-0",
-                    isSidebarCollapsed ? "px-2 lg:px-2" : "px-4 space-y-8"
+                    isSidebarCollapsed ? "px-2 lg:px-2" : "px-3 space-y-6"
                 )}>
                      {/* Primary Dashboard Link */}
                      <Link
@@ -478,14 +493,14 @@ export default function AdminLayout({ children }) {
                          onClick={() => setIsSidebarOpen(false)}
                          title={isSidebarCollapsed ? "Dashboard" : undefined}
                          className={cn(
-                            "flex items-center rounded-full transition-all group text-[13px] font-semibold relative",
-                            isSidebarCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-4 py-2.5 gap-3" : "gap-3 px-4 py-2.5",
-                             isDashboard ? "soft-active" : "text-[#6b7280] hover:bg-[#f9fafb]"
+                            "flex items-center rounded-xl transition-all duration-150 group text-[13px] font-semibold relative active:scale-[0.98]",
+                            isSidebarCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2",
+                            isDashboard ? "bg-white text-blue-600 shadow-xs border border-slate-200/60 font-bold" : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
                          )}
                      >
-                         <span className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-r transition-all", isDashboard ? "bg-blue-500" : "")} />
-                         <LayoutDashboard size={18} className={isDashboard ? "" : "text-blue-500"} />
-                         <span className={cn(isSidebarCollapsed && "lg:hidden")}>Dashboard</span>
+                         <span className={cn("absolute left-0 top-1 bottom-1 w-1 rounded-r transition-all duration-150", isDashboard ? "bg-blue-500" : "opacity-0")} />
+                         <LayoutDashboard size={18} className={cn("shrink-0 transition-transform duration-150 group-hover:scale-105", isDashboard ? "text-blue-600" : "text-blue-500")} />
+                         <span className={cn("truncate whitespace-nowrap transition-opacity duration-200", isSidebarCollapsed && "lg:hidden")}>Dashboard</span>
                      </Link>
 
                      {/* Thin separator below Dashboard in collapsed mode */}
@@ -514,17 +529,17 @@ export default function AdminLayout({ children }) {
                                  onClick={() => toggleGroup(group.label)}
                                  title={group.label}
                                  className={cn(
-                                     "w-full flex items-center transition-colors font-bold uppercase tracking-wider group",
+                                     "w-full flex items-center transition-colors font-bold uppercase tracking-wider group cursor-pointer active:scale-[0.98]",
                                      isSidebarCollapsed 
-                                         ? "justify-between lg:justify-center px-4 py-2 lg:px-0 lg:py-1" 
-                                         : "justify-between px-4 py-2 text-[11px] text-[#9ca3af] hover:text-[#374151]"
+                                         ? "justify-between lg:justify-center px-3 py-1.5 lg:px-0 lg:py-1" 
+                                         : "justify-between px-3 py-1.5 text-[11px] text-[#9ca3af] hover:text-[#374151]"
                                  )}
                              >
                                  {isSidebarCollapsed ? (
                                      <>
                                          {/* Desktop Collapsed View: group icon badge */}
                                          <div className={cn(
-                                             "hidden lg:flex w-9 h-9 rounded-xl items-center justify-center transition-all",
+                                             "hidden lg:flex w-9 h-9 rounded-xl items-center justify-center transition-all duration-150",
                                              isExpanded ? "bg-slate-300/80 shadow-xs ring-1 ring-slate-400/30" : "hover:bg-slate-200/60"
                                          )}>
                                              <GroupIcon size={17} className={cn(groupColor, "transition-transform duration-200", isExpanded && "scale-105")} />
@@ -543,42 +558,51 @@ export default function AdminLayout({ children }) {
                                  )}
                              </button>
 
-                             {/* Group Items: strictly rendered only when isExpanded */}
-                             {isExpanded && (
-                                 <div className={cn(
-                                     "space-y-1 animate-in fade-in duration-200",
-                                     !isSidebarCollapsed && "pl-2",
-                                     isSidebarCollapsed && "lg:my-1.5 lg:py-1.5 lg:border-y lg:border-slate-300/80 lg:bg-slate-200/50 lg:rounded-2xl"
-                                 )}>
-                                     {group.items.map((item) => {
-                                         const Icon = item.icon;
-                                         const actualHref = item.href.startsWith("/admin") && pathname.startsWith("/instructor") 
-                                             ? item.href.replace("/admin", "/instructor") 
-                                             : item.href;
-                                         const isActive = pathname === actualHref || pathname.startsWith(actualHref + "/");
-                                         return (
-                                             <Link
-                                                 key={item.label}
-                                                 href={actualHref}
-                                                 target={item.target}
-                                                 onClick={() => setIsSidebarOpen(false)}
-                                                 title={item.label}
-                                                 className={cn(
-                                                     "flex items-center rounded-full transition-all group text-[13px] font-semibold relative",
-                                                     isSidebarCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-4 py-2 gap-3" : "gap-3 px-4 py-2",
-                                                     isActive 
-                                                         ? "soft-active" 
-                                                         : "text-[#6b7280] hover:bg-[#f9fafb]"
-                                                 )}
-                                             >
-                                                 <span className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-r transition-all", isActive ? "bg-blue-500" : "")} />
-                                                 <Icon size={18} className={isActive ? "" : itemColor} />
-                                                 <span className={cn(isSidebarCollapsed && "lg:hidden")}>{item.label}</span>
-                                             </Link>
-                                         );
-                                     })}
-                                 </div>
-                             )}
+                             {/* Group Items: fluid spring accordion */}
+                             <AnimatePresence initial={false}>
+                                 {isExpanded && (
+                                     <motion.div
+                                         key={`group-${group.label}`}
+                                         initial={{ opacity: 0, height: 0 }}
+                                         animate={{ opacity: 1, height: "auto" }}
+                                         exit={{ opacity: 0, height: 0 }}
+                                         transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                                         className={cn(
+                                             "overflow-hidden space-y-1",
+                                             !isSidebarCollapsed && "pl-2",
+                                             isSidebarCollapsed && "lg:my-1.5 lg:py-1.5 lg:border-y lg:border-slate-300/80 lg:bg-slate-200/50 lg:rounded-2xl"
+                                         )}
+                                     >
+                                         {group.items.map((item) => {
+                                             const Icon = item.icon;
+                                             const actualHref = item.href.startsWith("/admin") && pathname.startsWith("/instructor") 
+                                                 ? item.href.replace("/admin", "/instructor") 
+                                                 : item.href;
+                                             const isActive = actualHref === activeNavHref;
+                                             return (
+                                                 <Link
+                                                     key={item.label}
+                                                     href={actualHref}
+                                                     target={item.target}
+                                                     onClick={() => setIsSidebarOpen(false)}
+                                                     title={item.label}
+                                                     className={cn(
+                                                         "flex items-center rounded-xl transition-all duration-150 group text-[13px] font-semibold relative active:scale-[0.98]",
+                                                         isSidebarCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2 gap-3" : "gap-3 px-3 py-2",
+                                                         isActive 
+                                                             ? "bg-white text-blue-600 shadow-xs border border-slate-200/60 font-bold" 
+                                                             : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                                                     )}
+                                                 >
+                                                     <span className={cn("absolute left-0 top-1 bottom-1 w-1 rounded-r transition-all duration-150", isActive ? "bg-blue-500" : "opacity-0")} />
+                                                     <Icon size={17} className={cn("shrink-0 transition-transform duration-150 group-hover:scale-105", isActive ? "text-blue-600" : itemColor)} />
+                                                     <span className={cn("truncate whitespace-nowrap transition-opacity duration-200", isSidebarCollapsed && "lg:hidden")}>{item.label}</span>
+                                                 </Link>
+                                             );
+                                         })}
+                                     </motion.div>
+                                 )}
+                             </AnimatePresence>
                          </div>
                      );
                      })}
@@ -586,85 +610,81 @@ export default function AdminLayout({ children }) {
 
                 {/* Footer User Info */}
                 <div className={cn(
-                    "border-t border-[#f1f5f9] bg-[#f9fafb] shrink-0 transition-all",
-                    isSidebarCollapsed ? "p-2 lg:p-2" : "p-4"
+                    "border-t border-slate-200/80 bg-slate-100/90 shrink-0 transition-all duration-200",
+                    isSidebarCollapsed ? "p-2" : "p-3"
                 )}>
                     <div className={cn(
-                        "flex items-center gap-3 mb-3",
-                        isSidebarCollapsed ? "px-2 lg:px-0 lg:justify-center" : "px-2"
+                        "flex items-center gap-2.5 mb-2.5",
+                        isSidebarCollapsed ? "justify-center" : "px-1"
                     )}>
                         <div 
-                            className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0"
+                            className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-slate-300/50"
                             title={`${session?.user?.name || "User"} (${session?.user?.role || "Admin"})`}
                         >
-                            {session?.user?.name?.[0] || "A"}
+                            {session?.user?.name?.[0]?.toUpperCase() || "A"}
                         </div>
-                        <div className={cn("flex-1 min-w-0", isSidebarCollapsed && "lg:hidden")}>
-                            <p className="text-xs font-bold text-[#111827] truncate">{session?.user?.name || "User"}</p>
-                            <p className="text-[10px] text-[#6b7280] uppercase tracking-wider font-bold">{session?.user?.role || "Admin"}</p>
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <button
-                            onClick={toggleSidebarCollapsed}
-                            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                            className={cn(
-                                "hidden lg:flex items-center justify-center gap-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/70 border border-slate-200/70 transition-all",
-                                isSidebarCollapsed ? "p-2" : "px-3 py-2"
-                            )}
-                        >
-                            {isSidebarCollapsed ? <PanelLeft size={15} /> : <PanelLeftClose size={15} />}
-                            <span className={cn(isSidebarCollapsed && "lg:hidden")}>Collapse Sidebar</span>
-                        </button>
-                        <button
-                            onClick={handleSignOut}
-                            title="Sign Out (Ctrl+L)"
-                            className={cn(
-                                "w-full flex items-center justify-between gap-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 active:scale-95 transition-all cursor-pointer",
-                                isSidebarCollapsed ? "px-3 py-2 lg:p-2 lg:justify-center" : "px-3 py-2"
-                            )}
-                        >
-                            <div className="flex items-center gap-2">
-                                <LogOut size={14} />
-                                <span className={cn(isSidebarCollapsed && "lg:hidden")}>Sign Out</span>
+                        {!isSidebarCollapsed && (
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-slate-800 truncate leading-tight">{session?.user?.name || "User"}</p>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold truncate mt-0.5">{session?.user?.role || "Admin"}</p>
                             </div>
-                            <span className={cn("text-[10px] font-mono text-red-400 bg-red-100/60 px-1.5 py-0.5 rounded font-bold", isSidebarCollapsed && "lg:hidden")}>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleSignOut}
+                        title="Sign Out (Ctrl+L / ⌥L)"
+                        className={cn(
+                            "w-full flex items-center gap-2 rounded-xl text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50/80 border border-transparent hover:border-rose-200/60 active:scale-[0.98] transition-all duration-150 cursor-pointer",
+                            isSidebarCollapsed ? "p-2 justify-center" : "px-2.5 py-1.5 justify-between"
+                        )}
+                    >
+                        <div className="flex items-center gap-2">
+                            <LogOut size={14} className="shrink-0" />
+                            {!isSidebarCollapsed && <span>Sign Out</span>}
+                        </div>
+                        {!isSidebarCollapsed && (
+                            <span className="text-[10px] font-mono text-rose-500 bg-rose-100/70 px-1.5 py-0.5 rounded-md font-semibold">
                                 Ctrl+L
                             </span>
-                        </button>
-                    </div>
+                        )}
+                    </button>
                 </div>
             </aside>
 
             {/* Main Area */}
             <div className={cn(
-                "flex flex-col min-w-0 h-screen overflow-hidden",
+                "flex-1 flex flex-col min-w-0 h-screen overflow-hidden",
                 isInstructorOrStaff ? "pt-14 pb-16 md:pt-0 md:pb-0" : ""
             )}>
                 {/* Header (Desktop View & General Header) */}
                 <header className={cn(
-                    "h-16 bg-white border-b border-[#f1f5f9] px-6 flex items-center justify-between shrink-0 no-print",
+                    "h-16 bg-white border-b border-[#f1f5f9] px-4 sm:px-6 flex items-center justify-between shrink-0 no-print",
                     isInstructorOrStaff ? "hidden md:flex" : ""
                 )}>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
                         <button
                             onClick={() => setIsSidebarOpen(true)}
-                            className="lg:hidden p-2 text-[#6b7280] hover:bg-[#f9fafb] rounded-lg transition-colors"
+                            className="lg:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-95 rounded-xl transition-all duration-150 cursor-pointer"
                             aria-label="Toggle menu"
                         >
                             <Menu size={20} />
                         </button>
+                        {/* Single, Canonical macOS-style Sidebar Toggle Button */}
                         <button
                             onClick={toggleSidebarCollapsed}
-                            className="hidden lg:flex items-center justify-center p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            className="hidden lg:flex items-center justify-center w-8 h-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100/90 active:scale-95 rounded-lg border border-transparent hover:border-slate-200/70 transition-all duration-150 cursor-pointer"
+                            title={isSidebarCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
                             aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                         >
-                            {isSidebarCollapsed ? <PanelLeft size={19} /> : <PanelLeftClose size={19} />}
+                            {isSidebarCollapsed ? (
+                                <PanelLeft size={18} className="text-blue-600" />
+                            ) : (
+                                <PanelLeftClose size={18} className="text-slate-500" />
+                            )}
                         </button>
                         <div>
-                            <h1 className="text-lg font-bold text-[#111827] tracking-tight">{title}</h1>
-                            <p className="text-[11px] text-[#6b7280] font-medium hidden sm:block">{subtitle}</p>
+                            <h1 className="text-base sm:text-lg font-bold text-[#111827] tracking-tight leading-tight">{title}</h1>
+                            <p className="text-[11px] text-[#6b7280] font-medium hidden sm:block tracking-normal mt-0.5">{subtitle}</p>
                         </div>
                     </div>
 
@@ -715,10 +735,11 @@ export default function AdminLayout({ children }) {
                             <AnimatePresence>
                                 {isUserMenuOpen && (
                                     <motion.div
-                                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                                        initial={{ opacity: 0, scale: 0.96, y: -4 }}
                                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                                        transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                                        exit={{ opacity: 0, scale: 0.96, y: -4 }}
+                                        transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                                        style={{ transformOrigin: "top right" }}
                                         className="absolute right-0 top-10 w-56 bg-white rounded-xl shadow-xl border border-slate-200/80 py-1.5 z-50 overflow-hidden"
                                     >
                                         <div className="px-3 py-2 border-b border-slate-100">

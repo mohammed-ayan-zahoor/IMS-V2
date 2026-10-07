@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, Calendar } from "lucide-react";
+import { 
+    ArrowLeft, Save, Loader2, Calendar, User, 
+    GraduationCap, Clock
+} from "lucide-react";
+import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import Card from "@/components/ui/Card";
 import { useToast } from "@/contexts/ToastContext";
+import { cn } from "@/lib/utils";
 
 export default function NewEnquiryPage() {
     const router = useRouter();
@@ -44,6 +48,18 @@ export default function NewEnquiryPage() {
         fetchCourses();
     }, []);
 
+    // ⌘S / Ctrl+S quick save
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.metaKey || e.ctrlKey) && (e.key === "s" || e.code === "KeyS")) {
+                e.preventDefault();
+                handleSubmit(e);
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [formData]);
+
     const fetchCourses = async () => {
         try {
             const res = await fetch("/api/v1/courses");
@@ -60,7 +76,16 @@ export default function NewEnquiryPage() {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        if (e && e.preventDefault) e.preventDefault();
+        if (!formData.studentName.trim()) {
+            toast.error("Please enter student name");
+            return;
+        }
+        if (!formData.contactNumber.trim()) {
+            toast.error("Please enter contact number");
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -84,32 +109,68 @@ export default function NewEnquiryPage() {
         }
     };
 
+    const followUpPresets = [
+        { label: "Tomorrow", days: 1 },
+        { label: "+2 Days", days: 2 },
+        { label: "+5 Days", days: 5 },
+        { label: "+1 Week", days: 7 },
+    ];
+
     return (
-        <div className="max-w-6xl mx-auto space-y-6 pb-20">
-            <div className="flex items-center gap-4">
-                <button
-                    type="button"
-                    onClick={() => router.back()}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
-                >
-                    <ArrowLeft size={20} />
-                </button>
-                <div>
-                    <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                        New Admission Enquiry
-                    </h1>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">Enter details for prospective student enquiries.</p>
+        <motion.div 
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="max-w-6xl mx-auto space-y-6 pb-24"
+        >
+            {/* Page Header */}
+            <div className="flex items-center justify-between pb-2">
+                <div className="flex items-center gap-3.5">
+                    <button
+                        type="button"
+                        onClick={() => router.back()}
+                        className="w-9 h-9 rounded-xl flex items-center justify-center bg-white border border-slate-200/80 text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs active:scale-95 transition-all duration-150 cursor-pointer"
+                        title="Go back"
+                    >
+                        <ArrowLeft size={18} />
+                    </button>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                                New Admission Enquiry
+                            </h1>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-100">
+                                Enquiry Form
+                            </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">
+                            Record prospective student inquiries, contact info, and follow-up tracking.
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="relative">
+            <form onSubmit={handleSubmit} className="space-y-6">
                 {/* 2-COLUMN FLOW */}
-                <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-start">
                     
                     {/* LEFT COLUMN: Primary Details */}
                     <div className="space-y-6">
-                        <Card className="p-6 bg-white border border-slate-200/80 rounded-xl">
-                            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-5">Student Information</h2>
+                        {/* Student Information */}
+                        <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-5 transition-shadow hover:shadow-sm">
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                                        <User size={15} />
+                                    </div>
+                                    <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                                        Student Information
+                                    </h2>
+                                </div>
+                                <span className="text-[11px] font-medium text-slate-400">
+                                    * Required fields
+                                </span>
+                            </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input
@@ -169,36 +230,51 @@ export default function NewEnquiryPage() {
                                     value={formData.referredBy}
                                     onChange={(e) => setFormData({ ...formData, referredBy: e.target.value })}
                                 />
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Address</label>
-                                    <input
-                                        className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-xs font-medium text-slate-900 outline-none focus:border-slate-400 placeholder:text-slate-400 transition-colors"
-                                        placeholder="Enter residential address"
-                                        value={formData.address}
-                                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                    />
-                                </div>
+                                <Input
+                                    label="Residential Address"
+                                    placeholder="Enter residential address"
+                                    value={formData.address}
+                                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                />
                             </div>
-                        </Card>
+                        </div>
 
-                        <Card className="p-6 bg-white border border-slate-200/80 rounded-xl">
-                            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-5">Course Enrollment</h2>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Select Course</label>
+                        {/* Course Enrollment Card */}
+                        <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-4 transition-shadow hover:shadow-sm">
+                            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                    <GraduationCap size={15} />
+                                </div>
+                                <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                                    Course Interested In
+                                </h2>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                                    Select Target Course
+                                </label>
                                 <Select
                                     value={formData.course}
                                     onChange={(val) => setFormData({ ...formData, course: val })}
                                     options={courses}
-                                    placeholder="Select a course..."
+                                    placeholder="Select a course from catalog..."
                                 />
                             </div>
-                        </Card>
+                        </div>
                     </div>
 
-                    {/* RIGHT COLUMN: Secondary (Tracking) */}
+                    {/* RIGHT COLUMN: Follow-up & Confirmation */}
                     <div className="space-y-6">
-                        <Card className="p-6 bg-white border border-slate-200/80 rounded-xl">
-                            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-5">Tracking & Follow-up</h2>
+                        <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-5 transition-shadow hover:shadow-sm">
+                            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                                <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                                    <Clock size={15} />
+                                </div>
+                                <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                                    Tracking & Follow-up
+                                </h2>
+                            </div>
+
                             <div className="space-y-4">
                                 <Input
                                     label="Enquiry Date *"
@@ -208,13 +284,40 @@ export default function NewEnquiryPage() {
                                     onChange={(e) => setFormData({ ...formData, enquiryDate: e.target.value })}
                                     required
                                 />
-                                <Input
-                                    label="Follow-up Date"
-                                    type="date"
-                                    suffix={<Calendar size={14} className="text-slate-400 pointer-events-none" />}
-                                    value={formData.followUpDate}
-                                    onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
-                                />
+
+                                <div>
+                                    <Input
+                                        label="Next Follow-up Date"
+                                        type="date"
+                                        suffix={<Calendar size={14} className="text-slate-400 pointer-events-none" />}
+                                        value={formData.followUpDate}
+                                        onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
+                                    />
+                                    {/* Quick Preset Chips */}
+                                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                                        <span className="text-[10px] font-semibold text-slate-400 mr-1">Quick:</span>
+                                        {followUpPresets.map(preset => {
+                                            const targetD = getFutureDate(preset.days);
+                                            const isSelected = formData.followUpDate === targetD;
+                                            return (
+                                                <button
+                                                    key={preset.label}
+                                                    type="button"
+                                                    onClick={() => setFormData(prev => ({ ...prev, followUpDate: targetD }))}
+                                                    className={cn(
+                                                        "text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all duration-150 active:scale-95 cursor-pointer border",
+                                                        isSelected 
+                                                            ? "bg-blue-600 text-white border-blue-600 shadow-2xs" 
+                                                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                                    )}
+                                                >
+                                                    {preset.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
                                 <Input
                                     label="Expected Confirmation"
                                     type="date"
@@ -223,34 +326,47 @@ export default function NewEnquiryPage() {
                                     onChange={(e) => setFormData({ ...formData, expectedConfirmationDate: e.target.value })}
                                 />
                                 
-                                <div className="space-y-1 pt-1">
-                                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Additional Notes</label>
+                                <div className="space-y-1.5 pt-1">
+                                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                                        Discussion Notes
+                                    </label>
                                     <textarea
-                                        className="w-full bg-white border border-slate-200 rounded-md p-3 text-xs font-medium text-slate-900 outline-none focus:border-slate-400 placeholder:text-slate-400 transition-colors min-h-[140px] resize-none"
-                                        placeholder="Any specific requirements, budget constraints, or conversation details..."
+                                        className="w-full bg-slate-50/50 focus:bg-white border border-slate-200/90 rounded-xl p-3 text-xs font-medium text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 placeholder:text-slate-400 transition-all min-h-[130px] resize-none"
+                                        placeholder="Specific requirements, fee negotiation, questions asked..."
                                         value={formData.notes}
                                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                     />
                                 </div>
                             </div>
-                        </Card>
+                        </div>
                     </div>
                 </div>
 
                 {/* STICKY ACTION BAR */}
-                <div className="sticky bottom-6 mt-8 z-40 bg-white border border-slate-200 p-4 rounded-xl flex justify-between items-center">
-                    <p className="text-xs font-medium text-slate-500 ml-2 hidden sm:block">Press <kbd className="bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] text-slate-600 font-mono mx-1">Tab</kbd> to quickly navigate fields.</p>
-                    <div className="flex gap-3 ml-auto">
-                        <Button type="button" variant="outline" onClick={() => router.back()} className="min-w-[100px]">
+                <div className="sticky bottom-6 mt-8 z-30 bg-white/90 backdrop-blur-md border border-slate-200/80 p-3.5 rounded-2xl shadow-lg flex items-center justify-between">
+                    <p className="text-xs font-medium text-slate-500 ml-2 hidden sm:block">
+                        Press <kbd className="bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] text-slate-600 font-mono mx-1">⌘S</kbd> to save, <kbd className="bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] text-slate-600 font-mono mx-1">Tab</kbd> to navigate fields.
+                    </p>
+                    <div className="flex items-center gap-2.5 ml-auto">
+                        <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => router.back()} 
+                            className="min-w-[90px] rounded-xl active:scale-[0.98] transition-all cursor-pointer"
+                        >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={loading} className="min-w-[140px]">
-                            {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : <Save className="mr-2" size={16} />}
+                        <Button 
+                            type="submit" 
+                            disabled={loading} 
+                            className="min-w-[130px] rounded-xl active:scale-[0.98] bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer font-semibold"
+                        >
+                            {loading ? <Loader2 className="animate-spin mr-1.5" size={15} /> : <Save className="mr-1.5" size={15} />}
                             Save Entry
                         </Button>
                     </div>
                 </div>
             </form>
-        </div>
+        </motion.div>
     );
 }
