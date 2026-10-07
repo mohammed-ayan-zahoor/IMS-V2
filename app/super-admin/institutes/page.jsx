@@ -134,6 +134,26 @@ export default function InstitutesPage() {
             render: (code) => <Tag color="default">{code || '----'}</Tag>
         },
         {
+            title: 'Type & Structure',
+            key: 'type',
+            render: (_, record) => {
+                const type = record.type || 'VOCATIONAL';
+                const structure = record.settings?.structure;
+                return (
+                    <Space size={4}>
+                        <Tag color={type === 'COLLEGE' ? 'blue' : type === 'SCHOOL' ? 'green' : 'purple'}>
+                            {type}
+                        </Tag>
+                        {type === 'COLLEGE' && (
+                            <Tag color={structure === 'CLASS_BASED' ? 'cyan' : 'geekblue'}>
+                                {structure === 'CLASS_BASED' ? 'PU / 11-12' : 'Degree'}
+                            </Tag>
+                        )}
+                    </Space>
+                );
+            }
+        },
+        {
             title: 'Security Status',
             dataIndex: 'status',
             key: 'status',

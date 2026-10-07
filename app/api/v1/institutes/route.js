@@ -109,6 +109,9 @@ export async function POST(req) {
                  limits: {
                      maxStudents: Number(body.maxStudents) || 500
                  },
+                 settings: {
+                     structure: (instituteType === 'COLLEGE' && body.structure === 'CLASS_BASED') ? 'CLASS_BASED' : 'SEMESTER_BASED'
+                 },
                  createdBy: session.user.id
              }], opts);
 

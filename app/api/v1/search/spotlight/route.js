@@ -7,6 +7,8 @@ import Fee from "@/models/Fee";
 import Batch from "@/models/Batch";
 import { getInstituteScope } from "@/middleware/instituteScope";
 
+import { APP_PAGES } from "@/lib/spotlightPages";
+
 // Static quick actions and navigation routes
 const STATIC_ACTIONS = [
     {
@@ -65,22 +67,10 @@ const STATIC_ACTIONS = [
     }
 ];
 
-const STATIC_PAGES = [
-    { id: "nav-dash", type: "page", title: "Admin Dashboard", metadata: "Overview & metrics · Page", icon: "layout-dashboard", url: "/admin/dashboard", keywords: ["dashboard", "home", "stats", "overview"] },
-    { id: "nav-students", type: "page", title: "Students Directory", metadata: "Student records & enrollment · Page", icon: "graduation-cap", url: "/admin/students", keywords: ["students", "directory", "admission", "rolls"] },
-    { id: "nav-staff", type: "page", title: "Staff & Faculty", metadata: "Teachers, HR & employees · Page", icon: "briefcase", url: "/admin/hr/staff", keywords: ["staff", "faculty", "teachers", "hr", "payroll", "employees"] },
-    { id: "nav-fees", type: "page", title: "Fees & Invoices", metadata: "Fee presets, structures & ledger · Page", icon: "receipt", url: "/admin/fees", keywords: ["fees", "invoices", "ledger", "finance", "receipts"] },
-    { id: "nav-exams", type: "page", title: "Exams & Results", metadata: "Grading & exam schedule · Page", icon: "file-text", url: "/admin/exams", keywords: ["exams", "results", "marks", "grade", "tests"] },
-    { id: "nav-timetable", type: "page", title: "Timetable & Schedules", metadata: "Class routines & periods · Page", icon: "calendar", url: "/admin/academics/timetable", keywords: ["timetable", "schedule", "routine", "classes"] },
-    { id: "nav-transport", type: "page", title: "Transport & Buses", metadata: "Routes, stops & vehicles · Page", icon: "bus", url: "/admin/transport", keywords: ["transport", "bus", "routes", "driver", "stops"] },
-    { id: "nav-library", type: "page", title: "Library Management", metadata: "Catalog, book issues & returns · Page", icon: "book-open", url: "/admin/library", keywords: ["library", "books", "circulation", "catalog"] },
-    { id: "nav-settings", type: "page", title: "Institute Settings", metadata: "Branding, sessions & rules · Page", icon: "settings", url: "/admin/settings", keywords: ["settings", "preferences", "config", "session"] }
-];
-
 export async function GET(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.role || !["admin", "super_admin", "instructor"].includes(session.user.role)) {
+        if (!session?.user?.role || !["admin", "super_admin", "instructor", "staff"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -90,14 +80,18 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const userRole = session.user.role;
         const { searchParams } = new URL(req.url);
         let rawQuery = (searchParams.get("q") || "").trim();
-        const limit = Math.min(6, Math.max(1, parseInt(searchParams.get("limit")) || 6));
+        const limit = Math.min(8, Math.max(1, parseInt(searchParams.get("limit")) || 8));
 
         // Prefix filters
-        let filterMode = "all"; // 'action' | 'staff' | 'receipt' | 'student' | 'all'
+        let filterMode = "all"; // 'action' | 'page' | 'staff' | 'receipt' | 'student' | 'all'
         if (rawQuery.startsWith(">")) {
             filterMode = "action";
+            rawQuery = rawQuery.slice(1).trim();
+        } else if (rawQuery.startsWith("/")) {
+            filterMode = "page";
             rawQuery = rawQuery.slice(1).trim();
         } else if (rawQuery.startsWith("@")) {
             filterMode = "staff";
@@ -111,10 +105,16 @@ export async function GET(req) {
             ? { deletedAt: null }
             : { institute: scope.instituteId, deletedAt: null };
 
+        // Filter APP_PAGES by user role
+        const accessiblePages = APP_PAGES.filter(p => !p.roles || p.roles.includes(userRole));
+
         // 1. If empty query, show respective category defaults or overall top items
         if (!rawQuery) {
             if (filterMode === "action") {
                 return NextResponse.json({ results: STATIC_ACTIONS.slice(0, limit) });
+            }
+            if (filterMode === "page") {
+                return NextResponse.json({ results: accessiblePages.slice(0, limit) });
             }
             if (filterMode === "staff") {
                 const staffList = await User.find({ ...tenantFilter, role: { $in: ["instructor", "admin", "staff"] } })
@@ -161,7 +161,7 @@ export async function GET(req) {
 
             const defaults = [
                 ...STATIC_ACTIONS.slice(0, 3),
-                ...STATIC_PAGES.slice(0, 3)
+                ...accessiblePages.slice(0, 3)
             ];
             return NextResponse.json({ results: defaults.slice(0, limit) });
         }
@@ -179,12 +179,18 @@ export async function GET(req) {
             }
         }
 
-        if (filterMode === "all") {
-            for (const page of STATIC_PAGES) {
-                if (page.title.toLowerCase().includes(queryLower) || page.keywords.some(k => k.includes(queryLower))) {
-                    results.push(page);
+        if (filterMode === "all" || filterMode === "page") {
+            for (const page of accessiblePages) {
+                const titleMatch = page.title.toLowerCase().includes(queryLower);
+                const metaMatch = page.metadata.toLowerCase().includes(queryLower);
+                const keywordMatch = page.keywords.some(k => k.includes(queryLower));
+                if (titleMatch || metaMatch || keywordMatch) {
+                    // Match score: title match first, then keyword, then meta
+                    const score = titleMatch ? 3 : (keywordMatch ? 2 : 1);
+                    results.push({ ...page, _score: score });
                 }
             }
+            results.sort((a, b) => (b._score || 0) - (a._score || 0));
         }
 
         // 3. Search Students (if mode is all or student)

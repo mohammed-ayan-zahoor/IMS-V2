@@ -90,6 +90,12 @@ export async function PATCH(req, { params }) {
             }
         }
 
+        if (body.structure !== undefined) {
+            if (['CLASS_BASED', 'SEMESTER_BASED'].includes(body.structure)) {
+                updateData['settings.structure'] = body.structure;
+            }
+        }
+
         if (body.status) {
             if (['active', 'suspended', 'inactive'].includes(body.status)) {
                 updateData.status = body.status;

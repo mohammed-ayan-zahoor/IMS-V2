@@ -101,6 +101,15 @@ const InstituteSchema = new Schema({
             default: 'classic'
         },
 
+        // Academic structure — only meaningful for COLLEGE type.
+        // SCHOOL always uses CLASS_BASED; VOCATIONAL ignores it.
+        // ponytail: a flag beats a new enum value; no existing-college migration needed (default = SEMESTER_BASED)
+        structure: {
+            type: String,
+            enum: ['CLASS_BASED', 'SEMESTER_BASED'],
+            default: 'SEMESTER_BASED'
+        },
+
         // Feature toggles
         features: {
             exams: { type: Boolean, default: true },

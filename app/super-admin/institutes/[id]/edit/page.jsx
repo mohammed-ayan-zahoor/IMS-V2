@@ -42,6 +42,7 @@ export default function EditInstitutePage() {
     const [saving, setSaving] = useState(false);
     const [form] = Form.useForm();
     const [instituteName, setInstituteName] = useState("");
+    const [instituteType, setInstituteType] = useState("");
 
     useEffect(() => {
         const controller = new AbortController();
@@ -57,6 +58,7 @@ export default function EditInstitutePage() {
                 if (!inst) throw new Error("Institute data not found.");
                 
                 setInstituteName(inst.name || "");
+                setInstituteType(inst.type || "");
                 
                 form.setFieldsValue({
                     name: inst.name || "",
@@ -66,7 +68,8 @@ export default function EditInstitutePage() {
                     status: inst.status || "active",
                     maxStudents: inst.limits?.maxStudents || 500,
                     plan: inst.subscription?.plan || "free",
-                    endDate: inst.subscription?.endDate ? dayjs(inst.subscription.endDate) : null
+                    endDate: inst.subscription?.endDate ? dayjs(inst.subscription.endDate) : null,
+                    structure: inst.settings?.structure || "SEMESTER_BASED"
                 });
             } catch (error) {
                 if (error.name === "AbortError") return;
@@ -208,6 +211,20 @@ export default function EditInstitutePage() {
                                 <DatePicker style={{ width: '100%' }} />
                             </Form.Item>
                         </Col>
+                        {instituteType === "COLLEGE" && (
+                            <Col xs={24} md={12}>
+                                <Form.Item 
+                                    label="Academic Structure" 
+                                    name="structure"
+                                    tooltip="SEMESTER_BASED is default for degree colleges (semesters & courses). CLASS_BASED is for PU / 11th-12th / Junior Colleges (standard classes & sections)."
+                                >
+                                    <Select>
+                                        <Option value="SEMESTER_BASED">Degree College (Semester-Based)</Option>
+                                        <Option value="CLASS_BASED">PU / Junior College / 11th-12th (Class-Based)</Option>
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                        )}
                     </Row>
 
                     <Row gutter={16}>

@@ -191,7 +191,9 @@ export default function AdminLayout({ children }) {
     }, [session?.user?.institute?.id, pathname]);
 
     const features = liveFeatures || session?.user?.institute?.features || {};
-    const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
+    const isSchool = session?.user?.institute?.type === 'SCHOOL' || 
+                     session?.user?.institute?.code === 'QUANTECH' ||
+                     (session?.user?.institute?.type === 'COLLEGE' && session?.user?.institute?.structure === 'CLASS_BASED');
     const isTransportEnabled = !!features.transport;
     const isHostelEnabled = !!features.hostel;
     const menuGroups = [

@@ -145,7 +145,7 @@ export default function CreateInstitutePage() {
                     </Row>
 
                     <Row gutter={16}>
-                        <Col xs={24}>
+                        <Col xs={24} md={12}>
                             <Form.Item label="Organization Type" name="type" extra="Type is immutable after creation.">
                                 <Radio.Group optionType="button" buttonStyle="solid">
                                     <Radio value="VOCATIONAL">Vocational</Radio>
@@ -154,6 +154,25 @@ export default function CreateInstitutePage() {
                                 </Radio.Group>
                             </Form.Item>
                         </Col>
+                        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
+                            {({ getFieldValue }) => 
+                                getFieldValue('type') === 'COLLEGE' ? (
+                                    <Col xs={24} md={12}>
+                                        <Form.Item 
+                                            label="Academic Structure" 
+                                            name="structure" 
+                                            initialValue="SEMESTER_BASED"
+                                            tooltip="Choose CLASS_BASED for PU / Intermediate / 11th-12th / Junior Colleges, or SEMESTER_BASED for Degree colleges."
+                                        >
+                                            <Radio.Group optionType="button" buttonStyle="solid">
+                                                <Radio value="SEMESTER_BASED">Degree (Semesters)</Radio>
+                                                <Radio value="CLASS_BASED">PU / 11th-12th (Classes)</Radio>
+                                            </Radio.Group>
+                                        </Form.Item>
+                                    </Col>
+                                ) : null
+                            }
+                        </Form.Item>
                     </Row>
 
                     <Row gutter={16}>

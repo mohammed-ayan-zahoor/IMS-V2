@@ -20,7 +20,21 @@ import {
     BookOpen,
     Settings,
     Sparkles,
-    LogOut
+    LogOut,
+    Building,
+    Building2,
+    Layers,
+    Layers3,
+    Globe,
+    FileSignature,
+    Award,
+    Database,
+    ShieldCheck,
+    ShieldAlert,
+    UserCog,
+    Boxes,
+    MessageSquare,
+    Scan
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -31,16 +45,31 @@ function getSpotlightIcon(iconName) {
         case "user-plus": return <UserPlus {...props} />;
         case "credit-card": return <CreditCard {...props} />;
         case "calendar-check": return <CalendarCheck {...props} />;
-        case "id-card": return <Contact {...props} />;
+        case "id-card":
+        case "contact": return <Contact {...props} />;
         case "megaphone": return <Megaphone {...props} />;
         case "layout-dashboard": return <LayoutDashboard {...props} />;
         case "graduation-cap": return <GraduationCap {...props} />;
         case "briefcase": return <Briefcase {...props} />;
         case "receipt": return <Receipt {...props} />;
         case "file-text": return <FileText {...props} />;
+        case "file-signature": return <FileSignature {...props} />;
         case "calendar": return <Calendar {...props} />;
         case "bus": return <Bus {...props} />;
         case "book-open": return <BookOpen {...props} />;
+        case "building":
+        case "building-2": return <Building2 {...props} />;
+        case "layers":
+        case "layers-3": return <Layers3 {...props} />;
+        case "globe": return <Globe {...props} />;
+        case "award": return <Award {...props} />;
+        case "database": return <Database {...props} />;
+        case "boxes": return <Boxes {...props} />;
+        case "message-square": return <MessageSquare {...props} />;
+        case "shield-check": return <ShieldCheck {...props} />;
+        case "shield-alert": return <ShieldAlert {...props} />;
+        case "user-cog": return <UserCog {...props} />;
+        case "scan": return <Scan {...props} />;
         case "settings": return <Settings {...props} />;
         default: return <Sparkles {...props} />;
     }
@@ -64,7 +93,7 @@ export default function SpotlightSearch({ isOpen, onClose }) {
 
         setLoading(true);
         try {
-            const res = await fetch(`/api/v1/search/spotlight?q=${encodeURIComponent(q)}&limit=6`, {
+            const res = await fetch(`/api/v1/search/spotlight?q=${encodeURIComponent(q)}&limit=8`, {
                 signal: controller.signal
             });
             if (res.ok) {
@@ -128,8 +157,8 @@ export default function SpotlightSearch({ isOpen, onClose }) {
                 return;
             }
 
-            // Direct ⌘1 to ⌘6 / Ctrl+1 to Ctrl+6 commit
-            if ((e.metaKey || e.ctrlKey) && /^[1-6]$/.test(e.key)) {
+            // Direct ⌘1 to ⌘8 / Ctrl+1 to Ctrl+8 commit
+            if ((e.metaKey || e.ctrlKey) && /^[1-8]$/.test(e.key)) {
                 e.preventDefault();
                 const index = parseInt(e.key, 10) - 1;
                 if (results[index]) {
@@ -218,7 +247,7 @@ export default function SpotlightSearch({ isOpen, onClose }) {
                             aria-expanded={results.length > 0}
                             aria-controls="spotlight-results"
                             aria-activedescendant={results[selectedIndex] ? `spotlight-opt-${selectedIndex}` : undefined}
-                            placeholder="Search students, staff, receipts, or type > for actions..."
+                            placeholder="Jump to any page, student, staff, receipt, or / for pages..."
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             style={{
@@ -235,13 +264,15 @@ export default function SpotlightSearch({ isOpen, onClose }) {
                         />
                     </div>
 
-                    {/* Result List (Unboxed, max 6 rows) */}
+                    {/* Result List (Unboxed, max 8 rows with smooth scroll) */}
                     <motion.div
                         id="spotlight-results"
                         role="listbox"
                         style={{
                             padding: "0 6px 6px",
-                            position: "relative"
+                            position: "relative",
+                            maxHeight: "440px",
+                            overflowY: "auto"
                         }}
                         layout
                         transition={{ type: "spring", bounce: 0, duration: 0.22 }}
@@ -329,7 +360,7 @@ export default function SpotlightSearch({ isOpen, onClose }) {
                                             </div>
                                         </div>
 
-                                        {/* Shortcut Hint: strictly sequential ⌘1..⌘6 */}
+                                        {/* Shortcut Hint: strictly sequential ⌘1..⌘8 */}
                                         <div
                                             className="relative z-10 flex items-center justify-center"
                                             style={{
@@ -385,6 +416,24 @@ export default function SpotlightSearch({ isOpen, onClose }) {
                         >
                             <Sparkles size={13} strokeWidth={1.5} className="text-slate-400" />
                             <span className="font-medium text-slate-500">Spotlight</span>
+                        </div>
+
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "0 10px",
+                                borderLeft: "1px solid #EBECEF",
+                                cursor: "pointer"
+                            }}
+                            onClick={() => {
+                                setQuery("/ ");
+                                inputRef.current?.focus();
+                            }}
+                        >
+                            <span>Pages</span>
+                            <span className="font-mono text-[10px] text-slate-400">/</span>
                         </div>
 
                         <div
