@@ -41,13 +41,16 @@ export default async function middleware(req) {
     const path = req.nextUrl.pathname;
 
     // ── 1. Custom Domain Routing ────────────────────────────────────────────────
+    const isPublicBypass =
+        path.startsWith('/api/') ||
+        path.startsWith('/_next/') ||
+        path.startsWith('/favicon') ||
+        path.startsWith('/service-worker') ||
+        path.startsWith('/terms') ||
+        path.startsWith('/privacy');
+
     if (customDomain) {
-        if (
-            !path.startsWith('/api/') &&
-            !path.startsWith('/_next/') &&
-            !path.startsWith('/favicon') &&
-            !path.startsWith('/service-worker')
-        ) {
+        if (!isPublicBypass) {
             const rewriteUrl = new URL(`/website/domain/${customDomain}${path === '/' ? '' : path}`, req.url);
             return NextResponse.rewrite(rewriteUrl);
         }
@@ -56,15 +59,9 @@ export default async function middleware(req) {
 
     // ── 2. Subdomain Routing ────────────────────────────────────────────────────
     if (subdomain) {
-
         // Only rewrite root and non-API paths to the public website
-        // Pass through API routes, Next.js internals, and static files unchanged
-        if (
-            !path.startsWith('/api/') &&
-            !path.startsWith('/_next/') &&
-            !path.startsWith('/favicon') &&
-            !path.startsWith('/service-worker')
-        ) {
+        // Pass through API routes, Next.js internals, static files, and legal pages unchanged
+        if (!isPublicBypass) {
             const rewriteUrl = new URL(`/website/${subdomain}${path === '/' ? '' : path}`, req.url);
             return NextResponse.rewrite(rewriteUrl);
         }

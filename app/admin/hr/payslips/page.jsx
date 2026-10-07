@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FileSpreadsheet, Plus, Trash2, Loader2, Landmark, CheckCircle, Printer, X, Download, User, Calendar, Receipt, DollarSign, Coins, Info, Sparkles, Check, ShieldCheck } from "lucide-react";
@@ -9,6 +9,7 @@ import Card from "@/components/ui/Card";
 import Select from "@/components/ui/Select";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { cn } from "@/lib/utils";
@@ -35,7 +36,26 @@ const paymentModeOptions = [
     { value: "Cheque", label: "Cheque" }
 ];
 
+const formatCurrency = (amount) => {
+    return (Number(amount) || 0).toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+};
+
+const getMonthName = (monthNumber) => {
+    return months.find(m => m.value === String(monthNumber))?.label || "Unknown";
+};
+
 export default function PayslipsPage() {
+    return (
+        <Suspense fallback={<LoadingSpinner fullPage />}>
+            <PayslipsContent />
+        </Suspense>
+    );
+}
+
+function PayslipsContent() {
     const { data: session } = useSession();
     const instituteId = session?.user?.institute?.id;
     const toast = useToast();
@@ -602,19 +622,6 @@ export default function PayslipsPage() {
         }
     };
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount);
-    };
-
-    const getMonthName = (monthNumber) => {
-        return months.find(m => m.value === String(monthNumber))?.label || "Unknown";
-    };
-
     return (
         <div className="space-y-6 max-w-[1600px] mx-auto p-4 md:p-0">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -692,10 +699,10 @@ export default function PayslipsPage() {
                                                 {getMonthName(p.month)}, {p.year}
                                             </td>
                                             <td className="px-6 py-4 text-sm font-semibold text-slate-700">
-                                                {formatCurrency(p.basicSalary)}
+                                                ₹{formatCurrency(p.basicSalary)}
                                             </td>
                                             <td className="px-6 py-4 text-sm font-black text-premium-blue">
-                                                {formatCurrency(p.netSalary)}
+                                                ₹{formatCurrency(p.netSalary)}
                                             </td>
                                             <td className="px-6 py-4">
                                                 {p.paymentStatus === 'paid' ? (
