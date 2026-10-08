@@ -28,6 +28,7 @@ import {
     MessageSquare,
     Plus,
     Printer,
+    MessageCircle,
     UserPlus,
     Lock,
     Eye,
@@ -128,6 +129,7 @@ export default function StudentDetailsPage({ params }) {
         installmentId: "" // Added installment selection
     });
     const [collectors, setCollectors] = useState([]);
+    const [sendWhatsAppReceipt, setSendWhatsAppReceipt] = useState(true);
 
     // Installments Configuration State
     const [configureInstallments, setConfigureInstallments] = useState(false);
@@ -1296,9 +1298,26 @@ export default function StudentDetailsPage({ params }) {
             });
 
             if (res.ok) {
+                const isGeneralFee = !isTransportPayment && !isHostelPayment;
                 setIsPayModalOpen(false);
                 fetchStudentDetails();
-                toast.success("Payment recorded successfully!");
+
+                if (sendWhatsAppReceipt && isGeneralFee) {
+                    toast.success("Payment recorded! Sending WhatsApp PDF receipt...");
+                    fetch('/api/v1/messaging/whatsapp/send-receipt', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'fee', id: feeId })
+                    }).then(r => r.json()).then(data => {
+                        if (data.success) {
+                            toast.success(`WhatsApp receipt PDF sent via ${data.provider}!`);
+                        }
+                    }).catch(err => {
+                        console.warn('Auto WhatsApp receipt dispatch error:', err);
+                    });
+                } else {
+                    toast.success("Payment recorded successfully!");
+                }
             } else {
                 const err = await res.json();
                 toast.error(err.error || "Failed to record payment");
@@ -3735,6 +3754,21 @@ export default function StudentDetailsPage({ params }) {
                         onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
                         placeholder="Additional notes..."
                     />
+
+                    {!isTransportPayment && !isHostelPayment && (
+                        <label className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-50/80 border border-emerald-200/80 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={sendWhatsAppReceipt}
+                                onChange={(e) => setSendWhatsAppReceipt(e.target.checked)}
+                                className="w-4 h-4 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
+                                <MessageCircle size={15} className="text-emerald-600 shrink-0" />
+                                <span>Send WhatsApp Receipt PDF to student upon payment</span>
+                            </div>
+                        </label>
+                    )}
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsPayModalOpen(false)}>Cancel</Button>

@@ -14,7 +14,8 @@ import {
     DollarSign,
     Trash2,
     XCircle,
-    Settings
+    Settings,
+    MessageCircle
 } from "lucide-react";
 import Link from "next/link";
 import Select from "@/components/ui/Select";
@@ -63,6 +64,7 @@ export default function FeesPage() {
         penaltyPaid: ""
     });
     const [collectors, setCollectors] = useState([]);
+    const [sendWhatsAppReceipt, setSendWhatsAppReceipt] = useState(true);
 
     const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
 
@@ -293,10 +295,28 @@ export default function FeesPage() {
             });
 
             if (res.ok) {
+                const feeId = selectedFee._id;
+                const studentPhone = selectedFee.student?.profile?.phone || selectedFee.student?.guardianDetails?.phone;
                 setIsPaymentModalOpen(false);
                 setPaymentData({ installmentId: "", amount: "", method: "cash", transactionId: "", collectedBy: "", notes: "" });
                 fetchFees(); // Refresh list to update balance/status
-                toast.success("Payment recorded successfully");
+
+                if (sendWhatsAppReceipt && studentPhone) {
+                    toast.success("Payment recorded! Sending WhatsApp PDF receipt...");
+                    fetch('/api/v1/messaging/whatsapp/send-receipt', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'fee', id: feeId })
+                    }).then(r => r.json()).then(data => {
+                        if (data.success) {
+                            toast.success(`WhatsApp receipt PDF dispatched via ${data.provider}!`);
+                        }
+                    }).catch(err => {
+                        console.warn('Auto WhatsApp receipt dispatch error:', err);
+                    });
+                } else {
+                    toast.success("Payment recorded successfully");
+                }
             } else {
                 let errorMessage = "Failed to record payment";
                 try {
@@ -957,7 +977,20 @@ export default function FeesPage() {
                                 />
                             </div>
 
-                            <div className="pt-4 flex gap-3">
+                            <label className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-50/80 border border-emerald-200/80 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={sendWhatsAppReceipt}
+                                    onChange={(e) => setSendWhatsAppReceipt(e.target.checked)}
+                                    className="w-4 h-4 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500 cursor-pointer"
+                                />
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
+                                    <MessageCircle size={15} className="text-emerald-600 shrink-0" />
+                                    <span>Send WhatsApp Receipt PDF to student / guardian upon payment</span>
+                                </div>
+                            </label>
+
+                            <div className="pt-2 flex gap-3">
                                 <Button type="button" variant="outline" className="flex-1" onClick={() => setIsPaymentModalOpen(false)}>Cancel</Button>
                                 <Button type="submit" disabled={isSubmittingPayment} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20">
                                     {isSubmittingPayment ? "Recording..." : "Record Payment"}

@@ -6,6 +6,7 @@ import Fee from '@/models/Fee';
 import MouSubmission from '@/models/MouSubmission';
 import Payslip from '@/models/Payslip';
 import { generatePayslipPdfBuffer } from '@/services/payslipPdfService';
+import { generateFeeReceiptPdfBuffer } from '@/services/feePdfService';
 import mongoose from 'mongoose';
 
 export async function POST(req) {
@@ -55,7 +56,7 @@ export async function POST(req) {
                 const instName = fee.institute?.name || 'Institute';
                 const courseName = fee.batch?.name || 'Course';
 
-                messageText = `Dear ${studentName},\n\nYour fee payment of ₹${(fee.paidAmount || 0).toLocaleString('en-IN')} for ${courseName} has been recorded.\nReceipt Ref: ${receiptRef}\nBalance Due: ₹${balanceDue.toLocaleString('en-IN')}\n\nThank you,\n${instName}`;
+                messageText = `Dear ${studentName},\n\nYour fee payment of ₹${(fee.paidAmount || 0).toLocaleString('en-IN')} for ${courseName} has been recorded.\nReceipt Ref: ${receiptRef}\nBalance Due: ₹${balanceDue.toLocaleString('en-IN')}\n\nPlease find your official payment receipt PDF attached.\n\nThank you,\n${instName}`;
             }
 
         } else if (type === 'mou') {
@@ -72,6 +73,7 @@ export async function POST(req) {
 
             if (!messageText) {
                 messageText = `Dear ${mou.schoolName || 'Partner'},\n\nPayment receipt for your MOU Agreement Ref: ${mou.refId || id} has been generated.\nAmount: ₹${(mou.upfrontPrice || mou.totalPrice || 0).toLocaleString('en-IN')}.\n\nThank you,\nQuantech Infosystem`;
+            }
         } else if (type === 'payslip') {
             const payslip = await Payslip.findById(id)
                 .populate('staff', 'profile phone email')
@@ -107,13 +109,22 @@ export async function POST(req) {
                 console.warn('[PAYSLIP PDF ATTACHMENT FAILED, FALLING BACK TO TEXT]', pdfErr.message);
                 result = await NotificationService.sendWhatsAppText(String(instituteId), targetPhone, messageText);
             }
+        } else if (type === 'fee') {
+            try {
+                const { pdfBuffer, filename } = await generateFeeReceiptPdfBuffer(id, instituteId);
+                const base64Pdf = `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
+                result = await NotificationService.sendWhatsAppDocument(String(instituteId), targetPhone, base64Pdf, filename, messageText);
+            } catch (pdfErr) {
+                console.warn('[FEE PDF ATTACHMENT FAILED, FALLING BACK TO TEXT]', pdfErr.message);
+                result = await NotificationService.sendWhatsAppText(String(instituteId), targetPhone, messageText);
+            }
         } else {
             result = await NotificationService.sendWhatsAppText(String(instituteId), targetPhone, messageText);
         }
 
         return NextResponse.json({
             success: true,
-            message: `Payslip document dispatched successfully via ${result.provider}!`,
+            message: `${type === 'payslip' ? 'Payslip' : 'Fee receipt'} document dispatched successfully via ${result.provider}!`,
             provider: result.provider,
             sentTo: targetPhone
         });

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { format } from "date-fns";
-import { Loader2, Printer, MessageCircle, Send } from "lucide-react";
+import { Loader2, Printer, MessageCircle, Send, Download } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -181,6 +181,12 @@ export default function ReceiptPage({ params }) {
                             </a>
                         </div>
                     )}
+                    <a href={`/api/v1/fees/${fee._id}/pdf`} target="_blank" rel="noreferrer">
+                        <Button variant="outline" className="text-slate-700 border-slate-300 hover:bg-slate-100 flex items-center gap-1.5 text-xs font-bold">
+                            <Download size={15} />
+                            Download PDF
+                        </Button>
+                    </a>
                     <Button onClick={handlePrint} className="bg-premium-blue hover:bg-premium-blue/90 text-xs font-bold">
                         <Printer size={16} className="mr-1.5" />
                         Print
