@@ -35,7 +35,7 @@ export async function GET(req, { params }) {
                 select: 'name course',
                 populate: { path: 'course', select: 'name' }
             })
-            .populate('student', 'profile.firstName profile.lastName email enrollmentNumber')
+            .populate('student', 'profile phone email enrollmentNumber guardianDetails')
             .populate('institute', 'name branding address contactEmail contactPhone settings');
 
         if (!fee) {

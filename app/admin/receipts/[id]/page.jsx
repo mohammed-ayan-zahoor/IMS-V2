@@ -155,32 +155,37 @@ export default function ReceiptPage({ params }) {
                             <span className="text-xs font-bold text-slate-600 group-hover:text-premium-blue transition-colors">Dual Copy</span>
                         </label>
                     )}
-                    {(fee?.student?.profile?.phone || fee?.student?.guardianDetails?.phone) && (
-                        <div className="flex items-center gap-2">
-                            <Button 
-                                onClick={handleSendWaApi}
-                                disabled={isSendingWa}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 text-xs font-bold shadow-sm"
-                                title="Send automatically via OpenWA / configured gateway"
-                            >
-                                {isSendingWa ? <Loader2 size={15} className="animate-spin" /> : <Send size={14} />}
-                                Send via WA (API)
-                            </Button>
-                            <a
-                                href={`https://wa.me/${(fee.student?.profile?.phone || fee.student?.guardianDetails?.phone).replace(/\D/g, '')}?text=${encodeURIComponent(
-                                    `Hi ${fee.student?.profile?.firstName || 'Student'}, your fee payment of ${formatCurrency(fee.paidAmount || 0)} for ${fee.batch?.name || 'course'} has been recorded. Receipt Ref: #${fee._id.toString().slice(-8).toUpperCase()}${calculateBalance(fee) > 0 ? `. Balance Due: ${formatCurrency(calculateBalance(fee))}` : ' (Fully Paid)'}. - ${fee.institute?.name || ''}`
-                                )}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="Open in WhatsApp Web"
-                            >
-                                <Button variant="outline" className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 flex items-center gap-1 text-xs font-bold">
-                                    <MessageCircle size={14} />
-                                    Web
+                    {(() => {
+                        const targetPhone = fee?.student?.profile?.phone || fee?.student?.phone || fee?.student?.guardianDetails?.phone || fee?.student?.guardianDetails?.fatherPhone || fee?.student?.guardianDetails?.motherPhone || '';
+                        return (
+                            <div className="flex items-center gap-2">
+                                <Button 
+                                    onClick={handleSendWaApi}
+                                    disabled={isSendingWa}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 text-xs font-bold shadow-sm cursor-pointer"
+                                    title="Send PDF receipt automatically via WhatsApp"
+                                >
+                                    {isSendingWa ? <Loader2 size={15} className="animate-spin" /> : <Send size={14} />}
+                                    Send WA
                                 </Button>
-                            </a>
-                        </div>
-                    )}
+                                {targetPhone ? (
+                                    <a
+                                        href={`https://wa.me/${targetPhone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                                            `Hi ${fee.student?.profile?.firstName || 'Student'}, your fee payment of ${formatCurrency(fee.paidAmount || 0)} for ${fee.batch?.name || 'course'} has been recorded. Receipt Ref: #${fee._id.toString().slice(-8).toUpperCase()}${calculateBalance(fee) > 0 ? `. Balance Due: ${formatCurrency(calculateBalance(fee))}` : ' (Fully Paid)'}. - ${fee.institute?.name || ''}`
+                                        )}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        title="Open in WhatsApp Web"
+                                    >
+                                        <Button variant="outline" className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 flex items-center gap-1 text-xs font-bold cursor-pointer">
+                                            <MessageCircle size={14} />
+                                            Web
+                                        </Button>
+                                    </a>
+                                ) : null}
+                            </div>
+                        );
+                    })()}
                     <a href={`/api/v1/fees/${fee._id}/pdf`} target="_blank" rel="noreferrer">
                         <Button variant="outline" className="text-slate-700 border-slate-300 hover:bg-slate-100 flex items-center gap-1.5 text-xs font-bold">
                             <Download size={15} />
