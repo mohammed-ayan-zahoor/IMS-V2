@@ -731,6 +731,11 @@ export default function TermsSheet({
 
     const handleAcceptClick = () => {
         setAccepted(true);
+        try {
+            localStorage.setItem("quantech_terms_agreed", "true");
+        } catch (e) {
+            console.error("Failed to save terms agreement:", e);
+        }
         setTimeout(() => {
             if (onAccept) {
                 onAccept();

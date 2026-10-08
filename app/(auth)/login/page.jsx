@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Loader2, Eye, EyeOff, HelpCircle, X, Mail } from "lucide-react";
+import { LogIn, Loader2, Eye, EyeOff, HelpCircle, X, Mail, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthBranding } from "@/components/auth/AuthBrandingContext";
 
@@ -17,9 +17,36 @@ function LoginForm() {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [error, setError] = useState("");
     const [showForgotModal, setShowForgotModal] = useState(false);
     const router = useRouter();
+
+    // Hydrate terms agreement from device localStorage
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("quantech_terms_agreed");
+            if (saved === "true") {
+                setAgreedToTerms(true);
+            }
+        } catch (e) {
+            console.error("Failed to read agreement:", e);
+        }
+    }, []);
+
+    const toggleAgreement = () => {
+        const nextVal = !agreedToTerms;
+        setAgreedToTerms(nextVal);
+        try {
+            if (nextVal) {
+                localStorage.setItem("quantech_terms_agreed", "true");
+            } else {
+                localStorage.removeItem("quantech_terms_agreed");
+            }
+        } catch (e) {
+            console.error("Failed to save agreement:", e);
+        }
+    };
 
     // 1. If URL has ?code=..., lookup that institute immediately
     useEffect(() => {
@@ -68,6 +95,11 @@ function LoginForm() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!agreedToTerms) {
+            setError("Please agree to the Terms & Conditions and Privacy Policy to continue.");
+            return;
+        }
+
         setLoading(true);
         setError("");
 
@@ -196,6 +228,55 @@ function LoginForm() {
                         </div>
                     </div>
 
+                    {/* Terms & Conditions Agreement Checkbox */}
+                    <div className="flex items-start gap-2.5 pt-0.5 select-none">
+                        <button
+                            type="button"
+                            role="checkbox"
+                            aria-checked={agreedToTerms}
+                            onClick={toggleAgreement}
+                            className={`mt-0.5 h-4 w-4 rounded-[5px] border flex items-center justify-center transition-all duration-150 cursor-pointer shrink-0 ${
+                                agreedToTerms
+                                    ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                                    : "bg-white border-slate-300 hover:border-slate-400"
+                            }`}
+                        >
+                            <AnimatePresence>
+                                {agreedToTerms && (
+                                    <motion.span
+                                        initial={{ scale: 0.5, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        exit={{ scale: 0.5, opacity: 0 }}
+                                        transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                                    >
+                                        <Check size={11} strokeWidth={3} />
+                                    </motion.span>
+                                )}
+                            </AnimatePresence>
+                        </button>
+                        <label
+                            onClick={toggleAgreement}
+                            className="text-[12px] leading-relaxed text-slate-500 cursor-pointer"
+                        >
+                            I agree to the{" "}
+                            <Link
+                                href="/terms"
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-semibold text-slate-800 hover:text-blue-600 hover:underline"
+                            >
+                                Terms &amp; Conditions
+                            </Link>
+                            {" "}and{" "}
+                            <Link
+                                href="/privacy"
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-semibold text-slate-800 hover:text-blue-600 hover:underline"
+                            >
+                                Privacy Policy
+                            </Link>
+                        </label>
+                    </div>
+
                     <AnimatePresence mode="wait">
                         {error && (
                             <motion.div
@@ -210,13 +291,17 @@ function LoginForm() {
                         )}
                     </AnimatePresence>
 
-                    <div className="space-y-5 pt-2">
+                    <div className="space-y-3 pt-1">
                         <motion.button
                             type="submit"
-                            whileTap={{ scale: 0.985 }}
-                            whileHover={{ translateY: -1 }}
-                            disabled={loading}
-                            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white font-bold text-sm md:text-base py-3.5 rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                            whileTap={agreedToTerms && !loading ? { scale: 0.985 } : {}}
+                            whileHover={agreedToTerms && !loading ? { translateY: -1 } : {}}
+                            disabled={loading || !agreedToTerms}
+                            className={`w-full flex items-center justify-center gap-2 font-bold text-sm md:text-base py-3.5 rounded-xl shadow-md transition-all duration-150 ${
+                                agreedToTerms && !loading
+                                    ? "bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/25 cursor-pointer"
+                                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                            }`}
                         >
                             {loading ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -227,23 +312,6 @@ function LoginForm() {
                                 </>
                             )}
                         </motion.button>
-
-                        <div className="text-center text-[11px] font-medium text-slate-400">
-                            By signing in, you agree to our{" "}
-                            <Link
-                                href="/terms"
-                                className="text-slate-600 font-semibold hover:underline cursor-pointer"
-                            >
-                                Terms
-                            </Link>
-                            {" "}and{" "}
-                            <Link
-                                href="/privacy"
-                                className="text-slate-600 font-semibold hover:underline cursor-pointer"
-                            >
-                                Privacy Policy
-                            </Link>
-                        </div>
                     </div>
                 </form>
             </motion.div>
