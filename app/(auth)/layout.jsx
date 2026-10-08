@@ -43,27 +43,32 @@ function AuthBrandingHeader() {
     const { institute } = useAuthBranding();
 
     return (
-        <div className="mb-8 flex flex-col items-center justify-center w-full">
-            <div className="flex items-center justify-center gap-4 md:gap-6 py-2 flex-wrap">
-                {/* Left: Quantech Platform Logo (Circular Q Icon) */}
+        <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-8 flex flex-col items-center justify-center w-full"
+        >
+            <div className="flex items-center justify-center gap-5 md:gap-8 py-2 flex-wrap">
+                {/* Left: Quantech Platform Logo */}
                 <div className="flex flex-col items-center group relative">
                     <Image
                         src="/quantech/quantech_logo_navy.png"
-                        alt="Quantech Q Logo"
-                        width={64}
-                        height={58}
+                        alt="Quantech Logo"
+                        width={96}
+                        height={88}
                         priority
-                        className="h-12 md:h-14 w-auto object-contain"
+                        className="h-16 md:h-20 lg:h-22 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
                     />
-                    <div className="flex items-center gap-1 mt-1 opacity-40">
+                    <div className="flex items-center gap-1.5 mt-2 opacity-50 hover:opacity-75 transition-opacity">
                         <Image 
                             src="/quantech/ims_legacy_logo.png"
                             alt="IMS Logo"
-                            width={11}
-                            height={11}
+                            width={13}
+                            height={13}
                             className="grayscale"
                         />
-                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                             Previously IMS
                         </span>
                     </div>
@@ -74,24 +79,24 @@ function AuthBrandingHeader() {
                     {institute && (
                         <motion.div
                             key={institute.code || institute.name}
-                            initial={{ opacity: 0, scale: 0.9, x: -6 }}
+                            initial={{ opacity: 0, scale: 0.92, x: -10 }}
                             animate={{ opacity: 1, scale: 1, x: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, x: -6 }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="flex items-center gap-4 md:gap-6"
+                            exit={{ opacity: 0, scale: 0.92, x: -10 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 26 }}
+                            className="flex items-center gap-5 md:gap-8"
                         >
                             {/* Subtle Vertical Divider */}
-                            <div className="h-10 md:h-12 w-px bg-slate-200 shrink-0" />
+                            <div className="h-14 md:h-18 w-[1.5px] bg-slate-200/90 rounded-full shrink-0" />
 
                             {/* School Crest / Logo */}
                             {institute.logo ? (
                                 <img
                                     src={institute.logo}
                                     alt={institute.name}
-                                    className="h-14 md:h-16 w-auto max-w-[150px] md:max-w-[180px] object-contain drop-shadow-sm"
+                                    className="h-18 md:h-22 lg:h-24 w-auto max-w-[200px] md:max-w-[260px] object-contain drop-shadow-sm"
                                 />
                             ) : (
-                                <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-blue-50 text-blue-600 font-black text-xl md:text-2xl flex items-center justify-center border border-blue-100/80 shadow-sm">
+                                <div className="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/80 text-blue-600 font-black text-2xl md:text-3xl flex items-center justify-center border border-blue-100/90 shadow-sm">
                                     {institute.name.charAt(0)}
                                 </div>
                             )}
@@ -99,7 +104,7 @@ function AuthBrandingHeader() {
                     )}
                 </AnimatePresence>
             </div>
-        </div>
+        </motion.div>
     );
 }
 
@@ -119,10 +124,10 @@ export default function AuthLayout({ children }) {
 
     return (
         <AuthBrandingProvider>
-            <div className="min-h-screen w-full flex bg-white font-sans overflow-hidden">
+            <div className="min-h-screen w-full flex bg-[#fafbfc] font-sans overflow-hidden">
                 
                 {/* Left Column: The Login Terminal */}
-                <div className="w-full lg:w-[45%] flex flex-col items-center justify-center p-8 md:p-14 relative z-10 overflow-y-auto max-h-screen">
+                <div className="w-full lg:w-[45%] flex flex-col items-center justify-center p-6 sm:p-10 md:p-14 relative z-10 overflow-y-auto max-h-screen bg-white shadow-[1px_0_12px_rgba(0,0,0,0.03)]">
                     <div className="w-full max-w-md flex flex-col items-center">
                         <AuthBrandingHeader />
 
@@ -130,84 +135,84 @@ export default function AuthLayout({ children }) {
                             {children}
                         </div>
 
-                        <div className="mt-8 text-slate-300 text-[10px] font-black uppercase tracking-[0.4em] pointer-events-none text-center">
+                        <div className="mt-10 text-slate-400 text-[10px] font-semibold uppercase tracking-[0.25em] pointer-events-none text-center">
                             Enterprise Gateway • v3.0 • Secure
                         </div>
                     </div>
                 </div>
 
-            {/* Right Column: The Product Story Carousel (Desktop Only) */}
-            <div 
-                className="hidden lg:flex lg:w-[55%] relative bg-slate-50 border-l border-slate-100 overflow-hidden items-center justify-center p-8 lg:p-12 select-none"
-                onMouseEnter={() => setIsPaused(true)}
-                onMouseLeave={() => setIsPaused(false)}
-            >
-                {/* Flat, High-Key Backdrop */}
-                <div className="absolute inset-0 bg-[#f8fafc]" />
-                
-                <div className="relative z-10 flex flex-col items-center gap-8 text-center max-w-xl w-full">
-                    {/* Illustration Stage */}
-                    <div className="relative w-full h-[420px] lg:h-[450px] flex items-center justify-center">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeSlide.id}
-                                initial={{ opacity: 0, y: 12, scale: 0.96 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -12, scale: 0.96 }}
-                                transition={{ duration: 0.45, ease: "easeOut" }}
-                                className="w-full h-full flex items-center justify-center"
-                            >
-                                <img
-                                    src={activeSlide.image}
-                                    alt="Product Feature Illustration"
-                                    className="max-h-[420px] max-w-[520px] w-full h-full object-contain pointer-events-none"
-                                />
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
+                {/* Right Column: The Product Story Carousel (Desktop Only) */}
+                <div 
+                    className="hidden lg:flex lg:w-[55%] relative bg-gradient-to-br from-slate-50 via-slate-50/80 to-blue-50/30 border-l border-slate-100/80 overflow-hidden items-center justify-center p-10 lg:p-14 select-none"
+                    onMouseEnter={() => setIsPaused(true)}
+                    onMouseLeave={() => setIsPaused(false)}
+                >
+                    {/* Ambient subtle glow */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[540px] h-[540px] bg-blue-100/30 rounded-full blur-3xl pointer-events-none" />
+                    
+                    <div className="relative z-10 flex flex-col items-center gap-8 text-center max-w-xl w-full">
+                        {/* Illustration Stage */}
+                        <div className="relative w-full h-[380px] lg:h-[430px] flex items-center justify-center">
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={activeSlide.id}
+                                    initial={{ opacity: 0, y: 16, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: -16, scale: 0.95 }}
+                                    transition={{ type: "spring", stiffness: 240, damping: 24 }}
+                                    className="w-full h-full flex items-center justify-center"
+                                >
+                                    <img
+                                        src={activeSlide.image}
+                                        alt="Product Feature Illustration"
+                                        className="max-h-[380px] lg:max-h-[430px] max-w-[500px] w-full h-full object-contain pointer-events-none drop-shadow-sm"
+                                    />
+                                </motion.div>
+                            </AnimatePresence>
+                        </div>
 
-                    {/* Captions Stage */}
-                    <div className="min-h-[110px] flex flex-col justify-start">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeSlide.id}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                transition={{ duration: 0.35, ease: "easeOut" }}
-                                className="space-y-3"
-                            >
-                                <h2 className="text-3xl lg:text-4xl font-black text-slate-900 leading-tight tracking-tight">
-                                    {activeSlide.title}
-                                </h2>
-                                <p className="text-slate-500 text-base lg:text-lg font-medium leading-relaxed">
-                                    {activeSlide.description}
-                                </p>
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
+                        {/* Captions Stage */}
+                        <div className="min-h-[110px] flex flex-col justify-start">
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={activeSlide.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                    className="space-y-3"
+                                >
+                                    <h2 className="text-3xl lg:text-[34px] font-black text-slate-900 leading-[1.2] tracking-tight">
+                                        {activeSlide.title}
+                                    </h2>
+                                    <p className="text-slate-500 text-base font-normal leading-relaxed tracking-[-0.01em]">
+                                        {activeSlide.description}
+                                    </p>
+                                </motion.div>
+                            </AnimatePresence>
+                        </div>
 
-                    {/* Carousel Navigation Indicators (5 Dots) */}
-                    <div className="flex items-center gap-2.5 pt-2">
-                        {SLIDES.map((slide, idx) => {
-                            const isActive = idx === currentSlide;
-                            return (
-                                <button
-                                    key={slide.id}
-                                    type="button"
-                                    onClick={() => setCurrentSlide(idx)}
-                                    aria-label={`Go to slide ${idx + 1}`}
-                                    className={`h-2 rounded-full transition-all duration-300 ${
-                                        isActive
-                                            ? "w-9 bg-slate-900"
-                                            : "w-2.5 bg-slate-200 hover:bg-slate-300"
-                                    }`}
-                                />
-                            );
-                        })}
+                        {/* Carousel Navigation Indicators */}
+                        <div className="flex items-center gap-2 pt-2">
+                            {SLIDES.map((slide, idx) => {
+                                const isActive = idx === currentSlide;
+                                return (
+                                    <button
+                                        key={slide.id}
+                                        type="button"
+                                        onClick={() => setCurrentSlide(idx)}
+                                        aria-label={`Go to slide ${idx + 1}`}
+                                        className={`h-2 rounded-full transition-all duration-300 ease-out cursor-pointer ${
+                                            isActive
+                                                ? "w-8 bg-slate-900 shadow-sm"
+                                                : "w-2 bg-slate-300 hover:bg-slate-400"
+                                        }`}
+                                    />
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
-            </div>
             </div>
         </AuthBrandingProvider>
     );

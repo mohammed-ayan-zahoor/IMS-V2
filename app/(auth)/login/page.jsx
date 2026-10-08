@@ -110,110 +110,114 @@ function LoginForm() {
 
     return (
         <div className="w-full">
-            <div className="space-y-8">
+            <motion.div 
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                className="space-y-7"
+            >
                 {/* Welcome Narrative */}
-                <div className="space-y-2 text-center lg:text-left">
-                    <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
-                        Welcome Back !
+                <div className="space-y-1.5 text-center lg:text-left">
+                    <h1 className="text-3xl md:text-[32px] font-black text-slate-900 tracking-[-0.03em] leading-tight">
+                        {institute?.name ? `Welcome to ${institute.name}` : "Welcome Back"}
                     </h1>
-                    <AnimatePresence mode="wait">
-                        {institute ? (
-                            <motion.p 
-                                key={institute.code || institute.name}
-                                initial={{ opacity: 0, y: 4 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -4 }}
-                                className="text-slate-500 font-medium text-sm md:text-base"
-                            >
-                                Please enter your credentials to access your portal.
-                            </motion.p>
-                        ) : (
-                            <motion.p 
-                                key="default-welcome"
-                                initial={{ opacity: 0, y: 4 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -4 }}
-                                className="text-slate-500 font-medium text-sm md:text-base"
-                            >
-                                Please enter your details to continue.
-                            </motion.p>
-                        )}
-                    </AnimatePresence>
+                    <p className="text-slate-500 font-normal text-sm md:text-base tracking-[-0.01em]">
+                        {institute ? "Enter your credentials to access your institute portal." : "Please enter your details to continue to your workspace."}
+                    </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="space-y-5">
-                        <Input
-                            label="Email Address"
-                            type="email"
-                            placeholder="admin@quantech.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            disabled={loading}
-                            className="bg-white border-slate-200 focus:border-blue-500 focus:ring-0 transition-all rounded-xl py-4"
-                        />
-
-                        <div className="space-y-1">
-                            <Input
-                                label="Password"
-                                type={showPassword ? "text" : "password"}
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                                Email Address
+                            </label>
+                            <input
+                                type="email"
+                                placeholder="name@institute.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="bg-white border-slate-200 focus:border-blue-500 focus:ring-0 transition-all rounded-xl py-4"
-                                suffix={
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="text-slate-400 hover:text-blue-600 transition-colors"
-                                    >
-                                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                    </button>
-                                }
+                                className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/90 focus:border-blue-500 rounded-xl px-4 py-3.5 text-sm font-medium text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400 shadow-sm"
                             />
-                            <div className="flex justify-end">
-                                <button type="button" className="text-xs font-bold text-blue-600 hover:text-blue-700">
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                                    Password
+                                </label>
+                                <button 
+                                    type="button" 
+                                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                                >
                                     Forgot Password?
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="••••••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    disabled={loading}
+                                    className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/90 focus:border-blue-500 rounded-xl px-4 py-3.5 pr-11 text-sm font-medium text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400 shadow-sm"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 active:scale-95 transition-all"
+                                    tabIndex={-1}
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    {error && (
-                        <div className="text-[11px] text-red-600 bg-red-50 p-4 rounded-xl border border-red-100/50 font-medium animate-fade-in text-center">
-                            {error}
-                        </div>
-                    )}
+                    <AnimatePresence mode="wait">
+                        {error && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -6, height: 0 }}
+                                animate={{ opacity: 1, y: 0, height: "auto" }}
+                                exit={{ opacity: 0, y: -6, height: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="text-xs text-rose-700 bg-rose-50/80 border border-rose-200/70 p-3.5 rounded-xl font-medium text-center shadow-sm"
+                            >
+                                {error}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                    <div className="space-y-6">
-                        <Button
+                    <div className="space-y-5 pt-2">
+                        <motion.button
                             type="submit"
-                            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-lg shadow-blue-500/10 transition-all active:scale-[0.98] rounded-xl py-7"
-                            size="lg"
+                            whileTap={{ scale: 0.985 }}
                             disabled={loading}
+                            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white font-bold text-sm md:text-base py-3.5 rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                         >
                             {loading ? (
-                                <Loader2 className="w-6 h-6 animate-spin" />
+                                <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
                                 <>
-                                    <span className="font-bold text-lg tracking-tight">Login</span>
-                                    <LogIn size={20} />
+                                    <span>Sign In</span>
+                                    <LogIn size={18} />
                                 </>
                             )}
-                        </Button>
+                        </motion.button>
 
-                        <div className="text-center text-xs font-medium text-slate-400">
-                            By logging in, you agree to our{" "}
-                            <button type="button" className="text-slate-600 font-bold hover:underline">Terms of Service</button>
+                        <div className="text-center text-[11px] font-medium text-slate-400">
+                            By signing in, you agree to our{" "}
+                            <button type="button" className="text-slate-600 font-semibold hover:underline">Terms</button>
                             {" "}and{" "}
-                            <button type="button" className="text-slate-600 font-bold hover:underline">Privacy Policy</button>
+                            <button type="button" className="text-slate-600 font-semibold hover:underline">Privacy Policy</button>
                         </div>
                     </div>
                 </form>
-            </div>
+            </motion.div>
         </div>
     );
 }
