@@ -93,7 +93,11 @@ export default function ReceiptPage({ params }) {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to dispatch via WhatsApp');
-            toast.success(data.message || `Receipt sent via ${data.provider}!`);
+            if (data.documentAttached === false) {
+                toast.warning(data.message || 'Notification sent, but document attachment failed on WhatsApp gateway.');
+            } else {
+                toast.success(data.message || `Receipt sent via ${data.provider}!`);
+            }
         } catch (err) {
             toast.error(err.message);
         } finally {

@@ -106,8 +106,9 @@ export async function POST(req) {
                 const base64Pdf = `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
                 result = await NotificationService.sendWhatsAppDocument(String(instituteId), targetPhone, base64Pdf, filename, messageText);
             } catch (pdfErr) {
-                console.warn('[PAYSLIP PDF ATTACHMENT FAILED, FALLING BACK TO TEXT]', pdfErr.message);
+                console.error('[PAYSLIP PDF ATTACHMENT FAILED, FALLING BACK TO TEXT]', pdfErr);
                 result = await NotificationService.sendWhatsAppText(String(instituteId), targetPhone, messageText);
+                if (result) result.documentAttached = false;
             }
         } else if (type === 'fee') {
             try {
@@ -115,17 +116,25 @@ export async function POST(req) {
                 const base64Pdf = `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
                 result = await NotificationService.sendWhatsAppDocument(String(instituteId), targetPhone, base64Pdf, filename, messageText);
             } catch (pdfErr) {
-                console.warn('[FEE PDF ATTACHMENT FAILED, FALLING BACK TO TEXT]', pdfErr.message);
+                console.error('[FEE PDF ATTACHMENT FAILED, FALLING BACK TO TEXT]', pdfErr);
                 result = await NotificationService.sendWhatsAppText(String(instituteId), targetPhone, messageText);
+                if (result) result.documentAttached = false;
             }
         } else {
             result = await NotificationService.sendWhatsAppText(String(instituteId), targetPhone, messageText);
         }
 
+        const isAttached = result?.documentAttached === true;
+        const typeLabel = type === 'payslip' ? 'Payslip' : 'Fee receipt';
+        const statusMessage = isAttached
+            ? `${typeLabel} document dispatched with PDF attached via ${result?.provider || 'WhatsApp'}!`
+            : `${typeLabel} notification delivered via text (PDF could not be attached by WhatsApp gateway).`;
+
         return NextResponse.json({
             success: true,
-            message: `${type === 'payslip' ? 'Payslip' : 'Fee receipt'} document dispatched successfully via ${result.provider}!`,
-            provider: result.provider,
+            documentAttached: isAttached,
+            message: statusMessage,
+            provider: result?.provider,
             sentTo: targetPhone
         });
 

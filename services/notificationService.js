@@ -428,12 +428,13 @@ export class NotificationService {
             case 'openwa': {
                 const baseUrl = (config.openwaServerUrl || process.env.OPENWA_SERVER_URL || 'http://localhost:2785').replace(/\/+$/, '');
                 const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : (process.env.OPENWA_API_KEY || '');
-                let sessionId = config.openwaSessionId;
+                let sessionId = config.openwaSessionId || 'default';
                 const cleanPhone = to.replace(/\D/g, '');
                 const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
 
                 const headers = { 'Content-Type': 'application/json' };
                 if (apiKey) {
+                    headers['X-Api-Key'] = apiKey;
                     headers['X-API-Key'] = apiKey;
                     headers['api_key'] = apiKey;
                 }
@@ -446,72 +447,133 @@ export class NotificationService {
                         if (listRes.ok) {
                             const listData = await listRes.json();
                             const sessions = Array.isArray(listData) ? listData : (listData.sessions || listData.data || []);
-                            const match = sessions.find(s => s.name && s.name.toLowerCase() === (sessionId || '').toLowerCase()) || sessions[0];
-                            if (match?.id) sessionId = match.id;
+                            const match = sessions.find(s => (s.name && s.name.toLowerCase() === (sessionId || '').toLowerCase()) || (s.id && s.id === sessionId)) || sessions[0];
+                            if (match) sessionId = match.name || match.id || sessionId;
                         }
                     } catch (err) {
                         console.warn('[WA DOC SESSION RESOLVE WARN]', err.message);
                     }
                 }
 
-                // Standard OpenWA send-document endpoint
-                const url = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId || 'default')}/messages/send-document`;
-                
                 const isUrl = typeof fileUrlOrBase64 === 'string' && (fileUrlOrBase64.startsWith('http://') || fileUrlOrBase64.startsWith('https://'));
                 const rawBase64 = typeof fileUrlOrBase64 === 'string' ? fileUrlOrBase64.replace(/^data:.*?;base64,/, '') : '';
+                const cleanFilename = filename || 'document.pdf';
+                const mimetype = 'application/pdf';
 
-                const bodyPayload = {
-                    chatId,
-                    filename: filename || 'document.pdf',
-                    caption: caption || ''
-                };
+                // WAHA standard file object
+                const wahaFileObj = isUrl
+                    ? { url: fileUrlOrBase64, filename: cleanFilename, mimetype }
+                    : { data: rawBase64, filename: cleanFilename, mimetype };
 
-                if (isUrl) {
-                    bodyPayload.url = fileUrlOrBase64;
-                } else {
-                    bodyPayload.base64 = rawBase64;
-                    bodyPayload.mimetype = 'application/pdf';
-                    bodyPayload.file = fileUrlOrBase64; // Backward compatibility fallback
-                }
-
-                console.log(`[WA DOC DISPATCH] Sending to ${url} (chatId: ${chatId}, filename: ${filename})`);
-
-                let response = await fetch(url, {
+                // 1. Primary WAHA endpoint: POST /api/sendFile
+                console.log(`[WA DOC DISPATCH] Attempting WAHA /api/sendFile for ${chatId} ("${cleanFilename}")`);
+                let response = await fetch(`${baseUrl}/api/sendFile`, {
                     method: 'POST',
                     headers,
-                    body: JSON.stringify(bodyPayload)
+                    body: JSON.stringify({
+                        session: sessionId || 'default',
+                        chatId,
+                        file: wahaFileObj,
+                        caption: caption || ''
+                    })
+                }).catch(err => {
+                    console.warn('[WA DOC DISPATCH] /api/sendFile network error:', err.message);
+                    return null;
                 });
 
-                // Fallback for sendFile endpoint
-                if (!response.ok && (response.status === 404 || response.status === 400)) {
-                    const fallbackUrl = `${baseUrl}/api/sendFile`;
-                    response = await fetch(fallbackUrl, {
+                // 2. If 404 or 400, try WAHA session-scoped endpoint: POST /api/sessions/{session}/messages/send-file
+                if (!response || (!response.ok && (response.status === 404 || response.status === 400))) {
+                    const sessionUrl = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId || 'default')}/messages/send-file`;
+                    console.log(`[WA DOC DISPATCH] Retrying with session endpoint ${sessionUrl}`);
+                    response = await fetch(sessionUrl, {
                         method: 'POST',
                         headers,
                         body: JSON.stringify({
-                            to: chatId,
-                            file: fileUrlOrBase64,
-                            filename: filename,
-                            caption: caption,
-                            pass: apiKey
+                            chatId,
+                            file: wahaFileObj,
+                            caption: caption || ''
                         })
-                    }).catch(() => response);
+                    }).catch(err => {
+                        console.warn('[WA DOC DISPATCH] session send-file network error:', err.message);
+                        return response;
+                    });
                 }
 
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    console.warn(`[WA DOCUMENT FAILED (${response.status})], falling back to sendWhatsAppText:`, data);
+                // 3. Fallback for legacy Open-WA (@open-wa/wa-automate REST daemon)
+                if (!response || (!response.ok && (response.status === 404 || response.status === 400 || response.status === 422))) {
+                    console.log(`[WA DOC DISPATCH] Retrying with legacy OpenWA /api/sendFile`);
+                    const legacyBody = {
+                        to: chatId,
+                        file: isUrl ? fileUrlOrBase64 : `data:${mimetype};base64,${rawBase64}`,
+                        filename: cleanFilename,
+                        caption: caption || '',
+                        pass: apiKey
+                    };
+                    response = await fetch(`${baseUrl}/api/sendFile`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(legacyBody)
+                    }).catch(() => null);
+
+                    if (!response || (!response.ok && response.status === 404)) {
+                        response = await fetch(`${baseUrl}/sendFile`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify(legacyBody)
+                        }).catch(() => null);
+                    }
+                }
+
+                const data = response ? await response.json().catch(() => ({})) : {};
+                if (!response || !response.ok) {
+                    console.error(`[WA DOCUMENT DISPATCH ERROR] All document endpoints failed (${response?.status || 'No Response'}):`, data);
                     // Fallback to text message so communication is never dropped
-                    return await this.sendWhatsAppText(instituteId, to, caption ? `${caption}` : `Please find your document attached: ${filename}`);
+                    const fallbackText = caption ? `${caption}` : `Please find your document attached: ${cleanFilename}`;
+                    const textResult = await this.sendWhatsAppText(instituteId, to, fallbackText);
+                    return { success: true, provider: 'openwa', documentAttached: false, fallbackToText: true, textResult, error: data };
                 }
 
-                return { success: true, provider: 'openwa', data };
+                console.log(`[WA DOCUMENT DISPATCH SUCCESS] "${cleanFilename}" delivered to ${chatId}`);
+                return { success: true, provider: 'openwa', documentAttached: true, data };
+            }
+
+            case 'twilio': {
+                if (!config.twilioSid || !config.twilioToken || !config.twilioNumber) {
+                    throw new Error('Twilio WhatsApp credentials are incomplete.');
+                }
+                const sid = decryptSecret(config.twilioSid);
+                const token = decryptSecret(config.twilioToken);
+                const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
+                const formattedTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
+                const formattedFrom = config.twilioNumber.startsWith('whatsapp:')
+                    ? config.twilioNumber
+                    : `whatsapp:${config.twilioNumber}`;
+                const isUrl = typeof fileUrlOrBase64 === 'string' && fileUrlOrBase64.startsWith('http');
+                const params = { From: formattedFrom, To: formattedTo, Body: caption || `Please find attached: ${filename}` };
+                if (isUrl) {
+                    params.MediaUrl = fileUrlOrBase64;
+                }
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams(params)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Twilio WhatsApp send failed.');
+                return { success: true, provider: 'twilio', documentAttached: !!isUrl, sid: data.sid };
+            }
+
+            case 'meta': {
+                return await this.sendWhatsAppText(instituteId, to, caption || `Please find attached: ${filename}`);
             }
 
             case 'mock':
             default: {
                 console.log(`\n========================================\n[MOCK WHATSAPP DOCUMENT]\nTo: ${to}\nFile: "${filename}"\nCaption: "${caption}"\n========================================\n`);
-                return { success: true, provider: 'mock', messageId: 'mock-doc-' + Date.now() };
+                return { success: true, provider: 'mock', documentAttached: true, messageId: 'mock-doc-' + Date.now() };
             }
         }
     }
