@@ -120,6 +120,14 @@ export async function GET(req) {
         }
 
         if (isConnected) {
+            // Automatically promote whatsappProvider to 'openwa' in database so notifications immediately send via live WhatsApp
+            await Institute.findByIdAndUpdate(instituteId, {
+                $set: {
+                    'notifications.whatsappProvider': 'openwa',
+                    'notifications.openwaSessionId': activeSessionId
+                }
+            }).catch(() => {});
+
             return NextResponse.json({
                 success: true,
                 connected: true,

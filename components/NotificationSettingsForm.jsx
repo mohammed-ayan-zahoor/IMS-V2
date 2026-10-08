@@ -256,9 +256,11 @@ export default function NotificationSettingsForm() {
           const data = await res.json();
           if (data.connected) {
             setConnectionStatus({ connected: true, phone: data.phone || null, status: 'CONNECTED' });
+            setFormData(prev => ({ ...prev, whatsappProvider: 'openwa' }));
+            setSuccessMessage(`WhatsApp linked successfully! ${data.phone ? `(${data.phone})` : ''}`);
             clearInterval(qrPollRef.current);
             if (qrCountdownRef.current) clearInterval(qrCountdownRef.current);
-            setTimeout(() => setQrModalOpen(false), 1000);
+            setTimeout(() => setQrModalOpen(false), 800);
           } else if (data.qr) {
             setQrData(prev => {
               // If QR updated from background, keep it fresh
