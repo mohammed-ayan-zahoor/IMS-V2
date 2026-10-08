@@ -144,14 +144,20 @@ export async function GET(req) {
                         const trimmed = raw.trim();
                         if (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
                             qrData = trimmed;
-                        } else if (trimmed.startsWith('iVBORw0KGgo') || trimmed.startsWith('/9j/') || trimmed.length > 500) {
+                        } else if (trimmed.startsWith('iVBORw0KGgo') || trimmed.startsWith('/9j/') || (trimmed.length > 500 && !trimmed.includes('@') && !trimmed.includes(','))) {
                             qrData = `data:image/png;base64,${trimmed}`;
-                        } else if (trimmed.startsWith('1@') || trimmed.startsWith('2@') || trimmed.includes(',')) {
-                            // WhatsApp pairing string — must be rendered as a QR image, never returned raw
+                        } else {
+                            // Any raw WhatsApp pairing text/code -> render directly as high-density QR code image
                             try {
-                                qrData = await QRCode.toDataURL(trimmed, { width: 300, margin: 2 });
-                            } catch {
-                                qrData = null; // let the client keep polling rather than show an unscannable string
+                                qrData = await QRCode.toDataURL(trimmed, { 
+                                    width: 320, 
+                                    margin: 1,
+                                    errorCorrectionLevel: 'M',
+                                    color: { dark: '#000000', light: '#ffffff' }
+                                });
+                            } catch (qrErr) {
+                                console.error('[QR_CONVERT_ERROR]', qrErr);
+                                qrData = null;
                             }
                         }
                     }

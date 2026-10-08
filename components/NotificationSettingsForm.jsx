@@ -237,13 +237,16 @@ export default function NotificationSettingsForm() {
   };
 
   // Open QR modal & poll for connected status every 3s
+  // Open QR modal & poll for connected status and live QR
   const handleOpenQrModal = async () => {
     setQrModalOpen(true);
     setQrLoading(true);
     setQrError('');
     setQrData(null);
     setQrCountdown(null);
-    fetchLiveQr();
+    
+    // Initial fetch
+    await fetchLiveQr();
 
     if (qrPollRef.current) clearInterval(qrPollRef.current);
     qrPollRef.current = setInterval(async () => {
@@ -256,6 +259,17 @@ export default function NotificationSettingsForm() {
             clearInterval(qrPollRef.current);
             if (qrCountdownRef.current) clearInterval(qrCountdownRef.current);
             setTimeout(() => setQrModalOpen(false), 1000);
+          } else if (data.qr) {
+            setQrData(prev => {
+              // If QR updated from background, keep it fresh
+              if (prev !== data.qr) {
+                startQrCountdown(fetchLiveQr);
+                return data.qr;
+              }
+              return prev;
+            });
+            setQrLoading(false);
+            setQrError('');
           }
         }
       } catch {
@@ -267,7 +281,6 @@ export default function NotificationSettingsForm() {
   const fetchLiveQr = async () => {
     try {
       setQrError('');
-      setQrLoading(true);
       const res = await fetch('/api/v1/institute/notifications/openwa-qr');
       const data = await res.json();
 
@@ -279,12 +292,11 @@ export default function NotificationSettingsForm() {
       } else if (data.qr) {
         setQrData(data.qr);
         setQrLoading(false);
-        // Start 20s countdown — auto-fetch a fresh code when it hits 0
+        setQrError('');
         startQrCountdown(fetchLiveQr);
       } else {
-        // OpenWA still initializing — keep spinner, retry in 3s
+        // Server waiting or starting session
         setQrLoading(true);
-        setTimeout(fetchLiveQr, 3000);
       }
     } catch (err) {
       setQrError(err.message || 'Unable to connect to OpenWA server. Please ensure the server is active.');
