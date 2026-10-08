@@ -91,8 +91,10 @@ export async function POST(req) {
                 const instName = payslip.institute?.name || 'Institute';
                 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                 const monthName = months[payslip.month - 1] || payslip.month;
+                const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXTAUTH_URL || 'imsportal.3ftech.in';
+                const docUrl = rootDomain.startsWith('http') ? `${rootDomain}/admin/hr/payslips/${id}` : `https://${rootDomain}/admin/hr/payslips/${id}`;
 
-                messageText = `Dear ${staffName},\n\nYour salary payslip for ${monthName} ${payslip.year} has been generated.\nNet Salary Payable: ₹${(payslip.netSalary || 0).toLocaleString('en-IN')}\nStatus: ${payslip.paymentStatus.toUpperCase()}\n\nThank you,\n${instName}`;
+                messageText = `Dear ${staffName},\n\nYour salary payslip for ${monthName} ${payslip.year} has been generated.\nNet Salary Payable: ₹${(payslip.netSalary || 0).toLocaleString('en-IN')}\nStatus: ${payslip.paymentStatus.toUpperCase()}\n\n📄 View Official Payslip Document:\n${docUrl}\n\nThank you,\n${instName}`;
             }
         }
 

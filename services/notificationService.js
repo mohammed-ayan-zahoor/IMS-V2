@@ -398,10 +398,88 @@ export class NotificationService {
                 return { success: true, provider: 'meta', data };
             }
 
+                return { success: true, provider: 'mock', messageId: 'mock-wa-' + Date.now() };
+            }
+        }
+    }
+
+    /**
+     * Send a PDF/Document via WhatsApp (OpenWA, Twilio, etc.)
+     * @param {string} instituteId
+     * @param {string} to - Recipient phone number
+     * @param {string} fileUrlOrBase64 - Direct URL to file or data URI
+     * @param {string} filename - Display filename, e.g. "Payslip-August-2026.pdf"
+     * @param {string} caption - Optional text caption
+     */
+    static async sendWhatsAppDocument(instituteId, to, fileUrlOrBase64, filename, caption = '') {
+        if (!instituteId) throw new Error('Institute context is required.');
+
+        const inst = await Institute.findById(instituteId).select('notifications');
+        if (!inst?.notifications) throw new Error('School notification settings are not configured.');
+
+        const config = inst.notifications;
+        const provider = config.whatsappProvider || 'mock';
+
+        console.log(`[WA DOCUMENT] Dispatching "${filename}" to ${to} via "${provider}"`);
+
+        switch (provider) {
+            case 'openwa': {
+                const baseUrl = (config.openwaServerUrl || process.env.OPENWA_SERVER_URL || 'http://localhost:2785').replace(/\/+$/, '');
+                const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : (process.env.OPENWA_API_KEY || '');
+                let sessionId = config.openwaSessionId;
+                const cleanPhone = to.replace(/\D/g, '');
+                const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
+
+                const headers = { 'Content-Type': 'application/json' };
+                if (apiKey) {
+                    headers['X-API-Key'] = apiKey;
+                    headers['api_key'] = apiKey;
+                }
+
+                // Standard OpenWA send-document endpoint
+                const url = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId || 'default')}/messages/send-document`;
+                
+                const bodyPayload = {
+                    chatId,
+                    file: fileUrlOrBase64,
+                    filename: filename || 'document.pdf',
+                    caption: caption || ''
+                };
+
+                let response = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(bodyPayload)
+                });
+
+                // Fallback for sendFile
+                if (!response.ok && response.status === 404) {
+                    const fallbackUrl = `${baseUrl}/api/sendFile`;
+                    response = await fetch(fallbackUrl, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            to: chatId,
+                            file: fileUrlOrBase64,
+                            filename: filename,
+                            caption: caption,
+                            pass: apiKey
+                        })
+                    });
+                }
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.message || data.error || `OpenWA document dispatch failed (${response.status})`);
+                }
+
+                return { success: true, provider: 'openwa', data };
+            }
+
             case 'mock':
             default: {
-                console.log(`\n========================================\n[MOCK WHATSAPP TEXT]\nTo: ${to}\nBody: "${body}"\n========================================\n`);
-                return { success: true, provider: 'mock', messageId: 'mock-wa-' + Date.now() };
+                console.log(`\n========================================\n[MOCK WHATSAPP DOCUMENT]\nTo: ${to}\nFile: "${filename}"\nCaption: "${caption}"\n========================================\n`);
+                return { success: true, provider: 'mock', messageId: 'mock-doc-' + Date.now() };
             }
         }
     }

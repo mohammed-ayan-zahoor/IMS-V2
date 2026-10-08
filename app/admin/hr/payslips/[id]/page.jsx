@@ -251,7 +251,7 @@ export default function PayslipReceiptPage() {
                         <ArrowLeft size={18} />
                     </button>
                     <div>
-                        <h1 className="text-sm font-black text-slate-800 leading-none">Wage Payslip Document</h1>
+                        <h1 className="text-sm font-black text-slate-800 leading-none">Payslip Document</h1>
                         <p className="text-[11px] text-slate-500 font-medium mt-1">Official Document Print View</p>
                     </div>
                 </div>
@@ -290,9 +290,9 @@ export default function PayslipReceiptPage() {
             {/* EXACT DOCUMENT TEMPLATE */}
             <div className="print-area max-w-[820px] mx-auto bg-white shadow-xl print:shadow-none border border-slate-300 print:border-none min-h-[1100px] flex flex-col justify-between">
                 <div>
-                    {/* 1. TOP BANNER: W A G E   P A Y S L I P */}
+                    {/* 1. TOP BANNER: P A Y S L I P */}
                     <div className="bg-slate-900 text-white py-4 px-8 tracking-[0.25em] font-bold text-xs uppercase text-left">
-                        W A G E &nbsp; P A Y S L I P
+                        P A Y S L I P
                     </div>
 
                     <div className="p-8 md:p-10 space-y-6">
