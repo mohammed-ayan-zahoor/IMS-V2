@@ -27,7 +27,7 @@ export async function GET(req, { params }) {
         }
 
         // ponytail: Strict tenant isolation for student profile read
-        const callerInstituteId = session.user.instituteId || session.user.institute?._id || session.user.institute;
+        const callerInstituteId = session.user.institute?.id || session.user.instituteId || session.user.institute?._id || (typeof session.user.institute === 'string' ? session.user.institute : null);
         if (session.user.role !== "super_admin" && data.institute && callerInstituteId && data.institute.toString() !== callerInstituteId.toString()) {
             return NextResponse.json({ error: "Forbidden: Access denied to foreign tenant student" }, { status: 403 });
         }
@@ -64,7 +64,7 @@ export async function PATCH(req, { params }) {
         if (!oldStudent) return NextResponse.json({ error: "Not found or not a student" }, { status: 404 });
 
         // ponytail: Strict tenant isolation for student profile mutation
-        const callerInstituteId = session.user.instituteId || session.user.institute?._id || session.user.institute;
+        const callerInstituteId = session.user.institute?.id || session.user.instituteId || session.user.institute?._id || (typeof session.user.institute === 'string' ? session.user.institute : null);
         if (session.user.role !== "super_admin" && oldStudent.institute && callerInstituteId && oldStudent.institute.toString() !== callerInstituteId.toString()) {
             return NextResponse.json({ error: "Forbidden: Access denied to foreign tenant student" }, { status: 403 });
         }
@@ -207,7 +207,7 @@ export async function DELETE(req, { params }) {
         if (!studentDoc) return NextResponse.json({ error: "Student not found" }, { status: 404 });
 
         // ponytail: Strict tenant isolation for student deletion
-        const callerInstituteId = session.user.instituteId || session.user.institute?._id || session.user.institute;
+        const callerInstituteId = session.user.institute?.id || session.user.instituteId || session.user.institute?._id || (typeof session.user.institute === 'string' ? session.user.institute : null);
         if (session.user.role !== "super_admin" && studentDoc.institute && callerInstituteId && studentDoc.institute.toString() !== callerInstituteId.toString()) {
             return NextResponse.json({ error: "Forbidden: Access denied to foreign tenant student" }, { status: 403 });
         }
