@@ -6,9 +6,5 @@ export const metadata = {
 };
 
 export default function TermsPage() {
-    return (
-        <div className="min-h-screen w-full bg-[#FBEDE6] flex items-center justify-center p-4 md:p-8">
-            <TermsSheet initialSectionId="overview" />
-        </div>
-    );
+    return <TermsSheet initialSectionId="overview" />;
 }

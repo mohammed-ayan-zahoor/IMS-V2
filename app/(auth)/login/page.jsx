@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Loader2, Eye, EyeOff, HelpCircle, X, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthBranding } from "@/components/auth/AuthBrandingContext";
-import TermsSheet from "@/components/legal/TermsSheet";
 
 function LoginForm() {
     const searchParams = useSearchParams();
@@ -20,7 +19,6 @@ function LoginForm() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [showForgotModal, setShowForgotModal] = useState(false);
-    const [termsModalSection, setTermsModalSection] = useState(null);
     const router = useRouter();
 
     // 1. If URL has ?code=..., lookup that institute immediately
@@ -232,48 +230,23 @@ function LoginForm() {
 
                         <div className="text-center text-[11px] font-medium text-slate-400">
                             By signing in, you agree to our{" "}
-                            <button
-                                type="button"
-                                onClick={() => setTermsModalSection("overview")}
+                            <Link
+                                href="/terms"
                                 className="text-slate-600 font-semibold hover:underline cursor-pointer"
                             >
                                 Terms
-                            </button>
+                            </Link>
                             {" "}and{" "}
-                            <button
-                                type="button"
-                                onClick={() => setTermsModalSection("privacy")}
+                            <Link
+                                href="/privacy"
                                 className="text-slate-600 font-semibold hover:underline cursor-pointer"
                             >
                                 Privacy Policy
-                            </button>
+                            </Link>
                         </div>
                     </div>
                 </form>
             </motion.div>
-
-            {/* Terms & Conditions Master-Detail Sheet Modal */}
-            <AnimatePresence>
-                {termsModalSection && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/40 backdrop-blur-sm">
-                        <div className="w-full max-w-[725px]">
-                            <TermsSheet
-                                isModal
-                                initialSectionId={termsModalSection}
-                                onBack={() => setTermsModalSection(null)}
-                                onDecline={() => {
-                                    setTermsModalSection(null);
-                                    setError("Terms acceptance is required to access your institutional portal.");
-                                }}
-                                onAccept={() => {
-                                    setTermsModalSection(null);
-                                    setError("");
-                                }}
-                            />
-                        </div>
-                    </div>
-                )}
-            </AnimatePresence>
 
             {/* Forgot Password Modal */}
             <AnimatePresence>

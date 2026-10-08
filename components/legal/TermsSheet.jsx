@@ -149,7 +149,6 @@ export default function TermsSheet({
     onAccept,
     onDecline,
     onBack,
-    isModal = false,
     initialSectionId = "overview"
 }) {
     const router = useRouter();
@@ -158,7 +157,6 @@ export default function TermsSheet({
     const [travelDirection, setTravelDirection] = useState(1);
     const [scrollTop, setScrollTop] = useState(0);
     
-    // Per-section scroll position cache
     const scrollPositionsRef = useRef({});
     const readingPaneRef = useRef(null);
 
@@ -169,7 +167,6 @@ export default function TermsSheet({
         if (newId === activeSectionId) return;
         const newIndex = SECTIONS.findIndex((s) => s.id === newId);
         
-        // Cache current scroll
         if (readingPaneRef.current) {
             scrollPositionsRef.current[activeSectionId] = readingPaneRef.current.scrollTop;
         }
@@ -178,7 +175,6 @@ export default function TermsSheet({
         setActiveSectionId(newId);
     };
 
-    // Restore scroll position upon section swap
     useEffect(() => {
         if (readingPaneRef.current) {
             const saved = scrollPositionsRef.current[activeSectionId] || 0;
@@ -194,10 +190,8 @@ export default function TermsSheet({
     const handleBack = () => {
         if (onBack) {
             onBack();
-        } else if (isModal && onDecline) {
-            onDecline();
         } else {
-            router.back();
+            router.push("/login");
         }
     };
 
@@ -220,7 +214,6 @@ export default function TermsSheet({
         }, 600);
     };
 
-    // Keyboard navigation (↑/↓ to navigate tablist, Esc to close)
     const handleKeyDown = (e) => {
         if (e.key === "Escape") {
             handleBack();
@@ -239,12 +232,11 @@ export default function TermsSheet({
         <div 
             onKeyDown={handleKeyDown}
             tabIndex={-1}
-            className="w-full flex items-center justify-center font-sans antialiased text-[#151515] outline-none select-none"
+            className="h-screen w-screen flex flex-col bg-white font-sans antialiased text-[#151515] outline-none select-none overflow-hidden"
         >
             <style jsx global>{`
                 :root {
                     --tc-page: #FBEDE6;
-                    --tc-halo: rgba(244, 190, 165, 0.28);
                     --tc-surface: #FFFFFF;
                     --tc-hairline: #DEDEDE;
                     --tc-nav-selected: #E8E8E8;
@@ -257,24 +249,7 @@ export default function TermsSheet({
                     --tc-accent-text: #BE371D;
                     --tc-accept-from: #CC4A27;
                     --tc-accept-to: #B63A1D;
-                    --tc-r-sheet: 14px;
                     --tc-r-callout: 12px;
-                }
-                @media (prefers-color-scheme: dark) {
-                    :root {
-                        --tc-page: #15100E;
-                        --tc-halo: rgba(255, 140, 100, 0.10);
-                        --tc-surface: #1E1A18;
-                        --tc-hairline: #3A3430;
-                        --tc-nav-selected: #2E2926;
-                        --tc-nav-hover: #26211F;
-                        --tc-text: #F5F1EE;
-                        --tc-text-nav: #D8D2CD;
-                        --tc-text-body: #C9C2BD;
-                        --tc-tint: #2A211D;
-                        --tc-tint-strong: #33261F;
-                        --tc-accent-text: #FF8A66;
-                    }
                 }
                 .tc-fade-mask {
                     mask-image: linear-gradient(
@@ -292,64 +267,42 @@ export default function TermsSheet({
                         transparent calc(100% - 66px)
                     );
                 }
-                @media (prefers-reduced-transparency: reduce) {
-                    .tc-sheet-halo, .tc-callout-feather, .tc-decline-feather {
-                        box-shadow: none !important;
-                    }
-                }
-                @media (prefers-contrast: more) {
-                    .tc-callout-feather, .tc-decline-feather {
-                        outline: 1px solid var(--tc-text) !important;
-                    }
-                }
-                @media (forced-colors: active) {
-                    .tc-selected-nav {
-                        background: Highlight !important;
-                        color: HighlightText !important;
-                    }
-                }
             `}</style>
 
-            {/* Main Sheet Container */}
-            <motion.div
-                initial={isModal ? { opacity: 0, scale: 0.97 } : { opacity: 1 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.97 }}
-                transition={{ type: "spring", bounce: 0, duration: 0.35 }}
-                className="relative w-full max-w-[725px] h-[536px] bg-[var(--tc-surface)] rounded-[14px] overflow-hidden tc-sheet-halo shadow-[0_0_40px_6px_var(--tc-halo)] grid grid-cols-[225px_1fr] grid-rows-[41px_1fr]"
-            >
-                {/* Header (Span Full Width) */}
-                <header className="col-span-2 h-[41px] flex items-center px-4 gap-3 bg-[var(--tc-surface)] border-b border-[var(--tc-hairline)] z-20">
-                    <button
-                        type="button"
-                        onClick={handleBack}
-                        aria-label="Go back"
-                        className="p-1 -ml-1 text-[var(--tc-text)] hover:opacity-75 active:scale-95 transition-all cursor-pointer rounded"
-                    >
-                        <ChevronLeft size={16} strokeWidth={1.75} />
-                    </button>
-                    <h1 className="text-[13px] font-medium text-[var(--tc-text)] tracking-normal">
-                        Terms &amp; Conditions
-                    </h1>
-                </header>
+            {/* Header (Full Width Top Bar) */}
+            <header className="h-[48px] w-full flex items-center px-6 gap-3 bg-white border-b border-[#DEDEDE] z-20 shrink-0">
+                <button
+                    type="button"
+                    onClick={handleBack}
+                    aria-label="Go back"
+                    className="p-1.5 -ml-1.5 text-[#151515] hover:opacity-75 active:scale-95 transition-all cursor-pointer rounded flex items-center justify-center"
+                >
+                    <ChevronLeft size={18} strokeWidth={1.75} />
+                </button>
+                <h1 className="text-[14px] font-medium text-[#151515] tracking-normal">
+                    Terms &amp; Conditions
+                </h1>
+            </header>
 
-                {/* Left Section Navigation (Full Height) */}
+            {/* Main Master-Detail Body */}
+            <div className="flex-1 w-full grid grid-cols-[240px_1fr] md:grid-cols-[260px_1fr] overflow-hidden">
+                {/* Left Section Navigation */}
                 <nav
                     role="tablist"
                     aria-orientation="vertical"
-                    className="relative bg-[var(--tc-surface)] border-r border-[var(--tc-hairline)] overflow-y-auto overflow-x-hidden z-10"
+                    className="relative bg-white border-r border-[#DEDEDE] overflow-y-auto overflow-x-hidden z-10 select-none"
                 >
-                    {/* Shared Square Full-Bleed Highlight Gliding Element */}
+                    {/* Shared Square Full-Bleed Selection Band */}
                     <motion.div
-                        layoutId="tc-nav-highlight"
-                        className="absolute left-0 right-0 h-[40px] bg-[var(--tc-nav-selected)] pointer-events-none z-0"
+                        layoutId="tc-nav-highlight-fullscreen"
+                        className="absolute left-0 right-0 h-[44px] bg-[#E8E8E8] pointer-events-none z-0"
                         style={{
-                            top: `${activeIndex * 40}px`
+                            top: `${activeIndex * 44}px`
                         }}
                         transition={{ type: "spring", bounce: 0, duration: 0.25 }}
                     />
 
-                    {SECTIONS.map((sec, idx) => {
+                    {SECTIONS.map((sec) => {
                         const isSelected = sec.id === activeSectionId;
                         return (
                             <button
@@ -359,15 +312,14 @@ export default function TermsSheet({
                                 aria-selected={isSelected}
                                 aria-controls={`tc-panel-${sec.id}`}
                                 onClick={() => handleSelectSection(sec.id)}
-                                className={`relative z-10 w-full h-[40px] px-[22px] flex items-center text-left text-[14px] leading-[40px] transition-colors cursor-pointer ${
+                                className={`relative z-10 w-full h-[44px] px-[22px] flex items-center text-left text-[14px] leading-[44px] transition-colors cursor-pointer ${
                                     isSelected
-                                        ? "font-semibold text-[var(--tc-text)]"
-                                        : "font-normal text-[var(--tc-text-nav)] hover:bg-[var(--tc-nav-hover)]"
+                                        ? "font-semibold text-[#151515]"
+                                        : "font-normal text-[#333333] hover:bg-[#F3F3F3]"
                                 }`}
                             >
                                 <span className="relative block">
                                     {sec.navLabel}
-                                    {/* Reserved-width bold trick to eliminate layout jitter */}
                                     <span
                                         aria-hidden="true"
                                         className="block h-0 font-semibold invisible overflow-hidden"
@@ -381,7 +333,7 @@ export default function TermsSheet({
                 </nav>
 
                 {/* Right Reading Pane */}
-                <main className="relative bg-[var(--tc-surface)] overflow-hidden flex flex-col justify-between">
+                <main className="relative bg-white overflow-hidden flex flex-col justify-between">
                     <div
                         ref={readingPaneRef}
                         role="tabpanel"
@@ -391,75 +343,77 @@ export default function TermsSheet({
                         style={{
                             "--tc-fade-top": scrollTop > 0 ? "24px" : "0px"
                         }}
-                        className="tc-fade-mask flex-1 px-[22px] pt-[22px] pb-[76px] overflow-y-auto overscroll-contain select-text"
+                        className="tc-fade-mask flex-1 px-8 md:px-14 pt-8 pb-[86px] overflow-y-auto overscroll-contain select-text"
                     >
-                        <AnimatePresence mode="wait" initial={false}>
-                            <motion.div
-                                key={activeSection.id}
-                                initial={{
-                                    opacity: 0,
-                                    y: travelDirection * 8
-                                }}
-                                animate={{
-                                    opacity: 1,
-                                    y: 0
-                                }}
-                                exit={{
-                                    opacity: 0,
-                                    y: travelDirection * -8
-                                }}
-                                transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-                                className="space-y-6 max-w-[72ch]"
-                            >
-                                {/* Welcome Callout (If Section Has It) */}
-                                {activeSection.callout && (
-                                    <div className="tc-callout-feather bg-[var(--tc-tint)] rounded-[12px] p-[14px_15px] shadow-[0_0_14px_4px_rgba(247,200,180,0.22)]">
-                                        <h2 className="text-[13px] leading-[1.2] font-semibold text-[var(--tc-accent-text)] mb-1">
-                                            {activeSection.callout.title}
-                                        </h2>
-                                        <p className="text-[11px] leading-[15.5px] text-[var(--tc-text-body)]">
-                                            {activeSection.callout.body}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/* Clauses List */}
-                                <div className="space-y-7">
-                                    {activeSection.clauses?.map((clause, idx) => (
-                                        <div key={idx} className="space-y-2">
-                                            <h2 className="text-[13px] leading-[1.3] font-semibold text-[var(--tc-text)]">
-                                                {clause.num}
+                        <div className="max-w-[760px] mx-auto">
+                            <AnimatePresence mode="wait" initial={false}>
+                                <motion.div
+                                    key={activeSection.id}
+                                    initial={{
+                                        opacity: 0,
+                                        y: travelDirection * 8
+                                    }}
+                                    animate={{
+                                        opacity: 1,
+                                        y: 0
+                                    }}
+                                    exit={{
+                                        opacity: 0,
+                                        y: travelDirection * -8
+                                    }}
+                                    transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+                                    className="space-y-7"
+                                >
+                                    {/* Welcome Callout (If Section Has It) */}
+                                    {activeSection.callout && (
+                                        <div className="bg-[#FDF6F1] rounded-[12px] p-[16px_18px] shadow-[0_0_14px_4px_rgba(247,200,180,0.22)]">
+                                            <h2 className="text-[14px] leading-[1.2] font-semibold text-[#BE371D] mb-1.5">
+                                                {activeSection.callout.title}
                                             </h2>
-                                            <p className="text-[12px] leading-[18px] text-[var(--tc-text-body)] text-pretty">
-                                                {clause.body}
+                                            <p className="text-[12px] leading-[17px] text-[#4F4F4F]">
+                                                {activeSection.callout.body}
                                             </p>
-                                            {clause.list && (
-                                                <ul role="list" className="mt-3 space-y-1 pl-0 list-none">
-                                                    {clause.list.map((item, lIdx) => (
-                                                        <li
-                                                            key={lIdx}
-                                                            className="text-[12px] leading-[18px] text-[var(--tc-text-body)] text-pretty"
-                                                        >
-                                                            {item}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            )}
                                         </div>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        </AnimatePresence>
+                                    )}
+
+                                    {/* Clauses List */}
+                                    <div className="space-y-8">
+                                        {activeSection.clauses?.map((clause, idx) => (
+                                            <div key={idx} className="space-y-2.5">
+                                                <h2 className="text-[14px] leading-[1.3] font-semibold text-[#151515]">
+                                                    {clause.num}
+                                                </h2>
+                                                <p className="text-[13px] leading-[20px] text-[#4F4F4F] text-pretty max-w-[72ch]">
+                                                    {clause.body}
+                                                </p>
+                                                {clause.list && (
+                                                    <ul role="list" className="mt-3.5 space-y-1.5 pl-0 list-none max-w-[72ch]">
+                                                        {clause.list.map((item, lIdx) => (
+                                                            <li
+                                                                key={lIdx}
+                                                                className="text-[13px] leading-[20px] text-[#4F4F4F] text-pretty"
+                                                            >
+                                                                {item}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            </AnimatePresence>
+                        </div>
                     </div>
 
-                    {/* Right-Aligned Action Footer (No Hairline, Text Fades Above It) */}
-                    <footer className="absolute bottom-0 right-0 left-0 h-[66px] flex items-center justify-end px-[22px] pb-[14px] pointer-events-none z-20">
-                        <div className="flex items-center gap-2 pointer-events-auto">
+                    {/* Right-Aligned Action Footer */}
+                    <footer className="absolute bottom-0 right-0 left-0 h-[72px] flex items-center justify-end px-8 md:px-14 pb-4 pointer-events-none z-20 bg-gradient-to-t from-white via-white/95 to-transparent">
+                        <div className="flex items-center gap-3 pointer-events-auto">
                             {/* Decline Button */}
                             <button
                                 type="button"
                                 onClick={handleDeclineClick}
-                                className="tc-decline-feather h-[38px] w-[109px] rounded-full bg-[var(--tc-tint-strong)] text-[var(--tc-accent-text)] font-semibold text-[13px] shadow-[0_0_12px_3px_rgba(247,200,180,0.35)] hover:opacity-90 active:scale-[0.97] transition-all cursor-pointer flex items-center justify-center"
+                                className="h-[38px] w-[114px] rounded-full bg-[#FCEFEA] text-[#BE371D] font-semibold text-[13px] shadow-[0_0_12px_3px_rgba(247,200,180,0.35)] hover:opacity-90 active:scale-[0.97] transition-all cursor-pointer flex items-center justify-center"
                             >
                                 Decline
                             </button>
@@ -468,7 +422,7 @@ export default function TermsSheet({
                             <button
                                 type="button"
                                 onClick={handleAcceptClick}
-                                className="h-[38px] w-[109px] rounded-full bg-gradient-to-br from-[var(--tc-accept-from)] to-[var(--tc-accept-to)] text-white font-semibold text-[13px] shadow-[0_4px_10px_-4px_rgba(200,74,39,0.30)] hover:brightness-105 active:scale-[0.97] transition-all cursor-pointer flex items-center justify-center"
+                                className="h-[38px] w-[114px] rounded-full bg-gradient-to-br from-[#CC4A27] to-[#B63A1D] text-white font-semibold text-[13px] shadow-[0_4px_10px_-4px_rgba(200,74,39,0.30)] hover:brightness-105 active:scale-[0.97] transition-all cursor-pointer flex items-center justify-center"
                             >
                                 <AnimatePresence mode="wait" initial={false}>
                                     {accepted ? (
@@ -478,7 +432,7 @@ export default function TermsSheet({
                                             animate={{ opacity: 1, scale: 1 }}
                                             exit={{ opacity: 0 }}
                                             transition={{ type: "spring", bounce: 0, duration: 0.25 }}
-                                            className="flex items-center gap-1"
+                                            className="flex items-center gap-1.5"
                                         >
                                             <Check size={14} strokeWidth={2.5} />
                                             <span>Accepted</span>
@@ -498,7 +452,7 @@ export default function TermsSheet({
                         </div>
                     </footer>
                 </main>
-            </motion.div>
+            </div>
         </div>
     );
 }
