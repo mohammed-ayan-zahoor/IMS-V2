@@ -722,10 +722,15 @@ export default function TermsSheet({
     };
 
     const handleDeclineClick = () => {
+        try {
+            localStorage.removeItem("quantech_terms_agreed");
+        } catch (e) {
+            console.error("Failed to clear terms agreement:", e);
+        }
         if (onDecline) {
             onDecline();
         } else {
-            router.push("/login");
+            router.push("/login?declined=true");
         }
     };
 
@@ -740,7 +745,7 @@ export default function TermsSheet({
             if (onAccept) {
                 onAccept();
             } else {
-                router.push("/login");
+                router.push("/login?accepted=true");
             }
         }, 600);
     };

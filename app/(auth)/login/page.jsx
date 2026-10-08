@@ -11,6 +11,8 @@ import { useAuthBranding } from "@/components/auth/AuthBrandingContext";
 function LoginForm() {
     const searchParams = useSearchParams();
     const instituteCode = searchParams.get("code");
+    const declinedParam = searchParams.get("declined");
+    const acceptedParam = searchParams.get("accepted");
     const { institute, setInstitute } = useAuthBranding();
     
     const [email, setEmail] = useState("");
@@ -22,21 +24,44 @@ function LoginForm() {
     const [showForgotModal, setShowForgotModal] = useState(false);
     const router = useRouter();
 
-    // Hydrate terms agreement from device localStorage
+    // Hydrate & synchronize terms agreement from device localStorage and query params
     useEffect(() => {
-        try {
-            const saved = localStorage.getItem("quantech_terms_agreed");
-            if (saved === "true") {
-                setAgreedToTerms(true);
+        const syncAgreement = () => {
+            try {
+                if (declinedParam === "true") {
+                    localStorage.removeItem("quantech_terms_agreed");
+                    setAgreedToTerms(false);
+                    setError("Terms acceptance was declined. Please agree to continue.");
+                    return;
+                }
+                if (acceptedParam === "true") {
+                    localStorage.setItem("quantech_terms_agreed", "true");
+                    setAgreedToTerms(true);
+                    setError("");
+                    return;
+                }
+                const saved = localStorage.getItem("quantech_terms_agreed");
+                setAgreedToTerms(saved === "true");
+            } catch (e) {
+                console.error("Failed to read agreement:", e);
             }
-        } catch (e) {
-            console.error("Failed to read agreement:", e);
-        }
-    }, []);
+        };
+
+        syncAgreement();
+        window.addEventListener("storage", syncAgreement);
+        window.addEventListener("focus", syncAgreement);
+        return () => {
+            window.removeEventListener("storage", syncAgreement);
+            window.removeEventListener("focus", syncAgreement);
+        };
+    }, [declinedParam, acceptedParam]);
 
     const toggleAgreement = () => {
         const nextVal = !agreedToTerms;
         setAgreedToTerms(nextVal);
+        if (nextVal) {
+            setError("");
+        }
         try {
             if (nextVal) {
                 localStorage.setItem("quantech_terms_agreed", "true");
