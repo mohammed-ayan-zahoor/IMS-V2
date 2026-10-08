@@ -457,12 +457,24 @@ export class NotificationService {
                 // Standard OpenWA send-document endpoint
                 const url = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId || 'default')}/messages/send-document`;
                 
+                const isUrl = typeof fileUrlOrBase64 === 'string' && (fileUrlOrBase64.startsWith('http://') || fileUrlOrBase64.startsWith('https://'));
+                const rawBase64 = typeof fileUrlOrBase64 === 'string' ? fileUrlOrBase64.replace(/^data:.*?;base64,/, '') : '';
+
                 const bodyPayload = {
                     chatId,
-                    file: fileUrlOrBase64,
                     filename: filename || 'document.pdf',
                     caption: caption || ''
                 };
+
+                if (isUrl) {
+                    bodyPayload.url = fileUrlOrBase64;
+                } else {
+                    bodyPayload.base64 = rawBase64;
+                    bodyPayload.mimetype = 'application/pdf';
+                    bodyPayload.file = fileUrlOrBase64; // Backward compatibility fallback
+                }
+
+                console.log(`[WA DOC DISPATCH] Sending to ${url} (chatId: ${chatId}, filename: ${filename})`);
 
                 let response = await fetch(url, {
                     method: 'POST',
