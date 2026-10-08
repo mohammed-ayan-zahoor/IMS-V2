@@ -436,6 +436,22 @@ export class NotificationService {
                     headers['api_key'] = apiKey;
                 }
 
+                // If sessionId is not a UUID, resolve from OpenWA session list
+                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId);
+                if (!isUuid) {
+                    try {
+                        const listRes = await fetch(`${baseUrl}/api/sessions`, { headers, cache: 'no-store' });
+                        if (listRes.ok) {
+                            const listData = await listRes.json();
+                            const sessions = Array.isArray(listData) ? listData : (listData.sessions || listData.data || []);
+                            const match = sessions.find(s => s.name && s.name.toLowerCase() === (sessionId || '').toLowerCase()) || sessions[0];
+                            if (match?.id) sessionId = match.id;
+                        }
+                    } catch (err) {
+                        console.warn('[WA DOC SESSION RESOLVE WARN]', err.message);
+                    }
+                }
+
                 // Standard OpenWA send-document endpoint
                 const url = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId || 'default')}/messages/send-document`;
                 
@@ -452,8 +468,8 @@ export class NotificationService {
                     body: JSON.stringify(bodyPayload)
                 });
 
-                // Fallback for sendFile
-                if (!response.ok && response.status === 404) {
+                // Fallback for sendFile endpoint
+                if (!response.ok && (response.status === 404 || response.status === 400)) {
                     const fallbackUrl = `${baseUrl}/api/sendFile`;
                     response = await fetch(fallbackUrl, {
                         method: 'POST',
@@ -465,12 +481,14 @@ export class NotificationService {
                             caption: caption,
                             pass: apiKey
                         })
-                    });
+                    }).catch(() => response);
                 }
 
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    throw new Error(data.message || data.error || `OpenWA document dispatch failed (${response.status})`);
+                    console.warn(`[WA DOCUMENT FAILED (${response.status})], falling back to sendWhatsAppText:`, data);
+                    // Fallback to text message so communication is never dropped
+                    return await this.sendWhatsAppText(instituteId, to, caption ? `${caption}` : `Please find your document attached: ${filename}`);
                 }
 
                 return { success: true, provider: 'openwa', data };

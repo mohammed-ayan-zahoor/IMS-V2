@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Printer, ArrowLeft, MessageCircle, Send, User } from "lucide-react";
+import { Loader2, Printer, ArrowLeft, MessageCircle, Send, User, Download } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Button from "@/components/ui/Button";
@@ -279,6 +279,13 @@ export default function PayslipReceiptPage() {
                             </a>
                         </div>
                     )}
+
+                    <a href={`/api/v1/hr/payslips/${payslip._id}/pdf`} target="_blank" rel="noreferrer">
+                        <Button variant="outline" className="text-slate-700 border-slate-300 hover:bg-slate-100 rounded-xl px-4 py-2 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+                            <Download size={15} />
+                            Download PDF
+                        </Button>
+                    </a>
 
                     <Button onClick={handlePrint} className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-5 py-2 text-xs font-bold shadow-xs flex items-center gap-2 cursor-pointer">
                         <Printer size={16} />

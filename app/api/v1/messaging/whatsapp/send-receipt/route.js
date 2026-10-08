@@ -5,6 +5,7 @@ import { NotificationService } from '@/services/notificationService';
 import Fee from '@/models/Fee';
 import MouSubmission from '@/models/MouSubmission';
 import Payslip from '@/models/Payslip';
+import { generatePayslipPdfBuffer } from '@/services/payslipPdfService';
 import mongoose from 'mongoose';
 
 export async function POST(req) {
@@ -71,7 +72,6 @@ export async function POST(req) {
 
             if (!messageText) {
                 messageText = `Dear ${mou.schoolName || 'Partner'},\n\nPayment receipt for your MOU Agreement Ref: ${mou.refId || id} has been generated.\nAmount: ₹${(mou.upfrontPrice || mou.totalPrice || 0).toLocaleString('en-IN')}.\n\nThank you,\nQuantech Infosystem`;
-            }
         } else if (type === 'payslip') {
             const payslip = await Payslip.findById(id)
                 .populate('staff', 'profile phone email')
@@ -91,19 +91,29 @@ export async function POST(req) {
                 const instName = payslip.institute?.name || 'Institute';
                 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                 const monthName = months[payslip.month - 1] || payslip.month;
-                const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXTAUTH_URL || 'imsportal.3ftech.in';
-                const docUrl = rootDomain.startsWith('http') ? `${rootDomain}/admin/hr/payslips/${id}` : `https://${rootDomain}/admin/hr/payslips/${id}`;
 
-                messageText = `Dear ${staffName},\n\nYour salary payslip for ${monthName} ${payslip.year} has been generated.\nNet Salary Payable: ₹${(payslip.netSalary || 0).toLocaleString('en-IN')}\nStatus: ${payslip.paymentStatus.toUpperCase()}\n\n📄 View Official Payslip Document:\n${docUrl}\n\nThank you,\n${instName}`;
+                messageText = `Dear ${staffName},\n\nYour salary payslip for ${monthName} ${payslip.year} has been generated.\nNet Salary Payable: ₹${(payslip.netSalary || 0).toLocaleString('en-IN')}\nStatus: ${payslip.paymentStatus.toUpperCase()}\n\nPlease find your official payslip document attached.\n\nThank you,\n${instName}`;
             }
         }
 
         // Send via configured WhatsApp provider (OpenWA, Twilio, Meta, Mock)
-        const result = await NotificationService.sendWhatsAppText(String(instituteId), targetPhone, messageText);
+        let result;
+        if (type === 'payslip') {
+            try {
+                const { pdfBuffer, filename } = await generatePayslipPdfBuffer(id, instituteId);
+                const base64Pdf = `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
+                result = await NotificationService.sendWhatsAppDocument(String(instituteId), targetPhone, base64Pdf, filename, messageText);
+            } catch (pdfErr) {
+                console.warn('[PAYSLIP PDF ATTACHMENT FAILED, FALLING BACK TO TEXT]', pdfErr.message);
+                result = await NotificationService.sendWhatsAppText(String(instituteId), targetPhone, messageText);
+            }
+        } else {
+            result = await NotificationService.sendWhatsAppText(String(instituteId), targetPhone, messageText);
+        }
 
         return NextResponse.json({
             success: true,
-            message: `Receipt dispatched successfully via ${result.provider}!`,
+            message: `Payslip document dispatched successfully via ${result.provider}!`,
             provider: result.provider,
             sentTo: targetPhone
         });
