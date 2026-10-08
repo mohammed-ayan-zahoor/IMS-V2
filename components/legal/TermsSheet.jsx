@@ -8,9 +8,9 @@ import { motion, AnimatePresence } from "framer-motion";
 export const CONTACT = {
   company: "Quantech Infosystem LLP",
   registeredOffice: "Maharashtra, India",
-  supportEmail: "support@quantech.com",
+  supportEmail: "admin@quantechinfosystemllp.com",
   grievanceOfficer: "Grievance Officer",
-  grievanceEmail: "grievance@quantech.com",
+  grievanceEmail: "admin@quantechinfosystemllp.com",
   phone: "+91-XXXXXXXXXX",
 };
 

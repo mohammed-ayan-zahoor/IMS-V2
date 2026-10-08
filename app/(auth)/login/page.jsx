@@ -351,7 +351,7 @@ function LoginForm() {
 
                             <div className="space-y-2">
                                 <a
-                                    href="mailto:support@quantech.com?subject=Password%20Reset%20Request"
+                                    href="mailto:admin@quantechinfosystemllp.com?subject=Password%20Reset%20Request"
                                     className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-2.5 rounded-xl transition-colors"
                                 >
                                     <Mail size={14} />
