@@ -230,7 +230,8 @@ export class NotificationService {
             case 'openwa': {
                 const baseUrl = (config.openwaServerUrl || process.env.OPENWA_SERVER_URL || 'http://localhost:2785').replace(/\/+$/, '');
                 const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : (process.env.OPENWA_API_KEY || '');
-                const sessionId = config.openwaSessionId || (inst?.code ? `inst_${inst.code.toLowerCase()}` : `inst_${instituteId}`);
+                const rawCode = inst?.code ? inst.code.toLowerCase() : String(instituteId);
+                const sessionId = config.openwaSessionId || `inst-${rawCode.replace(/[^a-z0-9-]/g, '-')}`;
                 const cleanPhone = to.replace(/\D/g, '');
                 const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
 

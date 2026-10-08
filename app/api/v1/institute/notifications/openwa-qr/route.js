@@ -29,7 +29,8 @@ export async function GET(req) {
         // Fallback to platform-level server URL and API Key
         const baseUrl = (config.openwaServerUrl || process.env.OPENWA_SERVER_URL || 'http://localhost:2785').replace(/\/+$/, '');
         const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : (process.env.OPENWA_API_KEY || '');
-        const sessionName = inst?.code ? `inst_${inst.code.toLowerCase()}` : `inst_${instituteId}`;
+        const rawCode = inst?.code ? inst.code.toLowerCase() : String(instituteId);
+        const sessionName = `inst-${rawCode.replace(/[^a-z0-9-]/g, '-')}`;
 
         const headers = { 'Content-Type': 'application/json' };
         if (apiKey) {
@@ -225,7 +226,8 @@ export async function POST(req) {
 
         const baseUrl = (config.openwaServerUrl || process.env.OPENWA_SERVER_URL || 'http://localhost:2785').replace(/\/+$/, '');
         const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : (process.env.OPENWA_API_KEY || '');
-        const sessionId = config.openwaSessionId || (inst?.code ? `inst_${inst.code.toLowerCase()}` : `inst_${instituteId}`);
+        const rawCode = inst?.code ? inst.code.toLowerCase() : String(instituteId);
+        const sessionId = config.openwaSessionId || `inst-${rawCode.replace(/[^a-z0-9-]/g, '-')}`;
 
         const headers = { 'Content-Type': 'application/json' };
         if (apiKey) {
