@@ -58,8 +58,10 @@ export default function NotificationSettingsForm() {
     status: 'UNKNOWN'
   });
   const [disconnecting, setDisconnecting] = useState(false);
+  const [qrCountdown, setQrCountdown] = useState(null); // seconds until QR expires
 
   const qrPollRef = useRef(null);
+  const qrCountdownRef = useRef(null);
 
   const [formData, setFormData] = useState({
     // SMS
@@ -88,6 +90,7 @@ export default function NotificationSettingsForm() {
     checkOpenWaStatus();
     return () => {
       if (qrPollRef.current) clearInterval(qrPollRef.current);
+      if (qrCountdownRef.current) clearInterval(qrCountdownRef.current);
     };
   }, []);
 
@@ -217,12 +220,29 @@ export default function NotificationSettingsForm() {
     }
   };
 
-  // Open QR modal & poll
+  // Start 20s countdown; auto-refreshes QR when it hits 0
+  const startQrCountdown = (onExpire) => {
+    if (qrCountdownRef.current) clearInterval(qrCountdownRef.current);
+    setQrCountdown(20);
+    let t = 20;
+    qrCountdownRef.current = setInterval(() => {
+      t -= 1;
+      setQrCountdown(t);
+      if (t <= 0) {
+        clearInterval(qrCountdownRef.current);
+        setQrCountdown(null);
+        onExpire();
+      }
+    }, 1000);
+  };
+
+  // Open QR modal & poll for connected status every 3s
   const handleOpenQrModal = async () => {
     setQrModalOpen(true);
     setQrLoading(true);
     setQrError('');
     setQrData(null);
+    setQrCountdown(null);
     fetchLiveQr();
 
     if (qrPollRef.current) clearInterval(qrPollRef.current);
@@ -232,48 +252,39 @@ export default function NotificationSettingsForm() {
         if (res.ok) {
           const data = await res.json();
           if (data.connected) {
-            setConnectionStatus({
-              connected: true,
-              phone: data.phone || null,
-              status: 'CONNECTED'
-            });
+            setConnectionStatus({ connected: true, phone: data.phone || null, status: 'CONNECTED' });
             clearInterval(qrPollRef.current);
-            setTimeout(() => {
-              setQrModalOpen(false);
-            }, 1000);
-          } else if (data.qr) {
-            setQrData(data.qr);
-            setQrLoading(false);
-            setQrError('');
+            if (qrCountdownRef.current) clearInterval(qrCountdownRef.current);
+            setTimeout(() => setQrModalOpen(false), 1000);
           }
         }
       } catch {
         // Continue polling
       }
-    }, 2500);
+    }, 3000);
   };
 
   const fetchLiveQr = async () => {
     try {
       setQrError('');
+      setQrLoading(true);
       const res = await fetch('/api/v1/institute/notifications/openwa-qr');
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || 'Failed to fetch QR');
 
       if (data.connected) {
-        setConnectionStatus({
-          connected: true,
-          phone: data.phone,
-          status: 'CONNECTED'
-        });
+        setConnectionStatus({ connected: true, phone: data.phone, status: 'CONNECTED' });
         setQrModalOpen(false);
       } else if (data.qr) {
         setQrData(data.qr);
         setQrLoading(false);
+        // Start 20s countdown — auto-fetch a fresh code when it hits 0
+        startQrCountdown(fetchLiveQr);
       } else {
-        // Still initializing in background - keep spinner active
+        // OpenWA still initializing — keep spinner, retry in 3s
         setQrLoading(true);
+        setTimeout(fetchLiveQr, 3000);
       }
     } catch (err) {
       setQrError(err.message || 'Unable to connect to OpenWA server. Please ensure the server is active.');
@@ -303,6 +314,8 @@ export default function NotificationSettingsForm() {
   const handleCloseQrModal = () => {
     setQrModalOpen(false);
     if (qrPollRef.current) clearInterval(qrPollRef.current);
+    if (qrCountdownRef.current) clearInterval(qrCountdownRef.current);
+    setQrCountdown(null);
     checkOpenWaStatus();
   };
 
@@ -732,7 +745,13 @@ export default function NotificationSettingsForm() {
           {/* Live Status indicator */}
           <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            Waiting for scan... (Auto-refreshes every 3 seconds)
+            {qrCountdown !== null ? (
+              <span className={qrCountdown <= 5 ? 'text-rose-500' : 'text-slate-500'}>
+                Scan now — refreshes in {qrCountdown}s
+              </span>
+            ) : (
+              <span>Waiting for QR code...</span>
+            )}
           </div>
 
           <div className="flex justify-center gap-3 pt-2">

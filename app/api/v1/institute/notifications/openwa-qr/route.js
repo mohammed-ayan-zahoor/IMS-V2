@@ -147,11 +147,11 @@ export async function GET(req) {
                         } else if (trimmed.startsWith('iVBORw0KGgo') || trimmed.startsWith('/9j/') || trimmed.length > 500) {
                             qrData = `data:image/png;base64,${trimmed}`;
                         } else if (trimmed.startsWith('1@') || trimmed.startsWith('2@') || trimmed.includes(',')) {
-                            // WhatsApp pairing code format
+                            // WhatsApp pairing string — must be rendered as a QR image, never returned raw
                             try {
                                 qrData = await QRCode.toDataURL(trimmed, { width: 300, margin: 2 });
                             } catch {
-                                qrData = trimmed;
+                                qrData = null; // let the client keep polling rather than show an unscannable string
                             }
                         }
                     }
