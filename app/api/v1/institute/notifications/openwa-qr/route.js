@@ -97,13 +97,15 @@ export async function GET(req) {
                     isConnected = true;
                     connectionStatus = 'CONNECTED';
                     phone = sessData.phone || sessData.me?.id || sessData.me?.user || sessData.user || null;
-                } else if (state === 'created' || state === 'stopped' || state === 'disconnected' || state === 'failed') {
-                    // Start the session
-                    await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}/start`, {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify({})
-                    }).catch(() => {});
+                } else if (['created', 'stopped', 'disconnected', 'failed', 'inactive', 'idle', 'scan_qr_code'].includes(state) || !state) {
+                    // Start the session so OpenWA launches the WhatsApp engine and generates the QR code
+                    if (state !== 'scan_qr_code') {
+                        await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(activeSessionId)}/start`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({})
+                        }).catch(() => {});
+                    }
                 }
             } else if (sessionCheckRes.status === 404) {
                 // Try start
