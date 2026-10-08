@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Loader2, Eye, EyeOff } from "lucide-react";
+import { LogIn, Loader2, Eye, EyeOff, HelpCircle, X, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthBranding } from "@/components/auth/AuthBrandingContext";
 
@@ -17,6 +18,7 @@ function LoginForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [showForgotModal, setShowForgotModal] = useState(false);
     const router = useRouter();
 
     // 1. If URL has ?code=..., lookup that institute immediately
@@ -150,6 +152,7 @@ function LoginForm() {
                                 </label>
                                 <button 
                                     type="button" 
+                                    onClick={() => setShowForgotModal(true)}
                                     className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
                                 >
                                     Forgot Password?
@@ -227,13 +230,71 @@ function LoginForm() {
 
                         <div className="text-center text-[11px] font-medium text-slate-400">
                             By signing in, you agree to our{" "}
-                            <button type="button" className="text-slate-600 font-semibold hover:underline">Terms</button>
+                            <Link href="/terms" target="_blank" className="text-slate-600 font-semibold hover:underline">
+                                Terms
+                            </Link>
                             {" "}and{" "}
-                            <button type="button" className="text-slate-600 font-semibold hover:underline">Privacy Policy</button>
+                            <Link href="/privacy" target="_blank" className="text-slate-600 font-semibold hover:underline">
+                                Privacy Policy
+                            </Link>
                         </div>
                     </div>
                 </form>
             </motion.div>
+
+            {/* Forgot Password Modal */}
+            <AnimatePresence>
+                {showForgotModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                            className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl border border-slate-100"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setShowForgotModal(false)}
+                                className="absolute right-4 top-4 p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/60">
+                                    <HelpCircle size={22} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-slate-900 text-base">Reset Password</h3>
+                                    <p className="text-xs text-slate-500">Account Recovery Assistance</p>
+                                </div>
+                            </div>
+
+                            <p className="text-xs text-slate-600 leading-relaxed mb-5">
+                                For security reasons, please contact your institution administrator or IT department to reset your account password.
+                            </p>
+
+                            <div className="space-y-2">
+                                <a
+                                    href="mailto:support@quantech.com?subject=Password%20Reset%20Request"
+                                    className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-2.5 rounded-xl transition-colors"
+                                >
+                                    <Mail size={14} />
+                                    <span>Contact Platform Support</span>
+                                </a>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowForgotModal(false)}
+                                    className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors text-center"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
