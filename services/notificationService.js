@@ -228,12 +228,9 @@ export class NotificationService {
             }
 
             case 'openwa': {
-                if (!config.openwaServerUrl) {
-                    throw new Error('OpenWA Server URL is not configured.');
-                }
-                const baseUrl = config.openwaServerUrl.replace(/\/+$/, '');
-                const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : '';
-                const sessionId = config.openwaSessionId || 'default';
+                const baseUrl = (config.openwaServerUrl || process.env.OPENWA_SERVER_URL || 'http://localhost:2785').replace(/\/+$/, '');
+                const apiKey = config.openwaApiKey ? decryptSecret(config.openwaApiKey) : (process.env.OPENWA_API_KEY || '');
+                const sessionId = config.openwaSessionId || (inst?.code ? `inst_${inst.code.toLowerCase()}` : `inst_${instituteId}`);
                 const cleanPhone = to.replace(/\D/g, '');
                 const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
 

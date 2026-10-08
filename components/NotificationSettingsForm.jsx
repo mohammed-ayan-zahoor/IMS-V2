@@ -431,14 +431,14 @@ export default function NotificationSettingsForm() {
             </div>
           </div>
 
-          {/* Optional: Advanced Server Configuration (URL & API Key) */}
+          {/* Optional override if an institute has their own separate OpenWA server */}
           <div className="pt-2 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setTwilioExpanded(prev => !prev)}
-              className="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="text-[11px] font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <span>⚙️ Custom Gateway / API Key Settings</span>
+              <span>⚙️ BYO Custom OpenWA Server (Optional Override)</span>
               <ChevronDown size={12} className={`transition-transform ${twilioExpanded ? 'rotate-180' : ''}`} />
             </button>
 
@@ -446,28 +446,28 @@ export default function NotificationSettingsForm() {
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200 animate-in fade-in duration-200">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    OpenWA Gateway Server URL
+                    Custom OpenWA Server URL
                   </label>
                   <input
                     type="text"
                     value={formData.openwaServerUrl}
                     onChange={(e) => setFormData({ ...formData, openwaServerUrl: e.target.value })}
-                    placeholder="http://localhost:2785"
+                    placeholder="Uses platform default if empty"
                     className="w-full text-xs font-mono px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">Default: <code>http://localhost:2785</code></p>
+                  <p className="text-[10px] text-slate-400 mt-1">Leave empty to use built-in system gateway.</p>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    OpenWA API Key
+                    Custom OpenWA API Key
                   </label>
                   <div className="relative">
                     <input
                       type={showMsg91AuthKey ? "text" : "password"}
                       value={formData.openwaApiKey}
                       onChange={(e) => setFormData({ ...formData, openwaApiKey: e.target.value })}
-                      placeholder="owa_k1_..."
+                      placeholder="Uses platform default if empty"
                       className="w-full text-xs font-mono px-3 py-2 pr-9 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                     <button
@@ -478,7 +478,7 @@ export default function NotificationSettingsForm() {
                       {showMsg91AuthKey ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1">Found in OpenWA container startup logs.</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Leave empty to use built-in system gateway.</p>
                 </div>
               </div>
             )}
