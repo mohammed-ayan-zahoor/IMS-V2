@@ -398,6 +398,8 @@ export class NotificationService {
                 return { success: true, provider: 'meta', data };
             }
 
+            case 'mock':
+            default: {
                 return { success: true, provider: 'mock', messageId: 'mock-wa-' + Date.now() };
             }
         }
