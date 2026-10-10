@@ -93,6 +93,19 @@ export async function POST(req) {
         const createInstituteLogic = async (dbSession = null, manualRollback = false) => {
             const opts = dbSession ? { session: dbSession } : {};
 
+             // Determine billing model & student direct paywall
+             const isStudentPaywall = body.billingModel === 'STUDENT_DIRECT_PAY';
+             const cycleEndDate = body.cycleEndDate ? new Date(body.cycleEndDate) : null;
+
+             // ponytail: dynamic student paywall pricing with 18% GST + 2% gateway processing
+             const studentBasePrice = Number(body.studentBasePrice) || 25;
+             const gstPercent = 18;
+             const gatewayFeePercent = 2;
+             const gstAmount = Math.round((studentBasePrice * (gstPercent / 100)) * 100) / 100;
+             const gatewayFee = Math.round((studentBasePrice * (gatewayFeePercent / 100)) * 100) / 100;
+             const calculatedTotal = Math.round((studentBasePrice + gstAmount + gatewayFee) * 100) / 100;
+             const studentTotalAmount = Number(body.studentTotalAmount) || calculatedTotal;
+
              // 2. Create Institute
              const [institute] = await Institute.create([{
                  name: body.name,
@@ -102,15 +115,23 @@ export async function POST(req) {
                  address: body.address,
                  status: 'active',
                  subscription: {
-                     plan: 'free', // Default plan
+                     plan: isStudentPaywall ? 'student_paywall' : 'free',
                      startDate: new Date(),
+                     endDate: cycleEndDate,
                      isActive: true
                  },
                  limits: {
                      maxStudents: Number(body.maxStudents) || 500
                  },
                  settings: {
-                     structure: (instituteType === 'COLLEGE' && body.structure === 'CLASS_BASED') ? 'CLASS_BASED' : 'SEMESTER_BASED'
+                     structure: (instituteType === 'COLLEGE' && body.structure === 'CLASS_BASED') ? 'CLASS_BASED' : 'SEMESTER_BASED',
+                     studentPaywall: {
+                         enabled: isStudentPaywall,
+                         basePrice: studentBasePrice,
+                         gstPercent: gstPercent,
+                         gatewayFeePercent: gatewayFeePercent,
+                         totalAmount: studentTotalAmount
+                     }
                  },
                  createdBy: session.user.id
              }], opts);

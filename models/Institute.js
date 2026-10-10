@@ -55,7 +55,7 @@ const InstituteSchema = new Schema({
     subscription: {
         plan: {
             type: String,
-            enum: ['free', 'basic', 'professional', 'enterprise'],
+            enum: ['free', 'basic', 'professional', 'enterprise', 'student_paywall'],
             default: 'free'
         },
         startDate: Date,
@@ -145,6 +145,18 @@ const InstituteSchema = new Schema({
                 onAbsent: { type: Boolean, default: false },
                 onLate: { type: Boolean, default: false }
             }
+        },
+
+        // Student direct subscription / digital paywall (B2B2C model)
+        studentPaywall: {
+            enabled: { type: Boolean, default: false },
+            basePrice: { type: Number, default: 25 },
+            gstPercent: { type: Number, default: 18 },
+            gatewayFeePercent: { type: Number, default: 2 },
+            totalAmount: { type: Number, default: 30 },
+            title: { type: String, default: "ERP Portal & Smart ID Card Annual Access" },
+            description: { type: String, default: "Digital access to student portal, notices, attendance, and exam results." },
+            allowExemptions: { type: Boolean, default: true }
         }
     },
 

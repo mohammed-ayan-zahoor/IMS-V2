@@ -7,6 +7,7 @@ import 'package:student_app/features/auth/presentation/screens/login_screen.dart
 import 'package:student_app/features/auth/presentation/screens/welcome_screen.dart';
 import 'package:student_app/features/dashboard/presentation/screens/app_shell.dart';
 import 'package:student_app/features/instructor/dashboard/presentation/screens/instructor_app_shell.dart';
+import 'package:student_app/features/subscription/presentation/screens/student_paywall_screen.dart';
 
 // Student Providers
 import 'package:student_app/features/dashboard/presentation/providers/dashboard_provider.dart';
@@ -108,7 +109,11 @@ class MainApp extends StatelessWidget {
             home: auth.isLoading
                 ? const WelcomeScreen()
                 : auth.isAuthenticated
-                    ? (auth.isInstructor ? const InstructorAppShell() : const AppShell())
+                    ? (auth.isInstructor
+                        ? const InstructorAppShell()
+                        : (auth.needsSubscriptionPayment
+                            ? const StudentPaywallScreen()
+                            : const AppShell()))
                     : const LoginScreen(),
           );
         },

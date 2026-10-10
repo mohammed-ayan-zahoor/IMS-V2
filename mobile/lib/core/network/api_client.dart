@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
@@ -14,6 +13,7 @@ class ApiClient {
   late Dio _dio;
   final _cookieJar = CookieJar(); // In-memory — avoids Android filesystem permission issues
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  VoidCallback? onPaymentRequired;
 
   ApiClient._internal() {
     _dio = Dio(BaseOptions(
@@ -37,6 +37,12 @@ class ApiClient {
           }
         }
         return handler.next(options);
+      },
+      onResponse: (response, handler) {
+        if (response.statusCode == 402) {
+          onPaymentRequired?.call();
+        }
+        return handler.next(response);
       },
     ));
     _dio.interceptors.add(CookieManager(_cookieJar));

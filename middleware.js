@@ -76,7 +76,8 @@ export default async function middleware(req) {
         path === "/dashboard" || path.startsWith("/dashboard/") ||
         path === "/admin" || path.startsWith("/admin/") ||
         path === "/student" || path.startsWith("/student/") ||
-        path === "/instructor" || path.startsWith("/instructor/");
+        path === "/instructor" || path.startsWith("/instructor/") ||
+        path.startsWith("/api/v1/student");
 
     if (!requiresAuth) {
         return NextResponse.next();
@@ -86,6 +87,21 @@ export default async function middleware(req) {
         function authMiddleware(req) {
             const token = req.nextauth.token;
             const path = req.nextUrl.pathname;
+
+            // ponytail: guard all student API endpoints from direct unpaid bypass
+            if (path.startsWith("/api/v1/student")) {
+                if (!token) {
+                    return NextResponse.json({ error: "Unauthorized: Please log in" }, { status: 401 });
+                }
+                const isSubscriptionApi = path.startsWith("/api/v1/student/subscription");
+                if (token.role === "student" && token.needsSubscriptionPayment && !isSubscriptionApi) {
+                    return NextResponse.json(
+                        { error: "Payment Required: Please activate your student portal subscription", code: "PAYMENT_REQUIRED" },
+                        { status: 402 }
+                    );
+                }
+                return NextResponse.next();
+            }
 
             // Redirect root / and /dashboard based on role
             if (path === "/dashboard" || path === "/") {
@@ -111,16 +127,32 @@ export default async function middleware(req) {
             }
 
             // Protect student routes
-            if (path.startsWith("/student") && token?.role !== "student") {
-                if (["admin", "super_admin"].includes(token?.role)) {
-                    return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+            if (path.startsWith("/student")) {
+                if (token?.role !== "student") {
+                    if (["admin", "super_admin"].includes(token?.role)) {
+                        return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+                    }
+                    return NextResponse.redirect(new URL("/unauthorized", req.url));
                 }
-                return NextResponse.redirect(new URL("/unauthorized", req.url));
+
+                const isPaywallPage = path === "/student/paywall";
+                if (token?.needsSubscriptionPayment && !isPaywallPage) {
+                    return NextResponse.redirect(new URL("/student/paywall", req.url));
+                }
+                if (!token?.needsSubscriptionPayment && isPaywallPage) {
+                    return NextResponse.redirect(new URL("/student/dashboard", req.url));
+                }
             }
         },
         {
             callbacks: {
-                authorized: ({ token }) => !!token,
+                authorized: ({ token, req }) => {
+                    // For API routes, let them reach authMiddleware to return proper JSON (401/402) instead of HTML redirects
+                    if (req?.nextUrl?.pathname?.startsWith("/api/")) {
+                        return true;
+                    }
+                    return !!token;
+                },
             },
         }
     )(req);

@@ -18,6 +18,9 @@ class AuthProvider extends ChangeNotifier {
   String get role => _user?['role']?.toString().toLowerCase() ?? '';
   bool get isInstructor => role == 'instructor';
   bool get isStudent => role == 'student';
+  bool get needsSubscriptionPayment => _user?['needsSubscriptionPayment'] == true;
+  Map<String, dynamic>? get accessSubscription =>
+      _user?['accessSubscription'] is Map ? Map<String, dynamic>.from(_user!['accessSubscription']) : null;
 
   bool hasPermission(String permission) {
     final perms = _user?['permissions'];
@@ -83,6 +86,12 @@ class AuthProvider extends ChangeNotifier {
   bool get isVocational => instituteType == 'VOCATIONAL';
 
   AuthProvider() {
+    _apiClient.onPaymentRequired = () {
+      if (_user != null && _user!['needsSubscriptionPayment'] != true) {
+        _user!['needsSubscriptionPayment'] = true;
+        notifyListeners();
+      }
+    };
     checkAuthStatus();
   }
 

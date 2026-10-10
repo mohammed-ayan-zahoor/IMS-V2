@@ -42,8 +42,10 @@ next-env.d.ts
 
 
 # ignore the whole agent file
-.agent/*
-.agents/*
+.agent
+.agent/
+.agents
+.agents/
 .security-audit/*
 
 #ignore .temp_ag_kit

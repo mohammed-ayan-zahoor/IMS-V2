@@ -51,7 +51,7 @@ export async function PATCH(req, { params }) {
         if (body.addressStr) updateData.addressStr = body.addressStr;
 
         if (body.plan !== undefined) {
-            if (['free', 'basic', 'professional', 'enterprise'].includes(body.plan)) {
+            if (['free', 'basic', 'professional', 'enterprise', 'student_paywall'].includes(body.plan)) {
                 updateData['subscription.plan'] = body.plan;
             }
         }
@@ -93,6 +93,24 @@ export async function PATCH(req, { params }) {
         if (body.structure !== undefined) {
             if (['CLASS_BASED', 'SEMESTER_BASED'].includes(body.structure)) {
                 updateData['settings.structure'] = body.structure;
+            }
+        }
+
+        // ponytail: configurable student paywall fee settings update
+        if (body.billingModel !== undefined || body.studentBasePrice !== undefined) {
+            if (body.billingModel !== undefined) {
+                updateData['settings.studentPaywall.enabled'] = body.billingModel === 'STUDENT_DIRECT_PAY';
+            }
+            if (body.studentBasePrice !== undefined) {
+                const basePrice = Number(body.studentBasePrice) || 25;
+                const gstAmount = Math.round((basePrice * 0.18) * 100) / 100;
+                const gatewayFee = Math.round((basePrice * 0.02) * 100) / 100;
+                const totalAmount = Number(body.studentTotalAmount) || Math.round((basePrice + gstAmount + gatewayFee) * 100) / 100;
+
+                updateData['settings.studentPaywall.basePrice'] = basePrice;
+                updateData['settings.studentPaywall.gstPercent'] = 18;
+                updateData['settings.studentPaywall.gatewayFeePercent'] = 2;
+                updateData['settings.studentPaywall.totalAmount'] = totalAmount;
             }
         }
 

@@ -23,8 +23,11 @@ import {
     Package,
     ChevronRight,
     ChevronDown,
-    X
+    X,
+    Check,
+    Zap
 } from "lucide-react";
+import { SCHOOL_SECTION_PRESETS, findMatchingSection } from "@/lib/schoolPresets";
 import { motion, AnimatePresence } from "framer-motion";
 import Select from "@/components/ui/Select";
 // Verified: Usage of Select component is compatible with onChange(value) signature.
@@ -72,6 +75,7 @@ export default function BatchesPage() {
     const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
     const [cloneSourceSessionId, setCloneSourceSessionId] = useState("");
     const [isCloning, setIsCloning] = useState(false);
+    const [quickAddingSectionKey, setQuickAddingSectionKey] = useState(null);
 
     // Form State — batchType is "course" or "bundle"
     const [batchType, setBatchType] = useState("course");
@@ -200,6 +204,43 @@ export default function BatchesPage() {
             }
         } catch (err) {
             toast.error(`Failed to start ${isSchool || isCollege ? "section" : "batch"} chat`);
+        }
+    };
+
+    const handleQuickAddSection = async (course, secPreset) => {
+        const key = `${course._id}_${secPreset.name}`;
+        setQuickAddingSectionKey(key);
+        try {
+            const payload = {
+                name: secPreset.name,
+                course: course._id,
+                capacity: 40,
+                session: selectedSessionId && selectedSessionId !== 'all' ? selectedSessionId : null,
+                schedule: {
+                    startDate: new Date().toISOString().split('T')[0],
+                    description: "Regular School Hours"
+                },
+                ...(selectedInstitute ? { institute: selectedInstitute } : {})
+            };
+
+            const res = await fetch("/api/v1/batches", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                await fetchInitialData();
+                toast.success(`${secPreset.label} created for ${course.name}!`);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                toast.error(err.error || `Failed to create ${secPreset.label}`);
+            }
+        } catch (err) {
+            console.error("Quick add section error:", err);
+            toast.error("Failed to add section");
+        } finally {
+            setQuickAddingSectionKey(null);
         }
     };
 
@@ -743,38 +784,52 @@ export default function BatchesPage() {
                                                                 </span>
                                                             </div>
                                                             {session?.user?.role !== 'instructor' && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setEditingBatch(null);
-                                                                        setBatchType("course");
-                                                                        setFormData({
-                                                                            name: "",
-                                                                            course: course._id,
-                                                                            semester: null,
-                                                                            courseBundle: "",
-                                                                            schedule: "",
-                                                                            startDate: "",
-                                                                            capacity: 30
-                                                                        });
-                                                                        setIsAddModalOpen(true);
-                                                                    }}
-                                                                    className="flex items-center gap-1 text-xs font-bold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100 h-8 px-3"
-                                                                >
-                                                                    <Plus size={14} />
-                                                                    <span>Add Section</span>
-                                                                </Button>
-                                                            )}
-                                                        </div>
-
-                                                        {courseBatches.length === 0 ? (
-                                                            <div className="py-10 text-center px-4">
-                                                                <p className="text-xs text-slate-400 font-medium">No sections created for {course.name} yet.</p>
-                                                                {session?.user?.role !== 'instructor' && (
-                                                                    <button
-                                                                        type="button"
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="hidden sm:flex items-center gap-1.5 mr-1">
+                                                                        <span className="text-[11px] font-semibold text-slate-500">Quick Add:</span>
+                                                                        {SCHOOL_SECTION_PRESETS.map((secPreset) => {
+                                                                            const added = Boolean(findMatchingSection(secPreset.name, courseBatches));
+                                                                            const isAdding = quickAddingSectionKey === `${course._id}_${secPreset.name}`;
+                                                                            return (
+                                                                                <button
+                                                                                    key={secPreset.name}
+                                                                                    type="button"
+                                                                                    disabled={added || isAdding}
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleQuickAddSection(course, secPreset);
+                                                                                    }}
+                                                                                    title={added ? `${secPreset.label} already exists` : `Quick add ${secPreset.label} in one click`}
+                                                                                    className={cn(
+                                                                                        "px-2 py-0.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1",
+                                                                                        added
+                                                                                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80 cursor-default opacity-85 font-medium"
+                                                                                            : "bg-white text-slate-700 border border-slate-200 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 active:scale-95 shadow-2xs cursor-pointer"
+                                                                                    )}
+                                                                                >
+                                                                                    {added ? (
+                                                                                        <>
+                                                                                            <Check size={11} strokeWidth={2.5} className="text-emerald-600" />
+                                                                                            <span>{secPreset.shortLabel}</span>
+                                                                                        </>
+                                                                                    ) : isAdding ? (
+                                                                                        <>
+                                                                                            <LoadingSpinner size="xs" />
+                                                                                            <span>{secPreset.shortLabel}</span>
+                                                                                        </>
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            <Plus size={11} className="text-slate-400" />
+                                                                                            <span>{secPreset.shortLabel}</span>
+                                                                                        </>
+                                                                                    )}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             setEditingBatch(null);
@@ -790,10 +845,63 @@ export default function BatchesPage() {
                                                                             });
                                                                             setIsAddModalOpen(true);
                                                                         }}
-                                                                        className="mt-2 text-xs text-blue-600 font-bold hover:underline"
+                                                                        className="flex items-center gap-1 text-xs font-bold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100 h-8 px-3"
                                                                     >
-                                                                        + Create Section for {course.name}
-                                                                    </button>
+                                                                        <Plus size={14} />
+                                                                        <span>Add Section</span>
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {courseBatches.length === 0 ? (
+                                                            <div className="py-8 text-center px-4 space-y-3">
+                                                                <p className="text-xs text-slate-400 font-medium">No sections created for {course.name} yet.</p>
+                                                                {session?.user?.role !== 'instructor' && (
+                                                                    <div className="flex flex-col items-center gap-2">
+                                                                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                                                                            <span className="text-xs font-bold text-slate-600 mr-1">Quick add:</span>
+                                                                            {SCHOOL_SECTION_PRESETS.map((secPreset) => {
+                                                                                const isAdding = quickAddingSectionKey === `${course._id}_${secPreset.name}`;
+                                                                                return (
+                                                                                    <button
+                                                                                        key={secPreset.name}
+                                                                                        type="button"
+                                                                                        disabled={isAdding}
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            handleQuickAddSection(course, secPreset);
+                                                                                        }}
+                                                                                        className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/60 active:scale-95 shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                                                                                    >
+                                                                                        {isAdding ? <LoadingSpinner size="xs" /> : <Plus size={11} className="text-slate-400" />}
+                                                                                        <span>{secPreset.label}</span>
+                                                                                    </button>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setEditingBatch(null);
+                                                                                setBatchType("course");
+                                                                                setFormData({
+                                                                                    name: "",
+                                                                                    course: course._id,
+                                                                                    semester: null,
+                                                                                    courseBundle: "",
+                                                                                    schedule: "",
+                                                                                    startDate: "",
+                                                                                    capacity: 30
+                                                                                });
+                                                                                setIsAddModalOpen(true);
+                                                                            }}
+                                                                            className="mt-1 text-xs text-blue-600 font-medium hover:underline"
+                                                                        >
+                                                                            or create custom section with specific schedule →
+                                                                        </button>
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         ) : (
@@ -1246,6 +1354,35 @@ export default function BatchesPage() {
                                 placeholder="Select Semester"
                                 required
                             />
+                        </div>
+                    )}
+
+                    {isSchool && !editingBatch && (
+                        <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                    <Zap size={13} className="text-amber-500 fill-amber-500" />
+                                    Quick Section Presets:
+                                </span>
+                                <span className="text-[11px] text-slate-400 font-medium">Click to set name</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {["Section A", "Section B", "Section C", "Section D", "Section E"].map((presetName) => (
+                                    <button
+                                        key={presetName}
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, name: presetName }))}
+                                        className={cn(
+                                            "px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer active:scale-95",
+                                            formData.name === presetName
+                                                ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                                                : "bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:text-blue-600 shadow-2xs"
+                                        )}
+                                    >
+                                        {presetName}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
 

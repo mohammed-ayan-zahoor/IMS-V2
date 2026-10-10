@@ -76,17 +76,17 @@ export default function StudentLayout({ children }) {
         { label: "Settings", icon: Settings, href: "/student/settings", desc: "Profile & preferences" },
     ];
 
-    // If student is attempting an exam, hide navigation for distraction-free mode
-    if (pathname.includes('/take')) {
+    // If student is attempting an exam or on paywall screen, hide navigation for distraction-free mode
+    if (pathname.includes('/take') || pathname === '/student/paywall') {
         return (
-            <div className="bg-[#FFFFFF] text-[#1E1B2E] h-screen w-screen overflow-hidden">
+            <div className="bg-[#FFFFFF] text-[#1E1B2E] min-h-screen w-screen overflow-y-auto">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={pathname}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="h-full w-full"
+                        className="min-h-screen w-full"
                     >
                         {children}
                     </motion.div>

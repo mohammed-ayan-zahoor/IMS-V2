@@ -245,6 +245,25 @@ const UserSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Session'
     }],
+
+    // Student Direct-to-Platform Subscription (B2B2C Paywall)
+    accessSubscription: {
+        status: {
+            type: String,
+            enum: ['UNPAID', 'ACTIVE', 'EXPIRED', 'EXEMPTED'],
+            default: 'UNPAID',
+            index: true
+        },
+        paidAt: Date,
+        expiresAt: { type: Date, index: true },
+        instituteCycleDate: Date,
+        academicSession: { type: Schema.Types.ObjectId, ref: 'Session' },
+        amountPaid: Number,
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        exemptionReason: String,
+        exemptedBy: { type: Schema.Types.ObjectId, ref: 'User' }
+    },
     hrDetails: {
         biometricId: {
             type: String,

@@ -22,6 +22,10 @@ class ApiEndpoints {
   static const String timeline = '/student/timeline';
   static const String sessions = '/student/sessions';
   static const String studentLibrary = '/student/library';
+  static const String studentSubscriptionStatus = '/student/subscription/status';
+  static const String studentSubscriptionCreateOrder = '/student/subscription/create-order';
+  static const String studentSubscriptionVerify = '/student/subscription/verify-payment';
+  static String studentPaywallWeb = '$host/student/paywall';
 
   // Exams
   static const String exams = '/exams';

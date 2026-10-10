@@ -16,7 +16,9 @@ import {
     Tag,
     CheckCircle2,
     XCircle,
-    X
+    X,
+    Check,
+    Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
 import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
+import { SCHOOL_CLASS_PRESETS, getGradeSortRank, findMatchingCourse } from "@/lib/schoolPresets";
 
 function formatDuration(value, unit) {
     if (!value) return "N/A";
@@ -42,15 +45,6 @@ function formatDuration(value, unit) {
         if (u.startsWith("year")) return "1 year";
     }
     return `${val} ${u}`;
-}
-
-function getGradeSortRank(name) {
-    const str = (name || '').toLowerCase();
-    const match = str.match(/^(\d+)/);
-    if (match) {
-        return parseInt(match[1], 10);
-    }
-    return 999;
 }
 
 export default function CoursesPage() {
@@ -77,6 +71,7 @@ export default function CoursesPage() {
     const [deletingCourse, setDeletingCourse] = useState(null);
     const [activeMenu, setActiveMenu] = useState(null);
     const [departments, setDepartments] = useState([]);
+    const [quickAddingPreset, setQuickAddingPreset] = useState(null);
 
     // Form State for Courses
     const [differentFeePerYear, setDifferentFeePerYear] = useState(false);
@@ -203,6 +198,67 @@ export default function CoursesPage() {
             console.error("Failed to fetch course bundles", error);
         } finally {
             setLoadingBundles(false);
+        }
+    };
+
+    const handleQuickAddClass = async (preset) => {
+        if (findMatchingCourse(preset, courses)) {
+            toast.info(`Class "${preset.label}" is already added.`);
+            return;
+        }
+
+        setQuickAddingPreset(preset.name);
+        try {
+            const payload = {
+                name: preset.name,
+                code: preset.code,
+                description: "",
+                duration: { value: 12, unit: "months" },
+                fees: { amount: 0, currency: "INR" }
+            };
+            if (selectedInstitute) {
+                payload.institute = selectedInstitute;
+            }
+
+            const res = await fetch("/api/v1/courses", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const newCourse = await res.json();
+                // Automatically create default Section A for this new class
+                try {
+                    await fetch("/api/v1/batches", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: "Section A",
+                            course: newCourse._id,
+                            capacity: 40,
+                            schedule: {
+                                startDate: new Date().toISOString().split('T')[0],
+                                description: "Regular School Hours"
+                            },
+                            ...(selectedInstitute ? { institute: selectedInstitute } : {})
+                        })
+                    });
+                } catch (batchErr) {
+                    console.warn("Auto-create Section A fallback:", batchErr);
+                }
+
+                await fetchCourses();
+                toast.success(`Class ${preset.label} (with Section A) created successfully!`);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                toast.error(err.error || `Failed to add Class ${preset.label}`);
+            }
+        } catch (err) {
+            console.error("Quick add class error:", err);
+            toast.error("Failed to add class");
+        } finally {
+            setQuickAddingPreset(null);
         }
     };
 
@@ -513,8 +569,63 @@ export default function CoursesPage() {
             </div>
 
             {activeTab === "courses" ? (
-                /* Individual Courses / Classes Table View */
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div className="space-y-4">
+                    {/* Quick Add Classes Bar for Schools */}
+                    {isSchool && session?.user?.role !== 'instructor' && (
+                        <div className="bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50 border border-blue-100/90 rounded-xl p-3 sm:p-3.5 shadow-2xs space-y-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                                    <Zap size={14} className="text-amber-500 fill-amber-500" />
+                                    <span>Quick Add Classes</span>
+                                    <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">1-Click</span>
+                                </div>
+                                <span className="text-[11px] text-slate-500 font-medium">
+                                    Click any class below to create it instantly with default Section A
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                {SCHOOL_CLASS_PRESETS.map((preset) => {
+                                    const added = Boolean(findMatchingCourse(preset, courses));
+                                    const isAdding = quickAddingPreset === preset.name;
+                                    return (
+                                        <button
+                                            key={preset.name}
+                                            type="button"
+                                            disabled={added || isAdding}
+                                            onClick={() => handleQuickAddClass(preset)}
+                                            title={added ? `${preset.label} is already added` : `Quick add ${preset.label} in one click`}
+                                            className={cn(
+                                                "px-2.5 py-1 text-xs font-semibold rounded-lg transition-all duration-150 flex items-center gap-1",
+                                                added
+                                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80 cursor-default opacity-85 font-medium"
+                                                    : "bg-white text-slate-700 border border-slate-200 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/60 active:scale-95 shadow-2xs cursor-pointer"
+                                            )}
+                                        >
+                                            {added ? (
+                                                <>
+                                                    <Check size={11} strokeWidth={2.5} className="text-emerald-600" />
+                                                    <span>{preset.label}</span>
+                                                </>
+                                            ) : isAdding ? (
+                                                <>
+                                                    <LoadingSpinner size="xs" />
+                                                    <span>{preset.label}</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Plus size={11} className="text-slate-400" />
+                                                    <span>{preset.label}</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Individual Courses / Classes Table View */}
+                    <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
                     <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 bg-slate-50/60 border-b border-slate-100">
                         <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto flex-1">
                             {institutes.length > 0 && (
@@ -708,6 +819,7 @@ export default function CoursesPage() {
                             )}
                         </AnimatePresence>
                     </div>
+                </div>
                 </div>
             ) : (
                 /* Course Bundles & Special Offers View (Vocational) */
@@ -1151,6 +1263,45 @@ export default function CoursesPage() {
                     ) : (
                         /* School / Vocational: 2-Column Responsive Layout */
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {isSchool && !editingCourse && (
+                                <div className="md:col-span-2 p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                            <Zap size={13} className="text-amber-500 fill-amber-500" />
+                                            Quick Presets (Click to autofill):
+                                        </span>
+                                        <span className="text-[11px] text-slate-400 font-medium">Autofills Name & Code</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {SCHOOL_CLASS_PRESETS.map((p) => {
+                                            const isSelected = formData.name === p.name;
+                                            return (
+                                                <button
+                                                    key={p.name}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            name: p.name,
+                                                            code: p.code,
+                                                            duration: { value: "12", unit: "months" }
+                                                        }));
+                                                    }}
+                                                    className={cn(
+                                                        "px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer active:scale-95",
+                                                        isSelected
+                                                            ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                                                            : "bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:text-blue-600 shadow-2xs"
+                                                    )}
+                                                >
+                                                    {p.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="space-y-4">
                                 <Input
                                     id="name"
