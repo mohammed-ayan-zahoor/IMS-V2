@@ -26,18 +26,18 @@ export default function ImportBiometricModal({ isOpen, onClose, onSuccess }) {
     const handleDrop = (e) => {
         e.preventDefault();
         const dropped = e.dataTransfer.files?.[0];
-        if (dropped && (dropped.name.endsWith(".xls") || dropped.name.endsWith(".xlsx"))) {
+        if (dropped && (dropped.name.endsWith(".xls") || dropped.name.endsWith(".xlsx") || dropped.name.endsWith(".pdf"))) {
             setFile(dropped);
             setError("");
             setResult(null);
         } else {
-            setError("Please upload an Excel file (.xls or .xlsx)");
+            setError("Please upload an Excel (.xls, .xlsx) or PDF (.pdf) file");
         }
     };
 
     const handleUpload = async () => {
         if (!file) {
-            setError("Please select an Excel file first.");
+            setError("Please select a file first (.xls, .xlsx, or .pdf).");
             return;
         }
 
@@ -115,7 +115,7 @@ export default function ImportBiometricModal({ isOpen, onClose, onSuccess }) {
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept=".xls,.xlsx"
+                                    accept=".xls,.xlsx,.pdf"
                                     onChange={handleFileSelect}
                                     className="hidden"
                                 />
@@ -133,7 +133,7 @@ export default function ImportBiometricModal({ isOpen, onClose, onSuccess }) {
                                             <Upload size={20} />
                                         </div>
                                         <p className="text-xs font-bold text-slate-700">Click to choose or drag & drop</p>
-                                        <p className="text-[11px] text-slate-400">Supports ONtime Excel reports (.xls or .xlsx)</p>
+                                        <p className="text-[11px] text-slate-400">Supports ONtime Excel reports (.xls, .xlsx) and In/Out PDF reports (.pdf)</p>
                                     </div>
                                 )}
                             </div>
@@ -146,7 +146,7 @@ export default function ImportBiometricModal({ isOpen, onClose, onSuccess }) {
                                 </div>
                                 <ul className="list-disc pl-4 space-y-0.5 text-slate-500">
                                     <li><strong>Monthly Attendance Report (Summary)</strong> — e.g. <code>Att Aug 2026.xls</code></li>
-                                    <li><strong>Monthly Attendance with In/Out Time</strong></li>
+                                    <li><strong>Monthly Attendance with In/Out Time</strong> — e.g. <code>Aug Att in Out.pdf</code> or <code>.xls</code></li>
                                 </ul>
                                 <p className="text-[10px] text-slate-400 pt-0.5">Staff are matched automatically by Biometric ID or staff name.</p>
                             </div>

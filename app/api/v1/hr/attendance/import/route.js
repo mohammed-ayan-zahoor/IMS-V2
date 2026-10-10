@@ -23,7 +23,133 @@ function parseTimeToMinutes(timeStr) {
 
 function normalizeName(name) {
     if (!name) return "";
-    return String(name).toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+    return String(name).toLowerCase()
+        .replace(/\b(dr|mr|mrs|prof|miss|ms)\b/g, "")
+        .replace(/[^a-z0-9]/g, "")
+        .trim();
+}
+
+// ponytail: Parses ONtime / Secureye attendance reports directly from PDF in runtime.
+// Uses colon coordinate offsets to accurately bind in/out times to calendar days (1-31).
+async function parsePdfAttendance(buffer) {
+    if (!global.DOMMatrix) {
+        global.DOMMatrix = class DOMMatrix {
+            constructor() {
+                this.a = 1; this.b = 0; this.c = 0; this.d = 1; this.e = 0; this.f = 0;
+            }
+        };
+    }
+
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+
+    let detectedMonth = null;
+    let detectedYear = null;
+    const monthNames = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+    const employeeMap = new Map();
+
+    for (let p = 1; p <= doc.numPages; p++) {
+        const page = await doc.getPage(p);
+        const content = await page.getTextContent();
+        const items = content.items.map(it => ({ x: it.transform[4], y: it.transform[5], str: it.str }));
+
+        if (p === 1) {
+            const fullText = items.map(it => it.str).join(" ");
+            const pMatch = fullText.match(/To\s+(\d{1,2})\s*[\-\/]\s*([a-z]{3}|\d{1,2})\s*[\-\/]\s*(\d{4})/i) ||
+                           fullText.match(/(\d{1,2})\s*[\-\/]\s*([a-z]{3}|\d{1,2})\s*[\-\/]\s*(\d{4})/i);
+            if (pMatch) {
+                const rawM = pMatch[2].toLowerCase();
+                detectedMonth = monthNames[rawM] || parseInt(rawM, 10);
+                detectedYear = parseInt(pMatch[3], 10);
+            }
+        }
+
+        const day1Item = items.find(it => Math.abs(it.y - 529) < 5 && it.str.trim() === "1");
+        const day1X = day1Item ? day1Item.x : 108.7;
+
+        const empCodeItems = items
+            .filter(it => it.x < 45 && it.y < 525 && /^\d{4,5}$/.test(it.str.trim()))
+            .sort((a, b) => b.y - a.y);
+
+        empCodeItems.forEach(empItem => {
+            const empCode = empItem.str.trim();
+            const empY = empItem.y;
+
+            const nameItems = items.filter(it => it.x >= 45 && it.x < 100 && Math.abs(it.y - empY) < 10);
+            nameItems.sort((a, b) => b.y - a.y || a.x - b.x);
+            const empName = nameItems.map(it => it.str.trim()).filter(Boolean).join(" ");
+
+            const empItems = items.filter(it => it.x >= 100 && it.y >= empY - 12 && it.y <= empY + 6);
+
+            const days = {};
+            for (let d = 1; d <= 31; d++) days[d] = { in: "", out: "", code: "" };
+
+            const colons = empItems.filter(it => it.str.includes(":"));
+            colons.forEach(colItem => {
+                const dayNum = Math.round((colItem.x - day1X) / 21) + 1;
+                if (dayNum >= 1 && dayNum <= 31) {
+                    const isTop = colItem.y >= empY - 3;
+                    const sameLineItems = empItems.filter(it => Math.abs(it.y - colItem.y) < 2);
+                    sameLineItems.sort((a, b) => a.x - b.x);
+                    
+                    const nearby = sameLineItems.filter(it => Math.abs(it.x - colItem.x) < 18);
+                    const localStr = nearby.map(it => it.str).join("").replace(/\s+/g, "");
+                    const timeMatch = localStr.match(/(\d{1,2}):(\d{2})/);
+                    if (timeMatch) {
+                        const timeStr = `${timeMatch[1].padStart(2, "0")}:${timeMatch[2]}`;
+                        if (isTop) {
+                            days[dayNum].in = timeStr;
+                        } else {
+                            days[dayNum].out = timeStr;
+                        }
+                    }
+                }
+            });
+
+            const codeCandidates = empItems.filter(it => /WO|MIS|\bA\b|\bP\b/i.test(it.str));
+            codeCandidates.forEach(cand => {
+                const dayNum = Math.round((cand.x - day1X) / 21) + 1;
+                if (dayNum >= 1 && dayNum <= 31 && !days[dayNum].in && !days[dayNum].out) {
+                    const c = cand.str.trim();
+                    if (/WO/i.test(c)) days[dayNum].code = "WO-I";
+                    else if (/MIS/i.test(c)) days[dayNum].code = "MIS";
+                    else if (c === "A") days[dayNum].code = "A";
+                    else if (c === "P") days[dayNum].code = "P";
+                }
+            });
+
+            employeeMap.set(empCode, { empCode, empName, days });
+        });
+    }
+
+    const rows = [];
+    rows.push(["Monthly Attendance Report with (In\\Out) Time", `For Period : 01/${detectedMonth || 8}/${detectedYear || 2026} To 31/${detectedMonth || 8}/${detectedYear || 2026}`]);
+    rows.push([""]);
+    rows.push([""]);
+    const headerRow = ["Emp Code", "", "Emp Name", ""];
+    for (let d = 1; d <= 31; d++) headerRow.push(String(d));
+    rows.push(headerRow);
+
+    for (const emp of employeeMap.values()) {
+        const row = [emp.empCode, "", emp.empName, ""];
+        for (let d = 1; d <= 31; d++) {
+            const entry = emp.days[d];
+            if (entry.in && entry.out) {
+                row.push(`${entry.in}\n${entry.out}`);
+            } else if (entry.in) {
+                row.push(entry.in);
+            } else if (entry.out) {
+                row.push(entry.out);
+            } else if (entry.code) {
+                row.push(entry.code);
+            } else {
+                row.push("");
+            }
+        }
+        rows.push(row);
+    }
+
+    return { rows, detectedYear, detectedMonth };
 }
 
 export async function POST(req) {
@@ -42,29 +168,43 @@ export async function POST(req) {
         const file = formData.get("file");
 
         if (!file || typeof file === "string") {
-            return NextResponse.json({ error: "Please upload a valid Excel (.xls or .xlsx) file." }, { status: 400 });
+            return NextResponse.json({ error: "Please upload a valid file (.xlsx, .xls, or .pdf)." }, { status: 400 });
         }
 
+        const fileName = (file.name || "").toLowerCase();
+        const isPdf = fileName.endsWith(".pdf") || file.type === "application/pdf";
         const buffer = Buffer.from(await file.arrayBuffer());
-        const workbook = XLSX.read(buffer, { type: "buffer" });
-        const firstSheetName = workbook.SheetNames[0];
-        if (!firstSheetName) {
-            return NextResponse.json({ error: "Uploaded workbook contains no sheets." }, { status: 400 });
-        }
 
-        const worksheet = workbook.Sheets[firstSheetName];
-        // Read sheet rows as raw 2D array
-        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+        let rows = [];
+        let pdfDetectedYear = null;
+        let pdfDetectedMonth = null;
+
+        if (isPdf) {
+            const pdfData = await parsePdfAttendance(buffer);
+            rows = pdfData.rows;
+            pdfDetectedYear = pdfData.detectedYear;
+            pdfDetectedMonth = pdfData.detectedMonth;
+        } else {
+            const workbook = XLSX.read(buffer, { type: "buffer" });
+            const firstSheetName = workbook.SheetNames[0];
+            if (!firstSheetName) {
+                return NextResponse.json({ error: "Uploaded workbook contains no sheets." }, { status: 400 });
+            }
+
+            const worksheet = workbook.Sheets[firstSheetName];
+            // Read sheet rows as raw 2D array
+            rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+        }
 
         if (!rows || rows.length < 3) {
-            return NextResponse.json({ error: "Uploaded sheet has insufficient data." }, { status: 400 });
+            return NextResponse.json({ error: "Uploaded file has insufficient data." }, { status: 400 });
         }
 
         await connectDB();
 
         // 1. Detect Year and Month from file headers or query params
-        let detectedYear = null;
-        let detectedMonth = null; // 1-12
+        let detectedYear = pdfDetectedYear || null;
+        let detectedMonth = pdfDetectedMonth || null; // 1-12
 
         for (let i = 0; i < Math.min(rows.length, 10); i++) {
             const line = rows[i].join(" ");
