@@ -327,10 +327,14 @@ export async function POST(req) {
                 continue;
             }
 
-            // Match staff member
+            // Match staff member: 1. Biometric ID -> 2. Name Fallback
             let staff = byBiometricId.get(rawCode) || byBiometricId.get(rawCode.replace(/^0+/, ""));
             if (!staff && rawName) {
                 staff = byName.get(normalizeName(rawName));
+                // Auto-bind biometric machine code into staff profile so future imports match instantly
+                if (staff && !staff.hrDetails?.biometricId && rawCode) {
+                    User.updateOne({ _id: staff._id }, { $set: { "hrDetails.biometricId": rawCode } }).exec();
+                }
             }
 
             if (!staff) {
