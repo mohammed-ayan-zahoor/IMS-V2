@@ -1,20 +1,40 @@
 import assert from 'node:assert';
-import { AVAILABLE_PERMISSIONS } from '../lib/permissions.js';
+import { PERMISSION_CATEGORIES, ALL_PERMISSIONS, hasUserPermission } from '../lib/permissions.js';
 
-console.log("Running self-check for Office Staff permissions...");
+console.log("Running self-check for Granular RBAC & Sub-Module Permissions...");
 
-// 1. Verify permissions definition
-assert(Array.isArray(AVAILABLE_PERMISSIONS), "AVAILABLE_PERMISSIONS must be an array");
-assert(AVAILABLE_PERMISSIONS.length >= 10, "AVAILABLE_PERMISSIONS should cover all operational modules");
-const permIds = AVAILABLE_PERMISSIONS.map(p => p.id);
-assert(permIds.includes("view_front_office"), "Must include view_front_office");
-assert(permIds.includes("manage_fees"), "Must include manage_fees");
-assert(permIds.includes("manage_enquiries"), "Must include manage_enquiries");
-assert(permIds.includes("manage_stock"), "Must include manage_stock");
-assert(permIds.includes("manage_library"), "Must include manage_library");
-assert(permIds.includes("generate_id_cards"), "Must include generate_id_cards");
+// 1. Verify structured categories and granular permissions registry
+assert(Array.isArray(PERMISSION_CATEGORIES), "PERMISSION_CATEGORIES must be an array");
+assert(PERMISSION_CATEGORIES.length >= 8, "Must have structured categories (Front office, Finance, HR, etc.)");
+assert(Array.isArray(ALL_PERMISSIONS), "ALL_PERMISSIONS must be an array");
+assert(ALL_PERMISSIONS.length >= 35, `ALL_PERMISSIONS should cover all granular sub-modules, got ${ALL_PERMISSIONS.length}`);
 
-// 2. Test category resolution logic
+const permIds = ALL_PERMISSIONS.map(p => p.id);
+assert(permIds.includes("front_office_visitor_book"), "Must include front_office_visitor_book");
+assert(permIds.includes("front_office_calls"), "Must include front_office_calls");
+assert(permIds.includes("finance_fees"), "Must include finance_fees");
+assert(permIds.includes("finance_collections"), "Must include finance_collections");
+assert(permIds.includes("academic_students"), "Must include academic_students");
+assert(permIds.includes("learning_exams"), "Must include learning_exams");
+assert(permIds.includes("admin_id_cards"), "Must include admin_id_cards");
+
+// 2. Test hasUserPermission backward compatibility and granular checks
+// A: Direct match
+assert.strictEqual(hasUserPermission(["front_office_visitor_book"], "front_office_visitor_book"), true);
+assert.strictEqual(hasUserPermission(["front_office_visitor_book"], "front_office_calls"), false);
+
+// B: Legacy backward compatibility
+// User with legacy 'view_front_office' should be granted both visitor book and phone calls
+assert.strictEqual(hasUserPermission(["view_front_office"], "front_office_visitor_book"), true);
+assert.strictEqual(hasUserPermission(["view_front_office"], "front_office_calls"), true);
+assert.strictEqual(hasUserPermission(["view_front_office"], "finance_fees"), false);
+
+// User with legacy 'manage_fees' should be granted fee collection and collections history
+assert.strictEqual(hasUserPermission(["manage_fees"], "finance_fees"), true);
+assert.strictEqual(hasUserPermission(["manage_fees"], "finance_collections"), true);
+assert.strictEqual(hasUserPermission(["manage_fees"], "admin_id_cards"), false);
+
+// 3. Test category resolution logic
 function resolveCategory(member) {
     if (member.role === "admin") return "admin";
     if (member.role === "instructor") return "instructor";
@@ -29,7 +49,7 @@ assert.strictEqual(resolveCategory({ role: "instructor", allowLogin: true }), "i
 assert.strictEqual(resolveCategory({ role: "staff", allowLogin: true }), "office_staff");
 assert.strictEqual(resolveCategory({ role: "staff", allowLogin: false }), "support_staff");
 
-// 3. Test layout navigation filtering logic
+// 4. Test layout navigation filtering with granular hasUserPermission
 function filterNavGroups(groups, user) {
     const isAdmin = ['admin', 'super_admin'].includes(user?.role);
     return groups.filter(group => {
@@ -37,7 +57,7 @@ function filterNavGroups(groups, user) {
         if (!hasRole) return false;
         if (!isAdmin && group.permission) {
             const requiredPerms = Array.isArray(group.permission) ? group.permission : [group.permission];
-            const hasAnyPerm = requiredPerms.some(p => user?.permissions?.includes(p));
+            const hasAnyPerm = requiredPerms.some(p => hasUserPermission(user?.permissions, p));
             if (!hasAnyPerm) return false;
         }
         return true;
@@ -45,7 +65,7 @@ function filterNavGroups(groups, user) {
         ...group,
         items: group.items.filter(item => {
             const hasRole = !item.role || item.role.includes(user?.role);
-            const hasPermission = isAdmin || !item.permission || (user?.permissions && user.permissions.includes(item.permission));
+            const hasPermission = isAdmin || !item.permission || hasUserPermission(user?.permissions, item.permission);
             return hasRole && hasPermission;
         })
     })).filter(group => group.items.length > 0);
@@ -55,48 +75,53 @@ const mockMenuGroups = [
     {
         label: "Front Office",
         role: ["admin", "super_admin", "staff"],
-        permission: "view_front_office",
-        items: [{ label: "Visitor Book", href: "/admin/front-office/visitor-book" }]
+        permission: ["front_office_visitor_book", "front_office_calls"],
+        items: [
+            { label: "Visitor Book", href: "/admin/front-office/visitor-book", permission: "front_office_visitor_book" },
+            { label: "Phone Calls", href: "/admin/front-office/calls", permission: "front_office_calls" }
+        ]
     },
     {
         label: "Finance",
         role: ["admin", "super_admin", "staff"],
-        permission: "manage_fees",
-        items: [{ label: "Fees", href: "/admin/fees" }]
+        permission: ["finance_fees", "finance_collections"],
+        items: [
+            { label: "Fees", href: "/admin/fees", permission: "finance_fees" }
+        ]
     },
     {
         label: "Administration",
         role: ["admin", "super_admin", "staff"],
-        permission: "generate_id_cards",
+        permission: ["admin_id_cards"],
         items: [
             { label: "Settings", href: "/admin/settings", role: ["admin", "super_admin"] },
             { label: "User Management", href: "/admin/users", role: ["admin", "super_admin"] },
-            { label: "ID Card Management", href: "/admin/id-cards", permission: "generate_id_cards" }
+            { label: "ID Card Management", href: "/admin/id-cards", permission: "admin_id_cards" }
         ]
     }
 ];
 
-// Office staff with only Front Office access
-const frontDeskStaff = {
+// Office staff with only Front Office Visitor Book access (granular)
+const visitorOnlyStaff = {
+    role: "staff",
+    allowLogin: true,
+    permissions: ["front_office_visitor_book"]
+};
+const filteredForVisitor = filterNavGroups(mockMenuGroups, visitorOnlyStaff);
+assert.strictEqual(filteredForVisitor.length, 1, "Visitor staff should only see Front Office");
+assert.strictEqual(filteredForVisitor[0].label, "Front Office");
+assert.strictEqual(filteredForVisitor[0].items.length, 1);
+assert.strictEqual(filteredForVisitor[0].items[0].label, "Visitor Book", "Should only see Visitor Book, not Phone Calls");
+
+// Legacy user with 'view_front_office'
+const legacyFrontDesk = {
     role: "staff",
     allowLogin: true,
     permissions: ["view_front_office"]
 };
-const filteredForFrontDesk = filterNavGroups(mockMenuGroups, frontDeskStaff);
-assert.strictEqual(filteredForFrontDesk.length, 1, "Front desk staff should only see 1 group");
-assert.strictEqual(filteredForFrontDesk[0].label, "Front Office");
-
-// Office staff with ID Card printing permission
-const idCardClerk = {
-    role: "staff",
-    allowLogin: true,
-    permissions: ["generate_id_cards"]
-};
-const filteredForIdClerk = filterNavGroups(mockMenuGroups, idCardClerk);
-assert.strictEqual(filteredForIdClerk.length, 1);
-assert.strictEqual(filteredForIdClerk[0].label, "Administration");
-assert.strictEqual(filteredForIdClerk[0].items.length, 1);
-assert.strictEqual(filteredForIdClerk[0].items[0].label, "ID Card Management", "ID Clerk must not see Settings or User Management");
+const filteredForLegacy = filterNavGroups(mockMenuGroups, legacyFrontDesk);
+assert.strictEqual(filteredForLegacy.length, 1);
+assert.strictEqual(filteredForLegacy[0].items.length, 2, "Legacy view_front_office should access both Visitor Book & Phone Calls");
 
 // Full Administrator
 const adminUser = {
@@ -108,4 +133,4 @@ const filteredForAdmin = filterNavGroups(mockMenuGroups, adminUser);
 assert.strictEqual(filteredForAdmin.length, 3, "Admin should see all groups");
 assert.strictEqual(filteredForAdmin.find(g => g.label === "Administration").items.length, 3, "Admin sees all items including settings and users");
 
-console.log("All Office Staff RBAC & permissions assertions passed successfully!");
+console.log("All Granular Sub-Module Permissions assertions passed successfully!");

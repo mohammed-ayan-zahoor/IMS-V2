@@ -38,7 +38,7 @@ import EmptyState from "@/components/shared/EmptyState";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { cn } from "@/lib/utils";
-import { AVAILABLE_PERMISSIONS } from "@/lib/permissions";
+import { PERMISSION_CATEGORIES, ALL_PERMISSIONS, hasUserPermission } from "@/lib/permissions";
 
 export default function StaffDirectoryPage() {
     const toast = useToast();
@@ -62,6 +62,8 @@ export default function StaffDirectoryPage() {
     const [editingStaff, setEditingStaff] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [showBankingSection, setShowBankingSection] = useState(false);
+
+    const [permissionSearch, setPermissionSearch] = useState("");
 
     const [editFormData, setEditFormData] = useState({
         firstName: "",
@@ -103,7 +105,7 @@ export default function StaffDirectoryPage() {
         ifscCode: "",
         branch: "",
         biometricId: "",
-        permissions: ["view_front_office"]
+        permissions: ["front_office_visitor_book", "front_office_calls"]
     };
 
     const [formData, setFormData] = useState(initialFormState);
@@ -190,13 +192,13 @@ export default function StaffDirectoryPage() {
         } else if (category === "instructor") {
             role = "instructor";
             allowLogin = true;
-            perms = isEdit ? (editFormData.permissions || []) : ["view_front_office"];
+            perms = isEdit ? (editFormData.permissions || []) : ["learning_attendance", "learning_exams", "learning_materials"];
         } else if (category === "office_staff") {
             role = "staff";
             allowLogin = true;
             perms = isEdit 
-                ? (editFormData.permissions?.length ? editFormData.permissions : ["view_front_office"]) 
-                : (formData.permissions?.length ? formData.permissions : ["view_front_office"]);
+                ? (editFormData.permissions?.length ? editFormData.permissions : ["front_office_visitor_book", "front_office_calls"]) 
+                : (formData.permissions?.length ? formData.permissions : ["front_office_visitor_book", "front_office_calls"]);
         } else if (category === "support_staff") {
             role = "staff";
             allowLogin = false;
@@ -242,8 +244,29 @@ export default function StaffDirectoryPage() {
         }
     };
 
+    const handleToggleCategory = (categoryObj, isEdit = false) => {
+        const categoryPermIds = categoryObj.permissions.map(p => p.id);
+        const targetState = isEdit ? editFormData : formData;
+        const currentPerms = targetState.permissions || [];
+        
+        const allSelected = categoryPermIds.every(id => currentPerms.includes(id));
+        
+        let updated;
+        if (allSelected) {
+            updated = currentPerms.filter(id => !categoryPermIds.includes(id));
+        } else {
+            updated = Array.from(new Set([...currentPerms, ...categoryPermIds]));
+        }
+        
+        if (isEdit) {
+            setEditFormData(prev => ({ ...prev, permissions: updated }));
+        } else {
+            setFormData(prev => ({ ...prev, permissions: updated }));
+        }
+    };
+
     const handleSelectAllPermissions = (selectAll = true, isEdit = false) => {
-        const allIds = selectAll ? AVAILABLE_PERMISSIONS.map(p => p.id) : [];
+        const allIds = selectAll ? ALL_PERMISSIONS.map(p => p.id) : [];
         if (isEdit) {
             setEditFormData(prev => ({ ...prev, permissions: allIds }));
         } else {
@@ -254,13 +277,14 @@ export default function StaffDirectoryPage() {
     const handleOpenAddModal = (defaultCategory = "office_staff") => {
         let role = "staff";
         let allowLogin = true;
-        let perms = ["view_front_office"];
+        let perms = ["front_office_visitor_book", "front_office_calls"];
 
         if (defaultCategory === "admin") {
             role = "admin";
             perms = [];
         } else if (defaultCategory === "instructor") {
             role = "instructor";
+            perms = ["learning_attendance", "learning_exams", "learning_materials"];
         } else if (defaultCategory === "support_staff") {
             role = "staff";
             allowLogin = false;
@@ -274,6 +298,7 @@ export default function StaffDirectoryPage() {
             allowLogin,
             permissions: perms
         });
+        setPermissionSearch("");
         setShowBankingSection(false);
         setIsAddModalOpen(true);
     };
@@ -357,6 +382,11 @@ export default function StaffDirectoryPage() {
             category = member.allowLogin === false ? "support_staff" : "office_staff";
         }
 
+        const rawPerms = Array.isArray(member.permissions) ? member.permissions : [];
+        const granularPerms = ALL_PERMISSIONS.filter(p => hasUserPermission(rawPerms, p.id)).map(p => p.id);
+        const unknownPerms = rawPerms.filter(rp => !ALL_PERMISSIONS.some(ap => ap.id === rp || ap.legacyKeys?.includes(rp)));
+        const normalizedPerms = Array.from(new Set([...granularPerms, ...unknownPerms]));
+
         setEditFormData({
             firstName: member.profile?.firstName || "",
             lastName: member.profile?.lastName || "",
@@ -370,8 +400,9 @@ export default function StaffDirectoryPage() {
             basicSalary: member.hrDetails?.basicSalary ?? "",
             allowLogin: member.allowLogin !== false,
             biometricId: member.hrDetails?.biometricId || "",
-            permissions: Array.isArray(member.permissions) ? member.permissions : []
+            permissions: normalizedPerms
         });
+        setPermissionSearch("");
         setIsEditModalOpen(true);
     };
 
@@ -450,6 +481,181 @@ export default function StaffDirectoryPage() {
                 }
                 return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Support Staff</span>;
         }
+    };
+
+    const renderPermissionsSection = (isEdit = false) => {
+        const currentTarget = isEdit ? editFormData : formData;
+        const currentPerms = currentTarget.permissions || [];
+        const q = permissionSearch.trim().toLowerCase();
+
+        // ponytail: filter categories and sub-modules in-memory, O(categories * permissions) is tiny for ~48 items
+        const filteredCategories = PERMISSION_CATEGORIES.map(category => {
+            const matchesCategory = category.label.toLowerCase().includes(q) || 
+                                    category.description.toLowerCase().includes(q);
+            
+            const matchingPermissions = category.permissions.filter(p => {
+                if (matchesCategory) return true;
+                return p.label.toLowerCase().includes(q) || 
+                       p.description.toLowerCase().includes(q) ||
+                       p.id.toLowerCase().includes(q);
+            });
+
+            return {
+                ...category,
+                permissions: matchingPermissions
+            };
+        }).filter(cat => cat.permissions.length > 0);
+
+        const totalPermCount = ALL_PERMISSIONS.length;
+        const selectedCount = ALL_PERMISSIONS.filter(p => currentPerms.includes(p.id)).length;
+
+        return (
+            <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3.5">
+                {/* Header with Title and Global Actions */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-200 dark:border-slate-800">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                <Shield className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                                Accessible Modules & Permissions
+                            </h4>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                                {selectedCount} of {totalPermCount} selected
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                            Select which modules and operations this staff member can access.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => handleSelectAllPermissions(true, isEdit)}
+                            className="px-2.5 py-1 rounded-md text-xs font-semibold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/60 transition-colors"
+                        >
+                            Select All
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleSelectAllPermissions(false, isEdit)}
+                            className="px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+
+                {/* Real-time Search Filter */}
+                <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        value={permissionSearch}
+                        onChange={(e) => setPermissionSearch(e.target.value)}
+                        placeholder="Search modules or permissions (e.g. 'visitor', 'fees', 'exam', 'attendance')..."
+                        className="w-full text-xs pl-8 pr-8 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                    {permissionSearch && (
+                        <button
+                            type="button"
+                            onClick={() => setPermissionSearch("")}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs font-bold"
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
+
+                {/* Categorized Permissions Grid Container */}
+                <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
+                    {filteredCategories.length === 0 ? (
+                        <div className="text-center py-8 text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800/40 rounded-lg border border-dashed border-gray-200 dark:border-gray-700">
+                            No permissions match &ldquo;{permissionSearch}&rdquo;.
+                        </div>
+                    ) : (
+                        filteredCategories.map((category) => {
+                            const allCatIds = category.permissions.map(p => p.id);
+                            const catSelectedCount = allCatIds.filter(id => currentPerms.includes(id)).length;
+                            const isAllCatSelected = allCatIds.length > 0 && catSelectedCount === allCatIds.length;
+
+                            return (
+                                <div 
+                                    key={category.id} 
+                                    className="bg-white dark:bg-gray-800/70 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 shadow-2xs space-y-2.5"
+                                >
+                                    {/* Category Header */}
+                                    <div className="flex items-center justify-between gap-2 pb-2 border-b border-gray-100 dark:border-gray-700/50">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <h5 className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                                                    {category.label}
+                                                </h5>
+                                                <span className={cn(
+                                                    "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                                                    catSelectedCount > 0 
+                                                        ? "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800"
+                                                        : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+                                                )}>
+                                                    {catSelectedCount} / {category.permissions.length}
+                                                </span>
+                                            </div>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                                {category.description}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleToggleCategory(category, isEdit)}
+                                            className={cn(
+                                                "text-[11px] font-semibold px-2.5 py-1 rounded-md transition-colors shrink-0 border",
+                                                isAllCatSelected
+                                                    ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100"
+                                                    : "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800 hover:bg-teal-100"
+                                            )}
+                                        >
+                                            {isAllCatSelected ? "Deselect Category" : "Select Category"}
+                                        </button>
+                                    </div>
+
+                                    {/* Permissions Grid */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {category.permissions.map((perm) => {
+                                            const isChecked = currentPerms.includes(perm.id);
+                                            return (
+                                                <label
+                                                    key={perm.id}
+                                                    className={cn(
+                                                        "flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all text-xs select-none",
+                                                        isChecked
+                                                            ? "bg-teal-50/80 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700 text-teal-950 dark:text-teal-100 shadow-2xs"
+                                                            : "bg-gray-50/60 dark:bg-gray-900/40 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700"
+                                                    )}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={() => handleTogglePermission(perm.id, isEdit)}
+                                                        className="mt-0.5 rounded border-gray-300 dark:border-gray-600 text-teal-600 focus:ring-teal-500 shrink-0 h-4 w-4"
+                                                    />
+                                                    <div className="min-w-0">
+                                                        <div className="font-semibold text-gray-900 dark:text-white leading-tight">
+                                                            {perm.label}
+                                                        </div>
+                                                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                                                            {perm.description}
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -859,7 +1065,7 @@ export default function StaffDirectoryPage() {
                 isOpen={isAddModalOpen}
                 onClose={() => !submitting && setIsAddModalOpen(false)}
                 title="Register New Staff Member"
-                maxWidth="max-w-2xl"
+                size="xl"
             >
                 <form onSubmit={handleAddStaffSubmit} className="space-y-5">
                     {/* Basic Info */}
@@ -998,66 +1204,7 @@ export default function StaffDirectoryPage() {
                     </div>
 
                     {/* Permissions Section for Office Staff / Instructor */}
-                    {['office_staff', 'instructor'].includes(formData.staffCategory) && (
-                        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                        <Shield className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                                        Accessible Modules & Permissions
-                                    </h4>
-                                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                        Select which modules this staff member can view and manage in their portal.
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSelectAllPermissions(true, false)}
-                                        className="text-teal-600 dark:text-teal-400 hover:underline font-semibold"
-                                    >
-                                        Select All
-                                    </button>
-                                    <span className="text-gray-300 dark:text-gray-700">•</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSelectAllPermissions(false, false)}
-                                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 font-semibold"
-                                    >
-                                        Clear
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                                {AVAILABLE_PERMISSIONS.map((perm) => {
-                                    const isChecked = formData.permissions?.includes(perm.id);
-                                    return (
-                                        <label
-                                            key={perm.id}
-                                            className={cn(
-                                                "flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all text-xs",
-                                                isChecked
-                                                    ? "bg-teal-50/70 dark:bg-teal-950/30 border-teal-300 dark:border-teal-700 text-teal-900 dark:text-teal-200"
-                                                    : "bg-white dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300"
-                                            )}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={isChecked}
-                                                onChange={() => handleTogglePermission(perm.id, false)}
-                                                className="mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 shrink-0"
-                                            />
-                                            <div>
-                                                <div className="font-semibold">{perm.label}</div>
-                                                <div className="text-[11px] opacity-75">{perm.description}</div>
-                                            </div>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
+                    {['office_staff', 'instructor'].includes(formData.staffCategory) && renderPermissionsSection(false)}
 
                     {formData.staffCategory === 'admin' && (
                         <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-xl p-3.5 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2.5">
@@ -1244,7 +1391,7 @@ export default function StaffDirectoryPage() {
                     setEditingStaff(null);
                 }}
                 title={editingStaff ? `Edit Staff: ${editingStaff.profile?.firstName} ${editingStaff.profile?.lastName || ""}` : "Edit Staff Member"}
-                size="lg"
+                size="xl"
             >
                 <form onSubmit={handleEditStaffSubmit} className="space-y-4">
                     {/* Basic Info */}
@@ -1383,66 +1530,7 @@ export default function StaffDirectoryPage() {
                     </div>
 
                     {/* Permissions Section for Office Staff / Instructor */}
-                    {['office_staff', 'instructor'].includes(editFormData.staffCategory) && (
-                        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                        <Shield className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                                        Accessible Modules & Permissions
-                                    </h4>
-                                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                        Select which modules this staff member can view and manage in their portal.
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSelectAllPermissions(true, true)}
-                                        className="text-teal-600 dark:text-teal-400 hover:underline font-semibold"
-                                    >
-                                        Select All
-                                    </button>
-                                    <span className="text-gray-300 dark:text-gray-700">•</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSelectAllPermissions(false, true)}
-                                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 font-semibold"
-                                    >
-                                        Clear
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                                {AVAILABLE_PERMISSIONS.map((perm) => {
-                                    const isChecked = editFormData.permissions?.includes(perm.id);
-                                    return (
-                                        <label
-                                            key={perm.id}
-                                            className={cn(
-                                                "flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all text-xs",
-                                                isChecked
-                                                    ? "bg-teal-50/70 dark:bg-teal-950/30 border-teal-300 dark:border-teal-700 text-teal-900 dark:text-teal-200"
-                                                    : "bg-white dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300"
-                                            )}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={isChecked}
-                                                onChange={() => handleTogglePermission(perm.id, true)}
-                                                className="mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 shrink-0"
-                                            />
-                                            <div>
-                                                <div className="font-semibold">{perm.label}</div>
-                                                <div className="text-[11px] opacity-75">{perm.description}</div>
-                                            </div>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
+                    {['office_staff', 'instructor'].includes(editFormData.staffCategory) && renderPermissionsSection(true)}
 
                     {editFormData.staffCategory === 'admin' && (
                         <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-xl p-3.5 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2.5">
