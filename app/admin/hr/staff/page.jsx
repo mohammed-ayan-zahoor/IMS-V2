@@ -387,10 +387,14 @@ export default function StaffDirectoryPage() {
         const unknownPerms = rawPerms.filter(rp => !ALL_PERMISSIONS.some(ap => ap.id === rp || ap.legacyKeys?.includes(rp)));
         const normalizedPerms = Array.from(new Set([...granularPerms, ...unknownPerms]));
 
+        const isSynthetic = member.email?.endsWith("@ims.internal");
         setEditFormData({
             firstName: member.profile?.firstName || "",
             lastName: member.profile?.lastName || "",
             phone: member.profile?.phone || "",
+            email: isSynthetic ? "" : (member.email || ""),
+            existingInternalEmail: isSynthetic ? member.email : null,
+            password: "",
             staffCategory: category,
             role: member.role || "staff",
             designation: member.hrDetails?.designation?._id || member.hrDetails?.designation || "",
@@ -409,6 +413,18 @@ export default function StaffDirectoryPage() {
     const handleEditStaffSubmit = async (e) => {
         e.preventDefault();
         if (!editingStaff?._id) return;
+
+        if (editFormData.allowLogin) {
+            if (!editFormData.email?.trim()) {
+                toast.error("Please enter a valid login email address for this staff member");
+                return;
+            }
+            if (editFormData.password && editFormData.password.length < 6) {
+                toast.error("Password must be at least 6 characters");
+                return;
+            }
+        }
+
         setSubmitting(true);
         try {
             const payload = {
@@ -423,7 +439,9 @@ export default function StaffDirectoryPage() {
                 basicSalary: parseFloat(editFormData.basicSalary) || 0,
                 allowLogin: !!editFormData.allowLogin,
                 biometricId: editFormData.biometricId?.trim() || null,
-                permissions: editFormData.role === 'admin' ? [] : (editFormData.permissions || [])
+                permissions: editFormData.role === 'admin' ? [] : (editFormData.permissions || []),
+                ...(editFormData.email?.trim() ? { email: editFormData.email.trim().toLowerCase() } : {}),
+                ...(editFormData.password?.trim() ? { password: editFormData.password.trim() } : {})
             };
 
             const res = await fetch(`/api/v1/hr/staff/${editingStaff._id}`, {
@@ -1550,7 +1568,7 @@ export default function StaffDirectoryPage() {
                                     Portal Login Access
                                 </label>
                                 <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                    Allow this staff member to log in to the portal using their registered email.
+                                    Allow this staff member to log in to the portal using their registered email and password.
                                 </p>
                             </div>
                             <button
@@ -1571,6 +1589,52 @@ export default function StaffDirectoryPage() {
                                 />
                             </button>
                         </div>
+
+                        {editFormData.allowLogin ? (
+                            <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                                {editFormData.existingInternalEmail && (
+                                    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-lg p-2.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                                        <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                                        <span>
+                                            Currently has internal placeholder (<code className="font-mono text-[11px]">{editFormData.existingInternalEmail}</code>). Enter their real email address and a password below so they can log in at <strong className="font-semibold">/login</strong>.
+                                        </span>
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                            Login Email <span className="text-rose-500">*</span>
+                                        </label>
+                                        <Input
+                                            type="email"
+                                            placeholder="staff@example.com"
+                                            value={editFormData.email}
+                                            onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                                            required={editFormData.allowLogin}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                            Reset Password (Optional)
+                                        </label>
+                                        <Input
+                                            type="password"
+                                            placeholder="Leave blank to keep existing password"
+                                            value={editFormData.password}
+                                            onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
+                                        />
+                                        <p className="text-[10px] text-gray-400 mt-1">Min 6 characters. Leave blank if unchanged.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-lg p-2.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                                <CheckCircle2 className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                                <span>
+                                    Portal login disabled. This staff member will only be tracked for attendance and payroll.
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Modal Actions */}

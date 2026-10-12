@@ -40,7 +40,8 @@ import {
     Printer,
     BadgeCheck,
     Camera,
-    Upload
+    Upload,
+    KeyRound
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -431,6 +432,18 @@ export default function StaffProfilePage({ params }) {
     // Save Profile & Banking Changes
     const handleSaveProfile = async (e) => {
         e.preventDefault();
+
+        if (profileForm.allowLogin) {
+            if (!profileForm.email?.trim()) {
+                toast.error("Please enter a valid login email address");
+                return;
+            }
+            if (profileForm.password && profileForm.password.length < 6) {
+                toast.error("Password must be at least 6 characters");
+                return;
+            }
+        }
+
         setSaving(true);
         try {
             const payload = {
@@ -446,6 +459,8 @@ export default function StaffProfilePage({ params }) {
                 qualification: profileForm.qualification.trim(),
                 joiningDate: profileForm.joiningDate || null,
                 allowLogin: !!profileForm.allowLogin,
+                ...(profileForm.email?.trim() ? { email: profileForm.email.trim().toLowerCase() } : {}),
+                ...(profileForm.password?.trim() ? { password: profileForm.password.trim() } : {}),
                 ...(profileForm.avatar !== undefined ? { avatar: profileForm.avatar } : {}),
                 panNumber: profileForm.panNumber.trim(),
                 uanNumber: profileForm.uanNumber.trim(),
@@ -486,11 +501,15 @@ export default function StaffProfilePage({ params }) {
 
     const handleOpenEditProfile = () => {
         if (staff) {
+            const isSynthetic = staff.email?.endsWith("@ims.internal");
             setProfileForm({
                 firstName: staff.profile?.firstName || "",
                 lastName: staff.profile?.lastName || "",
                 avatar: staff.profile?.avatar || null,
                 phone: staff.profile?.phone || "",
+                email: isSynthetic ? "" : (staff.email || ""),
+                existingInternalEmail: isSynthetic ? staff.email : null,
+                password: "",
                 gender: staff.profile?.gender || "",
                 bloodGroup: staff.profile?.bloodGroup || "",
                 dob: staff.profile?.dateOfBirth ? staff.profile.dateOfBirth.split("T")[0] : "",
@@ -710,10 +729,15 @@ export default function StaffProfilePage({ params }) {
                                         {staff.profile.phone}
                                     </span>
                                 )}
-                                {!isSyntheticEmail && (
-                                    <span className="flex items-center gap-1">
-                                        <Mail className="w-3.5 h-3.5 text-gray-400" />
+                                {!isSyntheticEmail ? (
+                                    <span className="flex items-center gap-1 font-medium text-gray-700 dark:text-gray-300">
+                                        <Mail className="w-3.5 h-3.5 text-indigo-600" />
                                         {staff.email}
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+                                        <AlertCircle className="w-3.5 h-3.5" />
+                                        No Login Email Assigned
                                     </span>
                                 )}
                                 {staff.hrDetails?.joiningDate && (
@@ -844,6 +868,17 @@ export default function StaffProfilePage({ params }) {
                                 <span className="font-mono text-gray-900 dark:text-white font-semibold">{staff.enrollmentNumber || "N/A"}</span>
                             </div>
                             <div>
+                                <span className="text-gray-400 block font-medium">Login Email</span>
+                                {!isSyntheticEmail ? (
+                                    <span className="text-gray-900 dark:text-white font-semibold font-mono">{staff.email}</span>
+                                ) : (
+                                    <span className="text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                                        <AlertCircle className="w-3 h-3 shrink-0" />
+                                        Not Assigned (Payroll only)
+                                    </span>
+                                )}
+                            </div>
+                            <div>
                                 <span className="text-gray-400 block font-medium">Designation</span>
                                 <span className="text-gray-900 dark:text-white font-semibold">{designationName}</span>
                             </div>
@@ -879,13 +914,23 @@ export default function StaffProfilePage({ params }) {
                             <div className="flex items-center justify-between text-xs">
                                 <div>
                                     <span className="font-semibold text-gray-900 dark:text-white">Portal Access</span>
-                                    <p className="text-[11px] text-gray-400">{isNonLogin ? "Staff member has no login credentials (attendance & payroll only)." : "Staff member can log in to portal."}</p>
+                                    <p className="text-[11px] text-gray-400">
+                                        {isNonLogin 
+                                            ? "Staff member has no login credentials (attendance & payroll only)." 
+                                            : isSyntheticEmail 
+                                                ? "Login enabled but needs a valid email configured to sign in."
+                                                : `Can log in at /login with ${staff.email}`}
+                                    </p>
                                 </div>
                                 <span className={cn(
                                     "px-2 py-0.5 rounded text-[11px] font-semibold",
-                                    isNonLogin ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                    isNonLogin 
+                                        ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" 
+                                        : isSyntheticEmail
+                                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
                                 )}>
-                                    {isNonLogin ? "Payroll Only" : "Login Enabled"}
+                                    {isNonLogin ? "Payroll Only" : isSyntheticEmail ? "Needs Email Setup" : "Login Enabled"}
                                 </span>
                             </div>
                         </div>
@@ -1617,18 +1662,62 @@ export default function StaffProfilePage({ params }) {
                         </div>
                     </div>
 
-                    {/* Portal Login Checkbox */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-800">
-                        <div className="space-y-0.5">
-                            <span className="text-xs font-bold text-gray-900 dark:text-white">Allow Portal Login</span>
-                            <p className="text-[11px] text-gray-400">Keep disabled for support staff, maids, and drivers who do not require login access.</p>
+                    {/* Portal Login Credentials Section */}
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <span className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                    <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+                                    Allow Portal Login
+                                </span>
+                                <p className="text-[11px] text-gray-400">Keep disabled for support staff, maids, and drivers who do not require login access.</p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={profileForm.allowLogin}
+                                onChange={(e) => setProfileForm({ ...profileForm, allowLogin: e.target.checked })}
+                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                            />
                         </div>
-                        <input
-                            type="checkbox"
-                            checked={profileForm.allowLogin}
-                            onChange={(e) => setProfileForm({ ...profileForm, allowLogin: e.target.checked })}
-                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                        />
+
+                        {profileForm.allowLogin && (
+                            <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                                {profileForm.existingInternalEmail && (
+                                    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-lg p-2.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                                        <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                                        <span>
+                                            Currently has internal placeholder (<code className="font-mono text-[11px]">{profileForm.existingInternalEmail}</code>). Please set a real email address and password so this staff member can log in at <strong className="font-semibold">/login</strong>.
+                                        </span>
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                            Login Email <span className="text-rose-500">*</span>
+                                        </label>
+                                        <Input
+                                            type="email"
+                                            placeholder="staff@example.com"
+                                            value={profileForm.email || ""}
+                                            onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                                            required={profileForm.allowLogin}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                            Reset Password (Optional)
+                                        </label>
+                                        <Input
+                                            type="password"
+                                            placeholder="Leave blank to keep existing password"
+                                            value={profileForm.password || ""}
+                                            onChange={(e) => setProfileForm({ ...profileForm, password: e.target.value })}
+                                        />
+                                        <p className="text-[10px] text-gray-400 mt-1">Min 6 characters. Leave blank if unchanged.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Address Section */}

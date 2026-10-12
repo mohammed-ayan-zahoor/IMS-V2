@@ -3,11 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
+import Membership from "@/models/Membership";
 import Payslip from "@/models/Payslip";
 import StaffAttendance from "@/models/StaffAttendance";
 import SalaryComponent from "@/models/SalaryComponent";
 import Designation from "@/models/Designation";
 import { createAuditLog } from "@/services/auditService";
+import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 
 export async function GET(req, { params }) {
@@ -124,7 +126,7 @@ export async function PATCH(req, { params }) {
         const body = await req.json();
         await connectDB();
 
-        const staff = await User.findOne({ _id: id, institute: instituteId, deletedAt: null });
+        const staff = await User.findOne({ _id: id, institute: instituteId, deletedAt: null }).select("+passwordHash");
         if (!staff) {
             return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
         }
@@ -140,13 +142,62 @@ export async function PATCH(req, { params }) {
         if (body.dob !== undefined) staff.profile.dateOfBirth = body.dob ? new Date(body.dob) : null;
         if (body.address !== undefined) staff.profile.address = body.address;
 
-        // 2. Role & Login Access & Department
+        // 2. Email & Password updates
+        if (body.email !== undefined && body.email !== null) {
+            const newEmail = body.email.trim().toLowerCase();
+            if (newEmail !== staff.email) {
+                if (!/^\S+@\S+\.\S+$/.test(newEmail)) {
+                    return NextResponse.json({ error: "Please enter a valid email address" }, { status: 400 });
+                }
+                const existingUser = await User.findOne({
+                    _id: { $ne: staff._id },
+                    email: newEmail,
+                    deletedAt: null
+                });
+                if (existingUser) {
+                    return NextResponse.json({ error: "A user with this email address already exists" }, { status: 400 });
+                }
+                staff.email = newEmail;
+            }
+        }
+
+        if (body.password !== undefined && body.password !== null && typeof body.password === "string") {
+            const trimmedPassword = body.password.trim();
+            if (trimmedPassword.length > 0) {
+                if (trimmedPassword.length < 6) {
+                    return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+                }
+                staff.passwordHash = await bcrypt.hash(trimmedPassword, 10);
+            }
+        }
+
+        // 3. Role & Login Access & Department
         if (body.role && ['admin', 'instructor', 'staff'].includes(body.role)) {
             staff.role = body.role;
+            await Membership.findOneAndUpdate(
+                { user: staff._id, institute: instituteId },
+                { role: body.role, isActive: true },
+                { upsert: true }
+            );
+        } else {
+            await Membership.findOneAndUpdate(
+                { user: staff._id, institute: instituteId },
+                { $setOnInsert: { role: staff.role, isActive: true } },
+                { upsert: true }
+            );
         }
+
         if (body.allowLogin !== undefined) {
             staff.allowLogin = !!body.allowLogin;
         }
+
+        // Guard: cannot enable login access if email is still an internal synthetic placeholder
+        if (staff.allowLogin && staff.email?.endsWith("@ims.internal")) {
+            return NextResponse.json({
+                error: "Please assign a valid email address before enabling portal login."
+            }, { status: 400 });
+        }
+
         if (body.permissions !== undefined && Array.isArray(body.permissions)) {
             staff.permissions = body.permissions;
         }
