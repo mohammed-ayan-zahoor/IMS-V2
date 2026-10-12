@@ -200,18 +200,21 @@ export default function AdminLayout({ children }) {
         {
             label: "Academic",
             icon: BookOpen,
+            role: ["admin", "super_admin", "staff"],
+            permission: "manage_students",
             items: [
-                { label: "Departments", icon: Building2, href: "/admin/departments", instituteType: ["COLLEGE"] },
+                { label: "Departments", icon: Building2, href: "/admin/departments", instituteType: ["COLLEGE"], role: ["admin", "super_admin"] },
                 { label: "Students", icon: Users, href: "/admin/students" },
-                { label: isSchool ? "Class" : "Courses", icon: BookOpen, href: "/admin/courses" },
-                { label: "Subjects", icon: Layers3, href: "/admin/subjects" }, // Changed icon to Layers3 for subjects to distinguish
-                { label: isSchool ? "Section" : "Batches", icon: Layers3, href: "/admin/batches" },
+                { label: isSchool ? "Class" : "Courses", icon: BookOpen, href: "/admin/courses", role: ["admin", "super_admin"] },
+                { label: "Subjects", icon: Layers3, href: "/admin/subjects", role: ["admin", "super_admin"] }, // Changed icon to Layers3 for subjects to distinguish
+                { label: isSchool ? "Section" : "Batches", icon: Layers3, href: "/admin/batches", role: ["admin", "super_admin"] },
             ]
         },
         {
             label: "Enquiry",
             icon: Contact,
-            role: ["admin", "super_admin"],
+            role: ["admin", "super_admin", "staff", "instructor"],
+            permission: "manage_enquiries",
             items: [
                 { label: "New Entry", icon: Plus, href: "/admin/enquiries/new" },
                 { label: "View Entry", icon: List, href: "/admin/enquiries" },
@@ -221,19 +224,22 @@ export default function AdminLayout({ children }) {
         {
             label: "Learning",
             icon: Award,
+            role: ["admin", "super_admin", "instructor", "staff"],
+            permission: ["manage_exams", "manage_notices"],
             items: [
-                { label: "Attendance", icon: Calendar, href: "/admin/attendance" },
-                { label: "Online Exams", icon: FileSignature, href: "/admin/exams" },
-                { label: "Question Bank", icon: Database, href: "/admin/question-bank" },
-                { label: "Notices", icon: Megaphone, href: "/admin/notices" },
-                { label: "Materials", icon: FileText, href: "/admin/materials" },
-                { label: "School Calendar", icon: CalendarDays, href: "/admin/calendar" },
+                { label: "Attendance", icon: Calendar, href: "/admin/attendance", role: ["admin", "super_admin", "instructor"] },
+                { label: "Online Exams", icon: FileSignature, href: "/admin/exams", role: ["admin", "super_admin", "instructor", "staff"], permission: "manage_exams" },
+                { label: "Question Bank", icon: Database, href: "/admin/question-bank", role: ["admin", "super_admin", "instructor"] },
+                { label: "Notices", icon: Megaphone, href: "/admin/notices", role: ["admin", "super_admin", "instructor", "staff"], permission: "manage_notices" },
+                { label: "Materials", icon: FileText, href: "/admin/materials", role: ["admin", "super_admin", "instructor"] },
+                { label: "School Calendar", icon: CalendarDays, href: "/admin/calendar", role: ["admin", "super_admin", "instructor"] },
             ]
         },
         {
             label: "Finance",
             icon: CreditCard,
-            role: ["admin", "super_admin"],
+            role: ["admin", "super_admin", "staff", "instructor"],
+            permission: "manage_fees",
             items: [
                 { label: "Fees", icon: CreditCard, href: "/admin/fees" },
                 { label: "Collection History", icon: ReceiptText, href: "/admin/collections" },
@@ -264,7 +270,8 @@ export default function AdminLayout({ children }) {
         ...(isTransportEnabled ? [{
             label: "Transport",
             icon: Bus,
-            role: ["admin", "super_admin"],
+            role: ["admin", "super_admin", "staff"],
+            permission: "manage_transport",
             items: [
                 { label: "Transport", icon: Bus, href: "/admin/transport" }
             ]
@@ -273,7 +280,8 @@ export default function AdminLayout({ children }) {
         ...(isHostelEnabled ? [{
             label: "Hostel",
             icon: Hotel,
-            role: ["admin", "super_admin"],
+            role: ["admin", "super_admin", "staff"],
+            permission: "manage_hostel",
             items: [
                 { label: "Hostel", icon: Hotel, href: "/admin/hostel" }
             ]
@@ -327,6 +335,8 @@ export default function AdminLayout({ children }) {
         {
             label: "Reports",
             icon: BarChart3,
+            role: ["admin", "super_admin", "staff"],
+            permission: "view_reports",
             items: [
                 { label: "Follow-up Queue", icon: History, href: "/admin/reports/follow-ups" },
                 { label: "Attendance", icon: Calendar, href: "/admin/reports/attendance" },
@@ -336,41 +346,48 @@ export default function AdminLayout({ children }) {
         {
             label: "Administration",
             icon: Settings,
-            role: ["admin", "super_admin"],
+            role: ["admin", "super_admin", "staff"],
+            permission: "generate_id_cards",
             items: [
-                { label: "Approvals", icon: ShieldCheck, href: "/admin/approvals" },
-                { label: "Master Admin & Rules", icon: ShieldAlert, href: "/admin/settings/master-admin" },
-                { label: "Accounts Master", icon: Building2, href: "/admin/accounts" },
-                { label: "User Management", icon: UserCog, href: "/admin/users" },
-                { label: "Audit Logs", icon: History, href: "/admin/audit-logs" },
-                { label: "Completion Tracking", icon: CheckCircle2, href: "/admin/completion-tracking", instituteType: ["VOCATIONAL"] },
-                { label: "Certificate Management", icon: Award, href: "/admin/certificate-management" },
-                { label: "ID Card Management", icon: Contact, href: "/admin/id-cards" },
-                { label: "ID Card (PDFMe) [Test]", icon: Contact, href: "/admin/id-cards-pdfme" },
-                { label: "Website Builder", icon: Globe, href: "/admin/website" },
-                { label: "Website Results", icon: Award, href: "/admin/website/results" },
+                { label: "Approvals", icon: ShieldCheck, href: "/admin/approvals", role: ["admin", "super_admin"] },
+                { label: "Master Admin & Rules", icon: ShieldAlert, href: "/admin/settings/master-admin", role: ["admin", "super_admin"] },
+                { label: "Accounts Master", icon: Building2, href: "/admin/accounts", role: ["admin", "super_admin"] },
+                { label: "User Management", icon: UserCog, href: "/admin/users", role: ["admin", "super_admin"] },
+                { label: "Audit Logs", icon: History, href: "/admin/audit-logs", role: ["admin", "super_admin"] },
+                { label: "Completion Tracking", icon: CheckCircle2, href: "/admin/completion-tracking", instituteType: ["VOCATIONAL"], role: ["admin", "super_admin"] },
+                { label: "Certificate Management", icon: Award, href: "/admin/certificate-management", role: ["admin", "super_admin"] },
+                { label: "ID Card Management", icon: Contact, href: "/admin/id-cards", permission: "generate_id_cards" },
+                { label: "ID Card (PDFMe) [Test]", icon: Contact, href: "/admin/id-cards-pdfme", permission: "generate_id_cards" },
+                { label: "Website Builder", icon: Globe, href: "/admin/website", role: ["admin", "super_admin"] },
+                { label: "Website Results", icon: Award, href: "/admin/website/results", role: ["admin", "super_admin"] },
                 { label: "MOU Tracker", icon: FileSignature, href: "/admin/mou-tracker", role: ["super_admin"] },
 
-                { label: "WhatsApp Broadcast", icon: MessageSquare, href: "/admin/utility/whatsapp-broadcast" },
-                { label: "Settings", icon: Settings, href: "/admin/settings" },
+                { label: "WhatsApp Broadcast", icon: MessageSquare, href: "/admin/utility/whatsapp-broadcast", role: ["admin", "super_admin"] },
+                { label: "Settings", icon: Settings, href: "/admin/settings", role: ["admin", "super_admin"] },
             ]
         }
     ].filter(group => {
+        const isAdmin = ['admin', 'super_admin'].includes(session?.user?.role);
         const hasRole = !group.role || group.role.includes(session?.user?.role);
         if (!hasRole) return false;
-        if (group.permission && ['instructor', 'staff'].includes(session?.user?.role)) {
-            return !!session?.user?.permissions?.includes(group.permission);
+        if (!isAdmin && group.permission) {
+            const requiredPerms = Array.isArray(group.permission) ? group.permission : [group.permission];
+            const hasAnyPerm = requiredPerms.some(p => session?.user?.permissions?.includes(p));
+            if (!hasAnyPerm) return false;
         }
         return true;
      })
      .map(group => ({
          ...group,
          items: group.items.filter(item => {
+             const isAdmin = ['admin', 'super_admin'].includes(session?.user?.role);
              const hasRole = !item.role || item.role.includes(session?.user?.role);
              const hasInstituteType = !item.instituteType || item.instituteType.includes(session?.user?.institute?.type);
-             return hasRole && hasInstituteType;
+             const hasPermission = isAdmin || !item.permission || (session?.user?.permissions && session.user.permissions.includes(item.permission));
+             return hasRole && hasInstituteType && hasPermission;
          })
-     }));
+     }))
+     .filter(group => group.items.length > 0);
 
     if (session?.user?.role === "super_admin") {
         menuGroups.unshift({

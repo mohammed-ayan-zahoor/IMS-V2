@@ -108,7 +108,7 @@ export default async function middleware(req) {
                 if (token?.role === "student") {
                     return NextResponse.redirect(new URL("/student/dashboard", req.url));
                 }
-                if (["admin", "super_admin", "instructor"].includes(token?.role)) {
+                if (["admin", "super_admin", "instructor", "staff"].includes(token?.role)) {
                     return NextResponse.redirect(new URL("/admin/dashboard", req.url));
                 }
                 if (path === "/") return NextResponse.redirect(new URL("/login", req.url));
@@ -119,7 +119,7 @@ export default async function middleware(req) {
             const isInstructorPath = path.startsWith("/instructor");
 
             if ((isAdminPath || isInstructorPath) &&
-                !["admin", "super_admin", "instructor"].includes(token?.role)) {
+                !["admin", "super_admin", "instructor", "staff"].includes(token?.role)) {
                 if (token?.role === "student") {
                     return NextResponse.redirect(new URL("/student/dashboard", req.url));
                 }

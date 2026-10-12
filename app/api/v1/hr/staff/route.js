@@ -37,7 +37,15 @@ export async function GET(req) {
         };
 
         if (roleFilter && roleFilter !== 'all') {
-            query.role = roleFilter;
+            if (roleFilter === 'office_staff') {
+                query.role = 'staff';
+                query.allowLogin = true;
+            } else if (roleFilter === 'support_staff') {
+                query.role = 'staff';
+                query.allowLogin = false;
+            } else {
+                query.role = roleFilter;
+            }
         }
 
         if (designationFilter && mongoose.Types.ObjectId.isValid(designationFilter)) {
@@ -69,14 +77,33 @@ export async function GET(req) {
         // Calculate role counts
         const allCounts = await User.aggregate([
             { $match: { institute: new mongoose.Types.ObjectId(instituteId), role: { $in: ['admin', 'instructor', 'staff'] }, deletedAt: null } },
-            { $group: { _id: "$role", count: { $sum: 1 } } }
+            { 
+                $group: { 
+                    _id: {
+                        role: "$role",
+                        allowLogin: { $ifNull: ["$allowLogin", true] }
+                    }, 
+                    count: { $sum: 1 } 
+                } 
+            }
         ]);
 
-        const counts = { all: staffMembers.length, instructor: 0, admin: 0, staff: 0 };
+        const counts = { all: 0, instructor: 0, admin: 0, staff: 0, office_staff: 0, support_staff: 0 };
         allCounts.forEach(c => {
-            if (counts[c._id] !== undefined) counts[c._id] = c.count;
+            const role = c._id?.role;
+            const allowLogin = c._id?.allowLogin;
+            if (role === 'admin') counts.admin += c.count;
+            else if (role === 'instructor') counts.instructor += c.count;
+            else if (role === 'staff') {
+                counts.staff += c.count;
+                if (allowLogin) {
+                    counts.office_staff += c.count;
+                } else {
+                    counts.support_staff += c.count;
+                }
+            }
         });
-        counts.all = (counts.instructor || 0) + (counts.admin || 0) + (counts.staff || 0);
+        counts.all = counts.instructor + counts.admin + counts.staff;
 
         return NextResponse.json({ staffMembers, counts });
     } catch (error) {
@@ -119,7 +146,8 @@ export async function POST(req) {
             uanNumber,
             esiNumber,
             bankDetails,
-            biometricId
+            biometricId,
+            permissions
         } = body;
 
         if (!firstName || !firstName.trim()) {
@@ -170,6 +198,7 @@ export async function POST(req) {
             passwordHash,
             role: assignedRole,
             allowLogin: !!allowLogin,
+            permissions: Array.isArray(permissions) ? permissions : [],
             department: (department && mongoose.Types.ObjectId.isValid(department)) ? new mongoose.Types.ObjectId(department) : null,
             enrollmentNumber: empCode,
             isActive: true,

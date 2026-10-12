@@ -38,13 +38,14 @@ import EmptyState from "@/components/shared/EmptyState";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { cn } from "@/lib/utils";
+import { AVAILABLE_PERMISSIONS } from "@/lib/permissions";
 
 export default function StaffDirectoryPage() {
     const toast = useToast();
     const confirm = useConfirm();
 
     const [staffList, setStaffList] = useState([]);
-    const [counts, setCounts] = useState({ all: 0, instructor: 0, admin: 0, staff: 0 });
+    const [counts, setCounts] = useState({ all: 0, instructor: 0, admin: 0, staff: 0, office_staff: 0, support_staff: 0 });
     const [designations, setDesignations] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -66,14 +67,16 @@ export default function StaffDirectoryPage() {
         firstName: "",
         lastName: "",
         phone: "",
+        staffCategory: "office_staff",
         role: "staff",
         designation: "",
         department: "",
         qualification: "",
         joiningDate: "",
         basicSalary: "",
-        allowLogin: false,
-        biometricId: ""
+        allowLogin: true,
+        biometricId: "",
+        permissions: []
     });
 
     // Add Staff Form
@@ -81,13 +84,14 @@ export default function StaffDirectoryPage() {
         firstName: "",
         lastName: "",
         phone: "",
-        role: "staff", // default to staff/support
+        staffCategory: "office_staff", // "office_staff" | "admin" | "instructor" | "support_staff"
+        role: "staff",
         designation: "",
         department: "",
         qualification: "",
         joiningDate: new Date().toISOString().split("T")[0],
         basicSalary: "",
-        allowLogin: false, // default false for support staff, toggled to true for instructors/admins
+        allowLogin: true,
         email: "",
         password: "",
         panNumber: "",
@@ -98,7 +102,8 @@ export default function StaffDirectoryPage() {
         accountNumber: "",
         ifscCode: "",
         branch: "",
-        biometricId: ""
+        biometricId: "",
+        permissions: ["view_front_office"]
     };
 
     const [formData, setFormData] = useState(initialFormState);
@@ -173,25 +178,104 @@ export default function StaffDirectoryPage() {
         setRoleFilter(role);
     };
 
-    const handleOpenAddModal = (defaultRole = "staff") => {
-        const loginAllowed = defaultRole !== "staff";
+    const handleCategoryChange = (category, isEdit = false) => {
+        let role = "staff";
+        let allowLogin = true;
+        let perms = [];
+
+        if (category === "admin") {
+            role = "admin";
+            allowLogin = true;
+            perms = [];
+        } else if (category === "instructor") {
+            role = "instructor";
+            allowLogin = true;
+            perms = isEdit ? (editFormData.permissions || []) : ["view_front_office"];
+        } else if (category === "office_staff") {
+            role = "staff";
+            allowLogin = true;
+            perms = isEdit 
+                ? (editFormData.permissions?.length ? editFormData.permissions : ["view_front_office"]) 
+                : (formData.permissions?.length ? formData.permissions : ["view_front_office"]);
+        } else if (category === "support_staff") {
+            role = "staff";
+            allowLogin = false;
+            perms = [];
+        }
+
+        if (isEdit) {
+            setEditFormData(prev => ({
+                ...prev,
+                staffCategory: category,
+                role,
+                allowLogin,
+                permissions: perms
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                staffCategory: category,
+                role,
+                allowLogin,
+                permissions: perms
+            }));
+        }
+    };
+
+    const handleTogglePermission = (permissionId, isEdit = false) => {
+        if (isEdit) {
+            setEditFormData(prev => {
+                const current = prev.permissions || [];
+                const updated = current.includes(permissionId)
+                    ? current.filter(p => p !== permissionId)
+                    : [...current, permissionId];
+                return { ...prev, permissions: updated };
+            });
+        } else {
+            setFormData(prev => {
+                const current = prev.permissions || [];
+                const updated = current.includes(permissionId)
+                    ? current.filter(p => p !== permissionId)
+                    : [...current, permissionId];
+                return { ...prev, permissions: updated };
+            });
+        }
+    };
+
+    const handleSelectAllPermissions = (selectAll = true, isEdit = false) => {
+        const allIds = selectAll ? AVAILABLE_PERMISSIONS.map(p => p.id) : [];
+        if (isEdit) {
+            setEditFormData(prev => ({ ...prev, permissions: allIds }));
+        } else {
+            setFormData(prev => ({ ...prev, permissions: allIds }));
+        }
+    };
+
+    const handleOpenAddModal = (defaultCategory = "office_staff") => {
+        let role = "staff";
+        let allowLogin = true;
+        let perms = ["view_front_office"];
+
+        if (defaultCategory === "admin") {
+            role = "admin";
+            perms = [];
+        } else if (defaultCategory === "instructor") {
+            role = "instructor";
+        } else if (defaultCategory === "support_staff") {
+            role = "staff";
+            allowLogin = false;
+            perms = [];
+        }
+
         setFormData({
             ...initialFormState,
-            role: defaultRole,
-            allowLogin: loginAllowed
+            staffCategory: defaultCategory,
+            role,
+            allowLogin,
+            permissions: perms
         });
         setShowBankingSection(false);
         setIsAddModalOpen(true);
-    };
-
-    const handleRoleSelectChange = (newRole) => {
-        // Auto-suggest login allowed if admin or instructor
-        const loginAllowed = newRole !== "staff";
-        setFormData(prev => ({
-            ...prev,
-            role: newRole,
-            allowLogin: loginAllowed
-        }));
     };
 
     const handleAddStaffSubmit = async (e) => {
@@ -228,6 +312,7 @@ export default function StaffDirectoryPage() {
                 biometricId: formData.biometricId?.trim() || undefined,
                 email: formData.allowLogin ? formData.email.trim() : undefined,
                 password: formData.allowLogin ? formData.password : undefined,
+                permissions: formData.role === 'admin' ? [] : (formData.permissions || []),
                 panNumber: formData.panNumber.trim(),
                 uanNumber: formData.uanNumber.trim(),
                 esiNumber: formData.esiNumber.trim(),
@@ -263,10 +348,20 @@ export default function StaffDirectoryPage() {
 
     const handleOpenEditModal = (member) => {
         setEditingStaff(member);
+        let category = "office_staff";
+        if (member.role === "admin") {
+            category = "admin";
+        } else if (member.role === "instructor") {
+            category = "instructor";
+        } else if (member.role === "staff") {
+            category = member.allowLogin === false ? "support_staff" : "office_staff";
+        }
+
         setEditFormData({
             firstName: member.profile?.firstName || "",
             lastName: member.profile?.lastName || "",
             phone: member.profile?.phone || "",
+            staffCategory: category,
             role: member.role || "staff",
             designation: member.hrDetails?.designation?._id || member.hrDetails?.designation || "",
             department: member.department?._id || member.department || "",
@@ -274,7 +369,8 @@ export default function StaffDirectoryPage() {
             joiningDate: member.hrDetails?.joiningDate ? member.hrDetails.joiningDate.split("T")[0] : "",
             basicSalary: member.hrDetails?.basicSalary ?? "",
             allowLogin: member.allowLogin !== false,
-            biometricId: member.hrDetails?.biometricId || ""
+            biometricId: member.hrDetails?.biometricId || "",
+            permissions: Array.isArray(member.permissions) ? member.permissions : []
         });
         setIsEditModalOpen(true);
     };
@@ -295,7 +391,8 @@ export default function StaffDirectoryPage() {
                 joiningDate: editFormData.joiningDate || null,
                 basicSalary: parseFloat(editFormData.basicSalary) || 0,
                 allowLogin: !!editFormData.allowLogin,
-                biometricId: editFormData.biometricId?.trim() || null
+                biometricId: editFormData.biometricId?.trim() || null,
+                permissions: editFormData.role === 'admin' ? [] : (editFormData.permissions || [])
             };
 
             const res = await fetch(`/api/v1/hr/staff/${editingStaff._id}`, {
@@ -340,15 +437,18 @@ export default function StaffDirectoryPage() {
         }
     };
 
-    const getRoleBadge = (role) => {
+    const getRoleBadge = (role, allowLogin) => {
         switch (role) {
             case "admin":
-                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">Admin</span>;
+                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">Admin</span>;
             case "instructor":
-                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">Teaching Faculty</span>;
+                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Teaching Faculty</span>;
             case "staff":
             default:
-                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Support Staff</span>;
+                if (allowLogin !== false) {
+                    return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800">Office Staff</span>;
+                }
+                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Support Staff</span>;
         }
     };
 
@@ -367,7 +467,7 @@ export default function StaffDirectoryPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <Button
-                        onClick={() => handleOpenAddModal("staff")}
+                        onClick={() => handleOpenAddModal("support_staff")}
                         variant="secondary"
                         className="flex items-center gap-2 border-slate-300 dark:border-slate-700"
                     >
@@ -375,7 +475,7 @@ export default function StaffDirectoryPage() {
                         + Add Support Staff
                     </Button>
                     <Button
-                        onClick={() => handleOpenAddModal("instructor")}
+                        onClick={() => handleOpenAddModal("office_staff")}
                         className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                     >
                         <UserPlus className="w-4 h-4" />
@@ -385,7 +485,7 @@ export default function StaffDirectoryPage() {
             </div>
 
             {/* KPI Stat Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <Card 
                     onClick={() => handleRoleTabChange("all")}
                     className={cn(
@@ -400,6 +500,24 @@ export default function StaffDirectoryPage() {
                         </div>
                         <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
                             <Users className="w-5 h-5" />
+                        </div>
+                    </div>
+                </Card>
+
+                <Card 
+                    onClick={() => handleRoleTabChange("office_staff")}
+                    className={cn(
+                        "p-4 cursor-pointer transition-all border",
+                        roleFilter === "office_staff" ? "border-teal-500 ring-2 ring-teal-500/20 shadow-sm" : "hover:border-gray-300 dark:hover:border-gray-700"
+                    )}
+                >
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Office Staff</p>
+                            <p className="text-2xl font-bold text-teal-600 dark:text-teal-400 mt-1">{counts.office_staff || 0}</p>
+                        </div>
+                        <div className="p-2.5 bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-xl">
+                            <Building2 className="w-5 h-5" />
                         </div>
                     </div>
                 </Card>
@@ -441,16 +559,16 @@ export default function StaffDirectoryPage() {
                 </Card>
 
                 <Card 
-                    onClick={() => handleRoleTabChange("staff")}
+                    onClick={() => handleRoleTabChange("support_staff")}
                     className={cn(
                         "p-4 cursor-pointer transition-all border",
-                        roleFilter === "staff" ? "border-amber-500 ring-2 ring-amber-500/20 shadow-sm" : "hover:border-gray-300 dark:hover:border-gray-700"
+                        roleFilter === "support_staff" ? "border-amber-500 ring-2 ring-amber-500/20 shadow-sm" : "hover:border-gray-300 dark:hover:border-gray-700"
                     )}
                 >
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Support / Helpers</p>
-                            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{counts.staff || 0}</p>
+                            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{counts.support_staff || 0}</p>
                         </div>
                         <div className="p-2.5 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
                             <HeartHandshake className="w-5 h-5" />
@@ -476,6 +594,17 @@ export default function StaffDirectoryPage() {
                             All ({counts.all || 0})
                         </button>
                         <button
+                            onClick={() => handleRoleTabChange("office_staff")}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
+                                roleFilter === "office_staff"
+                                    ? "bg-white dark:bg-gray-700 text-teal-600 dark:text-teal-400 shadow-xs"
+                                    : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                            )}
+                        >
+                            Office Staff ({counts.office_staff || 0})
+                        </button>
+                        <button
                             onClick={() => handleRoleTabChange("instructor")}
                             className={cn(
                                 "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
@@ -498,15 +627,15 @@ export default function StaffDirectoryPage() {
                             Admins ({counts.admin || 0})
                         </button>
                         <button
-                            onClick={() => handleRoleTabChange("staff")}
+                            onClick={() => handleRoleTabChange("support_staff")}
                             className={cn(
                                 "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
-                                roleFilter === "staff"
+                                roleFilter === "support_staff"
                                     ? "bg-white dark:bg-gray-700 text-amber-600 dark:text-amber-400 shadow-xs"
                                     : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                             )}
                         >
-                            Support Staff ({counts.staff || 0})
+                            Support Staff ({counts.support_staff || 0})
                         </button>
                     </div>
 
@@ -619,7 +748,12 @@ export default function StaffDirectoryPage() {
                                             <td className="px-6 py-4">
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                                        {getRoleBadge(member.role)}
+                                                        {getRoleBadge(member.role, member.allowLogin)}
+                                                        {member.role === 'staff' && member.allowLogin !== false && Array.isArray(member.permissions) && member.permissions.length > 0 && (
+                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800" title={`Allowed modules: ${member.permissions.join(', ')}`}>
+                                                                {member.permissions.length} {member.permissions.length === 1 ? 'module' : 'modules'}
+                                                            </span>
+                                                        )}
                                                         {member.department && (
                                                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                                                                 {member.department.name}
@@ -753,19 +887,20 @@ export default function StaffDirectoryPage() {
                             />
                         </div>
 
-                        <div>
+                        <div className="sm:col-span-2">
                             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Role / Category <span className="text-rose-500">*</span>
+                                Staff Role & Access Level <span className="text-rose-500">*</span>
                             </label>
                             <select
-                                value={formData.role}
-                                onChange={(e) => handleRoleSelectChange(e.target.value)}
+                                value={formData.staffCategory}
+                                onChange={(e) => handleCategoryChange(e.target.value, false)}
                                 className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 required
                             >
-                                <option value="staff">Support Staff (Maid, Driver, Peon, Helper)</option>
-                                <option value="instructor">Teaching Faculty / Teacher</option>
-                                <option value="admin">Administrator / Office Staff</option>
+                                <option value="office_staff">Office Staff / Operations (Limited Module Access - Front Office, Fees, Library, etc.)</option>
+                                <option value="admin">Administrator (Full Unrestricted Access to all Modules & Settings)</option>
+                                <option value="instructor">Teaching Faculty / Teacher (Classes, Attendance, Exams, Leaves)</option>
+                                <option value="support_staff">Support Staff (Maid, Driver, Peon, Helper - Attendance & Payroll Only, No Login)</option>
                             </select>
                         </div>
 
@@ -861,6 +996,77 @@ export default function StaffDirectoryPage() {
                             />
                         </div>
                     </div>
+
+                    {/* Permissions Section for Office Staff / Instructor */}
+                    {['office_staff', 'instructor'].includes(formData.staffCategory) && (
+                        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                        <Shield className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                                        Accessible Modules & Permissions
+                                    </h4>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                        Select which modules this staff member can view and manage in their portal.
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectAllPermissions(true, false)}
+                                        className="text-teal-600 dark:text-teal-400 hover:underline font-semibold"
+                                    >
+                                        Select All
+                                    </button>
+                                    <span className="text-gray-300 dark:text-gray-700">•</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectAllPermissions(false, false)}
+                                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 font-semibold"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                {AVAILABLE_PERMISSIONS.map((perm) => {
+                                    const isChecked = formData.permissions?.includes(perm.id);
+                                    return (
+                                        <label
+                                            key={perm.id}
+                                            className={cn(
+                                                "flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all text-xs",
+                                                isChecked
+                                                    ? "bg-teal-50/70 dark:bg-teal-950/30 border-teal-300 dark:border-teal-700 text-teal-900 dark:text-teal-200"
+                                                    : "bg-white dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300"
+                                            )}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => handleTogglePermission(perm.id, false)}
+                                                className="mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 shrink-0"
+                                            />
+                                            <div>
+                                                <div className="font-semibold">{perm.label}</div>
+                                                <div className="text-[11px] opacity-75">{perm.description}</div>
+                                            </div>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {formData.staffCategory === 'admin' && (
+                        <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-xl p-3.5 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2.5">
+                            <Shield className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                            <div>
+                                <span className="font-bold">Full Administrator Access:</span> This user will have unrestricted administrative permissions across all academic programs, finance, human resources, system logs, and security settings.
+                            </div>
+                        </div>
+                    )}
 
                     {/* Portal Login Credentials Section */}
                     <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
@@ -1066,19 +1272,20 @@ export default function StaffDirectoryPage() {
                             />
                         </div>
 
-                        <div>
+                        <div className="sm:col-span-2">
                             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Role / Category <span className="text-rose-500">*</span>
+                                Staff Role & Access Level <span className="text-rose-500">*</span>
                             </label>
                             <select
-                                value={editFormData.role}
-                                onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                                value={editFormData.staffCategory}
+                                onChange={(e) => handleCategoryChange(e.target.value, true)}
                                 className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 required
                             >
-                                <option value="staff">Support Staff (Maid, Driver, Peon, Helper)</option>
-                                <option value="instructor">Teaching Faculty / Teacher</option>
-                                <option value="admin">Administrator / Office Staff</option>
+                                <option value="office_staff">Office Staff / Operations (Limited Module Access - Front Office, Fees, Library, etc.)</option>
+                                <option value="admin">Administrator (Full Unrestricted Access to all Modules & Settings)</option>
+                                <option value="instructor">Teaching Faculty / Teacher (Classes, Attendance, Exams, Leaves)</option>
+                                <option value="support_staff">Support Staff (Maid, Driver, Peon, Helper - Attendance & Payroll Only, No Login)</option>
                             </select>
                         </div>
 
@@ -1174,6 +1381,77 @@ export default function StaffDirectoryPage() {
                             />
                         </div>
                     </div>
+
+                    {/* Permissions Section for Office Staff / Instructor */}
+                    {['office_staff', 'instructor'].includes(editFormData.staffCategory) && (
+                        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                        <Shield className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                                        Accessible Modules & Permissions
+                                    </h4>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                        Select which modules this staff member can view and manage in their portal.
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectAllPermissions(true, true)}
+                                        className="text-teal-600 dark:text-teal-400 hover:underline font-semibold"
+                                    >
+                                        Select All
+                                    </button>
+                                    <span className="text-gray-300 dark:text-gray-700">•</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectAllPermissions(false, true)}
+                                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 font-semibold"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                {AVAILABLE_PERMISSIONS.map((perm) => {
+                                    const isChecked = editFormData.permissions?.includes(perm.id);
+                                    return (
+                                        <label
+                                            key={perm.id}
+                                            className={cn(
+                                                "flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all text-xs",
+                                                isChecked
+                                                    ? "bg-teal-50/70 dark:bg-teal-950/30 border-teal-300 dark:border-teal-700 text-teal-900 dark:text-teal-200"
+                                                    : "bg-white dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300"
+                                            )}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => handleTogglePermission(perm.id, true)}
+                                                className="mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 shrink-0"
+                                            />
+                                            <div>
+                                                <div className="font-semibold">{perm.label}</div>
+                                                <div className="text-[11px] opacity-75">{perm.description}</div>
+                                            </div>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {editFormData.staffCategory === 'admin' && (
+                        <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-xl p-3.5 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2.5">
+                            <Shield className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                            <div>
+                                <span className="font-bold">Full Administrator Access:</span> This user will have unrestricted administrative permissions across all academic programs, finance, human resources, system logs, and security settings.
+                            </div>
+                        </div>
+                    )}
 
                     {/* Portal Login Credentials Section */}
                     <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">

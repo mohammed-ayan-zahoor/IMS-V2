@@ -147,6 +147,9 @@ export async function PATCH(req, { params }) {
         if (body.allowLogin !== undefined) {
             staff.allowLogin = !!body.allowLogin;
         }
+        if (body.permissions !== undefined && Array.isArray(body.permissions)) {
+            staff.permissions = body.permissions;
+        }
         if (body.department !== undefined) {
             staff.department = (body.department && mongoose.Types.ObjectId.isValid(body.department))
                 ? new mongoose.Types.ObjectId(body.department)
