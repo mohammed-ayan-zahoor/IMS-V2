@@ -197,7 +197,7 @@ export default function AdminLayout({ children }) {
                      (session?.user?.institute?.type === 'COLLEGE' && session?.user?.institute?.structure === 'CLASS_BASED');
     const isTransportEnabled = !!features.transport;
     const isHostelEnabled = !!features.hostel;
-    const menuGroups = [
+    const rawMenuGroups = [
         {
             label: "Academic",
             icon: BookOpen,
@@ -369,28 +369,51 @@ export default function AdminLayout({ children }) {
                 { label: "Settings", icon: Settings, href: "/admin/settings", role: ["admin", "super_admin"] },
             ]
         }
-    ].filter(group => {
-        const isAdmin = ['admin', 'super_admin'].includes(session?.user?.role);
-        const hasRole = !group.role || group.role.includes(session?.user?.role);
-        if (!hasRole) return false;
-        if (!isAdmin && group.permission) {
-            const requiredPerms = Array.isArray(group.permission) ? group.permission : [group.permission];
-            const hasAnyPerm = requiredPerms.some(p => hasUserPermission(session?.user?.permissions, p));
-            if (!hasAnyPerm) return false;
-        }
-        return true;
-     })
-     .map(group => ({
-         ...group,
-         items: group.items.filter(item => {
-             const isAdmin = ['admin', 'super_admin'].includes(session?.user?.role);
-             const hasRole = !item.role || item.role.includes(session?.user?.role);
-             const hasInstituteType = !item.instituteType || item.instituteType.includes(session?.user?.institute?.type);
-             const hasPermission = isAdmin || !item.permission || hasUserPermission(session?.user?.permissions, item.permission);
-             return hasRole && hasInstituteType && hasPermission;
-         })
-     }))
-     .filter(group => group.items.length > 0);
+    ];
+
+    // ponytail: Flatten all route items for direct URL access authorization
+    const allProtectedRoutes = rawMenuGroups.flatMap(g => g.items.map(item => ({
+        ...item,
+        groupPermission: g.permission,
+        groupRole: g.role
+    })));
+
+    const isStaff = session?.user?.role === 'staff';
+    const isAdmin = ['admin', 'super_admin'].includes(session?.user?.role);
+    
+    // Find matching route definition for current pathname
+    const matchedRoute = (!isAdmin && isStaff && pathname) ? allProtectedRoutes
+        .filter(r => pathname === r.href || pathname.startsWith(r.href + "/"))
+        .sort((a, b) => b.href.length - a.href.length)[0] : null;
+
+    const isRouteDenied = Boolean(
+        isStaff && matchedRoute && (
+            (matchedRoute.role && !matchedRoute.role.includes('staff')) ||
+            (matchedRoute.permission && !hasUserPermission(session?.user?.permissions, matchedRoute.permission))
+        )
+    );
+
+    const menuGroups = rawMenuGroups
+        .filter(group => {
+            const hasRole = !group.role || group.role.includes(session?.user?.role);
+            if (!hasRole) return false;
+            if (!isAdmin && group.permission) {
+                const requiredPerms = Array.isArray(group.permission) ? group.permission : [group.permission];
+                const hasAnyPerm = requiredPerms.some(p => hasUserPermission(session?.user?.permissions, p));
+                if (!hasAnyPerm) return false;
+            }
+            return true;
+        })
+        .map(group => ({
+            ...group,
+            items: group.items.filter(item => {
+                const hasRole = !item.role || item.role.includes(session?.user?.role);
+                const hasInstituteType = !item.instituteType || item.instituteType.includes(session?.user?.institute?.type);
+                const hasPermission = isAdmin || !item.permission || hasUserPermission(session?.user?.permissions, item.permission);
+                return hasRole && hasInstituteType && hasPermission;
+            })
+        }))
+        .filter(group => group.items.length > 0);
 
     if (session?.user?.role === "super_admin") {
         menuGroups.unshift({
@@ -819,7 +842,25 @@ export default function AdminLayout({ children }) {
                             (pathname === "/admin/chat" || pathname === "/admin/website") ? "w-full h-full" : "mx-auto space-y-8",
                             "w-full max-w-[1600px]"
                         )}>
-                            {children}
+                            {isRouteDenied ? (
+                                <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs max-w-lg mx-auto my-12">
+                                    <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-500 mb-4 shadow-xs">
+                                        <ShieldAlert size={32} />
+                                    </div>
+                                    <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Access Restricted</h2>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mb-6 leading-relaxed">
+                                        You do not have permission to access <span className="font-semibold text-slate-700 dark:text-slate-200">{matchedRoute?.label || "this module"}</span>. Please contact your institution administrator if you require access.
+                                    </p>
+                                    <Link
+                                        href="/admin/dashboard"
+                                        className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 rounded-xl transition-all shadow-xs"
+                                    >
+                                        Return to Dashboard
+                                    </Link>
+                                </div>
+                            ) : (
+                                children
+                            )}
                         </div>
                     </div>
                 </main>
