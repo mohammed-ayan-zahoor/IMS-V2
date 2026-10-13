@@ -77,7 +77,7 @@ class AuthProvider extends ChangeNotifier {
   String get userAvatar {
     final u = _user;
     if (u == null) return '';
-    return (u['image'] ?? u['avatar'] ?? u['profile']?['avatarUrl'] ?? u['profile']?['avatar'] ?? '').toString().trim();
+    return (u['image'] ?? u['avatar'] ?? u['picture'] ?? u['profile']?['avatarUrl'] ?? u['profile']?['avatar'] ?? u['profile']?['image'] ?? '').toString().trim();
   }
 
   String get instituteType => _user?['institute']?['type']?.toString().toUpperCase() ?? 'SCHOOL';

@@ -239,8 +239,9 @@ export default function StudentPaywallPage() {
         : "End of Academic Session";
 
     const instituteName = session?.user?.institute?.name || statusData?.instituteName || "Student ERP Portal";
-    const studentName = session?.user?.name || "Student";
-    const enrollment = session?.user?.enrollmentNumber || "";
+    const studentName = statusData?.student?.name || session?.user?.name || "Student";
+    const enrollment = statusData?.student?.enrollmentNumber || session?.user?.enrollmentNumber || "";
+    const studentAvatar = statusData?.student?.avatar || session?.user?.image || session?.user?.profile?.avatar || "";
 
     return (
         <div className="min-h-screen bg-[#F4F5F7] text-slate-900 flex flex-col justify-between selection:bg-[#45C48C]/30 antialiased font-sans">
@@ -260,9 +261,18 @@ export default function StudentPaywallPage() {
 
                 <div className="flex items-center gap-3">
                     {studentName && (
-                        <div className="hidden sm:flex flex-col text-right">
-                            <span className="text-xs font-semibold text-slate-800">{studentName}</span>
-                            {enrollment && <span className="text-[10px] text-slate-500 font-mono">{enrollment}</span>}
+                        <div className="hidden sm:flex items-center gap-2.5 text-right">
+                            <div className="flex flex-col">
+                                <span className="text-xs font-semibold text-slate-800">{studentName}</span>
+                                {enrollment && <span className="text-[10px] text-slate-500 font-mono">{enrollment}</span>}
+                            </div>
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                                {studentAvatar ? (
+                                    <img src={studentAvatar} alt={studentName} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-xs font-bold text-slate-700">{studentName[0]?.toUpperCase() || "S"}</span>
+                                )}
+                            </div>
                         </div>
                     )}
                     <button

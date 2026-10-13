@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:intl/intl.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/core/network/api_client.dart';
 import 'package:student_app/core/constants/api_endpoints.dart';
@@ -281,22 +280,19 @@ class _StudentPaywallScreenState extends State<StudentPaywallScreen> {
     final user = auth.user;
 
     final instituteName = user?['institute']?['name']?.toString() ?? 'Student Portal';
-    final studentName = auth.userName;
-    final enrollmentNumber = user?['enrollmentNumber']?.toString() ?? '';
+    final studentAvatar = (_statusData?['student']?['avatar'] ?? auth.userAvatar).toString().trim();
+    final studentName = _statusData?['student']?['name']?.toString().trim().isNotEmpty == true
+        ? _statusData!['student']['name'].toString().trim()
+        : auth.userName;
+    final enrollmentNumber = _statusData?['student']?['enrollmentNumber']?.toString().trim().isNotEmpty == true
+        ? _statusData!['student']['enrollmentNumber'].toString().trim()
+        : (user?['enrollmentNumber']?.toString().trim() ?? '');
 
     final pricing = _statusData?['pricing'];
     final basePrice = (pricing?['basePrice'] ?? 25).toDouble();
     final gstAmount = (pricing?['gstAmount'] ?? 4.5).toDouble();
     final gatewayFee = (pricing?['gatewayFee'] ?? 0.5).toDouble();
     final totalAmount = (pricing?['totalAmount'] ?? 30).toInt();
-
-    String formattedCycleEnd = 'End of Academic Year';
-    if (_statusData?['instituteCycleEnd'] != null) {
-      try {
-        final parsed = DateTime.parse(_statusData!['instituteCycleEnd'].toString());
-        formattedCycleEnd = DateFormat('d MMMM yyyy').format(parsed);
-      } catch (_) {}
-    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -355,21 +351,40 @@ class _StudentPaywallScreenState extends State<StudentPaywallScreen> {
                       child: Row(
                         children: [
                           Container(
-                            width: 48,
-                            height: 48,
+                            width: 50,
+                            height: 50,
                             decoration: BoxDecoration(
                               color: const Color(0xFF002045),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
-                              style: GoogleFonts.hankenGrotesk(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
-                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: studentAvatar.isNotEmpty
+                                ? Image.network(
+                                    studentAvatar,
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => Center(
+                                      child: Text(
+                                        studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                        style: GoogleFonts.hankenGrotesk(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Center(
+                                    child: Text(
+                                      studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                      style: GoogleFonts.hankenGrotesk(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                                  ),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -417,7 +432,7 @@ class _StudentPaywallScreenState extends State<StudentPaywallScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Academic Session Access • Valid until $formattedCycleEnd',
+                              'Academic Session Access',
                               style: GoogleFonts.inter(
                                 fontSize: 11.5,
                                 color: const Color(0xFF1D4ED8),
