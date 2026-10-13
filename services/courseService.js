@@ -309,7 +309,11 @@ export class BatchService {
             // Auto-resolve active session for non-vocational if not explicitly passed
             if (!isVocational && !data.session) {
                 const Session = (await import('@/models/Session')).default;
-                const activeSession = await Session.findOne({ institute: instituteId, isActive: true }).select('_id').lean();
+                const activeSession = await Session.findOne({
+                    $or: [{ instituteId: instituteId }, { institute: instituteId }],
+                    isActive: true,
+                    deletedAt: null
+                }).select('_id').lean();
                 if (activeSession) {
                     data.session = activeSession._id;
                 }
@@ -453,27 +457,35 @@ export class BatchService {
             query['enrolledStudents.student'] = safeFilters.enrolledStudents;
         }
 
-        // Add other safe filters
-        Object.keys(safeFilters).forEach(key => {
-            if (key !== 'enrolledStudents' && key !== 'instructorRoleContext') {
-                if (key === 'session' && safeFilters.session) {
-                    if (safeFilters.session !== 'all' && safeFilters.session !== '') {
-                        query.$or = [
-                            { session: safeFilters.session },
-                            { session: null },
-                            { session: { $exists: false } }
-                        ];
-                    }
-                } else if (key === 'course' && safeFilters.course && !safeFilters.courseBundle) {
-                    query.$or = [
-                        { course: safeFilters.course },
-                        { courseBundle: safeFilters.course }
-                    ];
-                } else {
-                    query[key] = safeFilters[key];
-                }
-            }
-        });
+        // Build filter clauses using andClauses to prevent $or collisions
+        const andClauses = [];
+
+        if (safeFilters.course && !safeFilters.courseBundle) {
+            andClauses.push({
+                $or: [
+                    { course: safeFilters.course },
+                    { courseBundle: safeFilters.course }
+                ]
+            });
+        }
+
+        if (safeFilters.session && safeFilters.session !== 'all' && safeFilters.session !== '') {
+            andClauses.push({
+                $or: [
+                    { session: safeFilters.session },
+                    { session: null },
+                    { session: { $exists: false } }
+                ]
+            });
+        }
+
+        if (safeFilters.courseBundle) {
+            query.courseBundle = safeFilters.courseBundle;
+        }
+
+        if (safeFilters.instructor) {
+            query.instructor = safeFilters.instructor;
+        }
 
         // RBAC: Restricted view for instructors
         if (filters.instructorRoleContext) {
@@ -483,11 +495,39 @@ export class BatchService {
             const assignedBatches = instructor?.assignments?.batches || [];
             const assignedCourses = instructor?.assignments?.courses || [];
 
-            query.$or = [
-                { instructor: instructorId },
-                { _id: { $in: assignedBatches } },
-                { course: { $in: assignedCourses } }
-            ];
+            andClauses.push({
+                $or: [
+                    { instructor: instructorId },
+                    { _id: { $in: assignedBatches } },
+                    { course: { $in: assignedCourses } }
+                ]
+            });
+        }
+
+        if (andClauses.length === 1) {
+            query.$or = andClauses[0].$or;
+        } else if (andClauses.length > 1) {
+            query.$and = andClauses;
+        }
+
+        // Auto-heal orphan batches missing academic session for already added classes
+        if (instituteId) {
+            try {
+                const Session = (await import('@/models/Session')).default;
+                const activeSession = await Session.findOne({
+                    $or: [{ instituteId: instituteId }, { institute: instituteId }],
+                    isActive: true,
+                    deletedAt: null
+                }).select('_id').lean();
+                if (activeSession) {
+                    await Batch.updateMany(
+                        { institute: instituteId, $or: [{ session: null }, { session: { $exists: false } }], deletedAt: null },
+                        { $set: { session: activeSession._id } }
+                    );
+                }
+            } catch (healErr) {
+                console.warn("[BATCH_HEAL] Failed to auto-heal orphan batch sessions:", healErr);
+            }
         }
 
         const batches = await Batch.find(query)

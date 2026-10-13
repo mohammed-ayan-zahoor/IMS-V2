@@ -4,7 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { getInstituteScope } from "@/middleware/instituteScope";
 import { connectDB } from "@/lib/mongodb";
 import TransportFee from "@/models/TransportFee";
+import Collector from "@/models/Collector";
 import { createAuditLog } from "@/services/auditService";
+import { clearDashboardCache } from "@/lib/dashboardCache";
 
 export async function GET(req, { params }) {
     try {
@@ -123,6 +125,26 @@ export async function DELETE(req, { params }) {
             }, { status: 403 });
         }
 
+        // Reverse any collected payments from collectors
+        if (fee.installments && fee.installments.length > 0) {
+            for (const inst of fee.installments) {
+                if (inst.status === 'paid' && inst.collectedBy && inst.amount > 0) {
+                    try {
+                        const collector = await Collector.findOne({
+                            name: inst.collectedBy,
+                            institute: fee.institute
+                        });
+                        if (collector) {
+                            collector.currentBalance = Math.max(0, (collector.currentBalance || 0) - inst.amount);
+                            await collector.save();
+                        }
+                    } catch (collErr) {
+                        console.error("Failed to reverse collector balance on transport fee delete:", collErr);
+                    }
+                }
+            }
+        }
+
         // Soft delete the fee record
         fee.deletedAt = new Date();
         fee.deletedBy = session.user.id;
@@ -137,6 +159,10 @@ export async function DELETE(req, { params }) {
         // SYNC vehicle occupancy
         if (fee.vehicle) {
             await TransportService.updateVehicleOccupancy(fee.vehicle);
+        }
+
+        if (scope.instituteId) {
+            clearDashboardCache(scope.instituteId.toString());
         }
 
         await createAuditLog({

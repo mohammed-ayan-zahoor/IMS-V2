@@ -140,6 +140,26 @@ export class TransportService {
         const fee = await TransportFee.findById(feeId);
         if (!fee) throw new Error("Transport fee record not found");
 
+        // Reverse collector balance for paid installments
+        if (fee.installments && fee.installments.length > 0) {
+            for (const inst of fee.installments) {
+                if (inst.status === 'paid' && inst.collectedBy && inst.amount > 0) {
+                    try {
+                        const collector = await Collector.findOne({
+                            name: inst.collectedBy,
+                            institute: fee.institute
+                        });
+                        if (collector) {
+                            collector.currentBalance = Math.max(0, (collector.currentBalance || 0) - inst.amount);
+                            await collector.save();
+                        }
+                    } catch (collErr) {
+                        console.error("Failed to reverse collector balance in cancelTransportFee:", collErr);
+                    }
+                }
+            }
+        }
+
         fee.deletedAt = new Date();
         fee.deletedBy = actorId;
         fee.status = 'cancelled';

@@ -18,7 +18,8 @@ import '@/models/HostelBlock'; // Ensure HostelBlock schema is registered
 import { createAuditLog } from './auditService';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { escapeRegExp } from 'lodash';
+import lodash from 'lodash';
+const { escapeRegExp } = lodash;
 import crypto from 'crypto';
 import { connectDB } from '@/lib/mongodb';
 import SharedLink from '@/models/SharedLink';
@@ -350,16 +351,22 @@ export class StudentService {
                     }
                 }
 
+                let sessObjId = null;
                 try {
-                    // Historical filtering: Include students who have EVER been in this session
-                    sessionFilter = {
-                        activeSessions: new mongoose.Types.ObjectId(sessionId)
-                    };
+                    sessObjId = new mongoose.Types.ObjectId(sessionId);
                 } catch (e) {
-                    sessionFilter = {
-                        activeSessions: sessionId
-                    };
+                    sessObjId = sessionId;
                 }
+                sessionFilter = {
+                    $or: [
+                        { activeSessions: sessObjId },
+                        { activeSession: sessObjId },
+                        { activeSessions: sessionId },
+                        { activeSession: sessionId },
+                        { activeSession: null },
+                        { activeSession: { $exists: false } }
+                    ]
+                };
             }
         } else if (targetInstituteType === 'VOCATIONAL') {
             // VOCATIONAL institutes do NOT use session isolation
@@ -399,23 +406,139 @@ export class StudentService {
 
         if (batchId || courseId) {
             const batchQuery = { deletedAt: null }; // Scope Batch Search
-            if (instituteId) batchQuery.institute = instituteId;
-            if (batchId) batchQuery._id = batchId;
-            if (courseId) batchQuery.$or = [{ course: courseId }, { courseBundle: courseId }];
-            
-            // Strictly scope course/batch filtering by the active academic year to prevent cross-session leakage
-            if (sessionId && (targetInstituteType === 'SCHOOL' || !targetInstituteType)) {
+            if (instituteId) {
                 try {
-                    batchQuery.session = new mongoose.Types.ObjectId(sessionId);
+                    batchQuery.institute = new mongoose.Types.ObjectId(instituteId);
                 } catch (e) {
-                    batchQuery.session = sessionId;
+                    batchQuery.institute = instituteId;
+                }
+            }
+            if (batchId) {
+                try {
+                    batchQuery._id = new mongoose.Types.ObjectId(batchId);
+                } catch (e) {
+                    batchQuery._id = batchId;
                 }
             }
 
-            const batches = await Batch.find(batchQuery).select('enrolledStudents.student');
-            
-            const studentIds = batches.flatMap(b => b.enrolledStudents.map(e => e.student));
-            query._id = { $in: studentIds };
+            const andClauses = [];
+            if (courseId) {
+                let courseObj = null;
+                try {
+                    courseObj = new mongoose.Types.ObjectId(courseId);
+                } catch (e) {
+                    courseObj = null;
+                }
+                const courseConditions = [{ course: courseId }, { courseBundle: courseId }];
+                if (courseObj) {
+                    courseConditions.unshift({ course: courseObj }, { courseBundle: courseObj });
+                }
+                andClauses.push({ $or: courseConditions });
+            }
+
+            // Strictly scope course/batch filtering by academic year, but gracefully include batches with null session
+            if (sessionId && (targetInstituteType === 'SCHOOL' || !targetInstituteType)) {
+                let sessObjId = null;
+                try {
+                    sessObjId = new mongoose.Types.ObjectId(sessionId);
+                } catch (e) {
+                    sessObjId = null;
+                }
+                const sessionConditions = [
+                    { session: sessionId },
+                    { session: null },
+                    { session: { $exists: false } }
+                ];
+                if (sessObjId) {
+                    sessionConditions.unshift({ session: sessObjId });
+                }
+                andClauses.push({ $or: sessionConditions });
+            }
+
+            if (andClauses.length === 1) {
+                batchQuery.$or = andClauses[0].$or;
+            } else if (andClauses.length > 1) {
+                batchQuery.$and = andClauses;
+            }
+
+            const batches = await Batch.find(batchQuery).select('_id name course enrolledStudents.student');
+            let studentIds = batches.flatMap(b => b.enrolledStudents.map(e => e.student));
+
+            // Include and self-heal students directly assigned to this course/standard via admissionStd
+            let directStudentIds = [];
+            const targetCourseId = courseId || (batches[0]?.course);
+
+            if (targetCourseId) {
+                const CourseModel = (await import('@/models/Course')).default;
+                const courseDoc = await CourseModel.findById(targetCourseId).select('name').lean();
+                let targetCourseObj = null;
+                try {
+                    targetCourseObj = new mongoose.Types.ObjectId(targetCourseId);
+                } catch (e) {
+                    targetCourseObj = null;
+                }
+                const matchConditions = [
+                    { admissionStd: targetCourseId.toString() }
+                ];
+                if (targetCourseObj) {
+                    matchConditions.push({ admissionStd: targetCourseObj });
+                }
+                if (courseDoc?.name) {
+                    matchConditions.push({ admissionStd: courseDoc.name });
+                }
+                const directQuery = {
+                    deletedAt: null,
+                    $or: matchConditions
+                };
+                if (instituteId) {
+                    try {
+                        directQuery.institute = new mongoose.Types.ObjectId(instituteId);
+                    } catch (e) {
+                        directQuery.institute = instituteId;
+                    }
+                }
+                const directStudents = await User.find(directQuery).select('_id');
+                directStudentIds = directStudents.map(s => s._id);
+
+                // Auto-sync: If there are direct students not enrolled in any section for this course, enroll them into the primary section
+                if (batches.length > 0 && directStudentIds.length > 0) {
+                    const defaultBatch = batches[0];
+                    const allEnrolledInBatches = new Set(batches.flatMap(b => b.enrolledStudents.map(e => e.student.toString())));
+                    const unenrolled = directStudentIds.filter(id => !allEnrolledInBatches.has(id.toString()));
+
+                    if (unenrolled.length > 0) {
+                        try {
+                            const newEnrollments = unenrolled.map(id => ({
+                                student: id,
+                                enrolledAt: new Date(),
+                                status: 'active'
+                            }));
+                            await Batch.findByIdAndUpdate(defaultBatch._id, {
+                                $addToSet: { enrolledStudents: { $each: newEnrollments } }
+                            });
+                            // If filtering by specific batch, include newly synced students in studentIds
+                            unenrolled.forEach(id => studentIds.push(id));
+
+                            // Sync active session if student was missing it
+                            if (sessionId) {
+                                await User.updateMany(
+                                    { _id: { $in: unenrolled }, activeSession: null },
+                                    { $set: { activeSession: sessionId }, $addToSet: { activeSessions: sessionId } }
+                                );
+                            }
+                        } catch (syncErr) {
+                            console.warn("[STUDENT_BATCH_SYNC] Auto-sync enrollments failed:", syncErr);
+                        }
+                    }
+                }
+            }
+
+            const allMatchedIds = Array.from(new Set([
+                ...studentIds.map(id => id.toString()),
+                ...(!batchId ? directStudentIds.map(id => id.toString()) : [])
+            ])).map(id => new mongoose.Types.ObjectId(id));
+
+            query._id = { $in: allMatchedIds };
         }
 
         // RBAC: Instructor Filtering
@@ -660,7 +783,7 @@ export class StudentService {
 
             // For course batches: course fee must exist. Bundle batches use bundlePrice.
             const isBundleBatch = !!batch.courseBundle;
-            if (!isBundleBatch && !batch.course?.fees?.amount) {
+            if (!isBundleBatch && customAmount === null && (batch.course?.fees?.amount === undefined || batch.course?.fees?.amount === null)) {
                 throw new Error('Course fee information is missing');
             }
 
@@ -698,9 +821,23 @@ export class StudentService {
                     // For SCHOOL institutes, sessions are MANDATORY for correct profile rendering
                     const institute = await mongoose.model('Institute').findById(batch.institute).session(session);
                     if (institute?.type === 'SCHOOL') {
-                        throw new Error(`Enrollment failed: Section ${batch.name} has no academic session assigned. Please edit the section to assign a session.`);
+                        // Auto-heal: Attempt to attach active session if available
+                        const Session = (await import('@/models/Session')).default;
+                        const activeSession = await Session.findOne({
+                            $or: [{ instituteId: batch.institute }, { institute: batch.institute }],
+                            isActive: true,
+                            deletedAt: null
+                        }).session(session);
+                        if (activeSession) {
+                            batch.session = activeSession._id;
+                            await batch.save({ session });
+                        } else {
+                            throw new Error(`Enrollment failed: Section ${batch.name} has no academic session assigned. Please edit the section to assign a session.`);
+                        }
                     }
-                } else {
+                }
+                
+                if (batch.session) {
                     await User.findByIdAndUpdate(studentId, {
                         $set: { activeSession: batch.session }, // Set as current
                         $addToSet: { 

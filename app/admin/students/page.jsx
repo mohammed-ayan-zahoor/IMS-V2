@@ -1868,7 +1868,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                             }
                                             return b.course?._id === formData.admissionStd || b.course === formData.admissionStd;
                                         })
-                                                  .filter(b => formData.sessionId ? (b.session?._id === formData.sessionId || b.session === formData.sessionId) : true)
+                                                  .filter(b => formData.sessionId ? (b.session?._id === formData.sessionId || b.session === formData.sessionId || !b.session) : true)
                                                   .sort((a, b) => (a.semester || 1) - (b.semester || 1) || (a.name || "").localeCompare(b.name || ""))
                                                   .map(b => ({
                                                       label: isCollege && b.semester ? `Sem ${b.semester} - ${b.name}` : b.name,

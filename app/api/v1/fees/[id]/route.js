@@ -3,12 +3,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/mongodb';
 import Fee from '@/models/Fee';
+import Collector from '@/models/Collector';
 import { createAuditLog } from '@/services/auditService';
 import { getInstituteScope } from '@/middleware/instituteScope';
 
 import { Types } from "mongoose";
 import { FeeService } from "@/services/feeService";
 import { checkApproval } from "@/lib/approvalGuard";
+import { clearDashboardCache } from "@/lib/dashboardCache";
 
 export async function GET(req, { params }) {
     try {
@@ -82,8 +84,32 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ error: "Fee record not found or access denied" }, { status: 404 });
         }
 
+        // Reverse any collected payments from the respective collectors
+        if (fee.installments && fee.installments.length > 0) {
+            for (const inst of fee.installments) {
+                if (inst.status === 'paid' && inst.collectedBy && inst.amount > 0) {
+                    try {
+                        const collector = await Collector.findOne({
+                            name: inst.collectedBy,
+                            institute: fee.institute
+                        });
+                        if (collector) {
+                            collector.currentBalance = Math.max(0, (collector.currentBalance || 0) - inst.amount);
+                            await collector.save();
+                        }
+                    } catch (collErr) {
+                        console.error("Failed to reverse collector balance on fee delete:", collErr);
+                    }
+                }
+            }
+        }
+
         // Hard delete the fee — frees the unique index so admin can re-enter fees
         await Fee.findByIdAndDelete(id);
+
+        if (fee.institute) {
+            clearDashboardCache(fee.institute.toString());
+        }
 
         // Audit log
         await createAuditLog({

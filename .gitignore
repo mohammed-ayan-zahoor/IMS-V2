@@ -81,4 +81,5 @@ google-services.json
 /scratch/*
 !/scratch/test-student-ui.cjs
 *.doc
+*.rar
 templates/**/unpacked/

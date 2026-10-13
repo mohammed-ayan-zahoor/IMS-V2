@@ -31,6 +31,7 @@ import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
 import { useToast } from "@/contexts/ToastContext";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 import Link from "next/link";
 import { SCHOOL_CLASS_PRESETS, getGradeSortRank, findMatchingCourse } from "@/lib/schoolPresets";
 
@@ -51,6 +52,7 @@ export default function CoursesPage() {
     const toast = useToast();
     const router = useRouter();
     const { data: session } = useSession();
+    const { selectedSessionId } = useAcademicSession();
 
     // Tab state
     const [activeTab, setActiveTab] = useState("courses"); // "courses" | "bundles"
@@ -237,6 +239,7 @@ export default function CoursesPage() {
                             name: "Section A",
                             course: newCourse._id,
                             capacity: 40,
+                            session: selectedSessionId && selectedSessionId !== 'all' ? selectedSessionId : null,
                             schedule: {
                                 startDate: new Date().toISOString().split('T')[0],
                                 description: "Regular School Hours"
