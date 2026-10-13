@@ -4,15 +4,22 @@ import path from "path";
 
 export async function GET(req) {
     try {
-        // Paths to search for the release APK
-        const primaryPath = path.join(process.cwd(), "mobile/build/app/outputs/flutter-apk/app-release.apk");
-        const secondaryPath = path.join(process.cwd(), "public/downloads/student-app.apk");
+        const candidatePaths = [
+            path.join(process.cwd(), "public/downloads/student-app.apk"),
+            path.join(process.cwd(), "mobile/build/app/outputs/flutter-apk/app-release.apk")
+        ];
 
         let filePath = null;
-        if (fs.existsSync(primaryPath)) {
-            filePath = primaryPath;
-        } else if (fs.existsSync(secondaryPath)) {
-            filePath = secondaryPath;
+        let newestMtime = -1;
+
+        for (const p of candidatePaths) {
+            if (fs.existsSync(p)) {
+                const stats = fs.statSync(p);
+                if (stats.mtimeMs > newestMtime) {
+                    newestMtime = stats.mtimeMs;
+                    filePath = p;
+                }
+            }
         }
 
         if (!filePath) {
