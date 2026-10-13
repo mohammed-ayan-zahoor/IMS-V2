@@ -11,7 +11,7 @@ class AppUpdateService {
 
   static const String _lastSeenBuildKey = 'last_seen_app_build_mtime';
   static const String _lastSeenVersionCodeKey = 'last_seen_app_version_code';
-  static const int currentVersionCode = 3;
+  static const int currentVersionCode = 4;
   static bool _hasCheckedThisSession = false;
 
   Future<void> checkForUpdates(BuildContext context, {bool forceCheck = false}) async {

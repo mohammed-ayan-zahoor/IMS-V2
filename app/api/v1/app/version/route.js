@@ -24,13 +24,13 @@ export async function GET() {
         }
 
         return NextResponse.json({
-            version: "0.1.0+3",
-            versionCode: 3,
+            version: "0.1.0+4",
+            versionCode: 4,
             minVersionCode: 1,
             lastModified: mtimeMs,
             fileSize: fileSize,
             downloadUrl: "/api/v1/app/download",
-            releaseNotes: "A new version of the Quantech Student App is available with session persistence and auto-update fixes.",
+            releaseNotes: "Latest student app with ERP access paywall, live Razorpay checkout, and performance optimizations.",
             forceUpdate: false,
         });
     } catch (error) {
