@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/core/network/api_client.dart';
@@ -15,15 +15,27 @@ class StudentPaywallScreen extends StatefulWidget {
 }
 
 class _StudentPaywallScreenState extends State<StudentPaywallScreen> {
+  late Razorpay _razorpay;
   bool _isLoading = true;
   bool _isCheckingStatus = false;
+  bool _isPaymentProcessing = false;
   Map<String, dynamic>? _statusData;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
     _fetchStatus();
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
   }
 
   Future<void> _fetchStatus() async {
@@ -65,45 +77,176 @@ class _StudentPaywallScreenState extends State<StudentPaywallScreen> {
     }
   }
 
-  Future<void> _openPaymentPortal() async {
-    final paywallUri = Uri.parse(ApiEndpoints.studentPaywallWeb);
+  Future<void> _startPaymentFlow() async {
+    setState(() {
+      _isPaymentProcessing = true;
+      _errorMessage = null;
+    });
 
     try {
-      final canLaunch = await canLaunchUrl(paywallUri);
-      if (canLaunch) {
-        await launchUrl(paywallUri, mode: LaunchMode.externalApplication);
+      final response = await ApiClient().dio.post(ApiEndpoints.studentSubscriptionCreateOrder);
 
+      if (response.statusCode != 200 || response.data == null || response.data['success'] != true) {
+        final errorMsg = response.data?['error']?.toString() ?? 'Unable to create payment order.';
         if (mounted) {
+          setState(() {
+            _isPaymentProcessing = false;
+            _errorMessage = errorMsg;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Payment gateway opened. Return here once completed.',
-                style: GoogleFonts.inter(fontSize: 13),
-              ),
-              backgroundColor: const Color(0xFF002045),
-              duration: const Duration(seconds: 4),
-            ),
+            SnackBar(content: Text(errorMsg, style: GoogleFonts.inter()), backgroundColor: Colors.redAccent),
           );
         }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not open payment link. Please try again.', style: GoogleFonts.inter()),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
+        return;
+      }
+
+      final orderData = Map<String, dynamic>.from(response.data);
+      final keyId = orderData['keyId']?.toString();
+      final orderId = orderData['orderId']?.toString();
+      final amount = orderData['amount'];
+
+      if (keyId == null || orderId == null) {
+        throw Exception("Invalid order parameters received from server");
+      }
+
+      if (!mounted) return;
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final user = auth.user;
+
+      final prefill = orderData['prefill'] is Map ? Map<String, dynamic>.from(orderData['prefill']) : {};
+      final name = prefill['name']?.toString() ?? auth.userName;
+      final email = prefill['email']?.toString() ?? (user?['email']?.toString() ?? '');
+      final contact = prefill['contact']?.toString() ?? (user?['profile']?['phone']?.toString() ?? '');
+
+      var options = {
+        'key': keyId,
+        'amount': amount,
+        'name': orderData['instituteName']?.toString() ?? 'Student Portal',
+        'order_id': orderId,
+        'description': orderData['title']?.toString() ?? 'Annual Student Access Fee',
+        'timeout': 300,
+        'prefill': {
+          'contact': contact,
+          'email': email.endsWith('@ims.internal') ? '' : email,
+          'name': name,
+        },
+        'theme': {
+          'color': '#002045'
         }
+      };
+
+      _razorpay.open(options);
+
+      if (mounted) {
+        setState(() => _isPaymentProcessing = false);
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isPaymentProcessing = false;
+          _errorMessage = 'Could not initiate payment. Please try again.';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error launching payment: $e', style: GoogleFonts.inter()),
+            content: Text('Payment initiation failed: $e', style: GoogleFonts.inter()),
             backgroundColor: Colors.redAccent,
           ),
         );
       }
+    }
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    if (mounted) {
+      setState(() => _isCheckingStatus = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Payment received! Verifying access...', style: GoogleFonts.inter()),
+          backgroundColor: const Color(0xFF002045),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    try {
+      final verifyRes = await ApiClient().dio.post(
+        ApiEndpoints.studentSubscriptionVerify,
+        data: {
+          'razorpayOrderId': response.orderId,
+          'razorpayPaymentId': response.paymentId,
+          'razorpaySignature': response.signature,
+        },
+      );
+
+      if (verifyRes.statusCode == 200 && verifyRes.data?['success'] == true) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Access activated! Welcome to your student portal.', style: GoogleFonts.inter()),
+            backgroundColor: const Color(0xFF059669),
+          ),
+        );
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        await auth.checkAuthStatus();
+      } else {
+        if (mounted) {
+          setState(() {
+            _isCheckingStatus = false;
+            _errorMessage = verifyRes.data?['error']?.toString() ?? 'Payment verification failed.';
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCheckingStatus = false;
+          _errorMessage = 'Payment recorded. Verifying your account...';
+        });
+      }
+      if (!mounted) return;
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      await auth.checkAuthStatus();
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    if (mounted) {
+      setState(() {
+        _isPaymentProcessing = false;
+        _isCheckingStatus = false;
+      });
+
+      // User cancelled
+      if (response.code == Razorpay.PAYMENT_CANCELLED) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment cancelled.', style: GoogleFonts.inter()),
+            backgroundColor: const Color(0xFF64748B),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final msg = response.message?.isNotEmpty == true ? response.message! : 'Payment was not completed.';
+      setState(() => _errorMessage = msg);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg, style: GoogleFonts.inter()),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('External wallet chosen: ${response.walletName}', style: GoogleFonts.inter()),
+          backgroundColor: const Color(0xFF002045),
+        ),
+      );
     }
   }
 
@@ -446,18 +589,27 @@ class _StudentPaywallScreenState extends State<StudentPaywallScreen> {
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton.icon(
-                        onPressed: _openPaymentPortal,
+                        onPressed: (_isPaymentProcessing || _isCheckingStatus) ? null : _startPaymentFlow,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF002045),
                           foregroundColor: Colors.white,
                           elevation: 0,
+                          disabledBackgroundColor: const Color(0xFF64748B),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        icon: const Icon(Icons.payment_rounded, size: 20),
+                        icon: _isPaymentProcessing
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.payment_rounded, size: 20),
                         label: Text(
-                          'Pay ₹$totalAmount.00 via Razorpay',
+                          _isPaymentProcessing
+                              ? 'Opening Payment Gateway...'
+                              : 'Pay ₹$totalAmount.00 via Razorpay',
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,

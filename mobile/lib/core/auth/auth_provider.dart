@@ -92,12 +92,14 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       }
     };
-    checkAuthStatus();
+    checkAuthStatus(isInitial: true);
   }
 
-  Future<void> checkAuthStatus() async {
-    _isLoading = true;
-    notifyListeners();
+  Future<void> checkAuthStatus({bool isInitial = false}) async {
+    if (isInitial) {
+      _isLoading = true;
+      notifyListeners();
+    }
 
     final stopwatch = Stopwatch()..start();
 
@@ -119,13 +121,14 @@ class AuthProvider extends ChangeNotifier {
       _isAuthenticated = false;
       _user = null;
     } finally {
-      // Ensure splash screen remains visible for at least 5 seconds (5000ms)
-      final elapsedMs = stopwatch.elapsedMilliseconds;
-      const minSplashDurationMs = 5000;
-      if (elapsedMs < minSplashDurationMs) {
-        await Future.delayed(Duration(milliseconds: minSplashDurationMs - elapsedMs));
+      if (isInitial) {
+        final elapsedMs = stopwatch.elapsedMilliseconds;
+        const minSplashDurationMs = 5000;
+        if (elapsedMs < minSplashDurationMs) {
+          await Future.delayed(Duration(milliseconds: minSplashDurationMs - elapsedMs));
+        }
+        _isLoading = false;
       }
-      _isLoading = false;
       notifyListeners();
     }
   }
