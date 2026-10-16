@@ -740,6 +740,12 @@ export default function AdminLayout({ children }) {
                                     <span className="text-slate-300">›</span>
                                     <span className="font-medium text-[#14161A]">Payslips</span>
                                 </nav>
+                            ) : pathname.startsWith("/admin/hr/leave-requests") ? (
+                                <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[13px] text-[#5F6673]">
+                                    <span>Human resources</span>
+                                    <span className="text-slate-300">›</span>
+                                    <span className="font-medium text-[#14161A]">Permissions & leaves</span>
+                                </nav>
                             ) : (
                                 <>
                                     <h1 className="text-base sm:text-lg font-bold text-[#111827] tracking-tight leading-tight">{title}</h1>
