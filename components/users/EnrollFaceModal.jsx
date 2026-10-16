@@ -52,7 +52,6 @@ function FaceCaptureContent({ user, onClose, onSuccess }) {
                 const loadFrom = async (url) => {
                     await Promise.all([
                         faceapi.nets.tinyFaceDetector.loadFromUri(url),
-                        faceapi.nets.ssdMobilenetv1.loadFromUri(url),
                         faceapi.nets.faceLandmark68Net.loadFromUri(url),
                         faceapi.nets.faceRecognitionNet.loadFromUri(url),
                     ]);
@@ -92,8 +91,8 @@ function FaceCaptureContent({ user, onClose, onSuccess }) {
         setDetecting(true);
         try {
             const faceapi = faceapiRef.current;
-            // 1. Fast detection with TinyFaceDetector (<50ms)
-            const tinyOpts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+            // ponytail: inputSize 160 = 4x fewer pixels than 320, much faster on mobile.
+            const tinyOpts = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.4 });
             let det = await faceapi
                 .detectSingleFace(videoRef.current, tinyOpts)
                 .withFaceLandmarks()
@@ -147,7 +146,10 @@ function FaceCaptureContent({ user, onClose, onSuccess }) {
     return (
         <div className="flex flex-col gap-4">
             {/* Video viewport */}
-            <div className="relative bg-black rounded-xl overflow-hidden flex items-center justify-center" style={{ aspectRatio: "4/3" }}>
+            <div
+                className={`relative bg-black rounded-xl overflow-hidden flex items-center justify-center ${loadingModels || detecting ? "ring-2 ring-indigo-400 ring-offset-2 animate-pulse" : ""}`}
+                style={{ aspectRatio: "4/3" }}
+            >
                 {loadingModels && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white z-10">
                         <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
@@ -162,6 +164,14 @@ function FaceCaptureContent({ user, onClose, onSuccess }) {
                     className="w-full h-full object-cover"
                     style={{ transform: "scaleX(-1)" }}
                 />
+                {detecting && !faceDetected && (
+                    <div className="absolute inset-0 flex items-end justify-center pb-4 pointer-events-none z-10">
+                        <span className="flex items-center gap-1.5 bg-black/60 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm">
+                            <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block animate-pulse" />
+                            Scanning your face…
+                        </span>
+                    </div>
+                )}
                 {faceDetected && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <CheckCircle2 className="w-16 h-16 text-emerald-400 drop-shadow-lg" />

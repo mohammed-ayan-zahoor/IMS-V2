@@ -358,17 +358,19 @@ function ScannerPage() {
         let alive = true;
         let isDetecting = false;
 
+        // ponytail: inputSize 160 = 4x fewer pixels than 320, ~4x faster on mobile CPU/WebGL.
+        // Upgrade path: bump to 224 if false-negative rate is too high on desktop.
         const detectorOptions = new faceapiRef.current.TinyFaceDetectorOptions({
-            inputSize: 320,
-            scoreThreshold: 0.5
+            inputSize: 160,
+            scoreThreshold: 0.4
         });
 
         const tick = async () => {
-            if (!alive || !videoRef.current || !faceMatcherRef.current || isProcessingRef.current || isDetecting) {
+            if (!alive || !videoRef.current || isDetecting) {
                 if (alive) animFrameRef.current = requestAnimationFrame(tick);
                 return;
             }
-            if (videoRef.current.readyState === 4) {
+            if (videoRef.current.readyState === 4 && faceMatcherRef.current) {
                 isDetecting = true;
                 try {
                     const dets = await faceapiRef.current
@@ -388,7 +390,8 @@ function ScannerPage() {
                     isDetecting = false;
                 }
             }
-            if (alive) setTimeout(() => { animFrameRef.current = requestAnimationFrame(tick); }, 150);
+            // 200ms gap between ticks avoids CPU saturation on mobile
+            if (alive) setTimeout(() => { animFrameRef.current = requestAnimationFrame(tick); }, 200);
         };
 
         animFrameRef.current = requestAnimationFrame(tick);
@@ -906,6 +909,24 @@ function ScannerPage() {
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div className="border-2 border-dashed border-indigo-400 opacity-50 rounded-2xl animate-pulse"
                                 style={{ width: "50%", height: "70%" }} />
+                        </div>
+                    )}
+
+                    {/* Scanning status overlay – shows when actively scanning */}
+                    {cameraReady && modelsReady && profilesReady && faceCount > 0 && (
+                        <div className="absolute top-3 left-0 right-0 flex justify-center pointer-events-none z-10">
+                            <span className="flex items-center gap-1.5 bg-black/50 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm animate-pulse">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+                                Scanning for faces…
+                            </span>
+                        </div>
+                    )}
+                    {cameraReady && (!modelsReady || !profilesReady) && (
+                        <div className="absolute top-3 left-0 right-0 flex justify-center pointer-events-none z-10">
+                            <span className="flex items-center gap-1.5 bg-black/50 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm">
+                                <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block animate-pulse" />
+                                {!modelsReady ? "Loading AI…" : "Loading profiles…"}
+                            </span>
                         </div>
                     )}
 
