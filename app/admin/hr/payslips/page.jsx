@@ -8,7 +8,6 @@ import {
     Plus, 
     Trash2, 
     Loader2, 
-    Printer, 
     Check, 
     ShieldCheck, 
     ChevronLeft, 
@@ -108,7 +107,6 @@ function PayslipsContent() {
 
     // ── State: Modals ──────────────────────────────────────────────────────────
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [isPrintOpen, setIsPrintOpen] = useState(false);
     const [isPayOpen, setIsPayOpen] = useState(false);
 
     // ── State: Create Form ─────────────────────────────────────────────────────
@@ -956,19 +954,6 @@ function PayslipsContent() {
                                                         type="button"
                                                         onClick={() => {
                                                             setActiveRowMenuId(null);
-                                                            setActivePayslip(p);
-                                                            setIsPrintOpen(true);
-                                                        }}
-                                                        className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#14161A] hover:bg-[#F2F3F5] rounded-lg transition-colors cursor-pointer text-left"
-                                                    >
-                                                        <Printer size={14} className="text-[#5F6673]" />
-                                                        <span>Print receipt…</span>
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setActiveRowMenuId(null);
                                                             window.open(`/admin/hr/payslips/${p._id}`, "_blank");
                                                         }}
                                                         className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#14161A] hover:bg-[#F2F3F5] rounded-lg transition-colors cursor-pointer text-left"
@@ -1348,222 +1333,6 @@ function PayslipsContent() {
                     </div>
                 </form>
             </Modal>
-
-            {/* ── MODAL: PRINT VIEW ──────────────────────────────────────────────── */}
-            {isPrintOpen && activePayslip && (
-                <Modal
-                    isOpen={isPrintOpen}
-                    onClose={() => setIsPrintOpen(false)}
-                    title="Salary Payslip Printable Receipt"
-                    size="2xl"
-                    className="max-w-5xl"
-                >
-                    <div className="p-6 bg-white border border-[#E6E8EC] rounded-xl space-y-6" id="printable-payslip">
-                        {/* Payslip Header */}
-                        <div className="flex justify-between items-start border-b border-[#E6E8EC] pb-4">
-                            <div>
-                                <h2 className="text-xl font-bold text-[#14161A] tracking-tight">SALARY PAYSLIP</h2>
-                                <p className="text-[13px] text-[#5F6673] mt-1">Period: {getMonthName(activePayslip.month)} {activePayslip.year}</p>
-                            </div>
-                            <div className="text-right">
-                                <span className="inline-flex items-center px-2.5 py-1 rounded text-[12px] font-medium bg-[#F2F3F5] text-[#14161A] capitalize border border-[#E6E8EC]">
-                                    Status: {activePayslip.paymentStatus}
-                                </span>
-                                {activePayslip.paymentDate && (
-                                    <p className="text-[11px] text-[#5F6673] mt-1">Paid: {new Date(activePayslip.paymentDate).toLocaleDateString()}</p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Staff profile details grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[12px] text-[#5F6673] bg-[#F2F3F5]/60 p-4 rounded-xl border border-[#E6E8EC]">
-                            <div>
-                                <span className="block text-[11px] text-[#5F6673] font-medium">Employee Name</span>
-                                <span className="text-[13px] font-semibold text-[#14161A] mt-0.5 block">
-                                    {activePayslip.staff?.profile?.firstName || ""} {activePayslip.staff?.profile?.lastName || ""}
-                                </span>
-                            </div>
-                            <div>
-                                <span className="block text-[11px] text-[#5F6673] font-medium">Email Address</span>
-                                <span className="text-[#14161A] block mt-0.5 truncate">{activePayslip.staff?.email || "—"}</span>
-                            </div>
-                            <div>
-                                <span className="block text-[11px] text-[#5F6673] font-medium">Designation</span>
-                                <span className="text-[#14161A] block mt-0.5">{activePayslip.staff?.hrDetails?.designation?.name || "Staff"}</span>
-                            </div>
-                            <div>
-                                <span className="block text-[11px] text-[#5F6673] font-medium">Generated On</span>
-                                <span className="text-[#14161A] block mt-0.5">{new Date(activePayslip.createdAt).toLocaleDateString()}</span>
-                            </div>
-                        </div>
-
-                        {/* Attendance Summary */}
-                        <div className="space-y-2">
-                            <span className="text-[12px] font-medium text-[#5F6673]">Attendance breakdown</span>
-                            <div className="grid grid-cols-5 gap-2 border border-[#E6E8EC] p-3 rounded-lg text-center text-[12px] bg-[#F2F3F5]/40">
-                                <div>
-                                    <span className="block text-[11px] text-[#5F6673]">Present</span>
-                                    <span className="text-emerald-700 font-semibold block mt-0.5">{activePayslip.attendanceSummary?.present || 0}d</span>
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] text-[#5F6673]">Absent</span>
-                                    <span className="text-rose-700 font-semibold block mt-0.5">{activePayslip.attendanceSummary?.absent || 0}d</span>
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] text-[#5F6673]">Half Day</span>
-                                    <span className="text-amber-700 font-semibold block mt-0.5">{activePayslip.attendanceSummary?.halfDay || 0}d</span>
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] text-[#5F6673]">Leave</span>
-                                    <span className="text-[#0E8A7D] font-semibold block mt-0.5">{activePayslip.attendanceSummary?.onLeave || 0}d</span>
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] text-[#5F6673]">Holiday</span>
-                                    <span className="text-[#5F6673] font-semibold block mt-0.5">{activePayslip.attendanceSummary?.holiday || 0}d</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Wage Payslip 4-Column Table Grid */}
-                        {(() => {
-                            const eList = [
-                                { name: "Basic Salary", amount: activePayslip.basicSalary || 0 },
-                                ...(activePayslip.earnings || []).map(e => ({ name: e.componentName, amount: e.amount || 0 }))
-                            ];
-                            const dList = [
-                                ...(activePayslip.deductions || []).map(d => ({ name: d.componentName, amount: d.amount || 0 }))
-                            ];
-                            const rowsCount = Math.max(eList.length, dList.length);
-                            const paired = [];
-                            for (let i = 0; i < rowsCount; i++) {
-                                paired.push({
-                                    earning: eList[i] || null,
-                                    deduction: dList[i] || null
-                                });
-                            }
-                            const gross = eList.reduce((sum, e) => sum + (e.amount || 0), 0);
-                            const totDed = dList.reduce((sum, d) => sum + (d.amount || 0), 0);
-
-                            return (
-                                <div className="border border-[#E6E8EC] overflow-hidden rounded-lg text-[12px] bg-white">
-                                    <table className="w-full border-collapse">
-                                        <thead>
-                                            <tr className="bg-[#F2F3F5] text-[#5F6673] font-medium border-b border-[#E6E8EC]">
-                                                <th className="py-2 px-3 text-left border-r border-[#E6E8EC] w-4/12 font-medium">Earnings</th>
-                                                <th className="py-2 px-3 text-right border-r border-[#E6E8EC] w-2/12 font-medium">Amount</th>
-                                                <th className="py-2 px-3 text-left border-r border-[#E6E8EC] w-4/12 font-medium">Deductions</th>
-                                                <th className="py-2 px-3 text-right w-2/12 font-medium">Amount</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-[#E6E8EC]/80 bg-white">
-                                            {paired.map((row, idx) => (
-                                                <tr key={idx} className="divide-x divide-[#E6E8EC]/80 hover:bg-[#F2F3F5]/40 transition-colors">
-                                                    <td className="py-1.5 px-3 text-[#14161A]">{row.earning ? row.earning.name : ""}</td>
-                                                    <td className="py-1.5 px-3 text-right tabular-nums font-medium text-[#14161A]">{row.earning ? `₹${formatCurrency(row.earning.amount)}` : ""}</td>
-                                                    <td className="py-1.5 px-3 text-[#14161A]">{row.deduction ? row.deduction.name : ""}</td>
-                                                    <td className="py-1.5 px-3 text-right tabular-nums font-medium text-[#14161A]">{row.deduction ? `₹${formatCurrency(row.deduction.amount)}` : ""}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                        <tfoot>
-                                            <tr className="bg-[#F2F3F5]/80 text-[#14161A] font-semibold border-t border-[#E6E8EC] divide-x divide-[#E6E8EC]">
-                                                <td className="py-1.5 px-3 text-left">Gross Salary</td>
-                                                <td className="py-1.5 px-3 text-right tabular-nums">₹{formatCurrency(gross)}</td>
-                                                <td className="py-1.5 px-3 text-left">Total Deductions</td>
-                                                <td className="py-1.5 px-3 text-right tabular-nums text-rose-600">₹{formatCurrency(totDed)}</td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            );
-                        })()}
-
-                        {/* Totals row */}
-                        <div className="bg-[#14161A] text-white rounded-lg p-3.5 flex justify-between items-center">
-                            <div>
-                                <span className="block text-[12px] font-medium text-[#A0A4AB]">Net salary payable</span>
-                                <span className="text-[11px] text-[#A0A4AB]/80 mt-0.5">Calculated based on attendance and duty rules</span>
-                            </div>
-                            <div className="text-right">
-                                <span className="text-[18px] font-bold text-white tabular-nums">₹{formatCurrency(activePayslip.netSalary)}</span>
-                            </div>
-                        </div>
-
-                        {/* Payment & Ledger status card */}
-                        {activePayslip.paymentStatus === "paid" && (
-                            <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-lg p-3.5 space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[12px] font-medium text-emerald-900 flex items-center gap-1.5">
-                                        <CheckCircle size={14} className="text-emerald-600" />
-                                        Disbursed & Posted to Daily Ledger
-                                    </span>
-                                    <span className="text-[11px] text-emerald-700">
-                                        {activePayslip.paymentDate ? new Date(activePayslip.paymentDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Paid"}
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1 text-[12px]">
-                                    <div>
-                                        <span className="block text-[10px] text-[#5F6673]">Account</span>
-                                        <span className="font-medium text-[#14161A]">
-                                            {activePayslip.disbursedFromAccount?.name || "General Counter"}
-                                            {activePayslip.disbursedFromAccount?.accountNumber ? ` (${activePayslip.disbursedFromAccount.accountNumber})` : ""}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span className="block text-[10px] text-[#5F6673]">Payment Mode</span>
-                                        <span className="font-medium text-[#14161A]">{activePayslip.paymentMode || "Cash"}</span>
-                                    </div>
-                                    <div>
-                                        <span className="block text-[10px] text-[#5F6673]">Reference / UTR</span>
-                                        <span className="font-mono text-[#14161A] text-[11px]">{activePayslip.paymentReference || "—"}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {activePayslip.notes && (
-                            <div className="bg-[#F2F3F5]/60 p-3 rounded-lg text-[12px] text-[#5F6673] border border-[#E6E8EC]">
-                                <span className="block font-medium text-[#14161A] mb-0.5">Notes / Remarks</span>
-                                <p>{activePayslip.notes}</p>
-                            </div>
-                        )}
-
-                        {/* Signatures */}
-                        <div className="pt-8 flex justify-between items-end text-[12px] text-[#5F6673]">
-                            <div className="border-t border-[#E6E8EC] pt-2 w-40 text-center">Employee Signature</div>
-                            <div className="border-t border-[#E6E8EC] pt-2 w-40 text-center">Authorized Signature</div>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-between items-center gap-3 pt-4 border-t border-[#E6E8EC]">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => window.open(`/admin/hr/payslips/${activePayslip._id}`, "_blank")}
-                            className="text-[12px] font-medium"
-                        >
-                            Open MOU Document Format
-                        </Button>
-                        <div className="flex gap-2">
-                            <Button type="button" variant="ghost" onClick={() => setIsPrintOpen(false)}>Close</Button>
-                            <Button
-                                onClick={() => {
-                                    const printContent = document.getElementById("printable-payslip").innerHTML;
-                                    const originalContent = document.body.innerHTML;
-                                    document.body.innerHTML = printContent;
-                                    window.print();
-                                    document.body.innerHTML = originalContent;
-                                    window.location.reload();
-                                }}
-                                className="bg-[#14161A] hover:bg-black text-white font-semibold flex items-center gap-1.5"
-                            >
-                                <Printer size={15} />
-                                <span>Print Receipt</span>
-                            </Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
 
             {/* ── MODAL: PAY SLIP (DISBURSE & POST TO DAILY LEDGER) ───────────────── */}
             {isPayOpen && activePayslip && (
