@@ -5,7 +5,8 @@ import Modal from "@/components/ui/Modal";
 import { CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "@/contexts/ToastContext";
 
-const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
+const LOCAL_MODEL_URL = "/models/face-api";
+const CDN_MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
 
 // Mounts only when the modal is open — camera starts on mount, stops on unmount
 function FaceCaptureContent({ user, onClose, onSuccess }) {
@@ -27,28 +28,48 @@ function FaceCaptureContent({ user, onClose, onSuccess }) {
             streamRef.current = null;
         };
 
+        // Start camera immediately
+        navigator.mediaDevices.getUserMedia({
+            video: { width: 640, height: 480, facingMode: "user" },
+        }).then(stream => {
+            if (cancelled) {
+                stream.getTracks().forEach(t => t.stop());
+                return;
+            }
+            streamRef.current = stream;
+            if (videoRef.current) videoRef.current.srcObject = stream;
+        }).catch(err => {
+            console.error("Camera access error:", err);
+            if (!cancelled) toast.error("Camera access failed: " + err.message);
+        });
+
+        // Load models in parallel (local first, CDN fallback)
         (async () => {
             try {
                 const faceapi = await import("@vladmandic/face-api");
                 faceapiRef.current = faceapi;
-                await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-                ]);
-                if (cancelled) return;
-                setLoadingModels(false);
 
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 640, height: 480, facingMode: "user" },
-                });
-                if (cancelled) { stopStream(); return; }
-                streamRef.current = stream;
-                if (videoRef.current) videoRef.current.srcObject = stream;
+                const loadFrom = async (url) => {
+                    await Promise.all([
+                        faceapi.nets.tinyFaceDetector.loadFromUri(url),
+                        faceapi.nets.ssdMobilenetv1.loadFromUri(url),
+                        faceapi.nets.faceLandmark68Net.loadFromUri(url),
+                        faceapi.nets.faceRecognitionNet.loadFromUri(url),
+                    ]);
+                };
+
+                try {
+                    await loadFrom(LOCAL_MODEL_URL);
+                } catch (localErr) {
+                    console.warn("Local models load failed, falling back to CDN:", localErr);
+                    await loadFrom(CDN_MODEL_URL);
+                }
+
+                if (!cancelled) setLoadingModels(false);
             } catch (err) {
-                console.error("EnrollFace init error:", err);
+                console.error("EnrollFace model load error:", err);
                 if (!cancelled) {
-                    toast.error(err.message || "Camera / model init failed");
+                    toast.error(err.message || "Face AI model loading failed");
                     setLoadingModels(false);
                 }
             }
@@ -70,10 +91,22 @@ function FaceCaptureContent({ user, onClose, onSuccess }) {
 
         setDetecting(true);
         try {
-            const det = await faceapiRef.current
-                .detectSingleFace(videoRef.current)
+            const faceapi = faceapiRef.current;
+            // 1. Fast detection with TinyFaceDetector (<50ms)
+            const tinyOpts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+            let det = await faceapi
+                .detectSingleFace(videoRef.current, tinyOpts)
                 .withFaceLandmarks()
                 .withFaceDescriptor();
+
+            // 2. High-accuracy fallback if tiny detector misses
+            if (!det) {
+                det = await faceapi
+                    .detectSingleFace(videoRef.current)
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+            }
+
             if (!det) {
                 toast.error("No face detected — align and retry.");
                 return;

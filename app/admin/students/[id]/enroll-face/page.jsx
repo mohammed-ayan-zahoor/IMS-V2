@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "@/contexts/ToastContext";
 
-const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
+const LOCAL_MODEL_URL = "/models/face-api";
+const CDN_MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
 
 export default function EnrollFacePage() {
     const { id } = useParams();
@@ -56,17 +57,29 @@ export default function EnrollFacePage() {
         };
     }, []);
 
-    // Load face-api models in parallel with the camera
+    // Load face-api models in parallel with the camera (local first, CDN fallback)
     useEffect(() => {
         let cancelled = false;
 
         import("@vladmandic/face-api").then(async faceapi => {
             faceapiRef.current = faceapi;
-            await Promise.all([
-                faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-            ]);
+
+            const loadFrom = async (url) => {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(url),
+                    faceapi.nets.ssdMobilenetv1.loadFromUri(url),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(url),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(url),
+                ]);
+            };
+
+            try {
+                await loadFrom(LOCAL_MODEL_URL);
+            } catch (localErr) {
+                console.warn("Local model load failed, falling back to CDN:", localErr);
+                await loadFrom(CDN_MODEL_URL);
+            }
+
             if (!cancelled) setModelsReady(true);
         }).catch(err => {
             console.error("AI model load error:", err);
@@ -89,10 +102,21 @@ export default function EnrollFacePage() {
 
         setDetecting(true);
         try {
-            const det = await faceapiRef.current
-                .detectSingleFace(videoRef.current)
+            const faceapi = faceapiRef.current;
+            // 1. Fast detection with TinyFaceDetector (<50ms)
+            const tinyOpts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+            let det = await faceapi
+                .detectSingleFace(videoRef.current, tinyOpts)
                 .withFaceLandmarks()
                 .withFaceDescriptor();
+
+            // 2. High-accuracy fallback if tiny detector misses
+            if (!det) {
+                det = await faceapi
+                    .detectSingleFace(videoRef.current)
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+            }
 
             if (!det) {
                 toast.error("No face detected — align your face and retry.");

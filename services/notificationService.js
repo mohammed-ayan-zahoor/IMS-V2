@@ -459,11 +459,12 @@ export class NotificationService {
                 const rawBase64 = typeof fileUrlOrBase64 === 'string' ? fileUrlOrBase64.replace(/^data:.*?;base64,/, '') : '';
                 const cleanFilename = filename || 'document.pdf';
                 const mimetype = 'application/pdf';
+                const dataUri = isUrl ? undefined : (fileUrlOrBase64.startsWith('data:') ? fileUrlOrBase64 : `data:${mimetype};base64,${rawBase64}`);
 
-                // WAHA standard file object
+                // WAHA standard file object (supports url or Data-URI base64)
                 const wahaFileObj = isUrl
                     ? { url: fileUrlOrBase64, filename: cleanFilename, mimetype }
-                    : { data: rawBase64, filename: cleanFilename, mimetype };
+                    : { data: dataUri, filename: cleanFilename, mimetype };
 
                 // 1. Primary WAHA endpoint: POST /api/sendFile
                 console.log(`[WA DOC DISPATCH] Attempting WAHA /api/sendFile for ${chatId} ("${cleanFilename}")`);
@@ -481,11 +482,15 @@ export class NotificationService {
                     return null;
                 });
 
-                // 2. If 404 or 400, try WAHA session-scoped endpoint: POST /api/sessions/{session}/messages/send-file
-                if (!response || (!response.ok && (response.status === 404 || response.status === 400))) {
+                let lastErrorData = null;
+                if (!response || !response.ok) {
+                    lastErrorData = response ? await response.json().catch(() => ({})) : null;
+                    console.warn(`[WA DOC DISPATCH] /api/sendFile failed (${response?.status || 'No Response'}):`, lastErrorData);
+
+                    // 2. If 404 or 400, try WAHA session-scoped endpoint: POST /api/sessions/{session}/messages/send-file
                     const sessionUrl = `${baseUrl}/api/sessions/${encodeURIComponent(sessionId || 'default')}/messages/send-file`;
                     console.log(`[WA DOC DISPATCH] Retrying with session endpoint ${sessionUrl}`);
-                    response = await fetch(sessionUrl, {
+                    const sessionRes = await fetch(sessionUrl, {
                         method: 'POST',
                         headers,
                         body: JSON.stringify({
@@ -495,8 +500,14 @@ export class NotificationService {
                         })
                     }).catch(err => {
                         console.warn('[WA DOC DISPATCH] session send-file network error:', err.message);
-                        return response;
+                        return null;
                     });
+
+                    if (sessionRes && sessionRes.ok) {
+                        response = sessionRes;
+                    } else if (sessionRes) {
+                        lastErrorData = await sessionRes.json().catch(() => ({}));
+                    }
                 }
 
                 // 3. Fallback for legacy Open-WA (@open-wa/wa-automate REST daemon)
@@ -504,27 +515,30 @@ export class NotificationService {
                     console.log(`[WA DOC DISPATCH] Retrying with legacy OpenWA /api/sendFile`);
                     const legacyBody = {
                         to: chatId,
-                        file: isUrl ? fileUrlOrBase64 : `data:${mimetype};base64,${rawBase64}`,
+                        file: isUrl ? fileUrlOrBase64 : dataUri,
                         filename: cleanFilename,
                         caption: caption || '',
                         pass: apiKey
                     };
-                    response = await fetch(`${baseUrl}/api/sendFile`, {
+                    const legacyRes = await fetch(`${baseUrl}/api/sendFile`, {
                         method: 'POST',
                         headers,
                         body: JSON.stringify(legacyBody)
                     }).catch(() => null);
 
-                    if (!response || (!response.ok && response.status === 404)) {
-                        response = await fetch(`${baseUrl}/sendFile`, {
+                    if (legacyRes && legacyRes.ok) {
+                        response = legacyRes;
+                    } else if (legacyRes && legacyRes.status === 404) {
+                        const rootRes = await fetch(`${baseUrl}/sendFile`, {
                             method: 'POST',
                             headers,
                             body: JSON.stringify(legacyBody)
                         }).catch(() => null);
+                        if (rootRes && rootRes.ok) response = rootRes;
                     }
                 }
 
-                const data = response ? await response.json().catch(() => ({})) : {};
+                const data = response && response.ok ? await response.json().catch(() => ({})) : (lastErrorData || {});
                 if (!response || !response.ok) {
                     console.error(`[WA DOCUMENT DISPATCH ERROR] All document endpoints failed (${response?.status || 'No Response'}):`, data);
                     // Fallback to text message so communication is never dropped

@@ -7,7 +7,8 @@ import { toast } from "@/contexts/ToastContext";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
-const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
+const LOCAL_MODEL_URL = "/models/face-api";
+const CDN_MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
 
 function ScannerPage() {
     const router = useRouter();
@@ -134,17 +135,28 @@ function ScannerPage() {
         };
     }, []);
 
-    // ── 2. Load AI models in parallel ─────────────────────────────────────
+    // ── 2. Load AI models in parallel (local first, CDN fallback) ──────────
     useEffect(() => {
         let cancelled = false;
         setStatusMsg("Loading AI models…");
         import("@vladmandic/face-api").then(async faceapi => {
             faceapiRef.current = faceapi;
-            await Promise.all([
-                faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-            ]);
+
+            const loadFrom = async (url) => {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(url),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(url),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(url),
+                ]);
+            };
+
+            try {
+                await loadFrom(LOCAL_MODEL_URL);
+            } catch (localErr) {
+                console.warn("Local models load failed, falling back to CDN:", localErr);
+                await loadFrom(CDN_MODEL_URL);
+            }
+
             if (!cancelled) { setModelsReady(true); setStatusMsg(""); }
         }).catch(err => { if (!cancelled) { setStatusMsg("AI load failed: " + err.message); } });
         return () => { cancelled = true; };
@@ -344,16 +356,23 @@ function ScannerPage() {
     useEffect(() => {
         if (!cameraReady || !modelsReady) return;
         let alive = true;
+        let isDetecting = false;
+
+        const detectorOptions = new faceapiRef.current.TinyFaceDetectorOptions({
+            inputSize: 320,
+            scoreThreshold: 0.5
+        });
 
         const tick = async () => {
-            if (!alive || !videoRef.current || !faceMatcherRef.current || isProcessingRef.current) {
+            if (!alive || !videoRef.current || !faceMatcherRef.current || isProcessingRef.current || isDetecting) {
                 if (alive) animFrameRef.current = requestAnimationFrame(tick);
                 return;
             }
             if (videoRef.current.readyState === 4) {
+                isDetecting = true;
                 try {
                     const dets = await faceapiRef.current
-                        .detectAllFaces(videoRef.current)
+                        .detectAllFaces(videoRef.current, detectorOptions)
                         .withFaceLandmarks()
                         .withFaceDescriptors();
                     if (dets?.length > 0) {
@@ -365,9 +384,11 @@ function ScannerPage() {
                             }
                         }
                     }
-                } catch (_) {}
+                } catch (_) {} finally {
+                    isDetecting = false;
+                }
             }
-            if (alive) setTimeout(() => { animFrameRef.current = requestAnimationFrame(tick); }, 300);
+            if (alive) setTimeout(() => { animFrameRef.current = requestAnimationFrame(tick); }, 150);
         };
 
         animFrameRef.current = requestAnimationFrame(tick);
