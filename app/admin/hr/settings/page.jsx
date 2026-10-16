@@ -179,7 +179,7 @@ export default function HRSettingsPage() {
     }
 
     return (
-        <div className="text-[#14161A] select-none min-h-[calc(100vh-64px)] pb-28 max-w-3xl mx-auto font-[-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif]">
+        <div className="text-[#14161A] select-none min-h-[calc(100vh-64px)] pb-28 font-[-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif]">
             {/* ── Page Header (H1, Subtitle, Primary Save) ─────────────────────────── */}
             <div className="pt-2 pb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E6E8EC]/80 mb-6">
                 <div>
@@ -226,7 +226,7 @@ export default function HRSettingsPage() {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div className="space-y-1">
                             <label className="text-[11px] font-medium text-[#5F6673]">
                                 Shift start time (In-time)
@@ -271,7 +271,7 @@ export default function HRSettingsPage() {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div className="space-y-1">
                             <label className="text-[11px] font-medium text-[#5F6673]">
                                 Morning check-in grace period (minutes)
@@ -415,7 +415,7 @@ export default function HRSettingsPage() {
                                 transition={SPRING_ACCORDION}
                                 className="overflow-hidden"
                             >
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
                                     <div className="space-y-1">
                                         <label className="text-[11px] font-medium text-[#5F6673]">
                                             Unpaid buffer period (minutes)
@@ -484,7 +484,7 @@ export default function HRSettingsPage() {
                     </div>
 
                     {componentsList.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pt-1">
                             {componentsList.map((comp) => {
                                 const isActive = comp.isActive !== false;
                                 return (
@@ -557,7 +557,7 @@ export default function HRSettingsPage() {
                         </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         {/* Server Address */}
                         <div className="space-y-1">
                             <label className="text-[11px] font-medium text-[#5F6673]">
@@ -631,7 +631,7 @@ export default function HRSettingsPage() {
                     </div>
 
                     {/* 3-Step Setup Instructions */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                         <div className="p-3 bg-[#F2F3F5]/60 rounded-lg text-[12px] text-[#5F6673]">
                             <span className="font-semibold text-[#14161A] block mb-1">1. Map Biometric ID</span>
                             In Staff Directory, set each staff member&apos;s Biometric Machine ID to match the number enrolled on the device.
