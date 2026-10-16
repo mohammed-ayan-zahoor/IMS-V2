@@ -728,8 +728,18 @@ export default function AdminLayout({ children }) {
                             )}
                         </button>
                         <div>
-                            <h1 className="text-base sm:text-lg font-bold text-[#111827] tracking-tight leading-tight">{title}</h1>
-                            <p className="text-[11px] text-[#6b7280] font-medium hidden sm:block tracking-normal mt-0.5">{subtitle}</p>
+                            {pathname === "/admin/hr/attendance" ? (
+                                <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[13px] text-[#5F6673]">
+                                    <span>Human resources</span>
+                                    <span className="text-slate-300">›</span>
+                                    <span className="font-medium text-[#14161A]">Staff attendance</span>
+                                </nav>
+                            ) : (
+                                <>
+                                    <h1 className="text-base sm:text-lg font-bold text-[#111827] tracking-tight leading-tight">{title}</h1>
+                                    <p className="text-[11px] text-[#6b7280] font-medium hidden sm:block tracking-normal mt-0.5">{subtitle}</p>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -819,8 +829,8 @@ export default function AdminLayout({ children }) {
                                                     <LogOut size={14} />
                                                     <span>Sign Out</span>
                                                 </div>
-                                                <span className="text-[10px] font-mono text-red-400 bg-red-100/70 px-1.5 py-0.5 rounded font-bold">
-                                                    Ctrl+L
+                                                <span className="text-[11px] font-mono text-slate-400 font-normal">
+                                                    ⌃L
                                                 </span>
                                             </button>
                                         </div>
