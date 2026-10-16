@@ -3,38 +3,37 @@
 import { useState, useEffect, useCallback } from "react";
 import { 
     Clock, 
-    Save, 
     Loader2, 
-    AlertCircle, 
-    CheckCircle2, 
-    TrendingUp, 
-    TrendingDown, 
-    ArrowRightLeft, 
     ShieldCheck, 
-    Info,
-    Coins,
-    Timer,
-    CalendarClock,
-    Fingerprint,
-    Copy,
-    Check,
-    RefreshCw
+    Coins, 
+    Timer, 
+    Fingerprint, 
+    Copy, 
+    Check, 
+    RefreshCw, 
+    TrendingUp, 
+    ArrowUpRight,
+    CheckCircle
 } from "lucide-react";
-import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
-import Input from "@/components/ui/Input";
 import { useToast } from "@/contexts/ToastContext";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+
+// ── Apple-Design Critically Damped Springs ────────────────────────────────────
+const SPRING_FAST = { type: "spring", bounce: 0, duration: 0.22 };
+const SPRING_ACCORDION = { type: "spring", bounce: 0, duration: 0.28 };
 
 export default function HRSettingsPage() {
     const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [copiedKey, setCopiedKey] = useState(false);
-    const [copiedUrl, setCopiedUrl] = useState(false);
+    const [copiedServer, setCopiedServer] = useState(false);
     const [regeneratingKey, setRegeneratingKey] = useState(false);
     const [biometricApiKey, setBiometricApiKey] = useState("");
+    const [saveSuccess, setSaveSuccess] = useState(false);
+
     const [formData, setFormData] = useState({
         shiftStart: "09:00",
         shiftEnd: "18:00",
@@ -83,7 +82,7 @@ export default function HRSettingsPage() {
                 setBiometricApiKey(data.settings.biometricApiKey || "");
             }
         } catch (error) {
-            if (error.name !== 'AbortError') {
+            if (error.name !== "AbortError") {
                 toast.error("Failed to load HR settings");
             }
         } finally {
@@ -103,7 +102,7 @@ export default function HRSettingsPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to regenerate API key");
             setBiometricApiKey(data.settings?.biometricApiKey || "");
-            toast.success("New Biometric API Key generated!");
+            toast.success("New Biometric API Key generated");
         } catch (error) {
             toast.error(error.message);
         } finally {
@@ -120,7 +119,6 @@ export default function HRSettingsPage() {
 
     const handleToggleComponent = async (id, currentActive) => {
         const nextActive = !currentActive;
-        // Optimistic update
         setComponentsList(prev => prev.map(c => c._id === id ? { ...c, isActive: nextActive } : c));
         try {
             const res = await fetch(`/api/v1/hr/salary-components/${id}`, {
@@ -128,19 +126,16 @@ export default function HRSettingsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ isActive: nextActive })
             });
-            if (!res.ok) {
-                throw new Error("Failed to update status");
-            }
+            if (!res.ok) throw new Error("Failed to update status");
             toast.success(`Component ${nextActive ? "activated" : "deactivated"}`);
         } catch (err) {
-            // Revert
             setComponentsList(prev => prev.map(c => c._id === id ? { ...c, isActive: currentActive } : c));
             toast.error("Failed to update component status");
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = useCallback(async (e) => {
+        if (e) e.preventDefault();
         setSaving(true);
         try {
             const res = await fetch("/api/v1/hr/settings", {
@@ -152,541 +147,527 @@ export default function HRSettingsPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to update settings");
 
-            toast.success("HR settings updated successfully");
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 2400);
+            toast.success("Settings saved successfully");
         } catch (error) {
             toast.error(error.message || "Failed to update HR settings");
         } finally {
             setSaving(false);
         }
-    };
+    }, [formData, toast]);
+
+    // Keyboard shortcut ⌘S / Ctrl+S to save
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+                e.preventDefault();
+                handleSubmit();
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [handleSubmit]);
 
     if (loading) {
         return (
-            <div className="flex h-96 items-center justify-center">
-                <LoadingSpinner />
+            <div className="flex h-96 items-center justify-center text-[#5F6673] text-[13px] gap-2">
+                <Loader2 size={18} className="animate-spin text-indigo-600" />
+                <span>Loading HR configuration…</span>
             </div>
         );
     }
 
     return (
-        <div className="p-6 space-y-6 max-w-5xl mx-auto">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-5">
+        <div className="text-[#14161A] select-none min-h-[calc(100vh-64px)] pb-28 max-w-3xl mx-auto font-[-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif]">
+            {/* ── Page Header (H1, Subtitle, Primary Save) ─────────────────────────── */}
+            <div className="pt-2 pb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E6E8EC]/80 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <CalendarClock className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
-                        HR & Timing Settings
+                    <h1 className="text-[22px] font-semibold text-[#14161A] tracking-[-0.015em] leading-tight m-0">
+                        HR settings
                     </h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Configure shift schedules, late grace periods, mid-day permission deductions, and overtime rules.
+                    <p className="text-[13px] text-[#5F6673] mt-1 font-normal">
+                        Shift schedules, grace periods, deductions, overtime, and biometric sync.
                     </p>
                 </div>
-                <Button
+
+                <button
+                    type="button"
                     onClick={handleSubmit}
                     disabled={saving}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                    className="h-8 px-3.5 rounded-lg bg-[#14161A] text-white hover:bg-black active:scale-[0.98] transition-all text-[13px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-none shrink-0"
                 >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    Save Settings
-                </Button>
+                    {saving ? (
+                        <>
+                            <Loader2 size={13} className="animate-spin text-white" />
+                            <span>Saving…</span>
+                        </>
+                    ) : saveSuccess ? (
+                        <>
+                            <Check size={14} className="text-emerald-400" />
+                            <span>Saved ✓</span>
+                        </>
+                    ) : (
+                        <span>Save settings</span>
+                    )}
+                </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                {/* 1. Shift Schedule */}
-                <Card className="p-6">
-                    <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-                        <div className="p-2 bg-indigo-50 dark:bg-indigo-900/40 rounded-lg text-indigo-600 dark:text-indigo-400">
-                            <Clock className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Daily Shift Timings</h2>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Default working hours for staff & faculty check-in / check-out</p>
-                        </div>
+            <form onSubmit={handleSubmit} className="space-y-8">
+                {/* ── 1. Daily Shift Timings ────────────────────────────────────────── */}
+                <section className="space-y-4">
+                    <div>
+                        <h2 className="text-[14px] font-semibold text-[#14161A] flex items-center gap-2">
+                            <Clock size={15} className="text-[#5F6673]" />
+                            <span>Daily shift timings</span>
+                        </h2>
+                        <p className="text-[12px] text-[#5F6673] mt-0.5">
+                            Default institutional working hours for staff check-in and check-out.
+                        </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Shift Start Time (In-Time)
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-[#5F6673]">
+                                Shift start time (In-time)
                             </label>
-                            <Input
+                            <input
                                 type="time"
                                 value={formData.shiftStart}
                                 onChange={(e) => setFormData({ ...formData, shiftStart: e.target.value })}
                                 required
+                                className="w-full h-8 px-3 text-[13px] bg-[#F2F3F5] hover:bg-[#EBECEF] focus:bg-white text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all tabular-nums font-medium"
                             />
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Standard morning duty start time (e.g. 09:00 AM)</p>
+                            <p className="text-[11px] text-[#5F6673]">Standard morning arrival target (e.g. 09:00 AM)</p>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Shift End Time (Out-Time)
+
+                        <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-[#5F6673]">
+                                Shift end time (Out-time)
                             </label>
-                            <Input
+                            <input
                                 type="time"
                                 value={formData.shiftEnd}
                                 onChange={(e) => setFormData({ ...formData, shiftEnd: e.target.value })}
                                 required
+                                className="w-full h-8 px-3 text-[13px] bg-[#F2F3F5] hover:bg-[#EBECEF] focus:bg-white text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all tabular-nums font-medium"
                             />
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Standard evening duty end time (e.g. 06:00 PM)</p>
+                            <p className="text-[11px] text-[#5F6673]">Standard evening departure target (e.g. 06:00 PM)</p>
                         </div>
                     </div>
-                </Card>
+                </section>
 
-                {/* 2. Check-In & Check-Out Grace Rules */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Morning Check-In */}
-                    <Card className="p-6">
-                        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-                            <div className="p-2 bg-amber-50 dark:bg-amber-900/40 rounded-lg text-amber-600 dark:text-amber-400">
-                                <Timer className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Morning Check-In Rules</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Grace period & late arrival penalties</p>
-                            </div>
-                        </div>
+                <div className="h-[1px] bg-[#E6E8EC]/80" />
 
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Check-In Grace Period (Minutes)
-                                </label>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    max="60"
-                                    value={formData.checkInGraceMins}
-                                    onChange={(e) => setFormData({ ...formData, checkInGraceMins: parseInt(e.target.value) || 0 })}
-                                    required
-                                />
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Permissible delay past shift start (e.g. 15 mins) without salary deduction.
-                                </p>
-                            </div>
-
-                            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
-                                <Info className="w-4 h-4 shrink-0 mt-0.5" />
-                                <div>
-                                    <span className="font-semibold">Block-Hour Deduction:</span> Arrivals exceeding the {formData.checkInGraceMins}-min grace period incur penalties rounded up to the next full hour block (e.g. 20 min late = 1 hr cut; 1 hr 5 min late = 2 hrs cut).
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
-
-                    {/* Evening Check-Out */}
-                    <Card className="p-6">
-                        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-                            <div className="p-2 bg-rose-50 dark:bg-rose-900/40 rounded-lg text-rose-600 dark:text-rose-400">
-                                <ShieldCheck className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Shift Exit (Check-Out) Rules</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Early departure grace & penalty window</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Early Departure Grace Period (Minutes)
-                                </label>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    max="60"
-                                    value={formData.checkOutGraceMins}
-                                    onChange={(e) => setFormData({ ...formData, checkOutGraceMins: parseInt(e.target.value) || 0 })}
-                                    required
-                                />
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Permissible early exit window prior to shift end (e.g. 10 mins).
-                                </p>
-                            </div>
-
-                            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-lg p-3 text-xs text-rose-800 dark:text-rose-300 flex items-start gap-2">
-                                <Info className="w-4 h-4 shrink-0 mt-0.5" />
-                                <div>
-                                    <span className="font-semibold">Early Exit Deduction:</span> Leaving earlier than {formData.checkOutGraceMins} mins before shift end triggers a 1-hour block penalty.
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-
-                {/* 3. Deduction Rate & Mid-Day Out-Pass */}
-                <Card className="p-6">
-                    <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-                        <div className="p-2 bg-red-50 dark:bg-red-900/40 rounded-lg text-red-600 dark:text-red-400">
-                            <Coins className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Hourly Deduction Rate & Mid-Day Permissions</h2>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Unified hourly penalty rate and out-pass settings</p>
-                        </div>
+                {/* ── 2. Check-In & Check-Out Grace Rules ───────────────────────────── */}
+                <section className="space-y-4">
+                    <div>
+                        <h2 className="text-[14px] font-semibold text-[#14161A] flex items-center gap-2">
+                            <Timer size={15} className="text-[#5F6673]" />
+                            <span>Arrival & departure grace rules</span>
+                        </h2>
+                        <p className="text-[12px] text-[#5F6673] mt-0.5">
+                            Permissible buffers before attendance deductions trigger block penalties.
+                        </p>
                     </div>
 
-                    <div className="space-y-6">
-                        <div className="max-w-md">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Hourly Deduction Rate (₹ per Hour Block)
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-[#5F6673]">
+                                Morning check-in grace period (minutes)
                             </label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-gray-500 font-medium">₹</span>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    className="pl-8"
-                                    value={formData.deductionRatePerHour}
-                                    onChange={(e) => setFormData({ ...formData, deductionRatePerHour: parseFloat(e.target.value) || 0 })}
-                                    required
-                                />
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Applied per full-hour block for late arrival, early exit, and personal mid-day absence.
+                            <input
+                                type="number"
+                                min="0"
+                                max="60"
+                                value={formData.checkInGraceMins}
+                                onChange={(e) => setFormData({ ...formData, checkInGraceMins: parseInt(e.target.value) || 0 })}
+                                required
+                                className="w-full h-8 px-3 text-[13px] bg-[#F2F3F5] hover:bg-[#EBECEF] focus:bg-white text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all tabular-nums font-medium"
+                            />
+                            <p className="text-[11px] text-[#5F6673]">
+                                Delays exceeding {formData.checkInGraceMins} mins incur hourly penalties rounded up to the next full hour block.
                             </p>
                         </div>
 
-                        <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <label className="text-sm font-medium text-gray-900 dark:text-white">
-                                        Personal Mid-Day Out-Pass Salary Deduction
-                                    </label>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        Automatically deduct pay in 1-hour blocks when staff leaves during duty hours for personal work.
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={formData.midDayOutEnabled}
-                                    onClick={() => setFormData({ ...formData, midDayOutEnabled: !formData.midDayOutEnabled })}
-                                    className={cn(
-                                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                                        formData.midDayOutEnabled ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700"
-                                    )}
-                                >
-                                    <span
-                                        className={cn(
-                                            "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                                            formData.midDayOutEnabled ? "translate-x-5" : "translate-x-0"
-                                        )}
-                                    />
-                                </button>
-                            </div>
+                        <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-[#5F6673]">
+                                Early departure grace period (minutes)
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="60"
+                                value={formData.checkOutGraceMins}
+                                onChange={(e) => setFormData({ ...formData, checkOutGraceMins: parseInt(e.target.value) || 0 })}
+                                required
+                                className="w-full h-8 px-3 text-[13px] bg-[#F2F3F5] hover:bg-[#EBECEF] focus:bg-white text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all tabular-nums font-medium"
+                            />
+                            <p className="text-[11px] text-[#5F6673]">
+                                Exits earlier than {formData.checkOutGraceMins} mins before shift end trigger a 1-hour block penalty.
+                            </p>
+                        </div>
+                    </div>
+                </section>
 
-                            {formData.midDayOutEnabled && (
-                                <div className="mt-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-lg p-3 text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
-                                    <Info className="w-4 h-4 shrink-0 mt-0.5" />
-                                    <div>
-                                        <span className="font-semibold">How Out-Pass Deductions Work:</span> Any personal exit up to 60 mins deducts 1 hour (₹{formData.deductionRatePerHour}). Leaving for 1 hr 15 mins spans into the 2nd hour block, deducting 2 hours (₹{formData.deductionRatePerHour * 2}).
-                                    </div>
-                                </div>
+                <div className="h-[1px] bg-[#E6E8EC]/80" />
+
+                {/* ── 3. Hourly Deduction Rate & Mid-Day Out-Pass ────────────────────── */}
+                <section className="space-y-4">
+                    <div>
+                        <h2 className="text-[14px] font-semibold text-[#14161A] flex items-center gap-2">
+                            <Coins size={15} className="text-[#5F6673]" />
+                            <span>Hourly deductions & mid-day exits</span>
+                        </h2>
+                        <p className="text-[12px] text-[#5F6673] mt-0.5">
+                            Penalty rate applied to late arrivals, early exits, and personal departure passes.
+                        </p>
+                    </div>
+
+                    <div className="max-w-xs space-y-1">
+                        <label className="text-[11px] font-medium text-[#5F6673]">
+                            Hourly deduction rate (₹ per hour block)
+                        </label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-[#5F6673] font-medium">₹</span>
+                            <input
+                                type="number"
+                                min="0"
+                                value={formData.deductionRatePerHour}
+                                onChange={(e) => setFormData({ ...formData, deductionRatePerHour: parseFloat(e.target.value) || 0 })}
+                                required
+                                className="w-full h-8 pl-7 pr-3 text-[13px] bg-[#F2F3F5] hover:bg-[#EBECEF] focus:bg-white text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all tabular-nums font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Toggle: Personal Mid-Day Out-Pass */}
+                    <div className="pt-2 flex items-center justify-between gap-4">
+                        <div className="space-y-0.5">
+                            <span className="text-[13px] font-medium text-[#14161A] block">
+                                Personal mid-day out-pass salary deduction
+                            </span>
+                            <p className="text-[12px] text-[#5F6673]">
+                                Automatically deducts pay in 1-hour blocks (₹{formData.deductionRatePerHour}/hr) when staff leave for personal errands during duty hours.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={formData.midDayOutEnabled}
+                            onClick={() => setFormData(prev => ({ ...prev, midDayOutEnabled: !prev.midDayOutEnabled }))}
+                            className={cn(
+                                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 focus:outline-none",
+                                formData.midDayOutEnabled ? "bg-[#14161A]" : "bg-[#D1D5DB]"
                             )}
-                        </div>
+                        >
+                            <motion.span
+                                layout
+                                transition={SPRING_FAST}
+                                className="pointer-events-none block h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+                                style={{ marginLeft: formData.midDayOutEnabled ? "16px" : "0px" }}
+                            />
+                        </button>
                     </div>
-                </Card>
+                </section>
 
-                {/* 4. Overtime & Post-Shift Stay Rules */}
-                <Card className="p-6">
-                    <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-                        <div className="p-2 bg-emerald-50 dark:bg-emerald-900/40 rounded-lg text-emerald-600 dark:text-emerald-400">
-                            <TrendingUp className="w-5 h-5" />
-                        </div>
+                <div className="h-[1px] bg-[#E6E8EC]/80" />
+
+                {/* ── 4. Overtime (OT) Rules ────────────────────────────────────────── */}
+                <section className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
                         <div>
-                            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Overtime (OT) & Extended Duty Rules</h2>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Post-shift stay tracking and hourly overtime pay added to earnings</p>
+                            <h2 className="text-[14px] font-semibold text-[#14161A] flex items-center gap-2">
+                                <TrendingUp size={15} className="text-[#5F6673]" />
+                                <span>Overtime (OT) pay tracking</span>
+                            </h2>
+                            <p className="text-[12px] text-[#5F6673] mt-0.5">
+                                Calculate extra salary for staff staying past the shift end buffer.
+                            </p>
                         </div>
+
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={formData.overtimeEnabled}
+                            onClick={() => setFormData(prev => ({ ...prev, overtimeEnabled: !prev.overtimeEnabled }))}
+                            className={cn(
+                                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 focus:outline-none",
+                                formData.overtimeEnabled ? "bg-[#14161A]" : "bg-[#D1D5DB]"
+                            )}
+                        >
+                            <motion.span
+                                layout
+                                transition={SPRING_FAST}
+                                className="pointer-events-none block h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+                                style={{ marginLeft: formData.overtimeEnabled ? "16px" : "0px" }}
+                            />
+                        </button>
                     </div>
 
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <label className="text-sm font-medium text-gray-900 dark:text-white">
-                                    Enable Overtime Earnings Tracking
-                                </label>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Calculate extra salary for staff staying past the unpaid buffer period.
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                role="switch"
-                                aria-checked={formData.overtimeEnabled}
-                                onClick={() => setFormData({ ...formData, overtimeEnabled: !formData.overtimeEnabled })}
-                                className={cn(
-                                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                                    formData.overtimeEnabled ? "bg-emerald-600" : "bg-gray-200 dark:bg-gray-700"
-                                )}
-                            >
-                                <span
-                                    className={cn(
-                                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                                        formData.overtimeEnabled ? "translate-x-5" : "translate-x-0"
-                                    )}
-                                />
-                            </button>
-                        </div>
-
+                    <AnimatePresence initial={false}>
                         {formData.overtimeEnabled && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-gray-100 dark:border-gray-800">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Unpaid Buffer Period (Minutes)
-                                    </label>
-                                    <Input
-                                        type="number"
-                                        min="0"
-                                        max="120"
-                                        value={formData.overtimeBufferMins}
-                                        onChange={(e) => setFormData({ ...formData, overtimeBufferMins: parseInt(e.target.value) || 0 })}
-                                        required
-                                    />
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                        Initial duration after shift end that is not counted (e.g. 30 mins buffer).
-                                    </p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Overtime Rate (₹ per Hour)
-                                    </label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-2.5 text-gray-500 font-medium">₹</span>
-                                        <Input
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={SPRING_ACCORDION}
+                                className="overflow-hidden"
+                            >
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                                    <div className="space-y-1">
+                                        <label className="text-[11px] font-medium text-[#5F6673]">
+                                            Unpaid buffer period (minutes)
+                                        </label>
+                                        <input
                                             type="number"
                                             min="0"
-                                            className="pl-8"
-                                            value={formData.overtimeRatePerHour}
-                                            onChange={(e) => setFormData({ ...formData, overtimeRatePerHour: parseFloat(e.target.value) || 0 })}
+                                            max="120"
+                                            value={formData.overtimeBufferMins}
+                                            onChange={(e) => setFormData({ ...formData, overtimeBufferMins: parseInt(e.target.value) || 0 })}
                                             required
+                                            className="w-full h-8 px-3 text-[13px] bg-[#F2F3F5] hover:bg-[#EBECEF] focus:bg-white text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all tabular-nums font-medium"
                                         />
+                                        <p className="text-[11px] text-[#5F6673]">
+                                            Initial stay duration after {formData.shiftEnd} that is not counted (e.g. 30 mins).
+                                        </p>
                                     </div>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                        Extra pay credited per full hour of duty beyond the buffer.
-                                    </p>
-                                </div>
 
-                                <div className="sm:col-span-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-lg p-3 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-2">
-                                    <Info className="w-4 h-4 shrink-0 mt-0.5" />
-                                    <div>
-                                        <span className="font-semibold">Overtime Calculation Flow:</span> For a {formData.shiftEnd} shift end with a {formData.overtimeBufferMins}-minute buffer, overtime starts counting from {formData.overtimeBufferMins} minutes past shift end. Only full completed hours are credited into the monthly payslip earnings.
+                                    <div className="space-y-1">
+                                        <label className="text-[11px] font-medium text-[#5F6673]">
+                                            Overtime rate (₹ per hour)
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-[#5F6673] font-medium">₹</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={formData.overtimeRatePerHour}
+                                                onChange={(e) => setFormData({ ...formData, overtimeRatePerHour: parseFloat(e.target.value) || 0 })}
+                                                required
+                                                className="w-full h-8 pl-7 pr-3 text-[13px] bg-[#F2F3F5] hover:bg-[#EBECEF] focus:bg-white text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all tabular-nums font-medium"
+                                            />
+                                        </div>
+                                        <p className="text-[11px] text-[#5F6673]">
+                                            Full completed hours beyond the buffer credit extra pay to monthly payslips.
+                                        </p>
                                     </div>
                                 </div>
-                            </div>
+                            </motion.div>
                         )}
-                    </div>
-                </Card>
+                    </AnimatePresence>
+                </section>
 
-                {/* 5. Salary Components & Statutory Deductions Switchboard */}
-                <Card className="p-6">
-                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-purple-50 dark:bg-purple-900/40 rounded-lg text-purple-600 dark:text-purple-400">
-                                <Coins className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Statutory Taxes & Salary Components Switchboard</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Instantly enable or disable taxes (Professional Tax, EPF, ESI, TDS) and allowances for your institute
-                                </p>
-                            </div>
+                <div className="h-[1px] bg-[#E6E8EC]/80" />
+
+                {/* ── 5. Salary Components & Statutory Deductions Switchboard ───────── */}
+                <section className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <h2 className="text-[14px] font-semibold text-[#14161A] flex items-center gap-2">
+                                <ShieldCheck size={15} className="text-[#5F6673]" />
+                                <span>Salary components switchboard</span>
+                            </h2>
+                            <p className="text-[12px] text-[#5F6673] mt-0.5">
+                                Instantly enable or disable statutory taxes (EPF, ESI, TDS) and institutional allowances.
+                            </p>
                         </div>
+
                         <a
                             href="/admin/hr/salary-components"
-                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                            className="text-[12px] font-medium text-[#5F6673] hover:text-[#14161A] flex items-center gap-1 transition-colors shrink-0"
                         >
-                            Full Master Config →
+                            <span>Full master config</span>
+                            <ArrowUpRight size={13} />
                         </a>
                     </div>
 
-                    <div className="space-y-4">
-                        <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-200/80 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2">
-                            <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-                            <span>
-                                <strong>Multi-Tenant Rule:</strong> Private or exempt institutions can toggle off Professional Tax, EPF, or ESI. When disabled, these components will not apply to any employee or payslip.
-                            </span>
-                        </div>
-
-                        {componentsList.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
-                                {componentsList.map((comp) => (
+                    {componentsList.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+                            {componentsList.map((comp) => {
+                                const isActive = comp.isActive !== false;
+                                return (
                                     <div
                                         key={comp._id}
                                         className={cn(
-                                            "flex items-center justify-between p-3 rounded-xl border transition-all",
-                                            comp.isActive !== false
-                                                ? "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-xs"
-                                                : "bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-60"
+                                            "flex items-center justify-between p-2.5 rounded-lg border transition-colors",
+                                            isActive 
+                                                ? "bg-white border-[#E6E8EC]" 
+                                                : "bg-[#F2F3F5]/40 border-transparent opacity-60"
                                         )}
                                     >
-                                        <div className="flex flex-col pr-2">
-                                            <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                        <div className="min-w-0 pr-2">
+                                            <div className="text-[12px] font-medium text-[#14161A] truncate leading-tight">
                                                 {comp.name}
-                                            </span>
-                                            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">
-                                                {comp.type} • {comp.calculationType === 'percentage' ? `${comp.defaultValue || 0}% of ${comp.percentageBasis || 'basic'}` : (comp.defaultValue > 0 ? `₹${comp.defaultValue}` : 'Custom')}
-                                            </span>
+                                            </div>
+                                            <div className="text-[11px] text-[#5F6673] truncate leading-tight mt-0.5">
+                                                <span>{comp.type}</span>
+                                                <span className="mx-1 text-[#E6E8EC]">·</span>
+                                                <span>{comp.calculationType === "percentage" ? `${comp.defaultValue || 0}%` : (comp.defaultValue > 0 ? `₹${comp.defaultValue}` : "Custom")}</span>
+                                            </div>
                                         </div>
 
                                         <button
                                             type="button"
                                             role="switch"
-                                            aria-checked={comp.isActive !== false}
-                                            onClick={() => handleToggleComponent(comp._id, comp.isActive !== false)}
+                                            aria-checked={isActive}
+                                            onClick={() => handleToggleComponent(comp._id, isActive)}
                                             className={cn(
-                                                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                                                comp.isActive !== false ? "bg-emerald-600" : "bg-gray-300 dark:bg-gray-700"
+                                                "relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 focus:outline-none",
+                                                isActive ? "bg-[#14161A]" : "bg-[#D1D5DB]"
                                             )}
                                         >
-                                            <span
-                                                className={cn(
-                                                    "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                                                    comp.isActive !== false ? "translate-x-4" : "translate-x-0"
-                                                )}
+                                            <motion.span
+                                                layout
+                                                transition={SPRING_FAST}
+                                                className="pointer-events-none block h-3 w-3 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+                                                style={{ marginLeft: isActive ? "12px" : "0px" }}
                                             />
                                         </button>
                                     </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-6 text-xs text-slate-400">
-                                Loading salary components...
-                            </div>
-                        )}
-                    </div>
-                </Card>
-
-                {/* 6. Biometric Hardware Integration Card */}
-                <Card className="p-6">
-                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/40 rounded-lg text-emerald-600 dark:text-emerald-400">
-                                <Fingerprint className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Biometric Device Integration (Fingerprint & Face)</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Connect physical biometric hardware (Secureye, eSSL, ZKTeco, Realtime) to auto-sync staff attendance
-                                </p>
-                            </div>
+                                );
+                            })}
                         </div>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Webhook Active
+                    ) : (
+                        <div className="py-6 text-center text-[12px] text-[#5F6673]">
+                            Loading salary components…
+                        </div>
+                    )}
+                </section>
+
+                <div className="h-[1px] bg-[#E6E8EC]/80" />
+
+                {/* ── 6. Biometric Device Integration ──────────────────────────────── */}
+                <section className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <h2 className="text-[14px] font-semibold text-[#14161A] flex items-center gap-2">
+                                <Fingerprint size={15} className="text-[#5F6673]" />
+                                <span>Biometric hardware integration</span>
+                            </h2>
+                            <p className="text-[12px] text-[#5F6673] mt-0.5">
+                                Connect physical biometric hardware (Secureye, eSSL, ZKTeco, Realtime) to auto-sync punches.
+                            </p>
+                        </div>
+
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#0E8A7D]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#0E8A7D]" />
+                            <span>Server webhook ready</span>
                         </span>
                     </div>
 
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* iClock Direct Push URL — what goes into device menu */}
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                    Device Server Address <span className="font-normal text-gray-400">(enter this in device menu)</span>
-                                </label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        readOnly
-                                        value="imsportal.3ftech.in"
-                                        className="font-mono text-xs bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                            navigator.clipboard.writeText("imsportal.3ftech.in");
-                                            toast.success("Server address copied");
-                                        }}
-                                        className="shrink-0 bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
-                                    >
-                                        <Copy className="w-3.5 h-3.5 text-slate-500" /> Copy
-                                    </Button>
-                                </div>
-                                <p className="text-[11px] text-gray-400 mt-1">
-                                    Port: <strong>443</strong> · HTTPS: <strong>ON</strong> · Path: <em>leave blank</em>
-                                </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Server Address */}
+                        <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-[#5F6673]">
+                                Cloud server address (Device menu)
+                            </label>
+                            <div className="flex gap-1.5">
+                                <input
+                                    readOnly
+                                    value="imsportal.3ftech.in"
+                                    className="w-full h-8 px-3 font-mono text-[12px] bg-[#F2F3F5] text-[#14161A] rounded-lg border border-transparent focus:outline-none select-all"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText("imsportal.3ftech.in");
+                                        setCopiedServer(true);
+                                        setTimeout(() => setCopiedServer(false), 2000);
+                                        toast.success("Server address copied");
+                                    }}
+                                    className="h-8 px-2.5 rounded-lg border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] active:scale-[0.98] transition-all text-[12px] font-medium text-[#14161A] flex items-center gap-1 shrink-0"
+                                >
+                                    {copiedServer ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} className="text-[#5F6673]" />}
+                                    <span>{copiedServer ? "Copied" : "Copy"}</span>
+                                </button>
                             </div>
-
-                            {/* Biometric Secret Key */}
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                    Institute Biometric API Key
-                                </label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        readOnly
-                                        value={biometricApiKey || "Loading..."}
-                                        className="font-mono text-xs bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                            if (!biometricApiKey) return;
-                                            navigator.clipboard.writeText(biometricApiKey);
-                                            setCopiedKey(true);
-                                            setTimeout(() => setCopiedKey(false), 2000);
-                                            toast.success("Biometric API Key copied to clipboard");
-                                        }}
-                                        className="shrink-0 bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
-                                    >
-                                        {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
-                                        {copiedKey ? "Copied" : "Copy"}
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={regeneratingKey}
-                                        onClick={handleRegenerateBiometricKey}
-                                        className="shrink-0 bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
-                                        title="Regenerate Key"
-                                    >
-                                        <RefreshCw className={cn("w-3.5 h-3.5 text-slate-500", regeneratingKey && "animate-spin")} />
-                                    </Button>
-                                </div>
-                                <p className="text-[11px] text-gray-400 mt-1">
-                                    Not needed if using direct device push — only needed for the LAN bridge script.
-                                </p>
-                            </div>
+                            <p className="text-[11px] text-[#5F6673]">
+                                Port: <span className="font-mono text-[#14161A]">443</span> · HTTPS: <span className="font-semibold text-[#14161A]">ON</span>
+                            </p>
                         </div>
 
-                        {/* Quick Setup Instructions */}
-                        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-                            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                                <Info className="w-4 h-4 text-indigo-600" />
-                                How to Connect the Device (No PC needed)
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-slate-600 dark:text-slate-400">
-                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">1. Map Staff Biometric ID</span>
-                                    In <strong>Staff Directory</strong>, edit each staff member and set their <strong>Biometric Machine User ID</strong> (e.g. <code>101</code>) to match the number enrolled on the device.
-                                </div>
-                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">2. Configure Device Menu</span>
-                                    On the device: <strong>Menu → Comm → Cloud Server</strong><br />
-                                    Set <strong>Server Address</strong> to <code>imsportal.3ftech.in</code>, <strong>Port</strong> to <code>443</code>, <strong>HTTPS ON</strong>. Save and reboot. No PC required.
-                                </div>
-                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                                    <span className="font-bold text-slate-900 dark:text-white block mb-1">3. Auto Shifts &amp; Payroll</span>
-                                    1st punch = Check-in; 2nd punch = Check-out. Late arrival, early departure, and overtime are calculated automatically against each staff member&apos;s department shift.
-                                </div>
+                        {/* API Key */}
+                        <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-[#5F6673]">
+                                Institute biometric API key
+                            </label>
+                            <div className="flex gap-1.5">
+                                <input
+                                    readOnly
+                                    value={biometricApiKey || "Loading…"}
+                                    className="w-full h-8 px-3 font-mono text-[12px] bg-[#F2F3F5] text-[#14161A] rounded-lg border border-transparent focus:outline-none select-all"
+                                />
+                                <button
+                                    type="button"
+                                    disabled={!biometricApiKey}
+                                    onClick={() => {
+                                        if (!biometricApiKey) return;
+                                        navigator.clipboard.writeText(biometricApiKey);
+                                        setCopiedKey(true);
+                                        setTimeout(() => setCopiedKey(false), 2000);
+                                        toast.success("API Key copied to clipboard");
+                                    }}
+                                    className="h-8 px-2.5 rounded-lg border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] active:scale-[0.98] transition-all text-[12px] font-medium text-[#14161A] flex items-center gap-1 shrink-0"
+                                >
+                                    {copiedKey ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} className="text-[#5F6673]" />}
+                                    <span>{copiedKey ? "Copied" : "Copy"}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={regeneratingKey}
+                                    onClick={handleRegenerateBiometricKey}
+                                    className="w-8 h-8 rounded-lg border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] active:scale-[0.98] transition-all flex items-center justify-center text-[#5F6673] hover:text-[#14161A] shrink-0"
+                                    title="Regenerate Key"
+                                >
+                                    <RefreshCw size={13} className={cn(regeneratingKey && "animate-spin")} />
+                                </button>
                             </div>
+                            <p className="text-[11px] text-[#5F6673]">
+                                Used for the LAN bridge script or direct webhook validation.
+                            </p>
                         </div>
                     </div>
-                </Card>
 
-                {/* Bottom Action Bar */}
-                <div className="flex justify-end pt-4">
-                    <Button
+                    {/* 3-Step Setup Instructions */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                        <div className="p-3 bg-[#F2F3F5]/60 rounded-lg text-[12px] text-[#5F6673]">
+                            <span className="font-semibold text-[#14161A] block mb-1">1. Map Biometric ID</span>
+                            In Staff Directory, set each staff member&apos;s Biometric Machine ID to match the number enrolled on the device.
+                        </div>
+                        <div className="p-3 bg-[#F2F3F5]/60 rounded-lg text-[12px] text-[#5F6673]">
+                            <span className="font-semibold text-[#14161A] block mb-1">2. Configure Device Menu</span>
+                            Device Menu → Comm → Cloud Server. Set server to <code className="font-mono text-[11px] text-[#14161A]">imsportal.3ftech.in</code>, Port <code className="font-mono text-[11px] text-[#14161A]">443</code>, HTTPS ON.
+                        </div>
+                        <div className="p-3 bg-[#F2F3F5]/60 rounded-lg text-[12px] text-[#5F6673]">
+                            <span className="font-semibold text-[#14161A] block mb-1">3. Auto Sync &amp; Duty Checks</span>
+                            1st punch = Check-in; 2nd punch = Check-out. Late arrivals, early exits, and overtime compute automatically.
+                        </div>
+                    </div>
+                </section>
+
+                {/* Bottom Submit Action */}
+                <div className="flex justify-end pt-4 border-t border-[#E6E8EC]/80">
+                    <button
                         type="submit"
                         disabled={saving}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 text-base shadow-sm"
+                        className="h-8 px-4 rounded-lg bg-[#14161A] text-white hover:bg-black active:scale-[0.98] transition-all text-[13px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-none"
                     >
-                        {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                        Save Settings
-                    </Button>
+                        {saving ? (
+                            <>
+                                <Loader2 size={13} className="animate-spin text-white" />
+                                <span>Saving…</span>
+                            </>
+                        ) : saveSuccess ? (
+                            <>
+                                <Check size={14} className="text-emerald-400" />
+                                <span>Saved ✓</span>
+                            </>
+                        ) : (
+                            <span>Save settings</span>
+                        )}
+                    </button>
                 </div>
             </form>
         </div>
