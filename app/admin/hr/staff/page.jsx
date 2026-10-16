@@ -27,18 +27,16 @@ import {
     Loader2,
     Fingerprint
 } from "lucide-react";
+import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
-import Select from "@/components/ui/Select";
-import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import EmptyState from "@/components/shared/EmptyState";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { cn } from "@/lib/utils";
 import { PERMISSION_CATEGORIES, ALL_PERMISSIONS, hasUserPermission } from "@/lib/permissions";
+
+const SPRING_FAST = { type: "spring", stiffness: 400, damping: 30 };
 
 export default function StaffDirectoryPage() {
     const toast = useToast();
@@ -489,15 +487,15 @@ export default function StaffDirectoryPage() {
     const getRoleBadge = (role, allowLogin) => {
         switch (role) {
             case "admin":
-                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">Admin</span>;
+                return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-[#F2F3F5] text-[#14161A]">Admin</span>;
             case "instructor":
-                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Teaching Faculty</span>;
+                return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-[#F2F3F5] text-[#14161A]">Teaching faculty</span>;
             case "staff":
             default:
                 if (allowLogin !== false) {
-                    return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800">Office Staff</span>;
+                    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-[#F2F3F5] text-[#14161A]">Office staff</span>;
                 }
-                return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Support Staff</span>;
+                return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-[#F2F3F5] text-[#14161A]">Support staff</span>;
         }
     };
 
@@ -676,406 +674,294 @@ export default function StaffDirectoryPage() {
         );
     };
 
+    const filterTabs = [
+        { key: "all", label: "All", count: counts.all || 0 },
+        { key: "office_staff", label: "Office staff", count: counts.office_staff || 0 },
+        { key: "instructor", label: "Teaching faculty", count: counts.instructor || 0 },
+        { key: "admin", label: "Admins", count: counts.admin || 0 },
+        { key: "support_staff", label: "Support staff", count: counts.support_staff || 0 },
+    ];
+
     return (
-        <div className="space-y-6 w-full">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-5">
+        <div className="text-[#14161A] select-none min-h-[calc(100vh-64px)] pb-28 font-[-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif]">
+            {/* ── Page Header ────────────────────────────────────────────────────────── */}
+            <div className="pt-2 pb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E6E8EC]/80 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <Users className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
-                        Staff Directory & Payroll Accounts
+                    <h1 className="text-[22px] font-semibold text-[#14161A] tracking-[-0.015em] leading-tight m-0">
+                        Staff directory
                     </h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Track all teaching faculty, administrators, and non-teaching support staff (maids, drivers, helpers) for payroll and attendance.
+                    <p className="text-[13px] text-[#5F6673] mt-1 font-normal">
+                        Teaching faculty, administrators, and support staff for payroll and attendance.
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Button
+
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
                         onClick={() => handleOpenAddModal("support_staff")}
-                        variant="secondary"
-                        className="flex items-center gap-2 border-slate-300 dark:border-slate-700"
+                        className="h-8 px-3 rounded-lg border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] text-[13px] font-medium text-[#14161A] active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
                     >
-                        <HeartHandshake className="w-4 h-4 text-amber-600" />
-                        + Add Support Staff
-                    </Button>
-                    <Button
+                        <HeartHandshake size={14} className="text-[#5F6673]" />
+                        <span>Add support staff</span>
+                    </button>
+
+                    <button
+                        type="button"
                         onClick={() => handleOpenAddModal("office_staff")}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                        className="h-8 px-3.5 rounded-lg bg-[#14161A] text-white hover:bg-black active:scale-[0.98] transition-all text-[13px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-none shrink-0"
                     >
-                        <UserPlus className="w-4 h-4" />
-                        Add Staff Member
-                    </Button>
+                        <UserPlus size={14} />
+                        <span>Add staff member</span>
+                    </button>
                 </div>
             </div>
 
-            {/* KPI Stat Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <Card 
-                    onClick={() => handleRoleTabChange("all")}
-                    className={cn(
-                        "p-4 cursor-pointer transition-all border",
-                        roleFilter === "all" ? "border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm" : "hover:border-gray-300 dark:hover:border-gray-700"
-                    )}
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Staff</p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{counts.all || 0}</p>
-                        </div>
-                        <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
-                            <Users className="w-5 h-5" />
-                        </div>
-                    </div>
-                </Card>
+            {/* ── Filter & Search Bar ─────────────────────────────────────────────── */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-6">
+                {/* Segmented Control Filter */}
+                <div className="flex items-center bg-[#F2F3F5] p-1 rounded-lg gap-0.5 overflow-x-auto max-w-full">
+                    {filterTabs.map((tab) => {
+                        const isActive = roleFilter === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => handleRoleTabChange(tab.key)}
+                                className={cn(
+                                    "relative h-7 px-3 rounded-md text-[12px] font-medium transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer",
+                                    isActive 
+                                        ? "bg-white text-[#14161A] shadow-[0_1px_2px_rgba(0,0,0,0.06)]" 
+                                        : "text-[#5F6673] hover:text-[#14161A] hover:bg-white/40"
+                                )}
+                            >
+                                <span>{tab.label}</span>
+                                <span className={cn(
+                                    "text-[11px] tabular-nums font-normal",
+                                    isActive ? "text-[#14161A] font-medium" : "text-[#8A909C]"
+                                )}>
+                                    {tab.count}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
 
-                <Card 
-                    onClick={() => handleRoleTabChange("office_staff")}
-                    className={cn(
-                        "p-4 cursor-pointer transition-all border",
-                        roleFilter === "office_staff" ? "border-teal-500 ring-2 ring-teal-500/20 shadow-sm" : "hover:border-gray-300 dark:hover:border-gray-700"
-                    )}
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Office Staff</p>
-                            <p className="text-2xl font-bold text-teal-600 dark:text-teal-400 mt-1">{counts.office_staff || 0}</p>
-                        </div>
-                        <div className="p-2.5 bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-xl">
-                            <Building2 className="w-5 h-5" />
-                        </div>
+                {/* Search & Dropdowns */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5F6673]" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search name, phone…"
+                            className="w-52 h-8 pl-8 pr-3 text-[12px] bg-[#F2F3F5] hover:bg-[#EBECEF] focus:bg-white text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all placeholder:text-[#8A909C]"
+                        />
                     </div>
-                </Card>
 
-                <Card 
-                    onClick={() => handleRoleTabChange("instructor")}
-                    className={cn(
-                        "p-4 cursor-pointer transition-all border",
-                        roleFilter === "instructor" ? "border-blue-500 ring-2 ring-blue-500/20 shadow-sm" : "hover:border-gray-300 dark:hover:border-gray-700"
-                    )}
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Teaching Faculty</p>
-                            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">{counts.instructor || 0}</p>
-                        </div>
-                        <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
-                            <GraduationCap className="w-5 h-5" />
-                        </div>
-                    </div>
-                </Card>
+                    <select
+                        value={designationFilter}
+                        onChange={(e) => setDesignationFilter(e.target.value)}
+                        className="h-8 px-2.5 text-[12px] bg-[#F2F3F5] hover:bg-[#EBECEF] text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all cursor-pointer font-medium"
+                    >
+                        <option value="">All designations</option>
+                        {designations.map((d) => (
+                            <option key={d._id} value={d._id}>{d.name}</option>
+                        ))}
+                    </select>
 
-                <Card 
-                    onClick={() => handleRoleTabChange("admin")}
-                    className={cn(
-                        "p-4 cursor-pointer transition-all border",
-                        roleFilter === "admin" ? "border-purple-500 ring-2 ring-purple-500/20 shadow-sm" : "hover:border-gray-300 dark:hover:border-gray-700"
-                    )}
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Administrators</p>
-                            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">{counts.admin || 0}</p>
-                        </div>
-                        <div className="p-2.5 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl">
-                            <Shield className="w-5 h-5" />
-                        </div>
-                    </div>
-                </Card>
-
-                <Card 
-                    onClick={() => handleRoleTabChange("support_staff")}
-                    className={cn(
-                        "p-4 cursor-pointer transition-all border",
-                        roleFilter === "support_staff" ? "border-amber-500 ring-2 ring-amber-500/20 shadow-sm" : "hover:border-gray-300 dark:hover:border-gray-700"
-                    )}
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Support / Helpers</p>
-                            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{counts.support_staff || 0}</p>
-                        </div>
-                        <div className="p-2.5 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
-                            <HeartHandshake className="w-5 h-5" />
-                        </div>
-                    </div>
-                </Card>
+                    <select
+                        value={departmentFilter}
+                        onChange={(e) => setDepartmentFilter(e.target.value)}
+                        className="h-8 px-2.5 text-[12px] bg-[#F2F3F5] hover:bg-[#EBECEF] text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all cursor-pointer font-medium"
+                    >
+                        <option value="">All departments</option>
+                        {departments.map((dept) => (
+                            <option key={dept._id} value={dept._id}>{dept.name}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
-            {/* Filter and Search Bar */}
-            <Card className="p-4">
-                <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                    {/* Role Filter Tabs */}
-                    <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-full md:w-auto overflow-x-auto">
-                        <button
-                            onClick={() => handleRoleTabChange("all")}
-                            className={cn(
-                                "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
-                                roleFilter === "all"
-                                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xs"
-                                    : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                            )}
-                        >
-                            All ({counts.all || 0})
-                        </button>
-                        <button
-                            onClick={() => handleRoleTabChange("office_staff")}
-                            className={cn(
-                                "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
-                                roleFilter === "office_staff"
-                                    ? "bg-white dark:bg-gray-700 text-teal-600 dark:text-teal-400 shadow-xs"
-                                    : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                            )}
-                        >
-                            Office Staff ({counts.office_staff || 0})
-                        </button>
-                        <button
-                            onClick={() => handleRoleTabChange("instructor")}
-                            className={cn(
-                                "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
-                                roleFilter === "instructor"
-                                    ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-xs"
-                                    : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                            )}
-                        >
-                            Teaching Faculty ({counts.instructor || 0})
-                        </button>
-                        <button
-                            onClick={() => handleRoleTabChange("admin")}
-                            className={cn(
-                                "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
-                                roleFilter === "admin"
-                                    ? "bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-xs"
-                                    : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                            )}
-                        >
-                            Admins ({counts.admin || 0})
-                        </button>
-                        <button
-                            onClick={() => handleRoleTabChange("support_staff")}
-                            className={cn(
-                                "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
-                                roleFilter === "support_staff"
-                                    ? "bg-white dark:bg-gray-700 text-amber-600 dark:text-amber-400 shadow-xs"
-                                    : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                            )}
-                        >
-                            Support Staff ({counts.support_staff || 0})
-                        </button>
-                    </div>
-
-                    {/* Search & Designation Dropdown */}
-                    <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
-                        <div className="relative w-full sm:w-64">
-                            <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                            <Input
-                                placeholder="Search by name, phone..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="pl-9 text-xs"
-                            />
-                        </div>
-
-                        <select
-                            value={designationFilter}
-                            onChange={(e) => setDesignationFilter(e.target.value)}
-                            className="w-full sm:w-44 text-xs border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                            <option value="">All Designations</option>
-                            {designations.map((d) => (
-                                <option key={d._id} value={d._id}>{d.name}</option>
-                            ))}
-                        </select>
-
-                        <select
-                            value={departmentFilter}
-                            onChange={(e) => setDepartmentFilter(e.target.value)}
-                            className="w-full sm:w-44 text-xs border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                            <option value="">All Departments</option>
-                            {departments.map((dept) => (
-                                <option key={dept._id} value={dept._id}>{dept.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Staff List Table */}
+            {/* ── Staff List Table ────────────────────────────────────────────────── */}
             {loading ? (
-                <div className="flex h-64 items-center justify-center">
-                    <LoadingSpinner />
+                <div className="flex h-64 items-center justify-center gap-2 text-[13px] text-[#5F6673]">
+                    <Loader2 size={16} className="animate-spin text-[#14161A]" />
+                    <span>Loading staff directory…</span>
                 </div>
             ) : staffList.length === 0 ? (
-                <EmptyState
-                    icon={Users}
-                    title="No staff members found"
-                    description={search || roleFilter !== 'all' ? "Try clearing search or filters to see more results." : "Start by registering your institute's instructors, administrators, and support staff."}
-                    action={
-                        <Button onClick={() => handleOpenAddModal("staff")} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white">
-                            <UserPlus className="w-4 h-4 mr-2" />
-                            Add First Staff Member
-                        </Button>
-                    }
-                />
+                <div className="py-20 text-center">
+                    <p className="text-[14px] font-semibold text-[#14161A]">No staff members found</p>
+                    <p className="text-[12px] text-[#5F6673] mt-1 max-w-sm mx-auto">
+                        {search || roleFilter !== 'all' || designationFilter || departmentFilter 
+                            ? "Try clearing search or filters to see all staff members." 
+                            : "Get started by adding teaching faculty, administrators, or support staff."}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => handleOpenAddModal("office_staff")}
+                        className="mt-4 h-8 px-3.5 rounded-lg bg-[#14161A] text-white hover:bg-black text-[12px] font-medium inline-flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                        <UserPlus size={13} />
+                        <span>Add first staff member</span>
+                    </button>
+                </div>
             ) : (
-                <Card className="overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-                            <thead className="bg-gray-50 dark:bg-gray-800/60 text-xs uppercase font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800">
-                                <tr>
-                                    <th className="px-6 py-3.5">Staff Member</th>
-                                    <th className="px-6 py-3.5">Role & Designation</th>
-                                    <th className="px-6 py-3.5">Contact</th>
-                                    <th className="px-6 py-3.5">Portal Access</th>
-                                    <th className="px-6 py-3.5">Basic Salary</th>
-                                    <th className="px-6 py-3.5 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                                {staffList.map((member) => {
-                                    const fullName = `${member.profile?.firstName || ""} ${member.profile?.lastName || ""}`.trim() || "Staff Member";
-                                    const designationName = member.hrDetails?.designation?.name || "General Staff";
-                                    const isNonLogin = member.allowLogin === false;
-                                    const isSyntheticEmail = member.email?.endsWith("@ims.internal");
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-[#E6E8EC]/80 text-[11px] font-medium text-[#5F6673]">
+                                <th className="py-2.5 px-3">Staff member</th>
+                                <th className="py-2.5 px-3">Role &amp; designation</th>
+                                <th className="py-2.5 px-3">Contact</th>
+                                <th className="py-2.5 px-3">Access</th>
+                                <th className="py-2.5 px-3">Basic salary</th>
+                                <th className="py-2.5 px-3 text-right">
+                                    <span className="sr-only">Actions</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E6E8EC]/60">
+                            {staffList.map((member) => {
+                                const fullName = `${member.profile?.firstName || ""} ${member.profile?.lastName || ""}`.trim() || "Staff Member";
+                                const designationName = member.hrDetails?.designation?.name || "General Staff";
+                                const isNonLogin = member.allowLogin === false;
+                                const isSyntheticEmail = member.email?.endsWith("@ims.internal");
 
-                                    return (
-                                        <tr key={member._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    {member.profile?.avatar ? (
-                                                        <img
-                                                            src={member.profile.avatar}
-                                                            alt={fullName}
-                                                            className="w-10 h-10 rounded-full object-cover shrink-0 shadow-xs border border-gray-200 dark:border-gray-700"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-xs">
-                                                            {member.profile?.firstName?.[0]?.toUpperCase() || "S"}
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                                            {fullName}
-                                                            {member.enrollmentNumber && (
-                                                                <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400">
-                                                                    {member.enrollmentNumber}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-xs text-gray-400">
-                                                            Joined {member.hrDetails?.joiningDate ? new Date(member.hrDetails.joiningDate).toLocaleDateString() : "N/A"}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            <td className="px-6 py-4">
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                        {getRoleBadge(member.role, member.allowLogin)}
-                                                        {member.role === 'staff' && member.allowLogin !== false && Array.isArray(member.permissions) && member.permissions.length > 0 && (
-                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800" title={`Allowed modules: ${member.permissions.join(', ')}`}>
-                                                                {member.permissions.length} {member.permissions.length === 1 ? 'module' : 'modules'}
-                                                            </span>
-                                                        )}
-                                                        {member.department && (
-                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                                                {member.department.name}
-                                                            </span>
-                                                        )}
-                                                        {member.hrDetails?.biometricId && (
-                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border border-violet-200 dark:border-violet-800" title="Biometric Device Punch ID">
-                                                                <Fingerprint className="w-2.5 h-2.5 text-violet-600" /> {member.hrDetails.biometricId}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                                        {designationName}
-                                                    </p>
-                                                </div>
-                                            </td>
-
-                                            <td className="px-6 py-4">
-                                                <div className="text-xs space-y-1">
-                                                    {member.profile?.phone ? (
-                                                        <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-300">
-                                                            <Phone className="w-3.5 h-3.5 text-gray-400" />
-                                                            {member.profile.phone}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-gray-400">No phone</span>
-                                                    )}
-                                                    {!isSyntheticEmail ? (
-                                                        <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 truncate max-w-xs">
-                                                            <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                                            <span className="truncate">{member.email}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-[11px] text-slate-400 italic">No external email</span>
-                                                    )}
-                                                </div>
-                                            </td>
-
-                                            <td className="px-6 py-4">
-                                                {isNonLogin ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                                        Payroll Only
-                                                    </span>
+                                return (
+                                    <tr key={member._id} className="h-14 hover:bg-[#F2F3F5]/50 transition-colors group">
+                                        {/* Staff Member */}
+                                        <td className="py-2 px-3">
+                                            <div className="flex items-center gap-2.5">
+                                                {member.profile?.avatar ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
+                                                        src={member.profile.avatar}
+                                                        alt={fullName}
+                                                        className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#E6E8EC]"
+                                                    />
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                        Portal Login
-                                                    </span>
+                                                    <div className="w-8 h-8 rounded-full bg-[#F2F3F5] text-[#14161A] border border-[#E6E8EC] flex items-center justify-center font-medium text-[12px] shrink-0">
+                                                        {member.profile?.firstName?.[0]?.toUpperCase() || "S"}
+                                                    </div>
                                                 )}
-                                            </td>
-
-                                            <td className="px-6 py-4">
-                                                <div className="font-semibold text-gray-900 dark:text-white">
-                                                    ₹{Number(member.hrDetails?.basicSalary || 0).toLocaleString()}
-                                                </div>
-                                                <span className="text-[10px] text-gray-400">Basic / month</span>
-                                            </td>
-
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleOpenEditModal(member)}
-                                                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-xs font-semibold"
-                                                        title="Edit Staff Member & Department"
-                                                    >
-                                                        <Edit3 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                                                        Edit
-                                                    </Button>
-                                                    <Link href={`/admin/hr/staff/${member._id}`}>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="primary"
-                                                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white shadow-xs border border-slate-900"
+                                                <div className="min-w-0">
+                                                    <div className="text-[13px] font-medium text-[#14161A] truncate flex items-center gap-1.5">
+                                                        <Link 
+                                                            href={`/admin/hr/staff/${member._id}`}
+                                                            className="hover:underline text-[#14161A]"
                                                         >
-                                                            <Eye className="w-3.5 h-3.5 text-slate-300" />
-                                                            Profile & Payroll
-                                                        </Button>
-                                                    </Link>
-
-                                                    <button
-                                                        onClick={() => handleDeleteStaff(member._id, fullName)}
-                                                        className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                                                        title="Remove staff member"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                            {fullName}
+                                                        </Link>
+                                                        {member.enrollmentNumber && (
+                                                            <span className="text-[10px] font-mono text-[#5F6673] px-1 py-0.5 rounded bg-[#F2F3F5]">
+                                                                {member.enrollmentNumber}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[11px] text-[#5F6673] truncate">
+                                                        {member.hrDetails?.joiningDate 
+                                                            ? `Joined ${new Date(member.hrDetails.joiningDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` 
+                                                            : "Joined N/A"}
+                                                    </div>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
+                                            </div>
+                                        </td>
+
+                                        {/* Role & Designation */}
+                                        <td className="py-2 px-3">
+                                            <div className="min-w-0 space-y-0.5">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    {getRoleBadge(member.role, member.allowLogin)}
+                                                    {member.department?.name && (
+                                                        <span className="text-[11px] text-[#5F6673]">
+                                                            · {member.department.name}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-[12px] text-[#5F6673] truncate flex items-center gap-1.5">
+                                                    <span>{designationName}</span>
+                                                    {member.hrDetails?.biometricId && (
+                                                        <span className="inline-flex items-center gap-0.5 text-[10px] font-mono text-[#5F6673] bg-[#F2F3F5] px-1 rounded" title="Biometric ID">
+                                                            <Fingerprint size={10} className="text-[#5F6673]" />
+                                                            <span>{member.hrDetails.biometricId}</span>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        {/* Contact */}
+                                        <td className="py-2 px-3">
+                                            <div className="min-w-0 text-[12px] space-y-0.5">
+                                                <div className="text-[#14161A] tabular-nums">
+                                                    {member.profile?.phone || "—"}
+                                                </div>
+                                                <div className="text-[11px] text-[#5F6673] truncate max-w-[190px]">
+                                                    {!isSyntheticEmail ? member.email : "—"}
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        {/* Access */}
+                                        <td className="py-2 px-3">
+                                            {isNonLogin ? (
+                                                <span className="inline-flex items-center gap-1.5 text-[12px] text-[#5F6673]">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#8A909C]" />
+                                                    <span>Payroll only</span>
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1.5 text-[12px] text-[#14161A]">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#0E8A7D]" />
+                                                    <span>Portal login</span>
+                                                </span>
+                                            )}
+                                        </td>
+
+                                        {/* Basic Salary */}
+                                        <td className="py-2 px-3">
+                                            <div className="text-[13px] font-medium text-[#14161A] tabular-nums">
+                                                ₹{Number(member.hrDetails?.basicSalary || 0).toLocaleString()}
+                                                <span className="text-[11px] text-[#5F6673] font-normal ml-1">/ mo</span>
+                                            </div>
+                                        </td>
+
+                                        {/* Actions */}
+                                        <td className="py-2 px-3 text-right">
+                                            <div className="inline-flex items-center justify-end gap-1">
+                                                <Link
+                                                    href={`/admin/hr/staff/${member._id}`}
+                                                    className="h-7 px-2.5 text-[12px] font-medium rounded-md border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] text-[#14161A] inline-flex items-center gap-1 transition-all"
+                                                >
+                                                    <Eye size={12} className="text-[#5F6673]" />
+                                                    <span>Profile &amp; payroll</span>
+                                                </Link>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenEditModal(member)}
+                                                    className="h-7 w-7 rounded-md hover:bg-[#F2F3F5] text-[#5F6673] hover:text-[#14161A] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 inline-flex items-center justify-center transition-all cursor-pointer"
+                                                    title="Edit staff details"
+                                                >
+                                                    <Edit3 size={13} />
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteStaff(member._id, fullName)}
+                                                    className="h-7 w-7 rounded-md hover:bg-rose-50 text-[#5F6673] hover:text-[#DC2626] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 inline-flex items-center justify-center transition-all cursor-pointer"
+                                                    title="Remove staff member"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             )}
 
             {/* Add Staff Member Modal */}
