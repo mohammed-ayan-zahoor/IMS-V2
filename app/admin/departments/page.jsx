@@ -18,9 +18,7 @@ import {
     Clock
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
@@ -29,7 +27,6 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 export default function DepartmentsPage() {
     const { data: session } = useSession();
     const isCollege = session?.user?.institute?.type === 'COLLEGE';
-    const isSuperAdmin = session?.user?.role === 'super_admin';
     const toast = useToast();
     const confirm = useConfirm();
 
@@ -209,248 +206,204 @@ export default function DepartmentsPage() {
     }, [departments]);
 
     return (
-        <div className="space-y-6 w-full">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="text-[#14161A] select-none min-h-[calc(100vh-64px)] pb-28 font-[-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif]">
+            {/* ── Page Header ────────────────────────────────────────────────────────── */}
+            <div className="pt-2 pb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E6E8EC]/80 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-                        <Building2 className="text-blue-600" size={26} />
-                        {isCollege ? "Academic Departments & Shifts" : "Staff Departments & Shifts"}
+                    <h1 className="text-[22px] font-semibold text-[#14161A] tracking-[-0.015em] leading-tight m-0">
+                        {isCollege ? "Academic departments & shifts" : "Staff departments & shifts"}
                     </h1>
-                    <p className="text-sm text-slate-500 mt-1">
+                    <p className="text-[13px] text-[#5F6673] mt-1 font-normal">
                         {isCollege
-                            ? "Manage academic faculties, assign Heads of Department (HODs), and configure faculty shifts."
-                            : "Organize staff into functional departments (Teaching, Admin, Transport, Security) and configure login & logout shift timings."}
+                            ? "Academic faculties, assigned Heads of Department (HODs), and faculty shifts."
+                            : "Functional departments and shift schedules for staff check-in and check-out."}
                     </p>
                 </div>
-                <Button 
-                    onClick={openAddModal} 
-                    className="flex items-center gap-2 shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
+
+                <button
+                    type="button"
+                    onClick={openAddModal}
+                    className="h-8 px-3.5 rounded-lg bg-[#14161A] text-white hover:bg-black active:scale-[0.98] transition-all text-[13px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-none shrink-0"
                 >
-                    <Plus size={16} />
-                    Add Department
-                </Button>
+                    <Plus size={14} />
+                    <span>Add department</span>
+                </button>
             </div>
 
-            {/* Stat Bento Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Card className="p-4 border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <Building2 className="text-blue-600" size={22} />
-                        <div>
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Departments</p>
-                            <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.total}</p>
-                        </div>
-                    </div>
-                </Card>
-                <Card className="p-4 border-slate-200">
-                    <div className="flex items-center gap-3">
-                        {isCollege ? (
-                            <>
-                                <UserCheck className="text-emerald-600" size={22} />
-                                <div>
-                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Assigned HODs</p>
-                                    <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.withHod} <span className="text-xs text-slate-400 font-normal">/ {stats.total}</span></p>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <Users className="text-emerald-600" size={22} />
-                                <div>
-                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Assigned Staff</p>
-                                    <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.totalStaff}</p>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </Card>
-                <Card className="p-4 border-slate-200">
-                    <div className="flex items-center gap-3">
-                        {isCollege ? (
-                            <>
-                                <BookOpen className="text-indigo-600" size={22} />
-                                <div>
-                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Department Programs</p>
-                                    <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.totalCourses}</p>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <Clock className="text-indigo-600" size={22} />
-                                <div>
-                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Custom Shift Hours</p>
-                                    <p className="text-2xl font-bold text-slate-900 mt-0.5">{stats.customShifts}</p>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </Card>
-            </div>
+            {/* ── Filter / Search Bar ─────────────────────────────────────────────── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                <div className="flex items-center gap-2">
+                    <span className="text-[12px] font-medium text-[#5F6673]">
+                        {stats.total} {stats.total === 1 ? "department" : "departments"}
+                    </span>
+                    {stats.customShifts > 0 && (
+                        <>
+                            <span className="text-[#E6E8EC]">·</span>
+                            <span className="text-[12px] text-[#5F6673]">
+                                {stats.customShifts} with custom shifts
+                            </span>
+                        </>
+                    )}
+                </div>
 
-            {/* Search & Actions Bar */}
-            <div className="flex items-center gap-3">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <div className="relative">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5F6673]" />
                     <input
                         type="text"
-                        placeholder="Search departments by name, code (e.g. CSE), or HOD..."
+                        placeholder="Search departments, code, HOD…"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="w-full sm:w-64 h-8 pl-8 pr-3 text-[12px] bg-[#F2F3F5] hover:bg-[#EBECEF] focus:bg-white text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all placeholder:text-[#8A909C]"
                     />
                 </div>
             </div>
 
-            {/* Department List Grid */}
+            {/* ── Department List ─────────────────────────────────────────────────── */}
             {loading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="animate-spin text-blue-600 mb-3" size={32} />
-                    <p className="text-sm text-slate-500">Loading departments...</p>
+                <div className="flex h-64 items-center justify-center gap-2 text-[13px] text-[#5F6673]">
+                    <Loader2 size={16} className="animate-spin text-[#14161A]" />
+                    <span>Loading departments…</span>
                 </div>
             ) : filteredDepartments.length === 0 ? (
-                <Card className="p-12 text-center border-dashed border-slate-300">
-                    <Building2 className="mx-auto text-slate-400 mb-3" size={40} />
-                    <h3 className="text-base font-bold text-slate-800">No departments found</h3>
-                    <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-                        {searchQuery ? "No departments match your search query." : "Get started by adding your institution's academic faculties (e.g. Computer Science, Mechanical Engineering, Commerce)."}
+                <div className="py-20 text-center">
+                    <p className="text-[14px] font-semibold text-[#14161A]">No departments found</p>
+                    <p className="text-[12px] text-[#5F6673] mt-1 max-w-sm mx-auto">
+                        {searchQuery 
+                            ? "No departments match your search query." 
+                            : isCollege 
+                            ? "Get started by adding your institution's academic faculties." 
+                            : "Get started by creating staff departments (Teaching, Admin, Transport, Security)."}
                     </p>
                     {!searchQuery && (
-                        <Button 
-                            onClick={openAddModal} 
-                            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                        <button
+                            type="button"
+                            onClick={openAddModal}
+                            className="mt-4 h-8 px-3.5 rounded-lg bg-[#14161A] text-white hover:bg-black text-[12px] font-medium inline-flex items-center gap-1.5 transition-all cursor-pointer"
                         >
-                            <Plus size={16} className="mr-1.5" />
-                            Create First Department
-                        </Button>
+                            <Plus size={13} />
+                            <span>Create first department</span>
+                        </button>
                     )}
-                </Card>
+                </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {filteredDepartments.map((dept) => {
-                        const hodName = dept.hod?.profile 
-                            ? `${dept.hod.profile.firstName} ${dept.hod.profile.lastName}`.trim() 
-                            : null;
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-[#E6E8EC]/80 text-[11px] font-medium text-[#5F6673]">
+                                <th className="py-2.5 px-3">Department</th>
+                                <th className="py-2.5 px-3">Code</th>
+                                <th className="py-2.5 px-3">Shift schedule</th>
+                                {isCollege && <th className="py-2.5 px-3">Head of department</th>}
+                                <th className="py-2.5 px-3">{isCollege ? "Faculty & programs" : "Assigned staff"}</th>
+                                <th className="py-2.5 px-3 text-right">
+                                    <span className="sr-only">Actions</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E6E8EC]/60">
+                            {filteredDepartments.map((dept) => {
+                                const hodName = dept.hod?.profile 
+                                    ? `${dept.hod.profile.firstName} ${dept.hod.profile.lastName}`.trim() 
+                                    : null;
 
-                        return (
-                            <Card 
-                                key={dept._id}
-                                className="p-5 border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all flex flex-col justify-between"
-                            >
-                                <div>
-                                    {/* Card Header: Code Badge + Status + Actions */}
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="px-2.5 py-1 text-xs font-bold rounded-md bg-blue-50 text-blue-700 border border-blue-200/60">
+                                return (
+                                    <tr key={dept._id} className="h-14 hover:bg-[#F2F3F5]/50 transition-colors group">
+                                        {/* Department Name & Description */}
+                                        <td className="py-2.5 px-3">
+                                            <div className="min-w-0">
+                                                <div className="text-[13px] font-medium text-[#14161A] truncate flex items-center gap-2">
+                                                    <span>{dept.name}</span>
+                                                    {dept.establishedYear && (
+                                                        <span className="text-[11px] text-[#5F6673] font-normal">
+                                                            (Est. {dept.establishedYear})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {dept.description && (
+                                                    <p className="text-[11px] text-[#5F6673] truncate max-w-md mt-0.5">
+                                                        {dept.description}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </td>
+
+                                        {/* Code */}
+                                        <td className="py-2.5 px-3">
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-[#F2F3F5] text-[#14161A]">
                                                 {dept.code}
                                             </span>
-                                            {dept.establishedYear && (
-                                                <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                                                    <Calendar size={12} />
-                                                    Est. {dept.establishedYear}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={() => openEditModal(dept)}
-                                                className="p-1.5 text-slate-400 hover:text-blue-600 rounded-md hover:bg-slate-100 transition-colors"
-                                                title="Edit Department"
-                                            >
-                                                <Pencil size={15} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(dept)}
-                                                className="p-1.5 text-slate-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-colors"
-                                                title="Delete Department"
-                                            >
-                                                <Trash2 size={15} />
-                                            </button>
-                                        </div>
-                                    </div>
+                                        </td>
 
-                                    {/* Department Name & Description */}
-                                    <h3 className="text-base font-bold text-slate-900 mt-3 leading-snug">
-                                        {dept.name}
-                                    </h3>
-                                    {dept.description && (
-                                        <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
-                                            {dept.description}
-                                        </p>
-                                    )}
-
-                                    {/* Shift Timings Badge */}
-                                    <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700">
-                                        <Clock size={13} className={dept.shiftTimings?.useCustomShift ? "text-indigo-600" : "text-slate-400"} />
-                                        {dept.shiftTimings?.useCustomShift ? (
-                                            <span>
-                                                Shift: <span className="font-bold text-slate-900">{dept.shiftTimings.shiftStart} - {dept.shiftTimings.shiftEnd}</span>
-                                                <span className="text-[10px] text-slate-500 ml-1">({dept.shiftTimings.checkInGraceMins ?? 15}m grace)</span>
-                                            </span>
-                                        ) : (
-                                            <span className="text-slate-500 font-normal">
-                                                Shift: <span className="font-medium text-slate-700">Institute Default</span>
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* HOD Profile Section (Colleges only) */}
-                                    {isCollege && (
-                                        <div className="mt-4 pt-3.5 border-t border-slate-100">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                Head of Department (HOD)
-                                            </p>
-                                            {hodName ? (
-                                                <div className="flex items-center gap-2.5 mt-1.5">
-                                                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
-                                                        {dept.hod.profile?.firstName?.[0] || 'H'}
+                                        {/* Shift Schedule */}
+                                        <td className="py-2.5 px-3">
+                                            {dept.shiftTimings?.useCustomShift ? (
+                                                <div className="text-[12px] text-[#14161A] tabular-nums space-y-0.5">
+                                                    <div className="font-medium flex items-center gap-1.5">
+                                                        <Clock size={12} className="text-[#5F6673]" />
+                                                        <span>{dept.shiftTimings.shiftStart} – {dept.shiftTimings.shiftEnd}</span>
                                                     </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-xs font-semibold text-slate-800 truncate">
-                                                            {hodName}
-                                                        </p>
-                                                        <p className="text-[11px] text-slate-500 truncate flex items-center gap-1">
-                                                            <Mail size={10} />
-                                                            {dept.hod.email}
-                                                        </p>
+                                                    <div className="text-[11px] text-[#5F6673]">
+                                                        {dept.shiftTimings.checkInGraceMins ?? 15}m grace
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <p className="text-xs text-slate-400 italic mt-1.5">
-                                                    No HOD assigned
-                                                </p>
+                                                <span className="text-[12px] text-[#5F6673]">
+                                                    Institute default
+                                                </span>
                                             )}
-                                        </div>
-                                    )}
-                                </div>
+                                        </td>
 
-                                {/* Bottom Metrics Footer */}
-                                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                                    {isCollege ? (
-                                        <>
-                                            <span className="flex items-center gap-1.5 font-medium">
-                                                <GraduationCap size={14} className="text-slate-400" />
-                                                {dept.courseCount || 0} Programs
-                                            </span>
-                                            <span className="flex items-center gap-1.5 font-medium">
-                                                <Users size={14} className="text-slate-400" />
-                                                {dept.facultyCount || 0} Faculty
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                                                <Users size={14} className="text-slate-400" />
-                                                {dept.facultyCount || 0} Staff Members
-                                            </span>
-                                            <span className="text-[11px] text-slate-400">
-                                                {dept.shiftTimings?.useCustomShift ? "Custom Shift" : "Default Shift"}
-                                            </span>
-                                        </>
-                                    )}
-                                </div>
-                            </Card>
-                        );
-                    })}
+                                        {/* HOD Profile (College mode) */}
+                                        {isCollege && (
+                                            <td className="py-2.5 px-3">
+                                                {hodName ? (
+                                                    <div className="text-[12px] space-y-0.5">
+                                                        <div className="font-medium text-[#14161A] truncate max-w-[160px]">{hodName}</div>
+                                                        <div className="text-[11px] text-[#5F6673] truncate max-w-[160px]">{dept.hod.email}</div>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[12px] text-[#5F6673] italic">Unassigned</span>
+                                                )}
+                                            </td>
+                                        )}
+
+                                        {/* Staff / Faculty Metrics */}
+                                        <td className="py-2.5 px-3">
+                                            <div className="text-[12px] text-[#14161A] tabular-nums">
+                                                {isCollege ? (
+                                                    <span>{dept.facultyCount || 0} faculty · {dept.courseCount || 0} programs</span>
+                                                ) : (
+                                                    <span>{dept.facultyCount || 0} {dept.facultyCount === 1 ? "member" : "members"}</span>
+                                                )}
+                                            </div>
+                                        </td>
+
+                                        {/* Actions */}
+                                        <td className="py-2.5 px-3 text-right">
+                                            <div className="inline-flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditModal(dept)}
+                                                    className="h-7 w-7 rounded-md hover:bg-[#F2F3F5] text-[#5F6673] hover:text-[#14161A] inline-flex items-center justify-center transition-colors cursor-pointer"
+                                                    title="Edit department"
+                                                >
+                                                    <Pencil size={13} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDelete(dept)}
+                                                    className="h-7 w-7 rounded-md hover:bg-rose-50 text-[#5F6673] hover:text-[#DC2626] inline-flex items-center justify-center transition-colors cursor-pointer"
+                                                    title="Delete department"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             )}
 
