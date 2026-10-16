@@ -6,6 +6,8 @@ import User from "@/models/User";
 import Batch from "@/models/Batch";
 import Course from "@/models/Course";
 import mongoose from "mongoose";
+import crypto from "crypto";
+import Membership from "@/models/Membership";
 import AuditLog from "@/models/AuditLog";
 import { StudentService } from "@/services/studentService";
 import bcrypt from "bcryptjs";
@@ -61,6 +63,56 @@ export async function PATCH(req, { params }) {
                 return NextResponse.json({ error: "Insufficient permissions to assign super_admin role" }, { status: 403 });
             }
             user.role = body.role;
+
+            const callerInstituteId = session.user.institute?.id || session.user.instituteId || session.user.institute?._id || (typeof session.user.institute === 'string' ? session.user.institute : null);
+            if (callerInstituteId) {
+                await Membership.findOneAndUpdate(
+                    { user: user._id, institute: callerInstituteId },
+                    { role: body.role, isActive: true },
+                    { upsert: true }
+                );
+            }
+        }
+
+        // Handle Email Update
+        if (body.email !== undefined && body.email !== null) {
+            const rawEmail = String(body.email).trim().toLowerCase();
+            const isStaffNoLogin = (body.allowLogin === false || (body.allowLogin === undefined && user.allowLogin === false)) && (body.role === 'staff' || (!body.role && user.role === 'staff'));
+
+            if (!rawEmail && isStaffNoLogin) {
+                if (!user.email) {
+                    const uniquePart = crypto.randomBytes(4).toString('hex');
+                    user.email = `staff.${Date.now()}.${uniquePart}@ims.internal`;
+                }
+            } else {
+                if (!/^\S+@\S+\.\S+$/.test(rawEmail)) {
+                    return NextResponse.json({ error: "Please enter a valid email address" }, { status: 400 });
+                }
+
+                if (rawEmail !== user.email) {
+                    const existingUser = await User.findOne({
+                        _id: { $ne: user._id },
+                        email: rawEmail,
+                        deletedAt: null
+                    });
+                    if (existingUser) {
+                        return NextResponse.json({ error: "A user with this email address already exists" }, { status: 400 });
+                    }
+                    user.email = rawEmail;
+                }
+            }
+        }
+
+        // Handle Allow Login Update
+        if (body.allowLogin !== undefined) {
+            user.allowLogin = !!body.allowLogin;
+        }
+
+        // Guard: cannot enable login access if email is still an internal synthetic placeholder
+        if (user.allowLogin && user.email?.endsWith("@ims.internal")) {
+            return NextResponse.json({
+                error: "Please assign a valid email address before enabling portal login."
+            }, { status: 400 });
         }
 
         // Handle Profile Update

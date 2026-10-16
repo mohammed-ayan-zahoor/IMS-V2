@@ -102,6 +102,25 @@ export async function PATCH(req, { params }) {
             updates.scholarship = body.scholarship;
         }
 
+        // Email update
+        if (body.email !== undefined && body.email !== null) {
+            const rawEmail = String(body.email).trim().toLowerCase();
+            if (!/^\S+@\S+\.\S+$/.test(rawEmail)) {
+                return NextResponse.json({ error: "Please enter a valid email address" }, { status: 400 });
+            }
+            if (rawEmail !== oldStudent.email) {
+                const existingUser = await User.findOne({
+                    _id: { $ne: oldStudent._id },
+                    email: rawEmail,
+                    deletedAt: null
+                });
+                if (existingUser) {
+                    return NextResponse.json({ error: "A user with this email address already exists" }, { status: 400 });
+                }
+                updates.email = rawEmail;
+            }
+        }
+
         // Add support for advanced metadata fields
         const directFields = [
             'grNumber', 'studentIdUdise', 'aadharNumber', 'apaarId', 'penNumber', 'statsNo',
