@@ -113,7 +113,9 @@ export async function GET(req) {
             upcomingExams,
             recentMaterials,
             materialsDetailsCount,
-            progressRecords
+            progressRecords,
+            studentUser,
+            batchesWithCourses
         ] = await Promise.all([
             // Attendance Total - all non-holiday sessions for this student
             Attendance.countDocuments({
@@ -144,20 +146,20 @@ export async function GET(req) {
                 _id: { $nin: submittedExamIds }
             })
                 .sort({ scheduledAt: 1 })
-                .limit(2)
-                .select('title scheduledAt duration passingMarks'),
+                .limit(4)
+                .select('title scheduledAt duration passingMarks totalMarks'),
             // Recent Materials
             Material.find(materialFilter)
                 .sort({ createdAt: -1 })
-                .limit(3)
+                .limit(4)
                 .populate('course', 'name'),
             // Total Materials Count
             Material.countDocuments(materialFilter),
-            // Syllabus Progress (Top 3)
+            // Syllabus Progress (Top 4)
             BatchSyllabusProgress.find({ batch: { $in: batchIds } })
                 .populate('subject', 'name code')
                 .sort({ overallProgress: -1 })
-                .limit(3),
+                .limit(4),
             // Student User record for profile card
             User.findById(studentObjId)
                 .select("fullName email profile enrollmentNumber grNumber guardianDetails")
@@ -171,7 +173,7 @@ export async function GET(req) {
         const syllabusProgress = progressRecords.map(r => ({
             subject: r.subject?.name,
             code: r.subject?.code,
-            progress: r.overallProgress
+            progress: r.overallProgress || 0
         }));
 
         const attendancePercentage = totalAttendanceSessions > 0
@@ -180,103 +182,31 @@ export async function GET(req) {
 
         const studentProfile = {
             name: studentUser?.fullName || (studentUser?.profile?.firstName ? `${studentUser.profile.firstName} ${studentUser.profile.lastName || ""}`.trim() : session.user.name),
-            enrollmentNumber: studentUser?.enrollmentNumber || studentUser?.grNumber || "STU-005",
+            enrollmentNumber: studentUser?.enrollmentNumber || studentUser?.grNumber || "",
             avatar: studentUser?.profile?.avatar || session.user.image || null,
             email: studentUser?.email || session.user.email || "",
-            phone: studentUser?.profile?.phone || studentUser?.guardianDetails?.phone || "+91 98765 43210",
+            phone: studentUser?.profile?.phone || studentUser?.guardianDetails?.phone || "",
             address: studentUser?.profile?.address
                 ? [studentUser.profile.address.street, studentUser.profile.address.city, studentUser.profile.address.state, studentUser.profile.address.pincode].filter(Boolean).join(", ")
-                : "Campus Resident, Academic Block A",
+                : "",
             status: "Active",
-            courseName: batchesWithCourses?.[0]?.course?.name || "Senior Secondary Curriculum",
-            batchName: batchesWithCourses?.[0]?.name || "Class A",
-            awards: [
-                { id: "a1", title: "Top Performer in Science Quiz", year: "2025" },
-                { id: "a2", title: "100% Attendance Distinction", year: "2024" }
-            ]
-        };
-
-        // 7-day Learning Activity distribution (hours spent in class, quiz, and self-study)
-        const learningActivity = [
-            { day: "Mon", classHours: 3.5, quizHours: 1.5, selfHours: 1.0 },
-            { day: "Tue", classHours: 4.0, quizHours: 1.0, selfHours: 1.5 },
-            { day: "Wed", classHours: 2.5, quizHours: 2.0, selfHours: 1.0 },
-            { day: "Thu", classHours: 4.5, quizHours: 1.0, selfHours: 2.0 },
-            { day: "Fri", classHours: 3.0, quizHours: 1.5, selfHours: 1.5 },
-            { day: "Sat", classHours: 2.0, quizHours: 1.0, selfHours: 0.5 },
-            { day: "Sun", classHours: 1.0, quizHours: 0.5, selfHours: 1.5 }
-        ];
-
-        const performance = {
-            overallScore: attendancePercentage > 0 ? Math.min(95, Math.max(70, attendancePercentage)) : 80,
-            participation: attendancePercentage || 85,
-            quizScore: 78,
-            examScore: 88,
-            monthlyTrend: [
-                { month: "Jan", score: 72 },
-                { month: "Feb", score: 76 },
-                { month: "Mar", score: 79 },
-                { month: "Apr", score: 81 },
-                { month: "May", score: 84 },
-                { month: "Jun", score: 88 }
-            ],
-            quote: "Success is the sum of small efforts, repeated day in and day out."
+            courseName: batchesWithCourses?.[0]?.course?.name || "",
+            batchName: batchesWithCourses?.[0]?.name || ""
         };
 
         const enrolledCourses = (batchesWithCourses && batchesWithCourses.length > 0)
-            ? batchesWithCourses.map((b, idx) => {
-                const prog = syllabusProgress[idx]?.progress ?? (idx === 0 ? 80 : 65);
+            ? batchesWithCourses.map((b) => {
+                const prog = syllabusProgress.find(sp => sp.code === b.course?.code)?.progress ?? 0;
                 return {
                     id: b._id.toString(),
                     title: b.course?.name || b.name,
-                    code: b.course?.code || `CRS-00${idx + 1}`,
-                    category: "Academics",
-                    lessons: 20 + idx * 4,
-                    durationHours: 30 + idx * 5,
+                    code: b.course?.code || "",
+                    category: b.course?.category || "Academics",
                     progress: Math.round(prog),
-                    status: prog >= 100 ? "Completed" : "Ongoing",
-                    score: prog >= 100 ? 92 : 78 + (idx * 4),
-                    certificate: prog >= 100 ? "Olympiad" : "In Progress"
+                    status: prog >= 100 ? "Completed" : "Ongoing"
                 };
             })
-            : [
-                {
-                    id: "c1",
-                    title: "Advanced Mathematics & Calculus",
-                    code: "MATH-101",
-                    category: "Core STEM",
-                    lessons: 24,
-                    durationHours: 36,
-                    progress: 80,
-                    status: "Ongoing",
-                    score: 84,
-                    certificate: "In Progress"
-                },
-                {
-                    id: "c2",
-                    title: "Physics & Mechanics",
-                    code: "PHYS-201",
-                    category: "Core Science",
-                    lessons: 18,
-                    durationHours: 28,
-                    progress: 100,
-                    status: "Completed",
-                    score: 92,
-                    certificate: "Olympiad"
-                },
-                {
-                    id: "c3",
-                    title: "English Literature & Composition",
-                    code: "ENG-104",
-                    category: "Humanities",
-                    lessons: 15,
-                    durationHours: 22,
-                    progress: 65,
-                    status: "Ongoing",
-                    score: 76,
-                    certificate: "In Progress"
-                }
-            ];
+            : [];
 
         return NextResponse.json({
             attendance: attendancePercentage,
@@ -286,8 +216,6 @@ export async function GET(req) {
             recentMaterials,
             syllabusProgress,
             studentProfile,
-            learningActivity,
-            performance,
             enrolledCourses
         });
 
